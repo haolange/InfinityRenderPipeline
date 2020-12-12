@@ -1,0 +1,30 @@
+{
+    "name": "Unity.RenderPipelines.HighDefinition.Editor",
+    "references": [
+        "Unity.Burst.Editor",
+        "Unity.Mathematics",
+        "Unity.Mathematics.Editor",
+        "Unity.ShaderGraph.Editor",
+        "Unity.VisualEffectGraph.Editor",
+        "Unity.RenderPipelines.Core.Editor",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.HighDefinition.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.render-pipelines.infinity",
+            "expression": "0.0.0",
+            "define": "InfinityRenderPipeline"
+        }
+    ],
+    "noEngineReferences": false
+}

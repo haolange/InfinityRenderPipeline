@@ -1,0 +1,167 @@
+﻿#include "../../../../../Shaders/Private/BSDF.hlsl"
+#include "../../../../../Shaders/Private/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+
+float4x4 Matrix_Proj, Matrix_InvProj, Matrix_InvViewProj, Matrix_WorldToView;
+Texture2D SRV_PyramidColor, SRV_PyramidDepth, SRV_SceneDepth, SRV_GBufferRoughness, SRV_GBufferNormal;
+
+
+///TracingPass
+int SSR_NumRays, SSR_NumSteps, SSR_FrameIndex;
+float SSR_BRDFBias, SSR_Thickness, SSR_Fadeness, SSR_RoughnessDiscard, ColorPyramidNumLOD;
+float4 SSR_TraceResolution;
+RWTexture2D<float4> UAV_ReflectionUWVPDF;
+RWTexture2D<float4> UAV_ReflectionColorMask;
+
+/*#pragma kernel Raytracing_ScreenTrace
+[numthreads(16, 16, 1)]
+void Raytracing_ScreenTrace(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GroupIndex)
+{
+    float2 UV = (id.xy + 0.5) * SSR_TraceResolution.zw;
+    uint2 PixelPosition = uint2(UV.xy * SSR_TraceResolution.xy);
+
+    float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
+    if (SceneDepth <= 1e-7) {
+        UAV_ReflectionUWVPDF[id.xy] = 0;
+        UAV_ReflectionColorMask[id.xy] = 0;
+        return;
+    }
+    float Roughness = SRV_GBufferRoughness.SampleLevel(Global_point_clamp_sampler, UV, 0).a;
+    Roughness = clamp(1 - Roughness, 0.02, 1);
+    if (Roughness > SSR_RoughnessDiscard) {
+        UAV_ReflectionUWVPDF[id.xy] = 0;
+        UAV_ReflectionColorMask[id.xy] = 0;
+        return;
+    }
+    float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
+    float3 ViewNormal = mul( (float3x3)Matrix_WorldToView, WorldNormal );
+    float3 ScreenSpacePos = GetScreenSpacePos(UV, SceneDepth);
+    float3 WorldSpacePos = GetWorldSpacePos(ScreenSpacePos, Matrix_InvViewProj);
+    float3 ViewSpacePos = GetViewSpacePos(ScreenSpacePos, Matrix_InvProj);
+    float3 ViewSpaceDir = GetViewDir(WorldSpacePos, ViewSpacePos);
+
+    float NoV = saturate( dot(WorldNormal, -ViewSpaceDir) );
+    float ConeTangent = lerp( 0, Roughness * (1 - SSR_BRDFBias), NoV * sqrt(Roughness) );
+    ConeTangent *= lerp( saturate(NoV * 2), 1, sqrt(Roughness) );
+    float MaxColorMipLevel = ColorPyramidNumLOD - 1;
+
+    uint2 Random = Rand3DPCG16( uint3(PixelPosition, fmod(SSR_FrameIndex, 8)) ).xy;
+
+    float Out_AO = 0;
+    float4 Out_UVWPDF = 0, Out_ColorMask = 0;
+
+	[loop]
+    for (int i = 0; i < SSR_NumRays; i++)
+    {
+        float2 Hammersley = Hammersley16(i, SSR_NumRays, Random);
+        Hammersley.y = lerp(Hammersley.y, 0, SSR_BRDFBias);
+
+        float4 H = 0;
+        if (Roughness > 0.1) {
+            H = TangentToWorld( ImportanceSampleGGX(Hammersley, Roughness).xyz, float4(ViewNormal, 1) );
+        } else {
+            H = float4(ViewNormal, 1);
+        }
+        half3 ReflectionDir = reflect(normalize(ViewSpacePos), H.xyz);
+
+        float3 rayOrigin = float3(UV, ScreenSpacePos.z);
+        float4 rayDir = mul(Matrix_Proj, float4(ViewSpacePos + ReflectionDir, 1));
+        rayDir.xyz = normalize((rayDir.xyz / max(rayDir.w, 1e-4)) - ScreenSpacePos);
+        rayDir.xy *= 0.5;
+
+		float4 RayHitData = HiZ_Trace(SSR_NumSteps * 8, 0.05, SSR_TraceResolution.zw, rayOrigin, rayDir.xyz, SRV_PyramidDepth);;
+
+        float SamplerMip = clamp(log2(ConeTangent * length(RayHitData.xy - UV) * max(SSR_TraceResolution.x, SSR_TraceResolution.y)), 0, MaxColorMipLevel);
+        float3 RayHitColor = SRV_PyramidColor.SampleLevel(Global_trilinear_clamp_sampler, RayHitData.xy, SamplerMip).rgb;
+        RayHitColor /= 1 + Luminance(RayHitColor);
+
+        Out_UVWPDF = float4(RayHitData.xy, 1 - RayHitData.z, H.a);
+        Out_ColorMask += float4(RayHitColor, RayHitData.a * GetScreenFadeBord(RayHitData.xy, SSR_Fadeness));
+    }
+    
+    Out_ColorMask /= SSR_NumRays;
+    Out_ColorMask.rgb *= rcp( 1 - Luminance(Out_ColorMask.rgb) );
+    Out_ColorMask.a = saturate( sqrt(Out_ColorMask.a) );
+
+    UAV_ReflectionUWVPDF[id.xy] = float4( Out_UVWPDF.xyz, max(1e-5, (Out_UVWPDF.w != 0) ? 1 / Out_UVWPDF.w : 0) );
+    UAV_ReflectionColorMask[id.xy] = Out_ColorMask * Out_ColorMask.a;
+}*/
+
+#pragma kernel Raytracing_ScreenTrace
+[numthreads(16, 16, 1)]
+void Raytracing_ScreenTrace (uint3 id : SV_DispatchThreadID)
+{
+    float2 UV = (id.xy + 0.5) * SSR_TraceResolution.zw;
+	uint2 PixelPosition = uint2(UV.xy * SSR_TraceResolution.xy);
+
+	float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
+    if (SceneDepth <= 1e-7) {
+        UAV_ReflectionUWVPDF[id.xy] = 0;
+        UAV_ReflectionColorMask[id.xy] = 0;
+        return;
+    }
+    float Roughness = 1 - SRV_GBufferRoughness.SampleLevel(Global_point_clamp_sampler, UV, 0).a;
+    Roughness = clamp(Roughness, 0.02, 1);
+    if (Roughness > SSR_RoughnessDiscard) {
+        UAV_ReflectionUWVPDF[id.xy] = 0;
+        UAV_ReflectionColorMask[id.xy] = 0;
+        return;
+    }
+	float3 NDCPos = GetNDCPos(UV, SceneDepth);
+	float3 WorldPos = GetWorldSpacePos(NDCPos, Matrix_InvViewProj);
+	float3 ViewPos = GetViewSpacePos(NDCPos, Matrix_InvProj);
+	float3 ViewDir = GetViewDir(WorldPos, ViewPos);
+	float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
+	float3 ViewNormal = mul( (float3x3)Matrix_WorldToView, WorldNormal );
+	float3x3 TangentMatrix = GetTangentBasis(WorldNormal);
+
+	uint FrameIDMod8 = uint(fmod(SSR_FrameIndex, 64));
+	uint2 Random = Rand3DPCG16( uint3(PixelPosition, FrameIDMod8) ).xy;
+
+    float4 Out_UVWPDF = 0;
+    float4 Out_ColorMask = 0;
+
+	[loop]
+	for (uint i = 0; i < (uint)SSR_NumRays; i++) {
+		float2 Hash = Hammersley16(i, (uint)SSR_NumRays, Random);
+        Hash.y = lerp(Hash.y, 0, SSR_BRDFBias);
+		float4 LightDir_TS = ImportanceSampleGGX(Hash, Roughness);
+		float3 LightDir_WS = mul(LightDir_TS.xyz, TangentMatrix);
+        float3 LightDir_VS = mul((float3x3)(Matrix_WorldToView), LightDir_WS);
+		LightDir_VS = reflect( normalize(ViewPos), LightDir_VS );
+		
+		float Level;
+		float3 HitUVz;
+
+		float3 RayStartScreen = NDCPos;
+		float4 RayEndScreen = mul( Matrix_Proj, float4(LightDir_VS, 0) ) + float4(RayStartScreen, 1); 
+		RayEndScreen.xyz = (RayEndScreen.xyz / max(RayEndScreen.w, 1e-4));
+		float3 RayDepthScreen = 0.5 * (RayStartScreen + mul( Matrix_Proj, float4(0, 0, 1, 0) ).xyz);
+		float3 RayStepScreen = RayEndScreen.xyz - RayStartScreen;
+		RayStepScreen *= GetStepScreenFactorToClipAtScreenEdge(RayStartScreen.xy, RayStepScreen.xy);
+		float CompareTolerance = max(abs(RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * 2);
+
+		float StepOffset = InterleavedGradientNoise(PixelPosition + 0.5, FrameIDMod8);
+		StepOffset -= 0.9;
+		bool bHit = RayCast_Specular(SSR_NumSteps, 0.15, CompareTolerance, StepOffset, RayStartScreen, RayStepScreen, SRV_PyramidDepth, HitUVz, Level);
+
+        Out_UVWPDF.xyz += float3(HitUVz.xy, HitUVz.z);
+        Out_UVWPDF.w += LightDir_TS.w;
+
+		[branch] 
+		if(bHit) {
+            float3 SampleColor = SRV_PyramidColor.SampleLevel(Global_point_clamp_sampler, HitUVz.xy, 0).rgb;
+			SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
+			Out_ColorMask += float4(SampleColor.rgb, GetScreenFadeBord(HitUVz.xy, SSR_Fadeness));
+		}
+	}
+
+    Out_UVWPDF.xyz = normalize(Out_UVWPDF.xyz);
+    Out_UVWPDF.w /= SSR_NumRays;
+
+	Out_ColorMask /= SSR_NumRays;
+    Out_ColorMask.a = saturate( Out_ColorMask.a * Out_ColorMask.a );
+	Out_ColorMask.rgb *= rcp( 1 - Luminance(Out_ColorMask.rgb) );
+
+    UAV_ReflectionUWVPDF[id.xy] = float4( Out_UVWPDF.xyz, max(1e-5, (Out_UVWPDF.w != 0) ? 1 / Out_UVWPDF.w : 0) );
+	UAV_ReflectionColorMask[id.xy] = Out_ColorMask * Out_ColorMask.a;
+}

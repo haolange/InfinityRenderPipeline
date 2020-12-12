@@ -1,0 +1,25 @@
+{
+    "name": "Unity.RenderPipelines.HighDefinition.Runtime",
+    "references": [
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.VisualEffectGraph.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.render-pipelines.infinity",
+            "expression": "0.0.0",
+            "define": "InfinityRenderPipeline"
+        }
+    ],
+    "noEngineReferences": false
+}
