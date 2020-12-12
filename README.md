@@ -27,7 +27,7 @@ Planned :
 * Diversification ShadingModel for DefualtLit/ClearCoat/Skin/Hair/Cloth/NPR.
 * DXR Based Octree PRTProbe for Large GlobalIllumination in VolumetricLightmap.
 
-# ExampleProject
+# Example
 [ExampleProject](https://github.com/haolange/InfinityExample)
 
 
