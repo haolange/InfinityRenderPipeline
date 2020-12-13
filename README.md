@@ -12,7 +12,7 @@ Completed :
 
 Developerment : 
 * HiZ Readback OcclusionCull for MeshDrawCommand.
-* MeshDrawCommand a Unfield HighPreformence DrawMeshSystem for Easy DrawMeshPass and AutoInstance.
+* MeshDrawCommand a Unfield HighPreformence DrawMeshSystem for EasySetting and AutoInstance.
 * InstanceDraw Foliage&MorphTerrain and RuntimeVirtualTexture for HighPreformence Landscape Render.
 
 Planned : 
