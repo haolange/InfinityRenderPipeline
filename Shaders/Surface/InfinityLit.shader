@@ -159,6 +159,7 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
+			#pragma multi_compile _ LIGHTMAP_ON
 
 
 			#include "../Private/Common.hlsl"
@@ -173,12 +174,13 @@
 				float4 _BaseColor;
 			CBUFFER_END
 			
-			Texture2D _MainTex; 
-			SamplerState sampler_MainTex;
+			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D unity_Lightmap; SamplerState samplerunity_Lightmap;
 
 			struct Attributes
 			{
-				float2 uv : TEXCOORD0;
+				float2 uv0 : TEXCOORD0;
+				float2 uv1 : TEXCOORD1;
 				float3 normal : NORMAL;
 				float4 vertex : POSITION;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -186,10 +188,15 @@
 
 			struct Varyings
 			{
-				float2 uv : TEXCOORD0;
+				float2 uv0 : TEXCOORD0;
 				float3 normal : TEXCOORD1;
 				float4 worldPos : TEXCOORD2;
 				float4 vertex : SV_POSITION;
+
+				#if defined(LIGHTMAP_ON)
+				float2 uv1 : TEXCOORD3;
+				#endif
+				
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 			
@@ -199,10 +206,15 @@
                 UNITY_SETUP_INSTANCE_ID(In);
                 UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
-				Out.uv = In.uv;
+				Out.uv0 = In.uv0;
 				Out.normal = normalize(mul(In.normal, (float3x3)unity_WorldToObject));
 				Out.worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, Out.worldPos);
+
+				#if defined(LIGHTMAP_ON)
+					Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
+				#endif
+
 				return Out;
 			}
 			
@@ -211,13 +223,18 @@
 				UNITY_SETUP_INSTANCE_ID(In);
 				
 				float3 WS_PixelPos = In.worldPos.xyz;
-				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv).rgb;
+				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0).rgb;
 				
+				float3 Lightmap = 1;
+				#if defined(LIGHTMAP_ON)
+					Lightmap = unity_Lightmap.Sample(samplerunity_Lightmap, In.uv1).rgb;
+				#endif
+
 				//ThinGBufferA = float4(BaseColor, 1);
 				//ThinGBufferB = uint4((In.normal * 127 + 127), 1);
 				ThinGBufferData GBufferData;
 				GBufferData.WorldNormal = normalize(In.normal);
-				GBufferData.BaseColor = BaseColor;
+				GBufferData.BaseColor = BaseColor * Lightmap;
 				GBufferData.Roughness = BaseColor.r;
 				GBufferData.Specular = _SpecularLevel;
 				GBufferData.Reflactance = BaseColor.b;

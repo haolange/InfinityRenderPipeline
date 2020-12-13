@@ -56,24 +56,24 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
         }
 
         ///////////Present Graph
-        struct PresentBlitData
+        struct PresentViewData
         {
             public float2 CameraSize;
             public RDGTextureRef RT_Source;
             public RenderTargetIdentifier RT_Dest;
         }
 
-        void RenderPresentBlit(Camera RenderCamera, RDGTextureRef SourceTexture, RenderTexture DestTexture)
+        void RenderPresentView(Camera RenderCamera, RDGTextureRef SourceTexture, RenderTexture DestTexture)
         {
             // AddPass
-            GraphBuilder.AddRenderPass<PresentBlitData>("PresentBuffer", ProfilingSampler.Get(CustomSamplerId.PresentBackBuffer),
-            (ref PresentBlitData PassData, ref RDGPassBuilder PassBuilder) =>
+            GraphBuilder.AddRenderPass<PresentViewData>("PresentView", ProfilingSampler.Get(CustomSamplerId.PresentView),
+            (ref PresentViewData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.CameraSize = new float2(RenderCamera.pixelWidth, RenderCamera.pixelHeight);
                 PassData.RT_Source = PassBuilder.ReadTexture(SourceTexture);
                 PassData.RT_Dest = new RenderTargetIdentifier(DestTexture);
             },
-            (ref PresentBlitData PassData, RDGContext GraphContext) =>
+            (ref PresentViewData PassData, RDGContext GraphContext) =>
             {
                 RenderTexture RT_Source = PassData.RT_Source;
 

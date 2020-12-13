@@ -11,7 +11,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
         OpaqueMotion,
         SkyAtmosphere,
         RenderGizmos,
-        PresentBackBuffer,
+        PresentView,
         Max,
     }
 

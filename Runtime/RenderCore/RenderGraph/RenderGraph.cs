@@ -574,7 +574,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
 
         void ExecuteRenderGraph(ScriptableRenderContext RenderContext, RenderWorld renderWorld, CommandBuffer CmdBuffer)
         {
-            using (new ProfilingScope(m_RenderGraphContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.HDRenderPipeline)))
+            using (new ProfilingScope(m_RenderGraphContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
             {
                 m_RenderGraphContext.World = renderWorld;
                 m_RenderGraphContext.CmdBuffer = CmdBuffer;

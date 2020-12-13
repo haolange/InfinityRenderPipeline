@@ -4,33 +4,33 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 CBUFFER_START(InfinityPerCamera)
-float4x4 unity_MatrixV;
-float4x4 unity_MatrixInvV;
-float4x4 unity_MatrixVP;
+    float4x4 unity_MatrixV;
+    float4x4 unity_MatrixInvV;
+    float4x4 unity_MatrixVP;
 
-int FrameIndex;
-int Prev_FrameIndex;
-float4 TAAJitter;
-float4x4 Matrix_WorldToView;
-float4x4 Matrix_ViewToWorld;
-float4x4 Matrix_Proj;
-float4x4 Matrix_InvProj;
-float4x4 Matrix_JitterProj;
-float4x4 Matrix_InvJitterProj;
-float4x4 Matrix_FlipYProj;
-float4x4 Matrix_InvFlipYProj;
-float4x4 Matrix_FlipYJitterProj;
-float4x4 Matrix_InvFlipYJitterProj;
-float4x4 Matrix_ViewProj;
-float4x4 Matrix_InvViewProj;
-float4x4 Matrix_ViewFlipYProj;
-float4x4 Matrix_InvViewFlipYProj;
-float4x4 Matrix_ViewJitterProj;
-float4x4 Matrix_InvViewJitterProj;
-float4x4 Matrix_ViewFlipYJitterProj;
-float4x4 Matrix_InvViewFlipYJitterProj;
-float4x4 Matrix_PrevViewProj;
-float4x4 Matrix_PrevViewFlipYProj;
+    int FrameIndex;
+    int Prev_FrameIndex;
+    float4 TAAJitter;
+    float4x4 Matrix_WorldToView;
+    float4x4 Matrix_ViewToWorld;
+    float4x4 Matrix_Proj;
+    float4x4 Matrix_InvProj;
+    float4x4 Matrix_JitterProj;
+    float4x4 Matrix_InvJitterProj;
+    float4x4 Matrix_FlipYProj;
+    float4x4 Matrix_InvFlipYProj;
+    float4x4 Matrix_FlipYJitterProj;
+    float4x4 Matrix_InvFlipYJitterProj;
+    float4x4 Matrix_ViewProj;
+    float4x4 Matrix_InvViewProj;
+    float4x4 Matrix_ViewFlipYProj;
+    float4x4 Matrix_InvViewFlipYProj;
+    float4x4 Matrix_ViewJitterProj;
+    float4x4 Matrix_InvViewJitterProj;
+    float4x4 Matrix_ViewFlipYJitterProj;
+    float4x4 Matrix_InvViewFlipYJitterProj;
+    float4x4 Matrix_PrevViewProj;
+    float4x4 Matrix_PrevViewFlipYProj;
 CBUFFER_END
 
 CBUFFER_START(UnityPerDraw)

@@ -6,6 +6,7 @@ using UnityEngine.VFX;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
 using InfinityTech.Runtime.Rendering.RDG;
 using InfinityTech.Runtime.Core.Geometry;
 using InfinityTech.Runtime.Rendering.Core;
@@ -206,6 +207,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             BeginFrameRendering(RenderContext, RenderCameras);
             foreach (Camera RenderCamera in RenderCameras)
             {
+                RenderCamera.allowHDR = true;
+
                 bool isSceneViewCam = RenderCamera.cameraType == CameraType.SceneView;
                 #if UNITY_EDITOR
                 if (isSceneViewCam) {
@@ -268,7 +271,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 RenderOpaqueGBuffer(RenderCamera, CullingResult, VisibleMeshBatchList);
                 RenderOpaqueMotion(RenderCamera, CullingResult);
                 RenderSkyAtmosphere(RenderCamera);
-                RenderPresentBlit(RenderCamera, GraphBuilder.ScopeTextureGet(InfinityShaderIDs.RT_ThinGBufferA), RenderCamera.targetTexture);
+                RenderPresentView(RenderCamera, GraphBuilder.ScopeTextureGet(InfinityShaderIDs.RT_ThinGBufferA), RenderCamera.targetTexture);
 
                 //Draw DrawGizmos
                 #if UNITY_EDITOR

@@ -45,6 +45,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             {
                 //Draw UnityRenderer
                 RendererList GBufferRenderList = PassData.RendererList;
+                GBufferRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
                 GBufferRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
                 GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
                 GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2450);

@@ -9,7 +9,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
     {
         GraphBuilderClear,
         GraphBuilderBind,
-        HDRenderPipeline
+        InfinityRenderer
     }
 
     class RDGResourceFactory
