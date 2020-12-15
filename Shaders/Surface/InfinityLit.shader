@@ -397,9 +397,9 @@
 			float unity_MaxOutputValue;
 			float unity_UseLinearSpace;
 
-			CBUFFER_START(UnityPerMaterial)
+			/*CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
-			CBUFFER_END
+			CBUFFER_END*/
 
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
@@ -483,7 +483,7 @@
 			float4 frag(Varyings In) : SV_Target
 			{
 				MetaInput Out;
-				Out.Albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
+				Out.Albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb /* _BaseColor.rgb*/;
 				Out.Emission = 0;
 				Out.SpecularColor = 0.04;
 				return MetaFragment(Out);
