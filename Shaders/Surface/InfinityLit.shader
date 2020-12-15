@@ -35,7 +35,7 @@
 		//ShadowBuffer
 		Pass
 		{
-			Name "Pass_ShadowBuffer"
+			Name "ShadowBufferPass"
 			Tags { "LightMode" = "ShadowBuffer" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0 
@@ -91,7 +91,7 @@
 		//DepthBuffer
 		Pass
 		{
-			Name "Pass_OpaqueDepth"
+			Name "OpaqueDepthPass"
 			Tags { "LightMode" = "OpaqueDepth" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0 
@@ -147,7 +147,7 @@
 		//ThinGbuffer
 		Pass
 		{
-			Name "Pass_OpaqueGBuffer"
+			Name "OpaqueGBufferPass"
 			Tags { "LightMode" = "OpaqueGBuffer" }
 			ZTest [_ZTest] 
 			ZWrite [_ZWrite] 
@@ -164,6 +164,7 @@
 
 			#include "../Private/Common.hlsl"
 			#include "../Private/PackData.hlsl"
+			#include "../Private/Lightmap.hlsl"
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
@@ -175,7 +176,6 @@
 			CBUFFER_END
 			
 			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D unity_Lightmap; SamplerState samplerunity_Lightmap;
 
 			struct Attributes
 			{
@@ -223,18 +223,18 @@
 				UNITY_SETUP_INSTANCE_ID(In);
 				
 				float3 WS_PixelPos = In.worldPos.xyz;
-				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0).rgb;
+				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb;
 				
-				float3 Lightmap = 1;
+				float3 IndirectLight = 1;
 				#if defined(LIGHTMAP_ON)
-					Lightmap = unity_Lightmap.Sample(samplerunity_Lightmap, In.uv1).rgb;
+					IndirectLight = SampleLightmap(In.uv1, In.normal);
 				#endif
 
 				//ThinGBufferA = float4(BaseColor, 1);
 				//ThinGBufferB = uint4((In.normal * 127 + 127), 1);
 				ThinGBufferData GBufferData;
 				GBufferData.WorldNormal = normalize(In.normal);
-				GBufferData.BaseColor = BaseColor * Lightmap;
+				GBufferData.BaseColor = BaseColor * IndirectLight;
 				GBufferData.Roughness = BaseColor.r;
 				GBufferData.Specular = _SpecularLevel;
 				GBufferData.Reflactance = BaseColor.b;
@@ -246,7 +246,7 @@
 		//MotionBuffer
 		Pass
 		{
-			Name "Pass_OpaqueMotion"
+			Name "OpaqueMotionPass"
 			Tags { "LightMode" = "OpaqueMotion" }
 			ZTest Equal ZWrite Off Cull Back
 
@@ -303,7 +303,7 @@
 		//ForwardPlus
 		Pass
 		{
-			Name "Pass_ForwardPlus"
+			Name "ForwardPlusPass"
 			Tags { "LightMode" = "ForwardPlus" }
 			ZTest Equal ZWrite Off Cull Back
 
@@ -373,10 +373,128 @@
 			ENDHLSL
 		}
 
+		//BakeLighting
+		Pass
+		{
+			Name "Meta"
+			Tags { "LightMode" = "Meta" }
+
+			Cull Off
+
+			HLSLPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../Private/ShaderVariable.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+
+			CBUFFER_START(UnityMetaPass)
+				bool4 unity_MetaVertexControl;
+				bool4 unity_MetaFragmentControl;
+			CBUFFER_END
+
+			float unity_OneOverOutputBoost;
+			float unity_MaxOutputValue;
+			float unity_UseLinearSpace;
+
+			CBUFFER_START(UnityPerMaterial)
+				float4 _BaseColor;
+			CBUFFER_END
+
+			Texture2D _MainTex; SamplerState sampler_MainTex;
+
+			struct MetaInput
+			{
+				float3 Albedo;
+				float3 Emission;
+				float3 SpecularColor;
+			};
+
+			struct Attributes
+			{
+				float4 positionOS   : POSITION;
+				float3 normalOS     : NORMAL;
+				float2 uv0          : TEXCOORD0;
+				float2 uv1          : TEXCOORD1;
+				float2 uv2          : TEXCOORD2;
+			};
+
+			struct Varyings
+			{
+				float4 pos:SV_POSITION;
+				float2 uv:TEXCOORD1;
+			};
+
+			float4 MetaVertexPosition(float4 positionOS, float2 uv1, float2 uv2, float4 uv1ST, float4 uv2ST)
+			{
+				if (unity_MetaVertexControl.x)
+				{
+					positionOS.xy = uv1 * uv1ST.xy + uv1ST.zw;
+					// OpenGL right now needs to actually use incoming vertex position,
+					// so use it in a very dummy way
+					positionOS.z = positionOS.z > 0 ? REAL_MIN : 0.0f;
+				}
+				if (unity_MetaVertexControl.y)
+				{
+					positionOS.xy = uv2 * uv2ST.xy + uv2ST.zw;
+					// OpenGL right now needs to actually use incoming vertex position,
+					// so use it in a very dummy way
+					positionOS.z = positionOS.z > 0 ? REAL_MIN : 0.0f;
+				}
+				return mul(unity_MatrixVP, float4(positionOS.xyz, 1.0));
+			}
+				
+			float4 MetaFragment(MetaInput input)
+			{
+				float4 res = 0;
+				if (unity_MetaFragmentControl.x)
+				{
+					res = float4(input.Albedo, 1.0);
+
+					// d3d9 shader compiler doesn't like NaNs and infinity.
+					unity_OneOverOutputBoost = saturate(unity_OneOverOutputBoost);
+
+					// Apply Albedo Boost from LightmapSettings.
+					res.rgb = clamp(PositivePow(res.rgb, unity_OneOverOutputBoost), 0, unity_MaxOutputValue);
+				}
+				if (unity_MetaFragmentControl.y)
+				{
+					float3 emission;
+					if (unity_UseLinearSpace)
+						emission = input.Emission;
+					else
+						emission = LinearToSRGB(input.Emission);
+
+					res = float4(emission, 1.0);
+				}
+				return res;
+			}
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out;
+
+				Out.uv = In.uv0;
+				//Out.pos = mul(unity_MatrixVP, float4(In.positionOS.xyz, 1.0));
+				Out.pos = MetaVertexPosition(In.positionOS, In.uv1, In.uv2, unity_LightmapST, unity_DynamicLightmapST);
+				return Out;
+			}
+
+			float4 frag(Varyings In) : SV_Target
+			{
+				MetaInput Out;
+				Out.Albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
+				Out.Emission = 0;
+				Out.SpecularColor = 0.04;
+				return MetaFragment(Out);
+			}
+			ENDHLSL
+		}
+
 		//RayTrace AO
 		Pass
 		{
-			Name "Pass_RTAO"
+			Name "RTAOPass"
 			Tags { "LightMode" = "RayTraceAmbientOcclusion" }
 
 			HLSLPROGRAM

@@ -4,10 +4,6 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 CBUFFER_START(InfinityPerCamera)
-    float4x4 unity_MatrixV;
-    float4x4 unity_MatrixInvV;
-    float4x4 unity_MatrixVP;
-
     int FrameIndex;
     int Prev_FrameIndex;
     float4 TAAJitter;
@@ -31,6 +27,12 @@ CBUFFER_START(InfinityPerCamera)
     float4x4 Matrix_InvViewFlipYJitterProj;
     float4x4 Matrix_PrevViewProj;
     float4x4 Matrix_PrevViewFlipYProj;
+CBUFFER_END
+
+CBUFFER_START(UnityPerFrame)
+    float4x4 unity_MatrixV;
+    float4x4 unity_MatrixInvV;
+    float4x4 unity_MatrixVP;
 CBUFFER_END
 
 CBUFFER_START(UnityPerDraw)
