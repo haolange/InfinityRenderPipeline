@@ -1,6 +1,7 @@
 ﻿Shader "InfinityPipeline/InfinityLit"
 {
-	Properties {
+	Properties 
+	{
         [Header (Microface)]
         [Toggle (_UseAlbedoTex)]UseBaseColorTex ("UseBaseColorTex", Range(0, 1)) = 0
         [NoScaleOffset]_MainTex ("BaseColorTexture", 2D) = "white" {}
@@ -28,6 +29,7 @@
 		_ZTest("ZTest", Int) = 4
 		_ZWrite("ZWrite", Int) = 1
 	}
+	
 	SubShader
 	{
 		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "InfinityLit"}
@@ -322,6 +324,7 @@
 
 
 			CBUFFER_START(UnityPerMaterial)
+				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
 
@@ -388,6 +391,13 @@
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
+			CBUFFER_START(UnityPerMaterial)
+				float _SpecularLevel;
+				float4 _BaseColor;
+			CBUFFER_END
+
+			Texture2D _MainTex; SamplerState sampler_MainTex;
+
 			CBUFFER_START(UnityMetaPass)
 				bool4 unity_MetaVertexControl;
 				bool4 unity_MetaFragmentControl;
@@ -396,12 +406,6 @@
 			float unity_OneOverOutputBoost;
 			float unity_MaxOutputValue;
 			float unity_UseLinearSpace;
-
-			/*CBUFFER_START(UnityPerMaterial)
-				float4 _BaseColor;
-			CBUFFER_END*/
-
-			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct MetaInput
 			{
@@ -483,7 +487,7 @@
 			float4 frag(Varyings In) : SV_Target
 			{
 				MetaInput Out;
-				Out.Albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb /* _BaseColor.rgb*/;
+				Out.Albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
 				Out.Emission = 0;
 				Out.SpecularColor = 0.04;
 				return MetaFragment(Out);
