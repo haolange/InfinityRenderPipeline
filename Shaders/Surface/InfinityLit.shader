@@ -32,7 +32,7 @@
 	
 	SubShader
 	{
-		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "InfinityLit"}
+		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
 
 		//ShadowBuffer
 		Pass
@@ -227,8 +227,9 @@
 				float3 WS_PixelPos = In.worldPos.xyz;
 				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb;
 				
-				float3 IndirectLight = 1;
+				float3 IndirectLight = float3(1, 1, 1);
 				#if defined(LIGHTMAP_ON)
+					//IndirectLight = float3(1, 0, 0);
 					IndirectLight = SampleLightmap(In.uv1, In.normal);
 				#endif
 
