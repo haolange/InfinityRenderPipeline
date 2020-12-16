@@ -7,7 +7,7 @@ namespace InfinityTech.Editor.Tool
 {
     public class Utility
     {
-        [MenuItem("GameObject/EntityAction/RandomRotate", false, -1000)]
+        /*[MenuItem("GameObject/EntityAction/RandomRotate", false, -1000)]
         public static void SetSelectEntityRandomRotate(MenuCommand menuCommand)
         {
             float StartTime = Time.realtimeSinceStartup;
@@ -43,7 +43,7 @@ namespace InfinityTech.Editor.Tool
         }
 
         [MenuItem("GameObject/EntityAction/RandomMaterial", false, -1000)]
-        public static void SetSelectEntityRandomMaterial(MenuCommand menuCommand)
+        public static void SetEntityRandomMaterial(MenuCommand menuCommand)
         {
             Material[] MaterialList = new Material[2];
             MaterialList[0] = Resources.Load<Material>("Materials/MeshBatchA");
@@ -75,42 +75,6 @@ namespace InfinityTech.Editor.Tool
                     }
                 }
             }
-        }
-
-        [MenuItem("Tool/EntityAction/RandomMaterial", false, -1000)]
-        public static void SetRandomMaterial(MenuCommand menuCommand)
-        {
-            Material[] MaterialList = new Material[2];
-            MaterialList[0] = Resources.Load<Material>("Materials/MeshBatchA");
-            MaterialList[1] = Resources.Load<Material>("Materials/MeshBatchB");
-
-            GameObject[] EntityList = GameObject.FindObjectsOfType<GameObject>();
-  
-            for (int i = 0; i < EntityList.Length; i++)
-            {
-                GameObject Entity = EntityList[i];
-                MeshRenderer meshRenderer = Entity.GetComponent<MeshRenderer>();
-                MeshComponent meshComponent = Entity.GetComponent<MeshComponent>();
-
-                int Index = Random.Range(-100, 100);
-                Index = Mathf.Clamp(Index, 0, 1);
-
-                if(meshRenderer != null)
-                {
-                    for (int j = 0; j < 1; j++)
-                    {
-                        meshRenderer.material = MaterialList[Index];
-                    }
-                }
-
-                if(meshComponent != null)
-                {
-                    for (int j = 0; j < meshComponent.Materials.Length; j++)
-                    {
-                        meshComponent.Materials[j] = MaterialList[Index];
-                    }
-                }
-            }
-        }
+        }*/
     }
 }

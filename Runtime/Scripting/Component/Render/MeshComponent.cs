@@ -205,7 +205,7 @@ namespace InfinityTech.Runtime.Component
                     MeshBatch.Matrix_LocalToWorld = Matrix_LocalToWorld;
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
                     
-                    MeshBatchCacheID[Index] = MeshBatch.GetHashCode(this.GetInstanceID() + this.transform.GetHashCode());
+                    MeshBatchCacheID[Index] = MeshBatch.GetHashCode(this.GetInstanceID() + this.transform.GetHashCode() + this.name.GetHashCode());
                     GetWorld().GetMeshBatchColloctor().AddStaticMeshBatch(MeshBatch, MeshBatchCacheID[Index]);
                 }
             }
