@@ -10,18 +10,21 @@ using InfinityTech.Runtime.Core.Geometry;
 
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
+    [Serializable]
     public enum EStateType
     {
         Static = 0,
         Dynamic = 1
     }
 
+    [Serializable]
     public enum EMotionType
     {
         Camera = 0,
         Object = 1
     }
 
+    [Serializable]
     public enum ECastShadowMethod
     {
         Off = 0,

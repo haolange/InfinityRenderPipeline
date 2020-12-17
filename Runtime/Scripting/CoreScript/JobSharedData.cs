@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Runtime.Core
 {
-    [Serializable]
     public struct SharedRef<T> where T : class
     {
         public int Id;
@@ -31,7 +30,6 @@ namespace InfinityTech.Runtime.Core
         }
     }
 
-    [Serializable]
     public class SharedRefFactory<T> where T : class
     {
         public readonly Dictionary<int, T> m_SharedRefs;

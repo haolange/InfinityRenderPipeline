@@ -20,6 +20,7 @@ namespace InfinityTech.Runtime.Component
 
         [Header("MaterialElement")]
         public Material[] Materials;
+        
         [HideInInspector]
         public Material[] LastMaterials;
 
@@ -310,10 +311,10 @@ namespace InfinityTech.Runtime.Component
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
 
                     MeshBatchCollector.AddDynamicMeshBatch(MeshBatch);
-#if UNITY_EDITOR
                 }
-#endif
+#if UNITY_EDITOR
             }
+#endif
         }
     }
 }
