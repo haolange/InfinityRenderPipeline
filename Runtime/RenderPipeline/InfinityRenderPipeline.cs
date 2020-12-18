@@ -253,18 +253,19 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 }
                 JobHandle CullTaskHandle = CullTask.Schedule(MeshBatchList.Length, 256);
 
-                SortMeshBatch SortTask = new SortMeshBatch();
+                /*SortMeshBatch SortTask = new SortMeshBatch();
                 {
                     SortTask.VisibleMeshBatchList = VisibleMeshBatchList;
                 }
-                JobHandle SortTaskHandle = SortTask.Schedule(CullTaskHandle);
+                JobHandle SortTaskHandle = SortTask.Schedule(CullTaskHandle);*/
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;
                 RenderCamera.TryGetCullingParameters(out CullingParameter);
                 CullingResults CullingResult = RenderContext.Cull(ref CullingParameter);
 
-                SortTaskHandle.Complete();
+                CullTaskHandle.Complete();
+                //SortTaskHandle.Complete();
 
                 //Render Family
                 RenderOpaqueDepth(RenderCamera, CullingResult);
