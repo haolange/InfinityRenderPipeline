@@ -63,9 +63,9 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public int MatchForDynamicInstance()
         {
             int hashCode = 2;
-            hashCode = hashCode + SubmeshIndex;
-            hashCode = hashCode + Mesh.GetHashCode();
-            hashCode = hashCode + Material.GetHashCode();
+            hashCode += SubmeshIndex;
+            hashCode += Mesh.GetHashCode();
+            hashCode += Material.GetHashCode();
 
             return hashCode;
         }
@@ -73,16 +73,16 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public override int GetHashCode()
         {
             int hashCode = 2;
-            hashCode = hashCode + SubmeshIndex;
-            hashCode = hashCode + Mesh.GetHashCode();
-            hashCode = hashCode + Material.GetHashCode();
-            hashCode = hashCode + CastShadow.GetHashCode();
-            hashCode = hashCode + MotionType.GetHashCode();
-            hashCode = hashCode + Visible.GetHashCode();
-            hashCode = hashCode + Priority.GetHashCode();
-            hashCode = hashCode + RenderLayer.GetHashCode();
-            hashCode = hashCode + BoundBox.GetHashCode();
-            hashCode = hashCode + Matrix_LocalToWorld.GetHashCode();
+            hashCode += SubmeshIndex;
+            hashCode += Mesh.GetHashCode();
+            hashCode += Material.GetHashCode();
+            hashCode += CastShadow.GetHashCode();
+            hashCode += MotionType.GetHashCode();
+            hashCode += Visible.GetHashCode();
+            hashCode += Priority.GetHashCode();
+            hashCode += RenderLayer.GetHashCode();
+            hashCode += BoundBox.GetHashCode();
+            hashCode += Matrix_LocalToWorld.GetHashCode();
 
             return hashCode;
         }
@@ -90,16 +90,16 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public int GetHashCode(in int InstanceID)
         {
             int hashCode = InstanceID;
-            hashCode = hashCode + SubmeshIndex;
-            hashCode = hashCode + Mesh.GetHashCode();
-            hashCode = hashCode + Material.GetHashCode();
-            hashCode = hashCode + CastShadow.GetHashCode();
-            hashCode = hashCode + MotionType.GetHashCode();
-            hashCode = hashCode + Visible.GetHashCode();
-            hashCode = hashCode + Priority.GetHashCode();
-            hashCode = hashCode + RenderLayer.GetHashCode();
-            hashCode = hashCode + BoundBox.GetHashCode();
-            hashCode = hashCode + Matrix_LocalToWorld.GetHashCode();
+            hashCode += SubmeshIndex;
+            hashCode += Mesh.GetHashCode();
+            hashCode += Material.GetHashCode();
+            hashCode += CastShadow.GetHashCode();
+            hashCode += MotionType.GetHashCode();
+            hashCode += Visible.GetHashCode();
+            hashCode += Priority.GetHashCode();
+            hashCode += RenderLayer.GetHashCode();
+            hashCode += BoundBox.GetHashCode();
+            hashCode += Matrix_LocalToWorld.GetHashCode();
 
             return hashCode;
         }

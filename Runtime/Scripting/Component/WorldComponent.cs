@@ -28,7 +28,7 @@ namespace InfinityTech.Runtime.Component
         {
             InvokeEventTick();
             GatherStaticMeshBatch();
-            GatherDynamicMeshBatch();
+            //GatherDynamicMeshBatch();
         }
 
         protected void InvokeEventTick()
