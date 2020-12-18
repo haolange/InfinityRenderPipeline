@@ -185,14 +185,14 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline : RenderPipeline
     {
-        private RenderGraph GraphBuilder;
+        private RDGGraphBuilder GraphBuilder;
         private ViewUnifromBuffer ViewUnifrom;
         private InfinityRenderPipelineAsset RenderPipelineAsset;
 
         public InfinityRenderPipeline()
         {
             ViewUnifrom = new ViewUnifromBuffer();
-            GraphBuilder = new RenderGraph("HDGraphBuilder");
+            GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
             SetGraphicsSetting();
@@ -271,7 +271,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 RenderOpaqueGBuffer(RenderCamera, CullingResult, VisibleMeshBatchList);
                 RenderOpaqueMotion(RenderCamera, CullingResult);
                 RenderSkyAtmosphere(RenderCamera);
-                RenderPresentView(RenderCamera, GraphBuilder.ScopeTextureGet(InfinityShaderIDs.RT_ThinGBufferA), RenderCamera.targetTexture);
+                RenderPresentView(RenderCamera, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), RenderCamera.targetTexture);
 
                 //Draw DrawGizmos
                 #if UNITY_EDITOR

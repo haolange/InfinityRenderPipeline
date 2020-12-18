@@ -19,7 +19,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
         public int currentFrameIndex;
     }
 
-    public class RenderGraph 
+    public class RDGGraphBuilder 
     {
         internal struct CompiledResourceInfo
         {
@@ -106,7 +106,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
 
         #region Public Interface
 
-        public RenderGraph(string InName)
+        public RDGGraphBuilder(string InName)
         {
             this.name = InName;
             m_Resources = new RDGResourceFactory();
@@ -171,22 +171,22 @@ namespace InfinityTech.Runtime.Rendering.RDG
             return m_Resources.GetBufferResourceDesc(bufferHandle.handle);
         }
 
-        public RDGBufferRef ScopeBufferGet(int Handle)
+        public RDGBufferRef ScopeBuffer(int Handle)
         {
             return m_BufferScope.Get(Handle);
         }
 
-        public void ScopeBufferSet(int Handle, RDGBufferRef Buffer)
+        public void ScopeBuffer(int Handle, RDGBufferRef Buffer)
         {
             m_BufferScope.Set(Handle, Buffer);
         }
 
-        public RDGTextureRef ScopeTextureGet(int Handle)
+        public RDGTextureRef ScopeTexture(int Handle)
         {
             return m_TextureScope.Get(Handle);
         }
 
-        public void ScopeTextureSet(int Handle, RDGTextureRef Texture)
+        public void ScopeTexture(int Handle, RDGTextureRef Texture)
         {
             m_TextureScope.Set(Handle, Texture);
         }
@@ -234,7 +234,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
         // Internal for testing purpose only
         internal DynamicArray<CompiledPassInfo> GetCompiledPassInfos() { return m_CompiledPassInfos; }
 
-        private RenderGraph()
+        private RDGGraphBuilder()
         {
 
         }

@@ -22,15 +22,15 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingData, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
-            RDGTextureRef DepthTexture = GraphBuilder.ScopeTextureGet(InfinityShaderIDs.RT_DepthBuffer);
+            RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 
             RDGTextureDesc GBufferDescA = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R16G16B16A16_UNorm };
             RDGTextureDesc GBufferDescB = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
             RDGTextureRef GBufferTextureA = GraphBuilder.CreateTexture(GBufferDescA, InfinityShaderIDs.RT_ThinGBufferA);
             RDGTextureRef GBufferTextureB = GraphBuilder.CreateTexture(GBufferDescB, InfinityShaderIDs.RT_ThinGBufferB);
 
-            GraphBuilder.ScopeTextureSet(InfinityShaderIDs.RT_ThinGBufferA, GBufferTextureA);
-            GraphBuilder.ScopeTextureSet(InfinityShaderIDs.RT_ThinGBufferB, GBufferTextureB);
+            GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA, GBufferTextureA);
+            GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferB, GBufferTextureB);
 
             //Add RenderPass
             GraphBuilder.AddRenderPass<FOpaqueGBufferData>("OpaqueGBuffer", ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer),

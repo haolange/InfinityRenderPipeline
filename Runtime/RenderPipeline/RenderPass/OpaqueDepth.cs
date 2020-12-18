@@ -21,7 +21,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             RDGTextureDesc DepthDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef DepthTexture = GraphBuilder.CreateTexture(DepthDesc, InfinityShaderIDs.RT_DepthBuffer);
 
-            GraphBuilder.ScopeTextureSet(InfinityShaderIDs.RT_DepthBuffer, DepthTexture);
+            GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer, DepthTexture);
 
             //Add RenderPass
             GraphBuilder.AddRenderPass<FOpaqueDepthData>("OpaqueDepth", ProfilingSampler.Get(CustomSamplerId.OpaqueDepth),
