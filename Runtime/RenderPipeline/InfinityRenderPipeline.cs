@@ -207,7 +207,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             BeginFrameRendering(RenderContext, RenderCameras);
             foreach (Camera RenderCamera in RenderCameras)
             {
-                RenderCamera.allowHDR = true;
+                bool bSceneView = RenderCamera.cameraType == CameraType.SceneView;
+                bool bRenderView = RenderCamera.cameraType == CameraType.Game || RenderCamera.cameraType == CameraType.Reflection || RenderCamera.cameraType == CameraType.SceneView;
 
                 bool isSceneViewCam = RenderCamera.cameraType == CameraType.SceneView;
                 #if UNITY_EDITOR
@@ -235,7 +236,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 VFXManager.ProcessCameraCommand(RenderCamera, CmdBuffer);
 
                 //Culling MeshBatch
-                NativeArray<FPlane> ViewFrustum = new NativeArray<FPlane>(6, Allocator.Persistent);
+                NativeArray<FPlane> ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
                 NativeArray<FVisibleMeshBatch> VisibleMeshBatchList = new NativeArray<FVisibleMeshBatch>(MeshBatchList.Length, Allocator.TempJob);
 
                 Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
