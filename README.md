@@ -14,8 +14,8 @@ Developerment :
 * HiZ Readback OcclusionCull for MeshDrawCommand.
 * Instance Terrain use MorphVertex for Low DarwCall.
 * Runtime VirtualTexture for HighPerformance TerrainRender.
+* Instance FoliageSystem for HighPerformance and Mass FoliageRender.
 * MeshDrawCommand a Unfield HighPreformence DrawMeshSystem for EasySetting and AutoInstance.
-* InstanceDraw Foliage&MorphTerrain and RuntimeVirtualTexture for HighPreformence Landscape Render.
 
 Planned : 
 * DiaphragmDOF
