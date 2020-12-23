@@ -11,7 +11,7 @@ Completed :
 * GrandTruth Ambient&Reflection Occlusion.
 
 Developerment : 
-* HiZ Readback OcclusionCull for MeshDrawCommand.
+* HiZ-Readback OcclusionCull for MeshDrawCommand.
 * Instance Terrain use MorphVertex for Low DarwCall.
 * Runtime VirtualTexture for HighPerformance TerrainRender.
 * Instance FoliageSystem for HighPerformance and Mass FoliageRender.
