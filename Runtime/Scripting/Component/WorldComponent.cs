@@ -19,6 +19,8 @@ namespace InfinityTech.Runtime.Component
         void OnEnable()
         {
             bInit = true;
+            bUpdateStatic = true;
+            
             RenderScene = new RenderWorld("RenderScene");
             RenderScene.Initializ();
         }
@@ -41,6 +43,7 @@ namespace InfinityTech.Runtime.Component
         {
             if(bUpdateStatic)
             {
+                bUpdateStatic = false;
                 RenderScene.InvokeWorldStaticPrimitiveUpdate();
             }
 
