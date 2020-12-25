@@ -1,37 +1,14 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 using InfinityTech.Runtime.Rendering.Core;
 
 namespace InfinityTech.Runtime.Component
 {
-    internal struct RenderTransfrom
-    {
-        public Vector3 position;
-        public Quaternion rotation;
-        public Vector3 scale;
-
-        public override int GetHashCode()
-        {
-            return position.GetHashCode() + rotation.GetHashCode() + scale.GetHashCode();
-        }
-
-        public override bool Equals(object obj)
-        {
-            RenderTransfrom target = (RenderTransfrom)obj;
-            return position != target.position || rotation != target.rotation || scale != target.scale;
-        }
-
-        public bool Equals(RenderTransfrom target)
-        {
-            return position != target.position || rotation != target.rotation || scale != target.scale;
-        }
-    };
-
     [ExecuteInEditMode]
 #if UNITY_EDITOR
     [CanEditMultipleObjects]
 #endif
-    public class EntityComponent : MonoBehaviour
+    public class BaseComponent : MonoBehaviour
     {
         // Public Variable
         [HideInInspector]
@@ -45,7 +22,7 @@ namespace InfinityTech.Runtime.Component
 
 
         // Function
-        public EntityComponent() { }
+        public BaseComponent() { }
 
         void OnEnable()
         {
@@ -54,9 +31,10 @@ namespace InfinityTech.Runtime.Component
             EventPlay();
         }
 
-        public void EventUpdate()
+        void Update()
         {
-            if(TransfromStateDirty()) {
+            if (TransfromStateDirty())
+            {
                 OnTransformChange();
             }
 
@@ -74,7 +52,8 @@ namespace InfinityTech.Runtime.Component
             CurrTransform.rotation = EntityTransform.rotation;
             CurrTransform.scale = EntityTransform.localScale;
 
-            if (CurrTransform.Equals(LastTransform)) {
+            if (CurrTransform.Equals(LastTransform))
+            {
                 LastTransform = CurrTransform;
                 return true;
             }
@@ -109,7 +88,8 @@ namespace InfinityTech.Runtime.Component
 
         protected RenderWorld GetWorld()
         {
-            if(RenderWorld.ActiveWorld != null) {
+            if (RenderWorld.ActiveWorld != null)
+            {
                 return RenderWorld.ActiveWorld;
             }
 

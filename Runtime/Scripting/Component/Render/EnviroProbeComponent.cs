@@ -2,7 +2,7 @@
 
 [ExecuteAlways]
 [RequireComponent(typeof(ReflectionProbe))]
-[AddComponentMenu("InfinityRender/EnviroProbeComponent")]
+[AddComponentMenu("InfinityRenderer/EnviroProbeComponent")]
 public class EnviroProbeComponent : MonoBehaviour
 {
     // Start is called before the first frame update

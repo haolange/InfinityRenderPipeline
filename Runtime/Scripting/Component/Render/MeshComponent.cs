@@ -8,7 +8,7 @@ using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
 
 namespace InfinityTech.Runtime.Component
 {
-    [AddComponentMenu("InfinityRender/MeshComponent")]
+    [AddComponentMenu("InfinityRenderer/MeshComponent")]
     public class MeshComponent : EntityComponent
     {
         [Header("State")]
@@ -147,8 +147,8 @@ namespace InfinityTech.Runtime.Component
 
         private void UpdateMatrix()
         {
-            Matrix_LocalToWorld = MeshTransform.localToWorldMatrix;
-            Matrix_WorldToLocal = MeshTransform.localToWorldMatrix.inverse;
+            Matrix_LocalToWorld = EntityTransform.localToWorldMatrix;
+            Matrix_WorldToLocal = EntityTransform.localToWorldMatrix.inverse;
         }
 
         private void UpdateBounds()

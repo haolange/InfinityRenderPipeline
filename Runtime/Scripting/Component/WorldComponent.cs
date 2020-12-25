@@ -28,7 +28,7 @@ namespace InfinityTech.Runtime.Component
         {
             InvokeEventTick();
             GatherStaticMeshBatch();
-            //GatherDynamicMeshBatch();
+            GatherDynamicMeshBatch();
         }
 
         protected void InvokeEventTick()
@@ -42,9 +42,7 @@ namespace InfinityTech.Runtime.Component
 
         protected void InvokeEventTickEditor()
         {
-            RenderScene.InvokeWorldViewEventTick();
             RenderScene.InvokeWorldMeshEventTick();
-            RenderScene.InvokeWorldLightEventTick();
         }
 
         protected void InvokeEventTickRuntime()
@@ -54,9 +52,7 @@ namespace InfinityTech.Runtime.Component
 
             bInit = false;
             //float InvokStartTime = Time.realtimeSinceStartup;
-            RenderScene.InvokeWorldViewEventTick();
             RenderScene.InvokeWorldMeshEventTick();
-            RenderScene.InvokeWorldLightEventTick();
             //float InvokEndTime = (Time.realtimeSinceStartup - InvokStartTime) * 1000;
             //Debug.Log("InvokTime : " + InvokEndTime + "ms");
         }

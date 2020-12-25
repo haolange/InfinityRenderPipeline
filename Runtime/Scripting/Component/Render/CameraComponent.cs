@@ -6,8 +6,8 @@ namespace InfinityTech.Runtime.Component
 {
     [ExecuteAlways]
     [RequireComponent(typeof(Camera))]
-    [AddComponentMenu("InfinityRender/CameraComponent")]
-    public class CameraComponent : EntityComponent
+    [AddComponentMenu("InfinityRenderer/CameraComponent")]
+    public class CameraComponent : BaseComponent
     {
         public Camera UnityCamera;
         public Plane[] FrustumPlane;

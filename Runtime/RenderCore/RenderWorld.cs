@@ -48,14 +48,6 @@ namespace InfinityTech.Runtime.Rendering.Core
             WorldViewList.Add(InViewComponent);
         }
 
-        public void InvokeWorldViewEventTick()
-        {
-            for (int i = 0; i < WorldViewList.Count; i++)
-            {
-                WorldViewList[i].EventUpdate();
-            }
-        }
-
         public void RemoveWorldView(CameraComponent InViewComponent)
         {
             WorldViewList.Remove(InViewComponent);
@@ -76,14 +68,6 @@ namespace InfinityTech.Runtime.Rendering.Core
         public void AddWorldLight(LightComponent InLightComponent)
         {
             WorldLightList.Add(InLightComponent);
-        }
-
-        public void InvokeWorldLightEventTick()
-        {
-            for (int i = 0; i < WorldLightList.Count; i++)
-            {
-                WorldLightList[i].EventUpdate();
-            }
         }
 
         public void RemoveWorldLight(LightComponent InLightComponent)

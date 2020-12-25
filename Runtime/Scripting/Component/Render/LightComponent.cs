@@ -125,8 +125,8 @@ namespace InfinityTech.Runtime.Component
 
     [ExecuteAlways]
     [RequireComponent(typeof(Light))]
-    [AddComponentMenu("InfinityRender/LightComponent")]
-    public class LightComponent : EntityComponent
+    [AddComponentMenu("InfinityRenderer/LightComponent")]
+    public class LightComponent : BaseComponent
     {
         ///General Property
         public ELightState LightState = ELightState.Dynamic;
