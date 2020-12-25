@@ -456,7 +456,7 @@ float HdrWeightY(float Color, float Exposure)
     return rcp(Color * Exposure + 4);
 }
 
-float3 RGBToYCoCg(float3 RGB)
+/*float3 RGBToYCoCg(float3 RGB)
 {
     float Y = dot(RGB, float3(1, 2, 1));
     float Co = dot(RGB, float3(2, 0, -2));
@@ -477,7 +477,7 @@ float3 YCoCgToRGB(float3 YCoCg)
     float B = Y - Co - Cg;
     
     return float3(R, G, B);
-}
+}*/
 
 float3 RGBToYCbCr(float3 RGB) {
     float Y = (0.299 * RGB.r) + (0.587 * RGB.g) + (0.114 * RGB.b);
