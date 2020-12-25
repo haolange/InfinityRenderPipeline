@@ -7,7 +7,7 @@ using InfinityTech.Runtime.Core.Geometry;
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
     [BurstCompile]
-    internal unsafe struct ConvertHashMapToArray : IJob
+    internal unsafe struct ConvertMeshBatchStateBucketsToArray : IJob
     {
         [WriteOnly]
         public NativeArray<FMeshBatch> StaticMeshBatchList;
@@ -46,14 +46,14 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public NativeArray<FPlane> ViewFrustum;
 
         [ReadOnly]
-        public NativeList<FMeshBatch> MeshBatchList;
+        public NativeArray<FMeshBatch> MeshBatchArray;
 
         [WriteOnly]
         public NativeArray<FVisibleMeshBatch> VisibleMeshBatchList;
 
         public void Execute(int index)
         {
-            FMeshBatch MeshBatch = MeshBatchList[index];
+            FMeshBatch MeshBatch = MeshBatchArray[index];
             
             bool Visibility = true;
             float Distance = math.distance(ViewOrigin, MeshBatch.BoundBox.center);

@@ -200,8 +200,9 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] RenderCameras)
         {
-            //Gather MeshBatch
-            NativeList<FMeshBatch> MeshBatchList = GetWorld().GetMeshBatchColloctor().GetMeshBatchList();
+            //Init Frame
+            NativeArray<FMeshBatch> MeshBatchArray = new NativeArray<FMeshBatch>(GetWorld().GetMeshBatchColloctor().CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            GetWorld().GetMeshBatchColloctor().GatherMeshBatch(MeshBatchArray);
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, RenderCameras);
@@ -237,7 +238,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 //Culling MeshBatch
                 NativeArray<FPlane> ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-                NativeArray<FVisibleMeshBatch> VisibleMeshBatchList = new NativeArray<FVisibleMeshBatch>(MeshBatchList.Length, Allocator.TempJob);
+                NativeArray<FVisibleMeshBatch> VisibleMeshBatchArray = new NativeArray<FVisibleMeshBatch>(MeshBatchArray.Length, Allocator.TempJob);
 
                 Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
                 for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
@@ -249,10 +250,10 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 {
                     CullTask.ViewFrustum = ViewFrustum;
                     CullTask.ViewOrigin = RenderCamera.transform.position;
-                    CullTask.MeshBatchList = MeshBatchList;
-                    CullTask.VisibleMeshBatchList = VisibleMeshBatchList;
+                    CullTask.MeshBatchArray = MeshBatchArray;
+                    CullTask.VisibleMeshBatchList = VisibleMeshBatchArray;
                 }
-                JobHandle CullTaskHandle = CullTask.Schedule(MeshBatchList.Length, 256);
+                JobHandle CullTaskHandle = CullTask.Schedule(MeshBatchArray.Length, 256);
 
                 /*SortMeshBatch SortTask = new SortMeshBatch();
                 {
@@ -270,7 +271,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 //Render Family
                 RenderOpaqueDepth(RenderCamera, CullingResult);
-                RenderOpaqueGBuffer(RenderCamera, CullingResult, VisibleMeshBatchList);
+                RenderOpaqueGBuffer(RenderCamera, CullingResult, MeshBatchArray, VisibleMeshBatchArray);
                 RenderOpaqueMotion(RenderCamera, CullingResult);
                 RenderSkyAtmosphere(RenderCamera);
                 RenderPresentView(RenderCamera, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), RenderCamera.targetTexture);
@@ -296,9 +297,12 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 //Release View
                 ViewFrustum.Dispose();
-                VisibleMeshBatchList.Dispose();
+                VisibleMeshBatchArray.Dispose();
             }
             EndFrameRendering(RenderContext, RenderCameras);
+
+            //Release Frame
+            MeshBatchArray.Dispose();
         }
 
         protected RenderWorld GetWorld()

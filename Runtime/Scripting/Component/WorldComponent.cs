@@ -1,8 +1,5 @@
-﻿using Unity.Jobs;
-using UnityEngine;
-using System.Collections.Generic;
+﻿using UnityEngine;
 using InfinityTech.Runtime.Rendering.Core;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
 
 namespace InfinityTech.Runtime.Component
 {
@@ -11,6 +8,8 @@ namespace InfinityTech.Runtime.Component
     [AddComponentMenu("InfinityRender/WorldComponent")]
     public class WorldComponent : MonoBehaviour
     {
+        public bool bUpdateStatic = true;
+
         [HideInInspector]
         public bool bInit;
 
@@ -27,10 +26,6 @@ namespace InfinityTech.Runtime.Component
         void Update()
         {
             InvokeEventTick();
-            GatherMeshBatch();
-
-            //print("Static : " + GetWorld().GetWorldStaticPrimitive().Count);
-            //print("Dynamic : " + GetWorld().GetWorldDynamicPrimitive().Count);
         }
 
         protected void InvokeEventTick()
@@ -44,7 +39,11 @@ namespace InfinityTech.Runtime.Component
 
         protected void InvokeEventTickEditor()
         {
-            RenderScene.InvokeWorldStaticPrimitiveUpdate();
+            if(bUpdateStatic)
+            {
+                RenderScene.InvokeWorldStaticPrimitiveUpdate();
+            }
+
             RenderScene.InvokeWorldDynamicPrimitiveUpdate();
         }
 
@@ -57,12 +56,6 @@ namespace InfinityTech.Runtime.Component
             }
 
             RenderScene.InvokeWorldDynamicPrimitiveUpdate();
-        }
-
-        protected void GatherMeshBatch()
-        {
-            GetWorld().GetMeshBatchColloctor().ResetDynamicCollector();
-            GetWorld().GetMeshBatchColloctor().CopyStaticToDynamic();
         }
 
         void OnDisable()

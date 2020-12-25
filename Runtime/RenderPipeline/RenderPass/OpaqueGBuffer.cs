@@ -18,7 +18,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             public RDGTextureRef DepthBuffer;
         }
 
-        void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingData, NativeArray<FVisibleMeshBatch> VisibleMeshBatchList)
+        void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingData, NativeArray<FMeshBatch> MeshBatchArray, NativeArray<FVisibleMeshBatch> VisibleMeshBatchArray)
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingData, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
@@ -53,16 +53,15 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 //Draw CustomRenderer
                 RenderWorld World = GraphContext.World;
-                NativeList<FMeshBatch> MeshBatchList = World.GetMeshBatchColloctor().GetMeshBatchList();
 
-                if (VisibleMeshBatchList.Length == 0) { return; }
+                if (VisibleMeshBatchArray.Length == 0) { return; }
 
-                for (int i = 0; i < VisibleMeshBatchList.Length; i++)
+                for (int i = 0; i < VisibleMeshBatchArray.Length; i++)
                 {
-                    FVisibleMeshBatch VisibleMeshBatch = VisibleMeshBatchList[i];
+                    FVisibleMeshBatch VisibleMeshBatch = VisibleMeshBatchArray[i];
                     if (VisibleMeshBatch.visible)
                     {
-                        FMeshBatch MeshBatch = MeshBatchList[VisibleMeshBatch.index];
+                        FMeshBatch MeshBatch = MeshBatchArray[VisibleMeshBatch.index];
                         Mesh mesh = World.WorldMeshList.Get(MeshBatch.Mesh);
                         Material material = World.WorldMaterialList.Get(MeshBatch.Material);
 

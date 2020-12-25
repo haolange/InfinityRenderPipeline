@@ -1,8 +1,6 @@
-﻿using Unity.Burst;
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
-using System.Runtime.CompilerServices;
 using InfinityTech.Runtime.Core.Geometry;
 using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
 
@@ -89,6 +87,15 @@ namespace InfinityTech.Runtime.Component
                 bInitTransfrom = true;
                 UpdateMeshBatch();
             }
+
+            #if UNITY_EDITOR
+                UpdateMeshBatch();
+            #else
+                if (bInitTransfrom == false) {
+                    bInitTransfrom = true;
+                    UpdateMeshBatch();
+                }
+            #endif
         }
 
         protected virtual void OnStateTypeChange(in EStateType LastGeometryState)
