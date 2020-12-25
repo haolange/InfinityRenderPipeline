@@ -27,8 +27,10 @@ namespace InfinityTech.Runtime.Component
         void Update()
         {
             InvokeEventTick();
-            GatherStaticMeshBatch();
-            GatherDynamicMeshBatch();
+            GatherMeshBatch();
+
+            //print("Static : " + GetWorld().GetWorldStaticPrimitive().Count);
+            //print("Dynamic : " + GetWorld().GetWorldDynamicPrimitive().Count);
         }
 
         protected void InvokeEventTick()
@@ -42,38 +44,25 @@ namespace InfinityTech.Runtime.Component
 
         protected void InvokeEventTickEditor()
         {
-            RenderScene.InvokeWorldMeshEventTick();
+            RenderScene.InvokeWorldStaticPrimitiveUpdate();
+            RenderScene.InvokeWorldDynamicPrimitiveUpdate();
         }
 
         protected void InvokeEventTickRuntime()
         {
-            if(bInit == false)
-                return;
+            if(bInit == true)
+            {
+                bInit = false;
+                RenderScene.InvokeWorldStaticPrimitiveUpdate();
+            }
 
-            bInit = false;
-            //float InvokStartTime = Time.realtimeSinceStartup;
-            RenderScene.InvokeWorldMeshEventTick();
-            //float InvokEndTime = (Time.realtimeSinceStartup - InvokStartTime) * 1000;
-            //Debug.Log("InvokTime : " + InvokEndTime + "ms");
+            RenderScene.InvokeWorldDynamicPrimitiveUpdate();
         }
 
-        protected void GatherStaticMeshBatch()
+        protected void GatherMeshBatch()
         {
             GetWorld().GetMeshBatchColloctor().ResetDynamicCollector();
             GetWorld().GetMeshBatchColloctor().CopyStaticToDynamic();
-        }
-
-        protected void GatherDynamicMeshBatch()
-        {
-            List<MeshComponent> MeshList = GetWorld().GetWorldPrimitive();
-            for (int PrimitiveID = 0; PrimitiveID < MeshList.Count; PrimitiveID++)
-            {
-                MeshComponent Mesh = MeshList[PrimitiveID];
-                if (Mesh.GeometryState == EStateType.Dynamic) 
-                {
-                    Mesh.GetDynamicMeshBatch(GetWorld().GetMeshBatchColloctor());
-                }
-            }
         }
 
         void OnDisable()

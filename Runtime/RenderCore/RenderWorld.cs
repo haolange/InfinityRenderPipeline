@@ -15,13 +15,13 @@ namespace InfinityTech.Runtime.Rendering.Core
 
         public string name;
 
-
         public SharedRefFactory<Mesh> WorldMeshList;
         public SharedRefFactory<Material> WorldMaterialList;
 
         private List<CameraComponent> WorldViewList;
         private List<LightComponent> WorldLightList;
-        private List<MeshComponent> WorldPrimitiveList;
+        private List<MeshComponent> WorldStaticPrimitiveList;
+        private List<MeshComponent> WorldDynamicPrimitiveList;
 
         private FMeshBatchCollector MeshBatchCollector;
 
@@ -32,12 +32,13 @@ namespace InfinityTech.Runtime.Rendering.Core
             name = InName;
             ActiveWorld = this;
 
-            WorldMeshList = new SharedRefFactory<Mesh>(128);
-            WorldMaterialList = new SharedRefFactory<Material>(128);
+            WorldMeshList = new SharedRefFactory<Mesh>(256);
+            WorldMaterialList = new SharedRefFactory<Material>(256);
 
             WorldViewList = new List<CameraComponent>(16);
-            WorldLightList = new List<LightComponent>(32);
-            WorldPrimitiveList = new List<MeshComponent>(128);
+            WorldLightList = new List<LightComponent>(64);
+            WorldStaticPrimitiveList = new List<MeshComponent>(1024);
+            WorldDynamicPrimitiveList = new List<MeshComponent>(1024);
 
             MeshBatchCollector = new FMeshBatchCollector();
         }
@@ -87,33 +88,68 @@ namespace InfinityTech.Runtime.Rendering.Core
         #endregion //WorldLight
 
         #region WorldPrimitive
-        public void AddWorldPrimitive(MeshComponent InMeshComponent)
+        //Static
+        public void AddWorldStaticPrimitive(MeshComponent InMeshComponent)
         {
-            WorldPrimitiveList.Add(InMeshComponent);
+            WorldStaticPrimitiveList.Add(InMeshComponent);
         }
 
-        public void InvokeWorldMeshEventTick()
+        public void InvokeWorldStaticPrimitiveUpdate()
         {
-            for (int i = 0; i < WorldPrimitiveList.Count; i++)
+            if(WorldStaticPrimitiveList.Count == 0) { return; }
+
+            for (int i = 0; i < WorldStaticPrimitiveList.Count; i++)
             {
-                WorldPrimitiveList[i].EventUpdate();
+                WorldStaticPrimitiveList[i].EventUpdate();
             }
         }
 
-        public void RemoveWorldPrimitive(MeshComponent InMeshComponent)
+        public void RemoveWorldStaticPrimitive(MeshComponent InMeshComponent)
         {
-            WorldPrimitiveList.Remove(InMeshComponent);
+            WorldStaticPrimitiveList.Remove(InMeshComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public List<MeshComponent> GetWorldPrimitive()
+        public List<MeshComponent> GetWorldStaticPrimitive()
         {
-            return WorldPrimitiveList;
+            return WorldStaticPrimitiveList;
         }
 
-        public void ClearWorldPrimitive()
+        public void ClearWorldStaticPrimitive()
         {
-            WorldPrimitiveList.Clear();
+            WorldStaticPrimitiveList.Clear();
+        }
+
+        //Dynamic
+        public void AddWorldDynamicPrimitive(MeshComponent InMeshComponent)
+        {
+            WorldDynamicPrimitiveList.Add(InMeshComponent);
+        }
+
+        public void InvokeWorldDynamicPrimitiveUpdate()
+        {
+            if (WorldDynamicPrimitiveList.Count == 0) { return; }
+
+            for (int i = 0; i < WorldDynamicPrimitiveList.Count; i++)
+            {
+                WorldDynamicPrimitiveList[i].EventUpdate();
+            }
+        }
+
+        public void RemoveWorldDynamicPrimitive(MeshComponent InMeshComponent)
+        {
+            WorldDynamicPrimitiveList.Remove(InMeshComponent);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public List<MeshComponent> GetWorldDynamicPrimitive()
+        {
+            return WorldDynamicPrimitiveList;
+        }
+
+        public void ClearWorldDynamicPrimitive()
+        {
+            WorldDynamicPrimitiveList.Clear();
         }
         #endregion //WorldPrimitive
 
@@ -129,7 +165,8 @@ namespace InfinityTech.Runtime.Rendering.Core
         {
             ClearWorldView();
             ClearWorldLight();
-            ClearWorldPrimitive();
+            ClearWorldStaticPrimitive();
+            ClearWorldDynamicPrimitive();
 
             WorldMeshList.Reset();
             WorldMaterialList.Reset();
@@ -142,7 +179,8 @@ namespace InfinityTech.Runtime.Rendering.Core
         {
             ClearWorldView();
             ClearWorldLight();
-            ClearWorldPrimitive();
+            ClearWorldStaticPrimitive();
+            ClearWorldDynamicPrimitive();
 
             WorldMeshList.Reset();
             WorldMaterialList.Reset();

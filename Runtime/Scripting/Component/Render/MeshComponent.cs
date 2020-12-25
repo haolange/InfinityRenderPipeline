@@ -39,7 +39,13 @@ namespace InfinityTech.Runtime.Component
 
 
         [HideInInspector]
+        public bool bInitTransfrom;
+
+        [HideInInspector]
         public int LastMeshInstanceID;
+
+        [HideInInspector]
+        public EStateType LastGeometryState;
 
         [HideInInspector]
         public FAABB BoundBox;
@@ -68,24 +74,35 @@ namespace InfinityTech.Runtime.Component
 
         protected override void OnRigister()
         {
+            bInitTransfrom = false;
             CustomPrimitiveData = new NativeArray<float>(16, Allocator.Persistent);
-            GetWorld().AddWorldPrimitive(this);
-            BuildStaticMeshBatch();
+            AddWorldPrimitive(GeometryState);
+            BuildMeshBatch();
         }
 
         protected override void OnTransformChange()
         {
             UpdateMatrix();
             UpdateBounds();
-            UpdateStaticMeshBatch();
+
+            if (bInitTransfrom == false) {
+                bInitTransfrom = true;
+                UpdateMeshBatch();
+            }
+        }
+
+        protected virtual void OnStateTypeChange(in EStateType LastGeometryState)
+        {
+            AddWorldPrimitive(GeometryState);
+            RemoveWorldPrimitive(LastGeometryState);
         }
 
         protected virtual void OnStaticMeshChange()
         {
             UpdateBounds();
             UpdateMaterial();
-            ReleaseStaticMeshBatch();
-            BuildStaticMeshBatch();
+            ReleaseMeshBatch();
+            BuildMeshBatch();
         }
 
         protected override void EventPlay()
@@ -95,18 +112,31 @@ namespace InfinityTech.Runtime.Component
 
         protected override void EventTick()
         {
-            //Update Mesh if Dirty
+            //Update By StateDirty
+            EStateType StateType;
+            if (GetStateTypeDirty(out StateType))
+            {
+                OnStateTypeChange(StateType);
+            }
+
+            //Update By MeshDirty
             if (GetMeshStateDirty()) 
             {
                 OnStaticMeshChange();
+            }
+
+            //Update DynamicMeshBatch
+            if (GeometryState == EStateType.Dynamic)
+            {
+                UpdateMeshBatch();
             }
         }
 
         protected override void UnRigister()
         {
-            ReleaseStaticMeshBatch();
+            RemoveWorldPrimitive(GeometryState);
+            ReleaseMeshBatch();
             CustomPrimitiveData.Dispose();
-            GetWorld().RemoveWorldPrimitive(this);
         }
 
 #if UNITY_EDITOR
@@ -129,7 +159,47 @@ namespace InfinityTech.Runtime.Component
         }
 #endif
 
-        // RenderInterface
+        // Render Interface
+        private void AddWorldPrimitive(in EStateType StateType)
+        {
+            if(StateType == EStateType.Static)
+            {
+                GetWorld().AddWorldStaticPrimitive(this);
+            }
+
+            if (StateType == EStateType.Dynamic)
+            {
+                GetWorld().AddWorldDynamicPrimitive(this);
+            }
+        }
+
+        private void RemoveWorldPrimitive(in EStateType StateType)
+        {
+            if (StateType == EStateType.Static)
+            {
+                GetWorld().RemoveWorldStaticPrimitive(this);
+            }
+
+            if (StateType == EStateType.Dynamic)
+            {
+                GetWorld().RemoveWorldDynamicPrimitive(this);
+            }
+        }
+
+        private bool GetStateTypeDirty(out EStateType StateType)
+        {
+            bool OutState = false;
+            StateType = LastGeometryState;
+
+            if (LastGeometryState != GeometryState)
+            {
+                OutState = true;
+                LastGeometryState = GeometryState;
+            }
+
+            return OutState;
+        }
+
         private bool GetMeshStateDirty()
         {          
             bool OutState = false;
@@ -183,10 +253,8 @@ namespace InfinityTech.Runtime.Component
             }
         }
 
-        private void BuildStaticMeshBatch()
+        private void BuildMeshBatch()
         {
-            if (GeometryState == EStateType.Dynamic) { return; }
-
             if (StaticMesh != null) 
             {
                 MeshBatchCacheID = new int[StaticMesh.subMeshCount];
@@ -212,10 +280,8 @@ namespace InfinityTech.Runtime.Component
             }
         }
 
-        private void UpdateStaticMeshBatch()
+        private void UpdateMeshBatch()
         {
-            if (GeometryState == EStateType.Dynamic) { return; }
-
             if (StaticMesh != null)
             {
                 for (int Index = 0; Index < MeshBatchCacheID.Length; Index++)
@@ -238,10 +304,10 @@ namespace InfinityTech.Runtime.Component
             }
         }
 
-        private void ReleaseStaticMeshBatch()
+        private void ReleaseMeshBatch()
         {
             if (MeshBatchCacheID.Length == 0) { return; }
-            if (GeometryState == EStateType.Dynamic) { return; }
+
             if (GetWorld().GetMeshBatchColloctor().StaticListAvalible() == false) { return; }
 
             if (StaticMesh != null)
@@ -251,6 +317,12 @@ namespace InfinityTech.Runtime.Component
                     GetWorld().GetMeshBatchColloctor().RemoveStaticMeshBatch(MeshBatchCacheID[Index]);
                 }
             }
+        }
+
+        // RenderData Interface
+        public float4 GetCustomPrimitiveData(int Offset)
+        {
+            return new float4(CustomPrimitiveData[Offset], CustomPrimitiveData[Offset + 1], CustomPrimitiveData[Offset + 2], CustomPrimitiveData[Offset + 3]);
         }
 
         public void SetCustomPrimitiveData(int Offset, float CustomData)
@@ -278,43 +350,5 @@ namespace InfinityTech.Runtime.Component
             SetCustomPrimitiveData(Offset + 2, CustomData.z);
             SetCustomPrimitiveData(Offset + 3, CustomData.w);
         }     
-
-        private float4 GetCustomPrimitiveData(int Offset)
-        {
-            return new float4(CustomPrimitiveData[Offset], CustomPrimitiveData[Offset + 1], CustomPrimitiveData[Offset + 2], CustomPrimitiveData[Offset + 3]);
-        }
-
-        [BurstCompile]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void GetDynamicMeshBatch(FMeshBatchCollector MeshBatchCollector)
-        {
-#if UNITY_EDITOR
-            if (StaticMesh != null)
-            {
-#endif
-                UpdateMatrix();
-                UpdateBounds();
-
-                for (int Index = 0; Index < StaticMesh.subMeshCount; Index++)
-                {
-                    FMeshBatch MeshBatch;
-                    MeshBatch.Visible = Visible;
-                    MeshBatch.BoundBox = BoundBox;
-                    MeshBatch.CastShadow = (int)CastShadow;
-                    MeshBatch.MotionType = (int)MotionVector;
-                    MeshBatch.RenderLayer = RenderLayer;
-                    MeshBatch.SubmeshIndex = Index;
-                    MeshBatch.Mesh = GetWorld().WorldMeshList.Add(StaticMesh);
-                    MeshBatch.Material = GetWorld().WorldMaterialList.Add(Materials[Index]);
-                    MeshBatch.Priority = RenderPriority + Materials[Index].renderQueue;
-                    MeshBatch.Matrix_LocalToWorld = Matrix_LocalToWorld;
-                    //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
-
-                    MeshBatchCollector.AddDynamicMeshBatch(MeshBatch);
-                }
-#if UNITY_EDITOR
-            }
-#endif
-        }
     }
 }
