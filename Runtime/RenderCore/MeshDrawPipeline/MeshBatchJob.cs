@@ -2,22 +2,39 @@
 using Unity.Burst;
 using Unity.Mathematics;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using InfinityTech.Runtime.Core.Geometry;
+using System;
 
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
     [BurstCompile]
-    internal unsafe struct ConvertMeshBatchStateBucketsToArray : IJob
+    internal unsafe struct HashmapValueToArray<TKey, TValue> : IJob where TKey : struct, IEquatable<TKey> where TValue : struct
     {
         [WriteOnly]
-        public NativeArray<FMeshBatch> StaticMeshBatchList;
+        public NativeArray<TValue> Array;
 
         [ReadOnly]
-        public NativeHashMap<int, FMeshBatch> CacheMeshBatchStateBuckets;
+        public NativeHashMap<TKey, TValue> Hashmap;
 
         public void Execute()
         {
-            CacheMeshBatchStateBuckets.GetValueArray(StaticMeshBatchList);
+            Hashmap.GetValueArray(Array);
+        }
+    }
+
+    [BurstCompile]
+    public unsafe struct HashmapValueToArrayParallel<TKey, TValue> : IJobParallelFor where TKey : struct, IEquatable<TKey> where TValue : struct
+    {
+        [WriteOnly]
+        public NativeArray<TValue> Array;
+
+        [ReadOnly]
+        public NativeHashMap<TKey, TValue> Hashmap;
+
+        public void Execute(int index)
+        {
+            Array[index] = UnsafeUtility.ReadArrayElement<TValue>(Hashmap.m_HashMapData.m_Buffer->values, index);
         }
     }
 

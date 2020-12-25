@@ -15,16 +15,26 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
             CacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchArray)
+        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchArray, bool ParallelGather = true)
         {
             if(CacheMeshBatchStateBuckets.Count() == 0) { return; }
 
-            ConvertMeshBatchStateBucketsToArray ConvertToArrayTask = new ConvertMeshBatchStateBucketsToArray();
+            if (ParallelGather)
             {
-                ConvertToArrayTask.StaticMeshBatchList = MeshBatchArray;
-                ConvertToArrayTask.CacheMeshBatchStateBuckets = CacheMeshBatchStateBuckets;
+                HashmapValueToArrayParallel<int, FMeshBatch> HashmapToArrayTask = new HashmapValueToArrayParallel<int, FMeshBatch>();
+                {
+                    HashmapToArrayTask.Array = MeshBatchArray;
+                    HashmapToArrayTask.Hashmap = CacheMeshBatchStateBuckets;
+                }
+                HashmapToArrayTask.Schedule(MeshBatchArray.Length, 256).Complete();
+            } else {
+                HashmapValueToArray<int, FMeshBatch> HashmapToArrayTask = new HashmapValueToArray<int, FMeshBatch>();
+                {
+                    HashmapToArrayTask.Array = MeshBatchArray;
+                    HashmapToArrayTask.Hashmap = CacheMeshBatchStateBuckets;
+                }
+                HashmapToArrayTask.Run();
             }
-            ConvertToArrayTask.Run();
         }
 
         public bool StaticListAvalible()
