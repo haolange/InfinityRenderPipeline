@@ -14,8 +14,9 @@ Completed :
 
 
 Developerment : 
-* HiZ-Readback OcclusionCull for MeshDrawCommand.
+* TemporalAA.
 * Instance Terrain use MorphVertex for Low DarwCall.
+* HiZ-Readback OcclusionCull for MeshDrawCommand.
 * Runtime VirtualTexture for HighPerformance TerrainRender.
 * Instance FoliageSystem for HighPerformance and Mass FoliageRender.
 * MeshDrawCommand a Unfield HighPreformence DrawMeshSystem for EasySetting and AutoInstance.
@@ -26,8 +27,8 @@ Planned :
 * ScreenSpaceShadow.
 * Volumetric Fog&Cloud.
 * ScreenSpaceRefraction.
-* PBRSystem for PBS&PBL&PBC.
 * Separable Subsurface Scatter.
+* PBRSystem for PBS&PBL&PBC.
 * ZBin Struct for Light&Probe GPUData.
 * Static&Dynamic Patch ShadowMap and PCSS.
 * Diversification ShadingModel for DefualtLit/ClearCoat/Skin/Hair/Cloth/NPR.
