@@ -305,10 +305,10 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             MeshBatchArray.Dispose();
         }
 
-        protected RenderWorld GetWorld()
+        protected FRenderWorld GetWorld()
         {
-            if (RenderWorld.ActiveWorld != null) {
-                return RenderWorld.ActiveWorld;
+            if (FRenderWorld.ActiveWorld != null) {
+                return FRenderWorld.ActiveWorld;
             }
 
             return null;

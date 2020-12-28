@@ -63,10 +63,13 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public int MatchForDynamicInstance()
         {
             int hashCode = 2;
+            hashCode += Visible.GetHashCode();
             hashCode += SubmeshIndex;
             hashCode += Mesh.GetHashCode();
             hashCode += Material.GetHashCode();
-
+            hashCode += CastShadow.GetHashCode();
+            hashCode += MotionType.GetHashCode();
+            hashCode += RenderLayer.GetHashCode();
             return hashCode;
         }
 
@@ -108,23 +111,24 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
     public struct FVisibleMeshBatch : IComparable<FVisibleMeshBatch>
     {
         public int index;
-        public int priority;
+        //public int priority;
         public bool visible;
-        public float distance;
+        //public float distance;
 
 
         public FVisibleMeshBatch(in int Index, in int Priority, in bool Visible, in float Distance)
         {
             index = Index;
             visible = Visible;
-            distance = Distance;
-            priority = Priority;
+            //distance = Distance;
+            //priority = Priority;
         }
 
         public int CompareTo(FVisibleMeshBatch VisibleMeshBatch)
         {
-            float Priority = priority + distance;
-            return Priority.CompareTo(VisibleMeshBatch.priority + VisibleMeshBatch.distance);
+            return 0;
+            /*float Priority = priority + distance;
+            return Priority.CompareTo(VisibleMeshBatch.priority + VisibleMeshBatch.distance);*/
         }
     }
 }

@@ -282,7 +282,7 @@ namespace InfinityTech.Runtime.Component
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
                     
                     MeshBatchCacheID[Index] = MeshBatch.GetHashCode(this.GetInstanceID() + this.transform.GetHashCode() + this.gameObject.name.GetHashCode());
-                    GetWorld().GetMeshBatchColloctor().AddStaticMeshBatch(MeshBatch, MeshBatchCacheID[Index]);
+                    GetWorld().GetMeshBatchColloctor().AddMeshBatch(MeshBatch, MeshBatchCacheID[Index]);
                 }
             }
         }
@@ -306,7 +306,7 @@ namespace InfinityTech.Runtime.Component
                     MeshBatch.Matrix_LocalToWorld = Matrix_LocalToWorld;
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
 
-                    GetWorld().GetMeshBatchColloctor().UpdateStaticMeshBatch(MeshBatch, MeshBatchCacheID[Index]);
+                    GetWorld().GetMeshBatchColloctor().UpdateMeshBatch(MeshBatch, MeshBatchCacheID[Index]);
                 }
             }
         }
@@ -315,13 +315,13 @@ namespace InfinityTech.Runtime.Component
         {
             if (MeshBatchCacheID.Length == 0) { return; }
 
-            if (GetWorld().GetMeshBatchColloctor().StaticListAvalible() == false) { return; }
+            if (GetWorld().GetMeshBatchColloctor().CollectorAvalible() == false) { return; }
 
             if (StaticMesh != null)
             {
                 for (int Index = 0; Index < MeshBatchCacheID.Length; Index++)
                 {
-                    GetWorld().GetMeshBatchColloctor().RemoveStaticMeshBatch(MeshBatchCacheID[Index]);
+                    GetWorld().GetMeshBatchColloctor().RemoveMeshBatch(MeshBatchCacheID[Index]);
                 }
             }
         }

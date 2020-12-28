@@ -37,22 +37,22 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
             }
         }
 
-        public bool StaticListAvalible()
+        public bool CollectorAvalible()
         {
             return CacheMeshBatchStateBuckets.IsCreated;
         }
 
-        public void AddStaticMeshBatch(in FMeshBatch MeshBatch, in int AddKey)
+        public void AddMeshBatch(in FMeshBatch MeshBatch, in int AddKey)
         {
             CacheMeshBatchStateBuckets.Add(AddKey, MeshBatch);
         }
 
-        public void UpdateStaticMeshBatch(in FMeshBatch MeshBatch, in int UpdateKey)
+        public void UpdateMeshBatch(in FMeshBatch MeshBatch, in int UpdateKey)
         {
             CacheMeshBatchStateBuckets[UpdateKey] = MeshBatch;
         }
 
-        public void RemoveStaticMeshBatch(in int RemoveKey)
+        public void RemoveMeshBatch(in int RemoveKey)
         {
             CacheMeshBatchStateBuckets.Remove(RemoveKey);
         }

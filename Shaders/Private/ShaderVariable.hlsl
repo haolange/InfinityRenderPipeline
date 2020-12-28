@@ -3,7 +3,7 @@
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
-CBUFFER_START(InfinityPerCamera)
+CBUFFER_START(ViewUnifrom)
     int FrameIndex;
     int Prev_FrameIndex;
     float4 TAAJitter;

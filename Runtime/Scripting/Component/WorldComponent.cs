@@ -14,14 +14,14 @@ namespace InfinityTech.Runtime.Component
         public bool bInit;
 
         [HideInInspector]
-        public RenderWorld RenderScene;
+        public FRenderWorld RenderScene;
 
         void OnEnable()
         {
             bInit = true;
             bUpdateStatic = true;
             
-            RenderScene = new RenderWorld("RenderScene");
+            RenderScene = new FRenderWorld("RenderScene");
             RenderScene.Initializ();
         }
 
@@ -67,11 +67,11 @@ namespace InfinityTech.Runtime.Component
             RenderScene.Dispose();
         }
 
-        protected RenderWorld GetWorld()
+        protected FRenderWorld GetWorld()
         {
-            if (RenderWorld.ActiveWorld != null)
+            if (FRenderWorld.ActiveWorld != null)
             {
-                return RenderWorld.ActiveWorld;
+                return FRenderWorld.ActiveWorld;
             }
 
             return null;

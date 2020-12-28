@@ -86,11 +86,11 @@ namespace InfinityTech.Runtime.Component
 
         }
 
-        protected RenderWorld GetWorld()
+        protected FRenderWorld GetWorld()
         {
-            if (RenderWorld.ActiveWorld != null)
+            if (FRenderWorld.ActiveWorld != null)
             {
-                return RenderWorld.ActiveWorld;
+                return FRenderWorld.ActiveWorld;
             }
 
             return null;

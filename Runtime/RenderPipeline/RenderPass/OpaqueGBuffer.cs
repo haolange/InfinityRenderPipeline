@@ -52,7 +52,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //Draw CustomRenderer
-                RenderWorld World = GraphContext.World;
+                FRenderWorld World = GraphContext.World;
 
                 if (VisibleMeshBatchArray.Length == 0) { return; }
 

@@ -8,7 +8,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
 {
     public class RDGContext
     {
-        public RenderWorld World;
+        public FRenderWorld World;
         public RDGObjectPool ObjectPool;
         public CommandBuffer CmdBuffer;
         public ScriptableRenderContext RenderContext;
@@ -208,7 +208,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
             m_RenderPasses.Add(renderPass);
         }
 
-        public void Execute(ScriptableRenderContext renderContext, RenderWorld world, CommandBuffer cmd, int InFrameIndex)
+        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, CommandBuffer cmd, int InFrameIndex)
         {
             m_ExecutionExceptionWasRaised = false;
 
@@ -572,7 +572,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
             UpdateResourceAllocationAndSynchronization();
         }
 
-        void ExecuteRenderGraph(ScriptableRenderContext RenderContext, RenderWorld renderWorld, CommandBuffer CmdBuffer)
+        void ExecuteRenderGraph(ScriptableRenderContext RenderContext, FRenderWorld renderWorld, CommandBuffer CmdBuffer)
         {
             using (new ProfilingScope(m_RenderGraphContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
             {

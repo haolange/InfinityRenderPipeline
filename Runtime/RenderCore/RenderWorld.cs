@@ -9,9 +9,9 @@ using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
 namespace InfinityTech.Runtime.Rendering.Core
 {
     [Serializable]
-    public class RenderWorld : UObject
+    public class FRenderWorld : UObject
     {
-        public static RenderWorld ActiveWorld { get; private set; }
+        public static FRenderWorld ActiveWorld { get; private set; }
 
         public string name;
 
@@ -27,7 +27,7 @@ namespace InfinityTech.Runtime.Rendering.Core
 
 
         //Function
-        public RenderWorld(string InName)
+        public FRenderWorld(string InName)
         {
             name = InName;
             ActiveWorld = this;
