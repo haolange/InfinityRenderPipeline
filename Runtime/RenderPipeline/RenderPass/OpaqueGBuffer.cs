@@ -43,6 +43,21 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             },
             (ref FOpaqueGBufferData PassData, RDGContext GraphContext) =>
             {
+                //Draw MeshBatch
+                if (CullingData.ViewMeshBatchList.Length == 0) { return; }
+
+                for (int i = 0; i < CullingData.ViewMeshBatchList.Length; i++)
+                {
+                    FViewMeshBatch VisibleMeshBatch = CullingData.ViewMeshBatchList[i];
+                    FMeshBatch MeshBatch = MeshBatchArray[VisibleMeshBatch.index];
+                    Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
+                    Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+
+                    if (DrawMesh && DrawMaterial) {
+                        GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                    }
+                }
+
                 //Draw UnityRenderer
                 RendererList GBufferRenderList = PassData.RendererList;
                 GBufferRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
@@ -50,23 +65,6 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
                 GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2450);
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
-
-                //Draw CustomRenderer
-                FRenderWorld World = GraphContext.World;
-
-                if (CullingData.ViewMeshBatchList.Length == 0) { return; }
-
-                for (int i = 0; i < CullingData.ViewMeshBatchList.Length; i++)
-                {
-                    FViewMeshBatch VisibleMeshBatch = CullingData.ViewMeshBatchList[i];
-                    FMeshBatch MeshBatch = MeshBatchArray[VisibleMeshBatch.index];
-                    Mesh mesh = World.WorldMeshList.Get(MeshBatch.Mesh);
-                    Material material = World.WorldMaterialList.Get(MeshBatch.Material);
-
-                    if (mesh && material)
-                        GraphContext.CmdBuffer.DrawMesh(mesh, MeshBatch.Matrix_LocalToWorld, material, MeshBatch.SubmeshIndex, 2);
-                }
-
             });
         }
     }
