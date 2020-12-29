@@ -1,6 +1,8 @@
 {
     "name": "Unity.RenderPipelines.HighDefinition.Runtime",
+    "rootNamespace": "",
     "references": [
+        "Unity.Jobs",
         "Unity.Burst",
         "Unity.Collections",
         "Unity.Mathematics",
