@@ -1,7 +1,5 @@
-using System;
 using Unity.Jobs;
 using Unity.Burst;
-using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
@@ -10,31 +8,7 @@ using InfinityTech.Runtime.Core.Geometry;
 
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
-    [BurstCompile]
-    internal struct FPassMeshBatchFilterJob : IJobParallelFor
-    {
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchArray;
-
-        [ReadOnly]
-        public NativeArray<FViewMeshBatch> ViewMeshBatchList;
-
-        [NativeDisableParallelForRestriction]
-        public NativeHashMap<int, FMeshDrawCommand> PassDrawContextList;
-
-        public void AddMeshBatchRef(in FViewMeshBatch VisibleMeshBatch)
-        {
-            FMeshBatch MeshBatch = MeshBatchArray[VisibleMeshBatch.index];
-        }
-
-        public void Execute(int index)
-        {
-            FViewMeshBatch ViewMeshBatch = ViewMeshBatchList[index];
-            AddMeshBatchRef(ViewMeshBatch);
-        }
-    }
-
-    internal class FMeshBatchProcessor<T> where T : struct
+    internal class FMeshBatchProcessor
     {
         protected NativeArray<FMeshBatch> MeshBatchList;
         protected NativeHashMap<int, FMeshDrawCommand> PassDrawContextList;
@@ -56,9 +30,9 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
             PassDrawContextList.Clear();
         }
 
-        internal void BuildMeshDrawCommand(in FCullingData CullingData, in FilteringSettings FilterSetting)
+        internal void BuildMeshDrawCommand(in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            NativeArray<FViewMeshBatch> ViewMeshBatchList = CullingData.ViewMeshBatchList;
+            /*NativeArray<FViewMeshBatch> ViewMeshBatchList = CullingData.ViewMeshBatchList;
             for (int i = 0; i < ViewMeshBatchList.Length; i++)
             {
                 FViewMeshBatch VisibleMeshBatch  = ViewMeshBatchList[i];
@@ -76,7 +50,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
                     MeshDrawCommand.Init();
                     PassDrawContextList.Add(MeshBatch.MatchForDynamicInstance(), MeshDrawCommand);
                 }
-            }
+            }*/
         }
 
         internal void DispatchDraw()

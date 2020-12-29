@@ -28,7 +28,6 @@ namespace InfinityTech.Runtime.Component
         public bool ReceiveShadow = true;
         public bool AffectIndirectLighting = true;
 
-
         [Header("Rendering")]
         public bool Visible = true;
         public int RenderLayer = 0;

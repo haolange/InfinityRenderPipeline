@@ -43,6 +43,14 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             },
             (ref FOpaqueGBufferData PassData, RDGContext GraphContext) =>
             {
+                //Draw UnityRenderer
+                RendererList GBufferRenderList = PassData.RendererList;
+                GBufferRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
+                GBufferRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
+                GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
+                GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2450);
+                GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
+
                 //Draw MeshBatch
                 if (CullingData.ViewMeshBatchList.Length == 0) { return; }
 
@@ -53,18 +61,11 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                     Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
                     Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
 
-                    if (DrawMesh && DrawMaterial) {
+                    if (DrawMesh && DrawMaterial)
+                    {
                         GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
                     }
                 }
-
-                //Draw UnityRenderer
-                RendererList GBufferRenderList = PassData.RendererList;
-                GBufferRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
-                GBufferRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
-                GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
-                GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2450);
-                GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
             });
         }
     }
