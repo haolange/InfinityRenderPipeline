@@ -62,8 +62,8 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchArray;
 
-        [WriteOnly]
-        public NativeArray<FViewMeshBatch> ViewMeshBatchList;
+        [NativeDisableParallelForRestriction]
+        public NativeList<FViewMeshBatch> ViewMeshBatchList;
 
         public void Execute(int index)
         {
@@ -83,11 +83,10 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
                 }
             }
 
-            if (CullState) {
-
+            if (CullState) 
+            {
+                ViewMeshBatchList.Add(new FViewMeshBatch(index));
             }
-
-            ViewMeshBatchList[index] = new FViewMeshBatch(index);
         }
     }
 

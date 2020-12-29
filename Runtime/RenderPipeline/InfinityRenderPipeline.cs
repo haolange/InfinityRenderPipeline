@@ -198,93 +198,75 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             SetGraphicsSetting();
         }
 
-        protected override void Render(ScriptableRenderContext RenderContext, Camera[] RenderCameras)
+        protected override void Render(ScriptableRenderContext RenderContext, Camera[] ViewList)
         {
             //Init Frame
             NativeArray<FMeshBatch> MeshBatchArray = new NativeArray<FMeshBatch>(GetWorld().GetMeshBatchColloctor().CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
             GetWorld().GetMeshBatchColloctor().GatherMeshBatch(MeshBatchArray);
 
             //Render Pipeline
-            BeginFrameRendering(RenderContext, RenderCameras);
-            foreach (Camera RenderCamera in RenderCameras)
+            BeginFrameRendering(RenderContext, ViewList);
+            foreach (Camera View in ViewList)
             {
-                bool bSceneView = RenderCamera.cameraType == CameraType.SceneView;
-                bool bRenderView = RenderCamera.cameraType == CameraType.Game || RenderCamera.cameraType == CameraType.Reflection || RenderCamera.cameraType == CameraType.SceneView;
+                bool bSceneView = View.cameraType == CameraType.SceneView;
+                bool bRenderView = View.cameraType == CameraType.Game || View.cameraType == CameraType.Reflection || View.cameraType == CameraType.SceneView;
 
-                bool isSceneViewCam = RenderCamera.cameraType == CameraType.SceneView;
+                bool isSceneViewCam = View.cameraType == CameraType.SceneView;
                 #if UNITY_EDITOR
                 if (isSceneViewCam) {
-                    ScriptableRenderContext.EmitWorldGeometryForSceneView(RenderCamera);
+                    ScriptableRenderContext.EmitWorldGeometryForSceneView(View);
                 }
                 #endif
 
                 //Prepare VisualEffects
-                VFXManager.PrepareCamera(RenderCamera);
+                VFXManager.PrepareCamera(View);
 
                 //Prepare ViewUnifrom
-                ViewUnifrom.UnpateBufferData(false, RenderCamera);
+                ViewUnifrom.UnpateBufferData(false, View);
 
                 //View RenderFamily
                 CommandBuffer CmdBuffer = CommandBufferPool.Get("");
 
                 //Binding ViewParameter
-                BeginCameraRendering(RenderContext, RenderCamera);
+                BeginCameraRendering(RenderContext, View);
                 CmdBuffer.DisableScissorRect();
                 ViewUnifrom.BindGPUProperty(CmdBuffer);
-                RenderContext.SetupCameraProperties(RenderCamera);
+                RenderContext.SetupCameraProperties(View);
 
                 //Binding VisualEffects
-                VFXManager.ProcessCameraCommand(RenderCamera, CmdBuffer);
+                VFXManager.ProcessCameraCommand(View, CmdBuffer);
 
                 //Culling MeshBatch
-                NativeArray<FPlane> ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-                NativeArray<FViewMeshBatch> ViewMeshBatchList = new NativeArray<FViewMeshBatch>(MeshBatchArray.Length, Allocator.TempJob);
-
-                Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
-                for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
-                {
-                    ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
-                }
-
-                CullMeshBatch CullTask = new CullMeshBatch();
-                {
-                    CullTask.ViewFrustum = ViewFrustum;
-                    CullTask.MeshBatchArray = MeshBatchArray;
-                    CullTask.ViewMeshBatchList = ViewMeshBatchList;
-                }
-                JobHandle CullTaskHandle = CullTask.Schedule(MeshBatchArray.Length, 256);
-
-                /*SortMeshBatch SortTask = new SortMeshBatch();
-                {
-                    SortTask.VisibleMeshBatchList = VisibleMeshBatchList;
-                }
-                JobHandle SortTaskHandle = SortTask.Schedule(CullTaskHandle);*/
+                FCullingData CullingData = new FCullingData(View, MeshBatchArray);
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;
-                RenderCamera.TryGetCullingParameters(out CullingParameter);
+                View.TryGetCullingParameters(out CullingParameter);
                 CullingResults CullingResult = RenderContext.Cull(ref CullingParameter);
 
-                CullTaskHandle.Complete();
-                //SortTaskHandle.Complete();
+                //Wait MeshBatch
+                CullingData.Sync();
 
                 //Render Family
-                RenderOpaqueDepth(RenderCamera, CullingResult);
-                RenderOpaqueGBuffer(RenderCamera, CullingResult, MeshBatchArray, ViewMeshBatchList);
-                RenderOpaqueMotion(RenderCamera, CullingResult);
-                RenderSkyAtmosphere(RenderCamera);
-                RenderPresentView(RenderCamera, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), RenderCamera.targetTexture);
+                RenderOpaqueDepth(View, CullingResult);
+                RenderOpaqueGBuffer(View, CullingResult, MeshBatchArray, CullingData);
+                RenderOpaqueMotion(View, CullingResult);
+                RenderSkyAtmosphere(View);
+                RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), View.targetTexture);
 
                 //Draw DrawGizmos
                 #if UNITY_EDITOR
                 if (Handles.ShouldRenderGizmos()) {
-                    RenderGizmo(RenderCamera, GizmoSubset.PostImageEffects);
+                    RenderGizmo(View, GizmoSubset.PostImageEffects);
                 }
-                #endif
+#endif
 
                 //Execute RenderGraph
-                GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
-                EndCameraRendering(RenderContext, RenderCamera);
+                using (new ProfilingScope(CmdBuffer, ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
+                {
+                    GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
+                }
+                EndCameraRendering(RenderContext, View);
 
                 //Execute ViewRender
                 RenderContext.ExecuteCommandBuffer(CmdBuffer);
@@ -292,13 +274,12 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 RenderContext.Submit();
 
                 //Prepare ViewUnifrom
-                ViewUnifrom.UnpateBufferData(true, RenderCamera);
+                ViewUnifrom.UnpateBufferData(true, View);
 
                 //Release View
-                ViewFrustum.Dispose();
-                ViewMeshBatchList.Dispose();
+                CullingData.Release();
             }
-            EndFrameRendering(RenderContext, RenderCameras);
+            EndFrameRendering(RenderContext, ViewList);
 
             //Release Frame
             MeshBatchArray.Dispose();

@@ -18,10 +18,10 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             public RDGTextureRef DepthBuffer;
         }
 
-        void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingData, NativeArray<FMeshBatch> MeshBatchArray, NativeArray<FViewMeshBatch> ViewMeshBatchList)
+        void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchArray, FCullingData CullingData)
         {
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingData, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 
             RDGTextureDesc GBufferDescA = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R16G16B16A16_UNorm };
@@ -54,11 +54,11 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 //Draw CustomRenderer
                 FRenderWorld World = GraphContext.World;
 
-                if (ViewMeshBatchList.Length == 0) { return; }
+                if (CullingData.ViewMeshBatchList.Length == 0) { return; }
 
-                for (int i = 0; i < ViewMeshBatchList.Length; i++)
+                for (int i = 0; i < CullingData.ViewMeshBatchList.Length; i++)
                 {
-                    FViewMeshBatch VisibleMeshBatch = ViewMeshBatchList[i];
+                    FViewMeshBatch VisibleMeshBatch = CullingData.ViewMeshBatchList[i];
                     FMeshBatch MeshBatch = MeshBatchArray[VisibleMeshBatch.index];
                     Mesh mesh = World.WorldMeshList.Get(MeshBatch.Mesh);
                     Material material = World.WorldMaterialList.Get(MeshBatch.Material);
