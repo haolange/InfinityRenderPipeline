@@ -262,10 +262,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 #endif
 
                 //Execute RenderGraph
-                using (new ProfilingScope(CmdBuffer, ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
-                {
-                    GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
-                }
+                GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
                 EndCameraRendering(RenderContext, View);
 
                 //Execute ViewRender

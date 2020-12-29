@@ -22,7 +22,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
                 ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
             }
 
-            CullMeshBatch CullTask = new CullMeshBatch();
+            FCullMeshBatchJob CullTask = new FCullMeshBatchJob();
             {
                 CullTask.ViewFrustum = ViewFrustum;
                 CullTask.MeshBatchArray = MeshBatchArray;

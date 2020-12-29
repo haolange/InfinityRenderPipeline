@@ -11,7 +11,7 @@ using InfinityTech.Runtime.Core.Geometry;
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
     [BurstCompile]
-    internal struct ParallelPassContexFilter : IJobParallelFor
+    internal struct FPassMeshBatchFilterJob : IJobParallelFor
     {
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchArray;

@@ -129,7 +129,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public int index;
 
 
-        public FPassMeshBatch(in int Index, in int Priority, in bool Visible, in float Distance)
+        public FPassMeshBatch(in int Index)
         {
             index = Index;
         }

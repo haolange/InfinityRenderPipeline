@@ -19,21 +19,21 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         {
             if(CacheMeshBatchStateBuckets.Count() == 0) { return; }
 
-            if (ParallelGather)
+            if (ParallelGather == false)
             {
-                HashmapValueToArrayParallel<int, FMeshBatch> HashmapToArrayTask = new HashmapValueToArrayParallel<int, FMeshBatch>();
-                {
-                    HashmapToArrayTask.Array = MeshBatchArray;
-                    HashmapToArrayTask.Hashmap = CacheMeshBatchStateBuckets;
-                }
-                HashmapToArrayTask.Schedule(MeshBatchArray.Length, 256).Complete();
-            } else {
-                HashmapValueToArray<int, FMeshBatch> HashmapToArrayTask = new HashmapValueToArray<int, FMeshBatch>();
+                FHashmapValueToArrayJob<int, FMeshBatch> HashmapToArrayTask = new FHashmapValueToArrayJob<int, FMeshBatch>();
                 {
                     HashmapToArrayTask.Array = MeshBatchArray;
                     HashmapToArrayTask.Hashmap = CacheMeshBatchStateBuckets;
                 }
                 HashmapToArrayTask.Run();
+            } else {
+                FHashmapValueToArrayParallelJob<int, FMeshBatch> HashmapToArrayTask = new FHashmapValueToArrayParallelJob<int, FMeshBatch>();
+                {
+                    HashmapToArrayTask.Array = MeshBatchArray;
+                    HashmapToArrayTask.Hashmap = CacheMeshBatchStateBuckets;
+                }
+                HashmapToArrayTask.Schedule(MeshBatchArray.Length, 256).Complete();
             }
         }
 
