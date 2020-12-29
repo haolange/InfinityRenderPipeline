@@ -247,19 +247,19 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 //Wait MeshBatch
                 CullingData.Sync();
 
-                //Render Family
+                //Render Pass
                 RenderOpaqueDepth(View, CullingResult);
                 RenderOpaqueGBuffer(View, CullingResult, MeshBatchArray, CullingData);
                 RenderOpaqueMotion(View, CullingResult);
                 RenderSkyAtmosphere(View);
                 RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), View.targetTexture);
 
-                //Draw DrawGizmos
+                //Render Gizmos
                 #if UNITY_EDITOR
-                if (Handles.ShouldRenderGizmos()) {
-                    RenderGizmo(View, GizmoSubset.PostImageEffects);
-                }
-#endif
+                    if (Handles.ShouldRenderGizmos()) {
+                        RenderGizmo(View, GizmoSubset.PostImageEffects);
+                    }
+                #endif
 
                 //Execute RenderGraph
                 using (new ProfilingScope(CmdBuffer, ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))

@@ -13,10 +13,10 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             public RDGTextureRef DepthBuffer;
         }
 
-        void RenderOpaqueDepth(Camera RenderCamera, CullingResults CullingData)
+        void RenderOpaqueDepth(Camera RenderCamera, CullingResults CullingResult)
         {
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingData, RenderCamera, InfinityPassIDs.OpaqueDepth));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth));
 
             RDGTextureDesc DepthDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef DepthTexture = GraphBuilder.CreateTexture(DepthDesc, InfinityShaderIDs.RT_DepthBuffer);

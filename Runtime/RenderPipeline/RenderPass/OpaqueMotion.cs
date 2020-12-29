@@ -14,12 +14,12 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             public RDGTextureRef MotionBuffer;
         }
 
-        void RenderOpaqueMotion(Camera RenderCamera, CullingResults CullingData)
+        void RenderOpaqueMotion(Camera RenderCamera, CullingResults CullingResult)
         {
             RenderCamera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingData, RenderCamera, InfinityPassIDs.OpaqueMotion));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueMotion));
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 
             RDGTextureDesc MotionDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = "MotionBufferTexture", colorFormat = GraphicsFormat.R16G16_SFloat };
