@@ -9,7 +9,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
     public struct FCullingData
     {
-
+        public NativeArray<FViewMeshBatch> ViewMeshBatchList;
 
         public void Init()
         {

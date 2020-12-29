@@ -238,7 +238,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 //Culling MeshBatch
                 NativeArray<FPlane> ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-                NativeArray<FVisibleMeshBatch> VisibleMeshBatchArray = new NativeArray<FVisibleMeshBatch>(MeshBatchArray.Length, Allocator.TempJob);
+                NativeArray<FViewMeshBatch> ViewMeshBatchList = new NativeArray<FViewMeshBatch>(MeshBatchArray.Length, Allocator.TempJob);
 
                 Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
                 for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
@@ -249,9 +249,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 CullMeshBatch CullTask = new CullMeshBatch();
                 {
                     CullTask.ViewFrustum = ViewFrustum;
-                    CullTask.ViewOrigin = RenderCamera.transform.position;
                     CullTask.MeshBatchArray = MeshBatchArray;
-                    CullTask.VisibleMeshBatchList = VisibleMeshBatchArray;
+                    CullTask.ViewMeshBatchList = ViewMeshBatchList;
                 }
                 JobHandle CullTaskHandle = CullTask.Schedule(MeshBatchArray.Length, 256);
 
@@ -271,7 +270,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 //Render Family
                 RenderOpaqueDepth(RenderCamera, CullingResult);
-                RenderOpaqueGBuffer(RenderCamera, CullingResult, MeshBatchArray, VisibleMeshBatchArray);
+                RenderOpaqueGBuffer(RenderCamera, CullingResult, MeshBatchArray, ViewMeshBatchList);
                 RenderOpaqueMotion(RenderCamera, CullingResult);
                 RenderSkyAtmosphere(RenderCamera);
                 RenderPresentView(RenderCamera, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), RenderCamera.targetTexture);
@@ -297,7 +296,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 //Release View
                 ViewFrustum.Dispose();
-                VisibleMeshBatchArray.Dispose();
+                ViewMeshBatchList.Dispose();
             }
             EndFrameRendering(RenderContext, RenderCameras);
 

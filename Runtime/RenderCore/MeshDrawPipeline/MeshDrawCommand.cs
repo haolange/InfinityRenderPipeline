@@ -23,12 +23,12 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
             MeshBatchIndexBuffer.Clear();
         }
 
-        public void DrawMesh(FRenderWorld World, CommandBuffer CmdBuffer, FMeshBatch MeshBatch, in int PassIndex)
+        /*public static void DrawMesh(this FMeshDrawCommand MeshDrawCommand, FRenderWorld World, CommandBuffer CmdBuffer, FMeshBatch MeshBatch, in int PassIndex)
         {
             Mesh DrawMesh = World.WorldMeshList.Get(MeshBatch.Mesh);
             Material DrawMaterial = World.WorldMaterialList.Get(MeshBatch.Material);
-            CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshBatch.SubmeshIndex, DrawMaterial, PassIndex, MeshBatchIndexBuffer.Length);
-        }
+            CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshBatch.SubmeshIndex, DrawMaterial, PassIndex, MeshDrawCommand.MeshBatchIndexBuffer.Length);
+        }*/
 
         public void Release()
         {

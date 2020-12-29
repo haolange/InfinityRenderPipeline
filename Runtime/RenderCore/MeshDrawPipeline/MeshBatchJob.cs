@@ -57,23 +57,18 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
     internal struct CullMeshBatch : IJobParallelFor
     {
         [ReadOnly]
-        public float3 ViewOrigin;
-
-        [ReadOnly]
         public NativeArray<FPlane> ViewFrustum;
 
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchArray;
 
         [WriteOnly]
-        public NativeArray<FVisibleMeshBatch> VisibleMeshBatchList;
+        public NativeArray<FViewMeshBatch> ViewMeshBatchList;
 
         public void Execute(int index)
         {
+            bool CullState = true;
             FMeshBatch MeshBatch = MeshBatchArray[index];
-            
-            bool Visibility = true;
-            float Distance = math.distance(ViewOrigin, MeshBatch.BoundBox.center);
 
             for (int i = 0; i < 6; i++)
             {
@@ -84,11 +79,15 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
                 float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
 
                 if (dist + radius < 0) {
-                    Visibility = false;
+                    CullState = false;
                 }
             }
 
-            VisibleMeshBatchList[index] = new FVisibleMeshBatch(index, MeshBatch.Priority, MeshBatch.Visible && Visibility, Distance);
+            if (CullState) {
+
+            }
+
+            ViewMeshBatchList[index] = new FViewMeshBatch(index);
         }
     }
 
@@ -96,11 +95,11 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
     internal struct SortMeshBatch : IJob
     {
         [WriteOnly]
-        public NativeArray<FVisibleMeshBatch> VisibleMeshBatchList;
+        public NativeArray<FViewMeshBatch> ViewMeshBatchList;
 
         public void Execute()
         {
-            VisibleMeshBatchList.Sort();
+            ViewMeshBatchList.Sort();
         }
     }
 }

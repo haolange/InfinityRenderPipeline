@@ -47,7 +47,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 
         public bool Equals(in FMeshBatch Target)
         {
-            return  this.SubmeshIndex.Equals(Target.SubmeshIndex) && this.Mesh.Equals(Target.Mesh) && this.Material.Equals(Target.Material);
+            return this.SubmeshIndex.Equals(Target.SubmeshIndex) && this.Mesh.Equals(Target.Mesh) && this.Material.Equals(Target.Material);
         }
 
         public override bool Equals(object obj)
@@ -108,27 +108,38 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         }
     }
 
-    public struct FVisibleMeshBatch : IComparable<FVisibleMeshBatch>
+    public struct FViewMeshBatch : IComparable<FViewMeshBatch>
     {
         public int index;
-        //public int priority;
-        public bool visible;
-        //public float distance;
 
 
-        public FVisibleMeshBatch(in int Index, in int Priority, in bool Visible, in float Distance)
+        public FViewMeshBatch(in int Index)
         {
             index = Index;
-            visible = Visible;
-            //distance = Distance;
-            //priority = Priority;
         }
 
-        public int CompareTo(FVisibleMeshBatch VisibleMeshBatch)
+        public int CompareTo(FViewMeshBatch ViewMeshBatch)
         {
-            return 0;
-            /*float Priority = priority + distance;
-            return Priority.CompareTo(VisibleMeshBatch.priority + VisibleMeshBatch.distance);*/
+            return index.CompareTo(ViewMeshBatch.index);
         }
     }
+
+    public struct FPassMeshBatch : IComparable<FPassMeshBatch>
+    {
+        public int index;
+
+
+        public FPassMeshBatch(in int Index, in int Priority, in bool Visible, in float Distance)
+        {
+            index = Index;
+        }
+
+        public int CompareTo(FPassMeshBatch PassMeshBatch)
+        {
+            return index.CompareTo(PassMeshBatch.index);
+        }
+    }
+
+    /*float Priority = priority + distance;
+    return Priority.CompareTo(VisibleMeshBatch.priority + VisibleMeshBatch.distance);*/
 }
