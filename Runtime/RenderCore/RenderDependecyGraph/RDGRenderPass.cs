@@ -129,7 +129,6 @@ namespace InfinityTech.Runtime.Rendering.RDG
             Clear();
             ExecuteFunc = null;
             ObjectPool.Release(this);
-            ObjectPool.Release(PassData);
         }
 
         public override bool HasRenderFunc()

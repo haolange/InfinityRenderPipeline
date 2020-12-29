@@ -48,8 +48,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
                 for (int i = 0; i < CullingData.ViewMeshBatchList.Length; i++)
                 {
-                    FViewMeshBatch VisibleMeshBatch = CullingData.ViewMeshBatchList[i];
-                    FMeshBatch MeshBatch = MeshBatchArray[VisibleMeshBatch.index];
+                    FViewMeshBatch ViewMeshBatch = CullingData.ViewMeshBatchList[i];
+                    FMeshBatch MeshBatch = MeshBatchArray[ViewMeshBatch.index];
                     Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
                     Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
 
