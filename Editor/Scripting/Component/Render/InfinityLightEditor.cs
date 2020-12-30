@@ -213,8 +213,8 @@ namespace InfinityTech.Editor.Component
                 IntensityRect.x += ColorRect.width - indent + 5;
                 IntensityRect.width = 70 - 5;
 
-                EditorGUI.ColorField(ColorRect, new GUIContent("Light Color"), LightColor.colorValue);
-                EditorGUI.FloatField(IntensityRect, LightIntensity.floatValue);
+                LightColor.colorValue = EditorGUI.ColorField(ColorRect, new GUIContent("Light Color"), LightColor.colorValue);
+                LightIntensity.floatValue = EditorGUI.FloatField(IntensityRect, LightIntensity.floatValue);
                 #endregion //MergeLightColorandIntensity
 
                 TemperatureSlider(new GUIContent("Temperature"), Temperature);
