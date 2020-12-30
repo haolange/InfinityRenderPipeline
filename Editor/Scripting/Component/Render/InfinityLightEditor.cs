@@ -204,26 +204,21 @@ namespace InfinityTech.Editor.Component
                 EditorGUI.indentLevel++;
 
                 #region MergeLightColorandIntensity
-                //EditorGUILayout.PropertyField(LightColor, new GUIContent("Light Color"));
-                //EditorGUILayout.PropertyField(LightIntensity, new GUIContent("Light Intensity"));
+                float indent = 15 * EditorGUI.indentLevel;
 
                 Rect lineRect = EditorGUILayout.GetControlRect();
-                Rect ColorRect = lineRect;
-                ColorRect.width -= 55;
                 Rect labelRect = lineRect;
                 labelRect.width = EditorGUIUtility.labelWidth;
 
-                GUIContent parentLabel = new GUIContent("Light Color");
-                parentLabel = EditorGUI.BeginProperty(labelRect, parentLabel, LightColor);
-                parentLabel = EditorGUI.BeginProperty(labelRect, parentLabel, LightIntensity);
-                {
-                    EditorGUI.LabelField(labelRect, parentLabel);
-                }
-                EditorGUI.EndProperty();
-                EditorGUI.EndProperty();
+                Rect valueRect = EditorGUILayout.GetControlRect();
+                labelRect.width = EditorGUIUtility.labelWidth;
+                valueRect.width += indent - 70;
+                Rect unitRect = valueRect;
+                unitRect.x += valueRect.width - indent + 5;
+                unitRect.width = 70 - 5;
 
-                EditorGUI.PropertyField(ColorRect, LightColor, new GUIContent(" "));
-                EditorGUI.PropertyField(new Rect(ColorRect.x + 80, ColorRect.y, ColorRect.width + 95 - EditorGUIUtility.labelWidth, ColorRect.height), LightIntensity, new GUIContent(" "));
+                EditorGUI.ColorField(valueRect, new GUIContent("Light Color"), LightColor.colorValue);
+                EditorGUI.FloatField(unitRect, LightIntensity.floatValue);
                 #endregion //MergeLightColorandIntensity
 
                 TemperatureSlider(new GUIContent("Temperature"), Temperature);
