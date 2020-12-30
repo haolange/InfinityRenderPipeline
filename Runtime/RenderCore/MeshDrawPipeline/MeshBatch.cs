@@ -122,6 +122,8 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         {
             return index.CompareTo(ViewMeshBatch.index);
         }
+
+        public static implicit operator FViewMeshBatch(int index) { return new FViewMeshBatch(index); }
     }
 
     public struct FPassMeshBatch : IComparable<FPassMeshBatch>
@@ -138,6 +140,8 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         {
             return index.CompareTo(PassMeshBatch.index);
         }
+
+        public static implicit operator FPassMeshBatch(int index) { return new FPassMeshBatch(index); }
     }
 
     /*float Priority = priority + distance;

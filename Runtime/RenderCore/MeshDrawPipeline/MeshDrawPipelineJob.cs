@@ -9,7 +9,7 @@ using InfinityTech.Runtime.Core.Geometry;
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
     [BurstCompile]
-    internal struct FSortMeshBatch : IJob
+    internal struct FSortMeshBatchJob : IJob
     {
         [WriteOnly]
         public NativeArray<FViewMeshBatch> ViewMeshBatchList;
@@ -21,7 +21,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FCullMeshBatchJob : IJobParallelFor
+    internal struct FCullMeshBatchJob : IJobParallelForFilter
     {
         [ReadOnly]
         public NativeArray<FPlane> ViewFrustum;
@@ -29,12 +29,8 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchArray;
 
-        [NativeDisableParallelForRestriction]
-        public NativeList<FViewMeshBatch> ViewMeshBatchList;
-
-        public void Execute(int index)
+        public bool Execute(int index)
         {
-            bool CullState = true;
             FMeshBatch MeshBatch = MeshBatchArray[index];
 
             for (int i = 0; i < 6; i++)
@@ -45,16 +41,12 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
                 float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
                 float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
 
-                if (dist + radius < 0)
-                {
-                    CullState = false;
+                if (dist + radius < 0) {
+                    return false;
                 }
             }
 
-            if (CullState)
-            {
-                ViewMeshBatchList.Add(new FViewMeshBatch(index));
-            }
+            return true;
         }
     }
 
@@ -67,34 +59,36 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FMeshPassFilterJob : IJobParallelFor
+    internal struct FMeshPassFilterJob : IJobParallelForFilter
     {
+        [ReadOnly]
         FMeshPassDesctiption MeshPassDesctiption;
 
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchArray;
 
         [ReadOnly]
-        public NativeList<FViewMeshBatch> ViewMeshBatchList;
+        public NativeList<int> ViewMeshBatchList;
 
-        [NativeDisableParallelForRestriction]
-        public NativeList<FPassMeshBatch> PassMeshBatchList;
-
-
-        public void Execute(int index)
+        public bool Execute(int index)
         {
             FViewMeshBatch ViewMeshBatch = ViewMeshBatchList[index];
             FMeshBatch MeshBatch = MeshBatchArray[ViewMeshBatch.index];
 
-            if (MeshBatch.RenderLayer == MeshPassDesctiption.RenderLayerMask)
+            if ((MeshBatch.MotionType == 1 ? true : false) == MeshPassDesctiption.ExcludeMotionVectorObjects && 
+                 MeshBatch.RenderLayer == MeshPassDesctiption.RenderLayerMask && 
+                 MeshBatch.Priority >= MeshPassDesctiption.RenderQueueMin && 
+                 MeshBatch.Priority <= MeshPassDesctiption.RenderQueueMax)
             {
-
+                return true;
             }
+
+            return false;
         }
     }
 
     [BurstCompile]
-    internal unsafe struct FHashmapValueToArrayJob<TKey, TValue> : IJob where TKey : struct, IEquatable<TKey> where TValue : struct
+    public unsafe struct FHashmapValueToArrayJob<TKey, TValue> : IJob where TKey : struct, IEquatable<TKey> where TValue : struct
     {
         [WriteOnly]
         public NativeArray<TValue> Array;
