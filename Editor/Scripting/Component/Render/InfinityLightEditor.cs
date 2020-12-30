@@ -206,19 +206,15 @@ namespace InfinityTech.Editor.Component
                 #region MergeLightColorandIntensity
                 float indent = 15 * EditorGUI.indentLevel;
 
-                Rect lineRect = EditorGUILayout.GetControlRect();
-                Rect labelRect = lineRect;
-                labelRect.width = EditorGUIUtility.labelWidth;
+                Rect LineRect = EditorGUILayout.GetControlRect();
+                Rect ColorRect = LineRect;
+                ColorRect.width += indent - 70;
+                Rect IntensityRect = ColorRect;
+                IntensityRect.x += ColorRect.width - indent + 5;
+                IntensityRect.width = 70 - 5;
 
-                Rect valueRect = EditorGUILayout.GetControlRect();
-                labelRect.width = EditorGUIUtility.labelWidth;
-                valueRect.width += indent - 70;
-                Rect unitRect = valueRect;
-                unitRect.x += valueRect.width - indent + 5;
-                unitRect.width = 70 - 5;
-
-                EditorGUI.ColorField(valueRect, new GUIContent("Light Color"), LightColor.colorValue);
-                EditorGUI.FloatField(unitRect, LightIntensity.floatValue);
+                EditorGUI.ColorField(ColorRect, new GUIContent("Light Color"), LightColor.colorValue);
+                EditorGUI.FloatField(IntensityRect, LightIntensity.floatValue);
                 #endregion //MergeLightColorandIntensity
 
                 TemperatureSlider(new GUIContent("Temperature"), Temperature);
