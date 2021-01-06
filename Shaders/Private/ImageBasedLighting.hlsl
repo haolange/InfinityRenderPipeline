@@ -142,7 +142,7 @@ float3 IBL_Hair_FullIntegrated(float3 V, float3 N, float3 SpecularColor, float R
 	[loop]
 	for( uint i = 0; i < NumSamples; i++ ) 
     {
-        float2 E = Hammersley(i, NumSamples, HaltonSequence(i));
+        float2 E = Hammersley(i, NumSamples, Halton(i));
         float3 L = UniformSampleSphere(E).rgb;
 
         float PDF = 1 / (4 * Pi);
@@ -181,6 +181,13 @@ float4 PreintegratedDGF_LUT(sampler2D PreintegratedLUT, inout float3 EnergyCompe
     float3 ReflectionGF = lerp( saturate(50 * SpecularColor.g) * Enviorfilter_GFD.ggg, Enviorfilter_GFD.rrr, SpecularColor );
     EnergyCompensation = 1 + SpecularColor * (1 / Enviorfilter_GFD.r - 1);
     return float4(ReflectionGF, Enviorfilter_GFD.b);
+}
+
+float4 EnvBRDFApprox(float3 SpecularColor, float Roughness, float NoV)
+{
+	float2 AB = IBL_Defualt_SpecularIntegrated_Approx(Roughness, NoV);
+	AB.y *= saturate( 50 * SpecularColor.g );
+	return float4(SpecularColor * AB.x + AB.y, 1);
 }
 
 float3 PreintegratedGF_ClothAshikhmin(float3 SpecularColor, float Roughness, float NoV)

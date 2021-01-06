@@ -123,16 +123,17 @@ void Raytracing_ScreenTrace (uint3 id : SV_DispatchThreadID)
 	float Out_Occlusion = 0;
     float4 Out_ColorMask = 0;
 
-	float3 BentNormal = 0;
+	//float3 BentNormal = 0;
 
 	[loop]
 	for (uint i = 0; i < (uint)SSGi_NumRays; i++) 
 	{
+		//float2 Hash = Halton(i, Random);
 		float2 Hash = Hammersley16(i, (uint)SSGi_NumRays, Random);
 		float3 LightDir_TS = CosineSampleHemisphere(Hash).xyz;
 		float3 LightDir_WS = mul(LightDir_TS, TangentToWorld);
 		float3 LightDir_VS = mul((float3x3)(Matrix_WorldToView), LightDir_WS);
-		BentNormal += LightDir_WS;
+		//BentNormal += LightDir_WS;
 
 		float Level;
 		float3 HitUVz;
@@ -160,7 +161,7 @@ void Raytracing_ScreenTrace (uint3 id : SV_DispatchThreadID)
 			SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
 			Out_ColorMask += float4(SampleColor.rgb, GetScreenFadeBord(HitUVz.xy, 0.1));
 
-			BentNormal = 0;
+			//BentNormal = 0;
 		}
 	}
 
@@ -171,11 +172,11 @@ void Raytracing_ScreenTrace (uint3 id : SV_DispatchThreadID)
 
 
 
-	/*BentNormal = normalize(BentNormal);
-	float3 ReflectVector = -reflect(WorldNormal, normalize(WorldPos - _WorldSpaceCameraPos));
-	float ReflecOcclusion = ReflectionOcclusion(BentNormal, ReflectVector, 0.25, 0.5);
+	//BentNormal = normalize(BentNormal);
+	//float3 ReflectVector = -reflect(WorldNormal, normalize(WorldPos - _WorldSpaceCameraPos));
+	//float ReflecOcclusion = ReflectionOcclusion(BentNormal, ReflectVector, 0.25, 0.5);
 
-	UAV_ScreenIrradiance[id.xy] = ReflecOcclusion;
+	//UAV_ScreenIrradiance[id.xy] = ReflecOcclusion;
 	//UAV_ScreenIrradiance[id.xy] = float4(BentNormal, 1);
-	//UAV_ScreenIrradiance[id.xy] = dot(BentNormal, _WorldSpaceLightPos0.xyz);*/
+	//UAV_ScreenIrradiance[id.xy] = dot(BentNormal, _WorldSpaceLightPos0.xyz);
 }

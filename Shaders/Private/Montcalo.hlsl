@@ -114,7 +114,7 @@ uint2 SobolIndex(uint2 Base, int Index, int Bits = 10) {
 	return Result;
 }
 
-uint HaltonSequence(uint Index, uint base = 3)
+uint Halton(uint Index, uint base = 3)
 {
 	uint result = 0;
 	uint f = 1;
@@ -126,6 +126,13 @@ uint HaltonSequence(uint Index, uint base = 3)
 		i = floor(i / base);
 	}
 	return result;
+}
+
+float2 Halton(uint Index, uint2 Random)
+{
+	float E1 = float( ( ReverseBits32(Index) >> 16 ) ^ Random.x ) * (1.0 / 65536.0);
+	float E2 = float( ( ReverseBits32(Index) >> 16 ) ^ Random.y ) * (1.0 / 65536.0);
+	return float2( E1, E2 );
 }
 
 float2 Hammersley(uint Index, uint NumSamples)
@@ -145,7 +152,7 @@ float2 Hammersley2(uint a)
     return float2(RadicalInverseSpecialized2(a), RadicalInverseSpecialized(3, a));
 }
 
-float2 Hammersley16( uint Index, uint NumSamples, uint2 Random )
+float2 Hammersley16(uint Index, uint NumSamples, uint2 Random)
 {
 	float E1 = frac( (float)Index / NumSamples + float( Random.x ) * (1.0 / 65536.0) );
 	float E2 = float( ( ReverseBits32(Index) >> 16 ) ^ Random.y ) * (1.0 / 65536.0);
