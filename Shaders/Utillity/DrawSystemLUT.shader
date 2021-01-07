@@ -6,6 +6,7 @@
 		CGINCLUDE
 		#include "UnityCustomRenderTexture.cginc"
 		#include "../Private/Random.hlsl"
+		#include "../Private/SphericalHarmonic.hlsl"
 		#include "../Private/ImageBasedLighting.hlsl"
 
 		TextureCube _Cubemap;
@@ -109,7 +110,7 @@
 			return ReflectionGF;
 		}
 
-		float3 frag_IntegratedSkin_Scatter(v2f_customrendertexture i) : SV_Target{
+		float3 frag_Integrated_SkinScatter(v2f_customrendertexture i) : SV_Target{
 			float2 uv = i.localTexcoord.xy;
 			uv.y = 1 - uv.y;
 
@@ -120,7 +121,7 @@
 			return saturate(SkinScatter);
 		}
 
-		float3 frag_IntegratedSkin_Shadow(v2f_customrendertexture i) : SV_Target{
+		float3 frag_Integrated_SkinShadow(v2f_customrendertexture i) : SV_Target{
 			float2 uv = i.localTexcoord.xy;
 			uv.y = 1 - uv.y;
 
@@ -137,21 +138,32 @@
 			const uint NumSample = 256;
 			uint2 Random = Rand3DPCG16(uint3(UV * float2(512, 256), 1)).xy;
 
-			float3 Normal = UniformSampleSphere(UV).xyz;
-			float3x3 LocalToWorld = GetTangentBasis(Normal);
+			float3 SphereCoord = UniformSampleSphere(UV).xyz;
+			float3x3 LocalToWorld = GetTangentBasis(SphereCoord);
 
-			float3 Out_Irradiance = 0;
+			float3 Radiance = 0;
 
 			[loop]
-			for (uint i = 0; i < NumSample; ++i) {
+			for (uint i = 0; i < NumSample; ++i) 
+			{
 				float2 E = Hammersley16(i, (uint)NumSample, Random);
 				float3 Dir_TS = CosineSampleHemisphere(E).xyz;
 				float3 Dir_WS = mul(Dir_TS, LocalToWorld);
-				Out_Irradiance += TextureCubeSampleLevel(_Cubemap, sampler_Cubemap, float3(Dir_WS.x, -Dir_WS.z, Dir_WS.y), 5).xyz;
+				Radiance += TextureCubeSampleLevel(_Cubemap, sampler_Cubemap, float3(Dir_WS.x, -Dir_WS.z, Dir_WS.y), 5).xyz * saturate(Dir_TS.b);
 			}
-			Out_Irradiance /= (float)NumSample;
+			Radiance /= (float)NumSample;
+			
+			return Radiance;
 
-			return Out_Irradiance;
+			/*SH2Table SHTable = InitSH2Table(SphereCoord);
+			SH2Basis SHBasis = InitSH2Basis(SHTable, Radiance);
+
+			float3 Irradiance = 0;
+			for(int j = 0; j < 9; j++)
+			{
+				Irradiance += SHTable.Coefficients[j] * SHBasis.Basis[j];
+			}
+			return Irradiance;*/
 		}
 
 		ENDCG
@@ -184,7 +196,7 @@
 			Name "Skin_Scatter"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
-				#pragma fragment frag_IntegratedSkin_Scatter
+				#pragma fragment frag_Integrated_SkinScatter
 			ENDCG
 		}
 
@@ -192,7 +204,7 @@
 			Name "Skin_Shadow"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
-				#pragma fragment frag_IntegratedSkin_Shadow
+				#pragma fragment frag_Integrated_SkinShadow
 			ENDCG
 		}
 
