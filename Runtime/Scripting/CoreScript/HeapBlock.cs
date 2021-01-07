@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace InfinityTech.Runtime.Rendering.Core
+namespace InfinityTech.Runtime.Core
 {
     internal class HeapBlock
     {

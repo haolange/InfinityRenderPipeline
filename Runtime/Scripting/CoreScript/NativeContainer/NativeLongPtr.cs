@@ -11,7 +11,7 @@ using System.Threading;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace JacksonDunstan.NativeCollections
+namespace InfinityTech.Runtime.Core.Native
 {
 	/// <summary>
 	/// A pointer to a long stored in native (i.e. unmanaged) memory

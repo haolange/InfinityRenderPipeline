@@ -5,13 +5,13 @@
 //-----------------------------------------------------------------------
 
 using System;
+using Unity.Collections;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using JacksonDunstan.NativeCollections;
-using Unity.Collections;
+using InfinityTech.Runtime.Core.Native;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace JacksonDunstan.NativeCollections
+namespace InfinityTech.Runtime.Core.Native
 {
 	/// <summary>
 	/// A reference-counted <see cref="IDisposable"/>.

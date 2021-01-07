@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace JacksonDunstan.NativeCollections
+namespace InfinityTech.Runtime.Core.Native
 {
 	/// <summary>
 	/// The state of a <see cref="NativeLinkedList{T}"/>. Shared among instances

@@ -14,7 +14,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 
-namespace JacksonDunstan.NativeCollections
+namespace InfinityTech.Runtime.Core.Native
 {
     /// <summary>
     /// The state of a <see cref="NativeHashSet{T}"/>. Shared among instances
