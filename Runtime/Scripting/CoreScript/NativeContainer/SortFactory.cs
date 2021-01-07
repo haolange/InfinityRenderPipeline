@@ -10,12 +10,12 @@ namespace InfinityTech.Runtime.Core.Native
     {
         public const int QUICKSORT_THRESHOLD_LENGTH = 512;
  
-        public static JobHandle ParallelSort<T>(NativeArray<T> array, JobHandle parentHandle) where T : unmanaged, IComparable<T> 
+        public static JobHandle ParallelSort<T>(NativeArray<T> array, JobHandle parentHandle = default) where T : unmanaged, IComparable<T> 
         {
             return MergeSort(array, new FSortRange(0, array.Length - 1), parentHandle);
         }
  
-        private static JobHandle MergeSort<T>(NativeArray<T> array, FSortRange range, JobHandle parentHandle) where T : unmanaged, IComparable<T> 
+        private static JobHandle MergeSort<T>(NativeArray<T> array, FSortRange range, JobHandle parentHandle = default) where T : unmanaged, IComparable<T> 
         {
             if (range.Length <= QUICKSORT_THRESHOLD_LENGTH) 
             {
