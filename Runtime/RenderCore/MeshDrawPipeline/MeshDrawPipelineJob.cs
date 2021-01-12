@@ -21,37 +21,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FCullMeshBatchForFilterJob : IJobParallelForFilter
-    {
-        [ReadOnly]
-        public NativeArray<FPlane> ViewFrustum;
-
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
-
-        public bool Execute(int index)
-        {
-            FMeshBatch MeshBatch = MeshBatchs[index];
-
-            for (int i = 0; i < 6; i++)
-            {
-                float3 normal = ViewFrustum[i].normal;
-                float distance = ViewFrustum[i].distance;
-
-                float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
-                float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
-
-                if (dist + radius < 0) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }
-
-    [BurstCompile]
-    internal struct FCullMeshBatchForMarkIDJob : IJobParallelFor
+    internal struct FCullMeshBatchForMarkJob : IJobParallelFor
     {
         [ReadOnly]
         public NativeArray<FPlane> ViewFrustum;
@@ -79,6 +49,36 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
             }
 
             ViewMeshBatchs[index] = VisibleState;
+        }
+    }
+
+    [BurstCompile]
+    internal struct FCullMeshBatchForFilterJob : IJobParallelForFilter
+    {
+        [ReadOnly]
+        public NativeArray<FPlane> ViewFrustum;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        public bool Execute(int index)
+        {
+            FMeshBatch MeshBatch = MeshBatchs[index];
+
+            for (int i = 0; i < 6; i++)
+            {
+                float3 normal = ViewFrustum[i].normal;
+                float distance = ViewFrustum[i].distance;
+
+                float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
+                float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
+
+                if (dist + radius < 0) {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 

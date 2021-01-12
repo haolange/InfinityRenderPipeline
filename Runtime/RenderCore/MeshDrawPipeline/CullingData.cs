@@ -35,7 +35,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
                     ViewMeshBatchs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
                     ViewMeshBatchs.Resize(MeshBatchs.Length, NativeArrayOptions.ClearMemory);
 
-                    FCullMeshBatchForMarkIDJob MarkCullingJob = new FCullMeshBatchForMarkIDJob();
+                    FCullMeshBatchForMarkJob MarkCullingJob = new FCullMeshBatchForMarkJob();
                     {
                         MarkCullingJob.ViewFrustum = ViewFrustum;
                         MarkCullingJob.MeshBatchs = MeshBatchs;
