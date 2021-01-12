@@ -3,7 +3,6 @@ using Unity.Collections;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Runtime.Rendering.RDG;
-using InfinityTech.Runtime.Rendering.Core;
 using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
 
 namespace InfinityTech.Runtime.Rendering.Pipeline
@@ -18,22 +17,22 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             public RDGTextureRef DepthBuffer;
         }
 
-        void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchArray, FCullingData CullingData)
+        void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchs, FCullingData CullingData)
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 
             RDGTextureDesc GBufferDescA = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R16G16B16A16_UNorm };
-            RDGTextureDesc GBufferDescB = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
             RDGTextureRef GBufferTextureA = GraphBuilder.CreateTexture(GBufferDescA, InfinityShaderIDs.RT_ThinGBufferA);
-            RDGTextureRef GBufferTextureB = GraphBuilder.CreateTexture(GBufferDescB, InfinityShaderIDs.RT_ThinGBufferB);
-
             GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA, GBufferTextureA);
+
+            RDGTextureDesc GBufferDescB = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
+            RDGTextureRef GBufferTextureB = GraphBuilder.CreateTexture(GBufferDescB, InfinityShaderIDs.RT_ThinGBufferB);
             GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferB, GBufferTextureB);
 
-            //Add RenderPass
-            GraphBuilder.AddRenderPass<FOpaqueGBufferData>("OpaqueGBuffer", ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer),
+            //Add OpaqueGBufferPass
+            GraphBuilder.AddPass<FOpaqueGBufferData>("OpaqueGBuffer", ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer),
             (ref FOpaqueGBufferData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RendererList = RenderList;
@@ -52,18 +51,43 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //Draw MeshBatch
-                if (CullingData.ViewMeshBatchList.Length == 0) { return; }
+                if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
-                for (int i = 0; i < CullingData.ViewMeshBatchList.Length; i++)
+                for (int i = 0; i < CullingData.ViewMeshBatchs.Length; i++)
                 {
-                    FViewMeshBatch ViewMeshBatch = CullingData.ViewMeshBatchList[i];
-                    FMeshBatch MeshBatch = MeshBatchArray[ViewMeshBatch.index];
-                    Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
-                    Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+                    Mesh DrawMesh;
+                    Material DrawMaterial;
+                    FMeshBatch MeshBatch;
+                    FViewMeshBatch ViewMeshBatch;
 
-                    if (DrawMesh && DrawMaterial)
+                    switch (CullingData.CullMethod)
                     {
-                        GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                        case ECullingMethod.VisibleMark:
+                            ViewMeshBatch = CullingData.ViewMeshBatchs[i];
+                            if (ViewMeshBatch.index != 0)
+                            {
+                                MeshBatch = MeshBatchs[i];
+                                DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
+                                DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+
+                                if (DrawMesh && DrawMaterial)
+                                {
+                                    GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                                }
+                            }
+                            break;
+
+                        case ECullingMethod.FillterList:
+                            ViewMeshBatch = CullingData.ViewMeshBatchs[i];
+                            MeshBatch = MeshBatchs[ViewMeshBatch.index];
+                            DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
+                            DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+
+                            if (DrawMesh && DrawMaterial)
+                            {
+                                GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                            }
+                            break;
                     }
                 }
             });

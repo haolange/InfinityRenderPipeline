@@ -1,14 +1,11 @@
 using System;
-using Unity.Jobs;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.VFX;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
-using UnityEngine.Experimental.Rendering;
 using InfinityTech.Runtime.Rendering.RDG;
-using InfinityTech.Runtime.Core.Geometry;
 using InfinityTech.Runtime.Rendering.Core;
 using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
 
@@ -201,8 +198,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] ViewList)
         {
             //Init Frame
-            NativeArray<FMeshBatch> MeshBatchArray = new NativeArray<FMeshBatch>(GetWorld().GetMeshBatchColloctor().CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            GetWorld().GetMeshBatchColloctor().GatherMeshBatch(MeshBatchArray);
+            NativeArray<FMeshBatch> MeshBatchs = new NativeArray<FMeshBatch>(GetWorld().GetMeshBatchColloctor().CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            GetWorld().GetMeshBatchColloctor().GatherMeshBatch(MeshBatchs);
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, ViewList);
@@ -233,33 +230,35 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 ViewUnifrom.BindGPUProperty(CmdBuffer);
                 RenderContext.SetupCameraProperties(View);
 
-                //Binding VisualEffects
+                //VisualEffect
                 VFXManager.ProcessCameraCommand(View, CmdBuffer);
 
                 //Culling MeshBatch
-                FCullingData CullingData = new FCullingData(View, MeshBatchArray);
+                GetWorld().GetMeshBatchColloctor().Sync();
+                FCullingData CullingData = new FCullingData();
+                CullingData.Run(View, MeshBatchs, ECullingMethod.VisibleMark);
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;
                 View.TryGetCullingParameters(out CullingParameter);
                 CullingResults CullingResult = RenderContext.Cull(ref CullingParameter);
 
-                //Wait MeshBatch
+                //Sync MeshBatch
                 CullingData.Sync();
 
-                //Render Pass
-                RenderOpaqueDepth(View, CullingResult);
-                RenderOpaqueGBuffer(View, CullingResult, MeshBatchArray, CullingData);
-                RenderOpaqueMotion(View, CullingResult);
+                //View RenderPass
+                RenderOpaqueDepth(View, CullingResult, MeshBatchs, CullingData);
+                RenderOpaqueGBuffer(View, CullingResult, MeshBatchs, CullingData);
+                RenderOpaqueMotion(View, CullingResult, MeshBatchs, CullingData);
                 RenderSkyAtmosphere(View);
-                RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), View.targetTexture);
 
-                //Render Gizmos
                 #if UNITY_EDITOR
                     if (Handles.ShouldRenderGizmos()) {
                         RenderGizmo(View, GizmoSubset.PostImageEffects);
                     }
                 #endif
+
+                RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), View.targetTexture);
 
                 //Execute RenderGraph
                 GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
@@ -279,7 +278,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             EndFrameRendering(RenderContext, ViewList);
 
             //Release Frame
-            MeshBatchArray.Dispose();
+            MeshBatchs.Dispose();
         }
 
         protected FRenderWorld GetWorld()

@@ -5,40 +5,69 @@ using InfinityTech.Runtime.Core.Geometry;
 
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
+    public enum ECullingMethod
+    {
+        VisibleMark,
+        FillterList
+    }
+
     public struct FCullingData
     {
-        private JobHandle JobRef;
+        private JobHandle CullingJobRef;
         private NativeArray<FPlane> ViewFrustum;
-        public NativeList<int> ViewMeshBatchList;
+        public NativeList<int> ViewMeshBatchs;
+        public ECullingMethod CullMethod;
 
-        public FCullingData(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchArray)
+        public void Run(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs, in ECullingMethod CullingMethod = ECullingMethod.FillterList, in bool bParallel = true)
         {
             ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            ViewMeshBatchList = new NativeList<int>(MeshBatchArray.Length, Allocator.TempJob);
-
             Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
             for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
             {
                 ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
             }
 
-            FCullMeshBatchJob CullTask = new FCullMeshBatchJob();
+            CullMethod = CullingMethod;
+
+            switch (CullingMethod)
             {
-                CullTask.ViewFrustum = ViewFrustum;
-                CullTask.MeshBatchArray = MeshBatchArray;
+                case ECullingMethod.VisibleMark:
+                    ViewMeshBatchs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
+                    ViewMeshBatchs.Resize(MeshBatchs.Length, NativeArrayOptions.ClearMemory);
+
+                    FCullMeshBatchForMarkIDJob MarkCullingJob = new FCullMeshBatchForMarkIDJob();
+                    {
+                        MarkCullingJob.ViewFrustum = ViewFrustum;
+                        MarkCullingJob.MeshBatchs = MeshBatchs;
+                        MarkCullingJob.ViewMeshBatchs = ViewMeshBatchs;
+                    }
+                    CullingJobRef = MarkCullingJob.Schedule(MeshBatchs.Length, 256);
+                    break;
+
+                case ECullingMethod.FillterList:
+                    ViewMeshBatchs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
+
+                    FCullMeshBatchForFilterJob FilterCullingJob = new FCullMeshBatchForFilterJob();
+                    {
+                        FilterCullingJob.ViewFrustum = ViewFrustum;
+                        FilterCullingJob.MeshBatchs = MeshBatchs;
+                    }
+                    CullingJobRef = FilterCullingJob.ScheduleAppend(ViewMeshBatchs, MeshBatchs.Length, 256);
+                    break;
             }
-            JobRef = CullTask.ScheduleAppend(ViewMeshBatchList, MeshBatchArray.Length, 256);
+
+            if (bParallel) { JobHandle.ScheduleBatchedJobs(); }
         }
 
         public void Sync()
         {
-            JobRef.Complete();
+            CullingJobRef.Complete();
         }
 
         public void Release()
         {
             ViewFrustum.Dispose();
-            ViewMeshBatchList.Dispose();
+            ViewMeshBatchs.Dispose();
         }
     }
 }

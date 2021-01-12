@@ -191,7 +191,7 @@ namespace InfinityTech.Runtime.Rendering.RDG
             m_TextureScope.Set(Handle, Texture);
         }
 
-        public void AddRenderPass<T>(string passName, ProfilingSampler sampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
+        public void AddPass<T>(string passName, ProfilingSampler sampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
         {
             var renderPass = m_RenderGraphPool.Get<RDGRenderPass<T>>();
             renderPass.Clear();

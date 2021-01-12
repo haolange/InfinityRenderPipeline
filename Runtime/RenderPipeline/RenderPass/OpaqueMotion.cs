@@ -1,7 +1,9 @@
 ﻿using UnityEngine;
+using Unity.Collections;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Runtime.Rendering.RDG;
+using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
 
 namespace InfinityTech.Runtime.Rendering.Pipeline
 {
@@ -14,21 +16,21 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             public RDGTextureRef MotionBuffer;
         }
 
-        void RenderOpaqueMotion(Camera RenderCamera, CullingResults CullingResult)
+        void RenderOpaqueMotion(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchArray, FCullingData CullingData)
         {
             RenderCamera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueMotion));
+
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 
             RDGTextureDesc MotionDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = "MotionBufferTexture", colorFormat = GraphicsFormat.R16G16_SFloat };
             RDGTextureRef MotionTexture = GraphBuilder.CreateTexture(MotionDesc, InfinityShaderIDs.RT_MotionBuffer);
-
             GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_MotionBuffer, MotionTexture);
 
-            //Add RenderPass
-            GraphBuilder.AddRenderPass<FOpaqueMotionData>("OpaqueMotion", ProfilingSampler.Get(CustomSamplerId.OpaqueMotion),
+            //Add OpaqueMotionPass
+            GraphBuilder.AddPass<FOpaqueMotionData>("OpaqueMotion", ProfilingSampler.Get(CustomSamplerId.OpaqueMotion),
             (ref FOpaqueMotionData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RendererList = RenderList;

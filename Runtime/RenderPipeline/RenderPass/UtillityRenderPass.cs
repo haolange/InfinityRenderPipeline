@@ -21,8 +21,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
         void RenderGizmo(Camera RenderCamera, GizmoSubset gizmoSubset)
         {
 #if UNITY_EDITOR
-            // AddPass
-            GraphBuilder.AddRenderPass<GizmosPassData>("RenderGizmos", ProfilingSampler.Get(CustomSamplerId.RenderGizmos),
+            // Add GizmosPass
+            GraphBuilder.AddPass<GizmosPassData>("Gizmos", ProfilingSampler.Get(CustomSamplerId.Gizmos),
             (ref GizmosPassData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RenderCamera = RenderCamera;
@@ -43,8 +43,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
         void RenderSkyAtmosphere(Camera RenderCamera)
         {
-            // AddPass
-            GraphBuilder.AddRenderPass<SkyAtmosphereData>("RenderSkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.SkyAtmosphere),
+            // Add SkyAtmospherePass
+            GraphBuilder.AddPass<SkyAtmosphereData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.SkyAtmosphere),
             (ref SkyAtmosphereData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RenderCamera = RenderCamera;
@@ -65,8 +65,8 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
 
         void RenderPresentView(Camera RenderCamera, RDGTextureRef SourceTexture, RenderTexture DestTexture)
         {
-            // AddPass
-            GraphBuilder.AddRenderPass<PresentViewData>("PresentView", ProfilingSampler.Get(CustomSamplerId.PresentView),
+            // Add PresentPass
+            GraphBuilder.AddPass<PresentViewData>("Present", ProfilingSampler.Get(CustomSamplerId.Present),
             (ref PresentViewData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.CameraSize = new float2(RenderCamera.pixelWidth, RenderCamera.pixelHeight);

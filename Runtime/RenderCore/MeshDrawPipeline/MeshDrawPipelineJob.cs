@@ -21,17 +21,17 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FCullMeshBatchJob : IJobParallelForFilter
+    internal struct FCullMeshBatchForFilterJob : IJobParallelForFilter
     {
         [ReadOnly]
         public NativeArray<FPlane> ViewFrustum;
 
         [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchArray;
+        public NativeArray<FMeshBatch> MeshBatchs;
 
         public bool Execute(int index)
         {
-            FMeshBatch MeshBatch = MeshBatchArray[index];
+            FMeshBatch MeshBatch = MeshBatchs[index];
 
             for (int i = 0; i < 6; i++)
             {
@@ -47,6 +47,38 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
             }
 
             return true;
+        }
+    }
+
+    [BurstCompile]
+    internal struct FCullMeshBatchForMarkIDJob : IJobParallelFor
+    {
+        [ReadOnly]
+        public NativeArray<FPlane> ViewFrustum;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        [WriteOnly]
+        public NativeArray<int> ViewMeshBatchs;
+
+        public void Execute(int index)
+        {
+            int VisibleState = 1;
+            FMeshBatch MeshBatch = MeshBatchs[index];
+
+            for (int i = 0; i < 6; i++)
+            {
+                float3 normal = ViewFrustum[i].normal;
+                float distance = ViewFrustum[i].distance;
+
+                float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
+                float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
+
+                if (dist + radius < 0) { VisibleState = 0; }
+            }
+
+            ViewMeshBatchs[index] = VisibleState;
         }
     }
 
