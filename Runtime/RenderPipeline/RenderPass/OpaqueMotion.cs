@@ -26,8 +26,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 
             RDGTextureDesc MotionDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = "MotionBufferTexture", colorFormat = GraphicsFormat.R16G16_SFloat };
-            RDGTextureRef MotionTexture = GraphBuilder.CreateTexture(MotionDesc, InfinityShaderIDs.RT_MotionBuffer);
-            GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_MotionBuffer, MotionTexture);
+            RDGTextureRef MotionTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_MotionBuffer, MotionDesc);
 
             //Add OpaqueMotionPass
             GraphBuilder.AddPass<FOpaqueMotionData>("OpaqueMotion", ProfilingSampler.Get(CustomSamplerId.OpaqueMotion),

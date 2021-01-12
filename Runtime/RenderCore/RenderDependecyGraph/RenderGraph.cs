@@ -171,24 +171,38 @@ namespace InfinityTech.Runtime.Rendering.RDG
             return m_Resources.GetBufferResourceDesc(bufferHandle.handle);
         }
 
-        public RDGBufferRef ScopeBuffer(int Handle)
+        public RDGBufferRef ScopeBuffer(in int Handle)
         {
             return m_BufferScope.Get(Handle);
         }
 
-        public void ScopeBuffer(int Handle, RDGBufferRef Buffer)
+        public void ScopeBuffer(int Handle, in RDGBufferRef Buffer)
         {
             m_BufferScope.Set(Handle, Buffer);
         }
 
-        public RDGTextureRef ScopeTexture(int Handle)
+        public RDGBufferRef ScopeBuffer(in int Handle, in RDGBufferDesc BufferDesc)
+        {
+            RDGBufferRef Buffer = CreateBuffer(BufferDesc);
+            m_BufferScope.Set(Handle, Buffer);
+            return Buffer;
+        }
+
+        public RDGTextureRef ScopeTexture(in int Handle)
         {
             return m_TextureScope.Get(Handle);
         }
 
-        public void ScopeTexture(int Handle, RDGTextureRef Texture)
+        public void ScopeTexture(int Handle, in RDGTextureRef Texture)
         {
             m_TextureScope.Set(Handle, Texture);
+        }
+
+        public RDGTextureRef ScopeTexture(in int Handle, in RDGTextureDesc TextureDesc)
+        {
+            RDGTextureRef Texture = CreateTexture(TextureDesc, Handle);
+            m_TextureScope.Set(Handle, Texture);
+            return Texture;
         }
 
         public void AddPass<T>(string passName, ProfilingSampler sampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
