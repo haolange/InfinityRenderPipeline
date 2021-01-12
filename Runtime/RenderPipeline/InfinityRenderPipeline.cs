@@ -247,6 +247,9 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 CullingData.Sync();
 
                 //View RenderPass
+                /*NativeList<FMeshDrawCommand> MeshDrawCommands = new NativeList<FMeshDrawCommand>(64, Allocator.TempJob);
+                MeshDrawCommands.Dispose();*/
+
                 RenderOpaqueDepth(View, CullingResult, MeshBatchs, CullingData);
                 RenderOpaqueGBuffer(View, CullingResult, MeshBatchs, CullingData);
                 RenderOpaqueMotion(View, CullingResult, MeshBatchs, CullingData);

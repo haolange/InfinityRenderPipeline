@@ -9,30 +9,25 @@ using InfinityTech.Runtime.Rendering.Core;
 
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
-    internal struct FMeshDrawCommand
+    public struct FMeshDrawCommand
     {
-        internal NativeList<int> MeshBatchIndexBuffer;
+        internal int SubmeshIndex;
+        internal SharedRef<Mesh> DrawMesh;
+        internal SharedRef<Material> DrawMaterial;
+        internal NativeList<int> MeshBatchIndexs;
+        internal int InstanceCount { get { return MeshBatchIndexs.Length; } }
 
-        public void Init()
+        public FMeshDrawCommand(in FMeshBatch MeshBatch, ref NativeList<int> InMeshBatchIndexs)
         {
-            MeshBatchIndexBuffer = new NativeList<int>(8192, Allocator.Persistent);
+            DrawMesh = MeshBatch.Mesh;
+            DrawMaterial = MeshBatch.Material;
+            SubmeshIndex = MeshBatch.SubmeshIndex;
+            MeshBatchIndexs = InMeshBatchIndexs;
         }
-
-        public void Reset()
-        {
-            MeshBatchIndexBuffer.Clear();
-        }
-
-        /*public static void DrawMesh(this FMeshDrawCommand MeshDrawCommand, FRenderWorld World, CommandBuffer CmdBuffer, FMeshBatch MeshBatch, in int PassIndex)
-        {
-            Mesh DrawMesh = World.WorldMeshList.Get(MeshBatch.Mesh);
-            Material DrawMaterial = World.WorldMaterialList.Get(MeshBatch.Material);
-            CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshBatch.SubmeshIndex, DrawMaterial, PassIndex, MeshDrawCommand.MeshBatchIndexBuffer.Length);
-        }*/
 
         public void Release()
         {
-            MeshBatchIndexBuffer.Dispose();
+            MeshBatchIndexs.Dispose();
         }
     }
 }

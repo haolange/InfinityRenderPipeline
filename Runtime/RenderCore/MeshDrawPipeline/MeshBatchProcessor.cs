@@ -1,73 +1,84 @@
 using Unity.Jobs;
 using Unity.Burst;
+using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Runtime.Core;
 using InfinityTech.Runtime.Core.Geometry;
+using InfinityTech.Runtime.Rendering.Core;
 
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
-    internal class FMeshBatchProcessor
+    public class FMeshBatchProcessor
     {
-        protected NativeArray<FMeshBatch> MeshBatchList;
-        protected NativeHashMap<int, FMeshDrawCommand> PassDrawContextList;
+        public NativeHashMap<int, int> MeshDrawCommandMap;
+        public NativeList<FMeshDrawCommand> MeshDrawCommands;
 
-        internal FMeshBatchProcessor()
+        public FMeshBatchProcessor()
         {
-            PassDrawContextList = new NativeHashMap<int, FMeshDrawCommand>(1024, Allocator.Persistent);
+
         }
 
-        internal void Reset()
+        internal void Init(in int Capacity = 2048)
         {
-            NativeArray<FMeshDrawCommand> MeshDrawCommandList = PassDrawContextList.GetValueArray(Allocator.Temp);
-            for (int i = 0; i < MeshDrawCommandList.Length; i++)
-            {
-                MeshDrawCommandList[i].Reset();
-            }
-            MeshDrawCommandList.Dispose();
-
-            PassDrawContextList.Clear();
+            MeshDrawCommands = new NativeList<FMeshDrawCommand>(Capacity, Allocator.TempJob);
+            MeshDrawCommandMap = new NativeHashMap<int, int>(Capacity, Allocator.TempJob);
         }
 
-        internal void BuildMeshDrawCommand(in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void BuildMeshDrawCommand(NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            /*NativeArray<FViewMeshBatch> ViewMeshBatchList = CullingData.ViewMeshBatchList;
-            for (int i = 0; i < ViewMeshBatchList.Length; i++)
+            if (CullingData.ViewMeshBatchs.Length == 0) { return; }
+
+            int MeshGroupIndex = 0;
+
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
             {
-                FViewMeshBatch VisibleMeshBatch  = ViewMeshBatchList[i];
-                FMeshBatch MeshBatch = MeshBatchList[VisibleMeshBatch.index];
+                FViewMeshBatch ViewMeshBatch = CullingData.ViewMeshBatchs[Index];
 
-                FMeshDrawCommand MeshDrawCommand;
-                int MeshDrawCommandIndex = MeshBatch.MatchForDynamicInstance();
-
-                bool HashMeshGroup = PassDrawContextList.TryGetValue(MeshDrawCommandIndex, out MeshDrawCommand);
-                if (HashMeshGroup)
+                if (ViewMeshBatch.index != 0)
                 {
-                    PassDrawContextList[MeshBatch.MatchForDynamicInstance()].MeshBatchIndexBuffer.Add(VisibleMeshBatch.index);
-                } else {
-                    MeshDrawCommand = new FMeshDrawCommand();
-                    MeshDrawCommand.Init();
-                    PassDrawContextList.Add(MeshBatch.MatchForDynamicInstance(), MeshDrawCommand);
+                    int MeshDrawCommandIndex;
+                    FMeshBatch MeshBatch = MeshBatchs[Index];
+                    int InstanceHashCode = MeshBatch.MatchForDynamicInstance();
+
+                    bool bMeshGroup = MeshDrawCommandMap.TryGetValue(InstanceHashCode, out MeshDrawCommandIndex);
+                    if (bMeshGroup)
+                    {
+                        MeshDrawCommands[MeshDrawCommandIndex].MeshBatchIndexs.Add(Index);
+                    } else {
+                        NativeList<int> MeshBatchIndexs = new NativeList<int>(2048, Allocator.TempJob);
+                        MeshBatchIndexs.Add(Index);
+
+                        FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch, ref MeshBatchIndexs);
+                        MeshDrawCommands.Add(MeshDrawCommand);
+                        MeshDrawCommandMap.Add(InstanceHashCode, MeshGroupIndex);
+
+                        MeshGroupIndex += 1;
+                    }
                 }
-            }*/
+            }
         }
 
-        internal void DispatchDraw()
+        internal void DispatchDraw(CommandBuffer CmdBuffer, FRenderWorld World)
         {
+            if (MeshDrawCommands.Length == 0) { return; }
 
+            for (int i = 0; i < MeshDrawCommands.Length; i++)
+            {
+                FMeshDrawCommand MeshDrawCommand = MeshDrawCommands[i];
+                Mesh DrawMesh = World.WorldMeshList.Get(MeshDrawCommand.DrawMesh);
+                Material DrawMaterial = World.WorldMaterialList.Get(MeshDrawCommand.DrawMaterial);
+                CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
+            }
         }
 
         internal void Release()
         {
-            NativeArray<FMeshDrawCommand> MeshDrawCommandList = PassDrawContextList.GetValueArray(Allocator.Temp);
-            for (int i = 0; i < MeshDrawCommandList.Length; i++)
-            {
-                MeshDrawCommandList[i].Release();
-            }
-            MeshDrawCommandList.Dispose();
+            for (int i = 0; i < MeshDrawCommands.Length; i++) { MeshDrawCommands[i].Release(); }
 
-            PassDrawContextList.Dispose();
+            MeshDrawCommands.Dispose();
+            MeshDrawCommandMap.Dispose();
         }
     }
 }
