@@ -6,17 +6,22 @@ namespace InfinityTech.Runtime.Core
     public struct SharedRef<T> where T : class
     {
         public int Id;
-        public int Hash;
+        //public int HashCode;
 
-        public SharedRef(int Index, int InHash)
+        public SharedRef(int Index)
+        {
+            Id = Index;
+        }
+
+        /*public SharedRef(int Index, int InHash)
         {
             Id = Index;
             Hash = InHash;
-        }
+        }*/
 
         public bool Equals(in SharedRef<T> Target)
         {
-            return (Target.Id == this.Id) && (Target.Hash == this.Hash);
+            return (Id == Target.Id) /*&& (HashCode == Target.HashCode)*/;
         }
 
         public override bool Equals(object obj)
@@ -26,7 +31,7 @@ namespace InfinityTech.Runtime.Core
 
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            return Id;
         }
     }
 
@@ -39,11 +44,11 @@ namespace InfinityTech.Runtime.Core
             m_SharedRefs = new Dictionary<int, T>(initialCapacity);
         }
     
-        public SharedRef<T> Add(T obj)
+        public SharedRef<T> Add(T obj, in int ID)
         {
-            int id = obj.GetHashCode();
-            m_SharedRefs[id] = obj;
-            return new SharedRef<T>(id, id);
+            m_SharedRefs[ID] = obj;
+            return new SharedRef<T>(ID);
+            //return new SharedRef<T>(id, id);
         }
     
         public T Get(SharedRef<T> objRef)

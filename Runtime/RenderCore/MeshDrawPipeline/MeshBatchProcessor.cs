@@ -12,8 +12,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
     public class FMeshBatchProcessor
     {
-        public NativeHashMap<int, int> MeshDrawCommandMap;
-        public NativeList<FMeshDrawCommand> MeshDrawCommands;
+        public NativeMultiHashMap<int, int> MeshDrawCommands;
 
         public FMeshBatchProcessor()
         {
@@ -22,47 +21,30 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 
         internal void Init(in int Capacity = 2048)
         {
-            MeshDrawCommands = new NativeList<FMeshDrawCommand>(Capacity, Allocator.TempJob);
-            MeshDrawCommandMap = new NativeHashMap<int, int>(Capacity, Allocator.TempJob);
+            MeshDrawCommands = new NativeMultiHashMap<int, int>(Capacity, Allocator.TempJob);
         }
 
         internal void BuildMeshDrawCommand(NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
-            int MeshGroupIndex = 0;
-
             for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
             {
-                FViewMeshBatch ViewMeshBatch = CullingData.ViewMeshBatchs[Index];
-
-                if (ViewMeshBatch.index != 0)
+                if (CullingData.ViewMeshBatchs[Index] != 0)
                 {
-                    int MeshDrawCommandIndex;
                     FMeshBatch MeshBatch = MeshBatchs[Index];
-                    int InstanceHashCode = MeshBatch.MatchForDynamicInstance();
+                    int MatchInstanceID = MeshBatch.MatchForDynamicInstance();
 
-                    bool bMeshGroup = MeshDrawCommandMap.TryGetValue(InstanceHashCode, out MeshDrawCommandIndex);
-                    if (bMeshGroup)
-                    {
-                        MeshDrawCommands[MeshDrawCommandIndex].MeshBatchIndexs.Add(Index);
-                    } else {
-                        NativeList<int> MeshBatchIndexs = new NativeList<int>(2048, Allocator.TempJob);
-                        MeshBatchIndexs.Add(Index);
-
-                        FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch, ref MeshBatchIndexs);
-                        MeshDrawCommands.Add(MeshDrawCommand);
-                        MeshDrawCommandMap.Add(InstanceHashCode, MeshGroupIndex);
-
-                        MeshGroupIndex += 1;
-                    }
+                    //FMeshDrawCommandKey MeshDrawCommandKey = new FMeshDrawCommandKey(MeshBatch.Mesh.Id , MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MatchInstanceID);
+                    //FMeshDrawCommandValue MeshDrawCommandValue = new FMeshDrawCommandValue(Index);
+                    MeshDrawCommands.Add(MatchInstanceID, Index);
                 }
             }
         }
 
         internal void DispatchDraw(CommandBuffer CmdBuffer, FRenderWorld World)
         {
-            if (MeshDrawCommands.Length == 0) { return; }
+            /*if (MeshDrawCommands.Length == 0) { return; }
 
             for (int i = 0; i < MeshDrawCommands.Length; i++)
             {
@@ -70,15 +52,12 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
                 Mesh DrawMesh = World.WorldMeshList.Get(MeshDrawCommand.DrawMesh);
                 Material DrawMaterial = World.WorldMaterialList.Get(MeshDrawCommand.DrawMaterial);
                 CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
-            }
+            }*/
         }
 
         internal void Release()
         {
-            for (int i = 0; i < MeshDrawCommands.Length; i++) { MeshDrawCommands[i].Release(); }
-
             MeshDrawCommands.Dispose();
-            MeshDrawCommandMap.Dispose();
         }
     }
 }

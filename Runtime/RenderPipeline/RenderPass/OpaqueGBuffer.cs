@@ -50,13 +50,51 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                //FMeshBatchProcessor DepthMeshPassProcessor = GraphContext.ObjectPool.Get<FMeshBatchProcessor>();
-                //DepthMeshPassProcessor.Init();
+                FMeshBatchProcessor DepthMeshPassProcessor = GraphContext.ObjectPool.Get<FMeshBatchProcessor>();
+                DepthMeshPassProcessor.Init();
 
-                //FMeshPassDesctiption DepthMeshPassDesc = new FMeshPassDesctiption() { RenderQueueMin = 0, RenderQueueMax = 2450, RenderLayerMask = 0, ExcludeMotionVectorObjects = true};
-                //DepthMeshPassProcessor.BuildMeshDrawCommand(MeshBatchs, CullingData, DepthMeshPassDesc);
+                FMeshPassDesctiption DepthMeshPassDesc = new FMeshPassDesctiption() { RenderQueueMin = 0, RenderQueueMax = 2450, RenderLayerMask = 0, ExcludeMotionVectorObjects = true};
+                DepthMeshPassProcessor.BuildMeshDrawCommand(MeshBatchs, CullingData, DepthMeshPassDesc);
 
-                //DepthMeshPassProcessor.Release();
+                DepthMeshPassProcessor.Release();
+
+
+                if (CullingData.ViewMeshBatchs.Length == 0) { return; }
+                
+                for (int i = 0; i < CullingData.ViewMeshBatchs.Length; i++)
+                {
+                    Mesh DrawMesh;
+                    Material DrawMaterial;
+                    FMeshBatch MeshBatch;
+
+                    switch (CullingData.CullMethod)
+                    {
+                        case ECullingMethod.VisibleMark:
+                            if (CullingData.ViewMeshBatchs[i] != 0)
+                            {
+                                MeshBatch = MeshBatchs[i];
+                                DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
+                                DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+
+                                if (DrawMesh && DrawMaterial)
+                                {
+                                    GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                                }
+                            }
+                            break;
+
+                        case ECullingMethod.FillterList:
+                            MeshBatch = MeshBatchs[CullingData.ViewMeshBatchs[i]];
+                            DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
+                            DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+
+                            if (DrawMesh && DrawMaterial)
+                            {
+                                GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                            }
+                            break;
+                    }
+                }
             });
         }
     }
@@ -70,7 +108,7 @@ CoreUtils.SetRenderTarget(GraphContext.cmd, RTV_ThinGBuffer_ID, GraphContext.res
 
 
 /*if (CullingData.ViewMeshBatchs.Length == 0) { return; }
-
+                
 for (int i = 0; i < CullingData.ViewMeshBatchs.Length; i++)
 {
     Mesh DrawMesh;
@@ -81,8 +119,7 @@ for (int i = 0; i < CullingData.ViewMeshBatchs.Length; i++)
     switch (CullingData.CullMethod)
     {
         case ECullingMethod.VisibleMark:
-            ViewMeshBatch = CullingData.ViewMeshBatchs[i];
-            if (ViewMeshBatch.index != 0)
+            if (CullingData.ViewMeshBatchs[i] != 0)
             {
                 MeshBatch = MeshBatchs[i];
                 DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
@@ -96,8 +133,7 @@ for (int i = 0; i < CullingData.ViewMeshBatchs.Length; i++)
             break;
 
         case ECullingMethod.FillterList:
-            ViewMeshBatch = CullingData.ViewMeshBatchs[i];
-            MeshBatch = MeshBatchs[ViewMeshBatch.index];
+            MeshBatch = MeshBatchs[CullingData.ViewMeshBatchs[i]];
             DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
             DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
 

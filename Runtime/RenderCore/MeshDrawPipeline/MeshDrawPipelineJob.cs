@@ -105,7 +105,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public bool Execute(int index)
         {
             FViewMeshBatch ViewMeshBatch = ViewMeshBatchList[index];
-            FMeshBatch MeshBatch = MeshBatchArray[ViewMeshBatch.index];
+            FMeshBatch MeshBatch = MeshBatchArray[ViewMeshBatch.Flag];
 
             if ((MeshBatch.MotionType == 1 ? true : false) == MeshPassDesctiption.ExcludeMotionVectorObjects && 
                  MeshBatch.RenderLayer == MeshPassDesctiption.RenderLayerMask && 

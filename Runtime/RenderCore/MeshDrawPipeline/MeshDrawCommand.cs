@@ -1,33 +1,81 @@
 using System;
 using UnityEngine;
-using Unity.Mathematics;
-using Unity.Collections;
-using UnityEngine.Rendering;
 using InfinityTech.Runtime.Core;
-using InfinityTech.Runtime.Core.Geometry;
-using InfinityTech.Runtime.Rendering.Core;
 
 namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 {
-    public struct FMeshDrawCommand
+    public struct FMeshDrawCommandKey : IComparable<FMeshDrawCommandKey>, IEquatable<FMeshDrawCommandKey>
     {
-        internal int SubmeshIndex;
-        internal SharedRef<Mesh> DrawMesh;
-        internal SharedRef<Material> DrawMaterial;
-        internal NativeList<int> MeshBatchIndexs;
-        internal int InstanceCount { get { return MeshBatchIndexs.Length; } }
+        public int MeshID;
+        public int MaterialID;
+        public int SubmeshIndex;
+        public int MatchHashCode;
 
-        public FMeshDrawCommand(in FMeshBatch MeshBatch, ref NativeList<int> InMeshBatchIndexs)
+        public FMeshDrawCommandKey(in int InMeshID, in int InMaterialID, in int InSubmeshIndex, in int InMatchHashCode)
         {
-            DrawMesh = MeshBatch.Mesh;
-            DrawMaterial = MeshBatch.Material;
-            SubmeshIndex = MeshBatch.SubmeshIndex;
-            MeshBatchIndexs = InMeshBatchIndexs;
+            MeshID = InMeshID;
+            MaterialID = InMaterialID;
+            SubmeshIndex = InSubmeshIndex;
+            MatchHashCode = InMatchHashCode;
         }
 
-        public void Release()
+        public int CompareTo(FMeshDrawCommandKey MeshDrawCommandKey)
         {
-            MeshBatchIndexs.Dispose();
+            return MeshID.CompareTo(MeshDrawCommandKey.MeshID) + MaterialID.CompareTo(MeshDrawCommandKey.MaterialID) + SubmeshIndex.CompareTo(MeshDrawCommandKey.SubmeshIndex);
         }
+
+        public bool Equals(FMeshDrawCommandKey Target)
+        {
+            return MatchHashCode.Equals(Target.MatchHashCode);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals((FMeshBatch)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = 3;
+            hashCode += MeshID.GetHashCode();
+            hashCode += MaterialID.GetHashCode();
+            hashCode += SubmeshIndex.GetHashCode();
+
+            return hashCode;
+        }
+    }
+
+    public struct FMeshDrawCommandValue : IComparable<FMeshDrawCommandValue>, IEquatable<FMeshDrawCommandValue>
+    {
+        public int MeshBatchIndex;
+
+
+        public FMeshDrawCommandValue(in int InMeshBatchIndex)
+        {
+            MeshBatchIndex = InMeshBatchIndex;
+        }
+
+        public int CompareTo(FMeshDrawCommandValue MeshDrawCommandValue)
+        {
+            return MeshBatchIndex.CompareTo(MeshDrawCommandValue.MeshBatchIndex);
+        }
+
+        public bool Equals(FMeshDrawCommandValue Target)
+        {
+            return MeshBatchIndex.Equals(Target.MeshBatchIndex);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals((FMeshBatch)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return MeshBatchIndex.GetHashCode() + 5;
+        }
+
+        public static implicit operator Int32(FMeshDrawCommandValue MDCValue) { return MDCValue.MeshBatchIndex; }
+        public static implicit operator FMeshDrawCommandValue(int index) { return new FMeshDrawCommandValue(index); }
     }
 }

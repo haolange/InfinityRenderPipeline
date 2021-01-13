@@ -28,7 +28,7 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         Dynamic = 2
     };
 
-    public struct FMeshBatch : IComparable<FMeshBatch>
+    public struct FMeshBatch : IComparable<FMeshBatch>, IEquatable<FMeshBatch>
     {
         public int SubmeshIndex;
         public SharedRef<Mesh> Mesh;
@@ -45,9 +45,9 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public float4x4 Matrix_LocalToWorld;
 
 
-        public bool Equals(in FMeshBatch Target)
+        public bool Equals(FMeshBatch Target)
         {
-            return this.SubmeshIndex.Equals(Target.SubmeshIndex) && this.Mesh.Equals(Target.Mesh) && this.Material.Equals(Target.Material);
+            return SubmeshIndex.Equals(Target.SubmeshIndex) && Mesh.Equals(Target.Mesh) && Material.Equals(Target.Material);
         }
 
         public override bool Equals(object obj)
@@ -63,13 +63,13 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public int MatchForDynamicInstance()
         {
             int hashCode = 2;
-            hashCode += Visible.GetHashCode();
             hashCode += SubmeshIndex;
             hashCode += Mesh.GetHashCode();
             hashCode += Material.GetHashCode();
-            hashCode += CastShadow.GetHashCode();
-            hashCode += MotionType.GetHashCode();
-            hashCode += RenderLayer.GetHashCode();
+            //hashCode += Visible.GetHashCode();
+            //hashCode += CastShadow.GetHashCode();
+            //hashCode += MotionType.GetHashCode();
+            //hashCode += RenderLayer.GetHashCode();
             return hashCode;
         }
 
@@ -110,19 +110,20 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 
     public struct FViewMeshBatch : IComparable<FViewMeshBatch>
     {
-        public int index;
+        public int Flag;
 
 
-        public FViewMeshBatch(in int Index)
+        public FViewMeshBatch(in int InFlag)
         {
-            index = Index;
+            Flag = InFlag;
         }
 
         public int CompareTo(FViewMeshBatch ViewMeshBatch)
         {
-            return index.CompareTo(ViewMeshBatch.index);
+            return Flag.CompareTo(ViewMeshBatch.Flag);
         }
 
+        public static implicit operator Int32(FViewMeshBatch ViewMeshBatch) { return ViewMeshBatch.Flag; }
         public static implicit operator FViewMeshBatch(int index) { return new FViewMeshBatch(index); }
     }
 
