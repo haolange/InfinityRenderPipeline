@@ -62,10 +62,10 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
 
         public int MatchForDynamicInstance()
         {
-            int hashCode = 2;
-            hashCode += SubmeshIndex;
+            int hashCode = 1;
             hashCode += Mesh.GetHashCode();
             hashCode += Material.GetHashCode();
+            hashCode += SubmeshIndex.GetHashCode();
             //hashCode += Visible.GetHashCode();
             //hashCode += CastShadow.GetHashCode();
             //hashCode += MotionType.GetHashCode();
@@ -76,9 +76,9 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public override int GetHashCode()
         {
             int hashCode = 2;
-            hashCode += SubmeshIndex;
             hashCode += Mesh.GetHashCode();
             hashCode += Material.GetHashCode();
+            hashCode += SubmeshIndex.GetHashCode();
             hashCode += CastShadow.GetHashCode();
             hashCode += MotionType.GetHashCode();
             hashCode += Visible.GetHashCode();
@@ -93,9 +93,9 @@ namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
         public int GetHashCode(in int InstanceID)
         {
             int hashCode = InstanceID;
-            hashCode += SubmeshIndex;
             hashCode += Mesh.GetHashCode();
             hashCode += Material.GetHashCode();
+            hashCode += SubmeshIndex.GetHashCode();
             hashCode += CastShadow.GetHashCode();
             hashCode += MotionType.GetHashCode();
             hashCode += Visible.GetHashCode();
