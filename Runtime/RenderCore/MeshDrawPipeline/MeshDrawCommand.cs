@@ -9,14 +9,12 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         public int MeshID;
         public int MaterialID;
         public int SubmeshIndex;
-        public int MatchHashCode;
 
-        public FMeshDrawCommandKey(in int InMeshID, in int InMaterialID, in int InSubmeshIndex, in int InMatchHashCode)
+        public FMeshDrawCommandKey(in int InMeshID, in int InMaterialID, in int InSubmeshIndex)
         {
             MeshID = InMeshID;
             MaterialID = InMaterialID;
             SubmeshIndex = InSubmeshIndex;
-            MatchHashCode = InMatchHashCode;
         }
 
         public int CompareTo(FMeshDrawCommandKey MeshDrawCommandKey)
@@ -26,7 +24,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
         public bool Equals(FMeshDrawCommandKey Target)
         {
-            return MatchHashCode.Equals(Target.MatchHashCode);
+            return (MeshID + MaterialID + SubmeshIndex) == (Target.MeshID + Target.MaterialID + Target.SubmeshIndex) ? true : false;
         }
 
         public override bool Equals(object obj)

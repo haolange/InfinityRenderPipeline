@@ -3,61 +3,67 @@ using Unity.Burst;
 using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
-using UnityEngine.Rendering;
 using InfinityTech.Core;
+using UnityEngine.Rendering;
+using System.Collections.Generic;
 using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
 
 namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     public class FMeshBatchProcessor
     {
-        public NativeMultiHashMap<int, int> MeshDrawCommands;
+        public NativeMultiHashMap<FMeshDrawCommandKey, FMeshDrawCommandValue> MeshDrawCommandMaps;
 
         public FMeshBatchProcessor()
         {
 
         }
 
-        internal void Init(in int Capacity = 2048)
-        {
-            MeshDrawCommands = new NativeMultiHashMap<int, int>(Capacity, Allocator.TempJob);
-        }
-
-        internal void BuildMeshDrawCommand(NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchMesh(RDGContext GraphContext, NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
+
+            MeshDrawCommandMaps = new NativeMultiHashMap<FMeshDrawCommandKey, FMeshDrawCommandValue>(2048, Allocator.TempJob);
 
             for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
             {
                 if (CullingData.ViewMeshBatchs[Index] != 0)
                 {
                     FMeshBatch MeshBatch = MeshBatchs[Index];
-                    int MatchInstanceID = MeshBatch.MatchForDynamicInstance();
 
-                    //FMeshDrawCommandKey MeshDrawCommandKey = new FMeshDrawCommandKey(MeshBatch.Mesh.Id , MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MatchInstanceID);
-                    //FMeshDrawCommandValue MeshDrawCommandValue = new FMeshDrawCommandValue(Index);
-                    MeshDrawCommands.Add(MatchInstanceID, Index);
+                    FMeshDrawCommandKey MeshDrawCommandKey = new FMeshDrawCommandKey(MeshBatch.Mesh.Id , MeshBatch.Material.Id, MeshBatch.SubmeshIndex);
+                    FMeshDrawCommandValue MeshDrawCommandValue = new FMeshDrawCommandValue(Index);
+                    MeshDrawCommandMaps.Add(MeshDrawCommandKey, MeshDrawCommandValue);
+
+                    Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
+                    Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+                    if (DrawMesh && DrawMaterial) {
+                        GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                    }
                 }
             }
-        }
 
-        internal void DispatchDraw(CommandBuffer CmdBuffer, FRenderWorld World)
-        {
-            /*if (MeshDrawCommands.Length == 0) { return; }
 
-            for (int i = 0; i < MeshDrawCommands.Length; i++)
+            /*for (int i = 0; i < MeshDrawCommandKeys.Length; i++)
             {
-                FMeshDrawCommand MeshDrawCommand = MeshDrawCommands[i];
-                Mesh DrawMesh = World.WorldMeshList.Get(MeshDrawCommand.DrawMesh);
-                Material DrawMaterial = World.WorldMaterialList.Get(MeshDrawCommand.DrawMaterial);
-                CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
-            }*/
-        }
+                FMeshDrawCommandValue MeshBatchIndex;
+                if (MeshDrawCommandMaps.TryGetFirstValue(MeshDrawCommandKeys[i], out MeshBatchIndex, out var iterator))
+                {
+                    while (MeshDrawCommandMaps.TryGetNextValue(out MeshBatchIndex, ref iterator))
+                    {
+                        Matrixs.Add(MeshBatchs[MeshBatchIndex].Matrix_LocalToWorld);
+                    }
 
-        internal void Release()
-        {
-            MeshDrawCommands.Dispose();
+                    Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatchs[MeshBatchIndex].Mesh);
+                    Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatchs[MeshBatchIndex].Material);
+                    GraphContext.CmdBuffer.DrawMeshInstanced(DrawMesh, 0, DrawMaterial, 2, Matrixs.ToArray(), Matrixs.Count);
+                }
+                //GraphContext.CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
+            }*/
+
+            MeshDrawCommandMaps.Dispose();
         }
     }
 }

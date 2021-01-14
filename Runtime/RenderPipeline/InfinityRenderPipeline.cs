@@ -236,7 +236,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Culling MeshBatch
                 GetWorld().GetMeshBatchColloctor().Sync();
                 FCullingData CullingData = new FCullingData();
-                CullingData.Run(View, MeshBatchs, ECullingMethod.VisibleMark);
+                CullingData.Run(View, MeshBatchs, ECullingMethod.VisibleMark, false);
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;
@@ -247,9 +247,6 @@ namespace InfinityTech.Rendering.Pipeline
                 CullingData.Sync();
 
                 //View RenderPass
-                /*NativeList<FMeshDrawCommand> MeshDrawCommands = new NativeList<FMeshDrawCommand>(64, Allocator.TempJob);
-                MeshDrawCommands.Dispose();*/
-
                 RenderOpaqueDepth(View, CullingResult, MeshBatchs, CullingData);
                 RenderOpaqueGBuffer(View, CullingResult, MeshBatchs, CullingData);
                 RenderOpaqueMotion(View, CullingResult, MeshBatchs, CullingData);

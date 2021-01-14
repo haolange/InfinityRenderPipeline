@@ -62,14 +62,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
         public int MatchForDynamicInstance()
         {
-            int hashCode = SubmeshIndex;
-            hashCode += Mesh.GetHashCode();
-            hashCode += Material.GetHashCode();
-            //hashCode += Visible.GetHashCode();
-            //hashCode += CastShadow.GetHashCode();
-            //hashCode += MotionType.GetHashCode();
-            //hashCode += RenderLayer.GetHashCode();
-            return hashCode;
+            return SubmeshIndex + Mesh.Id + Material.Id;
         }
 
         public override int GetHashCode()
