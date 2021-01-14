@@ -48,7 +48,6 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
-			#pragma multi_compile _ DOTS_INSTANCING_ON
 
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -105,7 +104,6 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
-			#pragma multi_compile _ DOTS_INSTANCING_ON
 
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -164,7 +162,6 @@
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
 			#pragma multi_compile _ LIGHTMAP_ON
-			#pragma multi_compile _ DOTS_INSTANCING_ON
 
 
 			#include "../Private/Common.hlsl"
@@ -262,7 +259,6 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
-			#pragma multi_compile _ DOTS_INSTANCING_ON
 
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -320,7 +316,6 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
-			#pragma multi_compile _ DOTS_INSTANCING_ON
 
 
 			#include "../Private/Common.hlsl"
