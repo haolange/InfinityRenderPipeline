@@ -50,13 +50,13 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                FMeshBatchProcessor DepthMeshPassProcessor = GraphContext.ObjectPool.Get<FMeshBatchProcessor>();
-                DepthMeshPassProcessor.Init();
+                FMeshBatchProcessor GBufferMeshProcessor = GraphContext.ObjectPool.Get<FMeshBatchProcessor>();
+                GBufferMeshProcessor.Init();
 
-                FMeshPassDesctiption DepthMeshPassDesc = new FMeshPassDesctiption() { RenderQueueMin = 0, RenderQueueMax = 2450, RenderLayerMask = 0, ExcludeMotionVectorObjects = true};
-                DepthMeshPassProcessor.BuildMeshDrawCommand(MeshBatchs, CullingData, DepthMeshPassDesc);
+                FMeshPassDesctiption GBufferMeshPassDesc = new FMeshPassDesctiption() { RenderQueueMin = 0, RenderQueueMax = 2450, RenderLayerMask = 0, ExcludeMotionVectorObjects = true};
+                GBufferMeshProcessor.BuildMeshDrawCommand(MeshBatchs, CullingData, GBufferMeshPassDesc);
 
-                DepthMeshPassProcessor.Release();
+                GBufferMeshProcessor.Release();
 
 
                 if (CullingData.ViewMeshBatchs.Length == 0) { return; }
