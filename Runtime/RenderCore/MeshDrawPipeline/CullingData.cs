@@ -1,9 +1,9 @@
 using Unity.Jobs;
 using UnityEngine;
 using Unity.Collections;
-using InfinityTech.Runtime.Core.Geometry;
+using InfinityTech.Core.Geometry;
 
-namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     public enum ECullingMethod
     {

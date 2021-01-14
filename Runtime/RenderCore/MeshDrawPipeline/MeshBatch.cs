@@ -1,10 +1,10 @@
 ﻿using System;
 using UnityEngine;
 using Unity.Mathematics;
-using InfinityTech.Runtime.Core;
-using InfinityTech.Runtime.Core.Geometry;
+using InfinityTech.Core;
+using InfinityTech.Core.Geometry;
 
-namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     [Serializable]
     public enum EStateType

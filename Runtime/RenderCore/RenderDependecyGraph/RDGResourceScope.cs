@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace InfinityTech.Runtime.Rendering.RDG
+namespace InfinityTech.Rendering.RDG
 {
     internal class RDGResourceScope<Type> where Type : struct
     {

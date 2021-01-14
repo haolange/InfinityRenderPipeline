@@ -5,11 +5,11 @@ using UnityEngine.VFX;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
-using InfinityTech.Runtime.Rendering.RDG;
-using InfinityTech.Runtime.Rendering.Core;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.Core;
+using InfinityTech.Rendering.MeshDrawPipeline;
 
-namespace InfinityTech.Runtime.Rendering.Pipeline
+namespace InfinityTech.Rendering.Pipeline
 {
     public partial struct ViewUnifromBuffer
     {

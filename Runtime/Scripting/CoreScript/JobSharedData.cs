@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace InfinityTech.Runtime.Core
+namespace InfinityTech.Core
 {
     public struct SharedRef<T> where T : class
     {

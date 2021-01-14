@@ -1,21 +1,21 @@
 using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
-using InfinityTech.Runtime.Core.Geometry;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
+using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.MeshDrawPipeline;
 
-namespace InfinityTech.Runtime.Component
+namespace InfinityTech.Component
 {
-    [AddComponentMenu("InfinityRenderer/LandscapeComponent")]
-    public class LandscapeComponent : BaseComponent
+    [AddComponentMenu("InfinityRenderer/Terrain Component")]
+    public class TerrainComponent : EntityComponent
     {
         [Header("Terrain Setting")]
         public float LOD0ScreenSize = 0.5f;
         public float LOD0Distribution = 1.25f;
-        public float LODDistribution = 2.8f;
+        public float LODXDistribution = 2.8f;
         
 
-        public LandscapeComponent() : base()
+        public TerrainComponent() : base()
         {
  
         }
@@ -48,9 +48,7 @@ namespace InfinityTech.Runtime.Component
 #if UNITY_EDITOR
         private void DrawBound()
         {
-            #if UNITY_EDITOR
 
-            #endif
         }
 
         void OnDrawGizmosSelected()

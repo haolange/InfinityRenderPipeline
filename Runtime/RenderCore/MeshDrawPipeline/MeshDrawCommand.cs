@@ -1,8 +1,8 @@
 using System;
 using UnityEngine;
-using InfinityTech.Runtime.Core;
+using InfinityTech.Core;
 
-namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     public struct FMeshDrawCommandKey : IComparable<FMeshDrawCommandKey>, IEquatable<FMeshDrawCommandKey>
     {

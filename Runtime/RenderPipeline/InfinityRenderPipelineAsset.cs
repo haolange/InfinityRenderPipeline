@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.Pipeline
+namespace InfinityTech.Rendering.Pipeline
 {
     [ExecuteInEditMode]
     [CreateAssetMenu(menuName = "InfinityRenderPipeline/InfinityRenderPipelineAsset")]

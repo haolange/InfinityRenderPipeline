@@ -1,6 +1,6 @@
 ﻿using System;
 using UnityEditor.VFX;
-using InfinityTech.Runtime.Rendering.Pipeline;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Editor.Tool
 {

@@ -1,11 +1,11 @@
 using UnityEngine;
 using Unity.Collections;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
-using InfinityTech.Runtime.Rendering.RDG;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshDrawPipeline;
 
-namespace InfinityTech.Runtime.Rendering.Pipeline
+namespace InfinityTech.Rendering.Pipeline
 {
     public partial class InfinityRenderPipeline
     {
@@ -18,7 +18,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
         void RenderOpaqueDepth(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchArray, FCullingData CullingData)
         {
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 3000)));
 
             RDGTextureDesc DepthDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer, DepthDesc);
@@ -36,8 +36,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 DepthRenderList.drawSettings.sortingSettings = new SortingSettings(RenderCamera) { criteria = SortingCriteria.QuantizedFrontToBack };
                 DepthRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
                 DepthRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
-                DepthRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 3000);
-
+                DepthRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
                 GraphContext.RenderContext.DrawRenderers(DepthRenderList.cullingResult, ref DepthRenderList.drawSettings, ref DepthRenderList.filteringSettings);
             });
         }

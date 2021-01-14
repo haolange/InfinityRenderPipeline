@@ -2,7 +2,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 
-namespace InfinityTech.Runtime.Core.Geometry
+namespace InfinityTech.Core.Geometry
 {
     [Serializable]
     public struct FPlane : IEquatable<FPlane>

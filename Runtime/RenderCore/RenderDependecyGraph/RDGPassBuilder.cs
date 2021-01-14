@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace InfinityTech.Runtime.Rendering.RDG
+namespace InfinityTech.Rendering.RDG
 {
     public struct RDGPassBuilder : IDisposable
     {

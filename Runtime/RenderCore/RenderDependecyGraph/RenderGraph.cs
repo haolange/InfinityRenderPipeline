@@ -2,9 +2,9 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
-using InfinityTech.Runtime.Rendering.Core;
+using InfinityTech.Rendering.Core;
 
-namespace InfinityTech.Runtime.Rendering.RDG
+namespace InfinityTech.Rendering.RDG
 {
     public class RDGContext
     {

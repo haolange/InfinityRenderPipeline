@@ -4,9 +4,9 @@ using UnityEngine.Experimental.Rendering;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace InfinityTech.Runtime.Rendering.Feature
+namespace InfinityTech.Rendering.Feature
 {
-    public class RayTrace_GlobalIllumination
+    public class RayTraceGlobalIllumination
     {
         public CommandBuffer CmdBuffer;
         public RayTracingShader TraceGlobalIlluminationShader;

@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.Feature
+namespace InfinityTech.Rendering.Feature
 {
     public struct SSRParameterDescriptor
     {

@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace InfinityTech.Runtime.Component
+namespace InfinityTech.Component
 {
     public enum ELightType
     {
@@ -125,7 +125,7 @@ namespace InfinityTech.Runtime.Component
 
     [ExecuteAlways]
     [RequireComponent(typeof(Light))]
-    [AddComponentMenu("InfinityRenderer/LightComponent")]
+    [AddComponentMenu("InfinityRenderer/Light Component")]
     public class LightComponent : BaseComponent
     {
         ///General Property

@@ -1,8 +1,8 @@
 using UnityEditor;
 using UnityEngine;
-using InfinityTech.Runtime.Rendering.Core;
+using InfinityTech.Rendering.Core;
 
-namespace InfinityTech.Runtime.Component
+namespace InfinityTech.Component
 {
     [ExecuteInEditMode]
 #if UNITY_EDITOR

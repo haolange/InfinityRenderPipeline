@@ -5,7 +5,7 @@ using UnityEngine;
 #if UNITY_EDITOR
 [CanEditMultipleObjects]
 #endif
-[AddComponentMenu("InfinityRenderer/DecalComponent")]
+[AddComponentMenu("InfinityRenderer/Decal Component")]
 public class DecalComponent : MonoBehaviour
 {
     // Start is called before the first frame update

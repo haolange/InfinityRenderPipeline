@@ -1,9 +1,9 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.Pipeline;
 using UnityEngine.Experimental.Rendering;
-using InfinityTech.Runtime.Rendering.Pipeline;
 
-namespace InfinityTech.Runtime.Rendering.Core
+namespace InfinityTech.Rendering.Core
 {
     [ExecuteAlways]
     public class RayTraceEnvironment : MonoBehaviour

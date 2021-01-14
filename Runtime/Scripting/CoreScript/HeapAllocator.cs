@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace InfinityTech.Runtime.Core
+namespace InfinityTech.Core
 {
     internal class HeapAllocator
     {

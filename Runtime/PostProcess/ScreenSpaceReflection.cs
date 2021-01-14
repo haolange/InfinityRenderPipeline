@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.PostProcess
+namespace InfinityTech.Rendering.PostProcess
 {
     [Serializable, VolumeComponentMenu("ScreenSpaceRayTracing/Screen Space Reflection")]
     public class ScreenSpaceReflection : VolumeComponent

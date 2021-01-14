@@ -7,11 +7,11 @@
 using System;
 using Unity.Collections;
 using System.Diagnostics;
+using InfinityTech.Core.Native;
 using System.Runtime.InteropServices;
-using InfinityTech.Runtime.Core.Native;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace InfinityTech.Runtime.Core.Native
+namespace InfinityTech.Core.Native
 {
 	/// <summary>
 	/// A reference-counted <see cref="IDisposable"/>.

@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace InfinityTech.Runtime.Core.Native
+namespace InfinityTech.Core.Native
 {
 	/// <summary>
 	/// One chunk of elements in the list

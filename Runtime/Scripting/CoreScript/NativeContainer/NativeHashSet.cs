@@ -7,14 +7,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using Unity.Jobs;
 using System.Threading;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
-using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
+using System.Runtime.InteropServices;
+using Unity.Collections.LowLevel.Unsafe;
 
-namespace InfinityTech.Runtime.Core.Native
+namespace InfinityTech.Core.Native
 {
     /// <summary>
     /// The state of a <see cref="NativeHashSet{T}"/>. Shared among instances

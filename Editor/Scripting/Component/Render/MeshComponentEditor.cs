@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using InfinityTech.Runtime.Component;
+using InfinityTech.Component;
 
 namespace InfinityTech.Editor.Component
 {

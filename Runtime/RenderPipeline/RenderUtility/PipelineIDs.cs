@@ -2,7 +2,7 @@
 using UnityEngine.Rendering;
 using UnityEngine.Profiling;
 
-namespace InfinityTech.Runtime.Rendering.Pipeline
+namespace InfinityTech.Rendering.Pipeline
 {
     public enum CustomSamplerId
     {

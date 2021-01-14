@@ -4,11 +4,11 @@ using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
-using InfinityTech.Runtime.Core;
-using InfinityTech.Runtime.Core.Geometry;
-using InfinityTech.Runtime.Rendering.Core;
+using InfinityTech.Core;
+using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.Core;
 
-namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     public class FMeshBatchProcessor
     {

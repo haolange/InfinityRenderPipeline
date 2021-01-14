@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
-using InfinityTech.Runtime.Rendering.Core;
+using InfinityTech.Rendering.Core;
 
-namespace InfinityTech.Runtime.Component
+namespace InfinityTech.Component
 {
     [ExecuteAlways]
     [ExecuteInEditMode]

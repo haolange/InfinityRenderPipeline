@@ -5,13 +5,13 @@
 //-----------------------------------------------------------------------
 
 using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
+using System.Diagnostics;
 using Unity.Jobs.LowLevel.Unsafe;
+using System.Runtime.InteropServices;
+using Unity.Collections.LowLevel.Unsafe;
 
-namespace InfinityTech.Runtime.Core.Native
+namespace InfinityTech.Core.Native
 {
 	/// <summary>
 	/// A pointer to an long stored in native (i.e. unmanaged) memory. One

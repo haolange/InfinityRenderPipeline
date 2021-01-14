@@ -4,9 +4,9 @@ using Unity.Burst;
 using Unity.Mathematics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using InfinityTech.Runtime.Core.Geometry;
+using InfinityTech.Core.Geometry;
 
-namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     [BurstCompile]
     internal struct FSortMeshBatchJob : IJob

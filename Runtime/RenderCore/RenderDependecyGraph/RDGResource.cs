@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.RDG
+namespace InfinityTech.Rendering.RDG
 {
     [Flags]
     public enum EDepthAccess

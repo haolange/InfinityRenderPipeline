@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using InfinityTech.Runtime.Rendering.Pipeline;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Editor.Component
 {

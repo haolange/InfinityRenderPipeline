@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.Pipeline
+namespace InfinityTech.Rendering.Pipeline
 {
     public static class GraphicsUtility
     {

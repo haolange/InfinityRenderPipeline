@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
 
-namespace InfinityTech.Runtime.Rendering.RDG
+namespace InfinityTech.Rendering.RDG
 {
     internal enum ERGProfileId
     {

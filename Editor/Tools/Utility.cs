@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using InfinityTech.Runtime.Component;
+using InfinityTech.Component;
 //using Unity.Mathematics;
 
 namespace InfinityTech.Editor.Tool

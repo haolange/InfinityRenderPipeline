@@ -5,13 +5,13 @@
 //-----------------------------------------------------------------------
 
 using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Threading;
 using Unity.Collections;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace InfinityTech.Runtime.Core.Native
+namespace InfinityTech.Core.Native
 {
     /// <summary>
     /// A pointer to an int stored in native (i.e. unmanaged) memory

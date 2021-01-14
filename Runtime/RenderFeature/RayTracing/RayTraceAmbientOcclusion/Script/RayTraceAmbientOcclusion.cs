@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.Feature
+namespace InfinityTech.Rendering.Feature
 {
     public struct RTAOParameter {
         public int NumRays;

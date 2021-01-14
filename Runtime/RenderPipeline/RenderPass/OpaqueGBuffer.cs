@@ -1,11 +1,11 @@
 ﻿using UnityEngine;
 using Unity.Collections;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
-using InfinityTech.Runtime.Rendering.RDG;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshDrawPipeline;
 
-namespace InfinityTech.Runtime.Rendering.Pipeline
+namespace InfinityTech.Rendering.Pipeline
 {
     public partial class InfinityRenderPipeline
     {
@@ -20,7 +20,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
         void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchs, FCullingData CullingData)
         {
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueGBuffer, new RenderQueueRange(0, 2450), PerObjectData.Lightmaps));
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 
@@ -46,7 +46,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
                 GBufferRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
                 GBufferRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
                 GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
-                GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2450);
+                GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //MeshDrawPipeline

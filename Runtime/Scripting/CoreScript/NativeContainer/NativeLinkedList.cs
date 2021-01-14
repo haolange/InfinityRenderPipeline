@@ -5,14 +5,14 @@
 //-----------------------------------------------------------------------
 
 using System;
+using Unity.Collections;
+using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace InfinityTech.Runtime.Core.Native
+namespace InfinityTech.Core.Native
 {
 	/// <summary>
 	/// The state of a <see cref="NativeLinkedList{T}"/>. Shared among instances

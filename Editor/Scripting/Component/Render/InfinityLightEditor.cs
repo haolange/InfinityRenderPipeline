@@ -1,8 +1,8 @@
 ﻿using System;
 using UnityEngine;
 using UnityEditor;
-using InfinityTech.Runtime.Component;
-using InfinityTech.Runtime.Rendering.Pipeline;
+using InfinityTech.Component;
+using InfinityTech.Rendering.Pipeline;
 using Expression = System.Linq.Expressions.Expression;
 
 namespace InfinityTech.Editor.Component

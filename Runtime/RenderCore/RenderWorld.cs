@@ -1,12 +1,12 @@
 ﻿using System;
 using UnityEngine;
-using InfinityTech.Runtime.Core;
+using InfinityTech.Core;
+using InfinityTech.Component;
 using System.Collections.Generic;
-using InfinityTech.Runtime.Component;
 using System.Runtime.CompilerServices;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshDrawPipeline;
 
-namespace InfinityTech.Runtime.Rendering.Core
+namespace InfinityTech.Rendering.Core
 {
     [Serializable]
     public class FRenderWorld : UObject

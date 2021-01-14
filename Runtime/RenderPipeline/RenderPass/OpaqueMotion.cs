@@ -1,11 +1,11 @@
 ﻿using UnityEngine;
 using Unity.Collections;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
-using InfinityTech.Runtime.Rendering.RDG;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshDrawPipeline;
 
-namespace InfinityTech.Runtime.Rendering.Pipeline
+namespace InfinityTech.Rendering.Pipeline
 {
     public partial class InfinityRenderPipeline
     {
@@ -21,7 +21,7 @@ namespace InfinityTech.Runtime.Rendering.Pipeline
             RenderCamera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueMotion));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueMotion, RenderQueueRange.opaque, PerObjectData.MotionVectors));
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_DepthBuffer);
 

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace InfinityTech.Runtime.Rendering.Feature
+namespace InfinityTech.Rendering.Feature
 {
     public class HaltonSequence
     {

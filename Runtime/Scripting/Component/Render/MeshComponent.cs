@@ -1,12 +1,12 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
-using InfinityTech.Runtime.Core.Geometry;
-using InfinityTech.Runtime.Rendering.MeshDrawPipeline;
+using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.MeshDrawPipeline;
 
-namespace InfinityTech.Runtime.Component
+namespace InfinityTech.Component
 {
-    [AddComponentMenu("InfinityRenderer/MeshComponent")]
+    [AddComponentMenu("InfinityRenderer/Mesh Component")]
     public class MeshComponent : EntityComponent
     {
         [Header("State")]

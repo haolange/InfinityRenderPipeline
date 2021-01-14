@@ -10,6 +10,7 @@
     "com.unity.burst": "1.4.3",
     "com.unity.shadergraph": "10.2.2",
     "com.unity.mathematics": "1.2.1",
+    "com.unity.addressables": "1.16.15",
     "com.unity.rendering.hybrid": "0.10.0-preview.21",
     "com.unity.visualeffectgraph": "10.2.2",
     "com.unity.render-pipelines.core": "10.2.2"

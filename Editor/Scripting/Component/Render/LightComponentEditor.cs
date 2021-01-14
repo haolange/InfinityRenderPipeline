@@ -1,5 +1,5 @@
 ﻿using UnityEditor;
-using InfinityTech.Runtime.Component;
+using InfinityTech.Component;
 
 namespace InfinityTech.Editor.Component
 {

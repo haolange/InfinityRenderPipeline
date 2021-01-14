@@ -1,7 +1,7 @@
 ﻿using Unity.Jobs;
 using Unity.Collections;
 
-namespace InfinityTech.Runtime.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     //[Serializable]
     public class FMeshBatchCollector

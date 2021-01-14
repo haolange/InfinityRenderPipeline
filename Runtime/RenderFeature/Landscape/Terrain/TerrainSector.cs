@@ -3,11 +3,11 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
 using System.Collections;
+using InfinityTech.Core.Geometry;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using InfinityTech.Runtime.Core.Geometry;
 
-namespace InfinityTech.Runtime.Rendering.Feature
+namespace InfinityTech.Rendering.Feature
 {
     [Serializable]
     public class FTerrainSector

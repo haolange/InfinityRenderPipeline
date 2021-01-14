@@ -1,12 +1,12 @@
 ﻿using UnityEngine;
 using Unity.Collections;
-using InfinityTech.Runtime.Core.Geometry;
+using InfinityTech.Core.Geometry;
 
-namespace InfinityTech.Runtime.Component
+namespace InfinityTech.Component
 {
     [ExecuteAlways]
     [RequireComponent(typeof(Camera))]
-    [AddComponentMenu("InfinityRenderer/CameraComponent")]
+    [AddComponentMenu("InfinityRenderer/Camera Component")]
     public class CameraComponent : BaseComponent
     {
         public Camera UnityCamera;

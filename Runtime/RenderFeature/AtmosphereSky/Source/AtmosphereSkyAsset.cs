@@ -2,7 +2,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.Feature
+namespace InfinityTech.Rendering.Feature
 {
     [ExecuteInEditMode]
     [CreateAssetMenu(menuName = "InfinityRenderPipeline/AtmosphereSkyAsset")]

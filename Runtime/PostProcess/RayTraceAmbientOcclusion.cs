@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace InfinityTech.Runtime.Rendering.PostProcess
+namespace InfinityTech.Rendering.PostProcess
 {
     [Serializable, VolumeComponentMenu("RayTracing/RTAO")]
     public class RayTraceAmbientOcclusion : VolumeComponent

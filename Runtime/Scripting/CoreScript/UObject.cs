@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace InfinityTech.Runtime.Core
+namespace InfinityTech.Core
 {
     [Serializable]
     public abstract class UObject : IDisposable
