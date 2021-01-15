@@ -65,27 +65,14 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             return SubmeshIndex + (Mesh.Id << 16 | Material.Id);
         }
 
-        public override int GetHashCode()
+        public int MatchForCacheMeshBatch(in int InstanceID)
         {
-            int hashCode = SubmeshIndex;
-            hashCode += Mesh.GetHashCode();
-            hashCode += Material.GetHashCode();
-            hashCode += CastShadow.GetHashCode();
-            hashCode += MotionType.GetHashCode();
-            hashCode += Visible.GetHashCode();
-            hashCode += Priority.GetHashCode();
-            hashCode += RenderLayer.GetHashCode();
-            hashCode += BoundBox.GetHashCode();
-            hashCode += Matrix_LocalToWorld.GetHashCode();
-
-            return hashCode;
+            return InstanceID + GetHashCode();
         }
 
-        public int GetHashCode(in int InstanceID)
+        public override int GetHashCode()
         {
-            int hashCode = SubmeshIndex;
-            hashCode += Mesh.GetHashCode();
-            hashCode += Material.GetHashCode();
+            int hashCode = MatchForDynamicInstance();
             hashCode += CastShadow.GetHashCode();
             hashCode += MotionType.GetHashCode();
             hashCode += Visible.GetHashCode();

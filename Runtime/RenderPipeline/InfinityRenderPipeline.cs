@@ -200,6 +200,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Init Frame
             NativeArray<FMeshBatch> MeshBatchs = new NativeArray<FMeshBatch>(GetWorld().GetMeshBatchColloctor().CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
             GetWorld().GetMeshBatchColloctor().GatherMeshBatch(MeshBatchs);
+            GetWorld().GetMeshBatchColloctor().Sync();
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, ViewList);
@@ -234,22 +235,19 @@ namespace InfinityTech.Rendering.Pipeline
                 VFXManager.ProcessCameraCommand(View, CmdBuffer);
 
                 //Culling MeshBatch
-                GetWorld().GetMeshBatchColloctor().Sync();
                 FCullingData CullingData = new FCullingData();
-                CullingData.Run(View, MeshBatchs, ECullingMethod.VisibleMark, false);
+                CullingData.DoCull(View, MeshBatchs);
+                CullingData.Sync();
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;
                 View.TryGetCullingParameters(out CullingParameter);
                 CullingResults CullingResult = RenderContext.Cull(ref CullingParameter);
 
-                //Sync MeshBatch
-                CullingData.Sync();
-
                 //View RenderPass
-                RenderOpaqueDepth(View, CullingResult, MeshBatchs, CullingData);
-                RenderOpaqueGBuffer(View, CullingResult, MeshBatchs, CullingData);
-                RenderOpaqueMotion(View, CullingResult, MeshBatchs, CullingData);
+                RenderOpaqueDepth(View, MeshBatchs, CullingData, CullingResult);
+                RenderOpaqueGBuffer(View, MeshBatchs, CullingData, CullingResult);
+                RenderOpaqueMotion(View, MeshBatchs, CullingData, CullingResult);
                 RenderSkyAtmosphere(View);
 
                 #if UNITY_EDITOR

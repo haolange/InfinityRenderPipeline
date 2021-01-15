@@ -3,8 +3,9 @@ using Unity.Jobs;
 using Unity.Burst;
 using Unity.Mathematics;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using InfinityTech.Core.Geometry;
+using Unity.Collections.LowLevel.Unsafe;
+using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.MeshDrawPipeline
 {
@@ -21,7 +22,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FCullMeshBatchForMarkJob : IJobParallelFor
+    internal struct FMarkMeshBatchCullJob : IJobParallelFor
     {
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchs;
@@ -58,7 +59,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FCullMeshBatchForFilterJob : IJobParallelForFilter
+    internal struct FFilterMeshBatchCullJob : IJobParallelForFilter
     {
         [ReadOnly]
         public NativeArray<FPlane> ViewFrustum;
@@ -84,43 +85,6 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             }
 
             return true;
-        }
-    }
-
-    internal struct FMeshPassDesctiption
-    {
-        public int RenderQueueMin;
-        public int RenderQueueMax;
-        public int RenderLayerMask;
-        public bool ExcludeMotionVectorObjects;
-    }
-
-    [BurstCompile]
-    internal struct FMeshPassFilterJob : IJobParallelForFilter
-    {
-        [ReadOnly]
-        FMeshPassDesctiption MeshPassDesctiption;
-
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchArray;
-
-        [ReadOnly]
-        public NativeList<int> ViewMeshBatchList;
-
-        public bool Execute(int index)
-        {
-            FViewMeshBatch ViewMeshBatch = ViewMeshBatchList[index];
-            FMeshBatch MeshBatch = MeshBatchArray[ViewMeshBatch.Flag];
-
-            if ((MeshBatch.MotionType == 1 ? true : false) == MeshPassDesctiption.ExcludeMotionVectorObjects && 
-                 MeshBatch.RenderLayer == MeshPassDesctiption.RenderLayerMask && 
-                 MeshBatch.Priority >= MeshPassDesctiption.RenderQueueMin && 
-                 MeshBatch.Priority <= MeshPassDesctiption.RenderQueueMax)
-            {
-                return true;
-            }
-
-            return false;
         }
     }
 
@@ -154,6 +118,24 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         }
     }
 
+    internal struct FMeshPassDesctiption
+    {
+        public int RenderQueueMin;
+        public int RenderQueueMax;
+        public int RenderLayerMask;
+        public EGatherMethod GatherMethod;
+        public bool ExcludeMotionVectorObjects;
+
+        public FMeshPassDesctiption(in RendererList InRendererList, in EGatherMethod InGatherMethod = EGatherMethod.Burst)
+        {
+            GatherMethod = InGatherMethod;
+            RenderLayerMask = (int)InRendererList.filteringSettings.renderingLayerMask;
+            RenderQueueMin = InRendererList.filteringSettings.renderQueueRange.lowerBound;
+            RenderQueueMax = InRendererList.filteringSettings.renderQueueRange.upperBound;
+            ExcludeMotionVectorObjects = InRendererList.filteringSettings.excludeMotionVectorObjects;
+        }
+    }
+
     [BurstCompile]
     internal struct FViewMeshBatchGatherJob : IJob
     {
@@ -178,6 +160,31 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                     FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
                     MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
                 }
+            }
+        }
+    }
+
+    [BurstCompile]
+    internal struct FViewMeshBatchParallelGatherJob : IJobParallelFor
+    {
+        [ReadOnly]
+        public FCullingData CullingData;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        [WriteOnly]
+        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>.ParallelWriter MeshDrawCommandMaps;
+
+        public void Execute(int Index)
+        {
+            if (CullingData.ViewMeshBatchs[Index] != 0)
+            {
+                FMeshBatch MeshBatch = MeshBatchs[Index];
+
+                FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MeshBatch.MatchForDynamicInstance());
+                FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
+                MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
             }
         }
     }

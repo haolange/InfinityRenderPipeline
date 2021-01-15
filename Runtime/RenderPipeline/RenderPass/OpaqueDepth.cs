@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef DepthBuffer;
         }
 
-        void RenderOpaqueDepth(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchArray, FCullingData CullingData)
+        void RenderOpaqueDepth(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs, FCullingData CullingData, CullingResults CullingResult)
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 3000)));

@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         public NativeList<int> ViewMeshBatchs;
         public ECullingMethod CullMethod;
 
-        public void Run(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs, in ECullingMethod CullingMethod = ECullingMethod.FillterList, in bool bParallel = true)
+        public void DoCull(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs, in ECullingMethod CullingMethod = ECullingMethod.VisibleMark, in bool bParallel = false)
         {
             ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
             Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                     ViewMeshBatchs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
                     ViewMeshBatchs.Resize(MeshBatchs.Length, NativeArrayOptions.ClearMemory);
 
-                    FCullMeshBatchForMarkJob MarkCullingJob = new FCullMeshBatchForMarkJob();
+                    FMarkMeshBatchCullJob MarkCullingJob = new FMarkMeshBatchCullJob();
                     {
                         MarkCullingJob.ViewFrustum = ViewFrustum;
                         MarkCullingJob.MeshBatchs = MeshBatchs;
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 case ECullingMethod.FillterList:
                     ViewMeshBatchs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
 
-                    FCullMeshBatchForFilterJob FilterCullingJob = new FCullMeshBatchForFilterJob();
+                    FFilterMeshBatchCullJob FilterCullingJob = new FFilterMeshBatchCullJob();
                     {
                         FilterCullingJob.ViewFrustum = ViewFrustum;
                         FilterCullingJob.MeshBatchs = MeshBatchs;

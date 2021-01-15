@@ -21,38 +21,55 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
         }
 
-        internal void DispatchMesh(RDGContext GraphContext, NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchDraw(RDGContext GraphContext, NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
-            MeshDrawCommandMaps = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(2048, Allocator.TempJob);
+            MeshDrawCommandMaps = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(8192, Allocator.TempJob);
 
-            /*FViewMeshBatchGatherJob ViewMeshBatchGatherJob = new FViewMeshBatchGatherJob();
+            switch (MeshPassDesctiption.GatherMethod)
             {
-                ViewMeshBatchGatherJob.CullingData = CullingData;
-                ViewMeshBatchGatherJob.MeshBatchs = MeshBatchs;
-                ViewMeshBatchGatherJob.MeshDrawCommandMaps = MeshDrawCommandMaps;
+                case EGatherMethod.Default:
+                    for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+                    {
+                        if (CullingData.ViewMeshBatchs[Index] != 0)
+                        {
+                            FMeshBatch MeshBatch = MeshBatchs[Index];
+
+                            FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MeshBatch.MatchForDynamicInstance());
+                            FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
+                            MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
+
+                            Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
+                            Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
+                            if (DrawMesh && DrawMaterial)
+                            {
+                                GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
+                            }
+                        }
+                    }
+                    break;
+
+                case EGatherMethod.Burst:
+                    FViewMeshBatchGatherJob ViewMeshBatchGatherJob = new FViewMeshBatchGatherJob();
+                    {
+                        ViewMeshBatchGatherJob.MeshBatchs = MeshBatchs;
+                        ViewMeshBatchGatherJob.CullingData = CullingData;
+                        ViewMeshBatchGatherJob.MeshDrawCommandMaps = MeshDrawCommandMaps;
+                    }
+                    ViewMeshBatchGatherJob.Run();
+                    break;
+
+                case EGatherMethod.Parallel:
+                    FViewMeshBatchParallelGatherJob ViewMeshBatchParallelGatherJob = new FViewMeshBatchParallelGatherJob();
+                    {
+                        ViewMeshBatchParallelGatherJob.MeshBatchs = MeshBatchs;
+                        ViewMeshBatchParallelGatherJob.CullingData = CullingData;
+                        ViewMeshBatchParallelGatherJob.MeshDrawCommandMaps = MeshDrawCommandMaps.AsParallelWriter();
+                    }
+                    ViewMeshBatchParallelGatherJob.Schedule(CullingData.ViewMeshBatchs.Length, 256).Complete();
+                    break;
             }
-            ViewMeshBatchGatherJob.Run();*/
-
-            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
-            {
-                if (CullingData.ViewMeshBatchs[Index] != 0)
-                {
-                    FMeshBatch MeshBatch = MeshBatchs[Index];
-
-                    FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id , MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MeshBatch.MatchForDynamicInstance());
-                    FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
-                    MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
-
-                    /*Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
-                    Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
-                    if (DrawMesh && DrawMaterial) {
-                        GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
-                    }*/
-                }
-            }
-
 
             /*for (int i = 0; i < MeshDrawCommandMaps.Count(); i++)
             {
@@ -68,7 +85,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                     Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatchs[MeshBatchIndex].Material);
                     GraphContext.CmdBuffer.DrawMeshInstanced(DrawMesh, 0, DrawMaterial, 2, Matrixs.ToArray(), Matrixs.Count);
                 }
-            //GraphContext.CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
+                //GraphContext.CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
             }*/
 
             MeshDrawCommandMaps.Dispose();

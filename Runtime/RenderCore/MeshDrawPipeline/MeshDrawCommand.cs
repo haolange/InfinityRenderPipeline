@@ -4,6 +4,13 @@ using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.MeshDrawPipeline
 {
+    public enum EGatherMethod
+    {
+        Default,
+        Burst,
+        Parallel
+    }
+
     public struct FMeshDrawCommand : IComparable<FMeshDrawCommand>, IEquatable<FMeshDrawCommand>
     {
         public int MeshID;
