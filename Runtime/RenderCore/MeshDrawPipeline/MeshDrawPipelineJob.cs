@@ -153,4 +153,32 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             Array[index] = UnsafeUtility.ReadArrayElement<TValue>(Hashmap.m_HashMapData.m_Buffer->values, index);
         }
     }
+
+    [BurstCompile]
+    internal struct FViewMeshBatchGatherJob : IJob
+    {
+        [ReadOnly]
+        public FCullingData CullingData;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        [WriteOnly]
+        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandMaps;
+
+        public void Execute()
+        {
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+            {
+                if (CullingData.ViewMeshBatchs[Index] != 0)
+                {
+                    FMeshBatch MeshBatch = MeshBatchs[Index];
+
+                    FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MeshBatch.MatchForDynamicInstance());
+                    FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
+                    MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
+                }
+            }
+        }
+    }
 }
