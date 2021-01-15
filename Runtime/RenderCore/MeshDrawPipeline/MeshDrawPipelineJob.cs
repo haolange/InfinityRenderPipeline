@@ -24,10 +24,10 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
     internal struct FCullMeshBatchForMarkJob : IJobParallelFor
     {
         [ReadOnly]
-        public NativeArray<FPlane> ViewFrustum;
+        public NativeArray<FMeshBatch> MeshBatchs;
 
         [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
+        public NativeArray<FPlane> ViewFrustum;
 
         [WriteOnly]
         public NativeArray<int> ViewMeshBatchs;
@@ -37,15 +37,20 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             int VisibleState = 1;
             FMeshBatch MeshBatch = MeshBatchs[index];
 
-            for (int i = 0; i < 6; i++)
+            if (MeshBatch.Visible)
             {
-                float3 normal = ViewFrustum[i].normal;
-                float distance = ViewFrustum[i].distance;
+                for (int i = 0; i < 6; i++)
+                {
+                    float3 normal = ViewFrustum[i].normal;
+                    float distance = ViewFrustum[i].distance;
 
-                float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
-                float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
+                    float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
+                    float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
 
-                if (dist + radius < 0) { VisibleState = 0; }
+                    if (dist + radius < 0) { VisibleState = 0; }
+                }
+            } else {
+                VisibleState = 0;
             }
 
             ViewMeshBatchs[index] = VisibleState;

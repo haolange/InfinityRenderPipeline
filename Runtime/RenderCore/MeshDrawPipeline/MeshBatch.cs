@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
         public int MatchForDynamicInstance()
         {
-            return SubmeshIndex + Mesh.Id + Material.Id;
+            return SubmeshIndex + (Mesh.Id << 16 | Material.Id);
         }
 
         public override int GetHashCode()
@@ -117,21 +117,37 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         public static implicit operator FViewMeshBatch(int index) { return new FViewMeshBatch(index); }
     }
 
-    public struct FPassMeshBatch : IComparable<FPassMeshBatch>
+    public struct FPassMeshBatch : IComparable<FPassMeshBatch>, IEquatable<FPassMeshBatch>
     {
-        public int index;
+        public int MeshBatchIndex;
 
 
-        public FPassMeshBatch(in int Index)
+        public FPassMeshBatch(in int InMeshBatchIndex)
         {
-            index = Index;
+            MeshBatchIndex = InMeshBatchIndex;
         }
 
-        public int CompareTo(FPassMeshBatch PassMeshBatch)
+        public int CompareTo(FPassMeshBatch MeshDrawCommandValue)
         {
-            return index.CompareTo(PassMeshBatch.index);
+            return MeshBatchIndex.CompareTo(MeshDrawCommandValue.MeshBatchIndex);
         }
 
+        public bool Equals(FPassMeshBatch Target)
+        {
+            return MeshBatchIndex.Equals(Target.MeshBatchIndex);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals((FMeshBatch)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return MeshBatchIndex.GetHashCode() + 5;
+        }
+
+        public static implicit operator Int32(FPassMeshBatch MDCValue) { return MDCValue.MeshBatchIndex; }
         public static implicit operator FPassMeshBatch(int index) { return new FPassMeshBatch(index); }
     }
 

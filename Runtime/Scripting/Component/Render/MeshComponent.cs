@@ -35,8 +35,8 @@ namespace InfinityTech.Component
         public EMotionType MotionVector = EMotionType.Object;
 
 
-        [HideInInspector]
-        public bool bInitTransfrom;
+        //[HideInInspector]
+        //public bool bInitTransfrom;
 
         [HideInInspector]
         public int LastMeshInstanceID;
@@ -71,7 +71,7 @@ namespace InfinityTech.Component
 
         protected override void OnRigister()
         {
-            bInitTransfrom = false;
+            //bInitTransfrom = false;
             CustomPrimitiveData = new NativeArray<float>(16, Allocator.Persistent);
             AddWorldPrimitive(GeometryState);
             BuildMeshBatch();
@@ -81,8 +81,9 @@ namespace InfinityTech.Component
         {
             UpdateMatrix();
             UpdateBounds();
+            UpdateMeshBatch();
 
-            if (bInitTransfrom == false) {
+            /*if (bInitTransfrom == false) {
                 bInitTransfrom = true;
                 UpdateMeshBatch();
             }
@@ -94,7 +95,7 @@ namespace InfinityTech.Component
                     bInitTransfrom = true;
                     UpdateMeshBatch();
                 }
-            #endif
+            #endif*/
         }
 
         protected virtual void OnStateTypeChange(in EStateType LastGeometryState)
@@ -125,17 +126,14 @@ namespace InfinityTech.Component
                 OnStateTypeChange(StateType);
             }
 
-            //Update By MeshDirty
+            //ReInit MeshBatch
             if (GetMeshStateDirty()) 
             {
                 OnStaticMeshChange();
             }
 
-            //Update DynamicMeshBatch
-            if (GeometryState == EStateType.Dynamic)
-            {
-                UpdateMeshBatch();
-            }
+            //Update MeshBatch
+            UpdateMeshBatch();
         }
 
         protected override void UnRigister()
