@@ -11,10 +11,10 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct FOpaqueGBufferData
         {
-            public RendererList RendererList;
             public RDGTextureRef GBufferA;
             public RDGTextureRef GBufferB;
             public RDGTextureRef DepthBuffer;
+            public RendererList RendererList;
         }
 
         void RenderOpaqueGBuffer(Camera RenderCamera, CullingResults CullingResult, NativeArray<FMeshBatch> MeshBatchs, FCullingData CullingData)
@@ -50,9 +50,9 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                FMeshBatchProcessor GBufferMeshProcessor = GraphContext.ObjectPool.Get<FMeshBatchProcessor>();
-                FMeshPassDesctiption GBufferMeshPassDesc = new FMeshPassDesctiption() { RenderQueueMin = 0, RenderQueueMax = 2450, RenderLayerMask = 0, ExcludeMotionVectorObjects = true};
-                GBufferMeshProcessor.DispatchMesh(GraphContext, MeshBatchs, CullingData, GBufferMeshPassDesc);
+                FMeshPassProcessor GBufferMeshPassProcessor = GraphContext.ObjectPool.Get<FMeshPassProcessor>();
+                FMeshPassDesctiption GBufferMeshPassDescription = new FMeshPassDesctiption() { RenderQueueMin = 0, RenderQueueMax = 2450, RenderLayerMask = 0, ExcludeMotionVectorObjects = true};
+                GBufferMeshPassProcessor.DispatchMesh(GraphContext, MeshBatchs, CullingData, GBufferMeshPassDescription);
             });
         }
     }

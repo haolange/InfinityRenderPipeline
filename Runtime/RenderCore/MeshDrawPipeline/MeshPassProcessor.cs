@@ -12,11 +12,11 @@ using InfinityTech.Rendering.Core;
 
 namespace InfinityTech.Rendering.MeshDrawPipeline
 {
-    public class FMeshBatchProcessor
+    public class FMeshPassProcessor
     {
         public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandMaps;
 
-        public FMeshBatchProcessor()
+        public FMeshPassProcessor()
         {
 
         }
