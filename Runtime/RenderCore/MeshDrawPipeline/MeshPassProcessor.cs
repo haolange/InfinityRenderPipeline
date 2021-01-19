@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
+using System.Threading;
 
 namespace InfinityTech.Rendering.MeshDrawPipeline
 {
@@ -21,7 +22,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
         }
 
-        internal void DispatchDraw(RDGContext GraphContext, NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchDraw(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
@@ -30,6 +31,16 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             //Gather PassMeshBatch
             switch (MeshPassDesctiption.GatherMethod)
             {
+                case EGatherMethod.Dots:
+                    FPassMeshBatchGatherJob PassMeshBatchGatherJob = new FPassMeshBatchGatherJob();
+                    {
+                        PassMeshBatchGatherJob.MeshBatchs = MeshBatchs;
+                        PassMeshBatchGatherJob.CullingData = CullingData;
+                        PassMeshBatchGatherJob.MeshDrawCommandMaps = MeshDrawCommandsMap;
+                    }
+                    PassMeshBatchGatherJob.Run();
+                    break;
+
                 case EGatherMethod.Default:
                     for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
                     {
@@ -43,79 +54,72 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                         }
                     }
                     break;
-
-                case EGatherMethod.Burst:
-                    FViewMeshBatchGatherJob ViewMeshBatchGatherJob = new FViewMeshBatchGatherJob();
-                    {
-                        ViewMeshBatchGatherJob.MeshBatchs = MeshBatchs;
-                        ViewMeshBatchGatherJob.CullingData = CullingData;
-                        ViewMeshBatchGatherJob.MeshDrawCommandMaps = MeshDrawCommandsMap;
-                    }
-                    ViewMeshBatchGatherJob.Run();
-                    break;
-
-                case EGatherMethod.Parallel:
-                    FViewMeshBatchParallelGatherJob ViewMeshBatchParallelGatherJob = new FViewMeshBatchParallelGatherJob();
-                    {
-                        ViewMeshBatchParallelGatherJob.MeshBatchs = MeshBatchs;
-                        ViewMeshBatchParallelGatherJob.CullingData = CullingData;
-                        ViewMeshBatchParallelGatherJob.MeshDrawCommandMaps = MeshDrawCommandsMap.AsParallelWriter();
-                    }
-                    ViewMeshBatchParallelGatherJob.Schedule(CullingData.ViewMeshBatchs.Length, 256).Complete();
-                    break;
             }
 
-            var Keys = MeshDrawCommandsMap.GetUniqueKeyArray(Allocator.TempJob);
-
-            int BatchOffset = 0;
-            NativeArray<int> CountArray = new NativeArray<int>(Keys.Item2, Allocator.TempJob);
-            NativeArray<int> OffsetArray = new NativeArray<int>(Keys.Item2, Allocator.TempJob);
+            //Gather MeshDrawCommandKey
+            var MeshDrawCommandsKey = MeshDrawCommandsMap.GetUniqueKeyArray(Allocator.TempJob);
             NativeArray<int> IndexArray = new NativeArray<int>(MeshDrawCommandsMap.Count(), Allocator.TempJob);
+            NativeArray<int2> CountOffsetArray = new NativeArray<int2>(MeshDrawCommandsKey.Item2, Allocator.TempJob);
 
-            //Build PassBuffer
-            for (int KeyIndex = 0; KeyIndex < Keys.Item2; ++KeyIndex)
+            //Gather MeshPassBuffer
+            switch (MeshPassDesctiption.GatherMethod)
             {
-                if (MeshDrawCommandsMap.TryGetFirstValue(Keys.Item1[KeyIndex], out FPassMeshBatch Value, out var Iterator))
-                {
-                    int BatchIndex = 0;
-
-                    do
+                case EGatherMethod.Dots:
+                    FPassMeshBatchConvertJob PassMeshBatchConvertJob = new FPassMeshBatchConvertJob();
                     {
-                        IndexArray[BatchIndex + BatchOffset] = Value;
-                        BatchIndex += 1;
+                        PassMeshBatchConvertJob.Count = MeshDrawCommandsKey.Item2;
+                        PassMeshBatchConvertJob.IndexArray = IndexArray;
+                        PassMeshBatchConvertJob.CountOffsetArray = CountOffsetArray;
+                        PassMeshBatchConvertJob.MeshDrawCommands = MeshDrawCommandsKey.Item1;
+                        PassMeshBatchConvertJob.MeshDrawCommandsMap = MeshDrawCommandsMap;
                     }
-                    while (MeshDrawCommandsMap.TryGetNextValue(out Value, ref Iterator));
+                    PassMeshBatchConvertJob.Run();
+                    break;
 
-                    CountArray[KeyIndex] = BatchIndex;
-                    OffsetArray[KeyIndex] = BatchOffset;
-                    BatchOffset += BatchIndex;
-                }
+                case EGatherMethod.Default:
+                    int BatchOffset = 0;
+                    for (int KeyIndex = 0; KeyIndex < MeshDrawCommandsKey.Item2; KeyIndex++)
+                    {
+                        if (MeshDrawCommandsMap.TryGetFirstValue(MeshDrawCommandsKey.Item1[KeyIndex], out FPassMeshBatch Value, out var Iterator))
+                        {
+                            int BatchIndex = 0;
+
+                            do
+                            {
+                                IndexArray[BatchIndex + BatchOffset] = Value;
+                                BatchIndex += 1;
+                            }
+                            while (MeshDrawCommandsMap.TryGetNextValue(out Value, ref Iterator));
+
+                            CountOffsetArray[KeyIndex] = new int2(BatchIndex, BatchOffset);
+                            Interlocked.Add(ref BatchOffset, BatchIndex);
+                        }
+                    }
+                    break;
             }
 
-            //Pass DrawCall
-            for (int BatchIndex = 0; BatchIndex < Keys.Item2; ++BatchIndex)
+            //DrawCall for MeshPass
+            for (int BatchIndex = 0; BatchIndex < MeshDrawCommandsKey.Item2; BatchIndex++)
             {
-                int DrawCount = CountArray[BatchIndex];
-                int DrawOffset = OffsetArray[BatchIndex];
-                FMeshDrawCommand MeshDrawCommand = Keys.Item1[BatchIndex];
+                int2 CountOffset = CountOffsetArray[BatchIndex];
+                FMeshDrawCommand MeshDrawCommand = MeshDrawCommandsKey.Item1[BatchIndex];
 
                 Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshDrawCommand.MeshID);
                 Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshDrawCommand.MaterialID);
 
-                for (int InstanceIndex = 0; InstanceIndex < DrawCount; ++InstanceIndex)
+                for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
                 {
-                    int DrawIndex = IndexArray[DrawOffset + InstanceIndex];
+                    int DrawIndex = IndexArray[CountOffset.y + InstanceIndex];
                     GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, 2);
                 }
             }
 
             //GraphContext.CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
 
-            Keys.Item1.Dispose();
-            CountArray.Dispose();
             IndexArray.Dispose();
-            OffsetArray.Dispose();
+            CountOffsetArray.Dispose();
             MeshDrawCommandsMap.Dispose();
+            MeshDrawCommandsKey.Item1.Dispose();
         }
     }
 }

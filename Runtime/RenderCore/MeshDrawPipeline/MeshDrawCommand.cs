@@ -6,9 +6,8 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 {
     public enum EGatherMethod
     {
-        Default,
-        Burst,
-        Parallel
+        Dots,
+        Default
     }
 
     public struct FMeshDrawCommand : IComparable<FMeshDrawCommand>, IEquatable<FMeshDrawCommand>

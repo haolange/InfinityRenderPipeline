@@ -1,6 +1,7 @@
 ﻿using System;
 using Unity.Jobs;
 using Unity.Burst;
+using System.Threading;
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
@@ -126,7 +127,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         public EGatherMethod GatherMethod;
         public bool ExcludeMotionVectorObjects;
 
-        public FMeshPassDesctiption(in RendererList InRendererList, in EGatherMethod InGatherMethod = EGatherMethod.Burst)
+        public FMeshPassDesctiption(in RendererList InRendererList, in EGatherMethod InGatherMethod = EGatherMethod.Dots)
         {
             GatherMethod = InGatherMethod;
             RenderLayerMask = (int)InRendererList.filteringSettings.renderingLayerMask;
@@ -137,7 +138,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FViewMeshBatchGatherJob : IJob
+    internal struct FPassMeshBatchGatherJob : IJob
     {
         [ReadOnly]
         public FCullingData CullingData;
@@ -165,7 +166,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
     }
 
     [BurstCompile]
-    internal struct FViewMeshBatchParallelGatherJob : IJobParallelFor
+    internal struct FPassMeshBatchParallelGatherJob : IJobParallelFor
     {
         [ReadOnly]
         public FCullingData CullingData;
@@ -185,6 +186,49 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
                 FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
                 MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
+            }
+        }
+    }
+
+    [BurstCompile]
+    internal struct FPassMeshBatchConvertJob : IJob
+    {
+        [ReadOnly]
+        public int Count;
+
+        [WriteOnly]
+        public NativeArray<int> IndexArray;
+
+        [WriteOnly]
+        public NativeArray<int2> CountOffsetArray;
+
+        [ReadOnly]
+        public NativeArray<FMeshDrawCommand> MeshDrawCommands;
+
+        [ReadOnly]
+        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandsMap;
+
+
+        public void Execute()
+        {
+            int BatchOffset = 0;
+
+            for (int Index = 0; Index < Count; Index++)
+            {
+                if (MeshDrawCommandsMap.TryGetFirstValue(MeshDrawCommands[Index], out FPassMeshBatch Value, out var Iterator))
+                {
+                    int BatchIndex = 0;
+
+                    do
+                    {
+                        IndexArray[BatchIndex + BatchOffset] = Value;
+                        BatchIndex += 1;
+                    }
+                    while (MeshDrawCommandsMap.TryGetNextValue(out Value, ref Iterator));
+
+                    CountOffsetArray[Index] = new int2(BatchIndex, BatchOffset);
+                    Interlocked.Add(ref BatchOffset, BatchIndex);
+                }
             }
         }
     }
