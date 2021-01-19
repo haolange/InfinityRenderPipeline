@@ -27,6 +27,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
             MeshDrawCommandsMap = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
 
+            //Gather PassMeshBatch
             switch (MeshPassDesctiption.GatherMethod)
             {
                 case EGatherMethod.Default:
@@ -39,13 +40,6 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                             FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
                             FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
                             MeshDrawCommandsMap.Add(MeshDrawCommand, PassMeshBatch);
-
-                            Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
-                            Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
-                            if (DrawMesh && DrawMaterial)
-                            {
-                                GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
-                            }
                         }
                     }
                     break;
@@ -74,23 +68,21 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             var Keys = MeshDrawCommandsMap.GetUniqueKeyArray(Allocator.TempJob);
 
             int BatchOffset = 0;
-            var CountArray = new List<int>(Keys.Item2);
-            var OffsetArray = new List<int>(Keys.Item2);
-            var IndexArray = new List<int>(MeshDrawCommandsMap.Count());
+            NativeArray<int> CountArray = new NativeArray<int>(Keys.Item2, Allocator.TempJob);
+            NativeArray<int> OffsetArray = new NativeArray<int>(Keys.Item2, Allocator.TempJob);
+            NativeArray<int> IndexArray = new NativeArray<int>(MeshDrawCommandsMap.Count(), Allocator.TempJob);
 
+            //Build PassBuffer
             for (int KeyIndex = 0; KeyIndex < Keys.Item2; ++KeyIndex)
             {
-                CountArray.Add(0);
-                OffsetArray.Add(0);
-
                 if (MeshDrawCommandsMap.TryGetFirstValue(Keys.Item1[KeyIndex], out FPassMeshBatch Value, out var Iterator))
                 {
                     int BatchIndex = 0;
 
                     do
                     {
+                        IndexArray[BatchIndex + BatchOffset] = Value;
                         BatchIndex += 1;
-                        IndexArray.Add(Value);
                     }
                     while (MeshDrawCommandsMap.TryGetNextValue(out Value, ref Iterator));
 
@@ -100,18 +92,19 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 }
             }
 
+            //Pass DrawCall
             for (int BatchIndex = 0; BatchIndex < Keys.Item2; ++BatchIndex)
             {
+                int DrawCount = CountArray[BatchIndex];
                 int DrawOffset = OffsetArray[BatchIndex];
                 FMeshDrawCommand MeshDrawCommand = Keys.Item1[BatchIndex];
 
                 Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshDrawCommand.MeshID);
                 Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshDrawCommand.MaterialID);
 
-                for (int InstanceIndex = 0; InstanceIndex < CountArray[BatchIndex]; ++InstanceIndex)
+                for (int InstanceIndex = 0; InstanceIndex < DrawCount; ++InstanceIndex)
                 {
-                    int IndexID = DrawOffset + InstanceIndex;
-                    int DrawIndex = IndexArray[IndexID];
+                    int DrawIndex = IndexArray[DrawOffset + InstanceIndex];
                     GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, 2);
                 }
             }
@@ -119,6 +112,9 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             //GraphContext.CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, 2, MeshDrawCommand.InstanceCount);
 
             Keys.Item1.Dispose();
+            CountArray.Dispose();
+            IndexArray.Dispose();
+            OffsetArray.Dispose();
             MeshDrawCommandsMap.Dispose();
         }
     }
