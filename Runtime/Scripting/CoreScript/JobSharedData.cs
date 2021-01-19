@@ -50,13 +50,18 @@ namespace InfinityTech.Core
             return new SharedRef<T>(ID);
             //return new SharedRef<T>(id, id);
         }
-    
-        public T Get(SharedRef<T> objRef)
+
+        public T Get(in int Index)
+        {
+            return m_SharedRefs[Index];
+        }
+
+        public T Get(in SharedRef<T> objRef)
         {
             return m_SharedRefs[objRef.Id];
         }
     
-        public void Remove(SharedRef<T> objRef)
+        public void Remove(in SharedRef<T> objRef)
         {
             m_SharedRefs.Remove(objRef.Id);
         }
