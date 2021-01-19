@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 {
                     FMeshBatch MeshBatch = MeshBatchs[Index];
 
-                    FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MeshBatch.MatchForDynamicInstance());
+                    FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
                     FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
                     MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
                 }
@@ -182,7 +182,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             {
                 FMeshBatch MeshBatch = MeshBatchs[Index];
 
-                FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MeshBatch.MatchForDynamicInstance());
+                FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
                 FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
                 MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
             }

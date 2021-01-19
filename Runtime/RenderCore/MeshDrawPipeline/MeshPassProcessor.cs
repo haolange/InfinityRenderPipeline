@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         {
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
-            MeshDrawCommandMaps = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(8192, Allocator.TempJob);
+            MeshDrawCommandMaps = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
 
             switch (MeshPassDesctiption.GatherMethod)
             {
@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                         {
                             FMeshBatch MeshBatch = MeshBatchs[Index];
 
-                            FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, MeshBatch.MatchForDynamicInstance());
+                            FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
                             FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
                             MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
 

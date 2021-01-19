@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
+using System.Runtime.CompilerServices;
 
 namespace InfinityTech.Rendering.MeshDrawPipeline
 {
@@ -60,19 +61,20 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             return Priority.CompareTo(MeshBatch.Priority);
         }
 
-        public int MatchForDynamicInstance()
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MatchForDynamicInstance(ref FMeshBatch MeshBatch)
         {
-            return SubmeshIndex + (Mesh.Id << 16 | Material.Id);
+            return MeshBatch.SubmeshIndex + (MeshBatch.Mesh.Id << 16 | MeshBatch.Material.Id);
         }
 
-        public int MatchForCacheMeshBatch(in int InstanceID)
+        public static int MatchForCacheMeshBatch(ref FMeshBatch MeshBatch, in int InstanceID)
         {
-            return InstanceID + GetHashCode();
+            return InstanceID + MeshBatch.GetHashCode();
         }
 
         public override int GetHashCode()
         {
-            int hashCode = MatchForDynamicInstance();
+            int hashCode = MatchForDynamicInstance(ref this);
             hashCode += CastShadow.GetHashCode();
             hashCode += MotionType.GetHashCode();
             hashCode += Visible.GetHashCode();
