@@ -1,4 +1,5 @@
 ﻿using System;
+using Unity.Burst;
 using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Core;
@@ -61,6 +62,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             return Priority.CompareTo(MeshBatch.Priority);
         }
 
+        [BurstCompile]
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MatchForDynamicInstance(ref FMeshBatch MeshBatch)
         {

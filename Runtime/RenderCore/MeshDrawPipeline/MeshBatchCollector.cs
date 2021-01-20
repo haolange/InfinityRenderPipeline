@@ -22,19 +22,19 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
             if (bCallThread)
             {
-                FHashmapValueToArrayJob<int, FMeshBatch> HashmapToArrayTask = new FHashmapValueToArrayJob<int, FMeshBatch>();
+                FHashmapGatherValueJob<int, FMeshBatch> HashmapGatherValueJob = new FHashmapGatherValueJob<int, FMeshBatch>();
                 {
-                    HashmapToArrayTask.Array = MeshBatchArray;
-                    HashmapToArrayTask.Hashmap = CacheMeshBatchStateBuckets;
+                    HashmapGatherValueJob.Array = MeshBatchArray;
+                    HashmapGatherValueJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
-                HashmapToArrayTask.Run();
+                HashmapGatherValueJob.Run();
             } else {
-                FHashmapValueToArrayParallelJob<int, FMeshBatch> HashmapToArrayTask = new FHashmapValueToArrayParallelJob<int, FMeshBatch>();
+                FHashmapParallelGatherValueJob<int, FMeshBatch> HashmapParallelGatherValueJob = new FHashmapParallelGatherValueJob<int, FMeshBatch>();
                 {
-                    HashmapToArrayTask.Array = MeshBatchArray;
-                    HashmapToArrayTask.Hashmap = CacheMeshBatchStateBuckets;
+                    HashmapParallelGatherValueJob.Array = MeshBatchArray;
+                    HashmapParallelGatherValueJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
-                GatherJobRef = HashmapToArrayTask.Schedule(MeshBatchArray.Length, 256);
+                GatherJobRef = HashmapParallelGatherValueJob.Schedule(MeshBatchArray.Length, 256);
             }
 
             if (bParallel) { JobHandle.ScheduleBatchedJobs(); }
