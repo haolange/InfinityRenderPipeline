@@ -128,7 +128,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         public NativeArray<FMeshBatch> MeshBatchs;
 
         [WriteOnly]
-        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandMaps;
+        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandsMap;
 
         public void Execute()
         {
@@ -140,7 +140,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
                     FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
                     FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
-                    MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
+                    MeshDrawCommandsMap.Add(MeshDrawCommand, PassMeshBatch);
                 }
             }
         }
@@ -183,7 +183,8 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                     while (MeshDrawCommandsMap.TryGetNextValue(out Value, ref Iterator));
 
                     CountOffsetArray[Index] = new int2(BatchIndex, BatchOffset);
-                    Interlocked.Add(ref BatchOffset, BatchIndex);
+                    //Interlocked.Add(ref BatchOffset, BatchIndex);
+                    BatchOffset += BatchIndex;
                 }
             }
         }
@@ -213,7 +214,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         public NativeArray<FMeshBatch> MeshBatchs;
 
         [WriteOnly]
-        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>.ParallelWriter MeshDrawCommandMaps;
+        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>.ParallelWriter MeshDrawCommandsMap;
 
         public void Execute(int Index)
         {
@@ -223,7 +224,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
                 FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
                 FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
-                MeshDrawCommandMaps.Add(MeshDrawCommand, PassMeshBatch);
+                MeshDrawCommandsMap.Add(MeshDrawCommand, PassMeshBatch);
             }
         }
     }

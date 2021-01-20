@@ -42,9 +42,17 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             {
                 PassMeshBatchGatherJob.MeshBatchs = MeshBatchs;
                 PassMeshBatchGatherJob.CullingData = CullingData;
-                PassMeshBatchGatherJob.MeshDrawCommandMaps = MeshDrawCommandsMap;
+                PassMeshBatchGatherJob.MeshDrawCommandsMap = MeshDrawCommandsMap;
             }
             PassMeshBatchGatherJob.Run();
+
+            /*FPassMeshBatchParallelGatherJob PassMeshBatchParallelGatherJob = new FPassMeshBatchParallelGatherJob();
+            {
+                PassMeshBatchParallelGatherJob.MeshBatchs = MeshBatchs;
+                PassMeshBatchParallelGatherJob.CullingData = CullingData;
+                PassMeshBatchParallelGatherJob.MeshDrawCommandsMap = MeshDrawCommandsMap.AsParallelWriter();
+            }
+            PassMeshBatchParallelGatherJob.Schedule(CullingData.ViewMeshBatchs.Length, 256).Complete();*/
 
             //Gather MeshDrawCommandKey
             NativeArray<FMeshDrawCommand> MeshDrawCommandsKey = new NativeArray<FMeshDrawCommand>(MeshDrawCommandsMap.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
@@ -54,7 +62,6 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 MultiHashmapParallelGatherKeyJob.MultiHashmap = MeshDrawCommandsMap;
             }
             JobHandle ConvertHandle = MultiHashmapParallelGatherKeyJob.Schedule(MeshDrawCommandsKey.Length, 256);
-
             if (MeshDrawCommandsKey.Length == 0) { return; }
 
             //Sort MeshDrawCommandKey
@@ -129,10 +136,10 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 }
             }
 
-            //Gather MeshDrawCommandKey
-            var MeshDrawCommandsKey = MeshDrawCommandsMap.GetUniqueKeyArray(Allocator.TempJob);
+            //Build MeshDrawCommandKey
+            (NativeArray<FMeshDrawCommand>, int) MeshDrawCommandsKey = MeshDrawCommandsMap.GetUniqueKeyArray(Allocator.TempJob);
 
-            //Gather MeshPassBuffer
+            //Build MeshPassBuffer
             int BatchOffset = 0;
             NativeArray<int> IndexArray = new NativeArray<int>(MeshDrawCommandsMap.Count(), Allocator.TempJob);
             NativeArray<int2> CountOffsetArray = new NativeArray<int2>(MeshDrawCommandsKey.Item2, Allocator.TempJob);
