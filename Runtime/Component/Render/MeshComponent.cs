@@ -138,8 +138,8 @@ namespace InfinityTech.Component
 
         protected override void UnRigister()
         {
-            RemoveWorldPrimitive(GeometryState);
             ReleaseMeshBatch();
+            RemoveWorldPrimitive(GeometryState);
             CustomPrimitiveData.Dispose();
         }
 

@@ -182,12 +182,14 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline : RenderPipeline
     {
+        private FGPUScene GPUScene;
         private RDGGraphBuilder GraphBuilder;
         private ViewUnifromBuffer ViewUnifrom;
         private InfinityRenderPipelineAsset RenderPipelineAsset;
 
         public InfinityRenderPipeline()
         {
+            GPUScene = new FGPUScene();
             ViewUnifrom = new ViewUnifromBuffer();
             GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
@@ -198,9 +200,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] ViewList)
         {
             //Init Frame
-            FMeshBatchCollector MeshBatchCollector = GetWorld().GetMeshBatchColloctor();
-            NativeArray<FMeshBatch> MeshBatchs = new NativeArray<FMeshBatch>(MeshBatchCollector.CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            MeshBatchCollector.GatherMeshBatch(MeshBatchs);
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor());
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, ViewList);
@@ -208,10 +208,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 bool bSceneView = View.cameraType == CameraType.SceneView;
                 bool bRenderView = View.cameraType == CameraType.Game || View.cameraType == CameraType.Reflection || View.cameraType == CameraType.SceneView;
-
-                bool isSceneViewCam = View.cameraType == CameraType.SceneView;
+                
                 #if UNITY_EDITOR
-                if (isSceneViewCam) {
+                if (bSceneView) {
                     ScriptableRenderContext.EmitWorldGeometryForSceneView(View);
                 }
                 #endif
@@ -236,7 +235,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Culling MeshBatch
                 FCullingData CullingData = new FCullingData();
-                CullingData.DoCull(View, MeshBatchs);
+                CullingData.DoCull(View, GPUScene.MeshBatchs);
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;
@@ -244,9 +243,9 @@ namespace InfinityTech.Rendering.Pipeline
                 CullingResults CullingResult = RenderContext.Cull(ref CullingParameter);
 
                 //View RenderPass
-                RenderOpaqueDepth(View, MeshBatchs, CullingData, CullingResult);
-                RenderOpaqueGBuffer(View, MeshBatchs, CullingData, CullingResult);
-                RenderOpaqueMotion(View, MeshBatchs, CullingData, CullingResult);
+                RenderOpaqueDepth(View, GPUScene.MeshBatchs, CullingData, CullingResult);
+                RenderOpaqueGBuffer(View, GPUScene.MeshBatchs, CullingData, CullingResult);
+                RenderOpaqueMotion(View, GPUScene.MeshBatchs, CullingData, CullingResult);
                 RenderSkyAtmosphere(View);
 
                 #if UNITY_EDITOR
@@ -275,7 +274,7 @@ namespace InfinityTech.Rendering.Pipeline
             EndFrameRendering(RenderContext, ViewList);
 
             //Release Frame
-            MeshBatchs.Dispose();
+            GPUScene.Release();
         }
 
         protected FRenderWorld GetWorld()

@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Core
         public static FRenderWorld ActiveWorld { get; private set; }
 
         public string name;
-
+        public bool bDisable;
         public SharedRefFactory<Mesh> WorldMeshList;
         public SharedRefFactory<Material> WorldMaterialList;
 
@@ -51,6 +51,7 @@ namespace InfinityTech.Rendering.Core
 
         public void RemoveWorldView(CameraComponent InViewComponent)
         {
+            if(bDisable == true) { return; }
             WorldViewList.Remove(InViewComponent);
         }
 
@@ -73,6 +74,7 @@ namespace InfinityTech.Rendering.Core
 
         public void RemoveWorldLight(LightComponent InLightComponent)
         {
+            if(bDisable == true) { return; }
             WorldLightList.Remove(InLightComponent);
         }
 
@@ -106,6 +108,7 @@ namespace InfinityTech.Rendering.Core
 
         public void RemoveWorldStaticPrimitive(MeshComponent InMeshComponent)
         {
+            if(bDisable == true) { return; }
             WorldStaticPrimitiveList.Remove(InMeshComponent);
         }
 
@@ -138,6 +141,7 @@ namespace InfinityTech.Rendering.Core
 
         public void RemoveWorldDynamicPrimitive(MeshComponent InMeshComponent)
         {
+            if(bDisable == true) { return; }
             WorldDynamicPrimitiveList.Remove(InMeshComponent);
         }
 
@@ -163,6 +167,8 @@ namespace InfinityTech.Rendering.Core
 
         public void Initializ()
         {
+            bDisable = false;
+
             ClearWorldView();
             ClearWorldLight();
             ClearWorldStaticPrimitive();
@@ -177,6 +183,8 @@ namespace InfinityTech.Rendering.Core
 
         public void Release()
         {
+            bDisable = true;
+            
             ClearWorldView();
             ClearWorldLight();
             ClearWorldStaticPrimitive();

@@ -42,11 +42,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        public bool CollectorAvalible()
-        {
-            return CacheMeshBatchStateBuckets.IsCreated;
-        }
-
         public void AddMeshBatch(in FMeshBatch MeshBatch, in int AddKey)
         {
             CacheMeshBatchStateBuckets.Add(AddKey, MeshBatch);
@@ -59,6 +54,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void RemoveMeshBatch(in int RemoveKey)
         {
+            if(CacheMeshBatchStateBuckets.IsCreated == false) { return; }
             CacheMeshBatchStateBuckets.Remove(RemoveKey);
         }
 
