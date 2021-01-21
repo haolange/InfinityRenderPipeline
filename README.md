@@ -6,20 +6,20 @@ InfinityRenderPipeline is a ExtremeGraphics Research for SRP in Unity.
 ## Feature
 Completed : 
 * RenderDependecyGraph
+* TemporalAA
 * 8Byte ThinGBuffer
 * MaskOnly PreDepth
 * ScreenSpaceReflection
 * ScreenSpaceGlobalIllumination
 * GrandTruth Ambient&Reflection Occlusion
+* MeshDrawCommand a Unfield HighPreformence DrawMeshSystem for EasySetting and AutoInstance
 
 
 Developerment : 
-* TemporalAA
 * Instance Terrain use MorphVertex for Low DarwCall
 * HiZ-Readback OcclusionCull for MeshDrawCommand
 * Runtime VirtualTexture for HighPerformance TerrainRender
 * Instance FoliageSystem for HighPerformance and Mass FoliageRender
-* MeshDrawCommand a Unfield HighPreformence DrawMeshSystem for EasySetting and AutoInstance
 
 
 Planned : 
