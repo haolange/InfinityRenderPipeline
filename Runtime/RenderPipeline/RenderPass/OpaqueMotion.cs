@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef MotionBuffer;
         }
 
-        void RenderOpaqueMotion(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs, FCullingData CullingData, CullingResults CullingResult)
+        void RenderOpaqueMotion(Camera RenderCamera, FGPUScene GPUScene, FCullingData CullingData, CullingResults CullingResult)
         {
             RenderCamera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 

@@ -2,7 +2,6 @@ using System;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.VFX;
-using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
@@ -235,7 +234,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Culling MeshBatch
                 FCullingData CullingData = new FCullingData();
-                CullingData.DoCull(View, GPUScene.MeshBatchs);
+                CullingData.DispatchCull(View, GPUScene);
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;
@@ -243,9 +242,9 @@ namespace InfinityTech.Rendering.Pipeline
                 CullingResults CullingResult = RenderContext.Cull(ref CullingParameter);
 
                 //View RenderPass
-                RenderOpaqueDepth(View, GPUScene.MeshBatchs, CullingData, CullingResult);
-                RenderOpaqueGBuffer(View, GPUScene.MeshBatchs, CullingData, CullingResult);
-                RenderOpaqueMotion(View, GPUScene.MeshBatchs, CullingData, CullingResult);
+                RenderOpaqueDepth(View, GPUScene, CullingData, CullingResult);
+                RenderOpaqueGBuffer(View, GPUScene, CullingData, CullingResult);
+                RenderOpaqueMotion(View, GPUScene, CullingData, CullingResult);
                 RenderSkyAtmosphere(View);
 
                 #if UNITY_EDITOR

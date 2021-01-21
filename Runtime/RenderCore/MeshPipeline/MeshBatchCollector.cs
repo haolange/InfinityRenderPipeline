@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             
             if(CacheMeshBatchStateBuckets.Count() == 0) { return; }
 
-            if (bParallel)
+            if (!bParallel)
             {
                 FHashmapGatherValueJob<int, FMeshBatch> HashmapGatherValueJob = new FHashmapGatherValueJob<int, FMeshBatch>();
                 {

@@ -11,10 +11,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         private NativeArray<FPlane> ViewFrustum;
         public NativeList<int> ViewMeshBatchs;
 
-        public void DoCull(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs)
+        public void DispatchCull(Camera RenderCamera, FGPUScene GPUScene)
         {
             CullState = false;
-            if(MeshBatchs.IsCreated == false) { return; }
+            if(GPUScene.MeshBatchs.IsCreated == false) { return; }
             CullState = true;
 
             ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
@@ -24,16 +24,16 @@ namespace InfinityTech.Rendering.MeshPipeline
                 ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
             }
 
-            ViewMeshBatchs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
-            ViewMeshBatchs.Resize(MeshBatchs.Length, NativeArrayOptions.ClearMemory);
+            ViewMeshBatchs = new NativeList<int>(GPUScene.MeshBatchs.Length, Allocator.TempJob);
+            ViewMeshBatchs.Resize(GPUScene.MeshBatchs.Length, NativeArrayOptions.ClearMemory);
 
             FMarkMeshBatchCullJob MarkCullingJob = new FMarkMeshBatchCullJob();
             {
                 MarkCullingJob.ViewFrustum = ViewFrustum;
-                MarkCullingJob.MeshBatchs = MeshBatchs;
+                MarkCullingJob.MeshBatchs = GPUScene.MeshBatchs;
                 MarkCullingJob.ViewMeshBatchs = ViewMeshBatchs;
             }
-            MarkCullingJob.Schedule(MeshBatchs.Length, 256).Complete();
+            MarkCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();
         }
 
         public void Release()

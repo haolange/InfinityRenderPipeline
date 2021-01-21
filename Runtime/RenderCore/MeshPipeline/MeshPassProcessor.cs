@@ -17,20 +17,20 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         }
 
-        internal void DispatchDraw(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchDraw(RDGContext GraphContext, FGPUScene GPUScene, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            if (MeshBatchs.IsCreated == false || CullingData.ViewMeshBatchs.IsCreated == false) { return; }
+            if (GPUScene.MeshBatchs.IsCreated == false || CullingData.ViewMeshBatchs.IsCreated == false) { return; }
 
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
             switch (MeshPassDesctiption.GatherMethod)
             {
                 case EGatherMethod.Dots:
-                        DispatchDrawDots(GraphContext, MeshBatchs, CullingData, MeshPassDesctiption);
+                        DispatchDrawDots(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
                     break;
                         
                 case EGatherMethod.Default:
-                        DispatchDrawDefault(GraphContext, MeshBatchs, CullingData, MeshPassDesctiption);
+                        DispatchDrawDefault(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
                     break;
             }
         }
@@ -105,11 +105,11 @@ namespace InfinityTech.Rendering.MeshPipeline
                 Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshDrawCommand.MeshID);
                 Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshDrawCommand.MaterialID);
 
-                for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
+                /*for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
                 {
                     int DrawIndex = IndexArray[CountOffset.y + InstanceIndex];
                     GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, 2);
-                }
+                }*/
             }
 
             IndexArray.Dispose();

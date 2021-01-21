@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RendererList RendererList;
         }
 
-        void RenderOpaqueGBuffer(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs, FCullingData CullingData, CullingResults CullingResult)
+        void RenderOpaqueGBuffer(Camera RenderCamera, FGPUScene GPUScene, FCullingData CullingData, in CullingResults CullingResult)
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueGBuffer, new RenderQueueRange(0, 2450), PerObjectData.Lightmaps));
@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //MeshDrawPipeline
                 FMeshPassProcessor GBufferMeshProcessor = GraphContext.ObjectPool.Get<FMeshPassProcessor>();
                 FMeshPassDesctiption GBufferMeshPassDescription = new FMeshPassDesctiption(GBufferRenderList);
-                GBufferMeshProcessor.DispatchDraw(GraphContext, MeshBatchs, CullingData, GBufferMeshPassDescription);
+                GBufferMeshProcessor.DispatchDraw(GraphContext, GPUScene, CullingData, GBufferMeshPassDescription);
             });
         }
     }
