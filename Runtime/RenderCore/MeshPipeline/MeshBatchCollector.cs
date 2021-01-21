@@ -6,7 +6,6 @@ namespace InfinityTech.Rendering.MeshPipeline
     //[Serializable]
     public class FMeshBatchCollector
     {
-        private JobHandle GatherJobRef;
         public NativeHashMap<int, FMeshBatch> CacheMeshBatchStateBuckets;
 
         public FMeshBatchCollector() 
@@ -19,13 +18,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             CacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = true, in bool bCallThread = false)
+        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = true)
         {
             if(!CacheMeshBatchStateBuckets.IsCreated) { return; }
             
             if(CacheMeshBatchStateBuckets.Count() == 0) { return; }
 
-            if (bCallThread)
+            if (bParallel)
             {
                 FHashmapGatherValueJob<int, FMeshBatch> HashmapGatherValueJob = new FHashmapGatherValueJob<int, FMeshBatch>();
                 {
@@ -39,15 +38,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                     HashmapParallelGatherValueJob.Array = MeshBatchs;
                     HashmapParallelGatherValueJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
-                GatherJobRef = HashmapParallelGatherValueJob.Schedule(MeshBatchs.Length, 256);
+                HashmapParallelGatherValueJob.Schedule(MeshBatchs.Length, 256).Complete();
             }
-
-            if (bParallel) { JobHandle.ScheduleBatchedJobs(); }
-        }
-
-        public void Sync()
-        {
-            GatherJobRef.Complete();
         }
 
         public bool CollectorAvalible()

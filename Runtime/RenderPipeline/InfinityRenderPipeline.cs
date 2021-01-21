@@ -198,9 +198,9 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] ViewList)
         {
             //Init Frame
-            NativeArray<FMeshBatch> MeshBatchs = new NativeArray<FMeshBatch>(GetWorld().GetMeshBatchColloctor().CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            GetWorld().GetMeshBatchColloctor().GatherMeshBatch(MeshBatchs);
-            GetWorld().GetMeshBatchColloctor().Sync();
+            FMeshBatchCollector MeshBatchCollector = GetWorld().GetMeshBatchColloctor();
+            NativeArray<FMeshBatch> MeshBatchs = new NativeArray<FMeshBatch>(MeshBatchCollector.CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            MeshBatchCollector.GatherMeshBatch(MeshBatchs);
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, ViewList);
@@ -237,7 +237,6 @@ namespace InfinityTech.Rendering.Pipeline
                 //Culling MeshBatch
                 FCullingData CullingData = new FCullingData();
                 CullingData.DoCull(View, MeshBatchs);
-                CullingData.Sync();
 
                 //Culling Context
                 ScriptableCullingParameters CullingParameter;

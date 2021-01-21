@@ -19,6 +19,10 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal void DispatchDraw(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
+            if (MeshBatchs.IsCreated == false || CullingData.ViewMeshBatchs.IsCreated == false) { return; }
+
+            if (CullingData.ViewMeshBatchs.Length == 0) { return; }
+
             switch (MeshPassDesctiption.GatherMethod)
             {
                 case EGatherMethod.Dots:
@@ -33,8 +37,6 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private void DispatchDrawDots(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            if (CullingData.ViewMeshBatchs.Length == 0) { return; }
-
             MeshDrawCommandsMap = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
 
             //Gather PassMeshBatch
@@ -119,8 +121,6 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private void DispatchDrawDefault(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            if (CullingData.ViewMeshBatchs.Length == 0) { return; }
-
             MeshDrawCommandsMap = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
 
             //Gather PassMeshBatch

@@ -7,12 +7,16 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     public struct FCullingData
     {
-        private JobHandle CullingJobRef;
+        public bool CullState;
         private NativeArray<FPlane> ViewFrustum;
         public NativeList<int> ViewMeshBatchs;
 
-        public void DoCull(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = false)
+        public void DoCull(Camera RenderCamera, NativeArray<FMeshBatch> MeshBatchs)
         {
+            CullState = false;
+            if(MeshBatchs.IsCreated == false) { return; }
+            CullState = true;
+
             ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
             Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
             for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
@@ -29,20 +33,16 @@ namespace InfinityTech.Rendering.MeshPipeline
                 MarkCullingJob.MeshBatchs = MeshBatchs;
                 MarkCullingJob.ViewMeshBatchs = ViewMeshBatchs;
             }
-            CullingJobRef = MarkCullingJob.Schedule(MeshBatchs.Length, 256);
-
-            if (bParallel) { JobHandle.ScheduleBatchedJobs(); }
-        }
-
-        public void Sync()
-        {
-            CullingJobRef.Complete();
+            MarkCullingJob.Schedule(MeshBatchs.Length, 256).Complete();
         }
 
         public void Release()
         {
-            ViewFrustum.Dispose();
-            ViewMeshBatchs.Dispose();
+            if(CullState)
+            {
+                ViewFrustum.Dispose();
+                ViewMeshBatchs.Dispose();
+            }
         }
     }
 }
