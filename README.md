@@ -24,7 +24,6 @@ Developerment :
 
 
 Planned : 
-* PRT Volume
 * DiaphragmDOF
 * ScreenSpaceShadow
 * Volumetric Fog&Cloud
