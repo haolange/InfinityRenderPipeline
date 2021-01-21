@@ -16,8 +16,8 @@ Completed :
 
 
 Developerment : 
+* Atmospherical Fog
 * Instance Terrain use MorphVertex for Low DarwCall
-* HiZ-Readback OcclusionCull for MeshDrawCommand
 * Runtime VirtualTexture for HighPerformance TerrainRender
 * Instance FoliageSystem for HighPerformance and Mass FoliageRender
 
