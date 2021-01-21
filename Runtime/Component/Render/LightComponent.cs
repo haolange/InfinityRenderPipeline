@@ -1,127 +1,121 @@
 ﻿using UnityEngine;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Component
 {
-    public enum ELightType
+    public static class FLightUtility
     {
-        Directional = 0,
-        Point = 1,
-        Spot = 2,
-        Rect = 3
+        public static void InitLightType(this LightComponent Light, Light UnityLight) 
+        {
+            switch (UnityLight.type)
+            {
+                case UnityEngine.LightType.Directional:
+                    Light.LightType = ELightType.Directional;
+                    break;
+
+                case UnityEngine.LightType.Point:
+                    Light.LightType = ELightType.Point;
+                    break;
+
+                case UnityEngine.LightType.Spot:
+                    Light.LightType = ELightType.Spot;
+                    break;
+
+                case UnityEngine.LightType.Disc:
+                    Light.LightType = ELightType.Spot;
+                    break;
+
+                case UnityEngine.LightType.Rectangle:
+                    Light.LightType = ELightType.Rect;
+                    break;
+            }
+        }
+
+        public static void UpdateLightShadowParameters(this LightComponent Light, Light UnityLight)
+        {
+            if(Light.EnableShadow)
+            {
+                switch (Light.ShadowType)
+                {
+                    case EShadowType.Hard:
+                        UnityLight.shadows = LightShadows.Hard;
+                        break;
+
+                    case EShadowType.PCF:
+                        UnityLight.shadows = LightShadows.Soft;
+                        break;
+
+                    case EShadowType.PCSS:
+                        UnityLight.shadows = LightShadows.Soft;
+                        break;
+                }
+            } else {
+                UnityLight.shadows = LightShadows.None;
+            }
+        }
+
+        public static void UpdateUnityDirecitonLightParameters(this LightComponent Light, Light UnityLight)
+        {
+            UnityLight.type = UnityEngine.LightType.Directional;
+            UnityLight.intensity = Light.LightIntensity;
+            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
+
+            UpdateLightShadowParameters(Light, UnityLight);
+        }
+
+        public static void UpdateUnityPointLightParameters(this LightComponent Light, Light UnityLight)
+        {
+            UnityLight.type = UnityEngine.LightType.Point;
+            UnityLight.intensity = Light.LightIntensity;
+            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
+            UpdateLightShadowParameters(Light, UnityLight);
+        }
+
+        public static void UpdateUnitySpotLightParameters(this LightComponent Light, Light UnityLight)
+        {
+            UnityLight.type = UnityEngine.LightType.Spot;
+            UnityLight.intensity = Light.LightIntensity;
+            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
+
+            if(Light.SourceRadius > 0) {
+                UnityLight.type = UnityEngine.LightType.Disc;
+            }
+
+            UpdateLightShadowParameters(Light, UnityLight);
+        }
+
+        public static void UpdateUnityRectLightParameters(this LightComponent Light, Light UnityLight)
+        {
+            UnityLight.type = UnityEngine.LightType.Rectangle;
+            UnityLight.intensity = Light.LightIntensity;
+            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
+
+            UpdateLightShadowParameters(Light, UnityLight);
+        }
+
+        public static void UpdateUnityLightParameters(this LightComponent Light, Light UnityLight, in ELightType LightType)
+        {
+            //Update UnityLightType
+            switch (LightType)
+            {
+                case ELightType.Directional:
+                    UpdateUnityDirecitonLightParameters(Light, UnityLight);
+                    break;
+
+                case ELightType.Point:
+                    UpdateUnityPointLightParameters(Light, UnityLight);
+                    break;
+
+                case ELightType.Spot:
+                    UpdateUnitySpotLightParameters(Light, UnityLight);
+                    break;
+
+                case ELightType.Rect:
+                    UpdateUnityRectLightParameters(Light, UnityLight);
+                    break;
+            }
+        }
     }
-
-    public enum ELightState
-    {
-        Static = 0,
-        Mixed = 1,
-        Dynamic = 2
-    }
-
-    public enum ELightUnit
-    {
-        Lumen,      // lm = total power/flux emitted by the light
-        Candela,    // lm/sr = flux per steradian
-        Lux,        // lm/m² = flux per unit area
-        Luminance,  // lm/m²/sr = flux per unit area and per steradian
-        Ev100,      // ISO 100 Exposure Value (https://en.wikipedia.org/wiki/Exposure_value)
-    }
-
-    public enum ELightLayer
-    {
-        Nothing = 0,   // Custom name for "Nothing" option
-        LightLayerDefault = 1 << 0,
-        LightLayer1 = 1 << 1,
-        LightLayer2 = 1 << 2,
-        LightLayer3 = 1 << 3,
-        LightLayer4 = 1 << 4,
-        LightLayer5 = 1 << 5,
-        LightLayer6 = 1 << 6,
-        LightLayer7 = 1 << 7,
-        Everything = 0xFF, // Custom name for "Everything" option
-    }
-
-    public enum EShadowResolution
-    {
-        X512 = 0,
-        X1024 = 1,
-        X2048 = 2,
-        X4096 = 3,
-        X8192 = 4
-    }
-
-    public enum EShadowType
-    {
-        Hard = 0,
-        PCF = 1,
-        PCSS = 2
-    }
-
-    public enum EShadowCascade
-    {
-        One = 0,
-        Two = 1,
-        Three = 2,
-        Four = 3
-    }
-
-    public struct FLightBatch
-    {
-        public ELightState LightState;
-        public ELightType LightType;
-        public ELightLayer LightLayer;
-
-        ///Emission Property
-        public float LightIntensity;
-        public Color LightColor;
-        public float Temperature;
-        public float LightRange;
-        public float LightDiffuse;
-        public float LightSpecular;
-        public float SourceRadius;
-        public float SourceLength;
-        public float SourceInnerAngle;
-        public float SourceOuterAngle;
-        public float SourceWidth;
-        public float SourceHeight;
-
-        ///Globalillumination Property
-        public int EnableGlobalIllumination;
-        public float GlobalIlluminationIntensity;
-
-        ///IES and Cookie Property
-        public float IESIntensity;
-        public int IESTextureIndex;
-        public int CookieTextureIndex;
-
-        ///Shadow Property
-        public int EnableShadow;
-        public ELightLayer ShadowLayer;
-        public EShadowType ShadowType;
-        public EShadowResolution ShadowResolution;
-        public Color ShadowColor;
-        public float ShadowIntensity;
-        public float ShadowBias;
-        public float ShadowNormalBias;
-        public float ShadowNearPlane;
-        public float MinSoftness;
-        public float MaxSoftness;
-        public EShadowCascade CascadeType;
-        public float ShadowDistance;
-
-        ///Contact Shadow Property
-        public int EnableContactShadow;
-        public float ContactShadowLength;
-
-        ///VolumetricFog Property
-        public int EnableVolumetric;
-        public float VolumetricScatterIntensity;
-        public float VolumetricScatterOcclusion;
-
-        ///Performance Property
-        public float MaxDrawDistance;
-        public float MaxDrawDistanceFade;
-    }
-
 
     [ExecuteAlways]
     [RequireComponent(typeof(Light))]
@@ -134,8 +128,8 @@ namespace InfinityTech.Component
         public ELightLayer LightLayer = ELightLayer.LightLayerDefault;
 
         ///Emission Property
-        public float LightIntensity = 10;
         public Color LightColor = Color.white;
+        public float LightIntensity = 10;
         public float Temperature = 7000;
         public float LightRange = 10;
         public float LightDiffuse = 1;
@@ -204,7 +198,7 @@ namespace InfinityTech.Component
             GetWorld().AddWorldLight(this);
 
             UnityLight = GetComponent<Light>();
-            InitLightType();
+            FLightUtility.InitLightType(this, UnityLight);
         }
 
         protected override void EventPlay()
@@ -227,63 +221,15 @@ namespace InfinityTech.Component
             GetWorld().RemoveWorldLight(this);
         }
 
+#if UNITY_EDITOR
         public void OnGUIChange()
         {
-            UpdateUnityLightParameters();
+            FLightUtility.UpdateUnityLightParameters(this, UnityLight, LightType);
         }
+#endif
 
-        public void InitLightType() {
-            switch (UnityLight.type)
-            {
-                case UnityEngine.LightType.Directional:
-                    LightType = ELightType.Directional;
-                    break;
-
-                case UnityEngine.LightType.Point:
-                    LightType = ELightType.Point;
-                    break;
-
-                case UnityEngine.LightType.Spot:
-                    LightType = ELightType.Spot;
-                    break;
-
-                case UnityEngine.LightType.Disc:
-                    LightType = ELightType.Spot;
-                    break;
-
-                case UnityEngine.LightType.Rectangle:
-                    LightType = ELightType.Rect;
-                    break;
-            }
-        }
-
-        public void UpdateUnityLightParameters()
+        public FLightBatch GetLightBatchElement() 
         {
-            //Update UnityLightType
-            switch (LightType)
-            {
-                case ELightType.Directional:
-                    UnityLight.type = UnityEngine.LightType.Directional;
-                    break;
-
-                case ELightType.Point:
-                    UnityLight.type = UnityEngine.LightType.Point;
-                    break;
-
-                case ELightType.Spot:
-                    UnityLight.type = UnityEngine.LightType.Spot;
-                    if(SourceRadius > 0) {
-                        UnityLight.type = UnityEngine.LightType.Disc;
-                    }
-                    break;
-
-                case ELightType.Rect:
-                    UnityLight.type = UnityEngine.LightType.Rectangle;
-                    break;
-            }
-        }
-
-        public FLightBatch GetLightBatchElement() {
             FLightBatch LightBatch;
             {
                 LightBatch.LightState = LightState;

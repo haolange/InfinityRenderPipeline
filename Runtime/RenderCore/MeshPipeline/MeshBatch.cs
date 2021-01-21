@@ -6,7 +6,7 @@ using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
 using System.Runtime.CompilerServices;
 
-namespace InfinityTech.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshPipeline
 {
     [Serializable]
     public enum EStateType
@@ -69,6 +69,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
             return MeshBatch.SubmeshIndex + (MeshBatch.Mesh.Id << 16 | MeshBatch.Material.Id);
         }
 
+        [BurstCompile]
         public static int MatchForCacheMeshBatch(ref FMeshBatch MeshBatch, in int InstanceID)
         {
             return InstanceID + MeshBatch.GetHashCode();

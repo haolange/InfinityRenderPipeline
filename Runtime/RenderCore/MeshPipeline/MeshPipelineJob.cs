@@ -8,7 +8,7 @@ using InfinityTech.Core.Geometry;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine.Experimental.Rendering;
 
-namespace InfinityTech.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshPipeline
 {
     [BurstCompile]
     public struct FArraySortJob<T> : IJob where T : struct, IEquatable<T>, IComparable<T>

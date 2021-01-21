@@ -7,7 +7,7 @@ using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
-using InfinityTech.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {

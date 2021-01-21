@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Component
 {
@@ -311,9 +311,9 @@ namespace InfinityTech.Component
 
         private void ReleaseMeshBatch()
         {
-            if (MeshBatchCacheID.Length == 0) { return; }
+            //if (MeshBatchCacheID.Length == 0) { return; }
 
-            if (GetWorld().GetMeshBatchColloctor().CollectorAvalible() == false) { return; }
+            //if (GetWorld().GetMeshBatchColloctor().CollectorAvalible() == false) { return; }
 
             if (StaticMesh != null)
             {

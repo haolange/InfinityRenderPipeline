@@ -5,7 +5,7 @@ namespace InfinityTech.Component
 {
     [ExecuteAlways]
     [ExecuteInEditMode]
-    [AddComponentMenu("InfinityRenderer/WorldComponent")]
+    [AddComponentMenu("InfinityRenderer/World Component")]
     public class WorldComponent : MonoBehaviour
     {
         public bool bUpdateStatic = true;

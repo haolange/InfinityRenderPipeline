@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using InfinityTech.Core;
 
-namespace InfinityTech.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshPipeline
 {
     public enum EGatherMethod
     {

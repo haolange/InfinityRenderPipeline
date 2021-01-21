@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEditor;
 using InfinityTech.Component;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.LightPipeline;
 using Expression = System.Linq.Expressions.Expression;
 
 namespace InfinityTech.Editor.Component

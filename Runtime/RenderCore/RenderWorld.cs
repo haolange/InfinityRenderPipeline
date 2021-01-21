@@ -4,11 +4,11 @@ using InfinityTech.Core;
 using InfinityTech.Component;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using InfinityTech.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Core
 {
-    [Serializable]
+    //[Serializable]
     public class FRenderWorld : UObject
     {
         public static FRenderWorld ActiveWorld { get; private set; }

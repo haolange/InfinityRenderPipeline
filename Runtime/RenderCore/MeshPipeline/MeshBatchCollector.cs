@@ -1,7 +1,7 @@
 ﻿using Unity.Jobs;
 using Unity.Collections;
 
-namespace InfinityTech.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshPipeline
 {
     //[Serializable]
     public class FMeshBatchCollector
@@ -9,32 +9,37 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
         private JobHandle GatherJobRef;
         public NativeHashMap<int, FMeshBatch> CacheMeshBatchStateBuckets;
 
-        public FMeshBatchCollector() { }
+        public FMeshBatchCollector() 
+        { 
+
+        }
 
         public void Initializ()
         {
             CacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchArray, in bool bParallel = true, in bool bCallThread = false)
+        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = true, in bool bCallThread = false)
         {
+            if(!CacheMeshBatchStateBuckets.IsCreated) { return; }
+            
             if(CacheMeshBatchStateBuckets.Count() == 0) { return; }
 
             if (bCallThread)
             {
                 FHashmapGatherValueJob<int, FMeshBatch> HashmapGatherValueJob = new FHashmapGatherValueJob<int, FMeshBatch>();
                 {
-                    HashmapGatherValueJob.Array = MeshBatchArray;
+                    HashmapGatherValueJob.Array = MeshBatchs;
                     HashmapGatherValueJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
                 HashmapGatherValueJob.Run();
             } else {
                 FHashmapParallelGatherValueJob<int, FMeshBatch> HashmapParallelGatherValueJob = new FHashmapParallelGatherValueJob<int, FMeshBatch>();
                 {
-                    HashmapParallelGatherValueJob.Array = MeshBatchArray;
+                    HashmapParallelGatherValueJob.Array = MeshBatchs;
                     HashmapParallelGatherValueJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
-                GatherJobRef = HashmapParallelGatherValueJob.Schedule(MeshBatchArray.Length, 256);
+                GatherJobRef = HashmapParallelGatherValueJob.Schedule(MeshBatchs.Length, 256);
             }
 
             if (bParallel) { JobHandle.ScheduleBatchedJobs(); }
@@ -72,7 +77,6 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
 
         public void Release()
         {
-            CacheMeshBatchStateBuckets.Clear();
             CacheMeshBatchStateBuckets.Dispose();
         }
     }

@@ -3,7 +3,7 @@ using UnityEngine;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
 
-namespace InfinityTech.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshPipeline
 {
     public struct FCullingData
     {

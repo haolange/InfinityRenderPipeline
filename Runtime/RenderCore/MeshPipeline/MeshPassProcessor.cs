@@ -6,7 +6,7 @@ using Unity.Collections;
 using InfinityTech.Core.Native;
 using InfinityTech.Rendering.RDG;
 
-namespace InfinityTech.Rendering.MeshDrawPipeline
+namespace InfinityTech.Rendering.MeshPipeline
 {
     public class FMeshPassProcessor
     {
@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 MultiHashmapParallelGatherKeyJob.MultiHashmap = MeshDrawCommandsMap;
             }
             JobHandle ConvertHandle = MultiHashmapParallelGatherKeyJob.Schedule(MeshDrawCommandsKey.Length, 256);
-            if (MeshDrawCommandsKey.Length == 0) { return; }
+            //if (MeshDrawCommandsKey.Length == 0) { return; }
 
             //Sort MeshDrawCommandKey
             FArraySortJob<FMeshDrawCommand> ArraySortJob = new FArraySortJob<FMeshDrawCommand>();
@@ -103,11 +103,11 @@ namespace InfinityTech.Rendering.MeshDrawPipeline
                 Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshDrawCommand.MeshID);
                 Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshDrawCommand.MaterialID);
 
-                /*for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
+                for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
                 {
                     int DrawIndex = IndexArray[CountOffset.y + InstanceIndex];
                     GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, 2);
-                }*/
+                }
             }
 
             IndexArray.Dispose();

@@ -2,7 +2,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.MeshDrawPipeline;
+using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Component
 {
