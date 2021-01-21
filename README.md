@@ -12,7 +12,7 @@ Completed :
 * ScreenSpaceReflection
 * ScreenSpaceGlobalIllumination
 * GrandTruth Ambient&Reflection Occlusion
-* MeshDrawCommand a Unfield HighPreformence DrawMeshSystem for EasySetting and AutoInstance
+* MeshDrawPipeline a Unfield HighPreformence DrawMeshSystem for EasySetting
 
 
 Developerment : 
