@@ -273,8 +273,8 @@ namespace InfinityTech.Component
                     MeshBatch.MotionType = (int)MotionVector;
                     MeshBatch.RenderLayer = RenderLayer;
                     MeshBatch.SubmeshIndex = Index;
-                    MeshBatch.Mesh = GetWorld().WorldMeshList.Add(StaticMesh, StaticMesh.GetHashCode());
-                    MeshBatch.Material = GetWorld().WorldMaterialList.Add(Materials[Index], Materials[Index].GetHashCode());
+                    MeshBatch.Mesh = GetWorld().WorldMeshList.Add(StaticMesh, StaticMesh.GetInstanceID());
+                    MeshBatch.Material = GetWorld().WorldMaterialList.Add(Materials[Index], Materials[Index].GetInstanceID());
                     MeshBatch.Priority = RenderPriority + Materials[Index].renderQueue;
                     MeshBatch.Matrix_LocalToWorld = Matrix_LocalToWorld;
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
@@ -298,8 +298,8 @@ namespace InfinityTech.Component
                     MeshBatch.MotionType = (int)MotionVector;
                     MeshBatch.RenderLayer = RenderLayer;
                     MeshBatch.SubmeshIndex = Index;
-                    MeshBatch.Mesh = GetWorld().WorldMeshList.Add(StaticMesh, StaticMesh.GetHashCode());
-                    MeshBatch.Material = GetWorld().WorldMaterialList.Add(Materials[Index], Materials[Index].GetHashCode());
+                    MeshBatch.Mesh = GetWorld().WorldMeshList.Add(StaticMesh, StaticMesh.GetInstanceID());
+                    MeshBatch.Material = GetWorld().WorldMaterialList.Add(Materials[Index], Materials[Index].GetInstanceID());
                     MeshBatch.Priority = RenderPriority + Materials[Index].renderQueue;
                     MeshBatch.Matrix_LocalToWorld = Matrix_LocalToWorld;
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));

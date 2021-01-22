@@ -5,13 +5,30 @@ using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Native;
 using InfinityTech.Rendering.RDG;
+using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
+    public struct FMeshPassDesctiption
+    {
+        public int RenderQueueMin;
+        public int RenderQueueMax;
+        public int RenderLayerMask;
+        public EGatherMethod GatherMethod;
+        public bool ExcludeMotionVectorObjects;
+
+        public FMeshPassDesctiption(in RendererList InRendererList, in EGatherMethod InGatherMethod = EGatherMethod.DotsV2)
+        {
+            GatherMethod = InGatherMethod;
+            RenderLayerMask = (int)InRendererList.filteringSettings.renderingLayerMask;
+            RenderQueueMin = InRendererList.filteringSettings.renderQueueRange.lowerBound;
+            RenderQueueMax = InRendererList.filteringSettings.renderQueueRange.upperBound;
+            ExcludeMotionVectorObjects = InRendererList.filteringSettings.excludeMotionVectorObjects;
+        }
+    }
+
     public class FMeshPassProcessor
     {
-        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandsMap;
-
         public FMeshPassProcessor()
         {
 
@@ -25,19 +42,23 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             switch (MeshPassDesctiption.GatherMethod)
             {
-                case EGatherMethod.Dots:
-                        DispatchDrawDots(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
+                case EGatherMethod.DotsV1:
+                    DispatchDrawDotsV1(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
                     break;
-                        
+
+                case EGatherMethod.DotsV2:
+                    DispatchDrawDotsV2(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
+                    break;
+
                 case EGatherMethod.Default:
-                        DispatchDrawDefault(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
+                    DispatchDrawDefault(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
                     break;
             }
         }
 
-        private void DispatchDrawDots(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        private void DispatchDrawDotsV1(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            MeshDrawCommandsMap = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
+            NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>  MeshDrawCommandsMap = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
 
             //Gather PassMeshBatch
             FPassMeshBatchGatherJob PassMeshBatchGatherJob = new FPassMeshBatchGatherJob();
@@ -119,9 +140,27 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshDrawCommandsMap.Dispose();
         }
 
+        private void DispatchDrawDotsV2(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        {
+            NativeList<FPassMeshBatchV2> PassMeshBatchs = new NativeList<FPassMeshBatchV2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+            {
+                if (CullingData.ViewMeshBatchs[Index] != 0)
+                {
+                    FMeshBatch MeshBatch = MeshBatchs[Index];
+                    FPassMeshBatchV2 PassMeshBatch = new FPassMeshBatchV2(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
+                    PassMeshBatchs.Add(PassMeshBatch);
+                }
+            }
+
+            PassMeshBatchs.Sort();
+
+            PassMeshBatchs.Dispose();
+        }
+
         private void DispatchDrawDefault(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            MeshDrawCommandsMap = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
+            NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>  MeshDrawCommandsMap = new NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>(10000, Allocator.TempJob);
 
             //Gather PassMeshBatch
             for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)

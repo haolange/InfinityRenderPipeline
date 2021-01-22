@@ -77,12 +77,14 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override int GetHashCode()
         {
-            int hashCode = MatchForDynamicInstance(ref this);
-            hashCode += CastShadow.GetHashCode();
-            hashCode += MotionType.GetHashCode();
+            int hashCode = SubmeshIndex;
+            hashCode += Mesh.GetHashCode();
+            hashCode += Material.GetHashCode();
+            //hashCode += CastShadow.GetHashCode();
+            //hashCode += MotionType.GetHashCode();
             hashCode += Visible.GetHashCode();
-            hashCode += Priority.GetHashCode();
-            hashCode += RenderLayer.GetHashCode();
+            //hashCode += Priority.GetHashCode();
+            //hashCode += RenderLayer.GetHashCode();
             hashCode += BoundBox.GetHashCode();
             hashCode += Matrix_LocalToWorld.GetHashCode();
 
@@ -141,6 +143,41 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public static implicit operator Int32(FPassMeshBatch MDCValue) { return MDCValue.MeshBatchIndex; }
         public static implicit operator FPassMeshBatch(int index) { return new FPassMeshBatch(index); }
+    }
+
+    public struct FPassMeshBatchV2 : IComparable<FPassMeshBatchV2>, IEquatable<FPassMeshBatchV2>
+    {
+        public int HashIndex;
+        public int MeshBatchIndex;
+
+
+        public FPassMeshBatchV2(in int InHashIndex, in int InMeshBatchIndex)
+        {
+            HashIndex = InHashIndex;
+            MeshBatchIndex = InMeshBatchIndex;
+        }
+
+        public int CompareTo(FPassMeshBatchV2 PassMeshBatch)
+        {
+            return HashIndex.CompareTo(PassMeshBatch.HashIndex);
+        }
+
+        public bool Equals(FPassMeshBatchV2 Target)
+        {
+            return MeshBatchIndex.Equals(Target.MeshBatchIndex);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals((FMeshBatch)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashIndex;
+        }
+
+        public static implicit operator Int32(FPassMeshBatchV2 PassMeshBatch) { return PassMeshBatch.MeshBatchIndex; }
     }
 
     /*float Priority = priority + distance;

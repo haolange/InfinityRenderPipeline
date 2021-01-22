@@ -1,12 +1,10 @@
 ﻿using System;
 using Unity.Jobs;
 using Unity.Burst;
-using System.Threading;
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
 using Unity.Collections.LowLevel.Unsafe;
-using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -30,24 +28,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void Execute()
         {
             ViewMeshBatchList.Sort();
-        }
-    }
-
-    public struct FMeshPassDesctiption
-    {
-        public int RenderQueueMin;
-        public int RenderQueueMax;
-        public int RenderLayerMask;
-        public EGatherMethod GatherMethod;
-        public bool ExcludeMotionVectorObjects;
-
-        public FMeshPassDesctiption(in RendererList InRendererList, in EGatherMethod InGatherMethod = EGatherMethod.Dots)
-        {
-            GatherMethod = InGatherMethod;
-            RenderLayerMask = (int)InRendererList.filteringSettings.renderingLayerMask;
-            RenderQueueMin = InRendererList.filteringSettings.renderQueueRange.lowerBound;
-            RenderQueueMax = InRendererList.filteringSettings.renderQueueRange.upperBound;
-            ExcludeMotionVectorObjects = InRendererList.filteringSettings.excludeMotionVectorObjects;
         }
     }
 

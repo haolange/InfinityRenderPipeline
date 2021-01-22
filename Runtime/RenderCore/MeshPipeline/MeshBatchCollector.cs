@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             CacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = true)
+        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = false)
         {
             if(!CacheMeshBatchStateBuckets.IsCreated) { return; }
             
@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void AddMeshBatch(in FMeshBatch MeshBatch, in int AddKey)
         {
-            CacheMeshBatchStateBuckets.Add(AddKey, MeshBatch);
+            CacheMeshBatchStateBuckets.TryAdd(AddKey, MeshBatch);
         }
 
         public void UpdateMeshBatch(in FMeshBatch MeshBatch, in int UpdateKey)

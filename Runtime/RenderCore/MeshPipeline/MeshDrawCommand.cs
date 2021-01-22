@@ -6,7 +6,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     public enum EGatherMethod
     {
-        Dots,
+        DotsV1,
+        DotsV2,
         Default
     }
 
