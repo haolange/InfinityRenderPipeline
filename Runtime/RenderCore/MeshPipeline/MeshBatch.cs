@@ -150,7 +150,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int HashIndex;
         public int MeshBatchIndex;
 
-
         public FPassMeshBatchV2(in int InHashIndex, in int InMeshBatchIndex)
         {
             HashIndex = InHashIndex;
@@ -164,7 +163,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public bool Equals(FPassMeshBatchV2 Target)
         {
-            return MeshBatchIndex.Equals(Target.MeshBatchIndex);
+            return HashIndex.Equals(Target.HashIndex);
         }
 
         public override bool Equals(object obj)
@@ -176,8 +175,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             return HashIndex;
         }
-
-        public static implicit operator Int32(FPassMeshBatchV2 PassMeshBatch) { return PassMeshBatch.MeshBatchIndex; }
     }
 
     /*float Priority = priority + distance;

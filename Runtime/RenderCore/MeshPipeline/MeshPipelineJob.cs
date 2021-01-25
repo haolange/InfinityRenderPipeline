@@ -9,6 +9,17 @@ using Unity.Collections.LowLevel.Unsafe;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     [BurstCompile]
+    public struct FListSortJob<T> : IJob where T : struct, IEquatable<T>, IComparable<T>
+    {
+        public NativeList<T> SortTarget;
+
+        public void Execute()
+        {
+            SortTarget.Sort();
+        }
+    }
+
+    [BurstCompile]
     public struct FArraySortJob<T> : IJob where T : struct, IEquatable<T>, IComparable<T>
     {
         public NativeArray<T> SortTarget;
@@ -122,6 +133,74 @@ namespace InfinityTech.Rendering.MeshPipeline
                     FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
                     MeshDrawCommandsMap.Add(MeshDrawCommand, PassMeshBatch);
                 }
+            }
+        }
+    }
+
+    [BurstCompile]
+    public struct FPassMeshBatchGatherJobV2 : IJob
+    {
+        [ReadOnly]
+        public FCullingData CullingData;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        [WriteOnly]
+        public NativeList<FPassMeshBatchV2> PassMeshBatchs;
+
+        public void Execute()
+        {
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+            {
+                if (CullingData.ViewMeshBatchs[Index] != 0)
+                {
+                    FMeshBatch MeshBatch = MeshBatchs[Index];
+                    FPassMeshBatchV2 PassMeshBatch = new FPassMeshBatchV2(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
+                    PassMeshBatchs.Add(PassMeshBatch);
+                }
+            }
+        }
+    }
+
+    [BurstCompile]
+    public struct FMeshDrawCommandBuildJob : IJob
+    {
+        [WriteOnly]
+        public NativeArray<int> Indexs;
+
+        //[WriteOnly]
+        public NativeList<int2> CountOffsets;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        [ReadOnly]
+        public NativeList<FPassMeshBatchV2> PassMeshBatchs;
+
+        [WriteOnly]
+        public NativeList<FMeshDrawCommandV2> MeshDrawCommands;
+
+        public void Execute()
+        {
+            FPassMeshBatchV2 CachePassMeshBatch = new FPassMeshBatchV2(-1, -1);
+
+            for (int i = 0; i < PassMeshBatchs.Length; i++)
+            {
+                FPassMeshBatchV2 PassMeshBatch = PassMeshBatchs[i];
+                Indexs[i] = PassMeshBatch.MeshBatchIndex;
+                FMeshBatch MeshBatch = MeshBatchs[PassMeshBatch.MeshBatchIndex];
+
+                if (!PassMeshBatch.Equals(CachePassMeshBatch))
+                {
+                    CachePassMeshBatch = PassMeshBatch;
+
+                    CountOffsets.Add(new int2(0, i));
+                    MeshDrawCommands.Add(new FMeshDrawCommandV2(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex));
+                }
+
+                int2 CountOffset = CountOffsets[CountOffsets.Length - 1];
+                CountOffsets[CountOffsets.Length - 1] = CountOffset + new int2(1, 0);
             }
         }
     }
