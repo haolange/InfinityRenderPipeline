@@ -1,6 +1,4 @@
 using UnityEngine;
-using Unity.Mathematics;
-using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.Feature
 {
@@ -39,5 +37,9 @@ namespace InfinityTech.Rendering.Feature
 
         [Range(0.0001f, 0.03f)]
         public float SunSolidAngle = (0.5f / 180.0f * Mathf.PI);
+
+        [Header("Material")]
+        public ComputeShader LUTCompute;
+        public Material LUTMaterial;
     }
 }

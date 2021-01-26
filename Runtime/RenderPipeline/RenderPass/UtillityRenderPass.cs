@@ -36,20 +36,20 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         ///////////SkyBox Graph
-        struct SkyAtmosphereData
+        struct SkyBoxData
         {
             public Camera RenderCamera;
         }
 
-        void RenderSkyAtmosphere(Camera RenderCamera)
+        void RenderSkyBox(Camera RenderCamera)
         {
             // Add SkyAtmospherePass
-            GraphBuilder.AddPass<SkyAtmosphereData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.SkyAtmosphere),
-            (ref SkyAtmosphereData PassData, ref RDGPassBuilder PassBuilder) =>
+            GraphBuilder.AddPass<SkyBoxData>("SkyBox", ProfilingSampler.Get(CustomSamplerId.SkyBox),
+            (ref SkyBoxData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RenderCamera = RenderCamera;
             },
-            (ref SkyAtmosphereData PassData, RDGContext GraphContext) =>
+            (ref SkyBoxData PassData, RDGContext GraphContext) =>
             {
                 GraphContext.RenderContext.DrawSkybox(PassData.RenderCamera);
             });

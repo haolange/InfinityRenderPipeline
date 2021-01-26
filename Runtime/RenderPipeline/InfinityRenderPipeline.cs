@@ -245,7 +245,8 @@ namespace InfinityTech.Rendering.Pipeline
                 RenderOpaqueDepth(View, GPUScene, CullingData, CullingResult);
                 RenderOpaqueGBuffer(View, GPUScene, CullingData, CullingResult);
                 RenderOpaqueMotion(View, GPUScene, CullingData, CullingResult);
-                RenderSkyAtmosphere(View);
+                RenderOpaqueForward(View, GPUScene, CullingData, CullingResult);
+                RenderSkyBox(View);
 
                 #if UNITY_EDITOR
                     if (Handles.ShouldRenderGizmos()) {
@@ -253,7 +254,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 #endif
 
-                RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.RT_ThinGBufferA), View.targetTexture);
+                RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), View.targetTexture);
 
                 //Execute RenderGraph
                 GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);

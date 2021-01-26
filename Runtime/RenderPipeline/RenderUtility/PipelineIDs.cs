@@ -9,7 +9,9 @@ namespace InfinityTech.Rendering.Pipeline
         OpaqueDepth,
         OpaqueGBuffer,
         OpaqueMotion,
+        OpaqueForward,
         SkyAtmosphere,
+        SkyBox,
         Gizmos,
         Present,
         Max,
@@ -40,12 +42,14 @@ namespace InfinityTech.Rendering.Pipeline
 
     public static class InfinityShaderIDs
     {
-        public static int RT_DepthBuffer = Shader.PropertyToID("_GBufferDepth");
-        public static int RT_ThinGBufferA = Shader.PropertyToID("_ThinGBufferA");
-        public static int RT_ThinGBufferB = Shader.PropertyToID("_ThinGBufferB");
-        public static int RT_MotionBuffer = Shader.PropertyToID("_MotionBuffer");
+        public static int DepthBuffer = Shader.PropertyToID("_DepthTexture");
+        public static int GBufferA = Shader.PropertyToID("_GBufferTextureA");
+        public static int GBufferB = Shader.PropertyToID("_GBufferTextureB");
+        public static int MotionBuffer = Shader.PropertyToID("_MotionTexture");
+        public static int DiffuseBuffer = Shader.PropertyToID("_DiffuseTexture");
+        public static int SpecularBuffer = Shader.PropertyToID("_SpecularTexture");
 
-        public static RenderTargetIdentifier[] ID_GBuffers = { RT_ThinGBufferA, RT_ThinGBufferB };
+        public static RenderTargetIdentifier[] GBuffer_IDs = { GBufferA, GBufferB };
 
         public static int RT_MainTexture = Shader.PropertyToID("_MainTex");
         public static int BlitScaleBias = Shader.PropertyToID("_ScaleBais");
@@ -55,6 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static ShaderTagId OpaqueDepth = new ShaderTagId("OpaqueDepth");
         public static ShaderTagId OpaqueGBuffer = new ShaderTagId("OpaqueGBuffer");
         public static ShaderTagId OpaqueMotion = new ShaderTagId("OpaqueMotion");
+        public static ShaderTagId ForwardPlus = new ShaderTagId("ForwardPlus");
     }
 
     public static class InfinityRenderQueue

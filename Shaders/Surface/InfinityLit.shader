@@ -5,7 +5,7 @@
         [Header (Microface)]
         [Toggle (_UseAlbedoTex)]UseBaseColorTex ("UseBaseColorTex", Range(0, 1)) = 0
         [NoScaleOffset]_MainTex ("BaseColorTexture", 2D) = "white" {}
-        _BaseColorTile ("BaseColorTile", Range(0, 100)) = 1
+        _BaseColorTile ("BaseColorTile", Range(0, 1024)) = 1
         _BaseColor ("BaseColor", Color) = (1, 1, 1, 1)
         _SpecularLevel ("SpecularLevel", Range(0, 1)) = 0.5
         _Reflectance ("Reflectance", Range(0, 1)) = 0
@@ -146,14 +146,12 @@
 			ENDHLSL
 		}
 
-		//ThinGbuffer
+		//Gbuffer
 		Pass
 		{
 			Name "OpaqueGBufferPass"
 			Tags { "LightMode" = "OpaqueGBuffer" }
-			ZTest [_ZTest] 
-			ZWrite [_ZWrite] 
-			Cull Back
+			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
 
 			HLSLPROGRAM
 			#pragma target 4.5
@@ -161,7 +159,7 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
-			#pragma multi_compile _ LIGHTMAP_ON
+			//#pragma multi_compile _ LIGHTMAP_ON
 
 
 			#include "../Private/Common.hlsl"
@@ -174,6 +172,7 @@
 
 			CBUFFER_START(UnityPerMaterial)
 				float _SpecularLevel;
+				int _BaseColorTile;
 				float4 _BaseColor;
 			CBUFFER_END
 			
@@ -195,9 +194,9 @@
 				float4 worldPos : TEXCOORD2;
 				float4 vertex : SV_POSITION;
 
-				#if defined(LIGHTMAP_ON)
+				/*#if defined(LIGHTMAP_ON)
 				float2 uv1 : TEXCOORD3;
-				#endif
+				#endif*/
 				
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
@@ -213,35 +212,35 @@
 				Out.worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, Out.worldPos);
 
-				#if defined(LIGHTMAP_ON)
+				/*#if defined(LIGHTMAP_ON)
 					Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
-				#endif
+				#endif*/
 
 				return Out;
 			}
 			
-			void frag (Varyings In, out float4 ThinGBufferA : SV_Target0, out uint4 ThinGBufferB : SV_Target1)
+			void frag (Varyings In, out float4 GBufferA : SV_Target0, out uint4 GBufferB : SV_Target1)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 				
 				float3 WS_PixelPos = In.worldPos.xyz;
-				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb;
+				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
 				
-				float3 IndirectLight = float3(1, 1, 1);
+				/*float3 IndirectLight = 1;
 				#if defined(LIGHTMAP_ON)
-					//IndirectLight = float3(1, 0, 0);
 					IndirectLight = SampleLightmap(In.uv1, In.normal);
-				#endif
+				#endif*/
 
-				//ThinGBufferA = float4(BaseColor, 1);
-				//ThinGBufferB = uint4((In.normal * 127 + 127), 1);
+				//GBufferA = float4(BaseColor, 1);
+				//GBufferB = uint4((In.normal * 127 + 127), 1);
+
 				ThinGBufferData GBufferData;
 				GBufferData.WorldNormal = normalize(In.normal);
-				GBufferData.BaseColor = BaseColor * IndirectLight;
+				GBufferData.BaseColor = BaseColor;
 				GBufferData.Roughness = BaseColor.r;
 				GBufferData.Specular = _SpecularLevel;
 				GBufferData.Reflactance = BaseColor.b;
-				EncodeGBuffer(GBufferData, ThinGBufferA, ThinGBufferB);
+				EncodeGBuffer(GBufferData, GBufferA, GBufferB);
 			}
 			ENDHLSL
 		}
@@ -306,7 +305,7 @@
 		//ForwardPlus
 		Pass
 		{
-			Name "ForwardPlusPass"
+			Name "ForwardPass"
 			Tags { "LightMode" = "ForwardPlus" }
 			ZTest Equal ZWrite Off Cull Back
 
@@ -316,9 +315,12 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
+			#pragma multi_compile _ LIGHTMAP_ON
 
 
 			#include "../Private/Common.hlsl"
+			#include "../Private/PackData.hlsl"
+			#include "../Private/Lightmap.hlsl"
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
@@ -326,15 +328,16 @@
 
 			CBUFFER_START(UnityPerMaterial)
 				float _SpecularLevel;
+				int _BaseColorTile;
 				float4 _BaseColor;
 			CBUFFER_END
 
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
-
 			struct Attributes
 			{
-				float2 uv : TEXCOORD0;
+				float2 uv0 : TEXCOORD0;
+				float2 uv1 : TEXCOORD1;
 				float3 normal : NORMAL;
 				float4 vertex : POSITION;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -342,37 +345,50 @@
 
 			struct Varyings
 			{
-				float2 uv : TEXCOORD0;
+				float2 uv0 : TEXCOORD0;
 				float3 normal : TEXCOORD1;
 				float4 worldPos : TEXCOORD2;
 				float4 vertex : SV_POSITION;
+
+				#if defined(LIGHTMAP_ON)
+				float2 uv1 : TEXCOORD3;
+				#endif
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
-			
-			Varyings vert (Attributes In)
+
+			Varyings vert(Attributes In)
 			{
 				Varyings Out = (Varyings)0;
-                UNITY_SETUP_INSTANCE_ID(In);
-                UNITY_TRANSFER_INSTANCE_ID(In, Out);
+				UNITY_SETUP_INSTANCE_ID(In);
+				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
-				Out.uv = In.uv;
+				Out.uv0 = In.uv0;
 				Out.normal = normalize(mul(In.normal, (float3x3)unity_WorldToObject));
 				Out.worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, Out.worldPos);
+
+				#if defined(LIGHTMAP_ON)
+					Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
+				#endif
+
 				return Out;
 			}
-			
-			float4 frag (Varyings In) : SV_Target
+
+			void frag(Varyings In, out float3 DiffuseBuffer : SV_Target0, out float3 SpecularBuffer : SV_Target1)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
-				
-				float3 WS_PixelPos = In.worldPos.xyz;
-				float3 Normal = In.normal * 0.5 + 0.5;
-				float3 Albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb;
-				float Roughness = _BaseColor.r;
-				float Reflactance = Albedo.g;
 
-				return float4(Albedo, 1);
+				float3 WS_PixelPos = In.worldPos.xyz;
+				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
+
+				float3 IndirectLight = 1;
+				#if defined(LIGHTMAP_ON)
+				IndirectLight = SampleLightmap(In.uv1, In.normal);
+			#endif
+
+				DiffuseBuffer = BaseColor * IndirectLight;
+				SpecularBuffer = 0.5f;
 			}
 			ENDHLSL
 		}
@@ -394,6 +410,7 @@
 
 			CBUFFER_START(UnityPerMaterial)
 				float _SpecularLevel;
+				int _BaseColorTile;
 				float4 _BaseColor;
 			CBUFFER_END
 
@@ -509,6 +526,8 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
+				float _SpecularLevel;
+				int _BaseColorTile;
 				float4 _BaseColor;
 			CBUFFER_END
 
