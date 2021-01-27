@@ -5,12 +5,12 @@ namespace InfinityTech.Rendering.RDG
     public struct RDGPassBuilder : IDisposable
     {
         bool m_Disposed;
-        IRDGRenderPass m_RenderPass;
+        IRDGPass m_RenderPass;
         RDGResourceFactory m_Resources;
 
 
         #region Public Interface
-        public ref T GetPassData<T>() where T : struct => ref ((RDGRenderPass<T>)m_RenderPass).PassData;
+        public ref T GetPassData<T>() where T : struct => ref ((RDGPass<T>)m_RenderPass).PassData;
 
         public void EnableAsyncCompute(bool value)
         {
@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.RDG
         #endregion
 
         #region Internal Interface
-        internal RDGPassBuilder(IRDGRenderPass renderPass, RDGResourceFactory resources)
+        internal RDGPassBuilder(IRDGPass renderPass, RDGResourceFactory resources)
         {
             m_RenderPass = renderPass;
             m_Resources = resources;

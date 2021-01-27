@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.RDG
 
         internal struct CompiledPassInfo
         {
-            public IRDGRenderPass pass;
+            public IRDGPass pass;
             public List<int>[] resourceCreateList;
             public List<int>[] resourceReleaseList;
             public int refCount;
@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.RDG
             public bool allowPassCulling { get { return pass.allowPassCulling; } }
 
 
-            public void Reset(IRDGRenderPass pass)
+            public void Reset(IRDGPass pass)
             {
                 this.pass = pass;
 
@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.RDG
         RDGResourceScope<RDGBufferRef> m_BufferScope;
         RDGResourceScope<RDGTextureRef> m_TextureScope;
         RDGObjectPool m_RenderGraphPool = new RDGObjectPool();
-        List<IRDGRenderPass> m_RenderPasses = new List<IRDGRenderPass>(64);
+        List<IRDGPass> m_RenderPasses = new List<IRDGPass>(64);
         Dictionary<int, ProfilingSampler> m_DefaultProfilingSamplers = new Dictionary<int, ProfilingSampler>();
         bool m_ExecutionExceptionWasRaised;
         RDGContext m_RenderGraphContext = new RDGContext();
@@ -207,7 +207,7 @@ namespace InfinityTech.Rendering.RDG
 
         public void AddPass<T>(string passName, ProfilingSampler sampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
         {
-            var renderPass = m_RenderGraphPool.Get<RDGRenderPass<T>>();
+            var renderPass = m_RenderGraphPool.Get<RDGPass<T>>();
             renderPass.Clear();
             renderPass.name = passName;
             renderPass.index = m_RenderPasses.Count;
@@ -564,7 +564,7 @@ namespace InfinityTech.Rendering.RDG
                             // Fail safe in case render graph is badly formed.
                             if (currentPassIndex == m_CompiledPassInfos.size)
                             {
-                                IRDGRenderPass invalidPass = m_RenderPasses[lastReadPassIndex];
+                                IRDGPass invalidPass = m_RenderPasses[lastReadPassIndex];
                                 throw new InvalidOperationException($"Asynchronous pass {invalidPass.name} was never synchronized on the graphics pipeline.");
                             }
                         }
@@ -681,7 +681,7 @@ namespace InfinityTech.Rendering.RDG
         void PreRenderPassExecute(in CompiledPassInfo passInfo, RDGContext rgContext)
         {
             // TODO RENDERGRAPH merge clear and setup here if possible
-            IRDGRenderPass pass = passInfo.pass;
+            IRDGPass pass = passInfo.pass;
 
             // TODO RENDERGRAPH remove this when we do away with auto global texture setup
             // (can't put it in the profiling scope otherwise it might be executed on compute queue which is not possible for global sets)
@@ -715,7 +715,7 @@ namespace InfinityTech.Rendering.RDG
 
         void PostRenderPassExecute(CommandBuffer mainCmd, ref CompiledPassInfo passInfo, RDGContext rgContext)
         {
-            IRDGRenderPass pass = passInfo.pass;
+            IRDGPass pass = passInfo.pass;
 
             if (passInfo.needGraphicsFence)
                 passInfo.fence = rgContext.CmdBuffer.CreateAsyncGraphicsFence();

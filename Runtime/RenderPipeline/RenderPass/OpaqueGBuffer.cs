@@ -47,11 +47,6 @@ namespace InfinityTech.Rendering.Pipeline
                 GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
                 GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
-
-                //MeshDrawPipeline
-                FMeshPassProcessor GBufferMeshProcessor = GraphContext.ObjectPool.Get<FMeshPassProcessor>();
-                FMeshPassDesctiption GBufferMeshPassDescription = new FMeshPassDesctiption(GBufferRenderList);
-                GBufferMeshProcessor.DispatchDraw(GraphContext, GPUScene, CullingData, GBufferMeshPassDescription);
             });
         }
     }

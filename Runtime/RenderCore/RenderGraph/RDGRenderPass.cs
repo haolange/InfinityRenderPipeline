@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Rendering.RDG
 {
-    abstract class IRDGRenderPass
+    abstract class IRDGPass
     {
         public abstract void Step(ref RDGPassBuilder PassBuilder);
         public abstract void Execute(RDGContext GraphContext);
@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.RDG
         public List<RDGResourceRef>[] temporalResourceList = new List<RDGResourceRef>[2];
 
 
-        public IRDGRenderPass()
+        public IRDGPass()
         {
             for (int i = 0; i < 2; ++i)
             {
@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.RDG
     public delegate void StepAction<T>(ref T PassData, ref RDGPassBuilder PassBuilder) where T : struct;
     public delegate void ExecuteAction<T>(ref T PassData, RDGContext GraphContext) where T : struct;
 
-    internal sealed class RDGRenderPass<T> : IRDGRenderPass where T : struct
+    internal sealed class RDGPass<T> : IRDGPass where T : struct
     {
         internal T PassData;
         internal StepAction<T> StepFunc;

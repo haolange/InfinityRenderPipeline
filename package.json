@@ -2,16 +2,16 @@
   "name": "com.unity.render-pipelines.infinity",
   "description": "The Infinity Render Pipeline is a high-fidelity Scriptable Render Pipeline built by Pseudo Game Tech to target modern (Compute Shader compatible) platforms. The IRP utilizes Physically-Based Lighting techniques, linear lighting, HDR lighting and a configurable hybrid Tile/Cluster ForwardPlus lighting architecture and gives you the tools you need to create games, technical demos, animations and more to a high graphical standard.",
   "version": "0.1.5",
-  "unity": "2020.1",
-  "unityRelease": "0b15",
+  "unity": "2020.2",
+  "unityRelease": "0b12",
   "displayName": "Infinity Render Pipeline",
   "dependencies": {
-    "com.unity.jobs": "0.7.0-preview.17",
-    "com.unity.burst": "1.4.3",
+    "com.unity.jobs": "0.8.0-preview.23",
+    "com.unity.burst": "1.4.4",
     "com.unity.shadergraph": "10.2.2",
     "com.unity.mathematics": "1.2.1",
-    "com.unity.addressables": "1.16.15",
-    "com.unity.rendering.hybrid": "0.10.0-preview.21",
+    "com.unity.addressables": "1.16.16",
+    "com.unity.rendering.hybrid": "0.11.0-preview.42",
     "com.unity.visualeffectgraph": "10.2.2",
     "com.unity.render-pipelines.core": "10.2.2"
   }

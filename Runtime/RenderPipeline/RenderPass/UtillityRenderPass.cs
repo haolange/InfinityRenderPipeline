@@ -4,6 +4,10 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace InfinityTech.Rendering.Pipeline
 {
     public partial class InfinityRenderPipeline
@@ -21,17 +25,20 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderGizmo(Camera RenderCamera, GizmoSubset gizmoSubset)
         {
 #if UNITY_EDITOR
-            // Add GizmosPass
-            GraphBuilder.AddPass<GizmosPassData>("Gizmos", ProfilingSampler.Get(CustomSamplerId.Gizmos),
-            (ref GizmosPassData PassData, ref RDGPassBuilder PassBuilder) =>
+            if (Handles.ShouldRenderGizmos())
             {
-                PassData.RenderCamera = RenderCamera;
-                PassData.GizmoSubset = gizmoSubset;
-            },
-            (ref GizmosPassData PassData, RDGContext GraphContext) =>
-            {
-                GraphContext.RenderContext.DrawGizmos(PassData.RenderCamera, PassData.GizmoSubset);
-            });
+                // Add GizmosPass
+                GraphBuilder.AddPass<GizmosPassData>("Gizmos", ProfilingSampler.Get(CustomSamplerId.Gizmos),
+                (ref GizmosPassData PassData, ref RDGPassBuilder PassBuilder) =>
+                {
+                    PassData.RenderCamera = RenderCamera;
+                    PassData.GizmoSubset = gizmoSubset;
+                },
+                (ref GizmosPassData PassData, RDGContext GraphContext) =>
+                {
+                    GraphContext.RenderContext.DrawGizmos(PassData.RenderCamera, PassData.GizmoSubset);
+                });
+            }
 #endif
         }
 

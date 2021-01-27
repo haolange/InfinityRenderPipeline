@@ -8,8 +8,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     public struct FCullingData
     {
         public bool CullState;
-        private NativeArray<FPlane> ViewFrustum;
         public NativeList<int> ViewMeshBatchs;
+        private NativeArray<FPlane> ViewFrustum;
 
         public void DispatchCull(Camera RenderCamera, FGPUScene GPUScene)
         {
@@ -27,13 +27,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             ViewMeshBatchs = new NativeList<int>(GPUScene.MeshBatchs.Length, Allocator.TempJob);
             ViewMeshBatchs.Resize(GPUScene.MeshBatchs.Length, NativeArrayOptions.ClearMemory);
 
-            FMarkMeshBatchCullJob MarkCullingJob = new FMarkMeshBatchCullJob();
+            FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
             {
-                MarkCullingJob.ViewFrustum = ViewFrustum;
-                MarkCullingJob.MeshBatchs = GPUScene.MeshBatchs;
-                MarkCullingJob.ViewMeshBatchs = ViewMeshBatchs;
+                MeshBatchCullingJob.ViewFrustum = ViewFrustum;
+                MeshBatchCullingJob.MeshBatchs = GPUScene.MeshBatchs;
+                MeshBatchCullingJob.ViewMeshBatchs = ViewMeshBatchs;
             }
-            MarkCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();
+            MeshBatchCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();
         }
 
         public void Release()

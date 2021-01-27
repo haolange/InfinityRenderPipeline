@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FMarkMeshBatchCullJob : IJobParallelFor
+    public struct FMeshBatchCullingJob : IJobParallelFor
     {
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchs;
