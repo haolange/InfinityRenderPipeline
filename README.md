@@ -9,8 +9,8 @@ Completed :
 * RenderGraph
 * 8Byte ThinGBuffer
 * MaskOnly PreDepth
-* ScreenSpaceReflection
 * ScreenSpaceGlobalIllumination
+* StochasticScreenSpaceReflection
 * GrandTruth Ambient&Reflection Occlusion
 * MeshDrawPipeline a Unfield HighPreformence DrawMeshSystem for EasySetting
 
