@@ -25,6 +25,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             RenderQueueMax = InRendererList.filteringSettings.renderQueueRange.upperBound;
             ExcludeMotionVectorObjects = InRendererList.filteringSettings.excludeMotionVectorObjects;
         }
+
+        public FMeshPassDesctiption(in int MinQueue, in int MaxQueue)
+        {
+            RenderLayerMask = 0;
+            RenderQueueMin = MinQueue;
+            RenderQueueMax = MaxQueue;
+            ExcludeMotionVectorObjects = false;
+        }
     }
 
     public class FMeshPassProcessor
@@ -98,11 +106,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             FBuildMeshDrawCommandJob BuildMeshDrawCommandJob = new FBuildMeshDrawCommandJob();
             {
                 BuildMeshDrawCommandJob.Indexs = Indexs;
+                BuildMeshDrawCommandJob.MeshBatchs = MeshBatchs;
                 BuildMeshDrawCommandJob.CullingData = CullingData;
                 BuildMeshDrawCommandJob.CountOffsets = CountOffsets;
-                BuildMeshDrawCommandJob.MeshBatchs = MeshBatchs;
                 BuildMeshDrawCommandJob.PassMeshBatchs = PassMeshBatchs;
                 BuildMeshDrawCommandJob.MeshDrawCommands = MeshDrawCommands;
+                BuildMeshDrawCommandJob.MeshPassDesctiption = MeshPassDesctiption;
             }
             GatherHandle = BuildMeshDrawCommandJob.Schedule();
         }

@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.GBufferA = PassBuilder.UseColorBuffer(GBufferATexure, 0);
                 PassData.GBufferB = PassBuilder.UseColorBuffer(GBufferBTexure, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                GBufferPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(RenderList));
+                GBufferPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueGBufferData PassData, RDGContext GraphContext) =>
             {

@@ -177,6 +177,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchs;
 
+        [ReadOnly]
+        public FMeshPassDesctiption MeshPassDesctiption;
+
         public NativeList<FPassMeshBatchV2> PassMeshBatchs;
 
         [WriteOnly]
@@ -190,8 +193,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (CullingData.ViewMeshBatchs[Index] != 0)
                 {
                     FMeshBatch MeshBatch = MeshBatchs[Index];
-                    FPassMeshBatchV2 PassMeshBatch = new FPassMeshBatchV2(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
-                    PassMeshBatchs.Add(PassMeshBatch);
+
+                    if(MeshBatch.Priority >= MeshPassDesctiption.RenderQueueMin && MeshBatch.Priority <= MeshPassDesctiption.RenderQueueMax)
+                    {
+                        FPassMeshBatchV2 PassMeshBatch = new FPassMeshBatchV2(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
+                        PassMeshBatchs.Add(PassMeshBatch);
+                    }
                 }
             }
 
