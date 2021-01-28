@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //MeshDrawPipeline
                 FMeshPassProcessor ForwardMeshProcessor = GraphContext.ObjectPool.Get<FMeshPassProcessor>();
                 FMeshPassDesctiption ForwardMeshPassDescription = new FMeshPassDesctiption(ForwardRenderList);
-                ForwardMeshProcessor.DispatchDraw(GraphContext, GPUScene, CullingData, ForwardMeshPassDescription);
+                ForwardMeshProcessor.DispatchGather(GraphContext, GPUScene, CullingData, ForwardMeshPassDescription);
             });
         }
     }

@@ -93,10 +93,10 @@ namespace InfinityTech.Rendering.RDG
         RDGResourceFactory m_Resources;
         RDGResourceScope<RDGBufferRef> m_BufferScope;
         RDGResourceScope<RDGTextureRef> m_TextureScope;
-        RDGObjectPool m_RenderGraphPool = new RDGObjectPool();
         List<IRDGPass> m_RenderPasses = new List<IRDGPass>(64);
         Dictionary<int, ProfilingSampler> m_DefaultProfilingSamplers = new Dictionary<int, ProfilingSampler>();
         bool m_ExecutionExceptionWasRaised;
+        RDGObjectPool m_ObjectPool = new RDGObjectPool();
         RDGContext m_RenderGraphContext = new RDGContext();
 
         // Compiled Render Graph info.
@@ -207,11 +207,11 @@ namespace InfinityTech.Rendering.RDG
 
         public void AddPass<T>(string passName, ProfilingSampler sampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
         {
-            var renderPass = m_RenderGraphPool.Get<RDGPass<T>>();
+            var renderPass = m_ObjectPool.Get<RDGPass<T>>();
             renderPass.Clear();
             renderPass.name = passName;
             renderPass.index = m_RenderPasses.Count;
-            renderPass.PassData = m_RenderGraphPool.Get<T>();
+            renderPass.PassData = m_ObjectPool.Get<T>();
             renderPass.customSampler = sampler;
             renderPass.StepFunc = StepFunc;
             renderPass.ExecuteFunc = ExecuteFunc;
@@ -591,7 +591,7 @@ namespace InfinityTech.Rendering.RDG
             m_RenderGraphContext.World = renderWorld;
             m_RenderGraphContext.CmdBuffer = CmdBuffer;
             m_RenderGraphContext.RenderContext = RenderContext;
-            m_RenderGraphContext.ObjectPool = m_RenderGraphPool;
+            m_RenderGraphContext.ObjectPool = m_ObjectPool;
 
             using (new ProfilingScope(CmdBuffer, ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
             {
@@ -728,7 +728,7 @@ namespace InfinityTech.Rendering.RDG
                 rgContext.CmdBuffer = mainCmd; // Restore the main command buffer.
             }
 
-            m_RenderGraphPool.ReleaseAllTempAlloc();
+            m_ObjectPool.ReleaseAllTempAlloc();
 
             foreach (var buffer in passInfo.resourceReleaseList[(int)RDGResourceType.Buffer])
                 m_Resources.ReleaseRealBuffer(buffer);
@@ -742,7 +742,7 @@ namespace InfinityTech.Rendering.RDG
         {
             foreach (var pass in m_RenderPasses)
             {
-                pass.Release(m_RenderGraphPool);
+                pass.Release(m_ObjectPool);
             }
 
             m_RenderPasses.Clear();

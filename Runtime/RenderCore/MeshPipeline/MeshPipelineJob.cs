@@ -164,6 +164,63 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
+    public struct FBuildMeshDrawCommandJob : IJob
+    {
+        [WriteOnly]
+        public NativeArray<int> Indexs;
+
+        [ReadOnly]
+        public FCullingData CullingData;
+
+        public NativeList<int2> CountOffsets;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        public NativeList<FPassMeshBatchV2> PassMeshBatchs;
+
+        [WriteOnly]
+        public NativeList<FMeshDrawCommandV2> MeshDrawCommands;
+
+        public void Execute()
+        {
+            //Gather PassMeshBatch
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+            {
+                if (CullingData.ViewMeshBatchs[Index] != 0)
+                {
+                    FMeshBatch MeshBatch = MeshBatchs[Index];
+                    FPassMeshBatchV2 PassMeshBatch = new FPassMeshBatchV2(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
+                    PassMeshBatchs.Add(PassMeshBatch);
+                }
+            }
+
+            //Sort PassMeshBatch
+            PassMeshBatchs.Sort();
+
+            //Build MeshDrawCommand
+            FPassMeshBatchV2 CachePassMeshBatch = new FPassMeshBatchV2(-1, -1);
+            for (int i = 0; i < PassMeshBatchs.Length; i++)
+            {
+                FPassMeshBatchV2 PassMeshBatch = PassMeshBatchs[i];
+                Indexs[i] = PassMeshBatch.MeshBatchIndex;
+                FMeshBatch MeshBatch = MeshBatchs[PassMeshBatch.MeshBatchIndex];
+
+                if (!PassMeshBatch.Equals(CachePassMeshBatch))
+                {
+                    CachePassMeshBatch = PassMeshBatch;
+
+                    CountOffsets.Add(new int2(0, i));
+                    MeshDrawCommands.Add(new FMeshDrawCommandV2(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex));
+                }
+
+                int2 CountOffset = CountOffsets[CountOffsets.Length - 1];
+                CountOffsets[CountOffsets.Length - 1] = CountOffset + new int2(1, 0);
+            }
+        }
+    }
+
+    [BurstCompile]
     public struct FMeshDrawCommandBuildJob : IJob
     {
         [WriteOnly]
@@ -407,5 +464,4 @@ namespace InfinityTech.Rendering.MeshPipeline
             Array[index] = UnsafeUtility.ReadArrayElement<TValue>(MultiHashmap.m_MultiHashMapData.m_Buffer->values, index);
         }
     }
-
 }
