@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef DepthBuffer;
         }
 
-        void RenderOpaqueDepth(Camera RenderCamera, FGPUScene GPUScene, FCullingData CullingData, CullingResults CullingResult)
+        void RenderOpaqueDepth(Camera RenderCamera, FCullingData CullingData, CullingResults CullingResult)
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
@@ -28,6 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 PassData.RendererList = RenderList;
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
+                //DepthPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(RenderList));
             },
             (ref FOpaqueDepthData PassData, RDGContext GraphContext) =>
             {
@@ -37,6 +38,9 @@ namespace InfinityTech.Rendering.Pipeline
                 DepthRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
                 DepthRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
                 GraphContext.RenderContext.DrawRenderers(DepthRenderList.cullingResult, ref DepthRenderList.drawSettings, ref DepthRenderList.filteringSettings);
+
+                //MeshDrawPipeline
+                //DepthPassMeshProcessor.DispatchDraw(GraphContext, GPUScene, 1);
             });
         }
     }

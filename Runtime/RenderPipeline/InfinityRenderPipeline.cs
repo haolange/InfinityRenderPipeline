@@ -180,25 +180,35 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline : RenderPipeline
     {
+        //Pipeline Main
         private FGPUScene GPUScene;
         private RDGGraphBuilder GraphBuilder;
         private ViewUnifromBuffer ViewUnifrom;
         private InfinityRenderPipelineAsset RenderPipelineAsset;
 
+        //MeshPassProcessor
+        private FMeshPassProcessor DepthPassMeshProcessor;
+        private FMeshPassProcessor GBufferPassMeshProcessor;
+        private FMeshPassProcessor ForwardPassMeshProcessor;
+
         public InfinityRenderPipeline()
         {
+            SetGraphicsSetting();
+
             GPUScene = new FGPUScene();
             ViewUnifrom = new ViewUnifromBuffer();
             GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
-            SetGraphicsSetting();
+            DepthPassMeshProcessor = new FMeshPassProcessor();
+            GBufferPassMeshProcessor = new FMeshPassProcessor();
+            ForwardPassMeshProcessor = new FMeshPassProcessor();
         }
 
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] Views)
         {
             //Init FrameContext
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor());
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), true);
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, Views);
@@ -234,10 +244,10 @@ namespace InfinityTech.Rendering.Pipeline
                     #endregion //InitViewContext
 
                     #region InitViewCommand
-                        RenderOpaqueDepth(View, GPUScene, CullingData, CullingResult);
-                        RenderOpaqueGBuffer(View, GPUScene, CullingData, CullingResult);
-                        RenderOpaqueMotion(View, GPUScene, CullingData, CullingResult);
-                        RenderOpaqueForward(View, GPUScene, CullingData, CullingResult);
+                        RenderOpaqueDepth(View, CullingData, CullingResult);
+                        RenderOpaqueGBuffer(View, CullingData, CullingResult);
+                        RenderOpaqueMotion(View, CullingData, CullingResult);
+                        RenderOpaqueForward(View, CullingData, CullingResult);
                         RenderSkyBox(View);
                         RenderGizmo(View, GizmoSubset.PostImageEffects);
                         RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), View.targetTexture);
@@ -245,9 +255,12 @@ namespace InfinityTech.Rendering.Pipeline
 
                     #region ExecuteViewRender
                         GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
-                        ViewUnifrom.UnpateBufferData(true, View);
-                        CullingData.Release();
                     #endregion //ExecuteViewRender
+
+                    #region ReleaseViewContext
+                    CullingData.Release();
+                    ViewUnifrom.UnpateBufferData(true, View);
+                    #endregion //ReleaseViewContext
                 }
                 EndCameraRendering(RenderContext, View);
 
@@ -277,7 +290,8 @@ namespace InfinityTech.Rendering.Pipeline
 
             GraphicsSettings.lightsUseLinearIntensity = true;
             GraphicsSettings.lightsUseColorTemperature = true;
-            GraphicsSettings.useScriptableRenderPipelineBatching = RenderPipelineAsset.EnableSRPBatch;
+            InfinityRenderPipelineAsset PipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
+            GraphicsSettings.useScriptableRenderPipelineBatching = PipelineAsset.EnableSRPBatch;
 
             SupportedRenderingFeatures.active = new SupportedRenderingFeatures()
             {

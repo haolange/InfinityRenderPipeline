@@ -11,8 +11,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         protected FMeshBatchCollector MeshBatchCollector;
 
 
-        public void Gather(FMeshBatchCollector InMeshBatchCollector)
+        public void Gather(FMeshBatchCollector InMeshBatchCollector, in bool Block = false)
         {
+            if(Block) { return; }
+
             MeshBatchCollector = InMeshBatchCollector;
 
             if(MeshBatchCollector.CacheMeshBatchStateBuckets.IsCreated)

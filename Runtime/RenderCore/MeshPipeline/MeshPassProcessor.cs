@@ -29,41 +29,39 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public class FMeshPassProcessor
     {
+        internal bool bGatherState;
+        internal JobHandle GatherHandle;
+        internal NativeArray<int> Indexs;
+        internal NativeList<int2> CountOffsets;
+        internal NativeList<FPassMeshBatchV2> PassMeshBatchs;
+        internal NativeList<FMeshDrawCommandV2> MeshDrawCommands;
+
         public FMeshPassProcessor()
         {
 
         }
 
-        internal void DispatchGather(RDGContext GraphContext, FGPUScene GPUScene, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchGather(FGPUScene GPUScene, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
+            bGatherState = false;
+
             if (GPUScene.MeshBatchs.IsCreated == false || CullingData.ViewMeshBatchs.IsCreated == false || CullingData.bRendererView != true) { return; }
 
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
-            DispatchGatherInternal(GraphContext, GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
+            DispatchGatherInternal(GPUScene.MeshBatchs, CullingData, MeshPassDesctiption);
+
+            bGatherState = true;
         }
 
-        private void DispatchGatherInternal(RDGContext GraphContext, in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchDraw(RDGContext GraphContext, FGPUScene GPUScene, in int PassIndex)
         {
-            //Gather PassMeshBatch
-            NativeArray<int> Indexs = new NativeArray<int>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
-            NativeList<int2> CountOffsets = new NativeList<int2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
-            NativeList<FPassMeshBatchV2> PassMeshBatchs = new NativeList<FPassMeshBatchV2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
-            NativeList<FMeshDrawCommandV2> MeshDrawCommands = new NativeList<FMeshDrawCommandV2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+            GatherHandle.Complete();
 
-            FBuildMeshDrawCommandJob BuildMeshDrawCommandJob = new FBuildMeshDrawCommandJob();
-            {
-                BuildMeshDrawCommandJob.Indexs = Indexs;
-                BuildMeshDrawCommandJob.CullingData = CullingData;
-                BuildMeshDrawCommandJob.CountOffsets = CountOffsets;
-                BuildMeshDrawCommandJob.MeshBatchs = MeshBatchs;
-                BuildMeshDrawCommandJob.PassMeshBatchs = PassMeshBatchs;
-                BuildMeshDrawCommandJob.MeshDrawCommands = MeshDrawCommands;
-            }
-            BuildMeshDrawCommandJob.Run();
+            if (bGatherState == false) { return; }
 
-            //DrawCall
-            /*using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshDrawPipeline)))
+            //Draw Call
+            using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshDrawPipeline)))
             {
                 for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
                 {
@@ -76,15 +74,37 @@ namespace InfinityTech.Rendering.MeshPipeline
                     for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
                     {
                         int DrawIndex = Indexs[CountOffset.y + InstanceIndex];
-                        GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, 2);
+                        GraphContext.CmdBuffer.DrawMesh(DrawMesh, GPUScene.MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, PassIndex);
                     }
                 }
-            }*/
+            }
 
+            //Release MeshPassData
             Indexs.Dispose();
             CountOffsets.Dispose();
             PassMeshBatchs.Dispose();
             MeshDrawCommands.Dispose();
+        }
+
+        private void DispatchGatherInternal(in NativeArray<FMeshBatch> MeshBatchs, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        {
+            //Init MeshPassData
+            Indexs = new NativeArray<int>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+            CountOffsets = new NativeList<int2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+            PassMeshBatchs = new NativeList<FPassMeshBatchV2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+            MeshDrawCommands = new NativeList<FMeshDrawCommandV2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+
+            //Build MeshDrawCommand
+            FBuildMeshDrawCommandJob BuildMeshDrawCommandJob = new FBuildMeshDrawCommandJob();
+            {
+                BuildMeshDrawCommandJob.Indexs = Indexs;
+                BuildMeshDrawCommandJob.CullingData = CullingData;
+                BuildMeshDrawCommandJob.CountOffsets = CountOffsets;
+                BuildMeshDrawCommandJob.MeshBatchs = MeshBatchs;
+                BuildMeshDrawCommandJob.PassMeshBatchs = PassMeshBatchs;
+                BuildMeshDrawCommandJob.MeshDrawCommands = MeshDrawCommands;
+            }
+            GatherHandle = BuildMeshDrawCommandJob.Schedule();
         }
     }
 }

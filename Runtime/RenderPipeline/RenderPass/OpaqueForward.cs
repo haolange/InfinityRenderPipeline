@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef SpecularBuffer;
         }
 
-        void RenderOpaqueForward(Camera RenderCamera, FGPUScene GPUScene, FCullingData CullingData, in CullingResults CullingResult)
+        void RenderOpaqueForward(Camera RenderCamera, FCullingData CullingData, in CullingResults CullingResult)
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.ForwardPlus, new RenderQueueRange(0, 2999), PerObjectData.Lightmaps));
@@ -29,6 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureDesc SpecularBDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "SpecularTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef SpecularTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.SpecularBuffer, SpecularBDesc);
 
+
             //Add OpaqueForwardPass
             GraphBuilder.AddPass<FOpaqueForwardData>("OpaqueForward", ProfilingSampler.Get(CustomSamplerId.OpaqueForward),
             (ref FOpaqueForwardData PassData, ref RDGPassBuilder PassBuilder) =>
@@ -37,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.DiffuseBuffer = PassBuilder.UseColorBuffer(DiffuseTexture, 0);
                 PassData.SpecularBuffer = PassBuilder.UseColorBuffer(SpecularTexture, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.Read);
+                ForwardPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(RenderList));
             },
             (ref FOpaqueForwardData PassData, RDGContext GraphContext) =>
             {
@@ -49,9 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(ForwardRenderList.cullingResult, ref ForwardRenderList.drawSettings, ref ForwardRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                FMeshPassProcessor ForwardMeshProcessor = GraphContext.ObjectPool.Get<FMeshPassProcessor>();
-                FMeshPassDesctiption ForwardMeshPassDescription = new FMeshPassDesctiption(ForwardRenderList);
-                ForwardMeshProcessor.DispatchGather(GraphContext, GPUScene, CullingData, ForwardMeshPassDescription);
+                ForwardPassMeshProcessor.DispatchDraw(GraphContext, GPUScene, 4);
             });
         }
     }

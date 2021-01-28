@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RendererList RendererList;
         }
 
-        void RenderOpaqueGBuffer(Camera RenderCamera, FGPUScene GPUScene, FCullingData CullingData, in CullingResults CullingResult)
+        void RenderOpaqueGBuffer(Camera RenderCamera, FCullingData CullingData, in CullingResults CullingResult)
         {
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
@@ -37,6 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.GBufferA = PassBuilder.UseColorBuffer(GBufferATexure, 0);
                 PassData.GBufferB = PassBuilder.UseColorBuffer(GBufferBTexure, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
+                GBufferPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(RenderList));
             },
             (ref FOpaqueGBufferData PassData, RDGContext GraphContext) =>
             {
@@ -47,6 +48,9 @@ namespace InfinityTech.Rendering.Pipeline
                 GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
                 GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
+
+                //MeshDrawPipeline
+                GBufferPassMeshProcessor.DispatchDraw(GraphContext, GPUScene, 2);
             });
         }
     }
