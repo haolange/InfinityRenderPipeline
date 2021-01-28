@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureDesc SpecularBDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "SpecularTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef SpecularTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.SpecularBuffer, SpecularBDesc);
 
-            //Add OpaqueGBufferPass
+            //Add OpaqueForwardPass
             GraphBuilder.AddPass<FOpaqueForwardData>("OpaqueForward", ProfilingSampler.Get(CustomSamplerId.OpaqueForward),
             (ref FOpaqueForwardData PassData, ref RDGPassBuilder PassBuilder) =>
             {
@@ -41,17 +41,17 @@ namespace InfinityTech.Rendering.Pipeline
             (ref FOpaqueForwardData PassData, RDGContext GraphContext) =>
             {
                 //UnityRenderer
-                RendererList GBufferRenderList = PassData.RendererList;
-                GBufferRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
-                GBufferRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
-                GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
-                GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
-                GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
+                RendererList ForwardRenderList = PassData.RendererList;
+                ForwardRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
+                ForwardRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
+                ForwardRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
+                ForwardRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
+                GraphContext.RenderContext.DrawRenderers(ForwardRenderList.cullingResult, ref ForwardRenderList.drawSettings, ref ForwardRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                FMeshPassProcessor OpaqueMeshProcessor = GraphContext.ObjectPool.Get<FMeshPassProcessor>();
-                FMeshPassDesctiption OpaqueMeshPassDescription = new FMeshPassDesctiption(GBufferRenderList);
-                OpaqueMeshProcessor.DispatchDraw(GraphContext, GPUScene, CullingData, OpaqueMeshPassDescription);
+                FMeshPassProcessor ForwardMeshProcessor = GraphContext.ObjectPool.Get<FMeshPassProcessor>();
+                FMeshPassDesctiption ForwardMeshPassDescription = new FMeshPassDesctiption(ForwardRenderList);
+                ForwardMeshProcessor.DispatchDraw(GraphContext, GPUScene, CullingData, ForwardMeshPassDescription);
             });
         }
     }

@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal void DispatchDraw(RDGContext GraphContext, FGPUScene GPUScene, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
-            if (GPUScene.MeshBatchs.IsCreated == false || CullingData.ViewMeshBatchs.IsCreated == false) { return; }
+            if (GPUScene.MeshBatchs.IsCreated == false || CullingData.ViewMeshBatchs.IsCreated == false || CullingData.bRendererView != true) { return; }
 
             if (CullingData.ViewMeshBatchs.Length == 0) { return; }
 
