@@ -212,12 +212,13 @@ namespace InfinityTech.Rendering.Pipeline
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, Views);
-            foreach (Camera View in Views)
+            for (int ViewIndex = 0; ViewIndex < Views.Length; ViewIndex++)
             {
                 //Init CommandBuffer
                 CommandBuffer CmdBuffer = CommandBufferPool.Get("");
 
                 //Render View
+                Camera View = Views[ViewIndex];
                 BeginCameraRendering(RenderContext, View);
                 {
                     #region InitViewContext
