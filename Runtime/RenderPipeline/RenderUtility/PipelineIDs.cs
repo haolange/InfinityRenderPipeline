@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static RenderTargetIdentifier[] GBuffer_IDs = { GBufferA, GBufferB };
 
         public static int RT_MainTexture = Shader.PropertyToID("_MainTex");
-        public static int BlitScaleBias = Shader.PropertyToID("_ScaleBais");
+        public static int ScaleBias = Shader.PropertyToID("_ScaleBais");
     }
     
     public static class InfinityPassIDs {

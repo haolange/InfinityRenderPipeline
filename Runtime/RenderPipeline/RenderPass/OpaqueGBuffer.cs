@@ -23,10 +23,10 @@ namespace InfinityTech.Rendering.Pipeline
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
-            RDGTextureDesc GBufferADesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
+            RDGTextureDesc GBufferADesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
             RDGTextureRef GBufferATexure = GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferA, GBufferADesc);
 
-            RDGTextureDesc GBufferBDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
+            RDGTextureDesc GBufferBDesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
             RDGTextureRef GBufferBTexure = GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferB, GBufferBDesc);
 
             //Add OpaqueGBufferPass
@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.GBufferA = PassBuilder.UseColorBuffer(GBufferATexure, 0);
                 PassData.GBufferB = PassBuilder.UseColorBuffer(GBufferBTexure, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                GBufferPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(0, 2999));
+                GBufferPassMeshProcessor.DispatchGather(CullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueGBufferData PassData, RDGContext GraphContext) =>
             {
@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                GBufferPassMeshProcessor.DispatchDraw(GraphContext, GPUScene, 2);
+                GBufferPassMeshProcessor.DispatchDraw(GraphContext, 2);
             });
         }
     }

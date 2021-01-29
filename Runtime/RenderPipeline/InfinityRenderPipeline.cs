@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.VFX;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using InfinityTech.Component;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
 using InfinityTech.Rendering.MeshPipeline;
@@ -200,72 +201,78 @@ namespace InfinityTech.Rendering.Pipeline
             GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
-            DepthPassMeshProcessor = new FMeshPassProcessor();
-            GBufferPassMeshProcessor = new FMeshPassProcessor();
-            ForwardPassMeshProcessor = new FMeshPassProcessor();
+            DepthPassMeshProcessor = new FMeshPassProcessor(GPUScene);
+            GBufferPassMeshProcessor = new FMeshPassProcessor(GPUScene);
+            ForwardPassMeshProcessor = new FMeshPassProcessor(GPUScene);
         }
 
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] Views)
         {
             //Init FrameContext
             GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), true);
+            //Debug.Log("X : " + Screen.width + "__" + "Y : " + Screen.height);
+            RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, Views);
             for (int ViewIndex = 0; ViewIndex < Views.Length; ViewIndex++)
             {
-                //Init CommandBuffer
+                //Init View
+                Camera View = Views[ViewIndex];
                 CommandBuffer CmdBuffer = CommandBufferPool.Get("");
+                CameraComponent HDView = View.GetComponent<CameraComponent>();
 
                 //Render View
-                Camera View = Views[ViewIndex];
                 BeginCameraRendering(RenderContext, View);
                 {
-                    #region InitViewContext
-                        bool bSceneView = View.cameraType == CameraType.SceneView;
-                        bool bRendererView = View.cameraType == CameraType.Game || View.cameraType == CameraType.Reflection || View.cameraType == CameraType.SceneView;
+                    using (new ProfilingScope(CmdBuffer, HDView ? HDView.ViewProfiler : ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
+                    {
+                        #region InitViewContext
+                            bool bSceneView = View.cameraType == CameraType.SceneView;
+                            bool bRendererView = View.cameraType == CameraType.Game || View.cameraType == CameraType.Reflection || View.cameraType == CameraType.SceneView;
 
-                        #if UNITY_EDITOR
-                            if (bSceneView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(View); }
-                        #endif
+                            #if UNITY_EDITOR
+                                if (bSceneView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(View); }
+                            #endif
 
-                        VFXManager.PrepareCamera(View);
-                        ViewUnifrom.UnpateBufferData(false, View);
-                        ViewUnifrom.BindGPUParameter(CmdBuffer);
-                        RenderContext.SetupCameraProperties(View);
-                        VFXManager.ProcessCameraCommand(View, CmdBuffer);
+                            VFXManager.PrepareCamera(View);
+                            ViewUnifrom.UnpateBufferData(false, View);
+                            ViewUnifrom.BindGPUParameter(CmdBuffer);
+                            RenderContext.SetupCameraProperties(View);
+                            VFXManager.ProcessCameraCommand(View, CmdBuffer);
 
-                        //Culling Context
-                        FCullingData CullingData = new FCullingData(); 
-                        { CullingData.bRendererView = bRendererView; }
-                        ScriptableCullingParameters CullingParameters;
-                        View.TryGetCullingParameters(out CullingParameters);
-                        CullingResults CullingResult = RenderContext.Cull(ref CullingParameters); //Unity Culling
-                        RenderContext.DispatchCull(GPUScene, ref CullingParameters, ref CullingData); //Infinity Culling
-                    #endregion //InitViewContext
+                            //Culling Context
+                            FCullingData CullingData = new FCullingData(); 
+                            { CullingData.bRendererView = bRendererView; }
+                            ScriptableCullingParameters CullingParameters;
+                            View.TryGetCullingParameters(out CullingParameters);
+                            CullingResults CullingResult = RenderContext.Cull(ref CullingParameters); //Unity Culling
+                            RenderContext.DispatchCull(GPUScene, ref CullingParameters, ref CullingData); //Infinity Culling
+                        #endregion //InitViewContext
 
-                    #region InitViewCommand
-                        RenderOpaqueDepth(View, CullingData, CullingResult);
-                        RenderOpaqueGBuffer(View, CullingData, CullingResult);
-                        RenderOpaqueMotion(View, CullingData, CullingResult);
-                        RenderOpaqueForward(View, CullingData, CullingResult);
-                        RenderSkyBox(View);
-                        RenderGizmo(View, GizmoSubset.PostImageEffects);
-                        RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), View.targetTexture);
-                    #endregion //InitViewCommand
+                        #region InitViewCommand
+                            RenderOpaqueDepth(View, CullingData, CullingResult);
+                            RenderOpaqueGBuffer(View, CullingData, CullingResult);
+                            RenderOpaqueMotion(View, CullingData, CullingResult);
+                            RenderOpaqueForward(View, CullingData, CullingResult);
+                            RenderSkyBox(View);
+                            RenderGizmo(View, GizmoSubset.PostImageEffects);
+                            RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), View.targetTexture);
+                        #endregion //InitViewCommand
 
-                    #region ExecuteViewRender
-                        GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
-                    #endregion //ExecuteViewRender
+                        #region ExecuteViewRender
+                            GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
+                        #endregion //ExecuteViewRender
 
-                    #region ReleaseViewContext
-                    CullingData.Release();
-                    ViewUnifrom.UnpateBufferData(true, View);
-                    #endregion //ReleaseViewContext
+                        #region ReleaseViewContext
+                            CullingData.Release();
+                            ViewUnifrom.UnpateBufferData(true, View);
+                        #endregion //ReleaseViewContext
+                    }
                 }
                 EndCameraRendering(RenderContext, View);
 
-                //Submit CommandBuffer
+                //Submit View
                 RenderContext.ExecuteCommandBuffer(CmdBuffer);
                 CommandBufferPool.Release(CmdBuffer);
                 RenderContext.Submit();

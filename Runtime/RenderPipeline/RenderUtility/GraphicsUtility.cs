@@ -74,6 +74,14 @@ namespace InfinityTech.Rendering.Pipeline
             CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, DrawPass);
         }
 
+        public static void DrawFullScreen(this CommandBuffer CmdBuffer, Rect Viewport, RenderTargetIdentifier Source, RenderTargetIdentifier Desc, int DrawPass)
+        {
+            CmdBuffer.SetRenderTarget(Desc);
+            CmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, Source);
+            CmdBuffer.SetViewport(Viewport);
+            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, DrawPass);
+        }
+
         public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier ColorBuffer, Material DrawMaterial, int DrawPass)
         {
             CmdBuffer.SetRenderTarget(ColorBuffer);

@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
 
-            RDGTextureDesc DepthDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
+            RDGTextureDesc DepthDesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, DepthDesc);
 
             //Add OpaqueDepthPass
@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 PassData.RendererList = RenderList;
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                DepthPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(2450, 2999));
+                DepthPassMeshProcessor.DispatchGather(CullingData, new FMeshPassDesctiption(2450, 2999));
             },
             (ref FOpaqueDepthData PassData, RDGContext GraphContext) =>
             {
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(DepthRenderList.cullingResult, ref DepthRenderList.drawSettings, ref DepthRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                DepthPassMeshProcessor.DispatchDraw(GraphContext, GPUScene, 1);
+                DepthPassMeshProcessor.DispatchDraw(GraphContext, 1);
             });
         }
     }

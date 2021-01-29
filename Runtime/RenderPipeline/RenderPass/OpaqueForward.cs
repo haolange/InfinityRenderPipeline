@@ -23,10 +23,10 @@ namespace InfinityTech.Rendering.Pipeline
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
-            RDGTextureDesc DiffuseDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DiffuseTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            RDGTextureDesc DiffuseDesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DiffuseTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef DiffuseTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer, DiffuseDesc);
 
-            RDGTextureDesc SpecularBDesc = new RDGTextureDesc(RenderCamera.pixelWidth, RenderCamera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "SpecularTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            RDGTextureDesc SpecularBDesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "SpecularTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef SpecularTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.SpecularBuffer, SpecularBDesc);
 
 
@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.DiffuseBuffer = PassBuilder.UseColorBuffer(DiffuseTexture, 0);
                 PassData.SpecularBuffer = PassBuilder.UseColorBuffer(SpecularTexture, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.Read);
-                ForwardPassMeshProcessor.DispatchGather(GPUScene, CullingData, new FMeshPassDesctiption(0, 2999));
+                ForwardPassMeshProcessor.DispatchGather(CullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueForwardData PassData, RDGContext GraphContext) =>
             {
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(ForwardRenderList.cullingResult, ref ForwardRenderList.drawSettings, ref ForwardRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                ForwardPassMeshProcessor.DispatchDraw(GraphContext, GPUScene, 4);
+                ForwardPassMeshProcessor.DispatchDraw(GraphContext, 4);
             });
         }
     }

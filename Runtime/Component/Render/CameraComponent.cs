@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using Unity.Collections;
+using UnityEngine.Rendering;
 using InfinityTech.Core.Geometry;
 
 namespace InfinityTech.Component
@@ -11,6 +12,7 @@ namespace InfinityTech.Component
     {
         public Camera UnityCamera;
         public Plane[] FrustumPlane;
+        public ProfilingSampler ViewProfiler;
         public NativeArray<FPlane> ViewFrustum;
 
         // Function
@@ -25,6 +27,7 @@ namespace InfinityTech.Component
             GetWorld().AddWorldView(this);
 
             UnityCamera = GetComponent<Camera>();
+            ViewProfiler = new ProfilingSampler(this.name);
             ViewFrustum = new NativeArray<FPlane>(6, Allocator.Persistent);
         }
 

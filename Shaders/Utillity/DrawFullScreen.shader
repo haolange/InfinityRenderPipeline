@@ -66,6 +66,10 @@
 				#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 				float4 _ScaleBais;
+
+				SamplerState sampler_LinearClamp;
+				//SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
+				
 				Texture2D _MainTex; SamplerState sampler_MainTex;
 				//Texture2D<uint4> _MainTex; SamplerState sampler_MainTex;
 
@@ -85,15 +89,15 @@
 					Varyings o;
 					o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
 					//o.uv = (v.vertex.xy + 1) * 0.5;
-					o.uv = ((v.vertex.xy + 1) * 0.5) * _ScaleBais.xy;
-					//o.uv = ( (v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
+					//o.uv = ((v.vertex.xy + 1) * 0.5) * float2(1, -1) + float2(0, 1);
+					o.uv = ( (v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
 					return o;
 				}
 
 				float4 frag(Varyings i) : SV_Target
 				{
 					float2 UV = i.uv.xy;
-					return _MainTex.SampleLevel(sampler_MainTex, UV, 0);
+					return _MainTex.SampleLevel(sampler_LinearClamp, UV, 0);
 
 					//ThinGBufferData GBufferData;
 					//DecodeGBuffer(1, _MainTex.Load(int3(i.vertex.xy, 0)), GBufferData);

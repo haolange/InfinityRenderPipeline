@@ -38,18 +38,19 @@ namespace InfinityTech.Rendering.MeshPipeline
     public class FMeshPassProcessor
     {
         internal bool bGatherState;
+        internal FGPUScene GPUScene;
         internal JobHandle GatherHandle;
         internal NativeArray<int> Indexs;
         internal NativeList<int2> CountOffsets;
         internal NativeList<FPassMeshBatchV2> PassMeshBatchs;
         internal NativeList<FMeshDrawCommandV2> MeshDrawCommands;
 
-        public FMeshPassProcessor()
+        public FMeshPassProcessor(FGPUScene InGPUScene)
         {
-
+            GPUScene = InGPUScene;
         }
 
-        internal void DispatchGather(FGPUScene GPUScene, in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchGather(in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
             bGatherState = false;
 
@@ -62,7 +63,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             bGatherState = true;
         }
 
-        internal void DispatchDraw(RDGContext GraphContext, FGPUScene GPUScene, in int PassIndex)
+        internal void DispatchDraw(RDGContext GraphContext, in int PassIndex)
         {
             GatherHandle.Complete();
 

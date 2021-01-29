@@ -593,35 +593,32 @@ namespace InfinityTech.Rendering.RDG
             m_RenderGraphContext.RenderContext = RenderContext;
             m_RenderGraphContext.ObjectPool = m_ObjectPool;
 
-            using (new ProfilingScope(CmdBuffer, ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
+            for (int passIndex = 0; passIndex < m_CompiledPassInfos.size; ++passIndex)
             {
-                for (int passIndex = 0; passIndex < m_CompiledPassInfos.size; ++passIndex)
+                ref var passInfo = ref m_CompiledPassInfos[passIndex];
+                if (passInfo.culled)
+                    continue;
+
+                if (!passInfo.pass.HasRenderFunc())
                 {
-                    ref var passInfo = ref m_CompiledPassInfos[passIndex];
-                    if (passInfo.culled)
-                        continue;
+                    throw new InvalidOperationException(string.Format("RenderPass {0} was not provided with an execute function.", passInfo.pass.name));
+                }
 
-                    if (!passInfo.pass.HasRenderFunc())
+                try
+                {
+                    using (new ProfilingScope(m_RenderGraphContext.CmdBuffer, passInfo.pass.customSampler))
                     {
-                        throw new InvalidOperationException(string.Format("RenderPass {0} was not provided with an execute function.", passInfo.pass.name));
+                        PreRenderPassExecute(passInfo, m_RenderGraphContext);
+                        passInfo.pass.Execute(m_RenderGraphContext);
+                        PostRenderPassExecute(CmdBuffer, ref passInfo, m_RenderGraphContext);
                     }
-
-                    try
-                    {
-                        using (new ProfilingScope(m_RenderGraphContext.CmdBuffer, passInfo.pass.customSampler))
-                        {
-                            PreRenderPassExecute(passInfo, m_RenderGraphContext);
-                            passInfo.pass.Execute(m_RenderGraphContext);
-                            PostRenderPassExecute(CmdBuffer, ref passInfo, m_RenderGraphContext);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        m_ExecutionExceptionWasRaised = true;
-                        Debug.LogError($"Render Graph Execution error at pass {passInfo.pass.name} ({passIndex})");
-                        Debug.LogException(e);
-                        throw;
-                    }
+                }
+                catch (Exception e)
+                {
+                    m_ExecutionExceptionWasRaised = true;
+                    Debug.LogError($"Render Graph Execution error at pass {passInfo.pass.name} ({passIndex})");
+                    Debug.LogException(e);
+                    throw;
                 }
             }
         }

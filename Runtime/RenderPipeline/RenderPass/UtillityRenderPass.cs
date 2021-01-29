@@ -65,9 +65,8 @@ namespace InfinityTech.Rendering.Pipeline
         ///////////Present Graph
         struct PresentViewData
         {
-            public float2 CameraSize;
-            public RDGTextureRef RT_Source;
-            public RenderTargetIdentifier RT_Dest;
+            public RDGTextureRef SrcBuffer;
+            public RenderTargetIdentifier DestBuffer;
         }
 
         void RenderPresentView(Camera RenderCamera, RDGTextureRef SourceTexture, RenderTexture DestTexture)
@@ -76,27 +75,21 @@ namespace InfinityTech.Rendering.Pipeline
             GraphBuilder.AddPass<PresentViewData>("Present", ProfilingSampler.Get(CustomSamplerId.Present),
             (ref PresentViewData PassData, ref RDGPassBuilder PassBuilder) =>
             {
-                PassData.CameraSize = new float2(RenderCamera.pixelWidth, RenderCamera.pixelHeight);
-                PassData.RT_Source = PassBuilder.ReadTexture(SourceTexture);
-                PassData.RT_Dest = new RenderTargetIdentifier(DestTexture);
+                PassData.SrcBuffer = PassBuilder.ReadTexture(SourceTexture);
+                PassData.DestBuffer = new RenderTargetIdentifier(DestTexture);
             },
             (ref PresentViewData PassData, RDGContext GraphContext) =>
             {
-                RenderTexture RT_Source = PassData.RT_Source;
-
-                /*float4 ScaleBias = new float4(PassData.CameraSize.x / RT_Source.width, PassData.CameraSize.y / RT_Source.height, 0.0f, 0.0f);
-                if (DestTexture == null) {
+                RenderTexture SrcBuffer = PassData.SrcBuffer;
+                float4 ScaleBias = new float4((float)RenderCamera.pixelWidth / (float)SrcBuffer.width, (float)RenderCamera.pixelHeight / (float)SrcBuffer.height, 0.0f, 0.0f);
+                if (DestTexture == null) 
+                {
                     ScaleBias.w = ScaleBias.y;
-                    ScaleBias.y *= -1;
-                }*/
-
-                float4 ScaleBias = new float4(1, 1, 0.0f, 0.0f);
-                if (DestTexture == null) {
                     ScaleBias.y *= -1;
                 }
 
-                GraphContext.CmdBuffer.SetGlobalVector(InfinityShaderIDs.BlitScaleBias, ScaleBias);
-                GraphContext.CmdBuffer.DrawFullScreen(RT_Source, PassData.RT_Dest, 1);
+                GraphContext.CmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, ScaleBias);
+                GraphContext.CmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(RenderCamera), PassData.SrcBuffer, PassData.DestBuffer, 1);
             });
         }
 
