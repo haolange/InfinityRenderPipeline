@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace InfinityTech.Rendering.Feature.Foliage
+namespace InfinityTech.Rendering.FoliagePipeline
 {
     [Serializable]
     public struct FFoliageLODInfo

@@ -64,15 +64,15 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         [BurstCompile]
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int MatchForDynamicInstance(ref FMeshBatch MeshBatch)
+        public static int MatchForDynamicInstance(ref FMeshBatch Target)
         {
-            return MeshBatch.SubmeshIndex + (MeshBatch.Mesh.Id << 16 | MeshBatch.Material.Id);
+            return Target.SubmeshIndex + (Target.Mesh.Id << 16 | Target.Material.Id);
         }
 
         [BurstCompile]
-        public static int MatchForCacheMeshBatch(ref FMeshBatch MeshBatch, in int InstanceID)
+        public static int MatchForCacheMeshBatch(ref FMeshBatch Target, in int InstanceID)
         {
-            return InstanceID + MeshBatch.GetHashCode();
+            return InstanceID + Target.GetHashCode();
         }
 
         public override int GetHashCode()
@@ -121,9 +121,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshBatchIndex = InMeshBatchIndex;
         }
 
-        public int CompareTo(FPassMeshBatch MeshDrawCommandValue)
+        public int CompareTo(FPassMeshBatch Target)
         {
-            return MeshBatchIndex.CompareTo(MeshDrawCommandValue.MeshBatchIndex);
+            return MeshBatchIndex.CompareTo(Target.MeshBatchIndex);
         }
 
         public bool Equals(FPassMeshBatch Target)
@@ -156,9 +156,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshBatchIndex = InMeshBatchIndex;
         }
 
-        public int CompareTo(FPassMeshBatchV2 PassMeshBatch)
+        public int CompareTo(FPassMeshBatchV2 Target)
         {
-            return HashIndex.CompareTo(PassMeshBatch.HashIndex);
+            return HashIndex.CompareTo(Target.HashIndex);
         }
 
         public bool Equals(FPassMeshBatchV2 Target)

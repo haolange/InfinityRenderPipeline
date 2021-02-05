@@ -6,8 +6,9 @@ using InfinityTech.Core.Geometry;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace InfinityTech.Rendering.Feature
+namespace InfinityTech.Rendering.TerrainPipeline
 {
+    [Serializable]
     public struct SectionLODData
 	{
         public int LastLODIndex;
@@ -17,39 +18,65 @@ namespace InfinityTech.Rendering.Feature
 		public float LastLODScreenSizeSquared;
 	};
 
-    public struct FTerrainSectionDescription
+    [Serializable]
+    public struct FSectionDescription
     {
         public FAABB BoundBox;
     }
 
     [Serializable]
-    public struct FTerrainSection
+    public struct FTerrainSection : IComparable<FTerrainSection>, IEquatable<FTerrainSection>
     {
         public int NumQuad;
         public int LODIndex;
         public float FractionLOD;
 
-        public int MaxLOD;	
-        public int FirstLOD;
-        public int LastLOD;
+        //public int SectionIndex;
+        //public SectionLODData LODSettings;
 
-        public int SectionIndex;
-        public SectionLODData LODSettings;
-
-        public Rect DrawRect;
-        public FAABB BoundBox;
+        public FBound BoundBox;
         public float3 PivotPosition;
         public float3 CenterPosition;
-        
+
+        public int TopSectionIndex;
         public int LeftSectionIndex;
         public int RightSectionIndex;
-        public int TopSectionIndex;
         public int ButtomSectionIndex;
 
 
-        /*public FTerrainSection(in FTerrainSectionDescription TerrainSectionDescription)
+        /*public FTerrainSection(in FSectionDescription SectionDescription)
         {
-            BoundBox = TerrainSectionDescription.BoundBox;
+            BoundBox = SectionDescription.BoundBox;
         }*/
+
+        public bool Equals(FTerrainSection Target)
+        {
+            return NumQuad.Equals(Target.NumQuad) && LODIndex.Equals(Target.LODIndex) && FractionLOD.Equals(Target.FractionLOD) && BoundBox.Equals(Target.BoundBox) && PivotPosition.Equals(Target.PivotPosition) && CenterPosition.Equals(Target.CenterPosition) && LeftSectionIndex.Equals(Target.LeftSectionIndex) && RightSectionIndex.Equals(Target.RightSectionIndex) && TopSectionIndex.Equals(Target.TopSectionIndex) && LODIndex.Equals(Target.LODIndex) && ButtomSectionIndex.Equals(Target.ButtomSectionIndex);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals((FTerrainSection)obj);
+        }
+
+        public int CompareTo(FTerrainSection Target)
+        {
+            return LODIndex.CompareTo(Target.LODIndex);
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = NumQuad;
+            hashCode += LODIndex.GetHashCode();
+            hashCode += BoundBox.GetHashCode();
+            hashCode += FractionLOD.GetHashCode();
+            hashCode += PivotPosition.GetHashCode();
+            hashCode += CenterPosition.GetHashCode();
+            hashCode += TopSectionIndex.GetHashCode();
+            hashCode += LeftSectionIndex.GetHashCode();
+            hashCode += RightSectionIndex.GetHashCode();
+            hashCode += ButtomSectionIndex.GetHashCode();
+            return hashCode;
+        }
     }
 }

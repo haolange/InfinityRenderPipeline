@@ -2,7 +2,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Component
 {
@@ -13,11 +13,13 @@ namespace InfinityTech.Component
         public float LOD0ScreenSize = 0.5f;
         public float LOD0Distribution = 1.25f;
         public float LODXDistribution = 2.8f;
-        
+
+        public FTerrainSector TerrainSector;
+
 
         public TerrainComponent() : base()
         {
- 
+
         }
 
         protected override void OnRigister()

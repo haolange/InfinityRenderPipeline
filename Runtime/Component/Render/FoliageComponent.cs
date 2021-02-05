@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using Unity.Collections;
 using System.Collections.Generic;
 using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.Feature.Foliage;
+using InfinityTech.Rendering.FoliagePipeline;
 
 namespace InfinityTech.Component
 {
