@@ -11,7 +11,6 @@
     "com.unity.shadergraph": "10.2.2",
     "com.unity.mathematics": "1.2.1",
     "com.unity.addressables": "1.16.16",
-    "com.unity.rendering.hybrid": "0.11.0-preview.42",
     "com.unity.visualeffectgraph": "10.2.2",
     "com.unity.render-pipelines.core": "10.2.2"
   }
