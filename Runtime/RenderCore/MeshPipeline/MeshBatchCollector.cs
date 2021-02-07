@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             CacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = true)
+        public void GatherMeshBatch(in NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = true)
         {
             if(!CacheMeshBatchStateBuckets.IsCreated) { return; }
             
