@@ -43,6 +43,21 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
+    public unsafe struct FMeshBatchGatherJob: IJobParallelFor
+    {
+        [WriteOnly]
+        public NativeArray<FMeshBatch> Array;
+
+        [ReadOnly]
+        public NativeHashMap<int, FMeshBatch> Hashmap;
+
+        public void Execute(int index)
+        {
+            Array[index] = UnsafeUtility.ReadArrayElement<FMeshBatch>(Hashmap.m_HashMapData.m_Buffer->values, index);
+        }
+    }
+
+    [BurstCompile]
     public struct FMeshBatchCullingJob : IJobParallelFor
     {
         [ReadOnly]

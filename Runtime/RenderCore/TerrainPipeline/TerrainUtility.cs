@@ -7,6 +7,7 @@ using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
+#if UNITY_EDITOR
     public class TerrainTexture
     {
         public Texture2D HeightMap;
@@ -27,6 +28,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             Object.DestroyImmediate(HeightMap);
         }
     }
+#endif
 
     public static class HeightmapLoader
     {

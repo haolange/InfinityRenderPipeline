@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         protected FMeshBatchCollector MeshBatchCollector;
 
 
-        public void Gather(FMeshBatchCollector InMeshBatchCollector, in bool Block = false)
+        public void Gather(FMeshBatchCollector InMeshBatchCollector, in bool Block = false, in bool bParallel = true)
         {
             if(Block) { return; }
 
@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if(MeshBatchCollector.CacheMeshBatchStateBuckets.IsCreated)
             {
                 MeshBatchs = new NativeArray<FMeshBatch>(MeshBatchCollector.CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                MeshBatchCollector.GatherMeshBatch(MeshBatchs);
+                MeshBatchCollector.GatherMeshBatch(MeshBatchs, bParallel);
             }
         }
 

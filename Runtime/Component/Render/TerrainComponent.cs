@@ -77,6 +77,7 @@ namespace InfinityTech.Component
             TerrainSector.Release();
         }
 
+#if UNITY_EDITOR
         public void Serialize()
         {
             print("Serialize");
@@ -95,7 +96,6 @@ namespace InfinityTech.Component
             HeightTexture.Release();
         }
 
-#if UNITY_EDITOR
         private void DrawBound()
         {
             TerrainSector.DrawBound();

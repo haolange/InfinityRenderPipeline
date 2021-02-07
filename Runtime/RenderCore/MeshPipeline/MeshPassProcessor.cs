@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
                 {
-                    /*int2 CountOffset = CountOffsets[BatchIndex];
+                    int2 CountOffset = CountOffsets[BatchIndex];
                     FMeshDrawCommandV2 MeshDrawCommand = MeshDrawCommands[BatchIndex];
 
                     Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshDrawCommand.MeshID);
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     {
                         int DrawIndex = Indexs[CountOffset.y + InstanceIndex];
                         GraphContext.CmdBuffer.DrawMesh(DrawMesh, GPUScene.MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, PassIndex);
-                    }*/
+                    }
                 }
             }
 

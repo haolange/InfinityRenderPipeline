@@ -209,7 +209,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] Views)
         {
             //Init FrameContext
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), false);
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), false, true);
             //Debug.Log("X : " + Screen.width + "__" + "Y : " + Screen.height);
             RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 

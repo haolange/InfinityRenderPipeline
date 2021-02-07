@@ -26,19 +26,19 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             if (!bParallel)
             {
-                FHashmapGatherValueJob<int, FMeshBatch> HashmapGatherValueJob = new FHashmapGatherValueJob<int, FMeshBatch>();
+                FHashmapGatherValueJob<int, FMeshBatch> MeshBatchGatherJob = new FHashmapGatherValueJob<int, FMeshBatch>();
                 {
-                    HashmapGatherValueJob.Array = MeshBatchs;
-                    HashmapGatherValueJob.Hashmap = CacheMeshBatchStateBuckets;
+                    MeshBatchGatherJob.Array = MeshBatchs;
+                    MeshBatchGatherJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
-                HashmapGatherValueJob.Run();
+                MeshBatchGatherJob.Run();
             } else {
-                FHashmapParallelGatherValueJob<int, FMeshBatch> HashmapParallelGatherValueJob = new FHashmapParallelGatherValueJob<int, FMeshBatch>();
+                FMeshBatchGatherJob MeshBatchParallelGatherJob = new FMeshBatchGatherJob();
                 {
-                    HashmapParallelGatherValueJob.Array = MeshBatchs;
-                    HashmapParallelGatherValueJob.Hashmap = CacheMeshBatchStateBuckets;
+                    MeshBatchParallelGatherJob.Array = MeshBatchs;
+                    MeshBatchParallelGatherJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
-                HashmapParallelGatherValueJob.Schedule(MeshBatchs.Length, 256).Complete();
+                MeshBatchParallelGatherJob.Schedule(MeshBatchs.Length, 256).Complete();
             }
         }
 
