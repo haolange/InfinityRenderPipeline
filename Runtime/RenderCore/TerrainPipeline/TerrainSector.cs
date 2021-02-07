@@ -2,10 +2,7 @@ using System;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
-using System.Collections;
 using InfinityTech.Core.Geometry;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
@@ -15,8 +12,9 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int[] MaxLODs;
         public FBound BoundBox;
         public FTerrainSection[] Sections;
-        public NativeArray<int> NativeMaxLODs;
+        public FSectionLODData[] LODSettings;
         public NativeArray<FTerrainSection> NativeSections;
+        public NativeArray<FSectionLODData> NativeLODSettings;
 
         public FTerrainSector(in int SectorSize, in int NumSection, in int NumQuad, in float3 SectorPivotPosition, FAABB SectorBound)
         {
@@ -25,7 +23,8 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
             MaxLODs = new int[NumSection * NumSection];
             Sections = new FTerrainSection[NumSection * NumSection];
-            BoundBox = new FBound(new float3(SectorPivotPosition.x + SectorSize_Half, SectorPivotPosition.y + (SectorBound.size.y / 2), SectorPivotPosition.z + SectorSize_Half), SectorBound.size);
+            LODSettings = new FSectionLODData[NumSection * NumSection];
+            BoundBox = new FBound(new float3(SectorPivotPosition.x + SectorSize_Half, SectorPivotPosition.y + (SectorBound.size.y / 2), SectorPivotPosition.z + SectorSize_Half), SectorBound.size * 0.5f);
 
             for (int SectorSizeX = 0; SectorSizeX <= NumSection - 1; SectorSizeX++)
             {
@@ -41,30 +40,97 @@ namespace InfinityTech.Rendering.TerrainPipeline
                     Sections[SectionIndex].BoundBox = new FAABB(SectionCenterPosition, new float3(NumQuad, 1, NumQuad));
                 }
             }
+
+            InitializLOD(7);
         }
 
         public void Initializ()
         {
-            NativeMaxLODs = new NativeArray<int>(MaxLODs.Length, Allocator.Persistent);
-            NativeSections = new NativeArray<FTerrainSection>(Sections.Length, Allocator.Persistent);
+            if (NativeSections.IsCreated == false && NativeLODSettings.IsCreated == false)
+            {
+                NativeSections = new NativeArray<FTerrainSection>(Sections.Length, Allocator.Persistent);
+                NativeLODSettings = new NativeArray<FSectionLODData>(LODSettings.Length, Allocator.Persistent);
+            }
         }
 
         public void Release()
         {
-            NativeMaxLODs.Dispose();
-            NativeSections.Dispose();
+            if (NativeSections.IsCreated == true && NativeLODSettings.IsCreated == true)
+            {
+                NativeSections.Dispose();
+                NativeLODSettings.Dispose();
+            }
         }
 
         public void FlushNative()
         {
-            for(int i = 0; i < Sections.Length; i++)
+            if(NativeSections.IsCreated == true && NativeLODSettings.IsCreated == true)
             {
-                NativeMaxLODs[i] = MaxLODs[i];
-                NativeSections[i] = Sections[i];
+                for (int i = 0; i < Sections.Length; i++)
+                {
+                    NativeSections[i] = Sections[i];
+                    NativeLODSettings[i] = LODSettings[i];
+                }
+            }
+        }
+
+        private void InitializLOD(in int MaxLOD)
+        {
+            for (int i = 0; i < MaxLODs.Length; i++)
+            {
+                MaxLODs[i] = MaxLOD;
+            }
+        }
+
+        public void FlushLODData(in float LOD0ScreenSize, in float LOD0Distribution, in float LODDistribution)
+        {
+            for (int i = 0; i < LODSettings.Length; i++)
+            {
+                ref int MaxLOD = ref MaxLODs[i];
+                ref FSectionLODData LODSetting = ref LODSettings[i];
+
+                float CurrentScreenSizeRatio = LOD0ScreenSize;
+                float[] LODScreenRatioSquared = new float[MaxLOD];
+                float ScreenSizeRatioDivider = math.max(LOD0Distribution, 1.01f);
+                LODScreenRatioSquared[0] = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
+
+                // LOD 0 handling
+                LODSetting.LOD0ScreenSizeSquared = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
+                CurrentScreenSizeRatio /= ScreenSizeRatioDivider;
+                LODSetting.LOD1ScreenSizeSquared = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
+                ScreenSizeRatioDivider = math.max(LODDistribution, 1.01f);
+                LODSetting.LODOnePlusDistributionScalarSquared = ScreenSizeRatioDivider * ScreenSizeRatioDivider;
+
+                // Other LODs
+                for (int LOD_Index = 1; LOD_Index <= MaxLOD - 1; ++LOD_Index) // This should ALWAYS be calculated from the component size, not user MaxLOD override
+                {
+                    LODScreenRatioSquared[LOD_Index] = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
+                    CurrentScreenSizeRatio /= ScreenSizeRatioDivider;
+                }
+
+                // Clamp ForcedLOD to the valid range and then apply
+                LODSetting.LastLODIndex = MaxLOD;
+                LODSetting.LastLODScreenSizeSquared = LODScreenRatioSquared[MaxLOD - 1];
             }
         }
 
 #if UNITY_EDITOR
+        public void DrawBound(in bool LODColor = false)
+        {
+            Geometry.DrawBound(BoundBox, Color.white);
+
+            for (int i = 0; i < Sections.Length; i++)
+            {
+                ref FTerrainSection Section = ref Sections[i];
+                if (!LODColor)
+                {
+                    Geometry.DrawBound(Section.BoundBox, Color.yellow);
+                } else {
+                    Geometry.DrawBound(Section.BoundBox, new Color(TerrainUtility.LODColor[Section.LODIndex].x * 0.5f, TerrainUtility.LODColor[Section.LODIndex].y * 0.5f, TerrainUtility.LODColor[Section.LODIndex].z * 0.5f));
+                }
+            }
+        }
+
         public void FlushBounds(int SectionSize, int TerrainSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
         {
             int TerrainSize_Half = TerrainSize / 2;
@@ -97,7 +163,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 float PosY = ((Section.CenterPosition.y + MinHeight * ScaleY) + (Section.CenterPosition.y + MaxHeight * ScaleY)) * 0.5f;
                 float SizeY = ((Section.CenterPosition.y + MinHeight * ScaleY) - (Section.CenterPosition.y + MaxHeight * ScaleY));
                 float3 NewBoundCenter = new float3(Section.CenterPosition.x, PosY, Section.CenterPosition.z);
-                Section.BoundBox = new FBound(NewBoundCenter, new Vector3(SectionSize, SizeY, SectionSize));
+                Section.BoundBox = new FAABB(NewBoundCenter, new float3(SectionSize, SizeY, SectionSize));
             }
         }
 #endif

@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 namespace InfinityTech.Rendering.TerrainPipeline
 {
     [Serializable]
-    public struct SectionLODData
+    public struct FSectionLODData
 	{
         public int LastLODIndex;
         public float LOD0ScreenSizeSquared;
@@ -30,9 +30,6 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int NumQuad;
         public int LODIndex;
         public float FractionLOD;
-
-        //public int SectionIndex;
-        //public SectionLODData LODSettings;
 
         public FBound BoundBox;
         public float3 PivotPosition;

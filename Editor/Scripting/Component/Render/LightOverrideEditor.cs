@@ -10,7 +10,7 @@ namespace InfinityTech.Editor.Component
 {
     [CanEditMultipleObjects]
     [CustomEditorForRenderPipeline(typeof(Light), typeof(InfinityRenderPipelineAsset))]
-    public class InfinityLightEditor : LightEditor
+    public class LightOverrideEditor : LightEditor
     {
         #region Variable
         #region TargetObject

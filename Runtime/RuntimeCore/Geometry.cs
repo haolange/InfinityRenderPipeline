@@ -132,6 +132,9 @@ namespace InfinityTech.Core.Geometry
         }
 
         public static implicit operator FBound(FAABB Bound) { return new FBound(Bound.center, Bound.extents); }
+        public static implicit operator FBound(Bounds Bound) { return new FBound(Bound.center, Bound.extents); }
+        public static implicit operator FAABB(FBound Bound) { return new FAABB(Bound.center, Bound.extents * 2); }
+        public static implicit operator Bounds(FBound Bound) { return new Bounds(Bound.center, Bound.extents * 2); }
     }
 
     [Serializable]
