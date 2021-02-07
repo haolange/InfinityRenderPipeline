@@ -26,7 +26,7 @@ namespace InfinityTech.Component
 
         }
 
-        protected override void OnRigister()
+        protected override void OnRegister()
         {
 
         }
@@ -46,7 +46,7 @@ namespace InfinityTech.Component
 
         }
 
-        protected override void UnRigister()
+        protected override void UnRegister()
         {
 
         }

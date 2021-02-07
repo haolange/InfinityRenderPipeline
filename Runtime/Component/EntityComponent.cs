@@ -50,7 +50,7 @@ namespace InfinityTech.Component
         void OnEnable()
         {
             EntityTransform = GetComponent<Transform>();
-            OnRigister();
+            OnRegister();
             EventPlay();
         }
 
@@ -65,7 +65,7 @@ namespace InfinityTech.Component
 
         void OnDisable()
         {
-            UnRigister();
+            UnRegister();
         }
 
         private bool TransfromStateDirty()
@@ -82,7 +82,7 @@ namespace InfinityTech.Component
             return false;
         }
 
-        protected virtual void OnRigister()
+        protected virtual void OnRegister()
         {
 
         }
@@ -102,7 +102,7 @@ namespace InfinityTech.Component
 
         }
 
-        protected virtual void UnRigister()
+        protected virtual void UnRegister()
         {
 
         }

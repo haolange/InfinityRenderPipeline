@@ -69,7 +69,7 @@ namespace InfinityTech.Component
  
         }
 
-        protected override void OnRigister()
+        protected override void OnRegister()
         {
             //bInitTransfrom = false;
             CustomPrimitiveData = new NativeArray<float>(16, Allocator.Persistent);
@@ -136,7 +136,7 @@ namespace InfinityTech.Component
             UpdateMeshBatch();
         }
 
-        protected override void UnRigister()
+        protected override void UnRegister()
         {
             ReleaseMeshBatch();
             RemoveWorldPrimitive(GeometryState);

@@ -21,9 +21,8 @@ namespace InfinityTech.Component
 
         }
 
-        protected override void OnRigister()
+        protected override void OnRegister()
         {
-            base.OnRigister();
             GetWorld().AddWorldView(this);
 
             UnityCamera = GetComponent<Camera>();
@@ -52,7 +51,7 @@ namespace InfinityTech.Component
             }
         }
 
-        protected override void UnRigister()
+        protected override void UnRegister()
         {
             GetWorld().RemoveWorldView(this);
 

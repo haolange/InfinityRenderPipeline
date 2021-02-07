@@ -48,7 +48,7 @@ namespace InfinityTech.Component
 
         }
 
-        protected override void OnRigister()
+        protected override void OnRegister()
         {
             print("OnRigister");
             TerrainSector.Initializ();
@@ -71,7 +71,7 @@ namespace InfinityTech.Component
             //print("XX");
         }
 
-        protected override void UnRigister()
+        protected override void UnRegister()
         {
             print("UnRigister");
             TerrainSector.Release();

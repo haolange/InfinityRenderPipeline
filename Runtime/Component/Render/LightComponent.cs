@@ -192,9 +192,8 @@ namespace InfinityTech.Component
 
         }
 
-        protected override void OnRigister()
+        protected override void OnRegister()
         {
-            base.OnRigister();
             GetWorld().AddWorldLight(this);
 
             UnityLight = GetComponent<Light>();
@@ -216,7 +215,7 @@ namespace InfinityTech.Component
             base.OnTransformChange();
         }
 
-        protected override void UnRigister()
+        protected override void UnRegister()
         {
             GetWorld().RemoveWorldLight(this);
         }
