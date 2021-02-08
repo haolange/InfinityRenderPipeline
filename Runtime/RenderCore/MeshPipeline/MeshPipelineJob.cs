@@ -1,6 +1,7 @@
 ﻿using System;
 using Unity.Jobs;
 using Unity.Burst;
+using System.Threading;
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
@@ -43,19 +44,99 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public unsafe struct FMeshBatchGatherJob: IJobParallelFor
+    public unsafe struct FMeshBatchCounterJob : IJob
     {
-        [WriteOnly]
-        public NativeArray<FMeshBatch> Array;
+        [ReadOnly]
+        public int Count;
 
         [ReadOnly]
-        public NativeHashMap<int, FMeshBatch> Hashmap;
+        public int Length;
+
+        [NativeDisableUnsafePtrRestriction]
+        public int* BucketNext;
+
+        [NativeDisableUnsafePtrRestriction]
+        public int* BucketArray;
+
+        [NativeDisableParallelForRestriction]
+        public NativeList<int> MeshBatchMapIndexs;
+
+        public void Execute()
+        {
+            int count = 0;
+
+            for (int index = 0; index <= Length; ++index)
+            {
+                if (count < Count)
+                {
+                    int bucket = BucketArray[index];
+
+                    while (bucket != -1)
+                    {
+                        MeshBatchMapIndexs.Add(count);
+                        bucket = BucketNext[bucket];
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+
+    [BurstCompile]
+    public unsafe struct FMeshBatchGatherJob: IJobParallelFor
+    {
+        [NativeDisableUnsafePtrRestriction]
+        public byte* HashmapValues;
+
+        [ReadOnly]
+        public NativeArray<int> MeshBatchMapIndexs;
+
+        [WriteOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
 
         public void Execute(int index)
         {
-            Array[index] = UnsafeUtility.ReadArrayElement<FMeshBatch>(Hashmap.m_HashMapData.m_Buffer->values, index);
+            int Offset = MeshBatchMapIndexs[index];
+            MeshBatchs[index] = UnsafeUtility.ReadArrayElement<FMeshBatch>(HashmapValues, Offset);
         }
     }
+
+    /*[BurstCompile]
+    public unsafe struct FMeshBatchGatherJob : IJobParallelFor
+    {
+        [NativeDisableUnsafePtrRestriction]
+        public int* Count;
+
+        [NativeDisableUnsafePtrRestriction]
+        public int* BucketNext;
+
+        [NativeDisableUnsafePtrRestriction]
+        public int* BucketArray;
+
+        [NativeDisableUnsafePtrRestriction]
+        public byte* HashmapValues;
+
+        [WriteOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        public void Execute(int index)
+        {
+            ref int count = ref Count[0];
+
+            if (count < MeshBatchs.Length)
+            {
+                int bucket = BucketArray[index];
+
+                while (bucket != -1)
+                {
+                    MeshBatchs[count] = UnsafeUtility.ReadArrayElement<FMeshBatch>(HashmapValues, bucket);
+                    bucket = BucketNext[bucket];
+
+                    Interlocked.Increment(ref count);
+                }
+            }
+        }
+    }*/
 
     [BurstCompile]
     public struct FMeshBatchCullingJob : IJobParallelFor
