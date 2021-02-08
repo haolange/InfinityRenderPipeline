@@ -18,13 +18,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             CacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in bool bParallel = true)
+        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in int Methdo = 0)
         {
             if(!CacheMeshBatchStateBuckets.IsCreated) { return; }
             
             if(CacheMeshBatchStateBuckets.Count() == 0) { return; }
 
-            if (!bParallel)
+            if (Methdo == 0)
             {
                 FHashmapGatherValueJob<int, FMeshBatch> MeshBatchGatherJob = new FHashmapGatherValueJob<int, FMeshBatch>();
                 {
@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     MeshBatchGatherJob.Hashmap = CacheMeshBatchStateBuckets;
                 }
                 MeshBatchGatherJob.Run();
-            } else {
+            } else if(Methdo == 1) {
                 NativeList<int> MeshBatchMapIndexs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
                 int* BucketNext = (int*)CacheMeshBatchStateBuckets.m_HashMapData.m_Buffer->next;
                 int* BucketArray = (int*)CacheMeshBatchStateBuckets.m_HashMapData.m_Buffer->buckets;
@@ -74,6 +74,13 @@ namespace InfinityTech.Rendering.MeshPipeline
                     }
                 }*/
                 MeshBatchMapIndexs.Dispose();
+            } else if(Methdo == 2) {
+                FHashmapParallelGatherValueJob<int, FMeshBatch> MeshBatchGatherJob = new FHashmapParallelGatherValueJob<int, FMeshBatch>();
+                {
+                    MeshBatchGatherJob.Array = MeshBatchs;
+                    MeshBatchGatherJob.Hashmap = CacheMeshBatchStateBuckets;
+                }
+                MeshBatchGatherJob.Schedule(MeshBatchs.Length, 256).Complete();
             }
         }
 

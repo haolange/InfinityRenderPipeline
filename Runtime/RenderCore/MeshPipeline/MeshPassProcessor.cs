@@ -1,4 +1,5 @@
 using Unity.Jobs;
+using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
@@ -35,6 +36,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public class FMeshPassProcessor
     {
         internal bool bGatherState;
+        internal bool bScheduleState;
         internal FGPUScene GPUScene;
         internal JobHandle GatherHandle;
         internal NativeArray<int> Indexs;
@@ -50,6 +52,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void DispatchGather(in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
             bGatherState = false;
+            bScheduleState = false;
 
             if (GPUScene.MeshBatchs.IsCreated == false || CullingData.ViewMeshBatchs.IsCreated == false || CullingData.bRendererView != true) { return; }
 
@@ -60,18 +63,22 @@ namespace InfinityTech.Rendering.MeshPipeline
             bGatherState = true;
         }
 
+        internal void SyncDispatch()
+        {
+            if (bScheduleState == false) { return; }
+                GatherHandle.Complete();
+        }
+
         internal void DispatchDraw(RDGContext GraphContext, in int PassIndex)
         {
-            GatherHandle.Complete();
-
             if (bGatherState == false) { return; }
 
             //Draw Call
             using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshDrawPipeline)))
             {
-                for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
+                /*for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
                 {
-                    /*int2 CountOffset = CountOffsets[BatchIndex];
+                    int2 CountOffset = CountOffsets[BatchIndex];
                     FMeshDrawCommandV2 MeshDrawCommand = MeshDrawCommands[BatchIndex];
 
                     Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshDrawCommand.MeshID);
@@ -81,8 +88,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                     {
                         int DrawIndex = Indexs[CountOffset.y + InstanceIndex];
                         GraphContext.CmdBuffer.DrawMesh(DrawMesh, GPUScene.MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, PassIndex);
-                    }*/
-                }
+                    }
+                }*/
             }
 
             //Release MeshPassData
@@ -112,6 +119,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 BuildMeshDrawCommandJob.MeshPassDesctiption = MeshPassDesctiption;
             }
             GatherHandle = BuildMeshDrawCommandJob.Schedule();
+
+            bScheduleState = true;
         }
     }
 }
