@@ -1,10 +1,7 @@
 using Unity.Jobs;
-using UnityEngine;
-using System.Threading;
 using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
-using InfinityTech.Core.Native;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Pipeline;
 using UnityEngine.Experimental.Rendering;

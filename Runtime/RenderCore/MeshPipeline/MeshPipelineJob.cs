@@ -1,7 +1,6 @@
 ﻿using System;
 using Unity.Jobs;
 using Unity.Burst;
-using System.Threading;
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;

@@ -1,7 +1,5 @@
 ﻿using Unity.Jobs;
-using System.Threading;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
