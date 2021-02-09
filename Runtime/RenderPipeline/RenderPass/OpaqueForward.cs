@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.DiffuseBuffer = PassBuilder.UseColorBuffer(DiffuseTexture, 0);
                 PassData.SpecularBuffer = PassBuilder.UseColorBuffer(SpecularTexture, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.Read);
-                ForwardPassMeshProcessor.DispatchGather(CullingData, new FMeshPassDesctiption(0, 2999));
+                ForwardPassMeshProcessor.DispatchSetup(CullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueForwardData PassData, RDGContext GraphContext) =>
             {

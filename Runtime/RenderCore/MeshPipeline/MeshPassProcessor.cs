@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             GPUScene = InGPUScene;
         }
 
-        internal void DispatchGather(in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
+        internal void DispatchSetup(in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
         {
             bGatherState = false;
             bScheduleState = false;
