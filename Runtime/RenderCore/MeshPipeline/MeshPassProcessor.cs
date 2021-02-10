@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             //Draw Call
             using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshDrawPipeline)))
             {
-                /*for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
+                for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
                 {
                     int2 CountOffset = CountOffsets[BatchIndex];
                     FMeshDrawCommandV2 MeshDrawCommand = MeshDrawCommands[BatchIndex];
@@ -89,7 +89,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         int DrawIndex = Indexs[CountOffset.y + InstanceIndex];
                         GraphContext.CmdBuffer.DrawMesh(DrawMesh, GPUScene.MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, PassIndex);
                     }
-                }*/
+                }
             }
 
             //Release MeshPassData
