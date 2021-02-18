@@ -53,8 +53,8 @@ namespace InfinityTech.Component
             //print("OnRigister");
             GetWorld().AddWorldTerrain(this);
             TerrainSector.Initializ();
-            TerrainSector.FlushLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
-            TerrainSector.FlushNative();
+            TerrainSector.GenerateLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
+            TerrainSector.UpdateToNativeCollection();
         }
 
         protected override void OnTransformChange()
@@ -79,6 +79,11 @@ namespace InfinityTech.Component
             GetWorld().RemoveWorldTerrain(this);
         }
 
+        public void UpdateLODData(in float3 ViewOringin, in float4x4 Matrix_Proj)
+        {
+            TerrainSector.UpdateLODData(NumQuad, ViewOringin, Matrix_Proj);
+        }
+
 #if UNITY_EDITOR
         public void Serialize()
         {
@@ -93,19 +98,19 @@ namespace InfinityTech.Component
             HeightTexture.TerrainDataToHeightmap(UnityTerrainData);
 
             TerrainSector = new FTerrainSector(SectorSize, NumSection, NumQuad, transform.position, UnityTerrainData.bounds);
-            TerrainSector.FlushBounds(NumQuad, SectorSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);
+            TerrainSector.UpdateBounds(NumQuad, SectorSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);
 
             HeightTexture.Release();
         }
 
-        private void DrawBound()
+        public void DrawBounds(in bool LODColor = false)
         {
-            TerrainSector.DrawBound();
+            TerrainSector.DrawBound(LODColor);
         }
 
         void OnDrawGizmosSelected()
         {
-            DrawBound();
+            //TerrainSector.DrawBound();
         }
 #endif
     }

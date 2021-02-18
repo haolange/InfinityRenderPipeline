@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void FlushNative()
+        public void UpdateToNativeCollection()
         {
             if(NativeSections.IsCreated == true)
             {
@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void FlushLODData(in float LOD0ScreenSize, in float LOD0Distribution, in float LODDistribution)
+        public void GenerateLODData(in float LOD0ScreenSize, in float LOD0Distribution, in float LODDistribution)
         {
             for (int i = 0; i < Sections.Length; i++)
             {
@@ -108,14 +108,31 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
+        public void UpdateLODData(in int NumQuad, in float3 ViewOringin, in float4x4 Matrix_Proj)
+        {
+            float FractionLOD = 0;
+
+            for (int i = 0; i < NativeSections.Length; ++i)
+            {
+                FTerrainSection Section = NativeSections[i];
+                float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundBox), BoundBox.center, ViewOringin, Matrix_Proj);
+                Section.LODIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(Section.LODSetting, ScreenSize, 1, out FractionLOD));
+                Section.FractionLOD = math.min(5, FractionLOD);
+                Section.NumQuad = math.clamp(NumQuad >> Section.LODIndex, 1, NumQuad);
+
+                NativeSections[i] = Section;
+            }
+        }
+
 #if UNITY_EDITOR
         public void DrawBound(in bool LODColor = false)
         {
             Geometry.DrawBound(BoundBox, Color.white);
 
-            for (int i = 0; i < Sections.Length; i++)
+            for (int i = 0; i < NativeSections.Length; i++)
             {
-                ref FTerrainSection Section = ref Sections[i];
+                FTerrainSection Section = NativeSections[i];
+
                 if (!LODColor)
                 {
                     Geometry.DrawBound(Section.BoundBox, Color.yellow);
@@ -125,7 +142,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void FlushBounds(int SectionSize, int TerrainSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
+        public void UpdateBounds(int NumQuad, int TerrainSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
         {
             int TerrainSize_Half = TerrainSize / 2;
 
@@ -136,8 +153,8 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 float2 PositionScale = new float2(TerrianPosition.x, TerrianPosition.z) + new float2(TerrainSize_Half, TerrainSize_Half);
                 float2 RectUV = new float2((Section.PivotPosition.x - PositionScale.x) + TerrainSize_Half, (Section.PivotPosition.z - PositionScale.y) + TerrainSize_Half);
 
-                int ReverseScale = TerrainSize - SectionSize;
-                Color[] HeightValues = Heightmap.GetPixels(Mathf.FloorToInt(RectUV.x), ReverseScale - Mathf.FloorToInt(RectUV.y), Mathf.FloorToInt(SectionSize), Mathf.FloorToInt(SectionSize), 0);
+                int ReverseScale = TerrainSize - NumQuad;
+                Color[] HeightValues = Heightmap.GetPixels(Mathf.FloorToInt(RectUV.x), ReverseScale - Mathf.FloorToInt(RectUV.y), Mathf.FloorToInt(NumQuad), Mathf.FloorToInt(NumQuad), 0);
 
                 float MinHeight = HeightValues[0].r;
                 float MaxHeight = HeightValues[0].r;
@@ -157,7 +174,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 float PosY = ((Section.CenterPosition.y + MinHeight * ScaleY) + (Section.CenterPosition.y + MaxHeight * ScaleY)) * 0.5f;
                 float SizeY = ((Section.CenterPosition.y + MinHeight * ScaleY) - (Section.CenterPosition.y + MaxHeight * ScaleY));
                 float3 NewBoundCenter = new float3(Section.CenterPosition.x, PosY, Section.CenterPosition.z);
-                Section.BoundBox = new FAABB(NewBoundCenter, new float3(SectionSize, SizeY, SectionSize));
+                Section.BoundBox = new FAABB(NewBoundCenter, new float3(NumQuad, SizeY, NumQuad));
             }
         }
 #endif

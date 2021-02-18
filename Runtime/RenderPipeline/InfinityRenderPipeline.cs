@@ -4,9 +4,11 @@ using UnityEngine.VFX;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
+using System.Collections.Generic;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -212,6 +214,16 @@ namespace InfinityTech.Rendering.Pipeline
             GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), 2, false);
             RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
+            //Terrain Context
+            List<TerrainComponent> WorldTerrains = GetWorld().GetWorldTerrains();
+            float4x4 Matrix_Proj = TerrainUtility.GetProjectionMatrix(45, Camera.main.pixelWidth, Camera.main.pixelHeight, Camera.main.nearClipPlane, Camera.main.farClipPlane);
+            for (int TI = 0; TI < WorldTerrains.Count; ++TI)
+            {
+                TerrainComponent Terrain = WorldTerrains[TI];
+                Terrain.UpdateLODData(Camera.main.transform.position, Matrix_Proj);
+                Terrain.DrawBounds(true);
+            }
+
             //Render Pipeline
             BeginFrameRendering(RenderContext, Views);
             for (int ViewIndex = 0; ViewIndex < Views.Length; ++ViewIndex)
@@ -247,6 +259,16 @@ namespace InfinityTech.Rendering.Pipeline
                         View.TryGetCullingParameters(out CullingParameters);
                         CullingResults CullingResult = RenderContext.Cull(ref CullingParameters); //Unity Culling
                         RenderContext.DispatchCull(GPUScene, ref CullingParameters, ref CullingData); //Infinity Culling
+
+                        //Terrain Context
+                        /*List<TerrainComponent> WorldTerrains = GetWorld().GetWorldTerrains();
+                        float4x4 Matrix_Proj = TerrainUtility.GetProjectionMatrix((View.fieldOfView) * 0.5f, View.pixelWidth, View.pixelHeight, View.nearClipPlane, View.farClipPlane);
+                        for(int TI = 0; TI < WorldTerrains.Count; ++TI)
+                        {
+                            TerrainComponent Terrain = WorldTerrains[TI];
+                            Terrain.UpdateLODData(View.transform.position, Matrix_Proj);
+                            Terrain.DrawBounds(true);
+                        }*/
                         #endregion //InitViewContext
 
                         #region InitViewCommand
