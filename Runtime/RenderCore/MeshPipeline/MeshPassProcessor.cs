@@ -81,8 +81,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                     int2 CountOffset = CountOffsets[BatchIndex];
                     FMeshDrawCommandV2 MeshDrawCommand = MeshDrawCommands[BatchIndex];
 
-                    Mesh DrawMesh = GraphContext.World.WorldMeshList.Get(MeshDrawCommand.MeshID);
-                    Material DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshDrawCommand.MaterialID);
+                    Mesh DrawMesh = GraphContext.World.WorldMeshs.Get(MeshDrawCommand.MeshID);
+                    Material DrawMaterial = GraphContext.World.WorldMaterials.Get(MeshDrawCommand.MaterialID);
 
                     for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
                     {

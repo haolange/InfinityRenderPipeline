@@ -15,13 +15,14 @@ namespace InfinityTech.Rendering.Core
 
         public string name;
         public bool bDisable;
-        public SharedRefFactory<Mesh> WorldMeshList;
-        public SharedRefFactory<Material> WorldMaterialList;
+        public SharedRefFactory<Mesh> WorldMeshs;
+        public SharedRefFactory<Material> WorldMaterials;
 
-        private List<CameraComponent> WorldViewList;
-        private List<LightComponent> WorldLightList;
-        private List<MeshComponent> WorldStaticPrimitiveList;
-        private List<MeshComponent> WorldDynamicPrimitiveList;
+        private List<CameraComponent> WorldViews;
+        private List<LightComponent> WorldLights;
+        private List<TerrainComponent> WorldTerrains;
+        private List<MeshComponent> WorldStaticPrimitives;
+        private List<MeshComponent> WorldDynamicPrimitives;
 
         private FMeshBatchCollector MeshBatchCollector;
 
@@ -32,13 +33,14 @@ namespace InfinityTech.Rendering.Core
             name = InName;
             ActiveWorld = this;
 
-            WorldMeshList = new SharedRefFactory<Mesh>(256);
-            WorldMaterialList = new SharedRefFactory<Material>(256);
+            WorldMeshs = new SharedRefFactory<Mesh>(256);
+            WorldMaterials = new SharedRefFactory<Material>(256);
 
-            WorldViewList = new List<CameraComponent>(16);
-            WorldLightList = new List<LightComponent>(64);
-            WorldStaticPrimitiveList = new List<MeshComponent>(1024);
-            WorldDynamicPrimitiveList = new List<MeshComponent>(1024);
+            WorldViews = new List<CameraComponent>(16);
+            WorldLights = new List<LightComponent>(64);
+            WorldTerrains = new List<TerrainComponent>(32);
+            WorldStaticPrimitives = new List<MeshComponent>(1024);
+            WorldDynamicPrimitives = new List<MeshComponent>(1024);
 
             MeshBatchCollector = new FMeshBatchCollector();
         }
@@ -46,114 +48,137 @@ namespace InfinityTech.Rendering.Core
         #region WorldView
         public void AddWorldView(CameraComponent InViewComponent)
         {
-            WorldViewList.Add(InViewComponent);
+            WorldViews.Add(InViewComponent);
         }
 
         public void RemoveWorldView(CameraComponent InViewComponent)
         {
             if(bDisable == true) { return; }
-            WorldViewList.Remove(InViewComponent);
+            WorldViews.Remove(InViewComponent);
         }
 
         public List<CameraComponent> GetWorldView()
         {
-            return WorldViewList;
+            return WorldViews;
         }
 
         public void ClearWorldView()
         {
-            WorldViewList.Clear();
+            WorldViews.Clear();
         }
         #endregion //WorldView
 
         #region WorldLight
         public void AddWorldLight(LightComponent InLightComponent)
         {
-            WorldLightList.Add(InLightComponent);
+            WorldLights.Add(InLightComponent);
         }
 
         public void RemoveWorldLight(LightComponent InLightComponent)
         {
             if(bDisable == true) { return; }
-            WorldLightList.Remove(InLightComponent);
+            WorldLights.Remove(InLightComponent);
         }
 
         public List<LightComponent> GetWorldLight()
         {
-            return WorldLightList;
+            return WorldLights;
         }
 
         public void ClearWorldLight()
         {
-            WorldLightList.Clear();
+            WorldLights.Clear();
         }
         #endregion //WorldLight
+
+        #region WorldTerrain
+        public void AddWorldTerrain(TerrainComponent InTerrainComponent)
+        {
+            WorldTerrains.Add(InTerrainComponent);
+        }
+
+        public void RemoveWorldTerrain(TerrainComponent InTerrainComponent)
+        {
+            if (bDisable == true) { return; }
+            WorldTerrains.Remove(InTerrainComponent);
+        }
+
+        public List<TerrainComponent> GetWorldTerrains()
+        {
+            return WorldTerrains;
+        }
+
+        public void ClearWorldTerrains()
+        {
+            WorldTerrains.Clear();
+        }
+        #endregion //WorldTerrain
 
         #region WorldPrimitive
         //Static
         public void AddWorldStaticPrimitive(MeshComponent InMeshComponent)
         {
-            WorldStaticPrimitiveList.Add(InMeshComponent);
+            WorldStaticPrimitives.Add(InMeshComponent);
         }
 
         public void InvokeWorldStaticPrimitiveUpdate()
         {
-            if(WorldStaticPrimitiveList.Count == 0) { return; }
+            if(WorldStaticPrimitives.Count == 0) { return; }
 
-            for (int i = 0; i < WorldStaticPrimitiveList.Count; i++)
+            for (int i = 0; i < WorldStaticPrimitives.Count; i++)
             {
-                WorldStaticPrimitiveList[i].EventUpdate();
+                WorldStaticPrimitives[i].EventUpdate();
             }
         }
 
         public void RemoveWorldStaticPrimitive(MeshComponent InMeshComponent)
         {
             if(bDisable == true) { return; }
-            WorldStaticPrimitiveList.Remove(InMeshComponent);
+            WorldStaticPrimitives.Remove(InMeshComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public List<MeshComponent> GetWorldStaticPrimitive()
         {
-            return WorldStaticPrimitiveList;
+            return WorldStaticPrimitives;
         }
 
         public void ClearWorldStaticPrimitive()
         {
-            WorldStaticPrimitiveList.Clear();
+            WorldStaticPrimitives.Clear();
         }
 
         //Dynamic
         public void AddWorldDynamicPrimitive(MeshComponent InMeshComponent)
         {
-            WorldDynamicPrimitiveList.Add(InMeshComponent);
+            WorldDynamicPrimitives.Add(InMeshComponent);
         }
 
         public void InvokeWorldDynamicPrimitiveUpdate()
         {
-            if (WorldDynamicPrimitiveList.Count == 0) { return; }
+            if (WorldDynamicPrimitives.Count == 0) { return; }
 
-            for (int i = 0; i < WorldDynamicPrimitiveList.Count; i++)
+            for (int i = 0; i < WorldDynamicPrimitives.Count; i++)
             {
-                WorldDynamicPrimitiveList[i].EventUpdate();
+                WorldDynamicPrimitives[i].EventUpdate();
             }
         }
 
         public void RemoveWorldDynamicPrimitive(MeshComponent InMeshComponent)
         {
             if(bDisable == true) { return; }
-            WorldDynamicPrimitiveList.Remove(InMeshComponent);
+            WorldDynamicPrimitives.Remove(InMeshComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public List<MeshComponent> GetWorldDynamicPrimitive()
         {
-            return WorldDynamicPrimitiveList;
+            return WorldDynamicPrimitives;
         }
 
         public void ClearWorldDynamicPrimitive()
         {
-            WorldDynamicPrimitiveList.Clear();
+            WorldDynamicPrimitives.Clear();
         }
         #endregion //WorldPrimitive
 
@@ -171,11 +196,12 @@ namespace InfinityTech.Rendering.Core
 
             ClearWorldView();
             ClearWorldLight();
+            ClearWorldTerrains();
             ClearWorldStaticPrimitive();
             ClearWorldDynamicPrimitive();
 
-            WorldMeshList.Reset();
-            WorldMaterialList.Reset();
+            WorldMeshs.Reset();
+            WorldMaterials.Reset();
 
             MeshBatchCollector.Initializ();
             MeshBatchCollector.Reset();
@@ -187,11 +213,12 @@ namespace InfinityTech.Rendering.Core
             
             ClearWorldView();
             ClearWorldLight();
+            ClearWorldTerrains();
             ClearWorldStaticPrimitive();
             ClearWorldDynamicPrimitive();
 
-            WorldMeshList.Reset();
-            WorldMaterialList.Reset();
+            WorldMeshs.Reset();
+            WorldMaterials.Reset();
 
             MeshBatchCollector.Release();
         }

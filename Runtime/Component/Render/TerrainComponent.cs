@@ -50,7 +50,8 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            print("OnRigister");
+            //print("OnRigister");
+            GetWorld().AddWorldTerrain(this);
             TerrainSector.Initializ();
             TerrainSector.FlushLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
             TerrainSector.FlushNative();
@@ -73,14 +74,15 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            print("UnRigister");
+            //print("UnRigister");
             TerrainSector.Release();
+            GetWorld().RemoveWorldTerrain(this);
         }
 
 #if UNITY_EDITOR
         public void Serialize()
         {
-            print("Serialize");
+            //print("Serialize");
             UnityTerrain = GetComponent<UnityEngine.Terrain>();
             UnityTerrainData = GetComponent<TerrainCollider>().terrainData;
 

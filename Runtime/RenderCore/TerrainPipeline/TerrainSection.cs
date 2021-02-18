@@ -28,6 +28,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public FBound BoundBox;
         public float3 PivotPosition;
         public float3 CenterPosition;
+        public FSectionLODData LODSetting;
 
         public int TopSectionIndex;
         public int LeftSectionIndex;

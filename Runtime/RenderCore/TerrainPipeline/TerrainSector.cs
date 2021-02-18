@@ -12,9 +12,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int[] MaxLODs;
         public FBound BoundBox;
         public FTerrainSection[] Sections;
-        public FSectionLODData[] LODSettings;
         public NativeArray<FTerrainSection> NativeSections;
-        public NativeArray<FSectionLODData> NativeLODSettings;
 
         public FTerrainSector(in int SectorSize, in int NumSection, in int NumQuad, in float3 SectorPivotPosition, FAABB SectorBound)
         {
@@ -23,7 +21,6 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
             MaxLODs = new int[NumSection * NumSection];
             Sections = new FTerrainSection[NumSection * NumSection];
-            LODSettings = new FSectionLODData[NumSection * NumSection];
             BoundBox = new FBound(new float3(SectorPivotPosition.x + SectorSize_Half, SectorPivotPosition.y + (SectorBound.size.y / 2), SectorPivotPosition.z + SectorSize_Half), SectorBound.size * 0.5f);
 
             for (int SectorSizeX = 0; SectorSizeX <= NumSection - 1; SectorSizeX++)
@@ -46,30 +43,27 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void Initializ()
         {
-            if (NativeSections.IsCreated == false && NativeLODSettings.IsCreated == false)
+            if (NativeSections.IsCreated == false)
             {
                 NativeSections = new NativeArray<FTerrainSection>(Sections.Length, Allocator.Persistent);
-                NativeLODSettings = new NativeArray<FSectionLODData>(LODSettings.Length, Allocator.Persistent);
             }
         }
 
         public void Release()
         {
-            if (NativeSections.IsCreated == true && NativeLODSettings.IsCreated == true)
+            if (NativeSections.IsCreated == true)
             {
                 NativeSections.Dispose();
-                NativeLODSettings.Dispose();
             }
         }
 
         public void FlushNative()
         {
-            if(NativeSections.IsCreated == true && NativeLODSettings.IsCreated == true)
+            if(NativeSections.IsCreated == true)
             {
                 for (int i = 0; i < Sections.Length; i++)
                 {
                     NativeSections[i] = Sections[i];
-                    NativeLODSettings[i] = LODSettings[i];
                 }
             }
         }
@@ -84,10 +78,10 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void FlushLODData(in float LOD0ScreenSize, in float LOD0Distribution, in float LODDistribution)
         {
-            for (int i = 0; i < LODSettings.Length; i++)
+            for (int i = 0; i < Sections.Length; i++)
             {
                 ref int MaxLOD = ref MaxLODs[i];
-                ref FSectionLODData LODSetting = ref LODSettings[i];
+                ref FSectionLODData LODSetting = ref Sections[i].LODSetting;
 
                 float CurrentScreenSizeRatio = LOD0ScreenSize;
                 float[] LODScreenRatioSquared = new float[MaxLOD];
