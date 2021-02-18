@@ -45,7 +45,7 @@ namespace InfinityTech.Component
             base.OnTransformChange();
 
             FrustumPlane = GeometryUtility.CalculateFrustumPlanes(UnityCamera);
-            for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
+            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
             {
                 ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
             }

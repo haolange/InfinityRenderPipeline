@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             //Draw Call
             using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshDrawPipeline)))
             {
-                for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
+                for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; ++BatchIndex)
                 {
                     int2 CountOffset = CountOffsets[BatchIndex];
                     FMeshDrawCommandV2 MeshDrawCommand = MeshDrawCommands[BatchIndex];
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     //DrawCall
     using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshDrawPipeline)))
     {
-        for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; BatchIndex++)
+        for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; ++BatchIndex)
         {
             int2 CountOffset = CountOffsets[BatchIndex];
             FMeshDrawCommandV2 MeshDrawCommand = MeshDrawCommands[BatchIndex];

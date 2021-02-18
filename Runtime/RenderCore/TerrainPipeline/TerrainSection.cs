@@ -19,12 +19,6 @@ namespace InfinityTech.Rendering.TerrainPipeline
 	};
 
     [Serializable]
-    public struct FSectionDescription
-    {
-        public FAABB BoundBox;
-    }
-
-    [Serializable]
     public struct FTerrainSection : IComparable<FTerrainSection>, IEquatable<FTerrainSection>
     {
         public int NumQuad;
@@ -40,11 +34,6 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int RightSectionIndex;
         public int ButtomSectionIndex;
 
-
-        /*public FTerrainSection(in FSectionDescription SectionDescription)
-        {
-            BoundBox = SectionDescription.BoundBox;
-        }*/
 
         public bool Equals(FTerrainSection Target)
         {

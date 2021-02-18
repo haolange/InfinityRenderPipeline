@@ -240,14 +240,14 @@ namespace InfinityTech.Component
             if(Materials.Length != 0)
             {
                 LastMaterials = new Material[Materials.Length];
-                for (int i = 0; i < LastMaterials.Length; i++)
+                for (int i = 0; i < LastMaterials.Length; ++i)
                 {
                     LastMaterials[i] = Materials[i];
                 }
             }
 
             Materials = new Material[StaticMesh.subMeshCount];
-            for (int i = 0; i < Materials.Length; i++)
+            for (int i = 0; i < Materials.Length; ++i)
             {
                 if(i < LastMaterials.Length)
                 {
@@ -264,7 +264,7 @@ namespace InfinityTech.Component
             {
                 MeshBatchCacheID = new int[StaticMesh.subMeshCount];
 
-                for (int Index = 0; Index < StaticMesh.subMeshCount; Index++)
+                for (int Index = 0; Index < StaticMesh.subMeshCount; ++Index)
                 {
                     FMeshBatch MeshBatch;
                     MeshBatch.Visible = Visible;
@@ -289,7 +289,7 @@ namespace InfinityTech.Component
         {
             if (StaticMesh != null)
             {
-                for (int Index = 0; Index < MeshBatchCacheID.Length; Index++)
+                for (int Index = 0; Index < MeshBatchCacheID.Length; ++Index)
                 {
                     FMeshBatch MeshBatch;
                     MeshBatch.Visible = Visible;
@@ -317,7 +317,7 @@ namespace InfinityTech.Component
 
             if (StaticMesh != null)
             {
-                for (int Index = 0; Index < MeshBatchCacheID.Length; Index++)
+                for (int Index = 0; Index < MeshBatchCacheID.Length; ++Index)
                 {
                     GetWorld().GetMeshBatchColloctor().RemoveMeshBatch(MeshBatchCacheID[Index]);
                 }

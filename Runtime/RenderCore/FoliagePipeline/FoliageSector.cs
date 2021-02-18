@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.FoliagePipeline
         {
             InstancesProxy = new FFoliageProxy[FoliageProfile.StaticMesh.Length];
 
-            for (int Index = 0; Index < FoliageProfile.StaticMesh.Length; Index++)
+            for (int Index = 0; Index < FoliageProfile.StaticMesh.Length; ++Index)
             {
                 InstancesProxy[Index].StaticMesh = FoliageProfile.StaticMesh[Index];
             }
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.FoliagePipeline
         {
             InstancesMatrix = new float4x4[InstancesTransfrom.Count];
 
-            for (int Index = 0; Index < InstancesMatrix.Length; Index++)
+            for (int Index = 0; Index < InstancesMatrix.Length; ++Index)
             {
                 InstancesMatrix[Index] = float4x4.TRS(InstancesTransfrom[Index].Position, Vector3ToQuaternion(InstancesTransfrom[Index].Rotation), InstancesTransfrom[Index].Scale);
             }

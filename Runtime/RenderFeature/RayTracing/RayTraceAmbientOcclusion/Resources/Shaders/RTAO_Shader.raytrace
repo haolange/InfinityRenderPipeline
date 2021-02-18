@@ -28,7 +28,7 @@ void RTAO_Generation()
     float RayHitDistance = 0;
 
     [loop]
-	for (int i = 0; i < RTAO_NumRays; i++) {
+	for (int i = 0; i < RTAO_NumRays; ++i) {
 		uint2 Random = Rand3DPCG16( uint3( dispatchIdx, fmod(RTAO_FrameIndex, 8) ) ).xy;
 		float2 Hash = Hammersley16(i, (uint)RTAO_NumRays, Random);
 

@@ -193,7 +193,7 @@ namespace InfinityTech.Core.Geometry
 
         public static bool IntersectAABBFrustum(FAABB bound, FPlane[] plane)
         {
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 6; ++i)
             {
                 float3 normal = plane[i].normal;
                 float distance = plane[i].distance;
@@ -286,7 +286,7 @@ namespace InfinityTech.Core.Geometry
 
             line[4] = new Vector3(rect.x, rect.y, 0);
 
-            for (int i = 0; i < line.Length - 1; i++)
+            for (int i = 0; i < line.Length - 1; ++i)
             {
                 Debug.DrawLine(line[i], line[i + 1], color);
             }

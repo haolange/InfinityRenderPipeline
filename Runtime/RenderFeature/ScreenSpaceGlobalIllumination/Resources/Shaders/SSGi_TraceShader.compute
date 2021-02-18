@@ -36,7 +36,7 @@ void Raytracing_ScreenTrace (uint3 id : SV_DispatchThreadID)
     float4 Out_IrradianceColor = 0;
 
 	[loop]
-	for (uint i = 0; i < (uint)SSGi_NumRays; i++) {
+	for (uint i = 0; i < (uint)SSGi_NumRays; ++i) {
 		float2 Hash = Hammersley16(i, (uint)SSGi_NumRays, Random);
 
 		float3 LightDir_TS;
@@ -126,7 +126,7 @@ void Raytracing_ScreenTrace (uint3 id : SV_DispatchThreadID)
 	//float3 BentNormal = 0;
 
 	[loop]
-	for (uint i = 0; i < (uint)SSGi_NumRays; i++) 
+	for (uint i = 0; i < (uint)SSGi_NumRays; ++i) 
 	{
 		//float2 Hash = Halton(i, Random);
 		float2 Hash = Hammersley16(i, (uint)SSGi_NumRays, Random);

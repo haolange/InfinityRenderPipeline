@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             CullingData.ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
             Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
-            for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
+            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
             {
                 CullingData.ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
             }
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             CullingData.CullState = true;
 
             CullingData.ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
+            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
             {
                 CullingData.ViewFrustum[PlaneIndex] = CullingParameters.GetCullingPlane(PlaneIndex);
             }
@@ -73,7 +73,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
             Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
-            for (int PlaneIndex = 0; PlaneIndex < 6; PlaneIndex++)
+            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
             {
                 ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
             }

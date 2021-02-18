@@ -25,7 +25,7 @@ namespace InfinityTech.Core
             int FreeSpaceCount = 0;
             int StartSearchIndex = 0;
 
-            for (int i = 0; i < ElementState.Length; i++)
+            for (int i = 0; i < ElementState.Length; ++i)
             {
                 if (ElementState[i] == 0) {
                     FreeSpaceCount++;

@@ -194,7 +194,7 @@ void SpatialFilter (uint3 id : SV_DispatchThreadID)
     float3 MomentA, MomentB;
 
 	[loop]
-	for (int i = 0; i < SVGF_NumSpatial; i++) {
+	for (int i = 0; i < SVGF_NumSpatial; ++i) {
         float2 OffsetRotation = (Hammersley16(i, SVGF_NumSpatial, Random) * 2 - 1);
         float2x2 OffsetRotationMatrix = float2x2(OffsetRotation.x, OffsetRotation.y, -OffsetRotation.y, OffsetRotation.x);
         
@@ -295,7 +295,7 @@ void TemporalFilter (uint3 id : SV_DispatchThreadID)
     float4 CurrColor, PrevColor, MomentA, MomentB;
 
     [loop]
-    for(int i = 0; i < 9; i++) {
+    for(int i = 0; i < 9; ++i) {
         SampleColors[i] = SRV_CurrColor.SampleLevel(Global_bilinear_repeat_sampler, UV + (TemportalOffset[i] * SVGF_TemporalSize.zw), 0);
 
         MomentA += SampleColors[i];
@@ -361,7 +361,7 @@ void BilateralFilter (uint3 id : SV_DispatchThreadID)
 	float4 Normal = SRV_GBufferNormal.SampleLevel(Global_bilinear_repeat_sampler, UV, 0);
 	float Depth = LinearEyeDepth(SRV_SceneDepth.SampleLevel(Global_bilinear_repeat_sampler, UV, 0).r);
 
-	for(int i = 0; i < 25; i++) {
+	for(int i = 0; i < 25; ++i) {
 		float2 OffsetUV = UV + (BilateralOffset[i] * SVGF_BilateralSize * SVGF_BilateralRadius);
 
 		float4 OffsetColor = SRV_InputColor.SampleLevel(Global_bilinear_repeat_sampler, OffsetUV, 0);

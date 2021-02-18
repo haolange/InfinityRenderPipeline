@@ -290,7 +290,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
             line[4] = new Vector3(rect.x, rect.y, 0);
 
-            for(int i = 0; i < line.Length - 1; i++)
+            for(int i = 0; i < line.Length - 1; ++i)
             {
                 Debug.DrawLine(line[i], line[i + 1], color);
             }

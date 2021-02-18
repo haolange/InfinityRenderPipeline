@@ -97,7 +97,8 @@ namespace InfinityTech.Rendering.Feature
             CmdBuffer.SetComputeTextureParam(SVGF_Shader, 0, SVGF_SpatialShaderID.SRV_GBufferNormal, InputData.SRV_GBufferNormal);
             CmdBuffer.SetComputeTextureParam(SVGF_Shader, 0, SVGF_SpatialShaderID.SRV_GBufferRoughness, InputData.SRV_GBufferRoughness);
             CmdBuffer.SetComputeTextureParam(SVGF_Shader, 0, SVGF_SpatialShaderID.SRV_UWVPDF, SRV_UWVPDF);
-            for (uint i = 0; i < (uint)Parameters.NumSpatial; i++) {
+            for (uint i = 0; i < (uint)Parameters.NumSpatial; ++i) 
+            {
                 uint CurrState = i & 1;
                 if(CurrState == 0) {
                     CmdBuffer.SetComputeTextureParam(SVGF_Shader, 0, SVGF_SpatialShaderID.SRV_ColorMask, SRV_ColorMask);

@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 s_Samplers = new CustomSampler[(int)CustomSamplerId.Max];
 
-                for (int i = 0; i < (int)CustomSamplerId.Max; i++)
+                for (int i = 0; i < (int)CustomSamplerId.Max; ++i)
                 {
                     var id = (CustomSamplerId)i;
                     s_Samplers[i] = CustomSampler.Create("C#_" + id);

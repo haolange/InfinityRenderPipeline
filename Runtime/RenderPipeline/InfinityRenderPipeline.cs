@@ -214,7 +214,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, Views);
-            for (int ViewIndex = 0; ViewIndex < Views.Length; ViewIndex++)
+            for (int ViewIndex = 0; ViewIndex < Views.Length; ++ViewIndex)
             {
                 //Init View
                 Camera View = Views[ViewIndex];

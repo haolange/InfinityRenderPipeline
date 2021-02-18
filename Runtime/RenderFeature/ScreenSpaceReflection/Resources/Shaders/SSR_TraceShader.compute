@@ -50,7 +50,7 @@ void Raytracing_ScreenTrace(uint3 id : SV_DispatchThreadID, uint groupIndex : SV
     float4 Out_UVWPDF = 0, Out_ColorMask = 0;
 
 	[loop]
-    for (int i = 0; i < SSR_NumRays; i++)
+    for (int i = 0; i < SSR_NumRays; ++i)
     {
         float2 Hammersley = Hammersley16(i, SSR_NumRays, Random);
         Hammersley.y = lerp(Hammersley.y, 0, SSR_BRDFBias);
@@ -121,7 +121,7 @@ void Raytracing_ScreenTrace (uint3 id : SV_DispatchThreadID)
     float4 Out_ColorMask = 0;
 
 	[loop]
-	for (uint i = 0; i < (uint)SSR_NumRays; i++) {
+	for (uint i = 0; i < (uint)SSR_NumRays; ++i) {
 		float2 Hash = Hammersley16(i, (uint)SSR_NumRays, Random);
         Hash.y = lerp(Hash.y, 0, SSR_BRDFBias);
 		float4 LightDir_TS = ImportanceSampleGGX(Hash, Roughness);

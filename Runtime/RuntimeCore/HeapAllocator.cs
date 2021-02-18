@@ -20,7 +20,7 @@ namespace InfinityTech.Core
             Blocks = new HeapBlock[InAllocatorSize];
             int BlockStartIndex = 0;
 
-            for(int i = 0; i < InAllocatorSize; i++)
+            for(int i = 0; i < InAllocatorSize; ++i)
             {
                 Blocks[i] = new HeapBlock(name + "_Block_" + i.ToString(), InBlockSize, BlockStartIndex);
                 BlockStartIndex += InBlockSize;

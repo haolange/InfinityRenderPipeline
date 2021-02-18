@@ -62,7 +62,7 @@ RTV_ThinGBuffer_ID[0] = GraphContext.resources.GetTexture(PassData.ThinGBufferA)
 RTV_ThinGBuffer_ID[1] = GraphContext.resources.GetTexture(PassData.ThinGBufferB);
 CoreUtils.SetRenderTarget(GraphContext.cmd, RTV_ThinGBuffer_ID, GraphContext.resources.GetTexture(PassData.DepthBuffer));*/
 
-/*for (int i = 0; i < CullingData.ViewMeshBatchs.Length; i++)
+/*for (int i = 0; i < CullingData.ViewMeshBatchs.Length; ++i)
 {
     Mesh DrawMesh;
     Material DrawMaterial;

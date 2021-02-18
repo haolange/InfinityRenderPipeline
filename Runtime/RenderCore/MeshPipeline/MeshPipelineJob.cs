@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             if (MeshBatch.Visible)
             {
-                for (int i = 0; i < 6; i++)
+                for (int i = 0; i < 6; ++i)
                 {
                     float3 normal = ViewFrustum[i].normal;
                     float distance = ViewFrustum[i].distance;
@@ -187,7 +187,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             FMeshBatch MeshBatch = MeshBatchs[index];
 
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 6; ++i)
             {
                 float3 normal = ViewFrustum[i].normal;
                 float distance = ViewFrustum[i].distance;
@@ -218,7 +218,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Execute()
         {
-            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; ++Index)
             {
                 if (CullingData.ViewMeshBatchs[Index] != 0)
                 {
@@ -246,7 +246,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Execute()
         {
-            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; ++Index)
             {
                 if (CullingData.ViewMeshBatchs[Index] != 0)
                 {
@@ -283,7 +283,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void Execute()
         {
             //Gather PassMeshBatch
-            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; Index++)
+            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; ++Index)
             {
                 if (CullingData.ViewMeshBatchs[Index] != 0)
                 {
@@ -302,7 +302,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             //Build MeshDrawCommand
             FPassMeshBatchV2 CachePassMeshBatch = new FPassMeshBatchV2(-1, -1);
-            for (int i = 0; i < PassMeshBatchs.Length; i++)
+            for (int i = 0; i < PassMeshBatchs.Length; ++i)
             {
                 FPassMeshBatchV2 PassMeshBatch = PassMeshBatchs[i];
                 Indexs[i] = PassMeshBatch.MeshBatchIndex;
@@ -344,7 +344,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             FPassMeshBatchV2 CachePassMeshBatch = new FPassMeshBatchV2(-1, -1);
 
-            for (int i = 0; i < PassMeshBatchs.Length; i++)
+            for (int i = 0; i < PassMeshBatchs.Length; ++i)
             {
                 FPassMeshBatchV2 PassMeshBatch = PassMeshBatchs[i];
                 Indexs[i] = PassMeshBatch.MeshBatchIndex;
@@ -387,7 +387,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             int BatchOffset = 0;
 
-            for (int Index = 0; Index < Count; Index++)
+            for (int Index = 0; Index < Count; ++Index)
             {
                 if (MeshDrawCommandsMap.TryGetFirstValue(MeshDrawCommands[Index], out FPassMeshBatch Value, out var Iterator))
                 {
