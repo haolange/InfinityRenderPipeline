@@ -57,42 +57,10 @@ namespace InfinityTech.Rendering.Pipeline
 }
 
 
-/*var RTV_ThinGBuffer_ID = GraphContext.renderGraphPool.GetTempArray<RenderTargetIdentifier>(2);
-RTV_ThinGBuffer_ID[0] = GraphContext.resources.GetTexture(PassData.ThinGBufferA);
-RTV_ThinGBuffer_ID[1] = GraphContext.resources.GetTexture(PassData.ThinGBufferB);
-CoreUtils.SetRenderTarget(GraphContext.cmd, RTV_ThinGBuffer_ID, GraphContext.resources.GetTexture(PassData.DepthBuffer));*/
+/*var RTV_ThinGBuffer_ID = GraphContext.ObjectPool.GetTempArray<RenderTargetIdentifier>(2);
+RTV_ThinGBuffer_ID[0] = PassData.GBufferA;
+RTV_ThinGBuffer_ID[1] = PassData.GBufferB;
+CoreUtils.SetRenderTarget(GraphContext.CmdBuffer, RTV_ThinGBuffer_ID, PassData.DepthBuffer);
 
-/*for (int i = 0; i < CullingData.ViewMeshBatchs.Length; ++i)
-{
-    Mesh DrawMesh;
-    Material DrawMaterial;
-    FMeshBatch MeshBatch;
-
-    switch (CullingData.CullMethod)
-    {
-        case ECullingMethod.VisibleMark:
-            if (CullingData.ViewMeshBatchs[i] != 0)
-            {
-                MeshBatch = MeshBatchs[i];
-                DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
-                DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
-
-                if (DrawMesh && DrawMaterial)
-                {
-                    GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
-                }
-            }
-            break;
-
-        case ECullingMethod.FillterList:
-            MeshBatch = MeshBatchs[CullingData.ViewMeshBatchs[i]];
-            DrawMesh = GraphContext.World.WorldMeshList.Get(MeshBatch.Mesh);
-            DrawMaterial = GraphContext.World.WorldMaterialList.Get(MeshBatch.Material);
-
-            if (DrawMesh && DrawMaterial)
-            {
-                GraphContext.CmdBuffer.DrawMesh(DrawMesh, MeshBatch.Matrix_LocalToWorld, DrawMaterial, MeshBatch.SubmeshIndex, 2);
-            }
-            break;
-    }
-}*/
+GraphContext.RenderContext.ExecuteCommandBuffer(GraphContext.CmdBuffer);
+GraphContext.CmdBuffer.Clear();*/

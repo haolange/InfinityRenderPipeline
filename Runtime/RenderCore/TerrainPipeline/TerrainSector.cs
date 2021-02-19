@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             /*for (int i = 0; i < NativeSections.Length; ++i)
             {
                 FTerrainSection Section = NativeSections[i];
-                float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundBox), Section.BoundBox.center, ViewOringin, Matrix_Proj);
+                float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundingBox), Section.BoundingBox.center, ViewOringin, Matrix_Proj);
                 Section.LODIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(Section.LODSetting, ScreenSize, 1, out Section.FractionLOD));
                 Section.FractionLOD = math.min(5, Section.FractionLOD);
                 Section.NumQuad = math.clamp(NumQuad >> Section.LODIndex, 1, NumQuad);
