@@ -215,7 +215,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] Views)
         {
             //Init FrameContext
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), 2, true);
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), 2, false);
             RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
             //Render Pipeline
