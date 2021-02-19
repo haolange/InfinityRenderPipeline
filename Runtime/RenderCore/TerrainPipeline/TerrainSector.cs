@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void UpdateToNativeCollection()
+        public void BuildNativeCollection()
         {
             if(NativeSections.IsCreated == true)
             {
@@ -97,9 +97,9 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 LODSetting.LODOnePlusDistributionScalarSquared = ScreenSizeRatioDivider * ScreenSizeRatioDivider;
 
                 // Other LODs
-                for (int LOD_Index = 1; LOD_Index <= MaxLOD - 1; ++LOD_Index) // This should ALWAYS be calculated from the component size, not user MaxLOD override
+                for (int j = 1; j < MaxLOD; ++j) // This should ALWAYS be calculated from the section size, not user MaxLOD override
                 {
-                    LODScreenRatioSquared[LOD_Index] = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
+                    LODScreenRatioSquared[j] = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
                     CurrentScreenSizeRatio /= ScreenSizeRatioDivider;
                 }
 
@@ -161,7 +161,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void UpdateBounds(int NumQuad, int TerrainSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
+        public void BuildBounds(int NumQuad, int TerrainSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
         {
             int TerrainSize_Half = TerrainSize / 2;
 

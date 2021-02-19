@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override bool Equals(object obj)
         {
-            return Equals((FMeshBatch)obj);
+            return Equals((FMeshDrawCommand)obj);
         }
 
         public override int GetHashCode()
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override bool Equals(object obj)
         {
-            return Equals((FMeshBatch)obj);
+            return Equals((FMeshDrawCommandV2)obj);
         }
 
         public override int GetHashCode()

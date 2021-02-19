@@ -281,9 +281,9 @@ namespace InfinityTech.Rendering.Pipeline
                         #endregion //InitViewCommand
 
                         #region ExecuteViewRender
-                        DepthPassMeshProcessor.SyncDispatch();
-                        GBufferPassMeshProcessor.SyncDispatch();
-                        ForwardPassMeshProcessor.SyncDispatch();
+                        DepthPassMeshProcessor.WaitSetupFinish();
+                        GBufferPassMeshProcessor.WaitSetupFinish();
+                        ForwardPassMeshProcessor.WaitSetupFinish();
                         GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
                         #endregion //ExecuteViewRender
 

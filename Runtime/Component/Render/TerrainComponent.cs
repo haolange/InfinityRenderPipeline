@@ -46,11 +46,10 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            //print("OnRigister");
             GetWorld().AddWorldTerrain(this);
             TerrainSector.Initializ();
             TerrainSector.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
-            TerrainSector.UpdateToNativeCollection();
+            TerrainSector.BuildNativeCollection();
         }
 
         protected override void OnTransformChange()
@@ -65,12 +64,11 @@ namespace InfinityTech.Component
 
         protected override void EventTick()
         {
-            //print("XX");
+
         }
 
         protected override void UnRegister()
         {
-            //print("UnRigister");
             TerrainSector.Release();
             GetWorld().RemoveWorldTerrain(this);
         }
@@ -83,7 +81,6 @@ namespace InfinityTech.Component
 #if UNITY_EDITOR
         public void Serialize()
         {
-            //print("Serialize");
             UnityTerrain = GetComponent<UnityEngine.Terrain>();
             UnityTerrainData = GetComponent<TerrainCollider>().terrainData;
 
@@ -94,7 +91,7 @@ namespace InfinityTech.Component
             HeightTexture.TerrainDataToHeightmap(UnityTerrainData);
 
             TerrainSector = new FTerrainSector(SectorSize, NumSection, NumQuad, transform.position, UnityTerrainData.bounds);
-            TerrainSector.UpdateBounds(NumQuad, SectorSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);
+            TerrainSector.BuildBounds(NumQuad, SectorSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);
 
             HeightTexture.Release();
         }

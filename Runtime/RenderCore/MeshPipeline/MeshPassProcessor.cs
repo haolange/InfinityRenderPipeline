@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             bGatherState = true;
         }
 
-        internal void SyncDispatch()
+        internal void WaitSetupFinish()
         {
             if (bScheduleState == false) { return; }
                 GatherHandle.Complete();
