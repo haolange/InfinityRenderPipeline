@@ -1,7 +1,5 @@
 using UnityEngine;
 using Unity.Mathematics;
-using Unity.Collections;
-using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Component
@@ -13,7 +11,6 @@ namespace InfinityTech.Component
         public float LOD0ScreenSize = 0.5f;
         public float LOD0Distribution = 1.25f;
         public float LODXDistribution = 2.8f;
-
 
         [HideInInspector]
         public int NumQuad;
@@ -33,7 +30,6 @@ namespace InfinityTech.Component
                 return UnityTerrainData.size.y;
             }
         }
-
 
         [HideInInspector]
         public Terrain UnityTerrain;
@@ -110,7 +106,7 @@ namespace InfinityTech.Component
 
         void OnDrawGizmosSelected()
         {
-            //TerrainSector.DrawBound();
+
         }
 #endif
     }

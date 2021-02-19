@@ -1,4 +1,5 @@
 using System;
+using Unity.Jobs;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -110,18 +111,34 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void UpdateLODData(in int NumQuad, in float3 ViewOringin, in float4x4 Matrix_Proj)
         {
-            float FractionLOD = 0;
-
-            for (int i = 0; i < NativeSections.Length; ++i)
+            /*for (int i = 0; i < NativeSections.Length; ++i)
             {
                 FTerrainSection Section = NativeSections[i];
-                float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundBox), BoundBox.center, ViewOringin, Matrix_Proj);
-                Section.LODIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(Section.LODSetting, ScreenSize, 1, out FractionLOD));
-                Section.FractionLOD = math.min(5, FractionLOD);
+                float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundBox), Section.BoundBox.center, ViewOringin, Matrix_Proj);
+                Section.LODIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(Section.LODSetting, ScreenSize, 1, out Section.FractionLOD));
+                Section.FractionLOD = math.min(5, Section.FractionLOD);
                 Section.NumQuad = math.clamp(NumQuad >> Section.LODIndex, 1, NumQuad);
 
                 NativeSections[i] = Section;
+            }*/
+
+            FSectionLODDataUpdateJob SectionLODDataUpdateJob = new FSectionLODDataUpdateJob();
+            {
+                SectionLODDataUpdateJob.NumQuad = NumQuad;
+                SectionLODDataUpdateJob.ViewOringin = ViewOringin;
+                SectionLODDataUpdateJob.Matrix_Proj = Matrix_Proj;
+                SectionLODDataUpdateJob.NativeSections = NativeSections;
             }
+            SectionLODDataUpdateJob.Run();
+
+            /*FSectionLODDataParallelUpdateJob SectionLODDataParallelUpdateJob = new FSectionLODDataParallelUpdateJob();
+            {
+                SectionLODDataParallelUpdateJob.NumQuad = NumQuad;
+                SectionLODDataParallelUpdateJob.ViewOringin = ViewOringin;
+                SectionLODDataParallelUpdateJob.Matrix_Proj = Matrix_Proj;
+                SectionLODDataParallelUpdateJob.NativeSections = NativeSections;
+            }
+            SectionLODDataParallelUpdateJob.Schedule(NativeSections.Length, 32).Complete();*/
         }
 
 #if UNITY_EDITOR
@@ -137,7 +154,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 {
                     Geometry.DrawBound(Section.BoundBox, Color.yellow);
                 } else {
-                    Geometry.DrawBound(Section.BoundBox, new Color(TerrainUtility.LODColor[Section.LODIndex].x * 0.5f, TerrainUtility.LODColor[Section.LODIndex].y * 0.5f, TerrainUtility.LODColor[Section.LODIndex].z * 0.5f));
+                    Geometry.DrawBound(Section.BoundBox, TerrainUtility.LODColor[Section.LODIndex]);
                 }
             }
         }

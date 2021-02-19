@@ -4,7 +4,7 @@
   "version": "0.1.5",
   "unity": "2020.2",
   "unityRelease": "0b12",
-  "displayName": "Infinity Render Pipeline",
+  "displayName": "Infinity RP",
   "dependencies": {
     "com.unity.jobs": "0.8.0-preview.23",
     "com.unity.burst": "1.4.4",

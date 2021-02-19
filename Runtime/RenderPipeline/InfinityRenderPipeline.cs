@@ -10,6 +10,10 @@ using InfinityTech.Rendering.Core;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace InfinityTech.Rendering.Pipeline
 {
     public partial struct ViewUnifromBuffer
@@ -211,18 +215,8 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] Views)
         {
             //Init FrameContext
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), 2, false);
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), 2, true);
             RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
-
-            //Terrain Context
-            List<TerrainComponent> WorldTerrains = GetWorld().GetWorldTerrains();
-            float4x4 Matrix_Proj = TerrainUtility.GetProjectionMatrix(45, Camera.main.pixelWidth, Camera.main.pixelHeight, Camera.main.nearClipPlane, Camera.main.farClipPlane);
-            for (int TI = 0; TI < WorldTerrains.Count; ++TI)
-            {
-                TerrainComponent Terrain = WorldTerrains[TI];
-                Terrain.UpdateLODData(Camera.main.transform.position, Matrix_Proj);
-                Terrain.DrawBounds(true);
-            }
 
             //Render Pipeline
             BeginFrameRendering(RenderContext, Views);
@@ -261,14 +255,19 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderContext.DispatchCull(GPUScene, ref CullingParameters, ref CullingData); //Infinity Culling
 
                         //Terrain Context
-                        /*List<TerrainComponent> WorldTerrains = GetWorld().GetWorldTerrains();
+                        List<TerrainComponent> WorldTerrains = GetWorld().GetWorldTerrains();
                         float4x4 Matrix_Proj = TerrainUtility.GetProjectionMatrix((View.fieldOfView) * 0.5f, View.pixelWidth, View.pixelHeight, View.nearClipPlane, View.farClipPlane);
-                        for(int TI = 0; TI < WorldTerrains.Count; ++TI)
+                        for(int i = 0; i < WorldTerrains.Count; ++i)
                         {
-                            TerrainComponent Terrain = WorldTerrains[TI];
+                            TerrainComponent Terrain = WorldTerrains[i];
                             Terrain.UpdateLODData(View.transform.position, Matrix_Proj);
-                            Terrain.DrawBounds(true);
-                        }*/
+                            #if UNITY_EDITOR
+                                if (Handles.ShouldRenderGizmos())
+                                {
+                                    Terrain.DrawBounds(true);
+                                }
+                            #endif
+                        }
                         #endregion //InitViewContext
 
                         #region InitViewCommand
