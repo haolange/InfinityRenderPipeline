@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                     Sections[SectionIndex] = new FTerrainSection();
                     Sections[SectionIndex].PivotPosition = SectionPivotPosition;
                     Sections[SectionIndex].CenterPosition = SectionCenterPosition;
-                    Sections[SectionIndex].BoundBox = new FAABB(SectionCenterPosition, new float3(NumQuad, 1, NumQuad));
+                    Sections[SectionIndex].BoundingBox = new FAABB(SectionCenterPosition, new float3(NumQuad, 1, NumQuad));
                 }
             }
 
@@ -154,9 +154,9 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
                 if (!LODColor)
                 {
-                    Geometry.DrawBound(Section.BoundBox, Color.yellow);
+                    Geometry.DrawBound(Section.BoundingBox, Color.yellow);
                 } else {
-                    Geometry.DrawBound(Section.BoundBox, TerrainUtility.LODColor[Section.LODIndex]);
+                    Geometry.DrawBound(Section.BoundingBox, TerrainUtility.LODColor[Section.LODIndex]);
                 }
             }
         }
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 float PosY = ((Section.CenterPosition.y + MinHeight * ScaleY) + (Section.CenterPosition.y + MaxHeight * ScaleY)) * 0.5f;
                 float SizeY = ((Section.CenterPosition.y + MinHeight * ScaleY) - (Section.CenterPosition.y + MaxHeight * ScaleY));
                 float3 NewBoundCenter = new float3(Section.CenterPosition.x, PosY, Section.CenterPosition.z);
-                Section.BoundBox = new FAABB(NewBoundCenter, new float3(NumQuad, SizeY, NumQuad));
+                Section.BoundingBox = new FAABB(NewBoundCenter, new float3(NumQuad, SizeY, NumQuad));
             }
         }
 #endif

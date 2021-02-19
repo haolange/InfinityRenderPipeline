@@ -1,49 +1,38 @@
-﻿using Unity.Jobs;
-using Unity.Collections;
+﻿using Unity.Collections;
+using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
     //[Serializable]
-    public unsafe class FTerrainBatchCollector
+    public class FTerrainBatchCollector
     {
+        public NativeArray<FTerrainBatch> TerrainBatchs;
+
         public FTerrainBatchCollector() 
         { 
 
         }
 
-        public void Initializ()
+        public void GetMeshBatch(in NativeArray<FTerrainSection> TerrainSections)
         {
+            TerrainBatchs = new NativeArray<FTerrainBatch>(TerrainSections.Length, Allocator.TempJob);
 
-        }
+            for (int i = 0; i < TerrainSections.Length; ++i)
+            {
+                FTerrainSection TerrainSection = TerrainSections[i];
 
-        public void GatherMeshBatch(NativeArray<FTerrainBatch> MeshBatchs, in int Methdo = 0)
-        {
+                FTerrainBatch TerrainBatch;
+                TerrainBatch.NumQuad = TerrainSection.NumQuad;
+                TerrainBatch.LODIndex = TerrainSection.LODIndex;
+                TerrainBatch.FractionLOD = TerrainSection.FractionLOD;
+                TerrainBatch.BoundingBox = TerrainSection.BoundingBox;
+                TerrainBatch.PivotPosition = TerrainSection.PivotPosition;
+                TerrainBatch.NeighborFractionLOD = new float4(1, 1, 1, 1);
 
-        }
+                TerrainBatchs[i] = TerrainBatch;
+            }
 
-        public void AddMeshBatch(in FTerrainBatch MeshBatch, in int AddKey)
-        {
-
-        }
-
-        public void UpdateMeshBatch(in FTerrainBatch MeshBatch, in int UpdateKey)
-        {
-
-        }
-
-        public void RemoveMeshBatch(in int RemoveKey)
-        {
-
-        }
-
-        public void Reset()
-        {
- 
-        }
-
-        public void Release()
-        {
-
+            TerrainBatchs.Dispose();
         }
     }
 }

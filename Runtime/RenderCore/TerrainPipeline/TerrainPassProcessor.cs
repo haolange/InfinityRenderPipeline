@@ -12,12 +12,18 @@ namespace InfinityTech.Rendering.TerrainPipeline
 {
     public class FTerrainPassProcessor
     {
-        public FTerrainPassProcessor(FGPUScene GPUScene)
+        internal Mesh[] Meshes;
+        internal Material material;
+        internal NativeList<int2> CountOffsets;
+        internal NativeList<FTerrainDrawCommand> TerrainDrawCommands;
+
+
+        public FTerrainPassProcessor()
         {
 
         }
 
-        internal void DispatchSetup(in FCullingData CullingData)
+        internal void DispatchSetup()
         {
 
         }
@@ -29,7 +35,24 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         internal void DispatchDraw(RDGContext GraphContext, in int PassIndex)
         {
+            //Draw Call
+            using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.TerrainPipeline)))
+            {
+                for (int i = 0; i < TerrainDrawCommands.Length; ++i)
+                {
+                    int2 CountOffset = CountOffsets[i];
+                    FTerrainDrawCommand TerrainDrawCommand = TerrainDrawCommands[i];
 
+                    for (int j = 0; j < CountOffset.x; ++j)
+                    {
+                        GraphContext.CmdBuffer.DrawMeshInstancedProcedural(Meshes[TerrainDrawCommand.LOD], 0, material, PassIndex, CountOffset.x);
+                    }
+                }
+            }
+
+            //Release TerrainPassData
+            CountOffsets.Dispose();
+            TerrainDrawCommands.Dispose();
         }
     }
 }

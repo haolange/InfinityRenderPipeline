@@ -25,20 +25,15 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int LODIndex;
         public float FractionLOD;
 
-        public FBound BoundBox;
+        public FBound BoundingBox;
         public float3 PivotPosition;
         public float3 CenterPosition;
         public FSectionLODData LODSetting;
 
-        public int TopSectionIndex;
-        public int LeftSectionIndex;
-        public int RightSectionIndex;
-        public int ButtomSectionIndex;
-
 
         public bool Equals(FTerrainSection Target)
         {
-            return NumQuad.Equals(Target.NumQuad) && LODIndex.Equals(Target.LODIndex) && FractionLOD.Equals(Target.FractionLOD) && BoundBox.Equals(Target.BoundBox) && PivotPosition.Equals(Target.PivotPosition) && CenterPosition.Equals(Target.CenterPosition) && LeftSectionIndex.Equals(Target.LeftSectionIndex) && RightSectionIndex.Equals(Target.RightSectionIndex) && TopSectionIndex.Equals(Target.TopSectionIndex) && LODIndex.Equals(Target.LODIndex) && ButtomSectionIndex.Equals(Target.ButtomSectionIndex);
+            return NumQuad.Equals(Target.NumQuad) && LODIndex.Equals(Target.LODIndex) && FractionLOD.Equals(Target.FractionLOD) && BoundingBox.Equals(Target.BoundingBox) && PivotPosition.Equals(Target.PivotPosition) && CenterPosition.Equals(Target.CenterPosition);
         }
 
         public override bool Equals(object obj)
@@ -55,14 +50,10 @@ namespace InfinityTech.Rendering.TerrainPipeline
         {
             int hashCode = NumQuad;
             hashCode += LODIndex.GetHashCode();
-            hashCode += BoundBox.GetHashCode();
+            hashCode += BoundingBox.GetHashCode();
             hashCode += FractionLOD.GetHashCode();
             hashCode += PivotPosition.GetHashCode();
             hashCode += CenterPosition.GetHashCode();
-            hashCode += TopSectionIndex.GetHashCode();
-            hashCode += LeftSectionIndex.GetHashCode();
-            hashCode += RightSectionIndex.GetHashCode();
-            hashCode += ButtomSectionIndex.GetHashCode();
             return hashCode;
         }
     }

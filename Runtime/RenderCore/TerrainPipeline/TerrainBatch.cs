@@ -1,6 +1,6 @@
 ﻿using System;
-using Unity.Burst;
 using UnityEngine;
+using Unity.Burst;
 using Unity.Mathematics;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
@@ -10,12 +10,17 @@ namespace InfinityTech.Rendering.TerrainPipeline
 {
     public struct FTerrainBatch : IComparable<FTerrainBatch>, IEquatable<FTerrainBatch>
     {
+        public int NumQuad;
         public int LODIndex;
+        public float FractionLOD;
+        public FBound BoundingBox;
+        public float3 PivotPosition;
+        public float4 NeighborFractionLOD;
 
 
         public bool Equals(FTerrainBatch Target)
         {
-            return LODIndex.Equals(Target.LODIndex);
+            return NumQuad.Equals(Target.NumQuad) && LODIndex.Equals(Target.LODIndex) && FractionLOD.Equals(Target.FractionLOD) && BoundingBox.Equals(Target.BoundingBox) && PivotPosition.Equals(Target.PivotPosition) && NeighborFractionLOD.Equals(Target.NeighborFractionLOD);
         }
 
         public override bool Equals(object obj)
@@ -28,17 +33,10 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return LODIndex.CompareTo(MeshBatch.LODIndex);
         }
 
-        [BurstCompile]
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MatchForDynamicInstance(ref FTerrainBatch Target)
         {
             return Target.LODIndex;
-        }
-
-        [BurstCompile]
-        public static int MatchForCacheMeshBatch(ref FTerrainBatch Target, in int InstanceID)
-        {
-            return InstanceID + Target.GetHashCode();
         }
 
         public override int GetHashCode()
@@ -49,43 +47,58 @@ namespace InfinityTech.Rendering.TerrainPipeline
         }
     }
 
-    public struct FViewTerrainBatch : IComparable<FViewTerrainBatch>
+    public struct FViewTerrainBatch : IComparable<FViewTerrainBatch>, IEquatable<FViewTerrainBatch>
     {
-        public int Flag;
+        public int Index;
 
 
-        public FViewTerrainBatch(in int InFlag)
+        public FViewTerrainBatch(in int InIndex)
         {
-            Flag = InFlag;
+            Index = InIndex;
         }
 
-        public int CompareTo(FViewTerrainBatch ViewMeshBatch)
+        public int CompareTo(FViewTerrainBatch Target)
         {
-            return Flag.CompareTo(ViewMeshBatch.Flag);
+            return Index.CompareTo(Target.Index);
         }
 
-        public static implicit operator Int32(FViewTerrainBatch ViewMeshBatch) { return ViewMeshBatch.Flag; }
+        public bool Equals(FViewTerrainBatch Target)
+        {
+            return Index.Equals(Target.Index);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals((FViewTerrainBatch)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return Index.GetHashCode();
+        }
+
+        public static implicit operator Int32(FViewTerrainBatch ViewMeshBatch) { return ViewMeshBatch.Index; }
         public static implicit operator FViewTerrainBatch(int index) { return new FViewTerrainBatch(index); }
     }
 
     public struct FPassTerrainBatch : IComparable<FPassTerrainBatch>, IEquatable<FPassTerrainBatch>
     {
-        public int MeshBatchIndex;
+        public int Index;
 
 
-        public FPassTerrainBatch(in int InMeshBatchIndex)
+        public FPassTerrainBatch(in int InIndex)
         {
-            MeshBatchIndex = InMeshBatchIndex;
+            Index = InIndex;
         }
 
         public int CompareTo(FPassTerrainBatch Target)
         {
-            return MeshBatchIndex.CompareTo(Target.MeshBatchIndex);
+            return Index.CompareTo(Target.Index);
         }
 
         public bool Equals(FPassTerrainBatch Target)
         {
-            return MeshBatchIndex.Equals(Target.MeshBatchIndex);
+            return Index.Equals(Target.Index);
         }
 
         public override bool Equals(object obj)
@@ -95,10 +108,10 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public override int GetHashCode()
         {
-            return MeshBatchIndex.GetHashCode() + 5;
+            return Index.GetHashCode();
         }
 
-        public static implicit operator Int32(FPassTerrainBatch MDCValue) { return MDCValue.MeshBatchIndex; }
+        public static implicit operator Int32(FPassTerrainBatch Target) { return Target.Index; }
         public static implicit operator FPassTerrainBatch(int index) { return new FPassTerrainBatch(index); }
     }
 }

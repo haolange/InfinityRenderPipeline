@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (bGatherState == false) { return; }
 
             //Draw Call
-            using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshDrawPipeline)))
+            using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshPipeline)))
             {
                 for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; ++BatchIndex)
                 {
