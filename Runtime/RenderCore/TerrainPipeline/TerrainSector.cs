@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void GenerateLODData(in float LOD0ScreenSize, in float LOD0Distribution, in float LODDistribution)
+        public void BuildLODData(in float LOD0ScreenSize, in float LOD0Distribution, in float LODDistribution)
         {
             for (int i = 0; i < Sections.Length; i++)
             {

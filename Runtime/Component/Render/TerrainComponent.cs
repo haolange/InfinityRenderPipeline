@@ -49,7 +49,7 @@ namespace InfinityTech.Component
             //print("OnRigister");
             GetWorld().AddWorldTerrain(this);
             TerrainSector.Initializ();
-            TerrainSector.GenerateLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
+            TerrainSector.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
             TerrainSector.UpdateToNativeCollection();
         }
 
