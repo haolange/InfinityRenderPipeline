@@ -111,6 +111,8 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void UpdateLODData(in int NumQuad, in float3 ViewOringin, in float4x4 Matrix_Proj)
         {
+            if(NativeSections.IsCreated == false) { return; }
+
             /*for (int i = 0; i < NativeSections.Length; ++i)
             {
                 FTerrainSection Section = NativeSections[i];
