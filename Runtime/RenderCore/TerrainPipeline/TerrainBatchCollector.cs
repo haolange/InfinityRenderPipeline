@@ -12,10 +12,17 @@ namespace InfinityTech.Rendering.TerrainPipeline
         { 
 
         }
+        public void Initializ(in int Length)
+        {
+            if (TerrainBatchs.IsCreated == false)
+            {
+                TerrainBatchs = new NativeArray<FTerrainBatch>(Length, Allocator.TempJob);
+            }
+        }
 
         public void GetMeshBatch(in NativeArray<FTerrainSection> TerrainSections)
         {
-            TerrainBatchs = new NativeArray<FTerrainBatch>(TerrainSections.Length, Allocator.TempJob);
+            if (TerrainBatchs.IsCreated == false) { return; }
 
             for (int i = 0; i < TerrainSections.Length; ++i)
             {
@@ -31,8 +38,14 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
                 TerrainBatchs[i] = TerrainBatch;
             }
+        }
 
-            TerrainBatchs.Dispose();
+        public void Release()
+        {
+            if (TerrainBatchs.IsCreated == true)
+            {
+                TerrainBatchs.Dispose();
+            }
         }
     }
 }

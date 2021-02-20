@@ -36,6 +36,9 @@ namespace InfinityTech.Editor.Component
 
         void PreSave(UnityEngine.SceneManagement.Scene InScene, string InPath)
         {
+            if (Terrain.gameObject.activeSelf == false) { return; }
+            if (Terrain.enabled == false) { return; }
+
             Terrain.Serialize();
         }
     }

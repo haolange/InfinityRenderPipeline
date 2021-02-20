@@ -15,10 +15,11 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public FTerrainSection[] Sections;
         public NativeArray<FTerrainSection> NativeSections;
 
-        public FTerrainSector(in int SectorSize, in int NumSection, in int NumQuad, in float3 SectorPivotPosition, FAABB SectorBound)
+
+        public FTerrainSector(in int SectorSize, in int NumSection, in int SectionSize, in float3 SectorPivotPosition, FAABB SectorBound)
         {
             int SectorSize_Half = SectorSize / 2;
-            int SectionSize_Half = NumQuad / 2;
+            int SectionSize_Half = SectionSize / 2;
 
             MaxLODs = new int[NumSection * NumSection];
             Sections = new FTerrainSection[NumSection * NumSection];
@@ -29,44 +30,32 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 for (int SectorSizeY = 0; SectorSizeY <= NumSection - 1; SectorSizeY++)
                 {
                     int SectionIndex = (SectorSizeX * NumSection) + SectorSizeY;
-                    float3 SectionPivotPosition = SectorPivotPosition + new float3(NumQuad * SectorSizeX, 0, NumQuad * SectorSizeY);
+                    float3 SectionPivotPosition = SectorPivotPosition + new float3(SectionSize * SectorSizeX, 0, SectionSize * SectorSizeY);
                     float3 SectionCenterPosition = SectionPivotPosition + new float3(SectionSize_Half, 0, SectionSize_Half);
 
                     Sections[SectionIndex] = new FTerrainSection();
                     Sections[SectionIndex].PivotPosition = SectionPivotPosition;
                     Sections[SectionIndex].CenterPosition = SectionCenterPosition;
-                    Sections[SectionIndex].BoundingBox = new FAABB(SectionCenterPosition, new float3(NumQuad, 1, NumQuad));
+                    Sections[SectionIndex].BoundingBox = new FAABB(SectionCenterPosition, new float3(SectionSize, 1, SectionSize));
                 }
             }
 
             InitializLOD(7);
         }
 
-        public void Initializ()
-        {
-            if (NativeSections.IsCreated == false)
-            {
-                NativeSections = new NativeArray<FTerrainSection>(Sections.Length, Allocator.Persistent);
-            }
-        }
-
-        public void Release()
-        {
-            if (NativeSections.IsCreated == true)
-            {
-                NativeSections.Dispose();
-            }
-        }
-
         public void BuildNativeCollection()
         {
-            if(NativeSections.IsCreated == true)
+            NativeSections = new NativeArray<FTerrainSection>(Sections.Length, Allocator.Persistent);
+
+            for (int i = 0; i < Sections.Length; i++)
             {
-                for (int i = 0; i < Sections.Length; i++)
-                {
-                    NativeSections[i] = Sections[i];
-                }
+                NativeSections[i] = Sections[i];
             }
+        }
+
+        public void ReleaseNativeCollection()
+        {
+            NativeSections.Dispose();
         }
 
         private void InitializLOD(in int MaxLOD)
@@ -161,19 +150,19 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void BuildBounds(int NumQuad, int TerrainSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
+        public void BuildBounds(int SectorSize, int SectionSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
         {
-            int TerrainSize_Half = TerrainSize / 2;
+            int SectorSize_Half = SectorSize / 2;
 
             for (int i = 0; i < Sections.Length; i++)
             {
                 ref FTerrainSection Section = ref Sections[i];
 
-                float2 PositionScale = new float2(TerrianPosition.x, TerrianPosition.z) + new float2(TerrainSize_Half, TerrainSize_Half);
-                float2 RectUV = new float2((Section.PivotPosition.x - PositionScale.x) + TerrainSize_Half, (Section.PivotPosition.z - PositionScale.y) + TerrainSize_Half);
+                float2 PositionScale = new float2(TerrianPosition.x, TerrianPosition.z) + new float2(SectorSize_Half, SectorSize_Half);
+                float2 RectUV = new float2((Section.PivotPosition.x - PositionScale.x) + SectorSize_Half, (Section.PivotPosition.z - PositionScale.y) + SectorSize_Half);
 
-                int ReverseScale = TerrainSize - NumQuad;
-                Color[] HeightValues = Heightmap.GetPixels(Mathf.FloorToInt(RectUV.x), ReverseScale - Mathf.FloorToInt(RectUV.y), Mathf.FloorToInt(NumQuad), Mathf.FloorToInt(NumQuad), 0);
+                int ReverseScale = SectorSize - SectionSize;
+                Color[] HeightValues = Heightmap.GetPixels(Mathf.FloorToInt(RectUV.x), ReverseScale - Mathf.FloorToInt(RectUV.y), Mathf.FloorToInt(SectionSize), Mathf.FloorToInt(SectionSize), 0);
 
                 float MinHeight = HeightValues[0].r;
                 float MaxHeight = HeightValues[0].r;
@@ -193,7 +182,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 float PosY = ((Section.CenterPosition.y + MinHeight * ScaleY) + (Section.CenterPosition.y + MaxHeight * ScaleY)) * 0.5f;
                 float SizeY = ((Section.CenterPosition.y + MinHeight * ScaleY) - (Section.CenterPosition.y + MaxHeight * ScaleY));
                 float3 NewBoundCenter = new float3(Section.CenterPosition.x, PosY, Section.CenterPosition.z);
-                Section.BoundingBox = new FAABB(NewBoundCenter, new float3(NumQuad, SizeY, NumQuad));
+                Section.BoundingBox = new FAABB(NewBoundCenter, new float3(SectionSize, SizeY, SectionSize));
             }
         }
 #endif

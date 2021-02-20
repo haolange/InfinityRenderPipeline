@@ -13,9 +13,9 @@ namespace InfinityTech.Component
         public float LODXDistribution = 2.8f;
 
         [HideInInspector]
-        public int NumQuad;
-        [HideInInspector]
         public int NumSection;
+        [HideInInspector]
+        public int SectionSize;
         public int SectorSize
         {
             get
@@ -47,7 +47,7 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             GetWorld().AddWorldTerrain(this);
-            TerrainSector.Initializ();
+
             TerrainSector.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
             TerrainSector.BuildNativeCollection();
         }
@@ -69,13 +69,14 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            TerrainSector.Release();
             GetWorld().RemoveWorldTerrain(this);
+
+            TerrainSector.ReleaseNativeCollection();
         }
 
         public void UpdateLODData(in float3 ViewOringin, in float4x4 Matrix_Proj)
         {
-            TerrainSector.UpdateLODData(NumQuad, ViewOringin, Matrix_Proj);
+            TerrainSector.UpdateLODData(SectionSize, ViewOringin, Matrix_Proj);
         }
 
 #if UNITY_EDITOR
@@ -85,13 +86,17 @@ namespace InfinityTech.Component
             UnityTerrainData = GetComponent<TerrainCollider>().terrainData;
 
             NumSection = TerrainUtility.GetSectionNumFromTerrainSize(SectorSize);
-            NumQuad = (SectorSize) / TerrainUtility.GetSectionNumFromTerrainSize(SectorSize);
+            SectionSize = (SectorSize) / NumSection;
 
             TerrainTexture HeightTexture = new TerrainTexture(SectorSize);
             HeightTexture.TerrainDataToHeightmap(UnityTerrainData);
 
-            TerrainSector = new FTerrainSector(SectorSize, NumSection, NumQuad, transform.position, UnityTerrainData.bounds);
-            TerrainSector.BuildBounds(NumQuad, SectorSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);
+            TerrainSector.ReleaseNativeCollection();
+
+            TerrainSector = new FTerrainSector(SectorSize, NumSection, SectionSize, transform.position, UnityTerrainData.bounds);
+            TerrainSector.BuildBounds(SectorSize, SectionSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);
+            TerrainSector.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
+            TerrainSector.BuildNativeCollection();
 
             HeightTexture.Release();
         }
