@@ -6,8 +6,8 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public enum CustomSamplerId
     {
-        MeshPipeline,
-        TerrainPipeline,
+        MeshBatch,
+        TerrainBatch,
         OpaqueDepth,
         OpaqueGBuffer,
         OpaqueMotion,

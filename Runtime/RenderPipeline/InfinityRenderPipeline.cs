@@ -301,6 +301,8 @@ namespace InfinityTech.Rendering.Pipeline
                 EndCameraRendering(RenderContext, View);
 
                 //Submit ViewCommand
+                RenderContext.ExecuteCommandBuffer(CmdBuffer);
+                CmdBuffer.Clear();
                 RenderContext.Submit();
             }
             EndFrameRendering(RenderContext, Views);

@@ -622,9 +622,6 @@ namespace InfinityTech.Rendering.RDG
                     throw;
                 }
             }
-
-            RenderContext.ExecuteCommandBuffer(CmdBuffer);
-            CmdBuffer.Clear();
         }
 
         void PreRenderPassSetRenderTargets(in CompiledPassInfo passInfo, RDGContext rgContext)
