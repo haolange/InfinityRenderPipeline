@@ -7,6 +7,7 @@ using InfinityTech.Component;
 using System.Collections.Generic;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
 
@@ -16,7 +17,7 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public partial struct ViewUnifromBuffer
+    public partial struct FViewUnifrom
     {
         private static readonly int ID_FrameIndex = Shader.PropertyToID("FrameIndex");
         private static readonly int ID_TAAJitter = Shader.PropertyToID("TAAJitter");
@@ -146,7 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
             Matrix_PrevViewFlipYProj = Matrix_ViewFlipYProj;
         }
 
-        public void UnpateBufferData(bool bLastData, Camera RenderCamera)
+        public void UnpateViewUnifrom(bool bLastData, Camera RenderCamera)
         {
             if(!bLastData) {
                 UnpateCurrBufferData(RenderCamera);
@@ -155,55 +156,56 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void BindGPUParameter(CommandBuffer CmdList)
+        public void SetViewUnifrom(CommandBuffer CmdBuffer)
         {
-            CmdList.SetGlobalInt(ID_FrameIndex, FrameIndex);
-            CmdList.SetGlobalInt(ID_Prev_FrameIndex, Prev_FrameIndex);
-            CmdList.SetGlobalVector(ID_TAAJitter, new float4(TAAJitter.x, TAAJitter.y, Prev_TAAJitter.x, Prev_TAAJitter.y));
+            CmdBuffer.SetGlobalInt(ID_FrameIndex, FrameIndex);
+            CmdBuffer.SetGlobalInt(ID_Prev_FrameIndex, Prev_FrameIndex);
+            CmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(TAAJitter.x, TAAJitter.y, Prev_TAAJitter.x, Prev_TAAJitter.y));
 
-            CmdList.SetGlobalMatrix(ID_Matrix_WorldToView, Matrix_WorldToView);
-            CmdList.SetGlobalMatrix(ID_Matrix_ViewToWorld, Matrix_ViewToWorld);
-            CmdList.SetGlobalMatrix(ID_Matrix_Proj, Matrix_Proj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvProj, Matrix_InvProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_JitterProj, Matrix_JitterProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvJitterProj, Matrix_InvJitterProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_FlipYProj, Matrix_FlipYProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvFlipYProj, Matrix_InvFlipYProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_FlipYJitterProj, Matrix_FlipYJitterProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvFlipYJitterProj, Matrix_InvFlipYJitterProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_ViewProj, Matrix_ViewProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvViewProj, Matrix_InvViewProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_ViewFlipYProj, Matrix_ViewFlipYProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvViewFlipYProj, Matrix_InvViewFlipYProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_ViewJitterProj, Matrix_ViewJitterProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvViewJitterProj, Matrix_InvViewJitterProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_ViewFlipYJitterProj, Matrix_ViewFlipYJitterProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_InvViewFlipYJitterProj, Matrix_InvViewFlipYJitterProj);
-           
-            CmdList.SetGlobalMatrix(ID_Matrix_PrevViewProj, Matrix_PrevViewProj);
-            CmdList.SetGlobalMatrix(ID_Matrix_PrevViewFlipYProj, Matrix_PrevViewFlipYProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_WorldToView, Matrix_WorldToView);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewToWorld, Matrix_ViewToWorld);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_Proj, Matrix_Proj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvProj, Matrix_InvProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_JitterProj, Matrix_JitterProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvJitterProj, Matrix_InvJitterProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_FlipYProj, Matrix_FlipYProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvFlipYProj, Matrix_InvFlipYProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_FlipYJitterProj, Matrix_FlipYJitterProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvFlipYJitterProj, Matrix_InvFlipYJitterProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewProj, Matrix_ViewProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewProj, Matrix_InvViewProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewFlipYProj, Matrix_ViewFlipYProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYProj, Matrix_InvViewFlipYProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewJitterProj, Matrix_ViewJitterProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewJitterProj, Matrix_InvViewJitterProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewFlipYJitterProj, Matrix_ViewFlipYJitterProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYJitterProj, Matrix_InvViewFlipYJitterProj);
+
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_PrevViewProj, Matrix_PrevViewProj);
+            CmdBuffer.SetGlobalMatrix(ID_Matrix_PrevViewFlipYProj, Matrix_PrevViewFlipYProj);
         }
     }
 
     public partial class InfinityRenderPipeline : RenderPipeline
     {
-        //Pipeline Main
         private FGPUScene GPUScene;
+        private FViewUnifrom ViewUnifrom;
         private RDGGraphBuilder GraphBuilder;
-        private ViewUnifromBuffer ViewUnifrom;
+        private FResourceFactory ResourcePool;
         private InfinityRenderPipelineAsset RenderPipelineAsset;
 
-        //MeshPassProcessor
         private FMeshPassProcessor DepthPassMeshProcessor;
         private FMeshPassProcessor GBufferPassMeshProcessor;
         private FMeshPassProcessor ForwardPassMeshProcessor;
+
 
         public InfinityRenderPipeline()
         {
             SetGraphicsSetting();
 
             GPUScene = new FGPUScene();
-            ViewUnifrom = new ViewUnifromBuffer();
+            ViewUnifrom = new FViewUnifrom();
+            ResourcePool = new FResourceFactory();
             GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
@@ -215,16 +217,16 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext RenderContext, Camera[] Views)
         {
             //Init FrameContext
+            CommandBuffer CmdBuffer = CommandBufferPool.Get("");
             GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), 2, false);
             RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
-            //Render Pipeline
+            //Do FrameRender
             BeginFrameRendering(RenderContext, Views);
             for (int ViewIndex = 0; ViewIndex < Views.Length; ++ViewIndex)
             {
                 //Init View
                 Camera View = Views[ViewIndex];
-                CommandBuffer CmdBuffer = CommandBufferPool.Get("");
                 CameraComponent HDView = View.GetComponent<CameraComponent>();
 
                 //Render View
@@ -241,8 +243,8 @@ namespace InfinityTech.Rendering.Pipeline
                         #endif
 
                         VFXManager.PrepareCamera(View);
-                        ViewUnifrom.UnpateBufferData(false, View);
-                        ViewUnifrom.BindGPUParameter(CmdBuffer);
+                        ViewUnifrom.UnpateViewUnifrom(false, View);
+                        ViewUnifrom.SetViewUnifrom(CmdBuffer);
                         RenderContext.SetupCameraProperties(View);
                         VFXManager.ProcessCameraCommand(View, CmdBuffer);
 
@@ -276,34 +278,36 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderOpaqueMotion(View, CullingData, CullingResult);
                         RenderOpaqueForward(View, CullingData, CullingResult);
                         RenderSkyBox(View);
-                        RenderGizmo(View, GizmoSubset.PostImageEffects);
+                        RenderGizmos(View, GizmoSubset.PostImageEffects);
                         RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), View.targetTexture);
                         #endregion //InitViewCommand
 
                         #region ExecuteViewRender
+                        //Wait All MeshPassProcessor
                         DepthPassMeshProcessor.WaitSetupFinish();
                         GBufferPassMeshProcessor.WaitSetupFinish();
                         ForwardPassMeshProcessor.WaitSetupFinish();
-                        GraphBuilder.Execute(RenderContext, GetWorld(), CmdBuffer, ViewUnifrom.FrameIndex);
+
+                        //Execute RenderGraph
+                        GraphBuilder.Execute(GetWorld(), RenderContext, CmdBuffer, ViewUnifrom.FrameIndex);
                         #endregion //ExecuteViewRender
 
                         #region ReleaseViewContext
                         CullingData.Release();
-                        ViewUnifrom.UnpateBufferData(true, View);
+                        ViewUnifrom.UnpateViewUnifrom(true, View);
                         #endregion //ReleaseViewContext
                     }
                 }
                 EndCameraRendering(RenderContext, View);
 
-                //Submit View
-                RenderContext.ExecuteCommandBuffer(CmdBuffer);
-                CommandBufferPool.Release(CmdBuffer);
+                //Submit ViewCommand
                 RenderContext.Submit();
             }
             EndFrameRendering(RenderContext, Views);
 
             //Release FrameContext
             GPUScene.Release();
+            CommandBufferPool.Release(CmdBuffer);
         }
 
         protected FRenderWorld GetWorld()
@@ -349,6 +353,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Dispose(bool disposing)
         {
             GraphBuilder.Cleanup();
+            ResourcePool.Disposed();
         }
     }
 }

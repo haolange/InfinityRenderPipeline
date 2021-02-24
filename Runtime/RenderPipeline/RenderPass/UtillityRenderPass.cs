@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
         #endif
         }
 
-        void RenderGizmo(Camera RenderCamera, GizmoSubset gizmoSubset)
+        void RenderGizmos(Camera RenderCamera, GizmoSubset gizmoSubset)
         {
 #if UNITY_EDITOR
             if (Handles.ShouldRenderGizmos())

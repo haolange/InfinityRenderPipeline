@@ -1,4 +1,5 @@
 ﻿using System;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
@@ -34,7 +35,7 @@ namespace InfinityTech.Rendering.RDG
             return input;
         }
 
-        public RDGTextureRef CreateTemporalTexture(in RDGTextureDesc desc)
+        public RDGTextureRef CreateTemporalTexture(in TextureDescription desc)
         {
             var result = m_Resources.CreateTexture(desc, 0, m_RenderPass.index);
             m_RenderPass.AddTemporalResource(result.handle);
@@ -53,7 +54,7 @@ namespace InfinityTech.Rendering.RDG
             return input;
         }
 
-        public RDGBufferRef CreateTemporalBuffer(in RDGBufferDesc desc)
+        public RDGBufferRef CreateTemporalBuffer(in BufferDescription desc)
         {
             var result = m_Resources.CreateBuffer(desc, m_RenderPass.index);
             m_RenderPass.AddTemporalResource(result.handle);

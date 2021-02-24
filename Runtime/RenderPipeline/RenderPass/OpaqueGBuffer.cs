@@ -2,6 +2,7 @@
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -23,10 +24,10 @@ namespace InfinityTech.Rendering.Pipeline
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
-            RDGTextureDesc GBufferADesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
+            TextureDescription GBufferADesc = new TextureDescription(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
             RDGTextureRef GBufferATexure = GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferA, GBufferADesc);
 
-            RDGTextureDesc GBufferBDesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
+            TextureDescription GBufferBDesc = new TextureDescription(Screen.width, Screen.height) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
             RDGTextureRef GBufferBTexure = GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferB, GBufferBDesc);
 
             //Add OpaqueGBufferPass

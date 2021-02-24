@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
@@ -11,23 +12,6 @@ namespace InfinityTech.Rendering.RDG
         Read = 1 << 0,
         Write = 1 << 1,
         ReadWrite = Read | Write,
-    }
-
-    public enum EDepthBits
-    {
-        None = 0,
-        Depth8 = 8,
-        Depth16 = 16,
-        Depth24 = 24,
-        Depth32 = 32
-    }
-
-    public enum EMSAASamples
-    {
-        None = 1,
-        MSAA2x = 2,
-        MSAA4x = 4,
-        MSAA8x = 8
     }
 
     internal enum RDGResourceType
@@ -57,12 +41,13 @@ namespace InfinityTech.Rendering.RDG
     }
 
     #region RDGBufferRef
-    public struct RDGBufferDesc
+    /*public struct RDGBufferDesc
     {
+        public string name;
+
         public int count;
         public int stride;
         public ComputeBufferType type;
-        public string name;
 
         public RDGBufferDesc(int count, int stride) : this()
         {
@@ -80,15 +65,14 @@ namespace InfinityTech.Rendering.RDG
 
         public override int GetHashCode()
         {
-            int hashCode = 17;
-
-            hashCode = hashCode * 23 + count;
-            hashCode = hashCode * 23 + stride;
-            hashCode = hashCode * 23 + (int)type;
+            int hashCode = 0;
+            hashCode += count;
+            hashCode += stride;
+            hashCode += (int)type;
 
             return hashCode;
         }
-    }
+    }*/
 
     public struct RDGBufferRef
     {
@@ -101,7 +85,7 @@ namespace InfinityTech.Rendering.RDG
     #endregion //RDGBufferRef
 
     #region RDGTextureRef
-    public struct RDGTextureDesc
+    /*public struct RDGTextureDesc
     {
         public string name;
 
@@ -141,30 +125,26 @@ namespace InfinityTech.Rendering.RDG
 
         public override int GetHashCode()
         {
-            int hashCode = 17;
-
-            unchecked
-            {
-                hashCode = hashCode * 23 + width;
-                hashCode = hashCode * 23 + height;
-                hashCode = hashCode * 23 + slices;
-                hashCode = hashCode * 23 + mipMapBias.GetHashCode();
-                hashCode = hashCode * 23 + (int)depthBufferBits;
-                hashCode = hashCode * 23 + (int)colorFormat;
-                hashCode = hashCode * 23 + (int)filterMode;
-                hashCode = hashCode * 23 + (int)wrapMode;
-                hashCode = hashCode * 23 + (int)dimension;
-                hashCode = hashCode * 23 + anisoLevel;
-                hashCode = hashCode * 23 + (enableRandomWrite ? 1 : 0);
-                hashCode = hashCode * 23 + (useMipMap ? 1 : 0);
-                hashCode = hashCode * 23 + (autoGenerateMips ? 1 : 0);
-                hashCode = hashCode * 23 + (isShadowMap ? 1 : 0);
-                hashCode = hashCode * 23 + (bindTextureMS ? 1 : 0);
-            }
+            int hashCode = 0;
+            hashCode += width;
+            hashCode += height;
+            hashCode += slices;
+            hashCode += mipMapBias.GetHashCode();
+            hashCode += (int)depthBufferBits;
+            hashCode += (int)colorFormat;
+            hashCode += (int)filterMode;
+            hashCode += (int)wrapMode;
+            hashCode += (int)dimension;
+            hashCode += anisoLevel;
+            hashCode += (enableRandomWrite ? 1 : 0);
+            hashCode += (useMipMap ? 1 : 0);
+            hashCode += (autoGenerateMips ? 1 : 0);
+            hashCode += (isShadowMap ? 1 : 0);
+            hashCode += (bindTextureMS ? 1 : 0);
 
             return hashCode;
         }
-    }
+    }*/
 
     public struct RDGTextureRef
     {
@@ -226,7 +206,7 @@ namespace InfinityTech.Rendering.RDG
         }
     }
 
-    internal class RDGBuffer : RDGResource<RDGBufferDesc, ComputeBuffer>
+    internal class RDGBuffer : RDGResource<BufferDescription, ComputeBuffer>
     {
         public override string GetName()
         {
@@ -234,7 +214,7 @@ namespace InfinityTech.Rendering.RDG
         }
     }
 
-    internal class RDGTexture : RDGResource<RDGTextureDesc, RenderTexture>
+    internal class RDGTexture : RDGResource<TextureDescription, RenderTexture>
     {
         public override string GetName()
         {

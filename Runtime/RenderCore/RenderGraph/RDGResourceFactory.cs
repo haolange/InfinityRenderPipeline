@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
@@ -103,7 +104,7 @@ namespace InfinityTech.Rendering.RDG
             return new RDGTextureRef(newHandle);
         }
 
-        internal RDGTextureRef CreateTexture(in RDGTextureDesc desc, int shaderProperty = 0, int temporalPassIndex = -1)
+        internal RDGTextureRef CreateTexture(in TextureDescription desc, int shaderProperty = 0, int temporalPassIndex = -1)
         {
             int newHandle = AddNewResource(m_Resources[(int)RDGResourceType.Texture], out RDGTexture texResource);
             texResource.desc = desc;
@@ -122,7 +123,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources[(int)RDGResourceType.Texture][handle] as RDGTexture;
         }
 
-        internal RDGTextureDesc GetTextureResourceDesc(in RDGResourceRef handle)
+        internal TextureDescription GetTextureResourceDesc(in RDGResourceRef handle)
         {
             return (m_Resources[(int)RDGResourceType.Texture][handle] as RDGTexture).desc;
         }
@@ -136,7 +137,7 @@ namespace InfinityTech.Rendering.RDG
             return new RDGBufferRef(newHandle);
         }
 
-        internal RDGBufferRef CreateBuffer(in RDGBufferDesc desc, int temporalPassIndex = -1)
+        internal RDGBufferRef CreateBuffer(in BufferDescription desc, int temporalPassIndex = -1)
         {
             int newHandle = AddNewResource(m_Resources[(int)RDGResourceType.Buffer], out RDGBuffer bufferResource);
             bufferResource.desc = desc;
@@ -155,7 +156,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources[(int)RDGResourceType.Buffer][handle] as RDGBuffer;
         }
 
-        internal RDGBufferDesc GetBufferResourceDesc(in RDGResourceRef handle)
+        internal BufferDescription GetBufferResourceDesc(in RDGResourceRef handle)
         {
             return (m_Resources[(int)RDGResourceType.Buffer][handle] as RDGBuffer).desc;
         }

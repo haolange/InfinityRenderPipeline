@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -19,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
 
-            RDGTextureDesc DepthDesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
+            TextureDescription DepthDesc = new TextureDescription(Screen.width, Screen.height) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, DepthDesc);
 
             //Add OpaqueDepthPass

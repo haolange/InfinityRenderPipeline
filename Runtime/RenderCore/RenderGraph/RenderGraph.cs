@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
 using InfinityTech.Rendering.Core;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
@@ -136,7 +137,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.ImportTexture(rt, shaderProperty);
         }
 
-        public RDGTextureRef CreateTexture(in RDGTextureDesc desc, int shaderProperty = 0)
+        public RDGTextureRef CreateTexture(in TextureDescription desc, int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(desc, shaderProperty);
         }
@@ -146,7 +147,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.CreateTexture(m_Resources.GetTextureResourceDesc(texture.handle), shaderProperty);
         }
 
-        public RDGTextureDesc GetTextureDesc(RDGTextureRef texture)
+        public TextureDescription GetTextureDesc(RDGTextureRef texture)
         {
             return m_Resources.GetTextureResourceDesc(texture.handle);
         }
@@ -156,7 +157,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.ImportBuffer(buffer);
         }
 
-        public RDGBufferRef CreateBuffer(in RDGBufferDesc desc)
+        public RDGBufferRef CreateBuffer(in BufferDescription desc)
         {
             return m_Resources.CreateBuffer(desc);
         }
@@ -166,7 +167,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.CreateBuffer(m_Resources.GetBufferResourceDesc(bufferHandle.handle));
         }
 
-        public RDGBufferDesc GetBufferDesc(in RDGBufferRef bufferHandle)
+        public BufferDescription GetBufferDesc(in RDGBufferRef bufferHandle)
         {
             return m_Resources.GetBufferResourceDesc(bufferHandle.handle);
         }
@@ -181,7 +182,7 @@ namespace InfinityTech.Rendering.RDG
             m_BufferScope.Set(Handle, Buffer);
         }
 
-        public RDGBufferRef ScopeBuffer(in int Handle, in RDGBufferDesc BufferDesc)
+        public RDGBufferRef ScopeBuffer(in int Handle, in BufferDescription BufferDesc)
         {
             RDGBufferRef Buffer = CreateBuffer(BufferDesc);
             m_BufferScope.Set(Handle, Buffer);
@@ -198,7 +199,7 @@ namespace InfinityTech.Rendering.RDG
             m_TextureScope.Set(Handle, Texture);
         }
 
-        public RDGTextureRef ScopeTexture(in int Handle, in RDGTextureDesc TextureDesc)
+        public RDGTextureRef ScopeTexture(in int Handle, in TextureDescription TextureDesc)
         {
             RDGTextureRef Texture = CreateTexture(TextureDesc, Handle);
             m_TextureScope.Set(Handle, Texture);
@@ -222,7 +223,7 @@ namespace InfinityTech.Rendering.RDG
             m_RenderPasses.Add(renderPass);
         }
 
-        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, CommandBuffer cmd, int InFrameIndex)
+        public void Execute(FRenderWorld world, ScriptableRenderContext renderContext, CommandBuffer cmd, int InFrameIndex)
         {
             m_ExecutionExceptionWasRaised = false;
 
@@ -621,6 +622,9 @@ namespace InfinityTech.Rendering.RDG
                     throw;
                 }
             }
+
+            RenderContext.ExecuteCommandBuffer(CmdBuffer);
+            CmdBuffer.Clear();
         }
 
         void PreRenderPassSetRenderTargets(in CompiledPassInfo passInfo, RDGContext rgContext)

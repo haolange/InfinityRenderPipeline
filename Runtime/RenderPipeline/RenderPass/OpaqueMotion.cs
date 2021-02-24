@@ -2,6 +2,7 @@
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -24,7 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
-            RDGTextureDesc MotionDesc = new RDGTextureDesc(Screen.width, Screen.height) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = "MotionBufferTexture", colorFormat = GraphicsFormat.R16G16_SFloat };
+            TextureDescription MotionDesc = new TextureDescription(Screen.width, Screen.height) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = "MotionBufferTexture", colorFormat = GraphicsFormat.R16G16_SFloat };
             RDGTextureRef MotionTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, MotionDesc);
 
             //Add OpaqueMotionPass

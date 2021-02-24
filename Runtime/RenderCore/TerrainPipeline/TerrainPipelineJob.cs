@@ -1,10 +1,7 @@
-﻿using System;
-using Unity.Jobs;
+﻿using Unity.Jobs;
 using Unity.Burst;
 using Unity.Mathematics;
 using Unity.Collections;
-using InfinityTech.Core.Geometry;
-using Unity.Collections.LowLevel.Unsafe;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
