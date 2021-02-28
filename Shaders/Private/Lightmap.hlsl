@@ -1,7 +1,7 @@
 #ifndef _BSDF_
 #define _BSDF_
 
-#include "../Private/ShaderVariable.hlsl"
+#include "ShaderVariable.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 

@@ -218,7 +218,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             //Init FrameContext
             CommandBuffer CmdBuffer = CommandBufferPool.Get("");
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), 2, false);
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), ResourcePool, CmdBuffer, 2, false);
             RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
             //Do FrameRender
@@ -289,7 +289,7 @@ namespace InfinityTech.Rendering.Pipeline
                         ForwardPassMeshProcessor.WaitSetupFinish();
 
                         //Execute RenderGraph
-                        GraphBuilder.Execute(GetWorld(), RenderContext, CmdBuffer, ViewUnifrom.FrameIndex);
+                        GraphBuilder.Execute(GetWorld(), ResourcePool, RenderContext, CmdBuffer, ViewUnifrom.FrameIndex);
                         #endregion //ExecuteViewRender
 
                         #region ReleaseViewContext
@@ -308,7 +308,7 @@ namespace InfinityTech.Rendering.Pipeline
             EndFrameRendering(RenderContext, Views);
 
             //Release FrameContext
-            GPUScene.Release();
+            GPUScene.Release(ResourcePool);
             CommandBufferPool.Release(CmdBuffer);
         }
 

@@ -11,6 +11,7 @@ namespace InfinityTech.Rendering.RDG
     {
         public FRenderWorld World;
         public RDGObjectPool ObjectPool;
+        public FResourceFactory ResourcePool;
         public CommandBuffer CmdBuffer;
         public ScriptableRenderContext RenderContext;
     }
@@ -223,7 +224,7 @@ namespace InfinityTech.Rendering.RDG
             m_RenderPasses.Add(renderPass);
         }
 
-        public void Execute(FRenderWorld world, ScriptableRenderContext renderContext, CommandBuffer cmd, int InFrameIndex)
+        public void Execute(FRenderWorld world, FResourceFactory resourcePool, ScriptableRenderContext renderContext, CommandBuffer cmd, int InFrameIndex)
         {
             m_ExecutionExceptionWasRaised = false;
 
@@ -231,7 +232,7 @@ namespace InfinityTech.Rendering.RDG
             {
                 m_Resources.BeginRender(InFrameIndex);
                 CompileRenderGraph();
-                ExecuteRenderGraph(renderContext, world, cmd);
+                ExecuteRenderGraph(renderContext, world, resourcePool, cmd);
             } catch (Exception e) {
                 Debug.LogError("Render Graph Execution error");
                 if (!m_ExecutionExceptionWasRaised)
@@ -587,12 +588,13 @@ namespace InfinityTech.Rendering.RDG
             UpdateResourceAllocationAndSynchronization();
         }
 
-        void ExecuteRenderGraph(ScriptableRenderContext RenderContext, FRenderWorld renderWorld, CommandBuffer CmdBuffer)
+        void ExecuteRenderGraph(ScriptableRenderContext RenderContext, FRenderWorld RenderWorld, FResourceFactory ResourcePool, CommandBuffer CmdBuffer)
         {
-            m_RenderGraphContext.World = renderWorld;
+            m_RenderGraphContext.World = RenderWorld;
             m_RenderGraphContext.CmdBuffer = CmdBuffer;
-            m_RenderGraphContext.RenderContext = RenderContext;
             m_RenderGraphContext.ObjectPool = m_ObjectPool;
+            m_RenderGraphContext.ResourcePool = ResourcePool;
+            m_RenderGraphContext.RenderContext = RenderContext;
 
             for (int passIndex = 0; passIndex < m_CompiledPassInfos.size; ++passIndex)
             {

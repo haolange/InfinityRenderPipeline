@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             int VisibleState = 1;
             FMeshBatch MeshBatch = MeshBatchs[index];
 
-            if (MeshBatch.Visible)
+            if (MeshBatch.Visible == 1)
             {
                 for (int i = 0; i < 6; ++i)
                 {

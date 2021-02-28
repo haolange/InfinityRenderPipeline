@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(ForwardRenderList.cullingResult, ref ForwardRenderList.drawSettings, ref ForwardRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                ForwardPassMeshProcessor.DispatchDraw(GraphContext, 4);
+                ForwardPassMeshProcessor.DispatchDraw(GraphContext, 2);
             });
         }
     }

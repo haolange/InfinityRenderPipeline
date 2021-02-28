@@ -1,7 +1,7 @@
 #ifndef _PackData_
 #define _PackData_
 
-#include "../Private/Common.hlsl"
+#include "Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 

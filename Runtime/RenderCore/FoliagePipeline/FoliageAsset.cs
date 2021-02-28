@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.FoliagePipeline
         public float ScreenSize;
     }
 
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/FoliageAsset")]
+    [CreateAssetMenu(menuName = "InfinityRenderPipeline/FoliageAsset", order = 358)]
     public class FoliageAsset : ScriptableObject
     {
         [Header("Mesh")]

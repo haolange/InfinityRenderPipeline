@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(DepthRenderList.cullingResult, ref DepthRenderList.drawSettings, ref DepthRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                DepthPassMeshProcessor.DispatchDraw(GraphContext, 1);
+                DepthPassMeshProcessor.DispatchDraw(GraphContext, 0);
             });
         }
     }

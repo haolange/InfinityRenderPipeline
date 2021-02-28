@@ -3,7 +3,7 @@ using UnityEngine;
 namespace InfinityTech.Rendering.Feature
 {
     [ExecuteInEditMode]
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/AtmosphereSkyAsset")]
+    [CreateAssetMenu(menuName = "InfinityRenderPipeline/AtmosphereSkyAsset", order = 359)]
     public sealed class AtmosphereSkyAsset : ScriptableObject
     {
         [Header("PlanetSetting")]

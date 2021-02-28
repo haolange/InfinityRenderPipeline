@@ -55,6 +55,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         public static int RT_MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");
+
+        public static int Offset = Shader.PropertyToID("_Offset");
+        public static int Indexs = Shader.PropertyToID("_Indexs");
+        public static int GPUScene = Shader.PropertyToID("_GPUScene");
     }
     
     public static class InfinityPassIDs {

@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int CastShadow;
         public int MotionType;
 
-        public bool Visible;
+        public int Visible;
         public int Priority;
         public int RenderLayer;
         public FBound BoundBox;
@@ -62,14 +62,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             return Priority.CompareTo(MeshBatch.Priority);
         }
 
-        [BurstCompile]
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MatchForDynamicInstance(ref FMeshBatch Target)
         {
             return Target.SubmeshIndex + (Target.Mesh.Id << 16 | Target.Material.Id);
         }
 
-        [BurstCompile]
         public static int MatchForCacheMeshBatch(ref FMeshBatch Target, in int InstanceID)
         {
             return InstanceID + Target.GetHashCode();

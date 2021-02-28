@@ -267,7 +267,7 @@ namespace InfinityTech.Component
                 for (int Index = 0; Index < StaticMesh.subMeshCount; ++Index)
                 {
                     FMeshBatch MeshBatch;
-                    MeshBatch.Visible = Visible;
+                    MeshBatch.Visible = Visible ? 1 : 0;
                     MeshBatch.BoundBox = BoundBox;
                     MeshBatch.CastShadow = (int)CastShadow;
                     MeshBatch.MotionType = (int)MotionVector;
@@ -292,7 +292,7 @@ namespace InfinityTech.Component
                 for (int Index = 0; Index < MeshBatchCacheID.Length; ++Index)
                 {
                     FMeshBatch MeshBatch;
-                    MeshBatch.Visible = Visible;
+                    MeshBatch.Visible = Visible ? 1 : 0;
                     MeshBatch.BoundBox = BoundBox;
                     MeshBatch.CastShadow = (int)CastShadow;
                     MeshBatch.MotionType = (int)MotionVector;

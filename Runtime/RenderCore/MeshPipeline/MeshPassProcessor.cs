@@ -4,7 +4,9 @@ using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
+using System.Runtime.InteropServices;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.GPUResource;
 using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
@@ -39,6 +41,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal bool bScheduleState;
         internal FGPUScene GPUScene;
         internal JobHandle GatherHandle;
+        internal MaterialPropertyBlock BatchPropertyBlock;
+
         internal NativeArray<int> Indexs;
         internal NativeList<int2> CountOffsets;
         internal NativeList<FPassMeshBatchV2> PassMeshBatchs;
@@ -47,6 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public FMeshPassProcessor(FGPUScene InGPUScene)
         {
             GPUScene = InGPUScene;
+            BatchPropertyBlock = new MaterialPropertyBlock();
         }
 
         internal void DispatchSetup(in FCullingData CullingData, in FMeshPassDesctiption MeshPassDesctiption)
@@ -76,6 +81,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             //Draw Call
             using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshBatch)))
             {
+                BufferRef BufferHandle = GraphContext.ResourcePool.AllocateBuffer(new BufferDescription(64000, Marshal.SizeOf(typeof(int))));
+                GraphContext.CmdBuffer.SetComputeBufferData(BufferHandle.Buffer, Indexs);
+
                 for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; ++BatchIndex)
                 {
                     int2 CountOffset = CountOffsets[BatchIndex];
@@ -84,12 +92,19 @@ namespace InfinityTech.Rendering.MeshPipeline
                     Mesh DrawMesh = GraphContext.World.WorldMeshs.Get(MeshDrawCommand.MeshID);
                     Material DrawMaterial = GraphContext.World.WorldMaterials.Get(MeshDrawCommand.MaterialID);
 
-                    for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
+                    BatchPropertyBlock.SetInt(InfinityShaderIDs.Offset, CountOffset.y);
+                    BatchPropertyBlock.SetBuffer(InfinityShaderIDs.Indexs, BufferHandle.Buffer);
+                    BatchPropertyBlock.SetBuffer(InfinityShaderIDs.GPUScene, GPUScene.BufferHandle.Buffer);
+                    GraphContext.CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, PassIndex, CountOffset.x, BatchPropertyBlock);
+
+                    /*for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)
                     {
                         int DrawIndex = Indexs[CountOffset.y + InstanceIndex];
                         GraphContext.CmdBuffer.DrawMesh(DrawMesh, GPUScene.MeshBatchs[DrawIndex].Matrix_LocalToWorld, DrawMaterial, MeshDrawCommand.SubmeshIndex, PassIndex);
-                    }
+                    }*/
                 }
+
+                GraphContext.ResourcePool.ReleaseBuffer(BufferHandle);
             }
 
             //Release MeshPassData

@@ -1,7 +1,7 @@
 #ifndef _SphericalHarmonic_
 #define _SphericalHarmonic_
 
-//#include "../Private/Common.hlsl"
+//#include "Common.hlsl"
 //#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 struct SH1Table

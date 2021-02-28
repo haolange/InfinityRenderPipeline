@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                GBufferPassMeshProcessor.DispatchDraw(GraphContext, 2);
+                GBufferPassMeshProcessor.DispatchDraw(GraphContext, 1);
             });
         }
     }
