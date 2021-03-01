@@ -3,10 +3,11 @@ using UnityEngine;
 using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Core.Geometry;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    internal static class FCullingUtility
+    internal unsafe static class FCullingUtility
     {
         public static void DispatchCull(this ScriptableRenderContext RenderContext, FGPUScene GPUScene, Camera RenderCamera, ref FCullingData CullingData)
         {
@@ -26,8 +27,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
             {
-                MeshBatchCullingJob.ViewFrustum = CullingData.ViewFrustum;
-                MeshBatchCullingJob.MeshBatchs = GPUScene.MeshBatchs;
+                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)GPUScene.MeshBatchs.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.FrustumPlanes = (FPlane*)CullingData.ViewFrustum.GetUnsafeReadOnlyPtr();
                 MeshBatchCullingJob.ViewMeshBatchs = CullingData.ViewMeshBatchs;
             }
             MeshBatchCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();
@@ -50,8 +51,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
             {
-                MeshBatchCullingJob.ViewFrustum = CullingData.ViewFrustum;
-                MeshBatchCullingJob.MeshBatchs = GPUScene.MeshBatchs;
+                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)GPUScene.MeshBatchs.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.FrustumPlanes = (FPlane*)CullingData.ViewFrustum.GetUnsafeReadOnlyPtr();
                 MeshBatchCullingJob.ViewMeshBatchs = CullingData.ViewMeshBatchs;
             }
             MeshBatchCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();

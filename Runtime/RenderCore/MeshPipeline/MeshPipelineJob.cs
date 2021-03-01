@@ -175,13 +175,15 @@ namespace InfinityTech.Rendering.MeshPipeline
     }*/
 
     [BurstCompile]
-    public struct FMeshBatchCullingJob : IJobParallelFor
+    public unsafe struct FMeshBatchCullingJob : IJobParallelFor
     {
         [ReadOnly]
-        public NativeArray<FPlane> ViewFrustum;
+        [NativeDisableUnsafePtrRestriction]
+        public FPlane* FrustumPlanes;
 
         [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
+        [NativeDisableUnsafePtrRestriction]
+        public FMeshBatch* MeshBatchs;
 
         [WriteOnly]
         public NativeArray<int> ViewMeshBatchs;
@@ -191,15 +193,15 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             int VisibleState = 1;
             float2 distRadius = new float2(0, 0);
-            FMeshBatch MeshBatch = MeshBatchs[index];
+            ref FMeshBatch MeshBatch = ref MeshBatchs[index];
 
             for (int i = 0; i < 6; ++i)
             {
                 Unity.Burst.CompilerServices.Loop.ExpectVectorized();
 
-                float4 normalDist = ViewFrustum[i].normalDist;
-                distRadius.x = math.dot(normalDist.xyz, MeshBatch.BoundBox.center) + normalDist.w;
-                distRadius.y = math.dot(math.abs(normalDist.xyz), MeshBatch.BoundBox.extents);
+                ref FPlane FrustumPlane = ref FrustumPlanes[i];
+                distRadius.x = math.dot(FrustumPlane.normalDist.xyz, MeshBatch.BoundBox.center) + FrustumPlane.normalDist.w;
+                distRadius.y = math.dot(math.abs(FrustumPlane.normalDist.xyz), MeshBatch.BoundBox.extents);
 
                 VisibleState = math.select(VisibleState, 0, distRadius.x + distRadius.y < 0);
             }
@@ -209,26 +211,28 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FFilterMeshBatchCullJob : IJobParallelForFilter
+    public unsafe struct FFilterMeshBatchCullJob : IJobParallelForFilter
     {
         [ReadOnly]
-        public NativeArray<FPlane> ViewFrustum;
+        [NativeDisableUnsafePtrRestriction]
+        public FPlane* FrustumPlanes;
 
         [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
+        [NativeDisableUnsafePtrRestriction]
+        public FMeshBatch* MeshBatchs;
 
 
         public bool Execute(int index)
         {
             int VisibleState = 1;
             float2 distRadius = new float2(0, 0);
-            FMeshBatch MeshBatch = MeshBatchs[index];
+            ref FMeshBatch MeshBatch = ref MeshBatchs[index];
 
             for (int i = 0; i < 6; ++i)
             {
-                float4 normalDist = ViewFrustum[i].normalDist;
-                distRadius.x = math.dot(normalDist.xyz, MeshBatch.BoundBox.center) + normalDist.w;
-                distRadius.y = math.dot(math.abs(normalDist.xyz), MeshBatch.BoundBox.extents);
+                ref FPlane FrustumPlane = ref FrustumPlanes[i];
+                distRadius.x = math.dot(FrustumPlane.normalDist.xyz, MeshBatch.BoundBox.center) + FrustumPlane.normalDist.w;
+                distRadius.y = math.dot(math.abs(FrustumPlane.normalDist.xyz), MeshBatch.BoundBox.extents);
 
                 VisibleState = math.select(VisibleState, 0, distRadius.x + distRadius.y < 0);
             }
