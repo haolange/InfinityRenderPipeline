@@ -137,7 +137,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }*/
 
-    [BurstCompile]
+    /*[BurstCompile]
     public struct FMeshBatchCullingJob : IJobParallelFor
     {
         [ReadOnly]
@@ -172,6 +172,40 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             ViewMeshBatchs[index] = VisibleState;
         }
+    }*/
+
+    [BurstCompile]
+    public struct FMeshBatchCullingJob : IJobParallelFor
+    {
+        [ReadOnly]
+        public NativeArray<FPlane> ViewFrustum;
+
+        [ReadOnly]
+        public NativeArray<FMeshBatch> MeshBatchs;
+
+        [WriteOnly]
+        public NativeArray<int> ViewMeshBatchs;
+
+
+        public void Execute(int index)
+        {
+            int VisibleState = 1;
+            float2 distRadius = new float2(0, 0);
+            FMeshBatch MeshBatch = MeshBatchs[index];
+
+            for (int i = 0; i < 6; ++i)
+            {
+                Unity.Burst.CompilerServices.Loop.ExpectVectorized();
+
+                float4 normalDist = ViewFrustum[i].normalDist;
+                distRadius.x = math.dot(normalDist.xyz, MeshBatch.BoundBox.center) + normalDist.w;
+                distRadius.y = math.dot(math.abs(normalDist.xyz), MeshBatch.BoundBox.extents);
+
+                VisibleState = math.select(VisibleState, 0, distRadius.x + distRadius.y < 0);
+            }
+
+            ViewMeshBatchs[index] = math.select(0, VisibleState, MeshBatch.Visible == 1);
+        }
     }
 
     [BurstCompile]
@@ -183,24 +217,23 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchs;
 
+
         public bool Execute(int index)
         {
+            int VisibleState = 1;
+            float2 distRadius = new float2(0, 0);
             FMeshBatch MeshBatch = MeshBatchs[index];
 
             for (int i = 0; i < 6; ++i)
             {
-                float3 normal = ViewFrustum[i].normal;
-                float distance = ViewFrustum[i].distance;
+                float4 normalDist = ViewFrustum[i].normalDist;
+                distRadius.x = math.dot(normalDist.xyz, MeshBatch.BoundBox.center) + normalDist.w;
+                distRadius.y = math.dot(math.abs(normalDist.xyz), MeshBatch.BoundBox.extents);
 
-                float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
-                float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
-
-                if (dist + radius < 0) {
-                    return false;
-                }
+                VisibleState = math.select(VisibleState, 0, distRadius.x + distRadius.y < 0);
             }
 
-            return true;
+            return (VisibleState == 1) ? true : false;
         }
     }
 
@@ -279,6 +312,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         [WriteOnly]
         public NativeList<FMeshDrawCommandV2> MeshDrawCommands;
+
 
         public void Execute()
         {
