@@ -56,23 +56,24 @@
 
 			struct Attributes
 			{
+				uint InstanceId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
 				float4 vertex : POSITION;
 			};
 
 			struct Varyings
 			{
-				uint InstanceId : SV_InstanceID;
+				uint PrimitiveId  : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
 				float4 vertex_WS : TEXCOORD2;
 				float4 vertex_CS : SV_POSITION;
 			};
 
-			Varyings vert(Attributes In, uint InstanceId : SV_InstanceID)
+			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.InstanceId = _Indexs[InstanceId + _Offset];
-				FMeshbatch Meshbatch = _GPUScene[Out.InstanceId];
+				Out.PrimitiveId  = _Indexs[In.InstanceId + _Offset];
+				FMeshbatch Meshbatch = _Primitives[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.vertex_WS = mul(Meshbatch.Matrix_Model, float4(In.vertex.xyz, 1.0));
@@ -120,6 +121,7 @@
 
 			struct Attributes
 			{
+				uint InstanceId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
 				float3 normal : NORMAL;
 				float4 vertex : POSITION;
@@ -127,18 +129,18 @@
 
 			struct Varyings
 			{
-				uint InstanceId : SV_InstanceID;
+				uint PrimitiveId  : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
 				float3 normal : TEXCOORD1;
 				float4 vertex_WS : TEXCOORD2;
 				float4 vertex_CS : SV_POSITION;
 			};
 			
-			Varyings vert (Attributes In, uint InstanceId : SV_InstanceID)
+			Varyings vert (Attributes In)
 			{
 				Varyings Out;
-				Out.InstanceId = _Indexs[InstanceId + _Offset];
-				FMeshbatch Meshbatch = _GPUScene[Out.InstanceId];
+				Out.PrimitiveId  = _Indexs[In.InstanceId + _Offset];
+				FMeshbatch Meshbatch = _Primitives[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.normal = In.normal;
@@ -196,6 +198,7 @@
 
 			struct Attributes
 			{
+				uint InstanceId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
 				float2 uv1 : TEXCOORD1;
 				float3 normal : NORMAL;
@@ -204,18 +207,18 @@
 
 			struct Varyings
 			{
-				uint InstanceId : SV_InstanceID;
+				uint PrimitiveId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
 				float3 normal : TEXCOORD1;
 				float4 vertex_WS : TEXCOORD2;
 				float4 vertex_CS : SV_POSITION;
 			};
 
-			Varyings vert(Attributes In, uint InstanceId : SV_InstanceID)
+			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.InstanceId = _Indexs[InstanceId + _Offset];
-				FMeshbatch Meshbatch = _GPUScene[Out.InstanceId];
+				Out.PrimitiveId  = _Indexs[In.InstanceId + _Offset];
+				FMeshbatch Meshbatch = _Primitives[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.normal = In.normal;

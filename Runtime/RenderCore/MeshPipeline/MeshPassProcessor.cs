@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
                     BatchPropertyBlock.SetInt(InfinityShaderIDs.Offset, CountOffset.y);
                     BatchPropertyBlock.SetBuffer(InfinityShaderIDs.Indexs, BufferHandle.Buffer);
-                    BatchPropertyBlock.SetBuffer(InfinityShaderIDs.GPUScene, GPUScene.BufferHandle.Buffer);
+                    BatchPropertyBlock.SetBuffer(InfinityShaderIDs.Primitives, GPUScene.BufferHandle.Buffer);
                     GraphContext.CmdBuffer.DrawMeshInstancedProcedural(DrawMesh, MeshDrawCommand.SubmeshIndex, DrawMaterial, PassIndex, CountOffset.x, BatchPropertyBlock);
 
                     /*for (int InstanceIndex = 0; InstanceIndex < CountOffset.x; ++InstanceIndex)

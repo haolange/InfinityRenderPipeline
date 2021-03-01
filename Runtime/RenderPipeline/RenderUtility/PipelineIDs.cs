@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public static int Offset = Shader.PropertyToID("_Offset");
         public static int Indexs = Shader.PropertyToID("_Indexs");
-        public static int GPUScene = Shader.PropertyToID("_GPUScene");
+        public static int Primitives = Shader.PropertyToID("_Primitives");
     }
     
     public static class InfinityPassIDs {

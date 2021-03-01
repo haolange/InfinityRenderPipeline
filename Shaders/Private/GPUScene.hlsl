@@ -20,7 +20,7 @@ struct FMeshbatch
 
 uint _Offset;
 Buffer<uint> _Indexs;
-StructuredBuffer<FMeshbatch> _GPUScene;
+StructuredBuffer<FMeshbatch> _Primitives;
 
 
 #endif
