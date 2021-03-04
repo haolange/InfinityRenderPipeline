@@ -7,7 +7,7 @@
   "displayName": "Infinity RP",
   "dependencies": {
     "com.unity.jobs": "0.8.0-preview.23",
-    "com.unity.burst": "1.4.5",
+    "com.unity.burst": "1.4.6",
     "com.unity.shadergraph": "10.2.2",
     "com.unity.mathematics": "1.2.1",
     "com.unity.addressables": "1.16.16",
