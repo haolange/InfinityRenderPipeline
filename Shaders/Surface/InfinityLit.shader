@@ -385,7 +385,7 @@
 				float3 IndirectLight = 1;
 				#if defined(LIGHTMAP_ON)
 				IndirectLight = SampleLightmap(In.uv1, In.normal);
-			#endif
+				#endif
 
 				DiffuseBuffer = BaseColor * IndirectLight;
 				SpecularBuffer = 0.5f;
