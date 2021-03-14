@@ -175,7 +175,7 @@ float GetStepScreenFactorToClipAtScreenEdge(float2 RayStartScreen, float2 RaySte
 
 bool RayCast_Diffuse(uint NumSteps, float Roughness, float CompareFactory, float StepOffset, float3 RayStartScreen, float3 RayStepScreen, Texture2D Texture, out float3 OutHitUVz, out float Level)
 {
-	float Step = 1.0 / NumSteps;
+	float Step = rcp(NumSteps);
     float CompareTolerance = CompareFactory * Step;
 
 	float3 RayStartUVz = float3((RayStartScreen.xy * float2(0.5, 0.5) + 0.5), RayStartScreen.z);
@@ -187,13 +187,15 @@ bool RayCast_Diffuse(uint NumSteps, float Roughness, float CompareFactory, float
 	bool bHit = false;
 	OutHitUVz = float3(0, 0, 0);
 
-	[loop]
+	[unroll(32)]
 	for(uint i = 0; i < NumSteps; i += 4)
 	{
+		// Vectorized to group fetches
 		float4 SampleUV0 = RayUVz.xyxy + RayStepUVz.xyxy * float4( 1, 1, 2, 2 );
 		float4 SampleUV1 = RayUVz.xyxy + RayStepUVz.xyxy * float4( 3, 3, 4, 4 );
 		float4 SampleZ   = RayUVz.zzzz + RayStepUVz.zzzz * float4( 1, 2, 3, 4 );
 
+		// Use lower res for farther samples
 		float4 SampleDepth;
 		SampleDepth.x = Texture.SampleLevel(Global_point_clamp_sampler, (SampleUV0.xy), Level).r;
 		SampleDepth.y = Texture.SampleLevel(Global_point_clamp_sampler, (SampleUV0.zw), Level).r;
@@ -239,7 +241,7 @@ bool RayCast_Diffuse(uint NumSteps, float Roughness, float CompareFactory, float
 
 bool RayCast_Specular(uint NumSteps, float Roughness, float CompareFactory, float StepOffset, float3 RayStartScreen, float3 RayStepScreen, Texture2D Texture, out float3 OutHitUVz, out float Level)
 {
-	float Step = 1.0 / NumSteps;
+	float Step = rcp(NumSteps);
     float CompareTolerance = CompareFactory * Step;
 
 	float3 RayStartUVz = float3((RayStartScreen.xy * float2(0.5, 0.5) + 0.5), RayStartScreen.z);
@@ -252,7 +254,7 @@ bool RayCast_Specular(uint NumSteps, float Roughness, float CompareFactory, floa
 	float LastDiff = 0;
 	OutHitUVz = float3(0, 0, 0);
 
-	[unroll(12)]
+	[loop]
 	for( uint i = 0; i < NumSteps; i += 4 )
 	{
 		// Vectorized to group fetches
@@ -264,11 +266,11 @@ bool RayCast_Specular(uint NumSteps, float Roughness, float CompareFactory, floa
 		float4 SampleDepth;
 		SampleDepth.x = Texture.SampleLevel(Global_point_clamp_sampler, (SampleUV0.xy), 0).r;
 		SampleDepth.y = Texture.SampleLevel(Global_point_clamp_sampler, (SampleUV0.zw), 0).r;
-		Level += (8.0 / NumSteps) * Roughness;
+		Level += (8 / NumSteps) * Roughness;
 		
 		SampleDepth.z = Texture.SampleLevel(Global_point_clamp_sampler, (SampleUV1.xy), 0).r;
 		SampleDepth.w = Texture.SampleLevel(Global_point_clamp_sampler, (SampleUV1.zw), 0).r;
-		Level += (8.0 / NumSteps) * Roughness;
+		Level += (8 / NumSteps) * Roughness;
 
 		float4 DepthDiff = SampleZ - SampleDepth;
 		bool4 Hit = abs(DepthDiff + CompareTolerance) < CompareTolerance;
@@ -281,19 +283,24 @@ bool RayCast_Specular(uint NumSteps, float Roughness, float CompareFactory, floa
 			float Time0 = 3;
 
 			[flatten]  
-            if( Hit[2] ) {
+            if( Hit[2] ) 
+			{
 				DepthDiff0 = DepthDiff[1];
 				DepthDiff1 = DepthDiff[2];
 				Time0 = 2;
 			}
+
 			[flatten] 
-            if( Hit[1] ) {
+            if( Hit[1] ) 
+			{
 				DepthDiff0 = DepthDiff[0];
 				DepthDiff1 = DepthDiff[1];
 				Time0 = 1;
 			}
+
 			[flatten] 
-            if( Hit[0] ) {
+            if( Hit[0] ) 
+			{
 				DepthDiff0 = LastDiff;
 				DepthDiff1 = DepthDiff[0];
 				Time0 = 0;
@@ -320,7 +327,7 @@ bool RayCast_Specular(uint NumSteps, float Roughness, float CompareFactory, floa
 				}
 			}
 		#endif
-			float TimeLerp = saturate( DepthDiff0 / (DepthDiff0 - DepthDiff1) );
+			float TimeLerp = saturate( DepthDiff0 * rcp(DepthDiff0 - DepthDiff1) );
 			float IntersectTime = Time0 + TimeLerp;
 			OutHitUVz = RayUVz + RayStepUVz * IntersectTime;
 
