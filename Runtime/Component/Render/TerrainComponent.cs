@@ -48,8 +48,8 @@ namespace InfinityTech.Component
         {
             GetWorld().AddWorldTerrain(this);
 
-            TerrainSector.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
-            TerrainSector.BuildNativeCollection();
+            TerrainSector?.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
+            TerrainSector?.BuildNativeCollection();
         }
 
         protected override void OnTransformChange()
@@ -71,7 +71,7 @@ namespace InfinityTech.Component
         {
             GetWorld().RemoveWorldTerrain(this);
 
-            TerrainSector.ReleaseNativeCollection();
+            TerrainSector?.ReleaseNativeCollection();
         }
 
         public void UpdateLODData(in float3 ViewOringin, in float4x4 Matrix_Proj)
@@ -91,7 +91,13 @@ namespace InfinityTech.Component
             TerrainTexture HeightTexture = new TerrainTexture(SectorSize);
             HeightTexture.TerrainDataToHeightmap(UnityTerrainData);
 
-            TerrainSector.ReleaseNativeCollection();
+            if (TerrainSector != null)
+            {
+                if (TerrainSector.NativeSections.IsCreated == true)
+                {
+                    TerrainSector.ReleaseNativeCollection();
+                }
+            }
 
             TerrainSector = new FTerrainSector(SectorSize, NumSection, SectionSize, transform.position, UnityTerrainData.bounds);
             TerrainSector.BuildBounds(SectorSize, SectionSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);

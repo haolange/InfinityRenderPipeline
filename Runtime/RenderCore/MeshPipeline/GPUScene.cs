@@ -9,6 +9,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     public class FGPUScene
     {
+        internal bool bUpdate = true;
         public BufferRef BufferHandle;
         public NativeArray<FMeshBatch> MeshBatchs;
         protected FMeshBatchCollector MeshBatchCollector;
@@ -26,7 +27,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 MeshBatchCollector.GatherMeshBatch(MeshBatchs, Methdo);
 
                 BufferHandle = ResourcePool.AllocateBuffer(new BufferDescription(64000, Marshal.SizeOf(typeof(FMeshBatch))));
-                CmdBuffer.SetComputeBufferData(BufferHandle.Buffer, MeshBatchs);
+
+                if (bUpdate)
+                {
+                    bUpdate = false;
+                    CmdBuffer.SetComputeBufferData(BufferHandle.Buffer, MeshBatchs);
+                }
             }
         }
 
