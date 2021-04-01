@@ -544,47 +544,48 @@ float3 GetAnisotropicModifiedNormal(float3 grainDir, float3 N, float3 V, float A
 	return normalize(lerp(N, grainNormal, Anisotropy));
 }
 
-float3 GetViewSpaceNormal(float3 normal, float4x4 _WToCMatrix)
+float3 GetViewSpaceNormal(float3 worldNormal, float4x4 matrix_WorldToView)
 {
-    const float3 viewNormal = mul((float3x3)_WToCMatrix, normal.rgb);
+    float3 viewNormal = mul((float3x3)matrix_WorldToView, worldNormal);
     return normalize(viewNormal);
 }
 
-float3 GetNDCPos(float2 uv, float depth)
+float3 GetNDCPos(float2 screenUV, float sceneDepth)
 {
-    return float3(uv * 2 - 1, depth);
+    return float3(screenUV * 2 - 1, sceneDepth);
 }
 
-float3 GetWorldSpacePos(float3 NDCPos, float4x4 Matrix_InvViewProj)
+float3 GetViewSpacePos(float3 NDCPos, float4x4 matrix_InvProj)
 {
-    float4 worldPos = mul( Matrix_InvViewProj, float4(NDCPos, 1) );
-    return worldPos.xyz / worldPos.w;
-}
-
-float3 GetViewSpacePos(float3 NDCPos, float4x4 Matrix_InvProj)
-{
-    float4 viewPos = mul(Matrix_InvProj, float4(NDCPos, 1));
+    float4 viewPos = mul(matrix_InvProj, float4(NDCPos, 1));
     return viewPos.xyz / viewPos.w;
 }
 
-float3 GetViewDir(float3 worldPos, float3 ViewPos)
+float3 GetWorldSpacePos(float3 NDCPos, float4x4 matrix_InvViewProj)
 {
-    return normalize(worldPos - ViewPos);
+    float4 worldPos = mul( matrix_InvViewProj, float4(NDCPos, 1) );
+    return worldPos.xyz / worldPos.w;
 }
 
-float2 GetMotionVector(float SceneDepth, float2 inUV, float4x4 Matrix_InvViewProj, float4x4 Matrix_LastViewProj, float4x4 Matrix_ViewProj)
+float3 GetViewDir(float3 worldPos, float3 viewPivot)
 {
-    float3 NDCPos = GetNDCPos(inUV, SceneDepth);
-    float4 worldPos = float4(GetWorldSpacePos(NDCPos, Matrix_InvViewProj), 1);
+    return normalize(worldPos - viewPivot);
+}
 
-    float4 LastClipPos = mul(Matrix_LastViewProj, worldPos);
-    float4 CurClipPos = mul(Matrix_ViewProj, worldPos);
+float2 GetMotionVector(float sceneDepth, float2 screenUV, float4x4 matrix_InvViewProj, float4x4 matrix_LastViewProj, float4x4 matrix_ViewProj)
+{
+    float3 NDCPos = GetNDCPos(screenUV, sceneDepth);
+    float4 worldPos = float4(GetWorldSpacePos(NDCPos, matrix_InvViewProj), 1);
 
-    float2 LastNDC = LastClipPos.xy / LastClipPos.w;
-    float2 CurNDC = CurClipPos.xy / CurClipPos.w;
+    float4 curClipPos = mul(matrix_ViewProj, worldPos);
+    float4 lastClipPos = mul(matrix_LastViewProj, worldPos);
 
-    float2 LastUV = LastNDC.xy * 0.5 + 0.5;
+    float2 CurNDC = curClipPos.xy / curClipPos.w;
+    float2 LastNDC = lastClipPos.xy / lastClipPos.w;
+
     float2 CurUV = CurNDC.xy * 0.5 + 0.5;
+    float2 LastUV = LastNDC.xy * 0.5 + 0.5;
+    
     return CurUV - LastUV;
 }
 
