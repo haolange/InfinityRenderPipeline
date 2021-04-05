@@ -7,7 +7,7 @@ namespace InfinityTech.Editor.Tool
 {
     public class Utility
     {
-        /*[MenuItem("GameObject/EntityAction/RandomRotate", false, -1000)]
+        /*[MenuItem("GameObject/EntityAction/RandomRotate", false, 9)]
         public static void SetSelectEntityRandomRotate(MenuCommand menuCommand)
         {
             float StartTime = Time.realtimeSinceStartup;
@@ -21,7 +21,7 @@ namespace InfinityTech.Editor.Tool
             float EndTime = (Time.realtimeSinceStartup - StartTime) * 1000;
         }
 
-        [MenuItem("GameObject/EntityAction/SpawnMatrixEntity", false, -1000)]
+        [MenuItem("GameObject/EntityAction/SpawnMatrixEntity", false, 9)]
         public static void CreateMatrixEntity(MenuCommand menuCommand)
         {
             for(int z = 0; z < 10; z++)
@@ -42,7 +42,7 @@ namespace InfinityTech.Editor.Tool
             }
         }
 
-        [MenuItem("GameObject/EntityAction/RandomMaterial", false, -1000)]
+        [MenuItem("GameObject/EntityAction/RandomMaterial", false, 9)]
         public static void SetEntityRandomMaterial(MenuCommand menuCommand)
         {
             Material[] MaterialList = new Material[2];
