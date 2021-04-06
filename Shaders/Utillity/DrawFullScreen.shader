@@ -9,42 +9,41 @@
 			ZTest Always ZWrite Off  Blend Off Cull Off
 
 			HLSLPROGRAM
-				#pragma vertex vert
-				#pragma fragment frag
-				#pragma target 4.5
-				#pragma only_renderers d3d11 vulkan
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma target 4.5
 
-				#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
-				Texture2D _MainTex;
-				SamplerState sampler_MainTex;
+			Texture2D _MainTex;
+			SamplerState sampler_MainTex;
 
-				struct Attributes
-				{
-					float4 vertex : POSITION;
-				};
+			struct Attributes
+			{
+				float4 vertex : POSITION;
+			};
 
-				struct Varyings
-				{
-					float2 uv : TEXCOORD0;
-					float4 vertex : SV_POSITION;
-				};
+			struct Varyings
+			{
+				float2 uv : TEXCOORD0;
+				float4 vertex : SV_POSITION;
+			};
 
-				Varyings vert(Attributes v)
-				{
-					Varyings o;
-					o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
-					o.uv = (v.vertex.xy + 1) * 0.5;
-					return o;
-				}
+			Varyings vert(Attributes v)
+			{
+				Varyings o;
+				o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
+				o.uv = (v.vertex.xy + 1) * 0.5;
+				return o;
+			}
 
-				float4 frag(Varyings i) : SV_Target
-				{
-					float2 UV = i.uv.xy;
-					//return GBufferB / 127.0 - 1;
-					return _MainTex.SampleLevel(sampler_MainTex, UV, 0);
-					//return SAMPLE_TEXTURE2D_X_LOD(_MainTex, sampler_MainTex, UV, 0);
-				}
+			float4 frag(Varyings i) : SV_Target
+			{
+				float2 UV = i.uv.xy;
+				//return GBufferB / 127.0 - 1;
+				return _MainTex.SampleLevel(sampler_MainTex, UV, 0);
+				//return SAMPLE_TEXTURE2D_X_LOD(_MainTex, sampler_MainTex, UV, 0);
+			}
 			ENDHLSL
 		}
 
@@ -54,56 +53,55 @@
 			ZTest Always ZWrite Off  Blend Off Cull Off
 
 			HLSLPROGRAM
-				#pragma vertex vert
-				#pragma fragment frag
-				#pragma target 4.5
-				#pragma only_renderers d3d11 vulkan
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma target 4.5
 
-				//#define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod) SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, 0, lod)
-				#include "../Private/Common.hlsl"
-				#include "../Private/PackData.hlsl"
-				#include "../Private/ShaderVariable.hlsl"
-				#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			//#define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod) SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, 0, lod)
+			#include "../Private/Common.hlsl"
+			#include "../Private/PackData.hlsl"
+			#include "../Private/ShaderVariable.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
-				float4 _ScaleBais;
+			float4 _ScaleBais;
 
-				SamplerState sampler_LinearClamp;
-				//SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
+			SamplerState sampler_LinearClamp;
+			//SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
 				
-				Texture2D _MainTex; SamplerState sampler_MainTex;
-				//Texture2D<uint4> _MainTex; SamplerState sampler_MainTex;
+			Texture2D _MainTex; SamplerState sampler_MainTex;
+			//Texture2D<uint4> _MainTex; SamplerState sampler_MainTex;
 
-				struct Attributes
-				{
-					float4 vertex : POSITION;
-				};
+			struct Attributes
+			{
+				float4 vertex : POSITION;
+			};
 
-				struct Varyings
-				{
-					float2 uv : TEXCOORD0;
-					float4 vertex : SV_POSITION;
-				};
+			struct Varyings
+			{
+				float2 uv : TEXCOORD0;
+				float4 vertex : SV_POSITION;
+			};
 
-				Varyings vert(Attributes v)
-				{
-					Varyings o;
-					o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
-					//o.uv = (v.vertex.xy + 1) * 0.5;
-					//o.uv = ((v.vertex.xy + 1) * 0.5) * float2(1, -1) + float2(0, 1);
-					o.uv = ( (v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
-					return o;
-				}
+			Varyings vert(Attributes v)
+			{
+				Varyings o;
+				o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
+				//o.uv = (v.vertex.xy + 1) * 0.5;
+				//o.uv = ((v.vertex.xy + 1) * 0.5) * float2(1, -1) + float2(0, 1);
+				o.uv = ( (v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
+				return o;
+			}
 
-				float4 frag(Varyings i) : SV_Target
-				{
-					float2 UV = i.uv.xy;
-					return _MainTex.SampleLevel(sampler_LinearClamp, UV, 0);
+			float4 frag(Varyings i) : SV_Target
+			{
+				float2 UV = i.uv.xy;
+				return _MainTex.SampleLevel(sampler_LinearClamp, UV, 0);
 
-					//ThinGBufferData GBufferData;
-					//DecodeGBuffer(1, _MainTex.Load(int3(i.vertex.xy, 0)), GBufferData);
-					//return GBufferData.Specular;
-					//return float4(GBufferData.WorldNormal, 1);
-				}
+				//ThinGBufferData GBufferData;
+				//DecodeGBuffer(1, _MainTex.Load(int3(i.vertex.xy, 0)), GBufferData);
+				//return GBufferData.Specular;
+				//return float4(GBufferData.WorldNormal, 1);
+			}
 			ENDHLSL
 		}
     }

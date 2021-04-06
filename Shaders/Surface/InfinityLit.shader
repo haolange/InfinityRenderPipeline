@@ -514,7 +514,7 @@
 		}
 
 		//RayTrace AO
-		Pass
+		/*Pass
 		{
 			Name "RTAOPass"
 			Tags { "LightMode" = "RayTraceAmbientOcclusion" }
@@ -544,6 +544,6 @@
 				IgnoreHit();
 			}
 			ENDHLSL
-		}
+		}*/
 	}
 }
