@@ -15,10 +15,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef DepthBuffer;
         }
 
-        void RenderOpaqueDepth(Camera RenderCamera, FCullingData CullingData, CullingResults CullingResult)
+        void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
         {
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
 
             TextureDescription DepthDesc = new TextureDescription(Screen.width, Screen.height) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, DepthDesc);
@@ -29,12 +29,12 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 PassData.RendererList = RenderList;
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                DepthPassMeshProcessor.DispatchSetup(CullingData, new FMeshPassDesctiption(2450, 2999));
+                DepthPassMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(2450, 2999));
             },
             (ref FOpaqueDepthData PassData, RDGContext GraphContext) =>
             {
                 RendererList DepthRenderList = PassData.RendererList;
-                DepthRenderList.drawSettings.sortingSettings = new SortingSettings(RenderCamera) { criteria = SortingCriteria.QuantizedFrontToBack };
+                DepthRenderList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack };
                 DepthRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
                 DepthRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
                 DepthRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);

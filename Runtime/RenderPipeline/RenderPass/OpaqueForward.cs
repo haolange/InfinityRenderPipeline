@@ -17,10 +17,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef SpecularBuffer;
         }
 
-        void RenderOpaqueForward(Camera RenderCamera, FCullingData CullingData, in CullingResults CullingResult)
+        void RenderOpaqueForward(Camera camera, FCullingData cullingData, in CullingResults cullingResult)
         {
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.ForwardPlus, new RenderQueueRange(0, 2999), PerObjectData.Lightmaps));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.ForwardPlus, new RenderQueueRange(0, 2999), PerObjectData.Lightmaps));
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.DiffuseBuffer = PassBuilder.UseColorBuffer(DiffuseTexture, 0);
                 PassData.SpecularBuffer = PassBuilder.UseColorBuffer(SpecularTexture, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.Read);
-                ForwardPassMeshProcessor.DispatchSetup(CullingData, new FMeshPassDesctiption(0, 2999));
+                ForwardPassMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueForwardData PassData, RDGContext GraphContext) =>
             {

@@ -17,10 +17,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RendererList RendererList;
         }
 
-        void RenderOpaqueGBuffer(Camera RenderCamera, FCullingData CullingData, in CullingResults CullingResult)
+        void RenderOpaqueGBuffer(Camera camera, FCullingData cullingData, in CullingResults cullingResult)
         {
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueGBuffer));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueGBuffer));
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
                 PassData.GBufferA = PassBuilder.UseColorBuffer(GBufferATexure, 0);
                 PassData.GBufferB = PassBuilder.UseColorBuffer(GBufferBTexure, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                GBufferPassMeshProcessor.DispatchSetup(CullingData, new FMeshPassDesctiption(0, 2999));
+                GBufferPassMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueGBufferData PassData, RDGContext GraphContext) =>
             {

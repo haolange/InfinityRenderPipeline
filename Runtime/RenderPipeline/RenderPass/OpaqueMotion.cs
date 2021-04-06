@@ -16,12 +16,12 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef MotionBuffer;
         }
 
-        void RenderOpaqueMotion(Camera RenderCamera, FCullingData CullingData, CullingResults CullingResult)
+        void RenderOpaqueMotion(Camera camera, FCullingData cullingData, CullingResults cullingResult)
         {
-            RenderCamera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
+            camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
             //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(CullingResult, RenderCamera, InfinityPassIDs.OpaqueMotion, RenderQueueRange.opaque, PerObjectData.MotionVectors));
+            RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueMotion, RenderQueueRange.opaque, PerObjectData.MotionVectors));
 
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
             (ref FOpaqueMotionData PassData, RDGContext GraphContext) =>
             {
                 RendererList MotionRenderList = PassData.RendererList;
-                MotionRenderList.drawSettings.sortingSettings = new SortingSettings(RenderCamera) { criteria = SortingCriteria.CommonOpaque };
+                MotionRenderList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.CommonOpaque };
                 MotionRenderList.drawSettings.perObjectData = PerObjectData.MotionVectors;
                 MotionRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
                 MotionRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
