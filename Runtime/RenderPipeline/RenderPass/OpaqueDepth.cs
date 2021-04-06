@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
 
-            TextureDescription DepthDesc = new TextureDescription(Screen.width, Screen.height) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
+            TextureDescription DepthDesc = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, DepthDesc);
 
             //Add OpaqueDepthPass
