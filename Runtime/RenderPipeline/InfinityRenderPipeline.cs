@@ -219,7 +219,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Init FrameContext
             CommandBuffer CmdBuffer = CommandBufferPool.Get("");
             GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), ResourcePool, CmdBuffer, 2, false);
-            RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
+            //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
             //Do FrameRender
             BeginFrameRendering(RenderContext, Views);
