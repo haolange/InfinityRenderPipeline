@@ -1,9 +1,12 @@
-﻿Shader "InfinityPipeline/Utility/DrawSystemLUT" {
-	Properties{
+﻿Shader "InfinityPipeline/Utility/DrawSystemLUT" 
+{
+	Properties
+	{
 		[Header(Cubemap)]
 		_Cubemap("Cubemap", Cube) = "black" {}
 	}
-		CGINCLUDE
+
+	CGINCLUDE
 		#include "UnityCustomRenderTexture.cginc"
 		#include "../Private/Random.hlsl"
 		#include "../Private/SphericalHarmonic.hlsl"
@@ -12,192 +15,165 @@
 		TextureCube _Cubemap;
 		SamplerState sampler_Cubemap;
 
-		float3 ACESToneMapping(float3 color)
+		static float mPi = 3.14159265;
+		#define INTEGRAL_DOMAIN_SPHERE_3D 0
+		#define INTEGRAL_DOMAIN_SPHERE_2D 1
+		#define INTEGRAL_DOMAIN_SPHERE_1D 2
+		#define INTEGRAL_DOMAIN_FUNC INTEGRAL_DOMAIN_SPHERE_2D
+
+		float Distance(float3 v0, float3 v1)
 		{
-			const float A = 2.51f;
-			const float B = 0.03f;
-			const float C = 2.43f;
-			const float D = 0.59f;
-			const float E = 0.14f;
-			return (color * (A * color + B)) / (color * (C * color + D) + E);
+			float3 v = v0 - v1;
+			return sqrt(dot(v, v));
 		}
 
-		float3 CaculateSkinScatter(float2 uv, float offset, float radius) 
+		// in BurleyNormalizedSSSCommon.ush
+		float3 mGetSearchLightDiffuseScalingFactor3D(float3 Albedo)
 		{
-			const float KernelWeight[6] = { 0.0064, 0.0484, 0.187, 0.567, 1.99, 7.41 };
-			const float3 KernelColor[6] = { float3(0.233,0.455,0.649), float3(0.1,0.366,0.344), float3(0.118,0.198,0), float3(0.113,0.007,0.007), float3(0.358,0.004,0), float3(0.078,0,0) };
+			return 3.5 + 100.0 * pow(max(Albedo - 0.33,0.0), 4.0);
+		}
 
-			uv.x = 1 - uv.x;
-			float Theta = (offset - uv.x) * 3.14;
+		// DiffuseMeanFreePath, Albedo, RadiusInMM
+		float3 EvaluateBurleyDiffusionProfile(float3 L, float3 Albedo, float Radius)
+		{
+			float3 S3D = mGetSearchLightDiffuseScalingFactor3D(Albedo);
 
-			float3 A = 0;
-			float3 B = 0;
-			float x = -3.14 / 2;
+			//rR(r)
+			float3 D = 1 / S3D;
+			float3 R = Radius / L;
+			const float Inv8Pi = 1.0 / (8 * mPi);
+			float3 NegRbyD = -R / D;
+			return max((exp(NegRbyD) + exp(NegRbyD / 3.0)) / (D*L)*Inv8Pi, 0);
+		}
 
-			for (int i = 0; i < 1024; ++i)
-			{
-				float dis = abs(2 * (1 / (1 - uv.y) * radius) * sin(x * 0.5));
-				float3 Guss0 = exp(-dis * dis / (2 * KernelWeight[0])) * KernelColor[0];
-				float3 Guss1 = exp(-dis * dis / (2 * KernelWeight[1])) * KernelColor[1];
-				float3 Guss2 = exp(-dis * dis / (2 * KernelWeight[2])) * KernelColor[2];
-				float3 Guss3 = exp(-dis * dis / (2 * KernelWeight[3])) * KernelColor[3];
-				float3 Guss4 = exp(-dis * dis / (2 * KernelWeight[4])) * KernelColor[4];
-				float3 Guss5 = exp(-dis * dis / (2 * KernelWeight[5])) * KernelColor[5];
-				float3 D = Guss0 + Guss1 + Guss2 + Guss3 + Guss4 + Guss5;
+		float3 CaculateBurleyV2(float offset, float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float maxRadiusInMM, float minRadiusInMM)
+		{
+			float x = UV.x;
+			float y = UV.y;
 
-				A += saturate(cos(x + Theta)) * D;
-				B += D;
-				x += 0.01;
+			// cm to mm
+			meanFreePathColor *= (10.0 * meanFreePathScale);
 
-				if (x == (3.14 / 2))
+			float CurvatureMin = 1.0 / maxRadiusInMM;
+			float CurvatureMax = 1.0 / minRadiusInMM;
+			float CurrentCurvature = lerp(CurvatureMin, CurvatureMax, y);
+			float Radius = 1.0f / CurrentCurvature;
+			
+			float NdotLMin = -1.0;
+			float NdotLMax = 1.0;
+			float NdotL = lerp(NdotLMin, NdotLMax, x);
+			float thetaNoL = acos(NdotL);
+
+			float3 Integral = float3(0,0,0);
+			float3 rgb = float3(0,0,0);
+
+			#if INTEGRAL_DOMAIN_FUNC == INTEGRAL_DOMAIN_SPHERE_3D
+				static int NumSamplesTheta = 360;
+				static int NumSamplesFai = 90;
+				static int NumSamplesTotal = NumSamplesTheta * NumSamplesFai;
+
+				float ThetaScale = (2 * mPi) / NumSamplesTheta;
+				float ThetaBias = 0 + 0.5 * ThetaScale;
+
+				float FaiScale = (0.5 * mPi) / NumSamplesFai;
+				float FaiBias = 0 + 0.5 * FaiScale;
+
+				[loop]
+				for(int iFai = 0;iFai < NumSamplesFai;++iFai)
 				{
-					break;
+					float fai = iFai * FaiScale + FaiBias;
+					float r = Radius * sin(fai);
+
+					for(int iTheta = 0;iTheta < NumSamplesTheta;++iTheta)
+					{
+						float theta = iTheta * ThetaScale + ThetaBias;
+
+						// ∫∫ Irradiance * D(r') * r2 * sinφ dφdθ
+
+						// r' = dis( (0,0,R), (rcosθ, rsinθ，sqrt(R*R - r*r) )
+						float3 p0 = float3(0,0,Radius);
+						float3 p1 = float3(r * cos(theta), r * sin(theta), sqrt(Radius * Radius - r * r));
+						float rStar = Distance(p0, p1);
+
+						// D(r')
+						//EvaluateDiffusionProfile(rStar, Dr);
+						float3 Dr = EvaluateBurleyDiffusionProfile(meanFreePathColor, albedo, rStar);
+
+						// Irradiance = N' dot L
+						float3 N = float3(0,0,1);
+						float3 L = float3(sin(thetaNoL), 0, cos(thetaNoL));
+						float3 NStar = normalize(p1);
+						float NStaroL = max(0.0f, dot(NStar, L));
+
+						// r2 * sinφ dφdθ
+						float dS = Radius * Radius * sin(fai) * ThetaScale * FaiScale;
+
+						// ∫∫ D(r') dS
+						Integral += Dr * dS;        
+
+						// ∫∫ Irradiance * D(r') * rdrdθ
+						rgb += NStaroL * Dr * dS;
+					}
 				}
-			}
-			float3 result = A / B;
-			return result;
-		}
+			#endif
 
-		float3 SeparableSSS_Gaussian(float variance, float r, float3 FalloffColor)
-		{
-			float3 Ret;
+			#if INTEGRAL_DOMAIN_FUNC == INTEGRAL_DOMAIN_SPHERE_2D
+				static int NumSamplesTheta = 720;
+				static int NumSamplesRadius = 200;
+				static int NumSamplesTotal = NumSamplesTheta * NumSamplesRadius;
 
-			/**
-			* We use a falloff to modulate the shape of the profile. Big falloffs
-			* spreads the shape making it wider, while small falloffs make it
-			* narrower.
-			*/
-			for (int i = 0; i < 3; i++)
-			{
-				float rr = r / (0.001 + FalloffColor[i]);
-				Ret[i] = exp((-(rr * rr)) / (2.0 * variance)) / (2.0 * 3.14 * variance);
-			}
+				float RadiusScale = (Radius - 0) / NumSamplesRadius;
+				float RadiusBias = 0 + 0.5 * RadiusScale;
 
-			return Ret;
-		}
+				float ThetaScale = (2 * mPi) / NumSamplesTheta;
+				float ThetaBias = 0 + 0.5 * ThetaScale;
 
-		float3 SeparableSSS_Profile(float r, float3 FalloffColor)
-		{
-			/**
-			* We used the red channel of the original skin profile defined in
-			* [d'Eon07] for all three channels. We noticed it can be used for green
-			* and blue channels (scaled using the falloff parameter) without
-			* introducing noticeable differences and allowing for total control over
-			* the profile. For example, it allows to create blue SSS gradients, which
-			* could be useful in case of rendering blue creatures.
-			*/
-			// first parameter is variance in mm^2
-			return  // 0.233f * SeparableSSS_Gaussian(0.0064f, r, FalloffColor) + /* We consider this one to be directly bounced light, accounted by the strength parameter (see @STRENGTH) */
-				0.100 * SeparableSSS_Gaussian(0.0484, r, FalloffColor) +
-				0.118 * SeparableSSS_Gaussian(0.187, r, FalloffColor) +
-				0.113 * SeparableSSS_Gaussian(0.567, r, FalloffColor) +
-				0.358 * SeparableSSS_Gaussian(1.99, r, FalloffColor) +
-				0.078 * SeparableSSS_Gaussian(7.41, r, FalloffColor);
-		}
-
-		float3 CaculateSeperable(float2 uv, float3 scatterColor, float scatterRadius) 
-		{
-			uv.x = 1 - uv.x;
-			float Theta = (uv.x) * 3.14;
-
-			float3 A = 0;
-			float3 B = 0;
-			float x = -3.14 / 2;
-			for (int i = 0; i < 1000; i++)
-			{
-				float step = 0.001;
-
-				float dis = abs(2 * (1 / (1 - uv.y) * scatterRadius) * sin(x * 0.5));
-				float3 D = SeparableSSS_Profile(dis, scatterColor);
-
-				A += saturate(cos(x + Theta)) * D;
-				B += D;
-				x += 0.01;
-
-				if (x == (3.14 / 2))
+				[loop]
+				for(int iR = 0; iR < NumSamplesRadius; ++iR)
 				{
-					break;
+					float r = iR * RadiusScale + RadiusBias;
+
+					for(int iTheta = 0; iTheta < NumSamplesTheta; ++iTheta)
+					{
+						float theta = iTheta * ThetaScale + ThetaBias;
+
+						// ∫∫ Irradiance * D(r') * rdrdθ
+
+						// r' = dis( (0,0,R), (rcosθ, rsinθ，sqrt(R*R - r*r) )
+						float3 p0 = float3(0, 0, Radius);
+						float3 p1 = float3(r * cos(theta), r * sin(theta), sqrt(Radius * Radius - r * r));
+						float rStar = Distance(p0, p1);
+
+						// D(r')
+						//EvaluateDiffusionProfile(rStar, Dr);
+						float3 Dr = EvaluateBurleyDiffusionProfile(meanFreePathColor, albedo, rStar);
+
+						// Irradiance = N' dot L
+						float3 N = float3(0, 0, 1);
+						float3 L = float3(sin(thetaNoL), 0, cos(thetaNoL));
+						float3 NStar = normalize(p1);
+						float NStaroL = max(0, dot(NStar, L));
+
+						// rdrdθ
+						float dS = r * ThetaScale * RadiusScale;
+
+						// ∫∫ D(r') dS
+						Integral += Dr * dS;        
+
+						// ∫∫ Irradiance * D(r') * rdrdθ
+						rgb += NStaroL * Dr * dS;
+					}
 				}
-			}
-			float3 result = A / B;
-			return result;
+			#endif
+
+			rgb /= Integral;
+			/*rgb -= max(0.0, NdotL);
+			rgb *= 2.0;
+			rgb += 0.5;*/
+			return saturate(rgb);
 		}
 
-		float Burley_ScatteringProfile(float r, float A, float S, float L)
-		{   
-			float D = 1 / S;
-			float R = r / L;
-			const float Inv8Pi = 1.0 / (8 * 3.14);
-			float NegRbyD = -R / D;
-			float RrDotR = A*max((exp(NegRbyD) + exp(NegRbyD / 3.0)) / (D*L)*Inv8Pi, 0.0);
-			return RrDotR;
-		}
 
-		float3 Burley_ScatteringProfile(float r, float3 SurfaceAlbedo, float3 ScalingFactor, float3 DiffuseMeanFreePath)
-		{  
-			return float3(Burley_ScatteringProfile(r, SurfaceAlbedo.r, ScalingFactor.x, DiffuseMeanFreePath.r), Burley_ScatteringProfile(r, SurfaceAlbedo.g, ScalingFactor.y, DiffuseMeanFreePath.g), Burley_ScatteringProfile(r, SurfaceAlbedo.b, ScalingFactor.z, DiffuseMeanFreePath.b));
-		}
-
-		float GetPerpendicularScalingFactor(float SurfaceAlbedo)
-		{
-			return 1.85 - SurfaceAlbedo + 7 * pow(SurfaceAlbedo - 0.8, 3);
-		}
-
-		float3 GetPerpendicularScalingFactor(float3 SurfaceAlbedo)
-		{
-			return float3(GetPerpendicularScalingFactor(SurfaceAlbedo.r), GetPerpendicularScalingFactor(SurfaceAlbedo.g), GetPerpendicularScalingFactor(SurfaceAlbedo.b));
-		}
-
-		float GetDiffuseSurfaceScalingFactor(float SurfaceAlbedo)
-		{
-			return 1.9 - SurfaceAlbedo + 3.5 * pow(SurfaceAlbedo - 0.8, 2);
-		}
-
-		float3 GetDiffuseSurfaceScalingFactor(float3 SurfaceAlbedo)
-		{
-			return float3(GetDiffuseSurfaceScalingFactor(SurfaceAlbedo.r), GetDiffuseSurfaceScalingFactor(SurfaceAlbedo.g), GetDiffuseSurfaceScalingFactor(SurfaceAlbedo.b));
-		}
-
-		float GetSearchLightDiffuseScalingFactor(float SurfaceAlbedo)
-		{
-			return 3.5 + 100 * pow(SurfaceAlbedo - 0.33, 4);
-		}
-
-		float3 GetSearchLightDiffuseScalingFactor(float3 SurfaceAlbedo)
-		{
-			return float3(GetSearchLightDiffuseScalingFactor(SurfaceAlbedo.r), GetSearchLightDiffuseScalingFactor(SurfaceAlbedo.g), GetSearchLightDiffuseScalingFactor(SurfaceAlbedo.b));
-		}
-
-		float3 CaculateBurley(float2 uv, float3 SurfaceAlbedo, float3 DiffuseMeanFreePath, float ScatterRadius)
-		{
-			uv.x = 1 - uv.x;
-			float Theta = (uv.x) * 3.14;
-			float3 ScalingFactor = GetSearchLightDiffuseScalingFactor(SurfaceAlbedo);
-
-			float3 A = 0;
-			float3 B = 0;
-			float x = -3.14 / 2;
-			for (int i = 0; i < 1024; ++i)
-			{
-				float step = 0.001;
-
-				float dis = abs(2 * (1 / (1 - uv.y) * ScatterRadius) * sin(x * 0.5));
-				float3 D = Burley_ScatteringProfile(dis, SurfaceAlbedo, ScalingFactor, DiffuseMeanFreePath);
-
-				A += saturate(cos(x + Theta)) * D;
-				B += D;
-				x += 0.01;
-
-				if (x == (3.14 / 2))
-				{
-					break;
-				}
-			}
-			float3 result = A / B;
-			return result;
-		}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		float frag_Integrated_DiffuseGF(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
@@ -226,24 +202,14 @@
 		{
 			float2 uv = i.localTexcoord.xy;
 			uv.y = 1 - uv.y;
-
-			float3 SkinScatter = CaculateSkinScatter(uv, 0, 2.5);
-			//float3 SkinScatter = CaculateSeperable(uv, float3(0.85, 0.28, 0.1), 1);
-			//float3 SkinScatter = CaculateBurley(uv, 1, float3(1, 0.15, 0.01), 0.2);
-			//SkinScatter = ACESToneMapping(SkinScatter);
-			return saturate(SkinScatter);
+			return CaculateBurleyV2(0, uv, 1, float3(1, 0.15, 0.01), 0.05, 0.15, 5);
 		}
 
 		float3 frag_Integrated_SkinShadow(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
 			uv.y = 1 - uv.y;
-
-			float3 SkinShadow = CaculateSkinScatter(uv, -0.125, 2.5);
-			SkinShadow = ACESToneMapping(SkinShadow);
-			//SkinShadow = max(0, SkinShadow - 0.004);
-			//SkinShadow = (SkinShadow * (6.2 * SkinShadow + 0.5)) / (SkinShadow * (6.2 * SkinShadow + 1.7) + 0.06);
-			return saturate(SkinShadow);
+			return CaculateBurleyV2(0.15, uv, 1, float3(1, 0.15, 0.01), 0.05, 0.15, 5);
 		}
 
 		float3 frag_Prefilter_Diffuse(v2f_customrendertexture i) : SV_Target
@@ -280,10 +246,10 @@
 			}
 			return Irradiance;*/
 		}
+	ENDCG
 
-		ENDCG
-		SubShader 
-		{
+	SubShader 
+	{
 		Pass 
 		{
 			Name "PBR_DiffuseGF"
