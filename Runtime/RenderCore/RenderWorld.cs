@@ -1,184 +1,181 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 using InfinityTech.Core;
 using InfinityTech.Component;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Core
 {
-    //[Serializable]
     public class FRenderWorld : UObject
     {
-        public static FRenderWorld ActiveWorld { get; private set; }
+        public static FRenderWorld RenderWorld { get; private set; }
 
         public string name;
         public bool bDisable;
-        public SharedRefFactory<Mesh> WorldMeshs;
-        public SharedRefFactory<Material> WorldMaterials;
+        public SharedRefFactory<Mesh> meshAssetList;
+        public SharedRefFactory<Material> materialAssetList;
 
-        private List<CameraComponent> WorldViews;
-        private List<LightComponent> WorldLights;
-        private List<TerrainComponent> WorldTerrains;
-        private List<MeshComponent> WorldStaticPrimitives;
-        private List<MeshComponent> WorldDynamicPrimitives;
+        public FResourceFactory gpuResourcePool;
 
-        private FMeshBatchCollector MeshBatchCollector;
+        private List<CameraComponent> m_ViewList;
+        private List<LightComponent> m_LightList;
+        private List<TerrainComponent> m_TerrainList;
+        private List<MeshComponent> m_StaticMeshList;
+        private List<MeshComponent> m_DynamicMeshList;
+
+        private FMeshBatchCollector m_MeshBatchCollector;
 
 
-        //Function
-        public FRenderWorld(string InName)
+        public FRenderWorld(string name)
         {
-            name = InName;
-            ActiveWorld = this;
-
-            WorldMeshs = new SharedRefFactory<Mesh>(256);
-            WorldMaterials = new SharedRefFactory<Material>(256);
-
-            WorldViews = new List<CameraComponent>(16);
-            WorldLights = new List<LightComponent>(64);
-            WorldTerrains = new List<TerrainComponent>(32);
-            WorldStaticPrimitives = new List<MeshComponent>(1024);
-            WorldDynamicPrimitives = new List<MeshComponent>(1024);
-
-            MeshBatchCollector = new FMeshBatchCollector();
+            this.name = name;
+            FRenderWorld.RenderWorld = this;
+            this.m_ViewList = new List<CameraComponent>(16);
+            this.m_LightList = new List<LightComponent>(64);
+            this.m_TerrainList = new List<TerrainComponent>(32);
+            this.m_StaticMeshList = new List<MeshComponent>(8192);
+            this.m_DynamicMeshList = new List<MeshComponent>(8192);
+            this.m_MeshBatchCollector = new FMeshBatchCollector();
+            this.meshAssetList = new SharedRefFactory<Mesh>(512);
+            this.materialAssetList = new SharedRefFactory<Material>(512);
         }
 
         #region WorldView
         public void AddWorldView(CameraComponent InViewComponent)
         {
-            WorldViews.Add(InViewComponent);
+            m_ViewList.Add(InViewComponent);
         }
 
         public void RemoveWorldView(CameraComponent InViewComponent)
         {
             if(bDisable == true) { return; }
-            WorldViews.Remove(InViewComponent);
+            m_ViewList.Remove(InViewComponent);
         }
 
         public List<CameraComponent> GetWorldView()
         {
-            return WorldViews;
+            return m_ViewList;
         }
 
         public void ClearWorldView()
         {
-            WorldViews.Clear();
+            m_ViewList.Clear();
         }
         #endregion //WorldView
 
         #region WorldLight
         public void AddWorldLight(LightComponent InLightComponent)
         {
-            WorldLights.Add(InLightComponent);
+            m_LightList.Add(InLightComponent);
         }
 
         public void RemoveWorldLight(LightComponent InLightComponent)
         {
             if(bDisable == true) { return; }
-            WorldLights.Remove(InLightComponent);
+            m_LightList.Remove(InLightComponent);
         }
 
         public List<LightComponent> GetWorldLight()
         {
-            return WorldLights;
+            return m_LightList;
         }
 
         public void ClearWorldLight()
         {
-            WorldLights.Clear();
+            m_LightList.Clear();
         }
         #endregion //WorldLight
 
         #region WorldTerrain
         public void AddWorldTerrain(TerrainComponent InTerrainComponent)
         {
-            WorldTerrains.Add(InTerrainComponent);
+            m_TerrainList.Add(InTerrainComponent);
         }
 
         public void RemoveWorldTerrain(TerrainComponent InTerrainComponent)
         {
             if (bDisable == true) { return; }
-            WorldTerrains.Remove(InTerrainComponent);
+            m_TerrainList.Remove(InTerrainComponent);
         }
 
         public List<TerrainComponent> GetWorldTerrains()
         {
-            return WorldTerrains;
+            return m_TerrainList;
         }
 
         public void ClearWorldTerrains()
         {
-            WorldTerrains.Clear();
+            m_TerrainList.Clear();
         }
         #endregion //WorldTerrain
 
         #region WorldPrimitive
         //Static
-        public void AddWorldStaticPrimitive(MeshComponent InMeshComponent)
+        public void AddWorldStaticMesh(MeshComponent InMeshComponent)
         {
-            WorldStaticPrimitives.Add(InMeshComponent);
+            m_StaticMeshList.Add(InMeshComponent);
         }
 
-        public void InvokeWorldStaticPrimitiveUpdate()
+        public void InvokeWorldStaticMeshUpdate()
         {
-            if(WorldStaticPrimitives.Count == 0) { return; }
+            if(m_StaticMeshList.Count == 0) { return; }
 
-            for (int i = 0; i < WorldStaticPrimitives.Count; i++)
+            for (int i = 0; i < m_StaticMeshList.Count; i++)
             {
-                WorldStaticPrimitives[i].EventUpdate();
+                m_StaticMeshList[i].EventUpdate();
             }
         }
 
-        public void RemoveWorldStaticPrimitive(MeshComponent InMeshComponent)
+        public void RemoveWorldStaticMesh(MeshComponent InMeshComponent)
         {
             if(bDisable == true) { return; }
-            WorldStaticPrimitives.Remove(InMeshComponent);
+            m_StaticMeshList.Remove(InMeshComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public List<MeshComponent> GetWorldStaticPrimitive()
+        public List<MeshComponent> GetWorldStaticMesh()
         {
-            return WorldStaticPrimitives;
+            return m_StaticMeshList;
         }
 
-        public void ClearWorldStaticPrimitive()
+        public void ClearWorldStaticMesh()
         {
-            WorldStaticPrimitives.Clear();
+            m_StaticMeshList.Clear();
         }
 
         //Dynamic
-        public void AddWorldDynamicPrimitive(MeshComponent InMeshComponent)
+        public void AddWorldDynamicMesh(MeshComponent InMeshComponent)
         {
-            WorldDynamicPrimitives.Add(InMeshComponent);
+            m_DynamicMeshList.Add(InMeshComponent);
         }
 
-        public void InvokeWorldDynamicPrimitiveUpdate()
+        public void InvokeWorldDynamicMeshUpdate()
         {
-            if (WorldDynamicPrimitives.Count == 0) { return; }
+            if (m_DynamicMeshList.Count == 0) { return; }
 
-            for (int i = 0; i < WorldDynamicPrimitives.Count; i++)
+            for (int i = 0; i < m_DynamicMeshList.Count; i++)
             {
-                WorldDynamicPrimitives[i].EventUpdate();
+                m_DynamicMeshList[i].EventUpdate();
             }
         }
 
-        public void RemoveWorldDynamicPrimitive(MeshComponent InMeshComponent)
+        public void RemoveWorldDynamicMesh(MeshComponent InMeshComponent)
         {
             if(bDisable == true) { return; }
-            WorldDynamicPrimitives.Remove(InMeshComponent);
+            m_DynamicMeshList.Remove(InMeshComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public List<MeshComponent> GetWorldDynamicPrimitive()
         {
-            return WorldDynamicPrimitives;
+            return m_DynamicMeshList;
         }
 
-        public void ClearWorldDynamicPrimitive()
+        public void ClearWorldDynamicMesh()
         {
-            WorldDynamicPrimitives.Clear();
+            m_DynamicMeshList.Clear();
         }
         #endregion //WorldPrimitive
 
@@ -186,7 +183,7 @@ namespace InfinityTech.Rendering.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FMeshBatchCollector GetMeshBatchColloctor()
         {
-            return MeshBatchCollector;
+            return m_MeshBatchCollector;
         }
         #endregion //MeshBatchCollector
 
@@ -197,14 +194,16 @@ namespace InfinityTech.Rendering.Core
             ClearWorldView();
             ClearWorldLight();
             ClearWorldTerrains();
-            ClearWorldStaticPrimitive();
-            ClearWorldDynamicPrimitive();
+            ClearWorldStaticMesh();
+            ClearWorldDynamicMesh();
 
-            WorldMeshs.Reset();
-            WorldMaterials.Reset();
+            meshAssetList.Reset();
+            materialAssetList.Reset();
 
-            MeshBatchCollector.Initializ();
-            MeshBatchCollector.Reset();
+            m_MeshBatchCollector.Initializ();
+            m_MeshBatchCollector.Reset();
+
+            gpuResourcePool = new FResourceFactory();
         }
 
         public void Release()
@@ -214,13 +213,13 @@ namespace InfinityTech.Rendering.Core
             ClearWorldView();
             ClearWorldLight();
             ClearWorldTerrains();
-            ClearWorldStaticPrimitive();
-            ClearWorldDynamicPrimitive();
+            ClearWorldStaticMesh();
+            ClearWorldDynamicMesh();
 
-            WorldMeshs.Reset();
-            WorldMaterials.Reset();
-
-            MeshBatchCollector.Release();
+            meshAssetList.Reset();
+            materialAssetList.Reset();
+            gpuResourcePool.Disposed();
+            m_MeshBatchCollector.Release();
         }
 
         protected override void DisposeManaged()

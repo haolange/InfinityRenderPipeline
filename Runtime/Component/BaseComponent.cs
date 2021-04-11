@@ -10,23 +10,16 @@ namespace InfinityTech.Component
 #endif
     public class BaseComponent : MonoBehaviour
     {
-        // Public Variable
         [HideInInspector]
-        public Transform EntityTransform;
-
+        private RenderTransfrom m_CurrTransform;
         [HideInInspector]
-        internal RenderTransfrom CurrTransform;
-
-        [HideInInspector]
-        internal RenderTransfrom LastTransform;
+        private RenderTransfrom m_LastTransform;
 
 
-        // Function
         public BaseComponent() { }
 
         void OnEnable()
         {
-            EntityTransform = GetComponent<Transform>();
             OnRegister();
             EventPlay();
         }
@@ -48,17 +41,13 @@ namespace InfinityTech.Component
 
         private bool TransfromStateDirty()
         {
-            CurrTransform.position = EntityTransform.position;
-            CurrTransform.rotation = EntityTransform.rotation;
-            CurrTransform.scale = EntityTransform.localScale;
+            m_CurrTransform.position = transform.position;
+            m_CurrTransform.rotation = transform.rotation;
+            m_CurrTransform.scale = transform.localScale;
 
-            if (CurrTransform.Equals(LastTransform))
-            {
-                LastTransform = CurrTransform;
-                return true;
-            }
-
-            return false;
+            if (m_CurrTransform.Equals(m_LastTransform)) { return false; }
+            m_LastTransform = m_CurrTransform;
+            return true;
         }
 
         protected virtual void OnRegister()
@@ -88,9 +77,9 @@ namespace InfinityTech.Component
 
         protected FRenderWorld GetWorld()
         {
-            if (FRenderWorld.ActiveWorld != null)
+            if (FRenderWorld.RenderWorld != null)
             {
-                return FRenderWorld.ActiveWorld;
+                return FRenderWorld.RenderWorld;
             }
 
             return null;

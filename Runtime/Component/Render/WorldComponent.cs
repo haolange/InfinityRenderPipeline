@@ -8,21 +8,19 @@ namespace InfinityTech.Component
     [AddComponentMenu("InfinityRenderer/World Component")]
     public class WorldComponent : MonoBehaviour
     {
-        public bool bUpdateStatic = true;
+        public bool bUpdateStatic;
 
-        [HideInInspector]
-        public bool bInit;
+        private bool bInit;
+        private FRenderWorld m_RenderWorld;
 
-        [HideInInspector]
-        public FRenderWorld RenderScene;
 
         void OnEnable()
         {
             bInit = true;
             bUpdateStatic = true;
-            
-            RenderScene = new FRenderWorld("RenderScene");
-            RenderScene.Initializ();
+
+            m_RenderWorld = new FRenderWorld("RenderScene");
+            m_RenderWorld.Initializ();
         }
 
         void Update()
@@ -44,10 +42,10 @@ namespace InfinityTech.Component
             if(bUpdateStatic)
             {
                 bUpdateStatic = false;
-                RenderScene.InvokeWorldStaticPrimitiveUpdate();
+                m_RenderWorld.InvokeWorldStaticMeshUpdate();
             }
 
-            RenderScene.InvokeWorldDynamicPrimitiveUpdate();
+            m_RenderWorld.InvokeWorldDynamicMeshUpdate();
         }
 
         protected void InvokeEventTickRuntime()
@@ -55,23 +53,23 @@ namespace InfinityTech.Component
             if(bInit == true)
             {
                 bInit = false;
-                RenderScene.InvokeWorldStaticPrimitiveUpdate();
+                m_RenderWorld.InvokeWorldStaticMeshUpdate();
             }
 
-            RenderScene.InvokeWorldDynamicPrimitiveUpdate();
+            m_RenderWorld.InvokeWorldDynamicMeshUpdate();
         }
 
         void OnDisable()
         {
-            RenderScene.Release();
-            RenderScene.Dispose();
+            m_RenderWorld.Release();
+            m_RenderWorld.Dispose();
         }
 
         protected FRenderWorld GetWorld()
         {
-            if (FRenderWorld.ActiveWorld != null)
+            if (FRenderWorld.RenderWorld != null)
             {
-                return FRenderWorld.ActiveWorld;
+                return FRenderWorld.RenderWorld;
             }
 
             return null;

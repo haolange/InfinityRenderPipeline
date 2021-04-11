@@ -191,7 +191,6 @@ namespace InfinityTech.Rendering.Pipeline
         private FGPUScene GPUScene;
         private FViewUnifrom ViewUnifrom;
         private RDGGraphBuilder GraphBuilder;
-        private FResourceFactory ResourcePool;
         private InfinityRenderPipelineAsset RenderPipelineAsset;
 
         private FMeshPassProcessor DepthPassMeshProcessor;
@@ -205,7 +204,6 @@ namespace InfinityTech.Rendering.Pipeline
 
             GPUScene = new FGPUScene();
             ViewUnifrom = new FViewUnifrom();
-            ResourcePool = new FResourceFactory();
             GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
@@ -218,7 +216,8 @@ namespace InfinityTech.Rendering.Pipeline
         {
             //Init FrameContext
             CommandBuffer CmdBuffer = CommandBufferPool.Get("");
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), ResourcePool, CmdBuffer, 2, false);
+            FResourceFactory gpuResourcePool = GetWorld().gpuResourcePool;
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), gpuResourcePool, CmdBuffer, 2, false);
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
             //Do FrameRender
@@ -289,7 +288,7 @@ namespace InfinityTech.Rendering.Pipeline
                         ForwardPassMeshProcessor.WaitSetupFinish();
 
                         //Execute RenderGraph
-                        GraphBuilder.Execute(GetWorld(), ResourcePool, RenderContext, CmdBuffer, ViewUnifrom.FrameIndex);
+                        GraphBuilder.Execute(GetWorld(), gpuResourcePool, RenderContext, CmdBuffer, ViewUnifrom.FrameIndex);
                         #endregion //ExecuteViewRender
 
                         #region ReleaseViewContext
@@ -308,14 +307,15 @@ namespace InfinityTech.Rendering.Pipeline
             EndFrameRendering(RenderContext, Views);
 
             //Release FrameContext
-            GPUScene.Release(ResourcePool);
+            GPUScene.Release(gpuResourcePool);
             CommandBufferPool.Release(CmdBuffer);
         }
 
         protected FRenderWorld GetWorld()
         {
-            if (FRenderWorld.ActiveWorld != null) {
-                return FRenderWorld.ActiveWorld;
+            if (FRenderWorld.RenderWorld != null) 
+            {
+                return FRenderWorld.RenderWorld;
             }
 
             return null;
@@ -355,7 +355,6 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Dispose(bool disposing)
         {
             GraphBuilder.Cleanup();
-            ResourcePool.Disposed();
         }
     }
 }

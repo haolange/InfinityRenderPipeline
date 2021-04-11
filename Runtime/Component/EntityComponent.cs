@@ -1,14 +1,15 @@
 ﻿using UnityEditor;
 using UnityEngine;
+using Unity.Mathematics;
 using InfinityTech.Rendering.Core;
 
 namespace InfinityTech.Component
 {
     internal struct RenderTransfrom
     {
-        public Vector3 position;
-        public Quaternion rotation;
-        public Vector3 scale;
+        public float3 position;
+        public quaternion rotation;
+        public float3 scale;
 
         public override int GetHashCode()
         {
@@ -17,13 +18,12 @@ namespace InfinityTech.Component
 
         public override bool Equals(object obj)
         {
-            RenderTransfrom target = (RenderTransfrom)obj;
-            return position != target.position || rotation != target.rotation || scale != target.scale;
+            return Equals((RenderTransfrom)obj);
         }
 
         public bool Equals(RenderTransfrom target)
         {
-            return position != target.position || rotation != target.rotation || scale != target.scale;
+            return position.Equals(target.position) && rotation.Equals(target.rotation) && scale.Equals(target.scale);
         }
     };
 
@@ -33,33 +33,26 @@ namespace InfinityTech.Component
 #endif
     public class EntityComponent : MonoBehaviour
     {
-        // Public Variable
         [HideInInspector]
-        public Transform EntityTransform;
-
+        private RenderTransfrom m_CurrTransform;
         [HideInInspector]
-        internal RenderTransfrom CurrTransform;
-
-        [HideInInspector]
-        internal RenderTransfrom LastTransform;
+        private RenderTransfrom m_LastTransform;
 
 
-        // Function
         public EntityComponent() { }
 
         void OnEnable()
         {
-            EntityTransform = GetComponent<Transform>();
             OnRegister();
             EventPlay();
         }
 
         public void EventUpdate()
         {
-            if(TransfromStateDirty()) {
+            if (TransfromStateDirty())
+            {
                 OnTransformChange();
             }
-
             EventTick();
         }
 
@@ -70,16 +63,13 @@ namespace InfinityTech.Component
 
         private bool TransfromStateDirty()
         {
-            CurrTransform.position = EntityTransform.position;
-            CurrTransform.rotation = EntityTransform.rotation;
-            CurrTransform.scale = EntityTransform.localScale;
+            m_CurrTransform.position = transform.position;
+            m_CurrTransform.rotation = transform.rotation;
+            m_CurrTransform.scale = transform.localScale;
 
-            if (CurrTransform.Equals(LastTransform)) {
-                LastTransform = CurrTransform;
-                return true;
-            }
-
-            return false;
+            if (m_CurrTransform.Equals(m_LastTransform)) { return false; }
+            m_LastTransform = m_CurrTransform;
+            return true;
         }
 
         protected virtual void OnRegister()
@@ -109,8 +99,9 @@ namespace InfinityTech.Component
 
         protected FRenderWorld GetWorld()
         {
-            if(FRenderWorld.ActiveWorld != null) {
-                return FRenderWorld.ActiveWorld;
+            if(FRenderWorld.RenderWorld != null) 
+            {
+                return FRenderWorld.RenderWorld;
             }
 
             return null;

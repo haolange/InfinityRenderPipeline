@@ -211,9 +211,8 @@ namespace InfinityTech.Rendering.RDG
                     throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.desc.name));
 
                 resource.resource = null;
-
-                bool IsCache = m_TexturePool.Request(hashCode, out resource.resource);
-                if (IsCache == false) {
+                if (m_TexturePool.Request(hashCode, out resource.resource)) 
+                {
                     resource.resource = RTHandles.Alloc(desc.width, desc.height, desc.slices, (DepthBits)desc.depthBufferBits, desc.colorFormat, desc.filterMode, desc.wrapMode, desc.dimension, desc.enableRandomWrite,
                     desc.useMipMap, desc.autoGenerateMips, desc.isShadowMap, desc.anisoLevel, desc.mipMapBias, (MSAASamples)desc.msaaSamples, desc.bindTextureMS, false, RenderTextureMemoryless.None, desc.name);
                 }
