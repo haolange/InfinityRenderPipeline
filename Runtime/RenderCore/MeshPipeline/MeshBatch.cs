@@ -1,10 +1,8 @@
 ﻿using System;
-using Unity.Burst;
 using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
-using System.Runtime.CompilerServices;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -65,7 +63,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MatchForDynamicInstance(ref FMeshBatch Target)
         {
-            return (Target.SubmeshIndex << 16) | ((Target.Mesh.Id << 16) | (Target.Material.Id >> 16));
+            return (Target.Mesh.Id << 32) + (Target.Material.Id << 32);
         }
 
         public static int MatchForCacheMeshBatch(ref FMeshBatch Target, in int InstanceID)
@@ -92,20 +90,20 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct FViewMeshBatch : IComparable<FViewMeshBatch>
     {
-        public int Flag;
+        public int visible;
 
 
-        public FViewMeshBatch(in int InFlag)
+        public FViewMeshBatch(in int visible)
         {
-            Flag = InFlag;
+            this.visible = visible;
         }
 
         public int CompareTo(FViewMeshBatch ViewMeshBatch)
         {
-            return Flag.CompareTo(ViewMeshBatch.Flag);
+            return visible.CompareTo(ViewMeshBatch.visible);
         }
 
-        public static implicit operator Int32(FViewMeshBatch ViewMeshBatch) { return ViewMeshBatch.Flag; }
+        public static implicit operator Int32(FViewMeshBatch ViewMeshBatch) { return ViewMeshBatch.visible; }
         public static implicit operator FViewMeshBatch(int index) { return new FViewMeshBatch(index); }
     }
 
@@ -137,7 +135,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override int GetHashCode()
         {
-            return HashIndex;
+            return HashIndex.GetHashCode();
         }
     }
 }

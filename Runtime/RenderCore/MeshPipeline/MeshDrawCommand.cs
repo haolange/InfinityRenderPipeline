@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         DefaultV2
     }
 
-    public struct FMeshDrawCommand : IComparable<FMeshDrawCommand>, IEquatable<FMeshDrawCommand>
+    public struct FMeshDrawCommand /*: IComparable<FMeshDrawCommand>, IEquatable<FMeshDrawCommand>*/
     {
         public int MeshID;
         public int MaterialID;
@@ -25,16 +25,20 @@ namespace InfinityTech.Rendering.MeshPipeline
             SubmeshIndex = InSubmeshIndex;
         }
 
-        public int CompareTo(FMeshDrawCommand Target)
+        /*public int CompareTo(FMeshDrawCommand Target)
         {
             //return SubmeshIndex + (MeshID << 16 | MaterialID);
-            return  (SubmeshIndex << 16) | ((MeshID << 16) | (MaterialID >> 16));
+            return (SubmeshIndex >> 16) | (MeshID << 16 | MaterialID);
         }
 
         public bool Equals(FMeshDrawCommand Target)
         {
-            int SelfValue = (SubmeshIndex << 16) | ((MeshID << 16) | (MaterialID >> 16));
-            int TargetValue = (Target.SubmeshIndex << 16) | ((Target.MeshID << 16) | (Target.MaterialID >> 16));
+            //int SelfValue = SubmeshIndex + (MeshID << 16 | MaterialID);
+            //int TargetValue = Target.SubmeshIndex + (Target.MeshID << 16 | Target.MaterialID);
+
+            int SelfValue = (SubmeshIndex >> 16) | (MeshID << 16 | MaterialID);
+            int TargetValue = (Target.SubmeshIndex >> 16) | (Target.MeshID << 16 | Target.MaterialID);
+
             return SelfValue == TargetValue;
         }
 
@@ -45,7 +49,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override int GetHashCode()
         {
-            return (SubmeshIndex << 16) | ((MeshID << 16) | (MaterialID >> 16));
-        }
+            //return SubmeshIndex + (MeshID << 16 | MaterialID);
+            return (SubmeshIndex >> 16) | (MeshID << 16 | MaterialID);
+        }*/
     }
 }
