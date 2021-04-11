@@ -1,12 +1,42 @@
 using UnityEditor;
 using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditor.ProjectWindowCallback;
 
 namespace InfinityTech.Editor.ActorAction
 {
-    public class GetMaterialListWizard : ScriptableWizard
+    public class SetMeshRendererRandomMeshWizard : ScriptableWizard
+    {
+        public Mesh[] meshs;
+
+
+        void OnEnable()
+        {
+
+        }
+
+        void OnWizardCreate()
+        {
+            MeshFilter[] meshRenderers = GameObject.FindObjectsOfType<MeshFilter>();
+            foreach (MeshFilter meshRenderer in meshRenderers)
+            {
+                int meshIndex = Random.Range(-10000, 10000);
+                meshIndex = Mathf.Clamp(meshIndex, 0, meshs.Length - 1);
+
+                meshRenderer.sharedMesh = meshs[meshIndex];
+            }
+        }
+
+        void OnWizardOtherButton()
+        {
+
+        }
+
+        void OnWizardUpdate()
+        {
+
+        }
+    }
+
+    public class SetMeshRendererMaterialWizard : ScriptableWizard
     {
         public Material[] materials;
         private GameObject[] activeObjects;
@@ -68,13 +98,19 @@ namespace InfinityTech.Editor.ActorAction
 
     public class MeshRendererAction
     {
+        [MenuItem("Tool/EntityAction/MeshRenderer/SetRandomMesh", priority = 10)]
+        public static void SetRandomMesh(MenuCommand menuCommand)
+        {
+            ScriptableWizard.DisplayWizard<SetMeshRendererRandomMeshWizard>("SetRadomMesh", "Set");
+        }
+
         [MenuItem("Tool/EntityAction/MeshRenderer/SetRandomMaterial", priority = 9)]
         public static void SetRandomMaterial(MenuCommand menuCommand)
         {
             GameObject[] activeObjects = Selection.gameObjects;
 
-            GetMaterialListWizard getMaterialListWizard = ScriptableWizard.DisplayWizard<GetMaterialListWizard>("GetMaterialListWizard", "Set");
-            getMaterialListWizard.SetData(activeObjects);
+            SetMeshRendererMaterialWizard setMaterialWizard = ScriptableWizard.DisplayWizard<SetMeshRendererMaterialWizard>("SetRandomMaterial", "Set");
+            setMaterialWizard.SetData(activeObjects);
         }
     }
 }
