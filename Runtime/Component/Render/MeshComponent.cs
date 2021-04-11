@@ -10,7 +10,7 @@ namespace InfinityTech.Component
     public class MeshComponent : EntityComponent
     {
         [Header("State")]
-        public EStateType state = EStateType.Dynamic;
+        public EStateType movebility = EStateType.Static;
 
         [Header("MeshElement")]
         public Mesh staticMesh;
@@ -36,7 +36,7 @@ namespace InfinityTech.Component
         [HideInInspector]
         public int lastMeshInstanceID;
         [HideInInspector]
-        public EStateType lastGeometryState;
+        public EStateType lastMovebility;
         [HideInInspector]
         public FAABB boundBox;
         [HideInInspector]
@@ -59,7 +59,7 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             //bInitTransfrom = false;
-            AddWorldMesh(state);
+            AddWorldMesh(movebility);
             BuildMeshBatch();
             customMeshDatas = new NativeArray<float>(16, Allocator.Persistent);
         }
@@ -86,7 +86,7 @@ namespace InfinityTech.Component
 
         protected virtual void OnStateTypeChange(in EStateType LastGeometryState)
         {
-            AddWorldMesh(state);
+            AddWorldMesh(movebility);
             RemoveWorldMesh(LastGeometryState);
         }
 
@@ -125,7 +125,7 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             ReleaseMeshBatch();
-            RemoveWorldMesh(state);
+            RemoveWorldMesh(movebility);
             customMeshDatas.Dispose();
         }
 
@@ -179,12 +179,12 @@ namespace InfinityTech.Component
         private bool GetStateTypeDirty(out EStateType stateType)
         {
             bool outState = false;
-            stateType = lastGeometryState;
+            stateType = lastMovebility;
 
-            if (lastGeometryState != state)
+            if (lastMovebility != movebility)
             {
                 outState = true;
-                lastGeometryState = state;
+                lastMovebility = movebility;
             }
 
             return outState;
