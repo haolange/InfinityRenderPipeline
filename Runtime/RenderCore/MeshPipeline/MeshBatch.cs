@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int MatchForDynamicInstance(ref FMeshBatch Target)
         {
-            return Target.SubmeshIndex + (Target.Mesh.Id << 16 | Target.Material.Id);
+            return (Target.SubmeshIndex << 16) | ((Target.Mesh.Id << 16) | (Target.Material.Id >> 16));
         }
 
         public static int MatchForCacheMeshBatch(ref FMeshBatch Target, in int InstanceID)
@@ -111,22 +111,23 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct FPassMeshBatch : IComparable<FPassMeshBatch>, IEquatable<FPassMeshBatch>
     {
+        public int HashIndex;
         public int MeshBatchIndex;
 
-
-        public FPassMeshBatch(in int InMeshBatchIndex)
+        public FPassMeshBatch(in int InHashIndex, in int InMeshBatchIndex)
         {
+            HashIndex = InHashIndex;
             MeshBatchIndex = InMeshBatchIndex;
         }
 
         public int CompareTo(FPassMeshBatch Target)
         {
-            return MeshBatchIndex.CompareTo(Target.MeshBatchIndex);
+            return HashIndex.CompareTo(Target.HashIndex);
         }
 
         public bool Equals(FPassMeshBatch Target)
         {
-            return MeshBatchIndex.Equals(Target.MeshBatchIndex);
+            return HashIndex.Equals(Target.HashIndex);
         }
 
         public override bool Equals(object obj)
@@ -136,45 +137,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override int GetHashCode()
         {
-            return MeshBatchIndex.GetHashCode() + 5;
-        }
-
-        public static implicit operator Int32(FPassMeshBatch MDCValue) { return MDCValue.MeshBatchIndex; }
-        public static implicit operator FPassMeshBatch(int index) { return new FPassMeshBatch(index); }
-    }
-
-    public struct FPassMeshBatchV2 : IComparable<FPassMeshBatchV2>, IEquatable<FPassMeshBatchV2>
-    {
-        public int HashIndex;
-        public int MeshBatchIndex;
-
-        public FPassMeshBatchV2(in int InHashIndex, in int InMeshBatchIndex)
-        {
-            HashIndex = InHashIndex;
-            MeshBatchIndex = InMeshBatchIndex;
-        }
-
-        public int CompareTo(FPassMeshBatchV2 Target)
-        {
-            return HashIndex.CompareTo(Target.HashIndex);
-        }
-
-        public bool Equals(FPassMeshBatchV2 Target)
-        {
-            return HashIndex.Equals(Target.HashIndex);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return Equals((FPassMeshBatchV2)obj);
-        }
-
-        public override int GetHashCode()
-        {
             return HashIndex;
         }
     }
-
-    /*float Priority = priority + distance;
-    return Priority.CompareTo(VisibleMeshBatch.priority + VisibleMeshBatch.distance);*/
 }

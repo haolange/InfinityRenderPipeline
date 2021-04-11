@@ -19,10 +19,10 @@ namespace InfinityTech.Editor.ActorAction
             MeshComponent[] meshComponents = GameObject.FindObjectsOfType<MeshComponent>();
             foreach (MeshComponent meshComponent in meshComponents)
             {
-                int meshIndex = Random.Range(-10000, 10000);
+                int meshIndex = Random.Range(0, meshs.Length);
                 meshIndex = Mathf.Clamp(meshIndex, 0, meshs.Length - 1);
-
                 meshComponent.staticMesh = meshs[meshIndex];
+                meshComponent.UpdateMaterial();
             }
         }
 
@@ -52,7 +52,7 @@ namespace InfinityTech.Editor.ActorAction
             MeshComponent[] meshComponents = GameObject.FindObjectsOfType<MeshComponent>();
             foreach (MeshComponent meshComponent in meshComponents)
             {
-                int materiaIndex = Random.Range(-10000, 10000);
+                int materiaIndex = Random.Range(0, materials.Length);
                 materiaIndex = Mathf.Clamp(materiaIndex, 0, materials.Length - 1);
 
                 for (int i = 0; i < meshComponent.materials.Length; ++i)

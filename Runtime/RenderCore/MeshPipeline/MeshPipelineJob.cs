@@ -9,40 +9,6 @@ using Unity.Collections.LowLevel.Unsafe;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     [BurstCompile]
-    public struct FListSortJob<T> : IJob where T : struct, IEquatable<T>, IComparable<T>
-    {
-        public NativeList<T> SortTarget;
-
-        public void Execute()
-        {
-            SortTarget.Sort();
-        }
-    }
-
-    [BurstCompile]
-    public struct FArraySortJob<T> : IJob where T : struct, IEquatable<T>, IComparable<T>
-    {
-        public NativeArray<T> SortTarget;
-
-        public void Execute()
-        {
-            SortTarget.Sort();
-        }
-    }
-
-    [BurstCompile]
-    public struct FSortMeshBatchJob : IJob
-    {
-        [WriteOnly]
-        public NativeArray<FViewMeshBatch> ViewMeshBatchList;
-
-        public void Execute()
-        {
-            ViewMeshBatchList.Sort();
-        }
-    }
-
-    [BurstCompile]
     public unsafe struct FMeshBatchCounterJob : IJob
     {
         [ReadOnly]
@@ -100,80 +66,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }
 
-    /*[BurstCompile]
-    public unsafe struct FMeshBatchGatherJob : IJobParallelFor
-    {
-        [NativeDisableUnsafePtrRestriction]
-        public int* Count;
-
-        [NativeDisableUnsafePtrRestriction]
-        public int* BucketNext;
-
-        [NativeDisableUnsafePtrRestriction]
-        public int* BucketArray;
-
-        [NativeDisableUnsafePtrRestriction]
-        public byte* HashmapValues;
-
-        [WriteOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
-
-        public void Execute(int index)
-        {
-            ref int count = ref Count[0];
-
-            if (count < MeshBatchs.Length)
-            {
-                int bucket = BucketArray[index];
-
-                while (bucket != -1)
-                {
-                    MeshBatchs[count] = UnsafeUtility.ReadArrayElement<FMeshBatch>(HashmapValues, bucket);
-                    bucket = BucketNext[bucket];
-
-                    Interlocked.Increment(ref count);
-                }
-            }
-        }
-    }*/
-
-    /*[BurstCompile]
-    public struct FMeshBatchCullingJob : IJobParallelFor
-    {
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
-
-        [ReadOnly]
-        public NativeArray<FPlane> ViewFrustum;
-
-        [WriteOnly]
-        public NativeArray<int> ViewMeshBatchs;
-
-        public void Execute(int index)
-        {
-            int VisibleState = 1;
-            FMeshBatch MeshBatch = MeshBatchs[index];
-
-            if (MeshBatch.Visible == 1)
-            {
-                for (int i = 0; i < 6; ++i)
-                {
-                    float3 normal = ViewFrustum[i].normal;
-                    float distance = ViewFrustum[i].distance;
-
-                    float dist = math.dot(normal, MeshBatch.BoundBox.center) + distance;
-                    float radius = math.dot(math.abs(normal), MeshBatch.BoundBox.extents);
-
-                    if (dist + radius < 0) { VisibleState = 0; }
-                }
-            } else {
-                VisibleState = 0;
-            }
-
-            ViewMeshBatchs[index] = VisibleState;
-        }
-    }*/
-
     [BurstCompile]
     public unsafe struct FMeshBatchCullingJob : IJobParallelFor
     {
@@ -197,7 +89,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             for (int i = 0; i < 6; ++i)
             {
-                //Unity.Burst.CompilerServices.Loop.ExpectVectorized();
+                Unity.Burst.CompilerServices.Loop.ExpectVectorized();
 
                 ref FPlane FrustumPlane = ref FrustumPlanes[i];
                 distRadius.x = math.dot(FrustumPlane.normalDist.xyz, MeshBatch.BoundBox.center) + FrustumPlane.normalDist.w;
@@ -207,91 +99,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             ViewMeshBatchs[index] = math.select(0, VisibleState, MeshBatch.Visible == 1);
-        }
-    }
-
-    [BurstCompile]
-    public unsafe struct FFilterMeshBatchCullJob : IJobParallelForFilter
-    {
-        [ReadOnly]
-        [NativeDisableUnsafePtrRestriction]
-        public FPlane* FrustumPlanes;
-
-        [ReadOnly]
-        [NativeDisableUnsafePtrRestriction]
-        public FMeshBatch* MeshBatchs;
-
-
-        public bool Execute(int index)
-        {
-            int VisibleState = 1;
-            float2 distRadius = new float2(0, 0);
-            ref FMeshBatch MeshBatch = ref MeshBatchs[index];
-
-            for (int i = 0; i < 6; ++i)
-            {
-                ref FPlane FrustumPlane = ref FrustumPlanes[i];
-                distRadius.x = math.dot(FrustumPlane.normalDist.xyz, MeshBatch.BoundBox.center) + FrustumPlane.normalDist.w;
-                distRadius.y = math.dot(math.abs(FrustumPlane.normalDist.xyz), MeshBatch.BoundBox.extents);
-
-                VisibleState = math.select(VisibleState, 0, distRadius.x + distRadius.y < 0);
-            }
-
-            return (VisibleState == 1) ? true : false;
-        }
-    }
-
-    [BurstCompile]
-    public struct FPassMeshBatchGatherJob : IJob
-    {
-        [ReadOnly]
-        public FCullingData CullingData;
-
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
-
-        [WriteOnly]
-        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandsMap;
-
-        public void Execute()
-        {
-            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; ++Index)
-            {
-                if (CullingData.ViewMeshBatchs[Index] != 0)
-                {
-                    FMeshBatch MeshBatch = MeshBatchs[Index];
-
-                    FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
-                    FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
-                    MeshDrawCommandsMap.Add(MeshDrawCommand, PassMeshBatch);
-                }
-            }
-        }
-    }
-
-    [BurstCompile]
-    public struct FPassMeshBatchGatherJobV2 : IJob
-    {
-        [ReadOnly]
-        public FCullingData CullingData;
-
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
-
-        [WriteOnly]
-        public NativeList<FPassMeshBatchV2> PassMeshBatchs;
-
-        public void Execute()
-        {
-            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; ++Index)
-            {
-                if (CullingData.ViewMeshBatchs[Index] != 0)
-                {
-                    FMeshBatch MeshBatch = MeshBatchs[Index];
-                    FPassMeshBatchV2 PassMeshBatch = new FPassMeshBatchV2(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
-                    PassMeshBatchs.Add(PassMeshBatch);
-                }
-            }
         }
     }
 
@@ -312,10 +119,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly]
         public FMeshPassDesctiption MeshPassDesctiption;
 
-        public NativeList<FPassMeshBatchV2> PassMeshBatchs;
+        public NativeList<FPassMeshBatch> PassMeshBatchs;
 
         [WriteOnly]
-        public NativeList<FMeshDrawCommandV2> MeshDrawCommands;
+        public NativeList<FMeshDrawCommand> MeshDrawCommands;
 
 
         public void Execute()
@@ -329,7 +136,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
                     if(MeshBatch.Priority >= MeshPassDesctiption.RenderQueueMin && MeshBatch.Priority <= MeshPassDesctiption.RenderQueueMax)
                     {
-                        FPassMeshBatchV2 PassMeshBatch = new FPassMeshBatchV2(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
+                        FPassMeshBatch PassMeshBatch = new FPassMeshBatch(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
                         PassMeshBatchs.Add(PassMeshBatch);
                     }
                 }
@@ -339,10 +146,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             PassMeshBatchs.Sort();
 
             //Build MeshDrawCommand
-            FPassMeshBatchV2 CachePassMeshBatch = new FPassMeshBatchV2(-1, -1);
+            FPassMeshBatch CachePassMeshBatch = new FPassMeshBatch(-1, -1);
             for (int i = 0; i < PassMeshBatchs.Length; ++i)
             {
-                FPassMeshBatchV2 PassMeshBatch = PassMeshBatchs[i];
+                FPassMeshBatch PassMeshBatch = PassMeshBatchs[i];
                 Indexs[i] = PassMeshBatch.MeshBatchIndex;
                 FMeshBatch MeshBatch = MeshBatchs[PassMeshBatch.MeshBatchIndex];
 
@@ -351,152 +158,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                     CachePassMeshBatch = PassMeshBatch;
 
                     CountOffsets.Add(new int2(0, i));
-                    MeshDrawCommands.Add(new FMeshDrawCommandV2(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex));
+                    MeshDrawCommands.Add(new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex));
                 }
 
                 int2 CountOffset = CountOffsets[CountOffsets.Length - 1];
                 CountOffsets[CountOffsets.Length - 1] = CountOffset + new int2(1, 0);
             }
-        }
-    }
-
-    [BurstCompile]
-    public struct FMeshDrawCommandBuildJob : IJob
-    {
-        [WriteOnly]
-        public NativeArray<int> Indexs;
-
-        //[WriteOnly]
-        public NativeList<int2> CountOffsets;
-
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
-
-        [ReadOnly]
-        public NativeList<FPassMeshBatchV2> PassMeshBatchs;
-
-        [WriteOnly]
-        public NativeList<FMeshDrawCommandV2> MeshDrawCommands;
-
-        public void Execute()
-        {
-            FPassMeshBatchV2 CachePassMeshBatch = new FPassMeshBatchV2(-1, -1);
-
-            for (int i = 0; i < PassMeshBatchs.Length; ++i)
-            {
-                FPassMeshBatchV2 PassMeshBatch = PassMeshBatchs[i];
-                Indexs[i] = PassMeshBatch.MeshBatchIndex;
-                FMeshBatch MeshBatch = MeshBatchs[PassMeshBatch.MeshBatchIndex];
-
-                if (!PassMeshBatch.Equals(CachePassMeshBatch))
-                {
-                    CachePassMeshBatch = PassMeshBatch;
-
-                    CountOffsets.Add(new int2(0, i));
-                    MeshDrawCommands.Add(new FMeshDrawCommandV2(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex));
-                }
-
-                int2 CountOffset = CountOffsets[CountOffsets.Length - 1];
-                CountOffsets[CountOffsets.Length - 1] = CountOffset + new int2(1, 0);
-            }
-        }
-    }
-
-    [BurstCompile]
-    public struct FPassMeshBatchConvertJob : IJob
-    {
-        [ReadOnly]
-        public int Count;
-
-        [WriteOnly]
-        public NativeArray<int> IndexArray;
-
-        [WriteOnly]
-        public NativeArray<int2> CountOffsetArray;
-
-        [ReadOnly]
-        public NativeArray<FMeshDrawCommand> MeshDrawCommands;
-
-        [ReadOnly]
-        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch> MeshDrawCommandsMap;
-
-
-        public void Execute()
-        {
-            int BatchOffset = 0;
-
-            for (int Index = 0; Index < Count; ++Index)
-            {
-                if (MeshDrawCommandsMap.TryGetFirstValue(MeshDrawCommands[Index], out FPassMeshBatch Value, out var Iterator))
-                {
-                    int BatchIndex = 0;
-
-                    do
-                    {
-                        IndexArray[BatchIndex + BatchOffset] = Value;
-                        BatchIndex += 1;
-                    }
-                    while (MeshDrawCommandsMap.TryGetNextValue(out Value, ref Iterator));
-
-                    CountOffsetArray[Index] = new int2(BatchIndex, BatchOffset);
-                    //Interlocked.Add(ref BatchOffset, BatchIndex);
-                    BatchOffset += BatchIndex;
-                }
-            }
-        }
-    }
-
-    [BurstCompile]
-    public struct FArrayUniqueCounterJob<T> : IJob where T : struct, IEquatable<T>
-    {
-        [WriteOnly]
-        public NativeArray<int> Counter;
-
-        public NativeArray<T> CounteTarget;
-
-        public void Execute()
-        {
-            Counter[0] = CounteTarget.Unique();
-        }
-    }
-
-    [BurstCompile]
-    public struct FPassMeshBatchParallelGatherJob : IJobParallelFor
-    {
-        [ReadOnly]
-        public FCullingData CullingData;
-
-        [ReadOnly]
-        public NativeArray<FMeshBatch> MeshBatchs;
-
-        [WriteOnly]
-        public NativeMultiHashMap<FMeshDrawCommand, FPassMeshBatch>.ParallelWriter MeshDrawCommandsMap;
-
-        public void Execute(int Index)
-        {
-            if (CullingData.ViewMeshBatchs[Index] != 0)
-            {
-                FMeshBatch MeshBatch = MeshBatchs[Index];
-
-                FMeshDrawCommand MeshDrawCommand = new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex, FMeshBatch.MatchForDynamicInstance(ref MeshBatch));
-                FPassMeshBatch PassMeshBatch = new FPassMeshBatch(Index);
-                MeshDrawCommandsMap.Add(MeshDrawCommand, PassMeshBatch);
-            }
-        }
-    }
-
-    [BurstCompile]
-    public struct FHashmapGatherKeyJob<TKey, TValue> : IJob where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TKey> Array;
-
-        [ReadOnly]
-        public NativeHashMap<TKey, TValue> Hashmap;
-
-        public void Execute()
-        {
-            Hashmap.GetKeyArray(Array);
         }
     }
 
@@ -516,51 +183,6 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FMultiHashmapGatherKeyJob<TKey, TValue> : IJob where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TKey> Array;
-
-        [ReadOnly]
-        public NativeMultiHashMap<TKey, TValue> MultiHashmap;
-
-        public void Execute()
-        {
-            MultiHashmap.GetKeyArray(Array);
-        }
-    }
-
-    [BurstCompile]
-    public struct FMultiHashmapGatherValueJob<TKey, TValue> : IJob where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TValue> Array;
-
-        [ReadOnly]
-        public NativeMultiHashMap<TKey, TValue> MultiHashmap;
-
-        public void Execute()
-        {
-            MultiHashmap.GetValueArray(Array);
-        }
-    }
-
-    [BurstCompile]
-    public unsafe struct FHashmapParallelGatherKeyJob<TKey, TValue> : IJobParallelFor where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TKey> Array;
-
-        [ReadOnly]
-        public NativeHashMap<TKey, TValue> Hashmap;
-
-        public void Execute(int index)
-        {
-            Array[index] = UnsafeUtility.ReadArrayElement<TKey>(Hashmap.m_HashMapData.m_Buffer->keys, index);
-        }
-    }
-
-    [BurstCompile]
     public unsafe struct FHashmapParallelGatherValueJob<TKey, TValue> : IJobParallelFor where TKey : struct, IEquatable<TKey> where TValue : struct
     {
         [WriteOnly]
@@ -572,36 +194,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void Execute(int index)
         {
             Array[index] = UnsafeUtility.ReadArrayElement<TValue>(Hashmap.m_HashMapData.m_Buffer->values, index);
-        }
-    }
-
-    [BurstCompile]
-    public unsafe struct FMultiHashmapParallelGatherKeyJob<TKey, TValue> : IJobParallelFor where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TKey> Array;
-
-        [ReadOnly]
-        public NativeMultiHashMap<TKey, TValue> MultiHashmap;
-
-        public void Execute(int index)
-        {
-            Array[index] = UnsafeUtility.ReadArrayElement<TKey>(MultiHashmap.m_MultiHashMapData.m_Buffer->keys, index);
-        }
-    }
-
-    [BurstCompile]
-    public unsafe struct FMultiHashmapParallelGatherValueJob<TKey, TValue> : IJobParallelFor where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TValue> Array;
-
-        [ReadOnly]
-        public NativeMultiHashMap<TKey, TValue> MultiHashmap;
-
-        public void Execute(int index)
-        {
-            Array[index] = UnsafeUtility.ReadArrayElement<TValue>(MultiHashmap.m_MultiHashMapData.m_Buffer->values, index);
         }
     }
 }

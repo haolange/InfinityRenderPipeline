@@ -205,13 +205,13 @@ namespace InfinityTech.Component
             return OutState;
         }
 
-        private void UpdateMatrix()
+        public void UpdateMatrix()
         {
             matrix_LocalToWorld = transform.localToWorldMatrix;
             matrix_WorldToLocal = transform.localToWorldMatrix.inverse;
         }
 
-        private void UpdateBounds()
+        public void UpdateBounds()
         {
             if(!staticMesh)
                 return;
@@ -220,7 +220,7 @@ namespace InfinityTech.Component
             boundSphere = new FSphere(Geometry.CaculateBoundRadius(boundBox), boundBox.center);
         }
 
-        private void UpdateMaterial()
+        public void UpdateMaterial()
         {
             if(materials.Length != 0)
             {
@@ -243,7 +243,7 @@ namespace InfinityTech.Component
             }
         }
 
-        private void BuildMeshBatch()
+        public void BuildMeshBatch()
         {
             if (staticMesh != null) 
             {
@@ -270,7 +270,7 @@ namespace InfinityTech.Component
             }
         }
 
-        private void UpdateMeshBatch()
+        public void UpdateMeshBatch()
         {
             if (staticMesh != null)
             {
@@ -294,7 +294,7 @@ namespace InfinityTech.Component
             }
         }
 
-        private void ReleaseMeshBatch()
+        public void ReleaseMeshBatch()
         {
             //if (MeshBatchCacheID.Length == 0) { return; }
 

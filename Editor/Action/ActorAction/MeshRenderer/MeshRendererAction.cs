@@ -18,9 +18,8 @@ namespace InfinityTech.Editor.ActorAction
             MeshFilter[] meshRenderers = GameObject.FindObjectsOfType<MeshFilter>();
             foreach (MeshFilter meshRenderer in meshRenderers)
             {
-                int meshIndex = Random.Range(-10000, 10000);
+                int meshIndex = Random.Range(0, meshs.Length);
                 meshIndex = Mathf.Clamp(meshIndex, 0, meshs.Length - 1);
-
                 meshRenderer.sharedMesh = meshs[meshIndex];
             }
         }
@@ -70,7 +69,7 @@ namespace InfinityTech.Editor.ActorAction
             MeshRenderer[] meshRenderers = GameObject.FindObjectsOfType<MeshRenderer>();
             foreach (MeshRenderer meshRenderer in meshRenderers)
             {
-                int materiaIndex = Random.Range(-10000, 10000);
+                int materiaIndex = Random.Range(0, materials.Length);
                 materiaIndex = Mathf.Clamp(materiaIndex, 0, materials.Length - 1);
 
                 //for (int i = 0; i < meshRenderer.sharedMaterials.Length; ++i)

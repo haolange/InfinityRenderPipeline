@@ -45,8 +45,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal NativeArray<int> Indexs;
         internal NativeList<int2> CountOffsets;
-        internal NativeList<FPassMeshBatchV2> PassMeshBatchs;
-        internal NativeList<FMeshDrawCommandV2> MeshDrawCommands;
+        internal NativeList<FPassMeshBatch> PassMeshBatchs;
+        internal NativeList<FMeshDrawCommand> MeshDrawCommands;
 
         public FMeshPassProcessor(FGPUScene InGPUScene)
         {
@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 for (int BatchIndex = 0; BatchIndex < CountOffsets.Length; ++BatchIndex)
                 {
                     int2 CountOffset = CountOffsets[BatchIndex];
-                    FMeshDrawCommandV2 MeshDrawCommand = MeshDrawCommands[BatchIndex];
+                    FMeshDrawCommand MeshDrawCommand = MeshDrawCommands[BatchIndex];
 
                     Mesh DrawMesh = GraphContext.World.meshAssetList.Get(MeshDrawCommand.MeshID);
                     Material DrawMaterial = GraphContext.World.materialAssetList.Get(MeshDrawCommand.MaterialID);
@@ -119,8 +119,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             //Init MeshPassData
             Indexs = new NativeArray<int>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
             CountOffsets = new NativeList<int2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
-            PassMeshBatchs = new NativeList<FPassMeshBatchV2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
-            MeshDrawCommands = new NativeList<FMeshDrawCommandV2>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+            PassMeshBatchs = new NativeList<FPassMeshBatch>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
+            MeshDrawCommands = new NativeList<FMeshDrawCommand>(CullingData.ViewMeshBatchs.Length, Allocator.TempJob);
 
             //Build MeshDrawCommand
             FBuildMeshDrawCommandJob BuildMeshDrawCommandJob = new FBuildMeshDrawCommandJob();
