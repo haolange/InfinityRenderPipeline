@@ -72,11 +72,11 @@
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId  = _Indexs[In.InstanceId + _Offset];
-				FMeshbatch Meshbatch = _Primitives[Out.PrimitiveId];
+				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
+				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
-				Out.vertex_WS = mul(Meshbatch.Matrix_Model, float4(In.vertex.xyz, 1.0));
+				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex_CS = mul(Matrix_ViewJitterProj, Out.vertex_WS);
 				return Out;
 			}
@@ -139,14 +139,13 @@
 			Varyings vert (Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId  = _Indexs[In.InstanceId + _Offset];
-				FMeshbatch Meshbatch = _Primitives[Out.PrimitiveId];
+				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
+				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.normal = In.normal;
-				Out.vertex_WS = mul(Meshbatch.Matrix_Model, float4(In.vertex.xyz, 1.0));
+				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex_CS = mul(Matrix_ViewJitterProj, Out.vertex_WS);
-
 				return Out;
 			}
 			
@@ -217,14 +216,13 @@
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId  = _Indexs[In.InstanceId + _Offset];
-				FMeshbatch Meshbatch = _Primitives[Out.PrimitiveId];
+				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
+				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.normal = In.normal;
-				Out.vertex_WS = mul(Meshbatch.Matrix_Model, float4(In.vertex.xyz, 1.0));
+				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex_CS = mul(Matrix_ViewJitterProj, Out.vertex_WS);
-
 				return Out;
 			}
 

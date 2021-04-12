@@ -4,23 +4,23 @@
 #include "Common.hlsl"
 #include "Geometry.hlsl"
 
-struct FMeshbatch
+struct FMeshBatch
 {
-     int SubmeshIndex;
-     int MeshIndex;
-     int MaterialIndex;
-     int CastShadow;
-     int MotionType;
-     int Visible;
-     int Priority;
-     int RenderLayer;
-     FBound BoundBox;
-     float4x4 Matrix_Model;
+     int submeshIndex;
+     int meshIndex;
+     int materialIndex;
+     int visible;
+     int priority;
+     int castShadow;
+     int motionType;
+     int renderLayer;
+     FBound boundBox;
+     float4x4 matrix_LocalToWorld;
 };
 
-uint _Offset;
-Buffer<uint> _Indexs;
-StructuredBuffer<FMeshbatch> _Primitives;
+uint meshBatchOffset;
+Buffer<uint> meshBatchIndexs;
+StructuredBuffer<FMeshBatch> meshBatchBuffer;
 
 
 #endif

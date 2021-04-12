@@ -92,26 +92,24 @@ namespace InfinityTech.Rendering.MeshPipeline
                 Unity.Burst.CompilerServices.Loop.ExpectVectorized();
 
                 ref FPlane FrustumPlane = ref FrustumPlanes[i];
-                distRadius.x = math.dot(FrustumPlane.normalDist.xyz, MeshBatch.BoundBox.center) + FrustumPlane.normalDist.w;
-                distRadius.y = math.dot(math.abs(FrustumPlane.normalDist.xyz), MeshBatch.BoundBox.extents);
+                distRadius.x = math.dot(FrustumPlane.normalDist.xyz, MeshBatch.boundBox.center) + FrustumPlane.normalDist.w;
+                distRadius.y = math.dot(math.abs(FrustumPlane.normalDist.xyz), MeshBatch.boundBox.extents);
 
                 VisibleState = math.select(VisibleState, 0, distRadius.x + distRadius.y < 0);
             }
 
-            ViewMeshBatchs[index] = math.select(0, VisibleState, MeshBatch.Visible == 1);
+            ViewMeshBatchs[index] = math.select(0, VisibleState, MeshBatch.visible == 1);
         }
     }
 
     [BurstCompile]
-    public struct FBuildMeshDrawCommandJob : IJob
+    public struct FMeshDrawCommandBuildJob : IJob
     {
-        [WriteOnly]
-        public NativeArray<int> Indexs;
-
         [ReadOnly]
         public FCullingData CullingData;
 
-        public NativeList<int2> CountOffsets;
+        [WriteOnly]
+        public NativeArray<int> Indexs;
 
         [ReadOnly]
         public NativeArray<FMeshBatch> MeshBatchs;
@@ -121,22 +119,23 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public NativeList<FPassMeshBatch> PassMeshBatchs;
 
-        [WriteOnly]
         public NativeList<FMeshDrawCommand> MeshDrawCommands;
 
 
         public void Execute()
         {
-            //Gather PassMeshBatch
-            for (int Index = 0; Index < CullingData.ViewMeshBatchs.Length; ++Index)
-            {
-                if (CullingData.ViewMeshBatchs[Index] != 0)
-                {
-                    FMeshBatch MeshBatch = MeshBatchs[Index];
+            FMeshBatch meshBatch;
 
-                    if(MeshBatch.Priority >= MeshPassDesctiption.RenderQueueMin && MeshBatch.Priority <= MeshPassDesctiption.RenderQueueMax)
+            //Gather PassMeshBatch
+            for (int i = 0; i < CullingData.ViewMeshBatchs.Length; ++i)
+            {
+                if (CullingData.ViewMeshBatchs[i] != 0)
+                {
+                    meshBatch = MeshBatchs[i];
+
+                    if(meshBatch.Priority >= MeshPassDesctiption.RenderQueueMin && meshBatch.Priority <= MeshPassDesctiption.RenderQueueMax)
                     {
-                        FPassMeshBatch PassMeshBatch = new FPassMeshBatch(FMeshBatch.MatchForDynamicInstance(ref MeshBatch), Index);
+                        FPassMeshBatch PassMeshBatch = new FPassMeshBatch(i, FMeshBatch.MatchForDynamicInstance(ref meshBatch));
                         PassMeshBatchs.Add(PassMeshBatch);
                     }
                 }
@@ -146,23 +145,33 @@ namespace InfinityTech.Rendering.MeshPipeline
             PassMeshBatchs.Sort();
 
             //Build MeshDrawCommand
-            FPassMeshBatch CachePassMeshBatch = new FPassMeshBatch(-1, -1);
-            for (int i = 0; i < PassMeshBatchs.Length; ++i)
+            FPassMeshBatch passMeshBatch;
+            FPassMeshBatch cachePassMeshBatch = new FPassMeshBatch(-1, -1);
+
+            FMeshDrawCommand meshDrawCommand;
+            FMeshDrawCommand cacheMeshDrawCommand;
+
+            for (int j = 0; j < PassMeshBatchs.Length; ++j)
             {
-                FPassMeshBatch PassMeshBatch = PassMeshBatchs[i];
-                Indexs[i] = PassMeshBatch.MeshBatchIndex;
-                FMeshBatch MeshBatch = MeshBatchs[PassMeshBatch.MeshBatchIndex];
+                passMeshBatch = PassMeshBatchs[j];
+                Indexs[j] = passMeshBatch.meshBatchId;
+                meshBatch = MeshBatchs[passMeshBatch.meshBatchId];
 
-                if (!PassMeshBatch.Equals(CachePassMeshBatch))
+                if (!passMeshBatch.Equals(cachePassMeshBatch))
                 {
-                    CachePassMeshBatch = PassMeshBatch;
+                    cachePassMeshBatch = passMeshBatch;
 
-                    CountOffsets.Add(new int2(0, i));
-                    MeshDrawCommands.Add(new FMeshDrawCommand(MeshBatch.Mesh.Id, MeshBatch.Material.Id, MeshBatch.SubmeshIndex));
+                    meshDrawCommand.meshIndex = meshBatch.staticMeshRef.Id;
+                    meshDrawCommand.submeshIndex = meshBatch.submeshIndex;
+                    meshDrawCommand.materialindex = meshBatch.materialRef.Id;
+                    meshDrawCommand.countOffset.x = 0;
+                    meshDrawCommand.countOffset.y = j;
+                    MeshDrawCommands.Add(meshDrawCommand);
                 }
 
-                int2 CountOffset = CountOffsets[CountOffsets.Length - 1];
-                CountOffsets[CountOffsets.Length - 1] = CountOffset + new int2(1, 0);
+                cacheMeshDrawCommand = MeshDrawCommands[MeshDrawCommands.Length - 1];
+                cacheMeshDrawCommand.countOffset.x += 1;
+                MeshDrawCommands[MeshDrawCommands.Length - 1] = cacheMeshDrawCommand;
             }
         }
     }

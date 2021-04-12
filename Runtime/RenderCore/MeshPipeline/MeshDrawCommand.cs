@@ -1,6 +1,4 @@
-using System;
-using UnityEngine;
-using InfinityTech.Core;
+using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -12,45 +10,19 @@ namespace InfinityTech.Rendering.MeshPipeline
         DefaultV2
     }
 
-    public struct FMeshDrawCommand /*: IComparable<FMeshDrawCommand>, IEquatable<FMeshDrawCommand>*/
+    public struct FMeshDrawCommand
     {
-        public int MeshID;
-        public int MaterialID;
-        public int SubmeshIndex;
+        public int meshIndex;
+        public int submeshIndex;
+        public int materialindex;
+        public int2 countOffset;
 
-        public FMeshDrawCommand(in int InMeshID, in int InMaterialID, in int InSubmeshIndex)
+        public FMeshDrawCommand(in int meshIndex, in int submeshIndex, in int materialindex, in int2 countOffset)
         {
-            MeshID = InMeshID;
-            MaterialID = InMaterialID;
-            SubmeshIndex = InSubmeshIndex;
+            this.meshIndex = meshIndex;
+            this.submeshIndex = submeshIndex;
+            this.materialindex = materialindex;
+            this.countOffset = countOffset;
         }
-
-        /*public int CompareTo(FMeshDrawCommand Target)
-        {
-            //return SubmeshIndex + (MeshID << 16 | MaterialID);
-            return (SubmeshIndex >> 16) | (MeshID << 16 | MaterialID);
-        }
-
-        public bool Equals(FMeshDrawCommand Target)
-        {
-            //int SelfValue = SubmeshIndex + (MeshID << 16 | MaterialID);
-            //int TargetValue = Target.SubmeshIndex + (Target.MeshID << 16 | Target.MaterialID);
-
-            int SelfValue = (SubmeshIndex >> 16) | (MeshID << 16 | MaterialID);
-            int TargetValue = (Target.SubmeshIndex >> 16) | (Target.MeshID << 16 | Target.MaterialID);
-
-            return SelfValue == TargetValue;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return Equals((FMeshDrawCommand)obj);
-        }
-
-        public override int GetHashCode()
-        {
-            //return SubmeshIndex + (MeshID << 16 | MaterialID);
-            return (SubmeshIndex >> 16) | (MeshID << 16 | MaterialID);
-        }*/
     }
 }

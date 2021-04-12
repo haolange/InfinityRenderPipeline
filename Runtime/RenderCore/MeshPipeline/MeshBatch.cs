@@ -30,24 +30,22 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct FMeshBatch : IComparable<FMeshBatch>, IEquatable<FMeshBatch>
     {
-        public int SubmeshIndex;
-        public SharedRef<Mesh> Mesh;
-        public SharedRef<Material> Material;
-
-        public int CastShadow;
-        public int MotionType;
-
-        public int Visible;
+        public int submeshIndex;
+        public SharedRef<Mesh> staticMeshRef;
+        public SharedRef<Material> materialRef;
+        public int visible;
         public int Priority;
-        public int RenderLayer;
-        public FBound BoundBox;
+        public int castShadow;
+        public int motionType;
+        public int renderLayer;
+        public FBound boundBox;
         //public float4x4 CustomPrimitiveData;
-        public float4x4 Matrix_LocalToWorld;
+        public float4x4 matrix_LocalToWorld;
 
 
         public bool Equals(FMeshBatch Target)
         {
-            return SubmeshIndex.Equals(Target.SubmeshIndex) && Mesh.Equals(Target.Mesh) && Material.Equals(Target.Material);
+            return submeshIndex.Equals(Target.submeshIndex) && staticMeshRef.Equals(Target.staticMeshRef) && materialRef.Equals(Target.materialRef);
         }
 
         public override bool Equals(object obj)
@@ -60,29 +58,26 @@ namespace InfinityTech.Rendering.MeshPipeline
             return Priority.CompareTo(MeshBatch.Priority);
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int MatchForDynamicInstance(ref FMeshBatch Target)
+        public static int MatchForDynamicInstance(ref FMeshBatch meshBatch)
         {
-            return (Target.Mesh.Id << 32) + (Target.Material.Id << 32);
+            return new int3(meshBatch.submeshIndex, meshBatch.staticMeshRef.Id, meshBatch.materialRef.Id).GetHashCode();
         }
 
-        public static int MatchForCacheMeshBatch(ref FMeshBatch Target, in int InstanceID)
+        public static int MatchForCacheMeshBatch(ref FMeshBatch meshBatch, in int instanceID)
         {
-            return InstanceID + Target.GetHashCode();
+            return instanceID + meshBatch.GetHashCode();
         }
 
         public override int GetHashCode()
         {
-            int hashCode = SubmeshIndex;
-            hashCode += Mesh.GetHashCode();
-            hashCode += Material.GetHashCode();
+            int hashCode = submeshIndex;
+            hashCode += staticMeshRef.GetHashCode();
+            hashCode += materialRef.GetHashCode();
             //hashCode += CastShadow.GetHashCode();
-            //hashCode += MotionType.GetHashCode();
-            hashCode += Visible.GetHashCode();
-            //hashCode += Priority.GetHashCode();
+            hashCode += visible.GetHashCode();
             //hashCode += RenderLayer.GetHashCode();
-            hashCode += BoundBox.GetHashCode();
-            hashCode += Matrix_LocalToWorld.GetHashCode();
+            hashCode += boundBox.GetHashCode();
+            hashCode += matrix_LocalToWorld.GetHashCode();
 
             return hashCode;
         }
@@ -109,23 +104,24 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct FPassMeshBatch : IComparable<FPassMeshBatch>, IEquatable<FPassMeshBatch>
     {
-        public int HashIndex;
-        public int MeshBatchIndex;
+        public int meshBatchId;
+        public int instanceGroupId;
 
-        public FPassMeshBatch(in int InHashIndex, in int InMeshBatchIndex)
+
+        public FPassMeshBatch(in int meshBatchId, in int instanceGroupId)
         {
-            HashIndex = InHashIndex;
-            MeshBatchIndex = InMeshBatchIndex;
+            this.meshBatchId = meshBatchId;
+            this.instanceGroupId = instanceGroupId;
         }
 
         public int CompareTo(FPassMeshBatch Target)
         {
-            return HashIndex.CompareTo(Target.HashIndex);
+            return instanceGroupId.CompareTo(Target.instanceGroupId);
         }
 
         public bool Equals(FPassMeshBatch Target)
         {
-            return HashIndex.Equals(Target.HashIndex);
+            return instanceGroupId.Equals(Target.instanceGroupId);
         }
 
         public override bool Equals(object obj)
@@ -135,7 +131,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override int GetHashCode()
         {
-            return HashIndex.GetHashCode();
+            return instanceGroupId.GetHashCode();
         }
     }
 }
