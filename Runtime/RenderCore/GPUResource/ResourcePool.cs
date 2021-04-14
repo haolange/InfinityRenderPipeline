@@ -46,11 +46,10 @@ namespace InfinityTech.Rendering.GPUResource
 
         public override int GetHashCode()
         {
-            int hashCode = 0;
-            hashCode += count;
-            hashCode += stride;
-            hashCode += (int)type;
-
+            int hashCode = 17;
+            hashCode *= 23 + count;
+            hashCode *= 23 + stride;
+            hashCode *= 23 + (int)type;
             return hashCode;
         }
     }
@@ -95,23 +94,22 @@ namespace InfinityTech.Rendering.GPUResource
 
         public override int GetHashCode()
         {
-            int hashCode = 0;
-            hashCode += width;
-            hashCode += height;
-            hashCode += slices;
-            hashCode += mipMapBias.GetHashCode();
-            hashCode += (int)depthBufferBits;
-            hashCode += (int)colorFormat;
-            hashCode += (int)filterMode;
-            hashCode += (int)wrapMode;
-            hashCode += (int)dimension;
-            hashCode += anisoLevel;
-            hashCode += (enableRandomWrite ? 1 : 0);
-            hashCode += (useMipMap ? 1 : 0);
-            hashCode += (autoGenerateMips ? 1 : 0);
-            hashCode += (isShadowMap ? 1 : 0);
-            hashCode += (bindTextureMS ? 1 : 0);
-
+            int hashCode = 17;
+            hashCode *= 23 + width;
+            hashCode *= 23 + height;
+            hashCode *= 23 + slices;
+            hashCode *= 23 + mipMapBias.GetHashCode();
+            hashCode *= 23 + (int)depthBufferBits;
+            hashCode *= 23 + (int)colorFormat;
+            hashCode *= 23 + (int)filterMode;
+            hashCode *= 23 + (int)wrapMode;
+            hashCode *= 23 + (int)dimension;
+            hashCode *= 23 + anisoLevel;
+            hashCode *= 23 + (enableRandomWrite ? 1 : 0);
+            hashCode *= 23 + (useMipMap ? 1 : 0);
+            hashCode *= 23 + (autoGenerateMips ? 1 : 0);
+            hashCode *= 23 + (isShadowMap ? 1 : 0);
+            hashCode *= 23 + (bindTextureMS ? 1 : 0);
             return hashCode;
         }
     }
