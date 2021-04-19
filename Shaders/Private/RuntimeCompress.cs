@@ -23,7 +23,7 @@ public class RuntimeCompress : MonoBehaviour
     void OnEnable()
     {
 #if UNITY_ANDROID && !UNITY_EDITOR
-        DscFormat = GraphicsFormat.RGBA_ETC2_UNorm;
+        m_DscFormat = GraphicsFormat.RGBA_ETC2_UNorm;
         shader.DisableKeyword("_COMPRESS_BC3");
         shader.EnableKeyword("_COMPRESS_ETC2");
 #else
