@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_TexturePool = new FTexturePool();
         }
 
-        internal void Reset()
+        public void Reset()
         {
 
         }
@@ -36,12 +36,13 @@ namespace InfinityTech.Rendering.GPUResource
             if (!m_BufferPool.Pull(Handle, out Buffer))
             {
                 Buffer = new ComputeBuffer(Description.count, Description.stride, Description.type);
+                Buffer.name = Description.name;
             }
 
             return new BufferRef(Handle, Buffer);
         }
 
-        internal void ReleaseBuffer(in BufferRef BufferHandle)
+        public void ReleaseBuffer(in BufferRef BufferHandle)
         {
             m_BufferPool.Push(BufferHandle.Handle, BufferHandle.Buffer);
         }

@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (bUpdate)
                 {
                     bUpdate = false;
-                    CmdBuffer.SetComputeBufferData(BufferHandle.Buffer, MeshBatchs);
+                    CmdBuffer.SetBufferData(BufferHandle.Buffer, MeshBatchs);
                 }
             }
         }
