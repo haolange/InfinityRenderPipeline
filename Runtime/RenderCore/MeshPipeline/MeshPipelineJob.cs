@@ -89,8 +89,6 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             for (int i = 0; i < 6; ++i)
             {
-                //Unity.Burst.CompilerServices.Loop.ExpectVectorized();
-
                 ref FPlane FrustumPlane = ref FrustumPlanes[i];
                 distRadius.x = math.dot(FrustumPlane.normalDist.xyz, MeshBatch.boundBox.center) + FrustumPlane.normalDist.w;
                 distRadius.y = math.dot(math.abs(FrustumPlane.normalDist.xyz), MeshBatch.boundBox.extents);

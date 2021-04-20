@@ -246,6 +246,46 @@
 			}
 			return Irradiance;*/
 		}
+
+		float frag_Integrated_ProxyShadow(v2f_customrendertexture i) : SV_Target
+		{
+			float2 uv = i.localTexcoord.xy;
+			float coneAngle = 0.5;
+			float cosPhiStep = 1 / (127);
+			float sinThetaStep = 1 / (255);
+			uint coneZStepCount = 64;
+			uint conePhiStepCount = 64;
+
+			float cosPhi = uv.x;
+			float sinTheta = uv.y;
+
+			float shinPhi = sqrt(1 - cosPhi * cosPhi);
+			float cosTheta = sqrt(1 - sinTheta * sinTheta);
+
+			float3 sphereDir = float3(shinPhi, cosTheta, 0);
+			float cosConeAngle = cos(coneAngle);
+			float zStep = (1 - cosConeAngle) / (cosConeAngle - 1);
+			float conePhiStep = 6.28 / conePhiStepCount;
+
+			int numHit = 0;
+			for(uint i = 0; i < coneZStepCount; ++i)
+			{
+				float z = cosConeAngle + (i * zStep);
+				float xy = sqrt(1 - z * z);
+
+				for(uint j = 0; j < conePhiStepCount; ++j)
+				{
+					float conePhi = j * conePhiStep;
+					float3 rayDir = float3(cos(conePhi) * xy, z, sin(conePhi) * xy);
+					if(dot(rayDir, sphereDir) < cosTheta)
+					{
+						++numHit;
+					}
+				}
+			}
+
+			return float(numHit) / float(coneZStepCount * conePhiStepCount);
+		}
 	ENDCG
 
 	SubShader 
@@ -301,6 +341,15 @@
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Prefilter_Diffuse
+			ENDCG
+		}
+
+		Pass 
+		{
+			Name "Proxy_Shadow"
+			CGPROGRAM
+				#pragma vertex CustomRenderTextureVertexShader
+				#pragma fragment frag_Integrated_ProxyShadow
 			ENDCG
 		}
 	}
