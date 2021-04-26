@@ -315,7 +315,7 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
-			#pragma multi_compile _ LIGHTMAP_ON
+			#pragma multi_compile LIGHTMAP_OFF LIGHTMAP_ON
 
 
 			#include "../Private/Common.hlsl"
@@ -384,7 +384,7 @@
 
 				float3 IndirectLight = 1;
 				#if defined(LIGHTMAP_ON)
-				IndirectLight = SampleLightmap(In.uv1, In.normal);
+					IndirectLight = SampleLightmap(In.uv1, In.normal);
 				#endif
 
 				DiffuseBuffer = BaseColor * IndirectLight;
