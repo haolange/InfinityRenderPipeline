@@ -171,8 +171,8 @@
 
 
 			CBUFFER_START(UnityPerMaterial)
-				float _SpecularLevel;
 				int _BaseColorTile;
+				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
 			
@@ -327,8 +327,8 @@
 
 
 			CBUFFER_START(UnityPerMaterial)
-				float _SpecularLevel;
 				int _BaseColorTile;
+				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
 
@@ -409,8 +409,8 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
-				float _SpecularLevel;
 				int _BaseColorTile;
+				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
 
