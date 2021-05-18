@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshBatchCollector = meshBatchCollector;
             if(meshBatchCollector.cacheMeshBatchStateBuckets.IsCreated)
             {
-                this.meshBatchs = new NativeArray<FMeshBatch>(meshBatchCollector.cacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                meshBatchs = new NativeArray<FMeshBatch>(meshBatchCollector.cacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 meshBatchCollector.GatherMeshBatch(ref meshBatchs, methdo);
 
                 bufferRef = resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(FMeshBatch))));
