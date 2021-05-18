@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public SharedRef<Mesh> staticMeshRef;
         public SharedRef<Material> materialRef;
         public int visible;
-        public int Priority;
+        public int priority;
         public int castShadow;
         public int motionType;
         public int renderLayer;
@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public int CompareTo(FMeshBatch MeshBatch)
         {
-            return Priority.CompareTo(MeshBatch.Priority);
+            return priority.CompareTo(MeshBatch.priority);
         }
 
         public static int MatchForDynamicInstance(ref FMeshBatch meshBatch)
@@ -87,7 +87,6 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public int visible;
 
-
         public FViewMeshBatch(in int visible)
         {
             this.visible = visible;
@@ -106,7 +105,6 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public int meshBatchId;
         public int instanceGroupId;
-
 
         public FPassMeshBatch(in int meshBatchId, in int instanceGroupId)
         {

@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 PassData.RendererList = RenderList;
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                DepthPassMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(2450, 2999));
+                DepthPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
             },
             (ref FOpaqueDepthData PassData, RDGContext GraphContext) =>
             {

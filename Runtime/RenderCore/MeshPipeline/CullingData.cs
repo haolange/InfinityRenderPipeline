@@ -9,92 +9,67 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     internal unsafe static class FCullingUtility
     {
-        public static void DispatchCull(this ScriptableRenderContext RenderContext, FGPUScene GPUScene, Camera RenderCamera, ref FCullingData CullingData)
+        public static void DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, Camera view, ref FCullingData cullingData)
         {
-            CullingData.CullState = false;
-            if(GPUScene.MeshBatchs.IsCreated == false) { return; }
-            CullingData.CullState = true;
+            cullingData.CullState = false;
+            if(gpuScene.meshBatchs.IsCreated == false) { return; }
+            cullingData.CullState = true;
 
-            CullingData.ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
-            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
+            cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
+            Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(view);
+            for (int i = 0; i < 6; ++i)
             {
-                CullingData.ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
+                cullingData.viewFrustum[i] = FrustumPlane[i];
             }
 
-            CullingData.ViewMeshBatchs = new NativeList<int>(GPUScene.MeshBatchs.Length, Allocator.TempJob);
+            cullingData.viewMeshBatchs = new NativeList<int>(gpuScene.meshBatchs.Length, Allocator.TempJob);
 
             FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
             {
-                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)GPUScene.MeshBatchs.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.FrustumPlanes = (FPlane*)CullingData.ViewFrustum.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.ViewMeshBatchs = CullingData.ViewMeshBatchs;
+                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)gpuScene.meshBatchs.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.FrustumPlanes = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.ViewMeshBatchs = cullingData.viewMeshBatchs;
             }
-            MeshBatchCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();
+            MeshBatchCullingJob.Schedule(gpuScene.meshBatchs.Length, 256).Complete();
         }
 
-        public static void DispatchCull(this ScriptableRenderContext RenderContext, FGPUScene GPUScene, ref ScriptableCullingParameters CullingParameters, ref FCullingData CullingData)
+        public static void DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, ref ScriptableCullingParameters cullingParameters, ref FCullingData cullingData)
         {
-            CullingData.CullState = false;
-            if(GPUScene.MeshBatchs.IsCreated == false || CullingData.bRendererView != true) { return; }
-            CullingData.CullState = true;
+            cullingData.CullState = false;
+            if(gpuScene.meshBatchs.IsCreated == false || cullingData.isRendererView != true) { return; }
+            cullingData.CullState = true;
 
-            CullingData.ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
+            cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
+            for (int i = 0; i < 6; ++i)
             {
-                CullingData.ViewFrustum[PlaneIndex] = CullingParameters.GetCullingPlane(PlaneIndex);
+                cullingData.viewFrustum[i] = cullingParameters.GetCullingPlane(i);
             }
 
-            CullingData.ViewMeshBatchs = new NativeArray<int>(GPUScene.MeshBatchs.Length, Allocator.TempJob);
+            cullingData.viewMeshBatchs = new NativeArray<int>(gpuScene.meshBatchs.Length, Allocator.TempJob);
 
             FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
             {
-                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)GPUScene.MeshBatchs.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.FrustumPlanes = (FPlane*)CullingData.ViewFrustum.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.ViewMeshBatchs = CullingData.ViewMeshBatchs;
+                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)gpuScene.meshBatchs.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.FrustumPlanes = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.ViewMeshBatchs = cullingData.viewMeshBatchs;
             }
-            MeshBatchCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();
+            MeshBatchCullingJob.Schedule(gpuScene.meshBatchs.Length, 256).Complete();
         }
     }
 
     public struct FCullingData
     {
         public bool CullState;
-        public bool bRendererView;
-        public NativeArray<int> ViewMeshBatchs;
-        public NativeArray<FPlane> ViewFrustum;
-
-        /*public void DispatchCull(FGPUScene GPUScene, Camera RenderCamera)
-        {
-            CullState = false;
-            if(GPUScene.MeshBatchs.IsCreated == false) { return; }
-            CullState = true;
-
-            ViewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(RenderCamera);
-            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
-            {
-                ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
-            }
-
-            ViewMeshBatchs = new NativeList<int>(GPUScene.MeshBatchs.Length, Allocator.TempJob);
-            ViewMeshBatchs.Resize(GPUScene.MeshBatchs.Length, NativeArrayOptions.ClearMemory);
-
-            FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
-            {
-                MeshBatchCullingJob.ViewFrustum = ViewFrustum;
-                MeshBatchCullingJob.MeshBatchs = GPUScene.MeshBatchs;
-                MeshBatchCullingJob.ViewMeshBatchs = ViewMeshBatchs;
-            }
-            MeshBatchCullingJob.Schedule(GPUScene.MeshBatchs.Length, 256).Complete();
-        }*/
+        public bool isRendererView;
+        public NativeArray<int> viewMeshBatchs;
+        public NativeArray<FPlane> viewFrustum;
 
         public void Release()
         {
             if(CullState)
             {
-                ViewFrustum.Dispose();
-                ViewMeshBatchs.Dispose();
+                viewFrustum.Dispose();
+                viewMeshBatchs.Dispose();
             }
         }
     }

@@ -125,13 +125,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             FMeshBatch meshBatch;
 
             //Gather PassMeshBatch
-            for (int i = 0; i < CullingData.ViewMeshBatchs.Length; ++i)
+            for (int i = 0; i < CullingData.viewMeshBatchs.Length; ++i)
             {
-                if (CullingData.ViewMeshBatchs[i] != 0)
+                if (CullingData.viewMeshBatchs[i] != 0)
                 {
                     meshBatch = MeshBatchs[i];
 
-                    if(meshBatch.Priority >= MeshPassDesctiption.RenderQueueMin && meshBatch.Priority <= MeshPassDesctiption.RenderQueueMax)
+                    if(meshBatch.priority >= MeshPassDesctiption.renderQueueMin && meshBatch.priority <= MeshPassDesctiption.renderQueueMax)
                     {
                         FPassMeshBatch PassMeshBatch = new FPassMeshBatch(i, FMeshBatch.MatchForDynamicInstance(ref meshBatch));
                         PassMeshBatchs.Add(PassMeshBatch);

@@ -217,7 +217,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Init FrameContext
             CommandBuffer CmdBuffer = CommandBufferPool.Get("");
             FResourceFactory gpuResourcePool = GetWorld().gpuResourcePool;
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), gpuResourcePool, CmdBuffer, 2, false);
+            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), gpuResourcePool, CmdBuffer, 1, false);
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
             //Do FrameRender
@@ -249,7 +249,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         //Culling Context
                         FCullingData CullingData = new FCullingData();
-                        { CullingData.bRendererView = bRendererView; }
+                        { CullingData.isRendererView = bRendererView; }
                         ScriptableCullingParameters CullingParameters;
                         View.TryGetCullingParameters(out CullingParameters);
                         CullingResults CullingResult = RenderContext.Cull(ref CullingParameters); //Unity Culling

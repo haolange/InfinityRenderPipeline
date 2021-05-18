@@ -3,10 +3,9 @@ using Unity.Collections;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    //[Serializable]
-    public unsafe class FMeshBatchCollector
+    public class FMeshBatchCollector
     {
-        public NativeHashMap<int, FMeshBatch> CacheMeshBatchStateBuckets;
+        public NativeHashMap<int, FMeshBatch> cacheMeshBatchStateBuckets;
 
         public FMeshBatchCollector() 
         { 
@@ -15,99 +14,53 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Initializ()
         {
-            CacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
+            cacheMeshBatchStateBuckets = new NativeHashMap<int, FMeshBatch>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(NativeArray<FMeshBatch> MeshBatchs, in int Methdo = 0)
+        public void GatherMeshBatch(ref NativeArray<FMeshBatch> meshBatchs, in int methdo = 0)
         {
-            if(!CacheMeshBatchStateBuckets.IsCreated) { return; }
+            if(!cacheMeshBatchStateBuckets.IsCreated) { return; }
             
-            if(CacheMeshBatchStateBuckets.Count() == 0) { return; }
+            if(cacheMeshBatchStateBuckets.Count() == 0) { return; }
 
-            if (Methdo == 0)
+            if (methdo == 0)
             {
                 FHashmapGatherValueJob<int, FMeshBatch> MeshBatchGatherJob = new FHashmapGatherValueJob<int, FMeshBatch>();
-                {
-                    MeshBatchGatherJob.Array = MeshBatchs;
-                    MeshBatchGatherJob.Hashmap = CacheMeshBatchStateBuckets;
-                }
+                MeshBatchGatherJob.Array = meshBatchs;
+                MeshBatchGatherJob.Hashmap = cacheMeshBatchStateBuckets;
                 MeshBatchGatherJob.Run();
-            } else if(Methdo == 1) {
-                NativeList<int> MeshBatchMapIndexs = new NativeList<int>(MeshBatchs.Length, Allocator.TempJob);
-                int* BucketNext = (int*)CacheMeshBatchStateBuckets.m_HashMapData.m_Buffer->next;
-                int* BucketArray = (int*)CacheMeshBatchStateBuckets.m_HashMapData.m_Buffer->buckets;
-                byte* HashmapValues = CacheMeshBatchStateBuckets.m_HashMapData.m_Buffer->values;
-
-                FMeshBatchCounterJob MeshBatchCounterJob = new FMeshBatchCounterJob();
-                {
-                    MeshBatchCounterJob.BucketNext = BucketNext;
-                    MeshBatchCounterJob.BucketArray = BucketArray;
-                    MeshBatchCounterJob.Count = MeshBatchs.Length;
-                    MeshBatchCounterJob.MeshBatchMapIndexs = MeshBatchMapIndexs;
-                    MeshBatchCounterJob.Length = CacheMeshBatchStateBuckets.m_HashMapData.m_Buffer->bucketCapacityMask;
-                }
-                MeshBatchCounterJob.Run();
-
-                FMeshBatchGatherJob MeshBatchParallelGatherJob = new FMeshBatchGatherJob();
-                {
-                    MeshBatchParallelGatherJob.MeshBatchs = MeshBatchs;
-                    MeshBatchParallelGatherJob.HashmapValues = HashmapValues;
-                    MeshBatchParallelGatherJob.MeshBatchMapIndexs = MeshBatchMapIndexs;
-                }
-                MeshBatchParallelGatherJob.Schedule(MeshBatchMapIndexs.Length, 256).Complete();
-
-                /*for (int i = 0; i <= CacheMeshBatchStateBuckets.m_HashMapData.m_Buffer->bucketCapacityMask; ++i)
-                {
-                    ref int count = ref Count[0];
-
-                    if (count < MeshBatchs.Length)
-                    {
-                        int bucket = BucketArray[i];
-
-                        while (bucket != -1)
-                        {
-                            MeshBatchs[count] = UnsafeUtility.ReadArrayElement<FMeshBatch>(HashmapValues, bucket);
-                            bucket = BucketNext[bucket];
-
-                            Interlocked.Increment(ref count);
-                        }
-                    }
-                }*/
-                MeshBatchMapIndexs.Dispose();
-            } else if(Methdo == 2) {
+            } else {
                 FHashmapParallelGatherValueJob<int, FMeshBatch> MeshBatchGatherJob = new FHashmapParallelGatherValueJob<int, FMeshBatch>();
-                {
-                    MeshBatchGatherJob.Array = MeshBatchs;
-                    MeshBatchGatherJob.Hashmap = CacheMeshBatchStateBuckets;
-                }
-                MeshBatchGatherJob.Schedule(MeshBatchs.Length, 256).Complete();
+                MeshBatchGatherJob.Array = meshBatchs;
+                MeshBatchGatherJob.Hashmap = cacheMeshBatchStateBuckets;
+                MeshBatchGatherJob.Schedule(meshBatchs.Length, 256).Complete();
             }
         }
 
         public void AddMeshBatch(in FMeshBatch MeshBatch, in int AddKey)
         {
-            CacheMeshBatchStateBuckets.TryAdd(AddKey, MeshBatch);
+            cacheMeshBatchStateBuckets.TryAdd(AddKey, MeshBatch);
         }
 
         public void UpdateMeshBatch(in FMeshBatch MeshBatch, in int UpdateKey)
         {
-            CacheMeshBatchStateBuckets[UpdateKey] = MeshBatch;
+            cacheMeshBatchStateBuckets[UpdateKey] = MeshBatch;
         }
 
         public void RemoveMeshBatch(in int RemoveKey)
         {
-            if(CacheMeshBatchStateBuckets.IsCreated == false) { return; }
-            CacheMeshBatchStateBuckets.Remove(RemoveKey);
+            if(cacheMeshBatchStateBuckets.IsCreated == false) { return; }
+            cacheMeshBatchStateBuckets.Remove(RemoveKey);
         }
 
         public void Reset()
         {
-            CacheMeshBatchStateBuckets.Clear();
+            cacheMeshBatchStateBuckets.Clear();
         }
 
         public void Release()
         {
-            CacheMeshBatchStateBuckets.Dispose();
+            cacheMeshBatchStateBuckets.Dispose();
         }
     }
 }

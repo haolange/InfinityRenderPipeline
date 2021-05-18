@@ -9,39 +9,37 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     public class FGPUScene
     {
-        internal bool bUpdate = true;
-        public BufferRef BufferHandle;
-        public NativeArray<FMeshBatch> MeshBatchs;
-        protected FMeshBatchCollector MeshBatchCollector;
+        private bool m_IsUpdate = true;
+        public BufferRef bufferRef;
+        public NativeArray<FMeshBatch> meshBatchs;
+        private FMeshBatchCollector m_MeshBatchCollector;
 
-
-        public void Gather(FMeshBatchCollector InMeshBatchCollector, FResourceFactory ResourcePool, CommandBuffer CmdBuffer, in int Methdo = 0, in bool Block = false)
+        public void Gather(FMeshBatchCollector meshBatchCollector, FResourceFactory resourceFactory, CommandBuffer cmdBuffer, in int methdo = 0, in bool block = false)
         {
-            if(Block) { return; }
+            if(block) { return; }
 
-            MeshBatchCollector = InMeshBatchCollector;
-
-            if(MeshBatchCollector.CacheMeshBatchStateBuckets.IsCreated)
+            m_MeshBatchCollector = meshBatchCollector;
+            if(meshBatchCollector.cacheMeshBatchStateBuckets.IsCreated)
             {
-                MeshBatchs = new NativeArray<FMeshBatch>(MeshBatchCollector.CacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                MeshBatchCollector.GatherMeshBatch(MeshBatchs, Methdo);
+                this.meshBatchs = new NativeArray<FMeshBatch>(meshBatchCollector.cacheMeshBatchStateBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                meshBatchCollector.GatherMeshBatch(ref meshBatchs, methdo);
 
-                BufferHandle = ResourcePool.AllocateBuffer(new BufferDescription(64000, Marshal.SizeOf(typeof(FMeshBatch))));
+                bufferRef = resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(FMeshBatch))));
 
-                if (bUpdate)
+                if (m_IsUpdate)
                 {
-                    bUpdate = false;
-                    CmdBuffer.SetBufferData(BufferHandle.Buffer, MeshBatchs);
+                    m_IsUpdate = false;
+                    cmdBuffer.SetBufferData(bufferRef.Buffer, meshBatchs);
                 }
             }
         }
 
-        public void Release(FResourceFactory ResourcePool)
+        public void Release(FResourceFactory resourceFactory)
         {
-            if (MeshBatchs.IsCreated)
+            if (meshBatchs.IsCreated)
             {
-                MeshBatchs.Dispose();
-                ResourcePool.ReleaseBuffer(BufferHandle);
+                meshBatchs.Dispose();
+                resourceFactory.ReleaseBuffer(bufferRef);
             }
         }
     }
