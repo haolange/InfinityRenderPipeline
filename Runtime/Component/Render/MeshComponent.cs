@@ -257,7 +257,7 @@ namespace InfinityTech.Component
                     MeshBatch.castShadow = (int)castShadow;
                     MeshBatch.motionType = (int)motionVector;
                     MeshBatch.renderLayer = renderLayer;
-                    MeshBatch.submeshIndex = i;
+                    MeshBatch.sectionIndex = i;
                     MeshBatch.staticMeshRef = GetWorld().meshAssetList.Add(staticMesh, staticMesh.GetInstanceID());
                     MeshBatch.materialRef = GetWorld().materialAssetList.Add(materials[i], materials[i].GetInstanceID());
                     MeshBatch.priority = renderPriority + materials[i].renderQueue;
@@ -282,7 +282,7 @@ namespace InfinityTech.Component
                     MeshBatch.castShadow = (int)castShadow;
                     MeshBatch.motionType = (int)motionVector;
                     MeshBatch.renderLayer = renderLayer;
-                    MeshBatch.submeshIndex = i;
+                    MeshBatch.sectionIndex = i;
                     MeshBatch.staticMeshRef = GetWorld().meshAssetList.Add(staticMesh, staticMesh.GetInstanceID());
                     MeshBatch.materialRef = GetWorld().materialAssetList.Add(materials[i], materials[i].GetInstanceID());
                     MeshBatch.priority = renderPriority + materials[i].renderQueue;

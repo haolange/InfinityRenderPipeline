@@ -6,7 +6,7 @@
 
 struct FMeshBatch
 {
-     int submeshIndex;
+     int sectionIndex;
      int meshIndex;
      int materialIndex;
      int visible;

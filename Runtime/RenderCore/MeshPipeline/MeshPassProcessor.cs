@@ -84,12 +84,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     FMeshDrawCommand meshDrawCommand = m_MeshDrawCommands[i];
                     Mesh mesh = graphContext.World.meshAssetList.Get(meshDrawCommand.meshIndex);
-                    Material material = graphContext.World.materialAssetList.Get(meshDrawCommand.materialindex);
+                    Material material = graphContext.World.materialAssetList.Get(meshDrawCommand.materialIndex);
 
                     m_PropertyBlock.SetInt(InfinityShaderIDs.MeshBatchOffset, meshDrawCommand.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchIndexs, bufferRef.Buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchBuffer, m_GPUScene.bufferRef.Buffer);
-                    graphContext.CmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.submeshIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
+                    graphContext.CmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
                 }
 
                 graphContext.ResourcePool.ReleaseBuffer(bufferRef);

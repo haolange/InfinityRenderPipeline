@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct FMeshBatch : IComparable<FMeshBatch>, IEquatable<FMeshBatch>
     {
-        public int submeshIndex;
+        public int sectionIndex;
         public SharedRef<Mesh> staticMeshRef;
         public SharedRef<Material> materialRef;
         public int visible;
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public bool Equals(FMeshBatch Target)
         {
-            return submeshIndex.Equals(Target.submeshIndex) && staticMeshRef.Equals(Target.staticMeshRef) && materialRef.Equals(Target.materialRef);
+            return sectionIndex.Equals(Target.sectionIndex) && staticMeshRef.Equals(Target.staticMeshRef) && materialRef.Equals(Target.materialRef);
         }
 
         public override bool Equals(object obj)
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public static int MatchForDynamicInstance(ref FMeshBatch meshBatch)
         {
-            return new int3(meshBatch.submeshIndex, meshBatch.staticMeshRef.Id, meshBatch.materialRef.Id).GetHashCode();
+            return new int3(meshBatch.sectionIndex, meshBatch.staticMeshRef.Id, meshBatch.materialRef.Id).GetHashCode();
         }
 
         public static int MatchForCacheMeshBatch(ref FMeshBatch meshBatch, in int instanceID)
@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public override int GetHashCode()
         {
-            int hashCode = submeshIndex;
+            int hashCode = sectionIndex;
             hashCode += staticMeshRef.GetHashCode();
             hashCode += materialRef.GetHashCode();
             //hashCode += CastShadow.GetHashCode();

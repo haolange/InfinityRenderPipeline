@@ -160,8 +160,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                     cachePassMeshBatch = passMeshBatch;
 
                     meshDrawCommand.meshIndex = meshBatch.staticMeshRef.Id;
-                    meshDrawCommand.submeshIndex = meshBatch.submeshIndex;
-                    meshDrawCommand.materialindex = meshBatch.materialRef.Id;
+                    meshDrawCommand.sectionIndex = meshBatch.sectionIndex;
+                    meshDrawCommand.materialIndex = meshBatch.materialRef.Id;
                     meshDrawCommand.countOffset.x = 0;
                     meshDrawCommand.countOffset.y = j;
                     MeshDrawCommands.Add(meshDrawCommand);
