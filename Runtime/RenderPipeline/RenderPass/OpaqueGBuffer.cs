@@ -22,46 +22,37 @@ namespace InfinityTech.Rendering.Pipeline
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueGBuffer));
 
-            RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
+            RDGTextureRef DepthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescription GBufferADesc = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferATexture", colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
-            RDGTextureRef GBufferATexure = GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferA, GBufferADesc);
+            RDGTextureRef GBufferATexure = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferA, GBufferADesc);
 
             TextureDescription GBufferBDesc = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "GBufferBTexture", colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
-            RDGTextureRef GBufferBTexure = GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferB, GBufferBDesc);
+            RDGTextureRef GBufferBTexure = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferB, GBufferBDesc);
 
             //Add OpaqueGBufferPass
-            GraphBuilder.AddPass<FOpaqueGBufferData>("OpaqueGBuffer", ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer),
+            m_GraphBuilder.AddPass<FOpaqueGBufferData>("OpaqueGBuffer", ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer),
             (ref FOpaqueGBufferData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RendererList = RenderList;
                 PassData.GBufferA = PassBuilder.UseColorBuffer(GBufferATexure, 0);
                 PassData.GBufferB = PassBuilder.UseColorBuffer(GBufferBTexure, 1);
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                GBufferPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(0, 2999));
+                m_GBufferPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueGBufferData PassData, RDGContext GraphContext) =>
             {
                 //UnityRenderer
                 RendererList GBufferRenderList = PassData.RendererList;
                 //GBufferRenderList.drawSettings.perObjectData = PerObjectData.Lightmaps;
-                GBufferRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
-                GBufferRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
+                GBufferRenderList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
+                GBufferRenderList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
                 GBufferRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
                 GraphContext.RenderContext.DrawRenderers(GBufferRenderList.cullingResult, ref GBufferRenderList.drawSettings, ref GBufferRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                GBufferPassMeshProcessor.DispatchDraw(GraphContext, 1);
+                m_GBufferPassMeshProcessor.DispatchDraw(GraphContext, 1);
             });
         }
     }
 }
-
-
-/*var RTV_ThinGBuffer_ID = GraphContext.ObjectPool.GetTempArray<RenderTargetIdentifier>(2);
-RTV_ThinGBuffer_ID[0] = PassData.GBufferA;
-RTV_ThinGBuffer_ID[1] = PassData.GBufferB;
-CoreUtils.SetRenderTarget(GraphContext.CmdBuffer, RTV_ThinGBuffer_ID, PassData.DepthBuffer);
-
-GraphContext.RenderContext.ExecuteCommandBuffer(GraphContext.CmdBuffer);
-GraphContext.CmdBuffer.Clear();*/

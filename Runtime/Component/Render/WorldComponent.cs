@@ -8,16 +8,16 @@ namespace InfinityTech.Component
     [AddComponentMenu("InfinityRenderer/World Component")]
     public class WorldComponent : MonoBehaviour
     {
-        public bool bUpdateStatic;
+        public bool isUpdateStatic;
 
-        private bool bInit;
+        private bool m_IsInit;
         private FRenderWorld m_RenderWorld;
 
 
         void OnEnable()
         {
-            bInit = true;
-            bUpdateStatic = true;
+            m_IsInit = true;
+            isUpdateStatic = true;
 
             m_RenderWorld = new FRenderWorld("RenderScene");
             m_RenderWorld.Initializ();
@@ -39,9 +39,9 @@ namespace InfinityTech.Component
 
         protected void InvokeEventTickEditor()
         {
-            if(bUpdateStatic)
+            if(isUpdateStatic)
             {
-                bUpdateStatic = false;
+                isUpdateStatic = false;
                 m_RenderWorld.InvokeWorldStaticMeshUpdate();
             }
 
@@ -50,9 +50,9 @@ namespace InfinityTech.Component
 
         protected void InvokeEventTickRuntime()
         {
-            if(bInit == true)
+            if(m_IsInit == true)
             {
-                bInit = false;
+                m_IsInit = false;
                 m_RenderWorld.InvokeWorldStaticMeshUpdate();
             }
 

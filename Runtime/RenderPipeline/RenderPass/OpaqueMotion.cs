@@ -23,13 +23,13 @@ namespace InfinityTech.Rendering.Pipeline
             //Request Resource
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueMotion, RenderQueueRange.opaque, PerObjectData.MotionVectors));
 
-            RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
+            RDGTextureRef DepthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescription MotionDesc = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = "MotionBufferTexture", colorFormat = GraphicsFormat.R16G16_SFloat };
-            RDGTextureRef MotionTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, MotionDesc);
+            RDGTextureRef MotionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, MotionDesc);
 
             //Add OpaqueMotionPass
-            GraphBuilder.AddPass<FOpaqueMotionData>("OpaqueMotion", ProfilingSampler.Get(CustomSamplerId.OpaqueMotion),
+            m_GraphBuilder.AddPass<FOpaqueMotionData>("OpaqueMotion", ProfilingSampler.Get(CustomSamplerId.OpaqueMotion),
             (ref FOpaqueMotionData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RendererList = RenderList;
@@ -41,8 +41,8 @@ namespace InfinityTech.Rendering.Pipeline
                 RendererList MotionRenderList = PassData.RendererList;
                 MotionRenderList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.CommonOpaque };
                 MotionRenderList.drawSettings.perObjectData = PerObjectData.MotionVectors;
-                MotionRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
-                MotionRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
+                MotionRenderList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
+                MotionRenderList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
                 MotionRenderList.filteringSettings.renderQueueRange = RenderQueueRange.opaque;
                 MotionRenderList.filteringSettings.excludeMotionVectorObjects = false;
 

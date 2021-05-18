@@ -64,6 +64,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<int> viewMeshBatchs;
         public NativeArray<FPlane> viewFrustum;
 
+        public FCullingData(in bool isRendererView)
+        {
+            this.CullState = false;
+            this.viewFrustum = default;
+            this.viewMeshBatchs = default;
+            this.isRendererView = isRendererView;
+        }
+
         public void Release()
         {
             if(CullState)

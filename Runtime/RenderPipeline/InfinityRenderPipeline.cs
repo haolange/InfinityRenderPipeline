@@ -39,72 +39,70 @@ namespace InfinityTech.Rendering.Pipeline
         private static readonly int ID_Matrix_InvViewJitterProj = Shader.PropertyToID("Matrix_InvViewJitterProj");
         private static readonly int ID_Matrix_ViewFlipYJitterProj = Shader.PropertyToID("Matrix_ViewFlipYJitterProj");
         private static readonly int ID_Matrix_InvViewFlipYJitterProj = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
+        private static readonly int ID_LastFrameIndex = Shader.PropertyToID("Prev_FrameIndex");
+        private static readonly int ID_Matrix_LastViewProj = Shader.PropertyToID("Matrix_PrevViewProj");
+        private static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_PrevViewFlipYProj");
 
-        private static readonly int ID_Prev_FrameIndex = Shader.PropertyToID("Prev_FrameIndex");
-        private static readonly int ID_Matrix_PrevViewProj = Shader.PropertyToID("Matrix_PrevViewProj");
-        private static readonly int ID_Matrix_PrevViewFlipYProj = Shader.PropertyToID("Matrix_PrevViewFlipYProj");
 
+        public int frameIndex;
+        public float2 tempJitter;
+        public Matrix4x4 matrix_WorldToView;
+        public Matrix4x4 matrix_ViewToWorld;
+        public Matrix4x4 matrix_Proj;
+        public Matrix4x4 matrix_InvProj;
+        public Matrix4x4 matrix_JitterProj;
+        public Matrix4x4 matrix_InvJitterProj;
+        public Matrix4x4 matrix_FlipYProj;
+        public Matrix4x4 matrix_InvFlipYProj;
+        public Matrix4x4 matrix_FlipYJitterProj;
+        public Matrix4x4 matrix_InvFlipYJitterProj;
+        public Matrix4x4 matrix_ViewProj;
+        public Matrix4x4 matrix_InvViewProj;
+        public Matrix4x4 matrix_ViewFlipYProj;
+        public Matrix4x4 matrix_InvViewFlipYProj;
+        public Matrix4x4 matrix_ViewJitterProj;
+        public Matrix4x4 matrix_InvViewJitterProj;
+        public Matrix4x4 matrix_ViewFlipYJitterProj;
+        public Matrix4x4 matrix_InvViewFlipYJitterProj;
+        public int lastFrameIndex;
+        public float2 lastTempJitter;
+        public Matrix4x4 matrix_LastViewProj;
+        public Matrix4x4 matrix_LastViewFlipYProj;
 
-        public int FrameIndex;
-        public float2 TAAJitter;
-        public Matrix4x4 Matrix_WorldToView;
-        public Matrix4x4 Matrix_ViewToWorld;
-        public Matrix4x4 Matrix_Proj;
-        public Matrix4x4 Matrix_InvProj;
-        public Matrix4x4 Matrix_JitterProj;
-        public Matrix4x4 Matrix_InvJitterProj;
-        public Matrix4x4 Matrix_FlipYProj;
-        public Matrix4x4 Matrix_InvFlipYProj;
-        public Matrix4x4 Matrix_FlipYJitterProj;
-        public Matrix4x4 Matrix_InvFlipYJitterProj;
-        public Matrix4x4 Matrix_ViewProj;
-        public Matrix4x4 Matrix_InvViewProj;
-        public Matrix4x4 Matrix_ViewFlipYProj;
-        public Matrix4x4 Matrix_InvViewFlipYProj;
-        public Matrix4x4 Matrix_ViewJitterProj;
-        public Matrix4x4 Matrix_InvViewJitterProj;
-        public Matrix4x4 Matrix_ViewFlipYJitterProj;
-        public Matrix4x4 Matrix_InvViewFlipYJitterProj;
-
-        public int Prev_FrameIndex;
-        public float2 Prev_TAAJitter;
-        public Matrix4x4 Matrix_PrevViewProj;
-        public Matrix4x4 Matrix_PrevViewFlipYProj;
-
-        private Matrix4x4 GetJitteredProjectionMatrix(Matrix4x4 origProj, Camera UnityCamera)
+        private Matrix4x4 GetJitteredProjectionMatrix(in Matrix4x4 origProj, Camera view)
         {
 
-            float jitterX = HaltonSequence.Get((FrameIndex & 1023) + 1, 2) - 0.5f;
-            float jitterY = HaltonSequence.Get((FrameIndex & 1023) + 1, 3) - 0.5f;
-            TAAJitter = new float2(jitterX, jitterY);
-            float4 taaJitter = new float4(jitterX, jitterY, jitterX / UnityCamera.pixelRect.size.x, jitterY / UnityCamera.pixelRect.size.y);
+            float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
+            float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
+            tempJitter = new float2(jitterX, jitterY);
+            float4 taaJitter = new float4(jitterX, jitterY, jitterX / view.pixelRect.size.x, jitterY / view.pixelRect.size.y);
 
-            if (++FrameIndex >= 8)
-                FrameIndex = 0;
+            if (++frameIndex >= 8)
+                frameIndex = 0;
 
             Matrix4x4 proj;
 
-            if (UnityCamera.orthographic) {
-                float vertical = UnityCamera.orthographicSize;
-                float horizontal = vertical * UnityCamera.aspect;
+            if (view.orthographic) {
+                float vertical = view.orthographicSize;
+                float horizontal = vertical * view.aspect;
 
                 var offset = taaJitter;
-                offset.x *= horizontal / (0.5f * UnityCamera.pixelRect.size.x);
-                offset.y *= vertical / (0.5f * UnityCamera.pixelRect.size.y);
+                offset.x *= horizontal / (0.5f * view.pixelRect.size.x);
+                offset.y *= vertical / (0.5f * view.pixelRect.size.y);
 
                 float left = offset.x - horizontal;
                 float right = offset.x + horizontal;
                 float top = offset.y + vertical;
                 float bottom = offset.y - vertical;
 
-                proj = Matrix4x4.Ortho(left, right, bottom, top, UnityCamera.nearClipPlane, UnityCamera.farClipPlane);
+                proj = Matrix4x4.Ortho(left, right, bottom, top, view.nearClipPlane, view.farClipPlane);
             } else {
                 var planes = origProj.decomposeProjection;
 
                 float vertFov = Math.Abs(planes.top) + Math.Abs(planes.bottom);
                 float horizFov = Math.Abs(planes.left) + Math.Abs(planes.right);
 
-                var planeJitter = new Vector2(jitterX * horizFov / UnityCamera.pixelRect.size.x, jitterY * vertFov / UnityCamera.pixelRect.size.y);
+                var planeJitter = new Vector2(jitterX * horizFov / view.pixelRect.size.x, jitterY * vertFov / view.pixelRect.size.y);
 
                 planes.left += planeJitter.x;
                 planes.right += planeJitter.x;
@@ -117,151 +115,146 @@ namespace InfinityTech.Rendering.Pipeline
             return proj;
         }
 
-        private void UnpateCurrBufferData(Camera RenderCamera)
+        private void UnpateCurrBufferData(Camera view)
         {
-            Matrix_WorldToView = RenderCamera.worldToCameraMatrix;
-            Matrix_ViewToWorld = Matrix_WorldToView.inverse;
-            Matrix_Proj = GL.GetGPUProjectionMatrix(RenderCamera.projectionMatrix, true);
-            Matrix_InvProj = Matrix_Proj.inverse;
-            Matrix_JitterProj = GetJitteredProjectionMatrix(Matrix_Proj, RenderCamera);
-            Matrix_InvJitterProj = Matrix_JitterProj.inverse;
-            Matrix_FlipYProj = GL.GetGPUProjectionMatrix(RenderCamera.projectionMatrix, false);
-            Matrix_InvFlipYProj = Matrix_FlipYProj.inverse;
-            Matrix_FlipYJitterProj = GetJitteredProjectionMatrix(Matrix_FlipYProj, RenderCamera);
-            Matrix_InvFlipYJitterProj = Matrix_FlipYJitterProj.inverse;
-            Matrix_ViewProj = Matrix_Proj * Matrix_WorldToView;
-            Matrix_InvViewProj = Matrix_ViewProj.inverse;
-            Matrix_ViewFlipYProj = Matrix_FlipYProj * Matrix_WorldToView;
-            Matrix_InvViewFlipYProj = Matrix_ViewFlipYProj.inverse;
-            Matrix_ViewJitterProj = Matrix_JitterProj * Matrix_WorldToView;
-            Matrix_InvViewJitterProj = Matrix_ViewJitterProj.inverse;
-            Matrix_ViewFlipYJitterProj = Matrix_FlipYJitterProj * Matrix_WorldToView;
-            Matrix_InvViewFlipYJitterProj = Matrix_ViewFlipYJitterProj.inverse;
+            matrix_WorldToView = view.worldToCameraMatrix;
+            matrix_ViewToWorld = matrix_WorldToView.inverse;
+            matrix_Proj = GL.GetGPUProjectionMatrix(view.projectionMatrix, true);
+            matrix_InvProj = matrix_Proj.inverse;
+            matrix_JitterProj = GetJitteredProjectionMatrix(matrix_Proj, view);
+            matrix_InvJitterProj = matrix_JitterProj.inverse;
+            matrix_FlipYProj = GL.GetGPUProjectionMatrix(view.projectionMatrix, false);
+            matrix_InvFlipYProj = matrix_FlipYProj.inverse;
+            matrix_FlipYJitterProj = GetJitteredProjectionMatrix(matrix_FlipYProj, view);
+            matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
+            matrix_ViewProj = matrix_Proj * matrix_WorldToView;
+            matrix_InvViewProj = matrix_ViewProj.inverse;
+            matrix_ViewFlipYProj = matrix_FlipYProj * matrix_WorldToView;
+            matrix_InvViewFlipYProj = matrix_ViewFlipYProj.inverse;
+            matrix_ViewJitterProj = matrix_JitterProj * matrix_WorldToView;
+            matrix_InvViewJitterProj = matrix_ViewJitterProj.inverse;
+            matrix_ViewFlipYJitterProj = matrix_FlipYJitterProj * matrix_WorldToView;
+            matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
         }
 
         private void UnpateLastBufferData()
         {
-            Prev_FrameIndex = FrameIndex;
-            Prev_TAAJitter = TAAJitter;
-            Matrix_PrevViewProj = Matrix_ViewProj;
-            Matrix_PrevViewFlipYProj = Matrix_ViewFlipYProj;
+            lastFrameIndex = frameIndex;
+            lastTempJitter = tempJitter;
+            matrix_LastViewProj = matrix_ViewProj;
+            matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
         }
 
-        public void UnpateViewUnifrom(bool bLastData, Camera RenderCamera)
+        public void UnpateViewUnifrom(in bool isLastData, Camera view)
         {
-            if(!bLastData) {
-                UnpateCurrBufferData(RenderCamera);
+            if(!isLastData) {
+                UnpateCurrBufferData(view);
             } else {
                 UnpateLastBufferData();
             }
         }
 
-        public void SetViewUnifrom(CommandBuffer CmdBuffer)
+        public void SetViewUnifrom(CommandBuffer cmdBuffer)
         {
-            CmdBuffer.SetGlobalInt(ID_FrameIndex, FrameIndex);
-            CmdBuffer.SetGlobalInt(ID_Prev_FrameIndex, Prev_FrameIndex);
-            CmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(TAAJitter.x, TAAJitter.y, Prev_TAAJitter.x, Prev_TAAJitter.y));
-
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_WorldToView, Matrix_WorldToView);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewToWorld, Matrix_ViewToWorld);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_Proj, Matrix_Proj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvProj, Matrix_InvProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_JitterProj, Matrix_JitterProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvJitterProj, Matrix_InvJitterProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_FlipYProj, Matrix_FlipYProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvFlipYProj, Matrix_InvFlipYProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_FlipYJitterProj, Matrix_FlipYJitterProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvFlipYJitterProj, Matrix_InvFlipYJitterProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewProj, Matrix_ViewProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewProj, Matrix_InvViewProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewFlipYProj, Matrix_ViewFlipYProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYProj, Matrix_InvViewFlipYProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewJitterProj, Matrix_ViewJitterProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewJitterProj, Matrix_InvViewJitterProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_ViewFlipYJitterProj, Matrix_ViewFlipYJitterProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYJitterProj, Matrix_InvViewFlipYJitterProj);
-
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_PrevViewProj, Matrix_PrevViewProj);
-            CmdBuffer.SetGlobalMatrix(ID_Matrix_PrevViewFlipYProj, Matrix_PrevViewFlipYProj);
+            cmdBuffer.SetGlobalInt(ID_FrameIndex, frameIndex);
+            cmdBuffer.SetGlobalInt(ID_LastFrameIndex, lastFrameIndex);
+            cmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(tempJitter.x, tempJitter.y, lastTempJitter.x, lastTempJitter.y));
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_WorldToView, matrix_WorldToView);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewToWorld, matrix_ViewToWorld);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_Proj, matrix_Proj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvProj, matrix_InvProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_JitterProj, matrix_JitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvJitterProj, matrix_InvJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_FlipYProj, matrix_FlipYProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvFlipYProj, matrix_InvFlipYProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_FlipYJitterProj, matrix_FlipYJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvFlipYJitterProj, matrix_InvFlipYJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewProj, matrix_ViewProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewProj, matrix_InvViewProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewFlipYProj, matrix_ViewFlipYProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYProj, matrix_InvViewFlipYProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewJitterProj, matrix_ViewJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewJitterProj, matrix_InvViewJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewFlipYJitterProj, matrix_ViewFlipYJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYJitterProj, matrix_InvViewFlipYJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_LastViewProj, matrix_LastViewProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_LastViewFlipYProj, matrix_LastViewFlipYProj);
         }
     }
 
     public partial class InfinityRenderPipeline : RenderPipeline
     {
-        private FGPUScene GPUScene;
-        private FViewUnifrom ViewUnifrom;
-        private RDGGraphBuilder GraphBuilder;
-        private InfinityRenderPipelineAsset RenderPipelineAsset;
-
-        private FMeshPassProcessor DepthPassMeshProcessor;
-        private FMeshPassProcessor GBufferPassMeshProcessor;
-        private FMeshPassProcessor ForwardPassMeshProcessor;
+        private FGPUScene m_GPUScene;
+        private FViewUnifrom m_ViewUnifrom;
+        private RDGGraphBuilder m_GraphBuilder;
+        private FMeshPassProcessor m_DepthPassMeshProcessor;
+        private FMeshPassProcessor m_GBufferPassMeshProcessor;
+        private FMeshPassProcessor m_ForwardPassMeshProcessor;
+        private InfinityRenderPipelineAsset m_RenderPipelineAsset;
 
 
         public InfinityRenderPipeline()
         {
             SetGraphicsSetting();
 
-            GPUScene = new FGPUScene();
-            ViewUnifrom = new FViewUnifrom();
-            GraphBuilder = new RDGGraphBuilder("InfinityGraph");
-            RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
+            m_GPUScene = new FGPUScene();
+            m_ViewUnifrom = new FViewUnifrom();
+            m_GraphBuilder = new RDGGraphBuilder("InfinityGraph");
+            m_RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
-            DepthPassMeshProcessor = new FMeshPassProcessor(GPUScene);
-            GBufferPassMeshProcessor = new FMeshPassProcessor(GPUScene);
-            ForwardPassMeshProcessor = new FMeshPassProcessor(GPUScene);
+            m_DepthPassMeshProcessor = new FMeshPassProcessor(m_GPUScene);
+            m_GBufferPassMeshProcessor = new FMeshPassProcessor(m_GPUScene);
+            m_ForwardPassMeshProcessor = new FMeshPassProcessor(m_GPUScene);
         }
 
-        protected override void Render(ScriptableRenderContext RenderContext, Camera[] Views)
+        protected override void Render(ScriptableRenderContext renderContext, Camera[] views)
         {
             //Init FrameContext
-            CommandBuffer CmdBuffer = CommandBufferPool.Get("");
-            FResourceFactory gpuResourcePool = GetWorld().gpuResourcePool;
-            GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), gpuResourcePool, CmdBuffer, 1, false);
+            CommandBuffer cmdBuffer = CommandBufferPool.Get("");
+            FResourceFactory resourceFactory = GetWorld().gpuResourcePool;
+            m_GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, 1, false);
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 
             //Do FrameRender
-            BeginFrameRendering(RenderContext, Views);
-            for (int ViewIndex = 0; ViewIndex < Views.Length; ++ViewIndex)
+            BeginFrameRendering(renderContext, views);
+            for (int viewIndex = 0; viewIndex < views.Length; ++viewIndex)
             {
                 //Init View
-                Camera View = Views[ViewIndex];
-                CameraComponent HDView = View.GetComponent<CameraComponent>();
+                Camera view = views[viewIndex];
+                CameraComponent viewComponent = view.GetComponent<CameraComponent>();
 
                 //Render View
-                BeginCameraRendering(RenderContext, View);
+                BeginCameraRendering(renderContext, view);
                 {
-                    using (new ProfilingScope(CmdBuffer, HDView ? HDView.ViewProfiler : ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
+                    using (new ProfilingScope(cmdBuffer, viewComponent ? viewComponent.ViewProfiler : ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
                     {
                         #region InitViewContext
-                        bool bSceneView = View.cameraType == CameraType.SceneView;
-                        bool bRendererView = View.cameraType == CameraType.Game || View.cameraType == CameraType.Reflection || View.cameraType == CameraType.SceneView;
+                        bool isSceneView = view.cameraType == CameraType.SceneView;
+                        bool isRendererView = view.cameraType == CameraType.Game || view.cameraType == CameraType.Reflection || view.cameraType == CameraType.SceneView;
 
                         #if UNITY_EDITOR
-                            if (bSceneView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(View); }
+                            if (isSceneView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(view); }
                         #endif
 
-                        VFXManager.PrepareCamera(View);
-                        ViewUnifrom.UnpateViewUnifrom(false, View);
-                        ViewUnifrom.SetViewUnifrom(CmdBuffer);
-                        RenderContext.SetupCameraProperties(View);
-                        VFXManager.ProcessCameraCommand(View, CmdBuffer);
+                        VFXManager.PrepareCamera(view);
+                        m_ViewUnifrom.UnpateViewUnifrom(false, view);
+                        m_ViewUnifrom.SetViewUnifrom(cmdBuffer);
+                        renderContext.SetupCameraProperties(view);
+                        VFXManager.ProcessCameraCommand(view, cmdBuffer);
 
                         //Culling Context
-                        FCullingData CullingData = new FCullingData();
-                        { CullingData.isRendererView = bRendererView; }
-                        ScriptableCullingParameters CullingParameters;
-                        View.TryGetCullingParameters(out CullingParameters);
-                        CullingResults CullingResult = RenderContext.Cull(ref CullingParameters); //Unity Culling
-                        RenderContext.DispatchCull(GPUScene, ref CullingParameters, ref CullingData); //Infinity Culling
+                        FCullingData cullingData = new FCullingData(isRendererView);
+                        view.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
+                        CullingResults cullingResult = renderContext.Cull(ref cullingParameters); //Unity Culling
+                        renderContext.DispatchCull(m_GPUScene, ref cullingParameters, ref cullingData); //Infinity Culling
 
                         //Terrain Context
                         List<TerrainComponent> WorldTerrains = GetWorld().GetWorldTerrains();
-                        float4x4 Matrix_Proj = TerrainUtility.GetProjectionMatrix((View.fieldOfView) * 0.5f, View.pixelWidth, View.pixelHeight, View.nearClipPlane, View.farClipPlane);
+                        float4x4 Matrix_Proj = TerrainUtility.GetProjectionMatrix((view.fieldOfView) * 0.5f, view.pixelWidth, view.pixelHeight, view.nearClipPlane, view.farClipPlane);
                         for(int i = 0; i < WorldTerrains.Count; ++i)
                         {
                             TerrainComponent Terrain = WorldTerrains[i];
-                            Terrain.UpdateLODData(View.transform.position, Matrix_Proj);
+                            Terrain.UpdateLODData(view.transform.position, Matrix_Proj);
                             #if UNITY_EDITOR
                                 if (Handles.ShouldRenderGizmos())
                                 {
@@ -272,43 +265,43 @@ namespace InfinityTech.Rendering.Pipeline
                         #endregion //InitViewContext
 
                         #region InitViewCommand
-                        RenderOpaqueDepth(View, CullingData, CullingResult);
-                        RenderOpaqueGBuffer(View, CullingData, CullingResult);
-                        RenderOpaqueMotion(View, CullingData, CullingResult);
-                        RenderOpaqueForward(View, CullingData, CullingResult);
-                        RenderSkyBox(View);
-                        RenderGizmos(View, GizmoSubset.PostImageEffects);
-                        RenderPresentView(View, GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), View.targetTexture);
+                        RenderOpaqueDepth(view, cullingData, cullingResult);
+                        RenderOpaqueGBuffer(view, cullingData, cullingResult);
+                        RenderOpaqueMotion(view, cullingData, cullingResult);
+                        RenderOpaqueForward(view, cullingData, cullingResult);
+                        RenderSkyBox(view);
+                        RenderGizmos(view, GizmoSubset.PostImageEffects);
+                        RenderPresentView(view, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), view.targetTexture);
                         #endregion //InitViewCommand
 
                         #region ExecuteViewRender
                         //Wait All MeshPassProcessor
-                        DepthPassMeshProcessor.WaitSetupFinish();
-                        GBufferPassMeshProcessor.WaitSetupFinish();
-                        ForwardPassMeshProcessor.WaitSetupFinish();
+                        m_DepthPassMeshProcessor.WaitSetupFinish();
+                        m_GBufferPassMeshProcessor.WaitSetupFinish();
+                        m_ForwardPassMeshProcessor.WaitSetupFinish();
 
                         //Execute RenderGraph
-                        GraphBuilder.Execute(GetWorld(), gpuResourcePool, RenderContext, CmdBuffer, ViewUnifrom.FrameIndex);
+                        m_GraphBuilder.Execute(GetWorld(), resourceFactory, renderContext, cmdBuffer, m_ViewUnifrom.frameIndex);
                         #endregion //ExecuteViewRender
 
                         #region ReleaseViewContext
-                        CullingData.Release();
-                        ViewUnifrom.UnpateViewUnifrom(true, View);
+                        cullingData.Release();
+                        m_ViewUnifrom.UnpateViewUnifrom(true, view);
                         #endregion //ReleaseViewContext
                     }
                 }
-                EndCameraRendering(RenderContext, View);
+                EndCameraRendering(renderContext, view);
 
                 //Submit ViewCommand
-                RenderContext.ExecuteCommandBuffer(CmdBuffer);
-                CmdBuffer.Clear();
-                RenderContext.Submit();
+                renderContext.ExecuteCommandBuffer(cmdBuffer);
+                cmdBuffer.Clear();
+                renderContext.Submit();
             }
-            EndFrameRendering(RenderContext, Views);
+            EndFrameRendering(renderContext, views);
 
             //Release FrameContext
-            GPUScene.Release(gpuResourcePool);
-            CommandBufferPool.Release(CmdBuffer);
+            m_GPUScene.Release(resourceFactory);
+            CommandBufferPool.Release(cmdBuffer);
         }
 
         protected FRenderWorld GetWorld()
@@ -354,7 +347,7 @@ namespace InfinityTech.Rendering.Pipeline
        
         protected override void Dispose(bool disposing)
         {
-            GraphBuilder.Cleanup();
+            m_GraphBuilder.Cleanup();
         }
     }
 }

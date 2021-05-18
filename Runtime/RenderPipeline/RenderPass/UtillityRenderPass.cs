@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 // Add GizmosPass
-                GraphBuilder.AddPass<GizmosPassData>("Gizmos", ProfilingSampler.Get(CustomSamplerId.Gizmos),
+                m_GraphBuilder.AddPass<GizmosPassData>("Gizmos", ProfilingSampler.Get(CustomSamplerId.Gizmos),
                 (ref GizmosPassData PassData, ref RDGPassBuilder PassBuilder) =>
                 {
                     PassData.RenderCamera = RenderCamera;
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera RenderCamera)
         {
             // Add SkyAtmospherePass
-            GraphBuilder.AddPass<SkyBoxData>("SkyBox", ProfilingSampler.Get(CustomSamplerId.SkyBox),
+            m_GraphBuilder.AddPass<SkyBoxData>("SkyBox", ProfilingSampler.Get(CustomSamplerId.SkyBox),
             (ref SkyBoxData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RenderCamera = RenderCamera;
@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderPresentView(Camera camera, RDGTextureRef SourceTexture, RenderTexture DestTexture)
         {
             // Add PresentPass
-            GraphBuilder.AddPass<PresentViewData>("Present", ProfilingSampler.Get(CustomSamplerId.Present),
+            m_GraphBuilder.AddPass<PresentViewData>("Present", ProfilingSampler.Get(CustomSamplerId.Present),
             (ref PresentViewData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.SrcBuffer = PassBuilder.ReadTexture(SourceTexture);

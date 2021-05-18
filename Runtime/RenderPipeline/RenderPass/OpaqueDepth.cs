@@ -21,27 +21,27 @@ namespace InfinityTech.Rendering.Pipeline
             RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
 
             TextureDescription DepthDesc = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
-            RDGTextureRef DepthTexture = GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, DepthDesc);
+            RDGTextureRef DepthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, DepthDesc);
 
             //Add OpaqueDepthPass
-            GraphBuilder.AddPass<FOpaqueDepthData>("OpaqueDepth", ProfilingSampler.Get(CustomSamplerId.OpaqueDepth),
+            m_GraphBuilder.AddPass<FOpaqueDepthData>("OpaqueDepth", ProfilingSampler.Get(CustomSamplerId.OpaqueDepth),
             (ref FOpaqueDepthData PassData, ref RDGPassBuilder PassBuilder) =>
             {
                 PassData.RendererList = RenderList;
                 PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
-                DepthPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
+                m_DepthPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
             },
             (ref FOpaqueDepthData PassData, RDGContext GraphContext) =>
             {
                 RendererList DepthRenderList = PassData.RendererList;
                 DepthRenderList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack };
-                DepthRenderList.drawSettings.enableInstancing = RenderPipelineAsset.EnableInstanceBatch;
-                DepthRenderList.drawSettings.enableDynamicBatching = RenderPipelineAsset.EnableDynamicBatch;
+                DepthRenderList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
+                DepthRenderList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
                 DepthRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
                 GraphContext.RenderContext.DrawRenderers(DepthRenderList.cullingResult, ref DepthRenderList.drawSettings, ref DepthRenderList.filteringSettings);
 
                 //MeshDrawPipeline
-                DepthPassMeshProcessor.DispatchDraw(GraphContext, 0);
+                m_DepthPassMeshProcessor.DispatchDraw(GraphContext, 0);
             });
         }
     }
