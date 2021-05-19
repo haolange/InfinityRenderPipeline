@@ -11,37 +11,35 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct FOpaqueDepthData
         {
-            public RendererList RendererList;
-            public RDGTextureRef DepthBuffer;
+            public RendererList rendererList;
+            public RDGTextureRef depthBuffer;
         }
 
         void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
         {
-            //Request Resource
-            RendererList RenderList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
-
-            TextureDescription DepthDesc = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
-            RDGTextureRef DepthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, DepthDesc);
+            RendererList rendererList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
+            TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
+            RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
             //Add OpaqueDepthPass
             m_GraphBuilder.AddPass<FOpaqueDepthData>("OpaqueDepth", ProfilingSampler.Get(CustomSamplerId.OpaqueDepth),
-            (ref FOpaqueDepthData PassData, ref RDGPassBuilder PassBuilder) =>
+            (ref FOpaqueDepthData passData, ref RDGPassBuilder passBuilder) =>
             {
-                PassData.RendererList = RenderList;
-                PassData.DepthBuffer = PassBuilder.UseDepthBuffer(DepthTexture, EDepthAccess.ReadWrite);
+                passData.rendererList = rendererList;
+                passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 m_DepthPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
             },
-            (ref FOpaqueDepthData PassData, RDGContext GraphContext) =>
+            (ref FOpaqueDepthData passData, RDGContext graphContext) =>
             {
-                RendererList DepthRenderList = PassData.RendererList;
-                DepthRenderList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack };
-                DepthRenderList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
-                DepthRenderList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
-                DepthRenderList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
-                GraphContext.RenderContext.DrawRenderers(DepthRenderList.cullingResult, ref DepthRenderList.drawSettings, ref DepthRenderList.filteringSettings);
+                //UnityDrawPipeline
+                passData.rendererList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack };
+                passData.rendererList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
+                passData.rendererList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
+                passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
+                graphContext.RenderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
 
                 //MeshDrawPipeline
-                m_DepthPassMeshProcessor.DispatchDraw(GraphContext, 0);
+                m_DepthPassMeshProcessor.DispatchDraw(graphContext, 0);
             });
         }
     }

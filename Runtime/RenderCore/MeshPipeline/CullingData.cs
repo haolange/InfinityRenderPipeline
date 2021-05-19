@@ -26,9 +26,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
             {
-                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)gpuScene.meshBatchs.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.FrustumPlanes = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.ViewMeshBatchs = cullingData.viewMeshBatchs;
+                MeshBatchCullingJob.meshBatchs = (FMeshBatch*)gpuScene.meshBatchs.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
             }
             MeshBatchCullingJob.Schedule(gpuScene.meshBatchs.Length, 256).Complete();
         }
@@ -49,9 +49,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             FMeshBatchCullingJob MeshBatchCullingJob = new FMeshBatchCullingJob();
             {
-                MeshBatchCullingJob.MeshBatchs = (FMeshBatch*)gpuScene.meshBatchs.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.FrustumPlanes = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                MeshBatchCullingJob.ViewMeshBatchs = cullingData.viewMeshBatchs;
+                MeshBatchCullingJob.meshBatchs = (FMeshBatch*)gpuScene.meshBatchs.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
+                MeshBatchCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
             }
             MeshBatchCullingJob.Schedule(gpuScene.meshBatchs.Length, 256).Complete();
         }

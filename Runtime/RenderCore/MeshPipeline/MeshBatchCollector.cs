@@ -26,13 +26,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (methdo == 0)
             {
                 FHashmapGatherValueJob<int, FMeshBatch> MeshBatchGatherJob = new FHashmapGatherValueJob<int, FMeshBatch>();
-                MeshBatchGatherJob.Array = meshBatchs;
-                MeshBatchGatherJob.Hashmap = cacheMeshBatchStateBuckets;
+                MeshBatchGatherJob.dscArray = meshBatchs;
+                MeshBatchGatherJob.srcMap = cacheMeshBatchStateBuckets;
                 MeshBatchGatherJob.Run();
             } else {
                 FHashmapParallelGatherValueJob<int, FMeshBatch> MeshBatchGatherJob = new FHashmapParallelGatherValueJob<int, FMeshBatch>();
-                MeshBatchGatherJob.Array = meshBatchs;
-                MeshBatchGatherJob.Hashmap = cacheMeshBatchStateBuckets;
+                MeshBatchGatherJob.dscArray = meshBatchs;
+                MeshBatchGatherJob.srcMap = cacheMeshBatchStateBuckets;
                 MeshBatchGatherJob.Schedule(meshBatchs.Length, 256).Complete();
             }
         }

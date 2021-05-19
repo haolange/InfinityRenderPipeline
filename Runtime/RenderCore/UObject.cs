@@ -3,16 +3,16 @@
 namespace InfinityTech.Core
 {
     [Serializable]
-    public abstract class UObject : IDisposable
+    public abstract class Disposer : IDisposable
     {
-        private bool IsDisposed = false;
+        private bool m_IsDisposed = false;
 
-        public UObject()
+        public Disposer()
         {
             
         }
 
-        ~UObject()
+        ~Disposer()
         {
             Dispose(false);
         }
@@ -26,7 +26,7 @@ namespace InfinityTech.Core
 
         private void Dispose(bool disposing)
         {
-            if (!IsDisposed)
+            if (!m_IsDisposed)
             {
                 if (disposing)
                 {
@@ -34,7 +34,7 @@ namespace InfinityTech.Core
                 }
                 DisposeUnManaged();
             }
-            IsDisposed = true;
+            m_IsDisposed = true;
         }
 
         public void Dispose()

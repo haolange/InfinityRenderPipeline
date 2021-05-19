@@ -109,12 +109,12 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             FMeshDrawCommandBuildJob meshDrawCommandBuildJob = new FMeshDrawCommandBuildJob();
             {
-                meshDrawCommandBuildJob.Indexs = m_MeshBatchIndexs;
-                meshDrawCommandBuildJob.MeshBatchs = meshBatchs;
-                meshDrawCommandBuildJob.CullingData = cullingData;
-                meshDrawCommandBuildJob.PassMeshBatchs = m_PassMeshBatchs;
-                meshDrawCommandBuildJob.MeshDrawCommands = m_MeshDrawCommands;
-                meshDrawCommandBuildJob.MeshPassDesctiption = meshPassDesctiption;
+                meshDrawCommandBuildJob.meshBatchs = meshBatchs;
+                meshDrawCommandBuildJob.cullingData = cullingData;
+                meshDrawCommandBuildJob.passMeshBatchs = m_PassMeshBatchs;
+                meshDrawCommandBuildJob.meshBatchIndexs = m_MeshBatchIndexs;
+                meshDrawCommandBuildJob.meshDrawCommands = m_MeshDrawCommands;
+                meshDrawCommandBuildJob.meshPassDesctiption = meshPassDesctiption;
             }
             m_Handle = meshDrawCommandBuildJob.Schedule();
         }
