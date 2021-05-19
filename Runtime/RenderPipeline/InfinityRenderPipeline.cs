@@ -198,7 +198,6 @@ namespace InfinityTech.Rendering.Pipeline
         public InfinityRenderPipeline()
         {
             SetGraphicsSetting();
-
             m_GPUScene = new FGPUScene();
             m_ViewUnifrom = new FViewUnifrom();
             m_GraphBuilder = new RDGGraphBuilder("InfinityGraph");
@@ -214,8 +213,8 @@ namespace InfinityTech.Rendering.Pipeline
             //Init FrameContext
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
             FResourceFactory resourceFactory = GetWorld().resourceFactory;
-            m_GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, 1, false);
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
+            m_GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, 1, false);
 
             //Do FrameRender
             BeginFrameRendering(renderContext, views);
@@ -278,10 +277,7 @@ namespace InfinityTech.Rendering.Pipeline
                         #endregion //InitViewCommand
 
                         #region ExecuteViewRender
-                        //Wait All MeshPassProcessor
                         JobHandle.CompleteAll(m_MeshPassTaskRefs);
-
-                        //Execute RenderGraph
                         m_GraphBuilder.Execute(GetWorld(), resourceFactory, renderContext, cmdBuffer, m_ViewUnifrom.frameIndex);
                         #endregion //ExecuteViewRender
 

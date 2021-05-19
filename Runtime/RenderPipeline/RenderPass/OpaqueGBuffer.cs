@@ -38,14 +38,14 @@ namespace InfinityTech.Rendering.Pipeline
             },
             (ref FOpaqueGBufferData passData, ref RDGContext graphContext) =>
             {
+                //MeshDrawPipeline
+                m_GBufferPassMeshProcessor.DispatchDraw(ref graphContext, 1);
+
                 //UnityDrawPipeline
                 passData.rendererList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
                 passData.rendererList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
                 passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
                 graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
-
-                //MeshDrawPipeline
-                m_GBufferPassMeshProcessor.DispatchDraw(ref graphContext, 1);
             });
         }
     }
