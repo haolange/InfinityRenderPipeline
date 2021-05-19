@@ -258,8 +258,8 @@ namespace InfinityTech.Component
                     MeshBatch.motionType = (int)motionVector;
                     MeshBatch.renderLayer = renderLayer;
                     MeshBatch.sectionIndex = i;
-                    MeshBatch.staticMeshRef = GetWorld().meshAssetList.Add(staticMesh, staticMesh.GetInstanceID());
-                    MeshBatch.materialRef = GetWorld().materialAssetList.Add(materials[i], materials[i].GetInstanceID());
+                    MeshBatch.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
+                    MeshBatch.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
                     MeshBatch.priority = renderPriority + materials[i].renderQueue;
                     MeshBatch.matrix_LocalToWorld = matrix_LocalToWorld;
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
@@ -283,8 +283,8 @@ namespace InfinityTech.Component
                     MeshBatch.motionType = (int)motionVector;
                     MeshBatch.renderLayer = renderLayer;
                     MeshBatch.sectionIndex = i;
-                    MeshBatch.staticMeshRef = GetWorld().meshAssetList.Add(staticMesh, staticMesh.GetInstanceID());
-                    MeshBatch.materialRef = GetWorld().materialAssetList.Add(materials[i], materials[i].GetInstanceID());
+                    MeshBatch.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
+                    MeshBatch.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
                     MeshBatch.priority = renderPriority + materials[i].renderQueue;
                     MeshBatch.matrix_LocalToWorld = matrix_LocalToWorld;
                     //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));

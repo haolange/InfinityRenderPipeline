@@ -14,10 +14,10 @@ namespace InfinityTech.Rendering.Core
 
         public string name;
         public bool bDisable;
-        public SharedRefFactory<Mesh> meshAssetList;
-        public SharedRefFactory<Material> materialAssetList;
+        public SharedRefFactory<Mesh> meshAssets;
+        public SharedRefFactory<Material> materialAssets;
 
-        public FResourceFactory gpuResourcePool;
+        public FResourceFactory resourceFactory;
 
         private List<CameraComponent> m_ViewList;
         private List<LightComponent> m_LightList;
@@ -33,13 +33,13 @@ namespace InfinityTech.Rendering.Core
             this.name = name;
             FRenderWorld.RenderWorld = this;
             this.m_ViewList = new List<CameraComponent>(16);
+            this.meshAssets = new SharedRefFactory<Mesh>(512);
             this.m_LightList = new List<LightComponent>(64);
             this.m_TerrainList = new List<TerrainComponent>(32);
+            this.materialAssets = new SharedRefFactory<Material>(512);
             this.m_StaticMeshList = new List<MeshComponent>(8192);
             this.m_DynamicMeshList = new List<MeshComponent>(8192);
             this.m_MeshBatchCollector = new FMeshBatchCollector();
-            this.meshAssetList = new SharedRefFactory<Mesh>(512);
-            this.materialAssetList = new SharedRefFactory<Material>(512);
         }
 
         #region WorldView
@@ -197,13 +197,13 @@ namespace InfinityTech.Rendering.Core
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
 
-            meshAssetList.Reset();
-            materialAssetList.Reset();
+            meshAssets.Reset();
+            materialAssets.Reset();
 
             m_MeshBatchCollector.Initializ();
             m_MeshBatchCollector.Reset();
 
-            gpuResourcePool = new FResourceFactory();
+            resourceFactory = new FResourceFactory();
         }
 
         public void Release()
@@ -216,9 +216,9 @@ namespace InfinityTech.Rendering.Core
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
 
-            meshAssetList.Reset();
-            materialAssetList.Reset();
-            gpuResourcePool.Disposed();
+            meshAssets.Reset();
+            materialAssets.Reset();
+            resourceFactory.Disposed();
             m_MeshBatchCollector.Release();
         }
 

@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             //Init FrameContext
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
-            FResourceFactory resourceFactory = GetWorld().gpuResourcePool;
+            FResourceFactory resourceFactory = GetWorld().resourceFactory;
             m_GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, 1, false);
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
 

@@ -83,8 +83,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)
                 {
                     FMeshDrawCommand meshDrawCommand = m_MeshDrawCommands[i];
-                    Mesh mesh = graphContext.world.meshAssetList.Get(meshDrawCommand.meshIndex);
-                    Material material = graphContext.world.materialAssetList.Get(meshDrawCommand.materialIndex);
+                    Mesh mesh = graphContext.world.meshAssets.Get(meshDrawCommand.meshIndex);
+                    Material material = graphContext.world.materialAssets.Get(meshDrawCommand.materialIndex);
 
                     m_PropertyBlock.SetInt(InfinityShaderIDs.MeshBatchOffset, meshDrawCommand.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchIndexs, bufferRef.buffer);
@@ -95,8 +95,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 graphContext.resourceFactory.ReleaseBuffer(bufferRef);
             }
 
-            m_MeshBatchIndexs.Dispose();
             m_PassMeshBatchs.Dispose();
+            m_MeshBatchIndexs.Dispose();
             m_MeshDrawCommands.Dispose();
         }
 
