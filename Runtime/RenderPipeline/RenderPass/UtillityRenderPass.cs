@@ -89,7 +89,6 @@ namespace InfinityTech.Rendering.Pipeline
             });
         }
 
-        ///////////Mesh Batch
         public static RendererListDesc CreateRendererListDesc(CullingResults CullingData, Camera RenderCamera, ShaderTagId PassName, RenderQueueRange? renderQueueRange = null, PerObjectData rendererConfiguration = 0, bool excludeObjectMotionVectors = false, Material overrideMaterial = null, RenderStateBlock ? stateBlock = null)
         {
             RendererListDesc result = new RendererListDesc(PassName, CullingData, RenderCamera)

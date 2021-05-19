@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.RDG
 
 
         #region Public Interface
-        public ref T GetPassData<T>() where T : struct => ref ((RDGPass<T>)m_RenderPass).PassData;
+        public ref T GetPassData<T>() where T : struct => ref ((RDGPass<T>)m_RenderPass).passData;
 
         public void EnableAsyncCompute(bool value)
         {
