@@ -34,12 +34,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.diffuseBuffer = passBuilder.UseColorBuffer(diffuseTexture, 0);
                 passData.specularBuffer = passBuilder.UseColorBuffer(specularTexture, 1);
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
-                m_ForwardPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(0, 2999));
+                m_ForwardMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(0, 2999));
             },
             (ref FOpaqueForwardData passData, ref RDGContext graphContext) =>
             {
                 //MeshDrawPipeline
-                m_ForwardPassMeshProcessor.DispatchDraw(ref graphContext, 2);
+                m_ForwardMeshProcessor.DispatchDraw(ref graphContext, 2);
 
                 //UnityDrawPipeline
                 passData.rendererList.drawSettings.perObjectData = PerObjectData.Lightmaps;

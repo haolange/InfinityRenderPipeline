@@ -27,12 +27,12 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 passData.rendererList = rendererList;
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
-                m_DepthPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
+                m_DepthMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
             },
             (ref FOpaqueDepthData passData, ref RDGContext graphContext) =>
             {
                 //MeshDrawPipeline
-                m_DepthPassMeshProcessor.DispatchDraw(ref graphContext, 0);
+                m_DepthMeshProcessor.DispatchDraw(ref graphContext, 0);
 
                 //UnityDrawPipeline
                 passData.rendererList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack };

@@ -190,9 +190,9 @@ namespace InfinityTech.Rendering.Pipeline
         private FViewUnifrom m_ViewUnifrom;
         private RDGGraphBuilder m_GraphBuilder;
         private NativeList<JobHandle> m_MeshPassTaskRefs;
-        private FMeshPassProcessor m_DepthPassMeshProcessor;
-        private FMeshPassProcessor m_GBufferPassMeshProcessor;
-        private FMeshPassProcessor m_ForwardPassMeshProcessor;
+        private FMeshPassProcessor m_DepthMeshProcessor;
+        private FMeshPassProcessor m_GBufferMeshProcessor;
+        private FMeshPassProcessor m_ForwardMeshProcessor;
         private InfinityRenderPipelineAsset m_RenderPipelineAsset;
 
         public InfinityRenderPipeline()
@@ -203,9 +203,9 @@ namespace InfinityTech.Rendering.Pipeline
             m_GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             m_MeshPassTaskRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
             m_RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
-            m_DepthPassMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
-            m_GBufferPassMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
-            m_ForwardPassMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
+            m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
+            m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
+            m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] views)
