@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.motionBuffer = passBuilder.UseColorBuffer(motionTexture, 0);
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
             },
-            (ref FOpaqueMotionData passData, RDGContext graphContext) =>
+            (ref FOpaqueMotionData passData, ref RDGContext graphContext) =>
             {
                 passData.rendererList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.CommonOpaque };
                 passData.rendererList.drawSettings.perObjectData = PerObjectData.MotionVectors;

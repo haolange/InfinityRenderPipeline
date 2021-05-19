@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         }
 
-        internal void DispatchDraw(RDGContext GraphContext, in int PassIndex)
+        internal void DispatchDraw(ref RDGContext GraphContext, in int PassIndex)
         {
             //Draw Call
             using (new ProfilingScope(GraphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.TerrainBatch)))

@@ -611,9 +611,9 @@ namespace InfinityTech.Rendering.RDG
                 {
                     using (new ProfilingScope(m_GraphContext.cmdBuffer, passInfo.pass.customSampler))
                     {
-                        PreRenderPassExecute(passInfo, m_GraphContext);
-                        passInfo.pass.Execute(m_GraphContext);
-                        PostRenderPassExecute(cmdBuffer, ref passInfo, m_GraphContext);
+                        PreRenderPassExecute(passInfo, ref m_GraphContext);
+                        passInfo.pass.Execute(ref m_GraphContext);
+                        PostRenderPassExecute(cmdBuffer, ref passInfo, ref m_GraphContext);
                     }
                 }
                 catch (Exception e)
@@ -626,7 +626,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassSetRenderTargets(in CompiledPassInfo passInfo, RDGContext graphContext)
+        void PreRenderPassSetRenderTargets(in CompiledPassInfo passInfo, ref RDGContext graphContext)
         {
             var pass = passInfo.pass;
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
@@ -678,22 +678,22 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassExecute(in CompiledPassInfo passInfo, RDGContext graphContext)
+        void PreRenderPassExecute(in CompiledPassInfo passInfo, ref RDGContext graphContext)
         {
             // TODO RENDERGRAPH merge clear and setup here if possible
             IRDGPass pass = passInfo.pass;
 
             // TODO RENDERGRAPH remove this when we do away with auto global texture setup
             // (can't put it in the profiling scope otherwise it might be executed on compute queue which is not possible for global sets)
-            m_Resources.SetGlobalTextures(graphContext, pass.resourceReadLists[(int)RDGResourceType.Texture]);
+            m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)RDGResourceType.Texture]);
 
             foreach (var BufferHandle in passInfo.resourceCreateList[(int)RDGResourceType.Buffer])
                 m_Resources.CreateRealBuffer(BufferHandle);
 
             foreach (var texture in passInfo.resourceCreateList[(int)RDGResourceType.Texture])
-                m_Resources.CreateRealTexture(graphContext, texture);
+                m_Resources.CreateRealTexture(ref graphContext, texture);
 
-            PreRenderPassSetRenderTargets(passInfo, graphContext);
+            PreRenderPassSetRenderTargets(passInfo, ref graphContext);
 
             // Flush first the current command buffer on the render context.
             graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
@@ -713,7 +713,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PostRenderPassExecute(CommandBuffer cmdBuffer, ref CompiledPassInfo passInfo, RDGContext graphContext)
+        void PostRenderPassExecute(CommandBuffer cmdBuffer, ref CompiledPassInfo passInfo, ref RDGContext graphContext)
         {
             IRDGPass pass = passInfo.pass;
 

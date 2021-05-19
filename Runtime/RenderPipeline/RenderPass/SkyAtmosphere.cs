@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
 
             },
-            (ref FSkyAtmosphereData PassData, RDGContext GraphContext) =>
+            (ref FSkyAtmosphereData PassData, ref RDGContext GraphContext) =>
             {
 
             });

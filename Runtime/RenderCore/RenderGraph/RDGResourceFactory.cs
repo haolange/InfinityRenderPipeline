@@ -198,7 +198,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void CreateRealTexture(RDGContext rgContext, int index)
+        internal void CreateRealTexture(ref RDGContext rgContext, int index)
         {
             var resource = m_Resources[(int)RDGResourceType.Texture][index] as RDGTexture;
 
@@ -254,7 +254,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void SetGlobalTextures(RDGContext rgContext, List<RDGResourceRef> textures)
+        internal void SetGlobalTextures(ref RDGContext rgContext, List<RDGResourceRef> textures)
         {
             foreach (var resource in textures)
             {

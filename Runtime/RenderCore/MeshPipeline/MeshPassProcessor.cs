@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Handle.Complete();
         }
 
-        internal void DispatchDraw(RDGContext graphContext, in int passIndex)
+        internal void DispatchDraw(ref RDGContext graphContext, in int passIndex)
         {
             if (m_GatherState == false) { return; }
 

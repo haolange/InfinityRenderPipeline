@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.view = view;
                     passData.gizmoSubset = gizmoSubset;
                 },
-                (ref GizmosPassData passData, RDGContext graphContext) =>
+                (ref GizmosPassData passData, ref RDGContext graphContext) =>
                 {
                     graphContext.renderContext.DrawGizmos(passData.view, passData.gizmoSubset);
                 });
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 passData.view = view;
             },
-            (ref SkyBoxData passData, RDGContext graphContext) =>
+            (ref SkyBoxData passData, ref RDGContext graphContext) =>
             {
                 graphContext.renderContext.DrawSkybox(passData.view);
             });
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.srcBuffer = passBuilder.ReadTexture(srcTexture);
                 passData.dscBuffer = new RenderTargetIdentifier(dscTexture);
             },
-            (ref PresentViewData passData, RDGContext graphContext) =>
+            (ref PresentViewData passData, ref RDGContext graphContext) =>
             {
                 RenderTexture SrcBuffer = passData.srcBuffer;
                 float4 ScaleBias = new float4((float)view.pixelWidth / (float)SrcBuffer.width, (float)view.pixelHeight / (float)SrcBuffer.height, 0.0f, 0.0f);

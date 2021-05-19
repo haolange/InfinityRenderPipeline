@@ -6,7 +6,7 @@ namespace InfinityTech.Rendering.RDG
     abstract class IRDGPass
     {
         public abstract void Step(ref RDGPassBuilder PassBuilder);
-        public abstract void Execute(RDGContext GraphContext);
+        public abstract void Execute(ref RDGContext GraphContext);
         public abstract void Release(RDGObjectPool ObjectPool);
         public abstract bool HasRenderFunc();
 
@@ -106,7 +106,7 @@ namespace InfinityTech.Rendering.RDG
 
 
     public delegate void StepAction<T>(ref T passData, ref RDGPassBuilder passBuilder) where T : struct;
-    public delegate void ExecuteAction<T>(ref T passData, RDGContext graphContext) where T : struct;
+    public delegate void ExecuteAction<T>(ref T passData, ref RDGContext graphContext) where T : struct;
 
     internal sealed class RDGPass<T> : IRDGPass where T : struct
     {
@@ -119,9 +119,9 @@ namespace InfinityTech.Rendering.RDG
             StepFunc(ref passData, ref passBuilder);
         }
 
-        public override void Execute(RDGContext graphContext)
+        public override void Execute(ref RDGContext graphContext)
         {
-            ExecuteFunc(ref passData, graphContext);
+            ExecuteFunc(ref passData, ref graphContext);
         }
 
         public override void Release(RDGObjectPool objectPool)

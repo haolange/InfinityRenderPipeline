@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 m_DepthPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
             },
-            (ref FOpaqueDepthData passData, RDGContext graphContext) =>
+            (ref FOpaqueDepthData passData, ref RDGContext graphContext) =>
             {
                 //UnityDrawPipeline
                 passData.rendererList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack };
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
                 graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
 
                 //MeshDrawPipeline
-                m_DepthPassMeshProcessor.DispatchDraw(graphContext, 0);
+                m_DepthPassMeshProcessor.DispatchDraw(ref graphContext, 0);
             });
         }
     }

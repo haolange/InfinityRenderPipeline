@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
                 m_ForwardPassMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(0, 2999));
             },
-            (ref FOpaqueForwardData passData, RDGContext graphContext) =>
+            (ref FOpaqueForwardData passData, ref RDGContext graphContext) =>
             {
                 //UnityDrawPipeline
                 passData.rendererList.drawSettings.perObjectData = PerObjectData.Lightmaps;
@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
                 graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
 
                 //MeshDrawPipeline
-                m_ForwardPassMeshProcessor.DispatchDraw(graphContext, 2);
+                m_ForwardPassMeshProcessor.DispatchDraw(ref graphContext, 2);
             });
         }
     }
