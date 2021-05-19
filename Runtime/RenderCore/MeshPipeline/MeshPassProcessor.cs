@@ -53,10 +53,22 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void DispatchSetup(ref FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
         {
             if (m_GPUScene.meshBatchs.IsCreated == false || cullingData.viewMeshBatchs.IsCreated == false || cullingData.isRendererView != true) { return; }
-
             if (cullingData.viewMeshBatchs.Length == 0) { return; }
 
-            DispatchGatherInternal(ref m_GPUScene.meshBatchs, ref cullingData, meshPassDesctiption);
+            m_MeshBatchIndexs = new NativeArray<int>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
+            m_PassMeshBatchs = new NativeList<FPassMeshBatch>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
+            m_MeshDrawCommands = new NativeList<FMeshDrawCommand>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
+
+            FMeshDrawCommandBuildJob meshDrawCommandBuildJob = new FMeshDrawCommandBuildJob();
+            {
+                meshDrawCommandBuildJob.cullingData = cullingData;
+                meshDrawCommandBuildJob.meshBatchs = m_GPUScene.meshBatchs;
+                meshDrawCommandBuildJob.passMeshBatchs = m_PassMeshBatchs;
+                meshDrawCommandBuildJob.meshBatchIndexs = m_MeshBatchIndexs;
+                meshDrawCommandBuildJob.meshDrawCommands = m_MeshDrawCommands;
+                meshDrawCommandBuildJob.meshPassDesctiption = meshPassDesctiption;
+            }
+            m_MeshPassTaskRefs.Add(meshDrawCommandBuildJob.Schedule());
         }
 
         internal void DispatchDraw(ref RDGContext graphContext, in int passIndex)
@@ -84,24 +96,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassMeshBatchs.Dispose();
             m_MeshBatchIndexs.Dispose();
             m_MeshDrawCommands.Dispose();
-        }
-
-        private void DispatchGatherInternal(ref NativeArray<FMeshBatch> meshBatchs, ref FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
-        {
-            m_MeshBatchIndexs = new NativeArray<int>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
-            m_PassMeshBatchs = new NativeList<FPassMeshBatch>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
-            m_MeshDrawCommands = new NativeList<FMeshDrawCommand>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
-
-            FMeshDrawCommandBuildJob meshDrawCommandBuildJob = new FMeshDrawCommandBuildJob();
-            {
-                meshDrawCommandBuildJob.meshBatchs = meshBatchs;
-                meshDrawCommandBuildJob.cullingData = cullingData;
-                meshDrawCommandBuildJob.passMeshBatchs = m_PassMeshBatchs;
-                meshDrawCommandBuildJob.meshBatchIndexs = m_MeshBatchIndexs;
-                meshDrawCommandBuildJob.meshDrawCommands = m_MeshDrawCommands;
-                meshDrawCommandBuildJob.meshPassDesctiption = meshPassDesctiption;
-            }
-            m_MeshPassTaskRefs.Add(meshDrawCommandBuildJob.Schedule());
         }
     }
 }
