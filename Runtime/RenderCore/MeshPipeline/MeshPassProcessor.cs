@@ -73,6 +73,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal void DispatchDraw(ref RDGContext graphContext, in int passIndex)
         {
+            if (!m_MeshBatchIndexs.IsCreated && !m_PassMeshBatchs.IsCreated && !m_MeshDrawCommands.IsCreated) { return; }
+
             using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshBatch)))
             {
                 BufferRef bufferRef = graphContext.resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
