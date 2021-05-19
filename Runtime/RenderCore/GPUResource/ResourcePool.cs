@@ -116,20 +116,30 @@ namespace InfinityTech.Rendering.GPUResource
 
     public struct BufferRef
     {
-        internal int Handle;
-        public ComputeBuffer Buffer;
+        internal int handle;
+        public ComputeBuffer buffer;
 
-        internal BufferRef(int InHandle, ComputeBuffer InBuffer) { Handle = InHandle; Buffer = InBuffer; }
-        public static implicit operator ComputeBuffer(BufferRef BufferHandle) => BufferHandle.Buffer;
+        public BufferRef(in int handle, ComputeBuffer buffer) 
+        { 
+            this.handle = handle;
+            this.buffer = buffer; 
+        }
+
+        public static implicit operator ComputeBuffer(BufferRef bufferRef) => bufferRef.buffer;
     }
 
     public struct TextureRef
     {
-        internal int Handle;
-        public RTHandle Texture;
+        internal int handle;
+        public RTHandle texture;
 
-        internal TextureRef(int InHandle, RTHandle InTexture) { Handle = InHandle; Texture = InTexture; }
-        public static implicit operator RTHandle(TextureRef TextureHandle) => TextureHandle.Texture;
+        internal TextureRef(in int handle, RTHandle texture) 
+        {
+            this.handle = handle;
+            this.texture = texture; 
+        }
+
+        public static implicit operator RTHandle(TextureRef textureRef) => textureRef.texture;
     }
 
     public abstract class FGPUResourcePool<Type> where Type : class

@@ -3,15 +3,6 @@ using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.GPUResource
 {
-    public enum EAllocator
-    {
-        //in 4 frame if not use will be dispose
-        Tem = 0,
-
-        //release by Menu
-        Persistent = 1
-    }
-
     public class FResourceFactory
     {
         FBufferPool m_BufferPool;
@@ -28,42 +19,42 @@ namespace InfinityTech.Rendering.GPUResource
 
         }
 
-        public BufferRef AllocateBuffer(in BufferDescription Description, EAllocator Allocator = EAllocator.Persistent)
+        public BufferRef AllocateBuffer(in BufferDescription description)
         {
-            ComputeBuffer Buffer;
-            int Handle = Description.GetHashCode();
+            ComputeBuffer buffer;
+            int handle = description.GetHashCode();
 
-            if (!m_BufferPool.Pull(Handle, out Buffer))
+            if (!m_BufferPool.Pull(handle, out buffer))
             {
-                Buffer = new ComputeBuffer(Description.count, Description.stride, Description.type);
-                Buffer.name = Description.name;
+                buffer = new ComputeBuffer(description.count, description.stride, description.type);
+                buffer.name = description.name;
             }
 
-            return new BufferRef(Handle, Buffer);
+            return new BufferRef(handle, buffer);
         }
 
-        public void ReleaseBuffer(in BufferRef BufferHandle)
+        public void ReleaseBuffer(in BufferRef bufferHandle)
         {
-            m_BufferPool.Push(BufferHandle.Handle, BufferHandle.Buffer);
+            m_BufferPool.Push(bufferHandle.handle, bufferHandle.buffer);
         }
 
-        public TextureRef AllocateTexture(in TextureDescription Description)
+        public TextureRef AllocateTexture(in TextureDescription description)
         {
-            RTHandle Texture;
-            int Handle = Description.GetHashCode();
+            RTHandle texture;
+            int handle = description.GetHashCode();
 
-            if (!m_TexturePool.Pull(Handle, out Texture))
+            if (!m_TexturePool.Pull(handle, out texture))
             {
-                Texture = RTHandles.Alloc(Description.width, Description.height, Description.slices, (DepthBits)Description.depthBufferBits, Description.colorFormat, Description.filterMode, Description.wrapMode, Description.dimension, Description.enableRandomWrite,
-                                          Description.useMipMap, Description.autoGenerateMips, Description.isShadowMap, Description.anisoLevel, Description.mipMapBias, (MSAASamples)Description.msaaSamples, Description.bindTextureMS, false, RenderTextureMemoryless.None, Description.name);
+                texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
+                                          description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
             }
 
-            return new TextureRef(Handle, Texture);
+            return new TextureRef(handle, texture);
         }
 
-        public void ReleaseTexture(in TextureRef TextureHandle)
+        public void ReleaseTexture(in TextureRef textureHandle)
         {
-            m_TexturePool.Push(TextureHandle.Handle, TextureHandle.Texture);
+            m_TexturePool.Push(textureHandle.handle, textureHandle.texture);
         }
 
         public void Disposed()

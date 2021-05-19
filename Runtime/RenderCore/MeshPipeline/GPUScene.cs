@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (m_IsUpdate)
                 {
                     m_IsUpdate = false;
-                    cmdBuffer.SetBufferData(bufferRef.Buffer, meshBatchs);
+                    cmdBuffer.SetBufferData(bufferRef.buffer, meshBatchs);
                 }
             }
         }

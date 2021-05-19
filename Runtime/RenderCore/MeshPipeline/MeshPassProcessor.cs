@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshBatch)))
             {
                 BufferRef bufferRef = graphContext.resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
-                graphContext.cmdBuffer.SetBufferData(bufferRef.Buffer, m_MeshBatchIndexs);
+                graphContext.cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs);
 
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)
                 {
@@ -87,8 +87,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                     Material material = graphContext.world.materialAssetList.Get(meshDrawCommand.materialIndex);
 
                     m_PropertyBlock.SetInt(InfinityShaderIDs.MeshBatchOffset, meshDrawCommand.countOffset.y);
-                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchIndexs, bufferRef.Buffer);
-                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchBuffer, m_GPUScene.bufferRef.Buffer);
+                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchIndexs, bufferRef.buffer);
+                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchBuffer, m_GPUScene.bufferRef.buffer);
                     graphContext.cmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
                 }
 
