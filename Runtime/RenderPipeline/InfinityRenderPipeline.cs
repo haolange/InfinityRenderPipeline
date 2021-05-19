@@ -1,7 +1,9 @@
 using System;
+using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.VFX;
 using Unity.Mathematics;
+using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
@@ -187,11 +189,11 @@ namespace InfinityTech.Rendering.Pipeline
         private FGPUScene m_GPUScene;
         private FViewUnifrom m_ViewUnifrom;
         private RDGGraphBuilder m_GraphBuilder;
+        private NativeList<JobHandle> m_MeshPassTaskRefs;
         private FMeshPassProcessor m_DepthPassMeshProcessor;
         private FMeshPassProcessor m_GBufferPassMeshProcessor;
         private FMeshPassProcessor m_ForwardPassMeshProcessor;
         private InfinityRenderPipelineAsset m_RenderPipelineAsset;
-
 
         public InfinityRenderPipeline()
         {
@@ -200,11 +202,11 @@ namespace InfinityTech.Rendering.Pipeline
             m_GPUScene = new FGPUScene();
             m_ViewUnifrom = new FViewUnifrom();
             m_GraphBuilder = new RDGGraphBuilder("InfinityGraph");
+            m_MeshPassTaskRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
             m_RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
-
-            m_DepthPassMeshProcessor = new FMeshPassProcessor(m_GPUScene);
-            m_GBufferPassMeshProcessor = new FMeshPassProcessor(m_GPUScene);
-            m_ForwardPassMeshProcessor = new FMeshPassProcessor(m_GPUScene);
+            m_DepthPassMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
+            m_GBufferPassMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
+            m_ForwardPassMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] views)
@@ -236,6 +238,7 @@ namespace InfinityTech.Rendering.Pipeline
                             if (isSceneView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(view); }
                         #endif
 
+                        m_MeshPassTaskRefs.Clear();
                         VFXManager.PrepareCamera(view);
                         m_ViewUnifrom.UnpateViewUnifrom(false, view);
                         m_ViewUnifrom.SetViewUnifrom(cmdBuffer);
@@ -276,9 +279,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         #region ExecuteViewRender
                         //Wait All MeshPassProcessor
-                        m_DepthPassMeshProcessor.WaitSetupFinish();
-                        m_GBufferPassMeshProcessor.WaitSetupFinish();
-                        m_ForwardPassMeshProcessor.WaitSetupFinish();
+                        JobHandle.CompleteAll(m_MeshPassTaskRefs);
 
                         //Execute RenderGraph
                         m_GraphBuilder.Execute(GetWorld(), resourceFactory, renderContext, cmdBuffer, m_ViewUnifrom.frameIndex);
@@ -348,6 +349,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Dispose(bool disposing)
         {
             m_GraphBuilder.Cleanup();
+            m_MeshPassTaskRefs.Dispose();
         }
     }
 }

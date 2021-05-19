@@ -36,45 +36,31 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public class FMeshPassProcessor
     {
-        private bool m_GatherState;
-        private bool m_ScheduleState;
-        private JobHandle m_Handle;
         private FGPUScene m_GPUScene;
-        private MaterialPropertyBlock m_PropertyBlock;
         private NativeArray<int> m_MeshBatchIndexs;
+        private MaterialPropertyBlock m_PropertyBlock;
+        private NativeList<JobHandle> m_MeshPassTaskRefs;
         private NativeList<FPassMeshBatch> m_PassMeshBatchs;
         private NativeList<FMeshDrawCommand> m_MeshDrawCommands;
 
-        public FMeshPassProcessor(FGPUScene gpuScene)
+        public FMeshPassProcessor(FGPUScene gpuScene, ref NativeList<JobHandle> meshPassTaskRefs)
         {
             m_GPUScene = gpuScene;
             m_PropertyBlock = new MaterialPropertyBlock();
+            m_MeshPassTaskRefs = meshPassTaskRefs;
         }
 
         internal void DispatchSetup(ref FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
         {
-            m_GatherState = false;
-            m_ScheduleState = false;
-
             if (m_GPUScene.meshBatchs.IsCreated == false || cullingData.viewMeshBatchs.IsCreated == false || cullingData.isRendererView != true) { return; }
 
             if (cullingData.viewMeshBatchs.Length == 0) { return; }
 
             DispatchGatherInternal(ref m_GPUScene.meshBatchs, ref cullingData, meshPassDesctiption);
-
-            m_GatherState = true;
-        }
-
-        internal void WaitSetupFinish()
-        {
-            if (m_ScheduleState == false) { return; }
-            m_Handle.Complete();
         }
 
         internal void DispatchDraw(ref RDGContext graphContext, in int passIndex)
         {
-            if (m_GatherState == false) { return; }
-
             using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshBatch)))
             {
                 BufferRef bufferRef = graphContext.resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
@@ -102,7 +88,6 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private void DispatchGatherInternal(ref NativeArray<FMeshBatch> meshBatchs, ref FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
         {
-            m_ScheduleState = true;
             m_MeshBatchIndexs = new NativeArray<int>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
             m_PassMeshBatchs = new NativeList<FPassMeshBatch>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
             m_MeshDrawCommands = new NativeList<FMeshDrawCommand>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
@@ -116,7 +101,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 meshDrawCommandBuildJob.meshDrawCommands = m_MeshDrawCommands;
                 meshDrawCommandBuildJob.meshPassDesctiption = meshPassDesctiption;
             }
-            m_Handle = meshDrawCommandBuildJob.Schedule();
+            m_MeshPassTaskRefs.Add(meshDrawCommandBuildJob.Schedule());
         }
     }
 }
