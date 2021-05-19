@@ -8,7 +8,7 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Core
 {
-    public class FRenderWorld : UObject
+    public class FRenderWorld : Disposer
     {
         public static FRenderWorld RenderWorld { get; private set; }
 
