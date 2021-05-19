@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.rendererList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
                 passData.rendererList.filteringSettings.renderQueueRange = RenderQueueRange.opaque;
                 passData.rendererList.filteringSettings.excludeMotionVectorObjects = false;
-                graphContext.RenderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
+                graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
             });
         }
 

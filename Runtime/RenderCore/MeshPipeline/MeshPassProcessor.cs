@@ -75,24 +75,24 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             if (m_GatherState == false) { return; }
 
-            using (new ProfilingScope(graphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshBatch)))
+            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshBatch)))
             {
-                BufferRef bufferRef = graphContext.ResourcePool.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
-                graphContext.CmdBuffer.SetBufferData(bufferRef.Buffer, m_MeshBatchIndexs);
+                BufferRef bufferRef = graphContext.resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
+                graphContext.cmdBuffer.SetBufferData(bufferRef.Buffer, m_MeshBatchIndexs);
 
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)
                 {
                     FMeshDrawCommand meshDrawCommand = m_MeshDrawCommands[i];
-                    Mesh mesh = graphContext.World.meshAssetList.Get(meshDrawCommand.meshIndex);
-                    Material material = graphContext.World.materialAssetList.Get(meshDrawCommand.materialIndex);
+                    Mesh mesh = graphContext.world.meshAssetList.Get(meshDrawCommand.meshIndex);
+                    Material material = graphContext.world.materialAssetList.Get(meshDrawCommand.materialIndex);
 
                     m_PropertyBlock.SetInt(InfinityShaderIDs.MeshBatchOffset, meshDrawCommand.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchIndexs, bufferRef.Buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchBuffer, m_GPUScene.bufferRef.Buffer);
-                    graphContext.CmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
+                    graphContext.cmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
                 }
 
-                graphContext.ResourcePool.ReleaseBuffer(bufferRef);
+                graphContext.resourceFactory.ReleaseBuffer(bufferRef);
             }
 
             m_MeshBatchIndexs.Dispose();

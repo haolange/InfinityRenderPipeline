@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.rendererList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
                 passData.rendererList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
                 passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
-                graphContext.RenderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
+                graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
 
                 //MeshDrawPipeline
                 m_ForwardPassMeshProcessor.DispatchDraw(graphContext, 2);

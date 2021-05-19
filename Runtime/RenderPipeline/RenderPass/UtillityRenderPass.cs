@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
                 },
                 (ref GizmosPassData passData, RDGContext graphContext) =>
                 {
-                    graphContext.RenderContext.DrawGizmos(passData.view, passData.gizmoSubset);
+                    graphContext.renderContext.DrawGizmos(passData.view, passData.gizmoSubset);
                 });
             }
 #endif
@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
             },
             (ref SkyBoxData passData, RDGContext graphContext) =>
             {
-                graphContext.RenderContext.DrawSkybox(passData.view);
+                graphContext.renderContext.DrawSkybox(passData.view);
             });
         }
 
@@ -84,8 +84,8 @@ namespace InfinityTech.Rendering.Pipeline
                 float4 ScaleBias = new float4((float)view.pixelWidth / (float)SrcBuffer.width, (float)view.pixelHeight / (float)SrcBuffer.height, 0.0f, 0.0f);
                 if (!dscTexture) { ScaleBias.w = ScaleBias.y; ScaleBias.y *= -1; }
 
-                graphContext.CmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, ScaleBias);
-                graphContext.CmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(view), passData.srcBuffer, passData.dscBuffer, 1);
+                graphContext.cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, ScaleBias);
+                graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(view), passData.srcBuffer, passData.dscBuffer, 1);
             });
         }
 

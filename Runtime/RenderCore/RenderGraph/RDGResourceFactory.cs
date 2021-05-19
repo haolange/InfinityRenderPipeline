@@ -222,11 +222,11 @@ namespace InfinityTech.Rendering.RDG
                 if (resource.desc.clearBuffer)
                 {
                     bool debugClear = !resource.desc.clearBuffer;
-                    using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderClear)))
+                    using (new ProfilingScope(rgContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderClear)))
                     {
                         var clearFlag = resource.desc.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
                         var clearColor = debugClear ? Color.magenta : resource.desc.clearColor;
-                        CoreUtils.SetRenderTarget(rgContext.CmdBuffer, resource.resource, clearFlag, clearColor);
+                        CoreUtils.SetRenderTarget(rgContext.cmdBuffer, resource.resource, clearFlag, clearColor);
                     }
                 }
             }
@@ -263,7 +263,7 @@ namespace InfinityTech.Rendering.RDG
                 {
                     if (Texture.resource != null)
                     {
-                        rgContext.CmdBuffer.SetGlobalTexture(Texture.shaderProperty, Texture.resource);
+                        rgContext.cmdBuffer.SetGlobalTexture(Texture.shaderProperty, Texture.resource);
                     }
                 }
             }

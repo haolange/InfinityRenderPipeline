@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
         internal void DispatchDraw(RDGContext GraphContext, in int PassIndex)
         {
             //Draw Call
-            using (new ProfilingScope(GraphContext.CmdBuffer, ProfilingSampler.Get(CustomSamplerId.TerrainBatch)))
+            using (new ProfilingScope(GraphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.TerrainBatch)))
             {
                 for (int i = 0; i < TerrainDrawCommands.Length; ++i)
                 {
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
                     for (int j = 0; j < CountOffset.x; ++j)
                     {
-                        GraphContext.CmdBuffer.DrawMeshInstancedProcedural(Meshes[TerrainDrawCommand.LOD], 0, material, PassIndex, CountOffset.x);
+                        GraphContext.cmdBuffer.DrawMeshInstancedProcedural(Meshes[TerrainDrawCommand.LOD], 0, material, PassIndex, CountOffset.x);
                     }
                 }
             }

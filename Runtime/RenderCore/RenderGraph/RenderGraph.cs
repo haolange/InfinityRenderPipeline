@@ -7,13 +7,13 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
-    public class RDGContext
+    public struct RDGContext
     {
-        public FRenderWorld World;
-        public RDGObjectPool ObjectPool;
-        public FResourceFactory ResourcePool;
-        public CommandBuffer CmdBuffer;
-        public ScriptableRenderContext RenderContext;
+        public FRenderWorld world;
+        public CommandBuffer cmdBuffer;
+        public RDGObjectPool objectPool;
+        public FResourceFactory resourceFactory;
+        public ScriptableRenderContext renderContext;
     }
 
     public struct RDGExecuteParams
@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.RDG
         Dictionary<int, ProfilingSampler> m_DefaultProfilingSamplers = new Dictionary<int, ProfilingSampler>();
         bool m_ExecutionExceptionWasRaised;
         RDGObjectPool m_ObjectPool = new RDGObjectPool();
-        RDGContext m_RenderGraphContext = new RDGContext();
+        RDGContext m_GraphContext = new RDGContext();
 
         // Compiled Render Graph info.
         DynamicArray<CompiledResourceInfo>[] m_CompiledResourcesInfos = new DynamicArray<CompiledResourceInfo>[2];
@@ -588,13 +588,13 @@ namespace InfinityTech.Rendering.RDG
             UpdateResourceAllocationAndSynchronization();
         }
 
-        void ExecuteRenderGraph(ScriptableRenderContext RenderContext, FRenderWorld RenderWorld, FResourceFactory ResourcePool, CommandBuffer CmdBuffer)
+        void ExecuteRenderGraph(ScriptableRenderContext renderContext, FRenderWorld renderWorld, FResourceFactory resourceFactory, CommandBuffer cmdBuffer)
         {
-            m_RenderGraphContext.World = RenderWorld;
-            m_RenderGraphContext.CmdBuffer = CmdBuffer;
-            m_RenderGraphContext.ObjectPool = m_ObjectPool;
-            m_RenderGraphContext.ResourcePool = ResourcePool;
-            m_RenderGraphContext.RenderContext = RenderContext;
+            m_GraphContext.world = renderWorld;
+            m_GraphContext.cmdBuffer = cmdBuffer;
+            m_GraphContext.objectPool = m_ObjectPool;
+            m_GraphContext.renderContext = renderContext;
+            m_GraphContext.resourceFactory = resourceFactory;
 
             for (int passIndex = 0; passIndex < m_CompiledPassInfos.size; ++passIndex)
             {
@@ -609,11 +609,11 @@ namespace InfinityTech.Rendering.RDG
 
                 try
                 {
-                    using (new ProfilingScope(m_RenderGraphContext.CmdBuffer, passInfo.pass.customSampler))
+                    using (new ProfilingScope(m_GraphContext.cmdBuffer, passInfo.pass.customSampler))
                     {
-                        PreRenderPassExecute(passInfo, m_RenderGraphContext);
-                        passInfo.pass.Execute(m_RenderGraphContext);
-                        PostRenderPassExecute(CmdBuffer, ref passInfo, m_RenderGraphContext);
+                        PreRenderPassExecute(passInfo, m_GraphContext);
+                        passInfo.pass.Execute(m_GraphContext);
+                        PostRenderPassExecute(cmdBuffer, ref passInfo, m_GraphContext);
                     }
                 }
                 catch (Exception e)
@@ -626,12 +626,12 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassSetRenderTargets(in CompiledPassInfo passInfo, RDGContext rgContext)
+        void PreRenderPassSetRenderTargets(in CompiledPassInfo passInfo, RDGContext graphContext)
         {
             var pass = passInfo.pass;
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
             {
-                var mrtArray = rgContext.ObjectPool.GetTempArray<RenderTargetIdentifier>(pass.colorBufferMaxIndex + 1);
+                var mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(pass.colorBufferMaxIndex + 1);
                 var colorBuffers = pass.colorBuffers;
 
                 if (pass.colorBufferMaxIndex > 0)
@@ -646,9 +646,9 @@ namespace InfinityTech.Rendering.RDG
 
                     if (pass.depthBuffer.IsValid())
                     {
-                        using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                        using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
                         {
-                            CoreUtils.SetRenderTarget(rgContext.CmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer));
+                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer));
                         }
                     } else {
                         throw new InvalidOperationException("Setting MRTs without a depth buffer is not supported.");
@@ -657,20 +657,20 @@ namespace InfinityTech.Rendering.RDG
                     if (pass.depthBuffer.IsValid())
                     {
                         if (pass.colorBufferMaxIndex > -1) {
-                            using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
                             {
-                                CoreUtils.SetRenderTarget(rgContext.CmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), m_Resources.GetTexture(pass.depthBuffer));
+                                CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), m_Resources.GetTexture(pass.depthBuffer));
                             }
                         } else {
-                            using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
                             {
-                                CoreUtils.SetRenderTarget(rgContext.CmdBuffer, m_Resources.GetTexture(pass.depthBuffer));
+                                CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer));
                             }
                         }
                     } else {
-                        using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                        using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
                         {
-                            CoreUtils.SetRenderTarget(rgContext.CmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]));
+                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]));
                         }
                     }
 
@@ -678,54 +678,54 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassExecute(in CompiledPassInfo passInfo, RDGContext rgContext)
+        void PreRenderPassExecute(in CompiledPassInfo passInfo, RDGContext graphContext)
         {
             // TODO RENDERGRAPH merge clear and setup here if possible
             IRDGPass pass = passInfo.pass;
 
             // TODO RENDERGRAPH remove this when we do away with auto global texture setup
             // (can't put it in the profiling scope otherwise it might be executed on compute queue which is not possible for global sets)
-            m_Resources.SetGlobalTextures(rgContext, pass.resourceReadLists[(int)RDGResourceType.Texture]);
+            m_Resources.SetGlobalTextures(graphContext, pass.resourceReadLists[(int)RDGResourceType.Texture]);
 
             foreach (var BufferHandle in passInfo.resourceCreateList[(int)RDGResourceType.Buffer])
                 m_Resources.CreateRealBuffer(BufferHandle);
 
             foreach (var texture in passInfo.resourceCreateList[(int)RDGResourceType.Texture])
-                m_Resources.CreateRealTexture(rgContext, texture);
+                m_Resources.CreateRealTexture(graphContext, texture);
 
-            PreRenderPassSetRenderTargets(passInfo, rgContext);
+            PreRenderPassSetRenderTargets(passInfo, graphContext);
 
             // Flush first the current command buffer on the render context.
-            rgContext.RenderContext.ExecuteCommandBuffer(rgContext.CmdBuffer);
-            rgContext.CmdBuffer.Clear();
+            graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+            graphContext.cmdBuffer.Clear();
 
             if (pass.enableAsyncCompute)
             {
-                CommandBuffer AsyncCmdBuffer = CommandBufferPool.Get(pass.name);
-                AsyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
-                rgContext.CmdBuffer = AsyncCmdBuffer;
+                CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
+                asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
+                graphContext.cmdBuffer = asyncCmdBuffer;
             }
 
             // Synchronize with graphics or compute pipe if needed.
             if (passInfo.syncToPassIndex != -1)
             {
-                rgContext.CmdBuffer.WaitOnAsyncGraphicsFence(m_CompiledPassInfos[passInfo.syncToPassIndex].fence);
+                graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(m_CompiledPassInfos[passInfo.syncToPassIndex].fence);
             }
         }
 
-        void PostRenderPassExecute(CommandBuffer mainCmd, ref CompiledPassInfo passInfo, RDGContext rgContext)
+        void PostRenderPassExecute(CommandBuffer cmdBuffer, ref CompiledPassInfo passInfo, RDGContext graphContext)
         {
             IRDGPass pass = passInfo.pass;
 
             if (passInfo.needGraphicsFence)
-                passInfo.fence = rgContext.CmdBuffer.CreateAsyncGraphicsFence();
+                passInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
 
             if (pass.enableAsyncCompute)
             {
                 // The command buffer has been filled. We can kick the async task.
-                rgContext.RenderContext.ExecuteCommandBufferAsync(rgContext.CmdBuffer, ComputeQueueType.Background);
-                CommandBufferPool.Release(rgContext.CmdBuffer);
-                rgContext.CmdBuffer = mainCmd; // Restore the main command buffer.
+                graphContext.renderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
+                CommandBufferPool.Release(graphContext.cmdBuffer);
+                graphContext.cmdBuffer = cmdBuffer; // Restore the main command buffer.
             }
 
             m_ObjectPool.ReleaseAllTempAlloc();
@@ -750,19 +750,6 @@ namespace InfinityTech.Rendering.RDG
             m_BufferScope.ClearScope();
             m_TextureScope.ClearScope();
         }
-
-        ProfilingSampler GetDefaultProfilingSampler(string name)
-        {
-            int hash = name.GetHashCode();
-            if (!m_DefaultProfilingSamplers.TryGetValue(hash, out var sampler))
-            {
-                sampler = new ProfilingSampler(name);
-                m_DefaultProfilingSamplers.Add(hash, sampler);
-            }
-
-            return sampler;
-        }
-
         #endregion
     }
 }
