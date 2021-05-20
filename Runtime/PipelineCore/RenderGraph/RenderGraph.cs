@@ -25,10 +25,10 @@ namespace InfinityTech.Rendering.RDG
     {
         internal struct CompiledResourceInfo
         {
+            public int refCount;
+            public bool resourceCreated;
             public List<int> producers;
             public List<int> consumers;
-            public bool resourceCreated;
-            public int refCount;
 
             public void Reset()
             {
@@ -47,15 +47,15 @@ namespace InfinityTech.Rendering.RDG
         internal struct CompiledPassInfo
         {
             public IRDGPass pass;
-            public List<int>[] resourceCreateList;
-            public List<int>[] resourceReleaseList;
             public int refCount;
-            public bool culled;
-            public bool hasSideEffect;
             public int syncToPassIndex; // Index of the pass that needs to be waited for.
             public int syncFromPassIndex; // Smaller pass index that waits for this pass.
+            public bool culled;
+            public bool hasSideEffect;
             public bool needGraphicsFence;
             public GraphicsFence fence;
+            public List<int>[] resourceCreateList;
+            public List<int>[] resourceReleaseList;
 
             public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
             public bool allowPassCulling { get { return pass.allowPassCulling; } }
@@ -91,33 +91,32 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        string name;
+        public string name;
         RDGResourceFactory m_Resources;
         RDGResourceScope<RDGBufferRef> m_BufferScope;
         RDGResourceScope<RDGTextureRef> m_TextureScope;
         List<IRDGPass> m_RenderPasses = new List<IRDGPass>(64);
-        Dictionary<int, ProfilingSampler> m_DefaultProfilingSamplers = new Dictionary<int, ProfilingSampler>();
+
         bool m_ExecutionExceptionWasRaised;
-        RDGObjectPool m_ObjectPool = new RDGObjectPool();
         RDGContext m_GraphContext = new RDGContext();
+        RDGObjectPool m_ObjectPool = new RDGObjectPool();
 
         // Compiled Render Graph info.
-        DynamicArray<CompiledResourceInfo>[] m_CompiledResourcesInfos = new DynamicArray<CompiledResourceInfo>[2];
-        DynamicArray<CompiledPassInfo> m_CompiledPassInfos = new DynamicArray<CompiledPassInfo>();
         Stack<int> m_CullingStack = new Stack<int>();
-
+        DynamicArray<CompiledPassInfo> m_CompiledPassInfos = new DynamicArray<CompiledPassInfo>();
+        DynamicArray<CompiledResourceInfo>[] m_CompiledResourcesInfos = new DynamicArray<CompiledResourceInfo>[2];
         #region Public Interface
 
-        public RDGGraphBuilder(string InName)
+        public RDGGraphBuilder(string name)
         {
-            this.name = InName;
-            m_Resources = new RDGResourceFactory();
-            m_BufferScope = new RDGResourceScope<RDGBufferRef>();
-            m_TextureScope = new RDGResourceScope<RDGTextureRef>();
+            this.name = name;
+            this.m_Resources = new RDGResourceFactory();
+            this.m_BufferScope = new RDGResourceScope<RDGBufferRef>();
+            this.m_TextureScope = new RDGResourceScope<RDGTextureRef>();
 
             for (int i = 0; i < 2; ++i)
             {
-                m_CompiledResourcesInfos[i] = new DynamicArray<CompiledResourceInfo>();
+                this.m_CompiledResourcesInfos[i] = new DynamicArray<CompiledResourceInfo>();
             }
         }
 
