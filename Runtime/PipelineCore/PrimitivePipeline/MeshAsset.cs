@@ -72,7 +72,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }
 
-    [CreateAssetMenu(menuName = "Landscape/MeshAsset", order = 256)]
+    [CreateAssetMenu(menuName = "Primitive/MeshAsset", order = 256)]
     public class MeshAsset : ScriptableObject
     {
 #if UNITY_EDITOR

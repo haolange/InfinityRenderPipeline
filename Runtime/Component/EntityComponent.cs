@@ -27,10 +27,6 @@ namespace InfinityTech.Component
         }
     };
 
-    [ExecuteInEditMode]
-#if UNITY_EDITOR
-    [CanEditMultipleObjects]
-#endif
     public class EntityComponent : MonoBehaviour
     {
         [HideInInspector]

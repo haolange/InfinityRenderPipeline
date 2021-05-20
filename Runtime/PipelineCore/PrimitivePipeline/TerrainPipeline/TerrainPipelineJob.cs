@@ -9,28 +9,27 @@ namespace InfinityTech.Rendering.TerrainPipeline
     public struct FSectionLODDataUpdateJob : IJob
     {
         [ReadOnly]
-        public int NumQuad;
+        public int numQuad;
 
         [ReadOnly]
-        public float3 ViewOringin;
+        public float3 viewOringin;
 
         [ReadOnly]
-        public float4x4 Matrix_Proj;
+        public float4x4 matrix_Proj;
 
-        public NativeArray<FTerrainSection> NativeSections;
-
+        public NativeArray<FTerrainSection> nativeSections;
 
         public void Execute()
         {
-            for (int i = 0; i < NativeSections.Length; ++i)
+            for (int i = 0; i < nativeSections.Length; ++i)
             {
-                FTerrainSection Section = NativeSections[i];
-                float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundingBox), Section.BoundingBox.center, ViewOringin, Matrix_Proj);
-                Section.LODIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(Section.LODSetting, ScreenSize, 1, out Section.FractionLOD));
-                Section.FractionLOD = math.min(5, Section.FractionLOD);
-                Section.NumQuad = math.clamp(NumQuad >> Section.LODIndex, 1, NumQuad);
+                FTerrainSection section = nativeSections[i];
+                float screenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(section.boundBox), section.boundBox.center, viewOringin, matrix_Proj);
+                section.lodIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(section.lodSetting, screenSize, 1, out section.fractionLOD));
+                section.fractionLOD = math.min(5, section.fractionLOD);
+                section.numQuad = math.clamp(numQuad >> section.lodIndex, 1, numQuad);
 
-                NativeSections[i] = Section;
+                nativeSections[i] = section;
             }
         }
     }
@@ -39,26 +38,25 @@ namespace InfinityTech.Rendering.TerrainPipeline
     public struct FSectionLODDataParallelUpdateJob : IJobParallelFor
     {
         [ReadOnly]
-        public int NumQuad;
+        public int numQuad;
 
         [ReadOnly]
-        public float3 ViewOringin;
+        public float3 viewOringin;
 
         [ReadOnly]
-        public float4x4 Matrix_Proj;
+        public float4x4 matrix_Proj;
 
-        public NativeArray<FTerrainSection> NativeSections;
-
+        public NativeArray<FTerrainSection> nativeSections;
 
         public void Execute(int i)
         {
-            FTerrainSection Section = NativeSections[i];
-            float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundingBox), Section.BoundingBox.center, ViewOringin, Matrix_Proj);
-            Section.LODIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(Section.LODSetting, ScreenSize, 1, out Section.FractionLOD));
-            Section.FractionLOD = math.min(5, Section.FractionLOD);
-            Section.NumQuad = math.clamp(NumQuad >> Section.LODIndex, 1, NumQuad);
+            FTerrainSection section = nativeSections[i];
+            float screenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(section.boundBox), section.boundBox.center, viewOringin, matrix_Proj);
+            section.lodIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(section.lodSetting, screenSize, 1, out section.fractionLOD));
+            section.fractionLOD = math.min(5, section.fractionLOD);
+            section.numQuad = math.clamp(numQuad >> section.lodIndex, 1, numQuad);
 
-            NativeSections[i] = Section;
+            nativeSections[i] = section;
         }
     }
 }

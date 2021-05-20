@@ -26,18 +26,21 @@ namespace InfinityTech.Rendering.Feature
             if (DepthPyramidMipIDs == null || DepthPyramidMipIDs.Length == 0) {
                 DepthPyramidMipIDs = new int[MipCount];
 
-                for (int i = 0; i < MipCount; i++) {
+                for (int i = 0; i < MipCount; ++i) 
+                {
                     DepthPyramidMipIDs[i] = Shader.PropertyToID("_SSSRDepthMip" + i);
                 }
             }
         }
 
-        public static void DepthPyramidUpdate(ref int[] DepthPyramidMipIDs, ref int2 ScreenSize, RenderTargetIdentifier DstRT, CommandBuffer CmdBuffer) {
+        public static void DepthPyramidUpdate(ref int[] DepthPyramidMipIDs, ref int2 ScreenSize, RenderTargetIdentifier DstRT, CommandBuffer CmdBuffer) 
+        {
             int2 HiZPyramidSize = ScreenSize;
             int2 PrevHiZPyramidSize = ScreenSize;
             RenderTargetIdentifier PrevHiZPyramid = DstRT;
 
-            for (int i = 0; i < MipCount; i++) {
+            for (int i = 0; i < MipCount; ++i) 
+            {
                 HiZPyramidSize.x /= 2;
                 HiZPyramidSize.y /= 2;
 
@@ -50,7 +53,10 @@ namespace InfinityTech.Rendering.Feature
 
                 PrevHiZPyramid = DepthPyramidMipIDs[i];
                 PrevHiZPyramidSize = HiZPyramidSize;
-		    } for (int i = 0; i < MipCount; i++) {
+		    } 
+            
+            for (int i = 0; i < MipCount; ++i) 
+            {
                 CmdBuffer.ReleaseTemporaryRT(DepthPyramidMipIDs[i]);
             }
         }

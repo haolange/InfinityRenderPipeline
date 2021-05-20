@@ -10,33 +10,34 @@ namespace InfinityTech.Rendering.TerrainPipeline
     [Serializable]
     public class FTerrainSector
     {
-        public int[] MaxLODs;
-        public FBound BoundBox;
-        public FTerrainSection[] Sections;
-        public NativeArray<FTerrainSection> NativeSections;
+        //public bool nativeCreated { get { return m_Sections.IsCreated; } }
 
+        public int[] maxLODs;
+        public FBound boundBox;
+        public FTerrainSection[] sections;
+        internal NativeArray<FTerrainSection> m_Sections;
 
-        public FTerrainSector(in int SectorSize, in int NumSection, in int SectionSize, in float3 SectorPivotPosition, FAABB SectorBound)
+        public FTerrainSector(in int sectorSize, in int numSection, in int sectionSize, in float3 sectorPivotPos, in FAABB sectorBound)
         {
-            int SectorSize_Half = SectorSize / 2;
-            int SectionSize_Half = SectionSize / 2;
+            int sectorSize_Half = sectorSize / 2;
+            int sectionSize_Half = sectionSize / 2;
 
-            MaxLODs = new int[NumSection * NumSection];
-            Sections = new FTerrainSection[NumSection * NumSection];
-            BoundBox = new FBound(new float3(SectorPivotPosition.x + SectorSize_Half, SectorPivotPosition.y + (SectorBound.size.y / 2), SectorPivotPosition.z + SectorSize_Half), SectorBound.size * 0.5f);
+            maxLODs = new int[numSection * numSection];
+            sections = new FTerrainSection[numSection * numSection];
+            boundBox = new FBound(new float3(sectorPivotPos.x + sectorSize_Half, sectorPivotPos.y + (sectorBound.size.y / 2), sectorPivotPos.z + sectorSize_Half), sectorBound.size * 0.5f);
 
-            for (int SectorSizeX = 0; SectorSizeX <= NumSection - 1; SectorSizeX++)
+            for (int x = 0; x < numSection; ++x)
             {
-                for (int SectorSizeY = 0; SectorSizeY <= NumSection - 1; SectorSizeY++)
+                for (int y = 0; y < numSection; ++y)
                 {
-                    int SectionIndex = (SectorSizeX * NumSection) + SectorSizeY;
-                    float3 SectionPivotPosition = SectorPivotPosition + new float3(SectionSize * SectorSizeX, 0, SectionSize * SectorSizeY);
-                    float3 SectionCenterPosition = SectionPivotPosition + new float3(SectionSize_Half, 0, SectionSize_Half);
+                    int sectionId = (x * numSection) + y;
+                    float3 SectionPivotPosition = sectorPivotPos + new float3(sectionSize * x, 0, sectionSize * y);
+                    float3 SectionCenterPosition = SectionPivotPosition + new float3(sectionSize_Half, 0, sectionSize_Half);
 
-                    Sections[SectionIndex] = new FTerrainSection();
-                    Sections[SectionIndex].PivotPosition = SectionPivotPosition;
-                    Sections[SectionIndex].CenterPosition = SectionCenterPosition;
-                    Sections[SectionIndex].BoundingBox = new FAABB(SectionCenterPosition, new float3(SectionSize, 1, SectionSize));
+                    sections[sectionId] = new FTerrainSection();
+                    sections[sectionId].pivotPos = SectionPivotPosition;
+                    sections[sectionId].centerPos = SectionCenterPosition;
+                    sections[sectionId].boundBox = new FAABB(SectionCenterPosition, new float3(sectionSize, 1, sectionSize));
                 }
             }
 
@@ -45,144 +46,133 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void BuildNativeCollection()
         {
-            NativeSections = new NativeArray<FTerrainSection>(Sections.Length, Allocator.Persistent);
+            m_Sections = new NativeArray<FTerrainSection>(sections.Length, Allocator.Persistent);
 
-            for (int i = 0; i < Sections.Length; i++)
+            for (int i = 0; i < sections.Length; ++i)
             {
-                NativeSections[i] = Sections[i];
+                m_Sections[i] = sections[i];
             }
         }
 
         public void ReleaseNativeCollection()
         {
-            NativeSections.Dispose();
+            m_Sections.Dispose();
         }
 
-        private void InitializLOD(in int MaxLOD)
+        private void InitializLOD(in int maxLOD)
         {
-            for (int i = 0; i < MaxLODs.Length; i++)
+            for (int i = 0; i < maxLODs.Length; ++i)
             {
-                MaxLODs[i] = MaxLOD;
+                maxLODs[i] = maxLOD;
             }
         }
 
-        public void BuildLODData(in float LOD0ScreenSize, in float LOD0Distribution, in float LODDistribution)
+        public void BuildLODData(in float lod0ScreenSize, in float lod0Distribution, in float lodDistribution)
         {
-            for (int i = 0; i < Sections.Length; i++)
+            for (int i = 0; i < sections.Length; ++i)
             {
-                ref int MaxLOD = ref MaxLODs[i];
-                ref FSectionLODData LODSetting = ref Sections[i].LODSetting;
+                ref int maxLOD = ref maxLODs[i];
+                ref FSectionLODData LODSetting = ref sections[i].lodSetting;
 
-                float CurrentScreenSizeRatio = LOD0ScreenSize;
-                float[] LODScreenRatioSquared = new float[MaxLOD];
-                float ScreenSizeRatioDivider = math.max(LOD0Distribution, 1.01f);
+                float CurrentScreenSizeRatio = lod0ScreenSize;
+                float[] LODScreenRatioSquared = new float[maxLOD];
+                float ScreenSizeRatioDivider = math.max(lod0Distribution, 1.01f);
                 LODScreenRatioSquared[0] = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
 
                 // LOD 0 handling
-                LODSetting.LOD0ScreenSizeSquared = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
+                LODSetting.lod0ScreenSizeSquared = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
                 CurrentScreenSizeRatio /= ScreenSizeRatioDivider;
-                LODSetting.LOD1ScreenSizeSquared = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
-                ScreenSizeRatioDivider = math.max(LODDistribution, 1.01f);
-                LODSetting.LODOnePlusDistributionScalarSquared = ScreenSizeRatioDivider * ScreenSizeRatioDivider;
+                LODSetting.lod1ScreenSizeSquared = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
+                ScreenSizeRatioDivider = math.max(lodDistribution, 1.01f);
+                LODSetting.lodOnePlusDistributionScalarSquared = ScreenSizeRatioDivider * ScreenSizeRatioDivider;
 
                 // Other LODs
-                for (int j = 1; j < MaxLOD; ++j) // This should ALWAYS be calculated from the section size, not user MaxLOD override
+                for (int j = 1; j < maxLOD; ++j) // This should ALWAYS be calculated from the section size, not user MaxLOD override
                 {
                     LODScreenRatioSquared[j] = CurrentScreenSizeRatio * CurrentScreenSizeRatio;
                     CurrentScreenSizeRatio /= ScreenSizeRatioDivider;
                 }
 
                 // Clamp ForcedLOD to the valid range and then apply
-                LODSetting.LastLODIndex = MaxLOD;
-                LODSetting.LastLODScreenSizeSquared = LODScreenRatioSquared[MaxLOD - 1];
+                LODSetting.lastLODIndex = maxLOD;
+                LODSetting.lastLODScreenSizeSquared = LODScreenRatioSquared[maxLOD - 1];
             }
         }
 
-        public void UpdateLODData(in int NumQuad, in float3 ViewOringin, in float4x4 Matrix_Proj)
+        public void UpdateLODData(in int numQuad, in float3 viewOringin, in float4x4 matrix_Proj)
         {
-            if(NativeSections.IsCreated == false) { return; }
+            if(m_Sections.IsCreated == false) { return; }
 
-            /*for (int i = 0; i < NativeSections.Length; ++i)
+            FSectionLODDataUpdateJob sectionLODDataUpdateJob = new FSectionLODDataUpdateJob();
             {
-                FTerrainSection Section = NativeSections[i];
-                float ScreenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(Section.BoundingBox), Section.BoundingBox.center, ViewOringin, Matrix_Proj);
-                Section.LODIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(Section.LODSetting, ScreenSize, 1, out Section.FractionLOD));
-                Section.FractionLOD = math.min(5, Section.FractionLOD);
-                Section.NumQuad = math.clamp(NumQuad >> Section.LODIndex, 1, NumQuad);
-
-                NativeSections[i] = Section;
-            }*/
-
-            FSectionLODDataUpdateJob SectionLODDataUpdateJob = new FSectionLODDataUpdateJob();
-            {
-                SectionLODDataUpdateJob.NumQuad = NumQuad;
-                SectionLODDataUpdateJob.ViewOringin = ViewOringin;
-                SectionLODDataUpdateJob.Matrix_Proj = Matrix_Proj;
-                SectionLODDataUpdateJob.NativeSections = NativeSections;
+                sectionLODDataUpdateJob.numQuad = numQuad;
+                sectionLODDataUpdateJob.viewOringin = viewOringin;
+                sectionLODDataUpdateJob.matrix_Proj = matrix_Proj;
+                sectionLODDataUpdateJob.nativeSections = m_Sections;
             }
-            SectionLODDataUpdateJob.Run();
+            sectionLODDataUpdateJob.Run();
 
-            /*FSectionLODDataParallelUpdateJob SectionLODDataParallelUpdateJob = new FSectionLODDataParallelUpdateJob();
+            /*FSectionLODDataParallelUpdateJob sectionLODDataParallelUpdateJob = new FSectionLODDataParallelUpdateJob();
             {
-                SectionLODDataParallelUpdateJob.NumQuad = NumQuad;
-                SectionLODDataParallelUpdateJob.ViewOringin = ViewOringin;
-                SectionLODDataParallelUpdateJob.Matrix_Proj = Matrix_Proj;
-                SectionLODDataParallelUpdateJob.NativeSections = NativeSections;
+                sectionLODDataParallelUpdateJob.numQuad = numQuad;
+                sectionLODDataParallelUpdateJob.viewOringin = viewOringin;
+                sectionLODDataParallelUpdateJob.matrix_Proj = matrix_Proj;
+                sectionLODDataParallelUpdateJob.nativeSections = m_NativeSections;
             }
-            SectionLODDataParallelUpdateJob.Schedule(NativeSections.Length, 32).Complete();*/
+            sectionLODDataParallelUpdateJob.Schedule(m_NativeSections.Length, 32).Complete();*/
         }
 
 #if UNITY_EDITOR
-        public void DrawBound(in bool LODColor = false)
+        public void DrawBound(in bool useLODColor = false)
         {
-            Geometry.DrawBound(BoundBox, Color.white);
+            Geometry.DrawBound(boundBox, Color.white);
 
-            for (int i = 0; i < NativeSections.Length; i++)
+            for (int i = 0; i < m_Sections.Length; ++i)
             {
-                FTerrainSection Section = NativeSections[i];
+                FTerrainSection section = m_Sections[i];
 
-                if (!LODColor)
+                if (!useLODColor)
                 {
-                    Geometry.DrawBound(Section.BoundingBox, Color.yellow);
+                    Geometry.DrawBound(section.boundBox, Color.yellow);
                 } else {
-                    Geometry.DrawBound(Section.BoundingBox, TerrainUtility.LODColor[Section.LODIndex]);
+                    Geometry.DrawBound(section.boundBox, TerrainUtility.LODColor[section.lodIndex]);
                 }
             }
         }
 
-        public void BuildBounds(int SectorSize, int SectionSize, float ScaleY, float3 TerrianPosition, Texture2D Heightmap)
+        public void BuildBounds(int sectorSize, int sectionSize, float scaleHeight, float3 terrianPosition, Texture2D heightmap)
         {
-            int SectorSize_Half = SectorSize / 2;
+            int sectorSize_Half = sectorSize / 2;
 
-            for (int i = 0; i < Sections.Length; i++)
+            for (int i = 0; i < sections.Length; ++i)
             {
-                ref FTerrainSection Section = ref Sections[i];
+                ref FTerrainSection section = ref sections[i];
 
-                float2 PositionScale = new float2(TerrianPosition.x, TerrianPosition.z) + new float2(SectorSize_Half, SectorSize_Half);
-                float2 RectUV = new float2((Section.PivotPosition.x - PositionScale.x) + SectorSize_Half, (Section.PivotPosition.z - PositionScale.y) + SectorSize_Half);
+                float2 positionScale = new float2(terrianPosition.x, terrianPosition.z) + new float2(sectorSize_Half, sectorSize_Half);
+                float2 rectUV = new float2((section.pivotPos.x - positionScale.x) + sectorSize_Half, (section.pivotPos.z - positionScale.y) + sectorSize_Half);
 
-                int ReverseScale = SectorSize - SectionSize;
-                Color[] HeightValues = Heightmap.GetPixels(Mathf.FloorToInt(RectUV.x), ReverseScale - Mathf.FloorToInt(RectUV.y), Mathf.FloorToInt(SectionSize), Mathf.FloorToInt(SectionSize), 0);
+                int reverseScale = sectorSize - sectionSize;
+                Color[] heightValues = heightmap.GetPixels(Mathf.FloorToInt(rectUV.x), reverseScale - Mathf.FloorToInt(rectUV.y), Mathf.FloorToInt(sectionSize), Mathf.FloorToInt(sectionSize), 0);
 
-                float MinHeight = HeightValues[0].r;
-                float MaxHeight = HeightValues[0].r;
-                for (int j = 0; j < HeightValues.Length; j++)
+                float minHeight = heightValues[0].r;
+                float maxHeight = heightValues[0].r;
+                for (int j = 0; j < heightValues.Length; ++j)
                 {
-                    if (MinHeight < HeightValues[j].r)
+                    if (minHeight < heightValues[j].r)
                     {
-                        MinHeight = HeightValues[j].r;
+                        minHeight = heightValues[j].r;
                     }
 
-                    if (MaxHeight > HeightValues[j].r)
+                    if (maxHeight > heightValues[j].r)
                     {
-                        MaxHeight = HeightValues[j].r;
+                        maxHeight = heightValues[j].r;
                     }
                 }
 
-                float PosY = ((Section.CenterPosition.y + MinHeight * ScaleY) + (Section.CenterPosition.y + MaxHeight * ScaleY)) * 0.5f;
-                float SizeY = ((Section.CenterPosition.y + MinHeight * ScaleY) - (Section.CenterPosition.y + MaxHeight * ScaleY));
-                float3 NewBoundCenter = new float3(Section.CenterPosition.x, PosY, Section.CenterPosition.z);
-                Section.BoundingBox = new FAABB(NewBoundCenter, new float3(SectionSize, SizeY, SectionSize));
+                float posHeight = ((section.centerPos.y + minHeight * scaleHeight) + (section.centerPos.y + maxHeight * scaleHeight)) * 0.5f;
+                float sizeHeight = ((section.centerPos.y + minHeight * scaleHeight) - (section.centerPos.y + maxHeight * scaleHeight));
+                float3 newBoundCenter = new float3(section.centerPos.x, posHeight, section.centerPos.z);
+                section.boundBox = new FAABB(newBoundCenter, new float3(sectionSize, sizeHeight, sectionSize));
             }
         }
 #endif

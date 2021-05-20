@@ -467,7 +467,7 @@ namespace InfinityTech.Rendering.RDG
                 return -1;
 
             var producers = info.producers;
-            for (int i = 0; i < producers.Count; i++)
+            for (int i = 0; i < producers.Count; ++i)
             {
                 if (!m_CompiledPassInfos[producers[i]].culled)
                     return producers[i];

@@ -1,8 +1,5 @@
 ﻿using System;
-using UnityEngine;
-using Unity.Burst;
 using Unity.Mathematics;
-using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
 using System.Runtime.CompilerServices;
 

@@ -1,42 +1,57 @@
+using UnityEditor;
 using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Component
 {
+    //[ExecuteInEditMode]
+#if UNITY_EDITOR
+    [CanEditMultipleObjects]
+#endif
     [AddComponentMenu("InfinityRenderer/Terrain Component")]
     public class TerrainComponent : EntityComponent
     {
         [Header("Terrain Setting")]
-        public float LOD0ScreenSize = 0.5f;
-        public float LOD0Distribution = 1.25f;
-        public float LODXDistribution = 2.8f;
+        public float lod0ScreenSize = 0.5f;
+        public float lod0Distribution = 1.25f;
+        public float lodXDistribution = 2.8f;
 
-        [HideInInspector]
-        public int NumSection;
-        [HideInInspector]
-        public int SectionSize;
-        public int SectorSize
+        public int numSection
         {
             get
             {
-                return UnityTerrainData.heightmapResolution - 1;
+                return TerrainUtility.GetSectionNumFromTerrainSize(sectorSize);
             }
         }
-        public float TerrainScaleY
+        public int sectorSize
         {
             get
             {
-                return UnityTerrainData.size.y;
+                return terrainData.heightmapResolution - 1;
+            }
+        }
+        public int sectionSize
+        {
+            get
+            {
+                return (sectorSize) / numSection;
+            }
+        }
+        public float terrainScaleY
+        {
+            get
+            {
+                return terrainData.size.y;
             }
         }
 
         [HideInInspector]
-        public Terrain UnityTerrain;
+        public Terrain terrain;
         [HideInInspector]
-        public TerrainData UnityTerrainData;
+        public TerrainData terrainData;
         [HideInInspector]
-        public FTerrainSector TerrainSector;
+        public FTerrainSector terrainSector;
 
 
         public TerrainComponent() : base()
@@ -48,8 +63,8 @@ namespace InfinityTech.Component
         {
             GetWorld().AddWorldTerrain(this);
 
-            TerrainSector?.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
-            TerrainSector?.BuildNativeCollection();
+            terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
+            terrainSector?.BuildNativeCollection();
         }
 
         protected override void OnTransformChange()
@@ -70,46 +85,42 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             GetWorld().RemoveWorldTerrain(this);
-
-            TerrainSector?.ReleaseNativeCollection();
+            terrainSector?.ReleaseNativeCollection();
         }
 
-        public void UpdateLODData(in float3 ViewOringin, in float4x4 Matrix_Proj)
+        public void UpdateLODData(in float3 viewOringin, in float4x4 matrix_Proj)
         {
-            TerrainSector.UpdateLODData(SectionSize, ViewOringin, Matrix_Proj);
+            terrainSector.UpdateLODData(sectionSize, viewOringin, matrix_Proj);
         }
 
 #if UNITY_EDITOR
         public void Serialize()
         {
-            UnityTerrain = GetComponent<UnityEngine.Terrain>();
-            UnityTerrainData = GetComponent<TerrainCollider>().terrainData;
+            terrain = GetComponent<UnityEngine.Terrain>();
+            terrainData = GetComponent<TerrainCollider>().terrainData;
 
-            NumSection = TerrainUtility.GetSectionNumFromTerrainSize(SectorSize);
-            SectionSize = (SectorSize) / NumSection;
+            TerrainTexture HeightTexture = new TerrainTexture(sectorSize);
+            HeightTexture.TerrainDataToHeightmap(terrainData);
 
-            TerrainTexture HeightTexture = new TerrainTexture(SectorSize);
-            HeightTexture.TerrainDataToHeightmap(UnityTerrainData);
-
-            if (TerrainSector != null)
+            /*if (terrainSector != null)
             {
-                if (TerrainSector.NativeSections.IsCreated == true)
+                if (terrainSector.nativeCreated == true)
                 {
-                    TerrainSector.ReleaseNativeCollection();
+                    terrainSector.ReleaseNativeCollection();
                 }
-            }
+            }*/
 
-            TerrainSector = new FTerrainSector(SectorSize, NumSection, SectionSize, transform.position, UnityTerrainData.bounds);
-            TerrainSector.BuildBounds(SectorSize, SectionSize, TerrainScaleY, transform.position, HeightTexture.HeightMap);
-            TerrainSector.BuildLODData(LOD0ScreenSize, LOD0Distribution, LODXDistribution);
-            TerrainSector.BuildNativeCollection();
+            terrainSector = new FTerrainSector(sectorSize, numSection, sectionSize, transform.position, terrainData.bounds);
+            terrainSector.BuildBounds(sectorSize, sectionSize, terrainScaleY, transform.position, HeightTexture.HeightMap);
+            //terrainSector.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
+            //terrainSector.BuildNativeCollection();
 
             HeightTexture.Release();
         }
 
-        public void DrawBounds(in bool LODColor = false)
+        public void DrawBounds(in bool useLODColor = false)
         {
-            TerrainSector.DrawBound(LODColor);
+            terrainSector.DrawBound(useLODColor);
         }
 
         void OnDrawGizmosSelected()

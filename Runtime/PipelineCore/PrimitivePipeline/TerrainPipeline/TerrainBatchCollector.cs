@@ -3,48 +3,48 @@ using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
-    //[Serializable]
     public class FTerrainBatchCollector
     {
-        public NativeArray<FTerrainBatch> TerrainBatchs;
+        public NativeArray<FTerrainBatch> terrainBatchs;
 
         public FTerrainBatchCollector() 
         { 
 
         }
+
         public void Initializ(in int Length)
         {
-            if (TerrainBatchs.IsCreated == false)
+            if (!terrainBatchs.IsCreated)
             {
-                TerrainBatchs = new NativeArray<FTerrainBatch>(Length, Allocator.TempJob);
+                terrainBatchs = new NativeArray<FTerrainBatch>(Length, Allocator.TempJob);
             }
         }
 
         public void GetMeshBatch(in NativeArray<FTerrainSection> TerrainSections)
         {
-            if (TerrainBatchs.IsCreated == false) { return; }
+            if (!terrainBatchs.IsCreated) { return; }
 
             for (int i = 0; i < TerrainSections.Length; ++i)
             {
                 FTerrainSection TerrainSection = TerrainSections[i];
 
                 FTerrainBatch TerrainBatch;
-                TerrainBatch.NumQuad = TerrainSection.NumQuad;
-                TerrainBatch.LODIndex = TerrainSection.LODIndex;
-                TerrainBatch.FractionLOD = TerrainSection.FractionLOD;
-                TerrainBatch.BoundingBox = TerrainSection.BoundingBox;
-                TerrainBatch.PivotPosition = TerrainSection.PivotPosition;
+                TerrainBatch.NumQuad = TerrainSection.numQuad;
+                TerrainBatch.LODIndex = TerrainSection.lodIndex;
+                TerrainBatch.BoundingBox = TerrainSection.boundBox;
+                TerrainBatch.PivotPosition = TerrainSection.pivotPos;
+                TerrainBatch.FractionLOD = TerrainSection.fractionLOD;
                 TerrainBatch.NeighborFractionLOD = new float4(1, 1, 1, 1);
 
-                TerrainBatchs[i] = TerrainBatch;
+                terrainBatchs[i] = TerrainBatch;
             }
         }
 
         public void Release()
         {
-            if (TerrainBatchs.IsCreated == true)
+            if (terrainBatchs.IsCreated)
             {
-                TerrainBatchs.Dispose();
+                terrainBatchs.Dispose();
             }
         }
     }

@@ -210,7 +210,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public static bool IntersectAABBFrustum(FPlane[] plane, in Bounds bound)
         {
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 6; ++i)
             {
                 float3 normal = plane[i].normalDist.xyz;
                 float distance = plane[i].normalDist.w;
@@ -230,14 +230,14 @@ namespace InfinityTech.Rendering.TerrainPipeline
         {
             float ScreenSizeSquared = InScreenSizeSquared / InViewLODScale;
             
-            if (ScreenSizeSquared <= LODSetting.LastLODScreenSizeSquared) {
-                OutFractionalLOD = LODSetting.LastLODIndex;
-                return LODSetting.LastLODIndex;
-            } else if (ScreenSizeSquared > LODSetting.LOD1ScreenSizeSquared) {
-                OutFractionalLOD = (LODSetting.LOD0ScreenSizeSquared - math.min(ScreenSizeSquared, LODSetting.LOD0ScreenSizeSquared)) / (LODSetting.LOD0ScreenSizeSquared - LODSetting.LOD1ScreenSizeSquared);
+            if (ScreenSizeSquared <= LODSetting.lastLODScreenSizeSquared) {
+                OutFractionalLOD = LODSetting.lastLODIndex;
+                return LODSetting.lastLODIndex;
+            } else if (ScreenSizeSquared > LODSetting.lod1ScreenSizeSquared) {
+                OutFractionalLOD = (LODSetting.lod0ScreenSizeSquared - math.min(ScreenSizeSquared, LODSetting.lod0ScreenSizeSquared)) / (LODSetting.lod0ScreenSizeSquared - LODSetting.lod1ScreenSizeSquared);
                 return 0;
             } else {
-                OutFractionalLOD = 1 + LogX(LODSetting.LODOnePlusDistributionScalarSquared, LODSetting.LOD1ScreenSizeSquared / ScreenSizeSquared);
+                OutFractionalLOD = 1 + LogX(LODSetting.lodOnePlusDistributionScalarSquared, LODSetting.lod1ScreenSizeSquared / ScreenSizeSquared);
                 return (int)OutFractionalLOD;
             }
         }

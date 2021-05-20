@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.Feature
             if (ColorPyramidMipIDs == null || ColorPyramidMipIDs.Length == 0) {
                 ColorPyramidMipIDs = new int[12];
 
-                for (int i = 0; i < 12; i++) {
+                for (int i = 0; i < 12; ++i) {
                     ColorPyramidMipIDs[i] = Shader.PropertyToID("_SSSRGaussianMip" + i);
                 }
             }
@@ -36,9 +36,12 @@ namespace InfinityTech.Rendering.Feature
             int ColorPyramidCount = Mathf.FloorToInt(Mathf.Log(ScreenSize.x, 2) - 3);
             ColorPyramidCount = Mathf.Min(ColorPyramidCount, 12);
             CmdBuffer.SetGlobalFloat(PyramidColorUniform.ColorPyramidNumLOD, (float)ColorPyramidCount);
-            RenderTargetIdentifier PrevColorPyramid = DstRT;
+
             int2 ColorPyramidSize = ScreenSize;
-            for (int i = 0; i < ColorPyramidCount; i++) {
+            RenderTargetIdentifier PrevColorPyramid = DstRT;
+
+            for (int i = 0; i < ColorPyramidCount; ++i) 
+            {
                 ColorPyramidSize.x >>= 1;
                 ColorPyramidSize.y >>= 1;
 
@@ -50,7 +53,10 @@ namespace InfinityTech.Rendering.Feature
                 CmdBuffer.CopyTexture(ColorPyramidMipIDs[i], 0, 0, DstRT, 0, i + 1);
 
                 PrevColorPyramid = ColorPyramidMipIDs[i];
-            } for (int i = 0; i < ColorPyramidCount; i++) {
+            } 
+
+            for (int i = 0; i < ColorPyramidCount; ++i) 
+            {
                 CmdBuffer.ReleaseTemporaryRT(ColorPyramidMipIDs[i]);
             }
         }

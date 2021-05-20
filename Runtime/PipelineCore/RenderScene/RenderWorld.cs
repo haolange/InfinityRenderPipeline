@@ -122,7 +122,7 @@ namespace InfinityTech.Rendering.Core
         {
             if(m_StaticMeshList.Count == 0) { return; }
 
-            for (int i = 0; i < m_StaticMeshList.Count; i++)
+            for (int i = 0; i < m_StaticMeshList.Count; ++i)
             {
                 m_StaticMeshList[i].EventUpdate();
             }
@@ -155,7 +155,7 @@ namespace InfinityTech.Rendering.Core
         {
             if (m_DynamicMeshList.Count == 0) { return; }
 
-            for (int i = 0; i < m_DynamicMeshList.Count; i++)
+            for (int i = 0; i < m_DynamicMeshList.Count; ++i)
             {
                 m_DynamicMeshList[i].EventUpdate();
             }

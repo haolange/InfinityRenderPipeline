@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using UnityEditor;
+using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using InfinityTech.Core.Geometry;
@@ -6,6 +7,10 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Component
 {
+    [ExecuteInEditMode]
+#if UNITY_EDITOR
+    [CanEditMultipleObjects]
+#endif
     [AddComponentMenu("InfinityRenderer/Mesh Component")]
     public class MeshComponent : EntityComponent
     {
