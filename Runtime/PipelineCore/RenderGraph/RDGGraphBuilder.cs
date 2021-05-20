@@ -4,6 +4,8 @@ using UnityEngine.Rendering;
 using System.Collections.Generic;
 using InfinityTech.Rendering.Core;
 using InfinityTech.Rendering.GPUResource;
+using Unity.Collections;
+using Unity.Jobs;
 
 namespace InfinityTech.Rendering.RDG
 {
@@ -206,41 +208,73 @@ namespace InfinityTech.Rendering.RDG
             return Texture;
         }
 
-        public void AddPass<T>(string passName, ProfilingSampler sampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
+        public void AddPass<T>(string passName, ProfilingSampler profilerSampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
         {
             var renderPass = m_ObjectPool.Get<RDGPass<T>>();
             renderPass.Clear();
             renderPass.name = passName;
-            renderPass.index = m_RenderPasses.Count;
-            renderPass.passData = m_ObjectPool.Get<T>();
-            renderPass.customSampler = sampler;
             renderPass.StepFunc = StepFunc;
             renderPass.ExecuteFunc = ExecuteFunc;
-
-            RDGPassBuilder PassBuilder = new RDGPassBuilder(renderPass, m_Resources);
-            renderPass.Step(ref PassBuilder);
+            renderPass.index = m_RenderPasses.Count;
+            renderPass.passData = m_ObjectPool.Get<T>();
+            renderPass.customSampler = profilerSampler;
 
             m_RenderPasses.Add(renderPass);
         }
 
-        public void Execute(FRenderWorld world, FResourceFactory resourcePool, ScriptableRenderContext renderContext, CommandBuffer cmd, int InFrameIndex)
+        private void SetupRenderPass()
         {
-            m_ExecutionExceptionWasRaised = false;
-
             try
             {
-                m_Resources.BeginRender(InFrameIndex);
-                CompileRenderGraph();
-                ExecuteRenderGraph(renderContext, world, resourcePool, cmd);
-            } catch (Exception e) {
-                Debug.LogError("Render Graph Execution error");
+                for (int passIndex = 0; passIndex < m_RenderPasses.Count; ++passIndex)
+                {
+                    var renderPass = m_RenderPasses[passIndex];
+                    RDGPassBuilder passBuilder = new RDGPassBuilder(renderPass, m_Resources);
+
+                    try
+                    {
+                        renderPass.Step(ref passBuilder);
+                    }
+
+                    catch (Exception exception)
+                    {
+                        Debug.LogException(exception);
+                        Debug.LogError($"RenderGraph Setup error at pass {renderPass.name} ({passIndex})");
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                Debug.LogError("RenderGraph Setup error");
+            }
+        }
+
+        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, FResourceFactory resourceFactory, in NativeList<JobHandle> meshPassTaskRefs, CommandBuffer cmd, in int frameIndex)
+        {
+            #region SetupRenderPass
+            SetupRenderPass();
+            #endregion //SetupRenderPass
+
+            m_ExecutionExceptionWasRaised = false;
+            JobHandle.CompleteAll(meshPassTaskRefs);
+
+            #region ExecuteRenderPass
+            try
+            {
+                m_Resources.BeginRender(frameIndex);
+                CompileRenderPass();
+                ExecuteRenderPass(renderContext, world, resourceFactory, cmd);
+            } catch (Exception exception) {
+                Debug.LogError("RenderGraph Execute error");
                 if (!m_ExecutionExceptionWasRaised)
-                    Debug.LogException(e);
+                    Debug.LogException(exception);
                 m_ExecutionExceptionWasRaised = true;
             } finally {
-                ClearCompiledGraph();
+                ClearCompiledPass();
                 m_Resources.EndRender();
             }
+            #endregion //ExecuteRenderPass
         }
         #endregion
 
@@ -255,7 +289,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         // Internal for testing purpose only
-        internal void ClearCompiledGraph()
+        internal void ClearCompiledPass()
         {
             ClearRenderPasses();
             m_Resources.Clear();
@@ -579,7 +613,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void CompileRenderGraph()
+        internal void CompileRenderPass()
         {
             InitializeCompilationData();
             CountReferences();
@@ -587,7 +621,7 @@ namespace InfinityTech.Rendering.RDG
             UpdateResourceAllocationAndSynchronization();
         }
 
-        void ExecuteRenderGraph(ScriptableRenderContext renderContext, FRenderWorld renderWorld, FResourceFactory resourceFactory, CommandBuffer cmdBuffer)
+        void ExecuteRenderPass(ScriptableRenderContext renderContext, FRenderWorld renderWorld, FResourceFactory resourceFactory, CommandBuffer cmdBuffer)
         {
             m_GraphContext.world = renderWorld;
             m_GraphContext.cmdBuffer = cmdBuffer;
@@ -618,7 +652,7 @@ namespace InfinityTech.Rendering.RDG
                 catch (Exception e)
                 {
                     m_ExecutionExceptionWasRaised = true;
-                    Debug.LogError($"Render Graph Execution error at pass {passInfo.pass.name} ({passIndex})");
+                    Debug.LogError($"RenderGraph Execute error at pass {passInfo.pass.name} ({passIndex})");
                     Debug.LogException(e);
                     throw;
                 }

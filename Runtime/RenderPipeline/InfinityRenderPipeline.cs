@@ -277,8 +277,7 @@ namespace InfinityTech.Rendering.Pipeline
                         #endregion //InitViewCommand
 
                         #region ExecuteViewRender
-                        JobHandle.CompleteAll(m_MeshPassTaskRefs);
-                        m_GraphBuilder.Execute(GetWorld(), resourceFactory, renderContext, cmdBuffer, m_ViewUnifrom.frameIndex);
+                        m_GraphBuilder.Execute(renderContext, GetWorld(), resourceFactory, m_MeshPassTaskRefs, cmdBuffer, m_ViewUnifrom.frameIndex);
                         #endregion //ExecuteViewRender
 
                         #region ReleaseViewContext
