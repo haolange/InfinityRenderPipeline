@@ -21,11 +21,11 @@ namespace InfinityTech.Rendering.Pipeline
         {
             //Add SkyAtmospherePass
             m_GraphBuilder.AddPass<FSkyAtmosphereData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.SkyAtmosphere),
-            (ref FSkyAtmosphereData PassData, ref RDGPassBuilder PassBuilder) =>
+            (ref FSkyAtmosphereData passData, ref RDGPassBuilder passBuilder) =>
             {
 
             },
-            (ref FSkyAtmosphereData PassData, ref RDGContext GraphContext) =>
+            (ref FSkyAtmosphereData passData, ref RDGGraphContext graphContext) =>
             {
 
             });

@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshPassTaskRefs.Add(meshDrawCommandBuildJob.Schedule());
         }
 
-        internal void DispatchDraw(ref RDGContext graphContext, in int passIndex)
+        internal void DispatchDraw(ref RDGGraphContext graphContext, in int passIndex)
         {
             if (!m_MeshBatchIndexs.IsCreated && !m_PassMeshBatchs.IsCreated && !m_MeshDrawCommands.IsCreated) { return; }
 

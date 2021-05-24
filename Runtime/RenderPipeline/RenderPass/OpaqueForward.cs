@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
                 m_ForwardMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(0, 2999));
             },
-            (ref FOpaqueForwardData passData, ref RDGContext graphContext) =>
+            (ref FOpaqueForwardData passData, ref RDGGraphContext graphContext) =>
             {
                 //MeshDrawPipeline
                 m_ForwardMeshProcessor.DispatchDraw(ref graphContext, 2);

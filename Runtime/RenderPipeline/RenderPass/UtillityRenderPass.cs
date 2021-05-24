@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.camera = camera;
                     passData.gizmoSubset = gizmoSubset;
                 },
-                (ref GizmosPassData passData, ref RDGContext graphContext) =>
+                (ref GizmosPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     graphContext.renderContext.DrawGizmos(passData.camera, passData.gizmoSubset);
                 });
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 passData.camera = camera;
             },
-            (ref SkyBoxData passData, ref RDGContext graphContext) =>
+            (ref SkyBoxData passData, ref RDGGraphContext graphContext) =>
             {
                 graphContext.renderContext.DrawSkybox(passData.camera);
             });
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.srcBuffer = passBuilder.ReadTexture(srcTexture);
                 passData.dscBuffer = new RenderTargetIdentifier(dscTexture);
             },
-            (ref PresentViewData passData, ref RDGContext graphContext) =>
+            (ref PresentViewData passData, ref RDGGraphContext graphContext) =>
             {
                 RenderTexture SrcBuffer = passData.srcBuffer;
                 float4 ScaleBias = new float4((float)camera.pixelWidth / (float)SrcBuffer.width, (float)camera.pixelHeight / (float)SrcBuffer.height, 0.0f, 0.0f);

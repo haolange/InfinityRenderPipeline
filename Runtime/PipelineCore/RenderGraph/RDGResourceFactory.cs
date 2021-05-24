@@ -198,7 +198,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void CreateRealTexture(ref RDGContext rgContext, int index)
+        internal void CreateRealTexture(ref RDGGraphContext graphContext, int index)
         {
             var resource = m_Resources[(int)RDGResourceType.Texture][index] as RDGTexture;
 
@@ -222,11 +222,11 @@ namespace InfinityTech.Rendering.RDG
                 if (resource.desc.clearBuffer)
                 {
                     bool debugClear = !resource.desc.clearBuffer;
-                    using (new ProfilingScope(rgContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderClear)))
+                    using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderClear)))
                     {
                         var clearFlag = resource.desc.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
                         var clearColor = debugClear ? Color.magenta : resource.desc.clearColor;
-                        CoreUtils.SetRenderTarget(rgContext.cmdBuffer, resource.resource, clearFlag, clearColor);
+                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, resource.resource, clearFlag, clearColor);
                     }
                 }
             }
@@ -254,7 +254,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void SetGlobalTextures(ref RDGContext rgContext, List<RDGResourceRef> textures)
+        internal void SetGlobalTextures(ref RDGGraphContext graphContext, List<RDGResourceRef> textures)
         {
             foreach (var resource in textures)
             {
@@ -263,7 +263,7 @@ namespace InfinityTech.Rendering.RDG
                 {
                     if (Texture.resource != null)
                     {
-                        rgContext.cmdBuffer.SetGlobalTexture(Texture.shaderProperty, Texture.resource);
+                        graphContext.cmdBuffer.SetGlobalTexture(Texture.shaderProperty, Texture.resource);
                     }
                 }
             }

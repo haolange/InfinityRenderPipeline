@@ -9,7 +9,7 @@ using Unity.Jobs;
 
 namespace InfinityTech.Rendering.RDG
 {
-    public struct RDGContext
+    public struct RDGGraphContext
     {
         public FRenderWorld world;
         public CommandBuffer cmdBuffer;
@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.RDG
         List<IRDGPass> m_RenderPasses = new List<IRDGPass>(64);
 
         bool m_ExecutionExceptionWasRaised;
-        RDGContext m_GraphContext = new RDGContext();
+        RDGGraphContext m_GraphContext = new RDGGraphContext();
         RDGObjectPool m_ObjectPool = new RDGObjectPool();
 
         // Compiled Render Graph info.
@@ -644,9 +644,9 @@ namespace InfinityTech.Rendering.RDG
                 {
                     using (new ProfilingScope(m_GraphContext.cmdBuffer, passInfo.pass.customSampler))
                     {
-                        PreRenderPassExecute(passInfo, ref m_GraphContext);
+                        PreRenderPassExecute(ref m_GraphContext, passInfo);
                         passInfo.pass.Execute(ref m_GraphContext);
-                        PostRenderPassExecute(cmdBuffer, ref passInfo, ref m_GraphContext);
+                        PostRenderPassExecute(cmdBuffer, ref m_GraphContext, ref passInfo);
                     }
                 }
                 catch (Exception e)
@@ -659,7 +659,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassSetRenderTargets(in CompiledPassInfo passInfo, ref RDGContext graphContext)
+        void PreRenderPassSetRenderTargets(ref RDGGraphContext graphContext, in CompiledPassInfo passInfo)
         {
             var pass = passInfo.pass;
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
@@ -711,7 +711,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassExecute(in CompiledPassInfo passInfo, ref RDGContext graphContext)
+        void PreRenderPassExecute(ref RDGGraphContext graphContext, in CompiledPassInfo passInfo)
         {
             // TODO RENDERGRAPH merge clear and setup here if possible
             IRDGPass pass = passInfo.pass;
@@ -726,7 +726,7 @@ namespace InfinityTech.Rendering.RDG
             foreach (var texture in passInfo.resourceCreateList[(int)RDGResourceType.Texture])
                 m_Resources.CreateRealTexture(ref graphContext, texture);
 
-            PreRenderPassSetRenderTargets(passInfo, ref graphContext);
+            PreRenderPassSetRenderTargets(ref graphContext, passInfo);
 
             // Flush first the current command buffer on the render context.
             graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
@@ -746,7 +746,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PostRenderPassExecute(CommandBuffer cmdBuffer, ref CompiledPassInfo passInfo, ref RDGContext graphContext)
+        void PostRenderPassExecute(CommandBuffer cmdBuffer, ref RDGGraphContext graphContext, ref CompiledPassInfo passInfo)
         {
             IRDGPass pass = passInfo.pass;
 
