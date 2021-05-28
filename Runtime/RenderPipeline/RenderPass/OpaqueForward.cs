@@ -7,6 +7,13 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal static class FOpaqueForwardString
+    {
+        internal static string PassName = "OpaqueForward";
+        internal static string TextureAName = "DiffuseTexture";
+        internal static string TextureBName = "SpecularTexture";
+    }
+
     public partial class InfinityRenderPipeline
     {
         struct FOpaqueForwardData
@@ -19,15 +26,15 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderOpaqueForward(Camera camera, FCullingData cullingData, in CullingResults cullingResult)
         {
-            RendererList rendererList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.ForwardPlus, new RenderQueueRange(0, 2999), PerObjectData.Lightmaps));
+            RendererList rendererList = RendererList.Create(CreateRendererListDesc(camera, cullingResult, InfinityPassIDs.ForwardPlus, new RenderQueueRange(0, 2999), PerObjectData.Lightmaps));
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
-            TextureDescription diffuseDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DiffuseTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            TextureDescription diffuseDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueForwardString.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef diffuseTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer, diffuseDescription);
-            TextureDescription specularDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "SpecularTexture", colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            TextureDescription specularDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueForwardString.TextureBName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef specularTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.SpecularBuffer, specularDescription);
 
             //Add OpaqueForwardPass
-            m_GraphBuilder.AddPass<FOpaqueForwardData>("OpaqueForward", ProfilingSampler.Get(CustomSamplerId.OpaqueForward),
+            m_GraphBuilder.AddPass<FOpaqueForwardData>(FOpaqueForwardString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueForward),
             (ref FOpaqueForwardData passData, ref RDGPassBuilder passBuilder) =>
             {
                 passData.rendererList = rendererList;

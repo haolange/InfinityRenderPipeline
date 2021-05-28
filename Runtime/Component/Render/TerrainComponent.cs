@@ -21,7 +21,7 @@ namespace InfinityTech.Component
         {
             get
             {
-                return TerrainUtility.GetSectionNumFromTerrainSize(sectorSize);
+                return sectorSize / 32;
             }
         }
         public int sectorSize

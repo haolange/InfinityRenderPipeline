@@ -1,4 +1,4 @@
-﻿Shader "InfinityPipeline/Utility/InfinityDrawFullScreen"
+﻿Shader "InfinityPipeline/Utility/DrawFullScreen"
 {
     SubShader
     {

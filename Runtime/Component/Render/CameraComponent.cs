@@ -10,12 +10,9 @@ namespace InfinityTech.Component
     [AddComponentMenu("InfinityRenderer/Camera Component")]
     public class CameraComponent : BaseComponent
     {
-        public Camera UnityCamera;
-        public Plane[] FrustumPlane;
-        public ProfilingSampler ViewProfiler;
-        public NativeArray<FPlane> ViewFrustum;
+        public Camera unityCamera;
+        public ProfilingSampler viewProfiler;
 
-        // Function
         public CameraComponent() : base()
         {
 
@@ -25,9 +22,8 @@ namespace InfinityTech.Component
         {
             GetWorld().AddWorldView(this);
 
-            UnityCamera = GetComponent<Camera>();
-            ViewProfiler = new ProfilingSampler(this.name);
-            ViewFrustum = new NativeArray<FPlane>(6, Allocator.Persistent);
+            unityCamera = GetComponent<Camera>();
+            viewProfiler = new ProfilingSampler(this.name);
         }
 
         protected override void EventPlay()
@@ -43,19 +39,11 @@ namespace InfinityTech.Component
         protected override void OnTransformChange()
         {
             base.OnTransformChange();
-
-            FrustumPlane = GeometryUtility.CalculateFrustumPlanes(UnityCamera);
-            for (int PlaneIndex = 0; PlaneIndex < 6; ++PlaneIndex)
-            {
-                ViewFrustum[PlaneIndex] = FrustumPlane[PlaneIndex];
-            }
         }
 
         protected override void UnRegister()
         {
             GetWorld().RemoveWorldView(this);
-
-            ViewFrustum.Dispose();
         }
     }
 }

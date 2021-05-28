@@ -7,6 +7,12 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal static class FOpaqueDepthString
+    {
+        internal static string PassName = "OpaqueDepth";
+        internal static string TextureName = "DepthTexture";
+    }
+
     public partial class InfinityRenderPipeline
     {
         struct FOpaqueDepthData
@@ -17,12 +23,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
         {
-            RendererList rendererList = RendererList.Create(CreateRendererListDesc(cullingResult, camera, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
-            TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = "DepthTexture", depthBufferBits = EDepthBits.Depth32 };
+            RendererList rendererList = RendererList.Create(CreateRendererListDesc(camera, cullingResult, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
+            TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueDepthString.TextureName, depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
             //Add OpaqueDepthPass
-            m_GraphBuilder.AddPass<FOpaqueDepthData>("OpaqueDepth", ProfilingSampler.Get(CustomSamplerId.OpaqueDepth),
+            m_GraphBuilder.AddPass<FOpaqueDepthData>(FOpaqueDepthString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueDepth),
             (ref FOpaqueDepthData passData, ref RDGPassBuilder passBuilder) =>
             {
                 passData.rendererList = rendererList;

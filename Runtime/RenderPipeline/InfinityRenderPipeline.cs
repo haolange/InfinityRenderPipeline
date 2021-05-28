@@ -202,10 +202,10 @@ namespace InfinityTech.Rendering.Pipeline
             m_ViewUnifrom = new FViewUnifrom();
             m_GraphBuilder = new RDGGraphBuilder("InfinityGraph");
             m_MeshPassTaskRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
-            m_RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
             m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
             m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
+            m_RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
@@ -225,9 +225,9 @@ namespace InfinityTech.Rendering.Pipeline
                 CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
                 //Render View
-                BeginCameraRendering(renderContext, camera);
+                using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
                 {
-                    using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.ViewProfiler : ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
+                    BeginCameraRendering(renderContext, camera);
                     {
                         #region InitViewContext
                         bool isSceneView = camera.cameraType == CameraType.SceneView;
@@ -245,10 +245,11 @@ namespace InfinityTech.Rendering.Pipeline
                         VFXManager.ProcessCameraCommand(camera, cmdBuffer);
 
                         //Culling Context
-                        FCullingData cullingData = new FCullingData(isRendererView);
                         camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                        CullingResults cullingResult = renderContext.Cull(ref cullingParameters); //Unity Culling
-                        renderContext.DispatchCull(m_GPUScene, ref cullingParameters, ref cullingData); //Infinity Culling
+                        CullingResults cullingResult = renderContext.Cull(ref cullingParameters);
+
+                        FCullingData cullingData = new FCullingData(isRendererView);
+                        renderContext.DispatchCull(m_GPUScene, ref cullingParameters, ref cullingData);
 
                         //Terrain Context
                         List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
@@ -285,8 +286,8 @@ namespace InfinityTech.Rendering.Pipeline
                         m_ViewUnifrom.UnpateViewUnifrom(true, camera);
                         #endregion //ReleaseViewContext
                     }
+                    EndCameraRendering(renderContext, camera);
                 }
-                EndCameraRendering(renderContext, camera);
 
                 //Submit ViewCommand
                 renderContext.ExecuteCommandBuffer(cmdBuffer);

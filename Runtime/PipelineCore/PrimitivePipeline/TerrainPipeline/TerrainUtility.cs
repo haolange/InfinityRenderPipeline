@@ -241,41 +241,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 return (int)OutFractionalLOD;
             }
         }
-
-        public static int GetSectionNumFromTerrainSize(int InTerrainSize)
-        {
-            int SectionNum = 0;
-
-            switch (InTerrainSize)
-            {
-                case 1024:
-                    {
-                        SectionNum = 16;
-                        break;
-                    }
-
-                case 512:
-                    {
-                        SectionNum = 8;
-                        break;
-                    }
-
-                case 256:
-                    {
-                        SectionNum = 4;
-                        break;
-                    }
-
-                case 128:
-                    {
-                        SectionNum = 2;
-                        break;
-                    }
-            }
-
-            return SectionNum;
-        }
-
+        
         public static void DrawRect(Rect rect, Color color)
         {
 

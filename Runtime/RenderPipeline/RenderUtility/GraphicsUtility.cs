@@ -5,122 +5,119 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public static class GraphicsUtility
     {
-        public static Material BlitMaterial
+        private static Material m_BlitMaterial;
+
+        internal static Material BlitMaterial
         {
             get
             {
-                return new Material(Shader.Find("InfinityPipeline/Utility/InfinityDrawFullScreen"));
+                if (m_BlitMaterial != null) { return m_BlitMaterial; }
+
+                m_BlitMaterial = new Material(Shader.Find("InfinityPipeline/Utility/DrawFullScreen"));
+                return m_BlitMaterial;
             }
         }
 
         private static Mesh m_FullScreenMesh;
 
-        public static Mesh FullScreenMesh
+        internal static Mesh FullScreenMesh
         {
             get
             {
-                if (m_FullScreenMesh != null) {
-                    return m_FullScreenMesh;
-                }
+                if (m_FullScreenMesh != null) { return m_FullScreenMesh; }
 
                 m_FullScreenMesh = new Mesh { name = "FullScreen Mesh" };
-
-                m_FullScreenMesh.vertices = new Vector3[] {
-                    new Vector3(-1f, -1f, 0f),
-                    new Vector3(-1f,  3f, 0f),
-                    new Vector3( 3f, -1f, 0f)
-                };
-
+                m_FullScreenMesh.vertices = new Vector3[] {new Vector3(-1f, -1f, 0f), new Vector3(-1f,  3f, 0f), new Vector3( 3f, -1f, 0f)};
                 m_FullScreenMesh.SetIndices(new int[] { 0, 1, 2 }, MeshTopology.Triangles, 0, false);
                 m_FullScreenMesh.UploadMeshData(false);
                 return m_FullScreenMesh;
             }
         }
 
-        public static void SetRenderTarget(CommandBuffer cmd, RenderTargetIdentifier colorAttachment, RenderBufferLoadAction colorLoadAction, RenderBufferStoreAction colorStoreAction, ClearFlag clearFlags, Color clearColor, TextureDimension dimension)
+        public static void SetRenderTarget(CommandBuffer cmdBuffer, RenderTargetIdentifier colorAttachment, RenderBufferLoadAction colorLoadAction, RenderBufferStoreAction colorStoreAction, ClearFlag clearFlags, Color clearColor, TextureDimension dimension)
         {
             if (dimension == TextureDimension.Tex2DArray) {
-                CoreUtils.SetRenderTarget(cmd, colorAttachment, clearFlags, clearColor, 0, CubemapFace.Unknown, -1);
+                CoreUtils.SetRenderTarget(cmdBuffer, colorAttachment, clearFlags, clearColor, 0, CubemapFace.Unknown, -1);
             } else {
-                CoreUtils.SetRenderTarget(cmd, colorAttachment, colorLoadAction, colorStoreAction, clearFlags, clearColor);
+                CoreUtils.SetRenderTarget(cmdBuffer, colorAttachment, colorLoadAction, colorStoreAction, clearFlags, clearColor);
             }   
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RTHandle Source, RenderTargetIdentifier Desc)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RTHandle src, RenderTargetIdentifier dsc)
         {
-            CmdBuffer.SetRenderTarget(Desc);
-            CmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, Source);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1);
+            cmdBuffer.SetRenderTarget(dsc);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RTHandle Source, RenderTargetIdentifier Desc, MaterialPropertyBlock MaterialPropertyBlock = null)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RTHandle src, RenderTargetIdentifier dsc, MaterialPropertyBlock materialPropertyBlock = null)
         {
-            CmdBuffer.SetRenderTarget(Desc);
-            MaterialPropertyBlock.SetTexture(InfinityShaderIDs.RT_MainTexture, Source);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1, MaterialPropertyBlock);
+            cmdBuffer.SetRenderTarget(dsc);
+            materialPropertyBlock.SetTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1, materialPropertyBlock);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier Source, RenderTargetIdentifier Desc)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier src, RenderTargetIdentifier dsc)
         {
-            CmdBuffer.SetRenderTarget(Desc);
-            CmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, Source);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 0);
+            cmdBuffer.SetRenderTarget(dsc);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 0);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier Source, RenderTargetIdentifier Desc, int DrawPass)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier src, RenderTargetIdentifier dsc, int passIndex)
         {
-            CmdBuffer.SetRenderTarget(Desc);
-            CmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, Source);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, DrawPass);
+            cmdBuffer.SetRenderTarget(dsc);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, passIndex);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, Rect Viewport, RenderTargetIdentifier Source, RenderTargetIdentifier Desc, int DrawPass)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, Rect viewport, RenderTargetIdentifier src, RenderTargetIdentifier dsc, int passIndex)
         {
-            CmdBuffer.SetRenderTarget(Desc);
-            CmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, Source);
-            CmdBuffer.SetViewport(Viewport);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, DrawPass);
+            cmdBuffer.SetRenderTarget(dsc);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.SetViewport(viewport);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, passIndex);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier ColorBuffer, Material DrawMaterial, int DrawPass)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier colorBuffer, Material material, int passIndex)
         {
-            CmdBuffer.SetRenderTarget(ColorBuffer);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, DrawMaterial, 0, DrawPass);
+            cmdBuffer.SetRenderTarget(colorBuffer);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier ColorBuffer, Material DrawMaterial, int DrawPass, MaterialPropertyBlock MaterialPropertyBlock = null)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier colorBuffer, Material material, int passIndex, MaterialPropertyBlock materialPropertyBlock = null)
         {
-            CmdBuffer.SetRenderTarget(ColorBuffer);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, DrawMaterial, 0, DrawPass, MaterialPropertyBlock);
+            cmdBuffer.SetRenderTarget(colorBuffer);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex, materialPropertyBlock);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier ColorBuffer, RenderTargetIdentifier DepthBuffer, Material DrawMaterial, int DrawPass)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier colorBuffer, RenderTargetIdentifier depthBuffer, Material material, int passIndex)
         {
-            CmdBuffer.SetRenderTarget(ColorBuffer, DepthBuffer);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, DrawMaterial, 0, DrawPass);
+            cmdBuffer.SetRenderTarget(colorBuffer, depthBuffer);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier ColorBuffer, RenderTargetIdentifier DepthBuffer, Material DrawMaterial, int DrawPass, MaterialPropertyBlock MaterialPropertyBlock = null)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier colorBuffer, RenderTargetIdentifier depthBuffer, Material material, int passIndex, MaterialPropertyBlock materialPropertyBlock = null)
         {
-            CmdBuffer.SetRenderTarget(ColorBuffer, DepthBuffer);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, DrawMaterial, 0, DrawPass, MaterialPropertyBlock);
+            cmdBuffer.SetRenderTarget(colorBuffer, depthBuffer);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex, materialPropertyBlock);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier[] ColorBuffers, RenderTargetIdentifier DepthBuffer, Material DrawMaterial, int DrawPass)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier[] colorBuffers, RenderTargetIdentifier depthBuffer, Material material, int passIndex)
         {
-            CmdBuffer.SetRenderTarget(ColorBuffers, DepthBuffer);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, DrawMaterial, 0, DrawPass);
+            cmdBuffer.SetRenderTarget(colorBuffers, depthBuffer);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex);
         }
 
-        public static void DrawFullScreen(this CommandBuffer CmdBuffer, RenderTargetIdentifier[] ColorBuffers, RenderTargetIdentifier DepthBuffer, Material DrawMaterial, int DrawPass, MaterialPropertyBlock MaterialPropertyBlock = null)
+        public static void DrawFullScreen(this CommandBuffer cmdBuffer, RenderTargetIdentifier[] colorBuffers, RenderTargetIdentifier depthBuffer, Material material, int passIndex, MaterialPropertyBlock materialPropertyBlock = null)
         {
-            CmdBuffer.SetRenderTarget(ColorBuffers, DepthBuffer);
-            CmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, DrawMaterial, 0, DrawPass, MaterialPropertyBlock);
+            cmdBuffer.SetRenderTarget(colorBuffers, depthBuffer);
+            cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, material, 0, passIndex, materialPropertyBlock);
         }
 
-        public static Rect GetViewport(Camera RenderCamera)
+        public static Rect GetViewport(Camera camera)
         {
-            return new Rect(RenderCamera.pixelRect.x, RenderCamera.pixelRect.y, RenderCamera.pixelWidth, RenderCamera.pixelHeight);
+            return new Rect(camera.pixelRect.x, camera.pixelRect.y, camera.pixelWidth, camera.pixelHeight);
         }
     }
 }

@@ -10,6 +10,13 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal static class FUtilityPassString
+    {
+        internal static string SkyBoxPassName = "Gizmos";
+        internal static string GizmosPassName = "SkyBox";
+        internal static string PresentPassName = "Present";
+    }
+
     public partial class InfinityRenderPipeline
     {
 
@@ -28,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 // Add GizmosPass
-                m_GraphBuilder.AddPass<GizmosPassData>("Gizmos", ProfilingSampler.Get(CustomSamplerId.Gizmos),
+                m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.Gizmos),
                 (ref GizmosPassData passData, ref RDGPassBuilder PassBuilder) =>
                 {
                     passData.camera = camera;
@@ -51,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera camera)
         {
             // Add SkyAtmospherePass
-            m_GraphBuilder.AddPass<SkyBoxData>("SkyBox", ProfilingSampler.Get(CustomSamplerId.SkyBox),
+            m_GraphBuilder.AddPass<SkyBoxData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.SkyBox),
             (ref SkyBoxData passData, ref RDGPassBuilder passBuilder) =>
             {
                 passData.camera = camera;
@@ -72,7 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderPresentView(Camera camera, RDGTextureRef srcTexture, RenderTexture dscTexture)
         {
             // Add PresentPass
-            m_GraphBuilder.AddPass<PresentViewData>("Present", ProfilingSampler.Get(CustomSamplerId.Present),
+            m_GraphBuilder.AddPass<PresentViewData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.Present),
             (ref PresentViewData passData, ref RDGPassBuilder passBuilder) =>
             {
                 passData.srcBuffer = passBuilder.ReadTexture(srcTexture);
@@ -89,9 +96,9 @@ namespace InfinityTech.Rendering.Pipeline
             });
         }
 
-        public static RendererListDesc CreateRendererListDesc(CullingResults CullingData, Camera RenderCamera, ShaderTagId PassName, RenderQueueRange? renderQueueRange = null, PerObjectData rendererConfiguration = 0, bool excludeObjectMotionVectors = false, Material overrideMaterial = null, RenderStateBlock ? stateBlock = null)
+        public static RendererListDesc CreateRendererListDesc(Camera camera, in CullingResults cullingResult, in ShaderTagId passName, in RenderQueueRange? renderQueueRange = null, in PerObjectData rendererConfiguration = 0, in bool excludeObjectMotionVectors = false, Material overrideMaterial = null, in RenderStateBlock ? stateBlock = null)
         {
-            RendererListDesc result = new RendererListDesc(PassName, CullingData, RenderCamera)
+            RendererListDesc result = new RendererListDesc(passName, cullingResult, camera)
             {
                 rendererConfiguration = rendererConfiguration,
                 renderQueueRange = RenderQueueRange.opaque,
@@ -103,13 +110,13 @@ namespace InfinityTech.Rendering.Pipeline
             return result;
         }
 
-        public static void DrawRendererList(ScriptableRenderContext RenderContext, RendererList RendererList)
+        public static void DrawRendererList(in ScriptableRenderContext renderContext, ref RendererList rendererList)
         {
-            if (RendererList.stateBlock == null) {
-                RenderContext.DrawRenderers(RendererList.cullingResult, ref RendererList.drawSettings, ref RendererList.filteringSettings);
+            if (rendererList.stateBlock == null) {
+                renderContext.DrawRenderers(rendererList.cullingResult, ref rendererList.drawSettings, ref rendererList.filteringSettings);
             } else {
-                var RenderStateBlock = RendererList.stateBlock.Value;
-                RenderContext.DrawRenderers(RendererList.cullingResult, ref RendererList.drawSettings, ref RendererList.filteringSettings, ref RenderStateBlock);
+                var RenderStateBlock = rendererList.stateBlock.Value;
+                renderContext.DrawRenderers(rendererList.cullingResult, ref rendererList.drawSettings, ref rendererList.filteringSettings, ref RenderStateBlock);
             }
         }
 

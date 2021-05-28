@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Feature
         public float SunSolidAngle = (0.5f / 180.0f * Mathf.PI);
 
         [Header("Material")]
-        public ComputeShader LUTCompute;
         public Material LUTMaterial;
+        public ComputeShader LUTCompute;
     }
 }
