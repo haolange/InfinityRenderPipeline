@@ -34,7 +34,6 @@ namespace InfinityTech.Rendering.Pipeline
             m_GraphBuilder.AddPass<FOpaqueMotionData>(FOpaqueMotionString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueMotion),
             (ref FOpaqueMotionData passData, ref RDGPassBuilder passBuilder) =>
             {
-                passBuilder.AllowPassCulling(false);
                 passData.rendererList = rendererList;
                 passData.motionBuffer = passBuilder.UseColorBuffer(motionTexture, 0);
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
