@@ -9,7 +9,7 @@ using Unity.Collections.LowLevel.Unsafe;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     [BurstCompile]
-    public unsafe struct FMeshBatchCullingJob : IJobParallelFor
+    public unsafe struct FMeshElementCullingJob : IJobParallelFor
     {
         [ReadOnly]
         [NativeDisableUnsafePtrRestriction]
@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         [ReadOnly]
         [NativeDisableUnsafePtrRestriction]
-        public FMeshBatch* meshBatchs;
+        public FMeshElement* meshElements;
 
         [WriteOnly]
         public NativeArray<int> viewMeshBatchs;
@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             int VisibleState = 1;
             float2 distRadius = new float2(0, 0);
-            ref FMeshBatch MeshBatch = ref meshBatchs[index];
+            ref FMeshElement MeshBatch = ref meshElements[index];
 
             for (int i = 0; i < 6; ++i)
             {
@@ -52,58 +52,58 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<int> meshBatchIndexs;
 
         [ReadOnly]
-        public NativeArray<FMeshBatch> meshBatchs;
+        public NativeArray<FMeshElement> meshElements;
 
         [ReadOnly]
         public FMeshPassDesctiption meshPassDesctiption;
 
-        public NativeList<FPassMeshBatch> passMeshBatchs;
+        public NativeList<FPassMeshSection> m_PassMeshSections;
 
         public NativeList<FMeshDrawCommand> meshDrawCommands;
 
 
         public void Execute()
         {
-            FMeshBatch meshBatch;
+            FMeshElement meshElement;
 
             //Gather PassMeshBatch
             for (int i = 0; i < cullingData.viewMeshBatchs.Length; ++i)
             {
                 if (cullingData.viewMeshBatchs[i] != 0)
                 {
-                    meshBatch = meshBatchs[i];
+                    meshElement = meshElements[i];
 
-                    if(meshBatch.priority >= meshPassDesctiption.renderQueueMin && meshBatch.priority <= meshPassDesctiption.renderQueueMax)
+                    if(meshElement.priority >= meshPassDesctiption.renderQueueMin && meshElement.priority <= meshPassDesctiption.renderQueueMax)
                     {
-                        FPassMeshBatch PassMeshBatch = new FPassMeshBatch(i, FMeshBatch.MatchForDynamicInstance(ref meshBatch));
-                        passMeshBatchs.Add(PassMeshBatch);
+                        FPassMeshSection PassMeshBatch = new FPassMeshSection(i, FMeshElement.MatchForDynamicInstance(ref meshElement));
+                        m_PassMeshSections.Add(PassMeshBatch);
                     }
                 }
             }
 
             //Sort PassMeshBatch
-            passMeshBatchs.Sort();
+            m_PassMeshSections.Sort();
 
             //Build MeshDrawCommand
-            FPassMeshBatch passMeshBatch;
-            FPassMeshBatch cachePassMeshBatch = new FPassMeshBatch(-1, -1);
+            FPassMeshSection passMeshSection;
+            FPassMeshSection lastPassMeshSection = new FPassMeshSection(-1, -1);
 
             FMeshDrawCommand meshDrawCommand;
             FMeshDrawCommand cacheMeshDrawCommand;
 
-            for (int j = 0; j < passMeshBatchs.Length; ++j)
+            for (int j = 0; j < m_PassMeshSections.Length; ++j)
             {
-                passMeshBatch = passMeshBatchs[j];
-                meshBatchIndexs[j] = passMeshBatch.meshBatchId;
-                meshBatch = meshBatchs[passMeshBatch.meshBatchId];
+                passMeshSection = m_PassMeshSections[j];
+                meshBatchIndexs[j] = passMeshSection.meshElementId;
+                meshElement = meshElements[passMeshSection.meshElementId];
 
-                if (!passMeshBatch.Equals(cachePassMeshBatch))
+                if (!passMeshSection.Equals(lastPassMeshSection))
                 {
-                    cachePassMeshBatch = passMeshBatch;
+                    lastPassMeshSection = passMeshSection;
 
-                    meshDrawCommand.meshIndex = meshBatch.staticMeshRef.Id;
-                    meshDrawCommand.sectionIndex = meshBatch.sectionIndex;
-                    meshDrawCommand.materialIndex = meshBatch.materialRef.Id;
+                    meshDrawCommand.meshIndex = meshElement.staticMeshRef.Id;
+                    meshDrawCommand.sectionIndex = meshElement.sectionIndex;
+                    meshDrawCommand.materialIndex = meshElement.materialRef.Id;
                     meshDrawCommand.countOffset.x = 0;
                     meshDrawCommand.countOffset.y = j;
                     meshDrawCommands.Add(meshDrawCommand);

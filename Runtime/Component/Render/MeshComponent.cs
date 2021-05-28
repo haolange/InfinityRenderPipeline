@@ -256,21 +256,21 @@ namespace InfinityTech.Component
 
                 for (int i = 0; i < staticMesh.subMeshCount; ++i)
                 {
-                    FMeshBatch MeshBatch;
-                    MeshBatch.visible = visible ? 1 : 0;
-                    MeshBatch.boundBox = boundBox;
-                    MeshBatch.castShadow = (int)castShadow;
-                    MeshBatch.motionType = (int)motionVector;
-                    MeshBatch.renderLayer = renderLayer;
-                    MeshBatch.sectionIndex = i;
-                    MeshBatch.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
-                    MeshBatch.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
-                    MeshBatch.priority = renderPriority + materials[i].renderQueue;
-                    MeshBatch.matrix_LocalToWorld = matrix_LocalToWorld;
-                    //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
+                    FMeshElement meshElement;
+                    meshElement.visible = visible ? 1 : 0;
+                    meshElement.boundBox = boundBox;
+                    meshElement.castShadow = (int)castShadow;
+                    meshElement.motionType = (int)motionVector;
+                    meshElement.renderLayer = renderLayer;
+                    meshElement.sectionIndex = i;
+                    meshElement.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
+                    meshElement.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
+                    meshElement.priority = renderPriority + materials[i].renderQueue;
+                    meshElement.matrix_LocalToWorld = matrix_LocalToWorld;
+                    //meshElement.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
                     
-                    meshBatchCacheID[i] = FMeshBatch.MatchForCacheMeshBatch(ref MeshBatch, this.GetInstanceID());
-                    GetWorld().GetMeshBatchColloctor().AddMeshBatch(MeshBatch, meshBatchCacheID[i]);
+                    meshBatchCacheID[i] = FMeshElement.MatchForCacheMeshBatch(ref meshElement, this.GetInstanceID());
+                    GetWorld().GetMeshBatchColloctor().AddMeshBatch(meshElement, meshBatchCacheID[i]);
                 }
             }
         }
@@ -281,20 +281,20 @@ namespace InfinityTech.Component
             {
                 for (int i = 0; i < meshBatchCacheID.Length; ++i)
                 {
-                    FMeshBatch MeshBatch;
-                    MeshBatch.visible = visible ? 1 : 0;
-                    MeshBatch.boundBox = boundBox;
-                    MeshBatch.castShadow = (int)castShadow;
-                    MeshBatch.motionType = (int)motionVector;
-                    MeshBatch.renderLayer = renderLayer;
-                    MeshBatch.sectionIndex = i;
-                    MeshBatch.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
-                    MeshBatch.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
-                    MeshBatch.priority = renderPriority + materials[i].renderQueue;
-                    MeshBatch.matrix_LocalToWorld = matrix_LocalToWorld;
-                    //MeshBatch.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
+                    FMeshElement meshElement;
+                    meshElement.visible = visible ? 1 : 0;
+                    meshElement.boundBox = boundBox;
+                    meshElement.castShadow = (int)castShadow;
+                    meshElement.motionType = (int)motionVector;
+                    meshElement.renderLayer = renderLayer;
+                    meshElement.sectionIndex = i;
+                    meshElement.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
+                    meshElement.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
+                    meshElement.priority = renderPriority + materials[i].renderQueue;
+                    meshElement.matrix_LocalToWorld = matrix_LocalToWorld;
+                    //meshElement.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
 
-                    GetWorld().GetMeshBatchColloctor().UpdateMeshBatch(MeshBatch, meshBatchCacheID[i]);
+                    GetWorld().GetMeshBatchColloctor().UpdateMeshBatch(meshElement, meshBatchCacheID[i]);
                 }
             }
         }

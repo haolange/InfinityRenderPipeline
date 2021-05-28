@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         Dynamic = 2
     };
 
-    public struct FMeshBatch : IComparable<FMeshBatch>, IEquatable<FMeshBatch>
+    public struct FMeshElement : IComparable<FMeshElement>, IEquatable<FMeshElement>
     {
         public int sectionIndex;
         public SharedRef<Mesh> staticMeshRef;
@@ -43,29 +43,29 @@ namespace InfinityTech.Rendering.MeshPipeline
         public float4x4 matrix_LocalToWorld;
 
 
-        public bool Equals(FMeshBatch Target)
+        public bool Equals(FMeshElement target)
         {
-            return sectionIndex.Equals(Target.sectionIndex) && staticMeshRef.Equals(Target.staticMeshRef) && materialRef.Equals(Target.materialRef);
+            return sectionIndex.Equals(target.sectionIndex) && staticMeshRef.Equals(target.staticMeshRef) && materialRef.Equals(target.materialRef);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object target)
         {
-            return Equals((FMeshBatch)obj);
+            return Equals((FMeshElement)target);
         }
 
-        public int CompareTo(FMeshBatch MeshBatch)
+        public int CompareTo(FMeshElement meshElement)
         {
-            return priority.CompareTo(MeshBatch.priority);
+            return priority.CompareTo(meshElement.priority);
         }
 
-        public static int MatchForDynamicInstance(ref FMeshBatch meshBatch)
+        public static int MatchForDynamicInstance(ref FMeshElement meshElement)
         {
-            return new int3(meshBatch.sectionIndex, meshBatch.staticMeshRef.Id, meshBatch.materialRef.Id).GetHashCode();
+            return new int3(meshElement.sectionIndex, meshElement.staticMeshRef.Id, meshElement.materialRef.Id).GetHashCode();
         }
 
-        public static int MatchForCacheMeshBatch(ref FMeshBatch meshBatch, in int instanceID)
+        public static int MatchForCacheMeshBatch(ref FMeshElement meshElement, in int instanceID)
         {
-            return instanceID + meshBatch.GetHashCode();
+            return instanceID + meshElement.GetHashCode();
         }
 
         public override int GetHashCode()
@@ -92,39 +92,39 @@ namespace InfinityTech.Rendering.MeshPipeline
             this.visible = visible;
         }
 
-        public int CompareTo(FViewMeshBatch ViewMeshBatch)
+        public int CompareTo(FViewMeshBatch viewMeshBatch)
         {
-            return visible.CompareTo(ViewMeshBatch.visible);
+            return visible.CompareTo(viewMeshBatch.visible);
         }
 
-        public static implicit operator Int32(FViewMeshBatch ViewMeshBatch) { return ViewMeshBatch.visible; }
+        public static implicit operator Int32(FViewMeshBatch viewMeshBatch) { return viewMeshBatch.visible; }
         public static implicit operator FViewMeshBatch(int index) { return new FViewMeshBatch(index); }
     }
 
-    public struct FPassMeshBatch : IComparable<FPassMeshBatch>, IEquatable<FPassMeshBatch>
+    public struct FPassMeshSection : IComparable<FPassMeshSection>, IEquatable<FPassMeshSection>
     {
-        public int meshBatchId;
+        public int meshElementId;
         public int instanceGroupId;
 
-        public FPassMeshBatch(in int meshBatchId, in int instanceGroupId)
+        public FPassMeshSection(in int meshElementId, in int instanceGroupId)
         {
-            this.meshBatchId = meshBatchId;
+            this.meshElementId = meshElementId;
             this.instanceGroupId = instanceGroupId;
         }
 
-        public int CompareTo(FPassMeshBatch Target)
+        public int CompareTo(FPassMeshSection target)
         {
-            return instanceGroupId.CompareTo(Target.instanceGroupId);
+            return instanceGroupId.CompareTo(target.instanceGroupId);
         }
 
-        public bool Equals(FPassMeshBatch Target)
+        public bool Equals(FPassMeshSection target)
         {
-            return instanceGroupId.Equals(Target.instanceGroupId);
+            return instanceGroupId.Equals(target.instanceGroupId);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object target)
         {
-            return Equals((FPassMeshBatch)obj);
+            return Equals((FPassMeshSection)target);
         }
 
         public override int GetHashCode()
