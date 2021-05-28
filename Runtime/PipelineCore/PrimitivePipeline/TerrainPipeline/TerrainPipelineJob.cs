@@ -48,15 +48,15 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public NativeArray<FTerrainSection> nativeSections;
 
-        public void Execute(int i)
+        public void Execute(int index)
         {
-            FTerrainSection section = nativeSections[i];
+            FTerrainSection section = nativeSections[index];
             float screenSize = TerrainUtility.ComputeBoundsScreenRadiusSquared(TerrainUtility.GetBoundRadius(section.boundBox), section.boundBox.center, viewOringin, matrix_Proj);
             section.lodIndex = math.min(6, TerrainUtility.GetLODFromScreenSize(section.lodSetting, screenSize, 1, out section.fractionLOD));
             section.fractionLOD = math.min(5, section.fractionLOD);
             section.numQuad = math.clamp(numQuad >> section.lodIndex, 1, numQuad);
 
-            nativeSections[i] = section;
+            nativeSections[index] = section;
         }
     }
 }

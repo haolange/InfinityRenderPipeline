@@ -20,23 +20,21 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void GetMeshBatch(in NativeArray<FTerrainSection> TerrainSections)
+        public void GetMeshBatch(in NativeArray<FTerrainSection> terrainSections)
         {
             if (!terrainBatchs.IsCreated) { return; }
 
-            for (int i = 0; i < TerrainSections.Length; ++i)
+            for (int i = 0; i < terrainSections.Length; ++i)
             {
-                FTerrainSection TerrainSection = TerrainSections[i];
+                FTerrainSection terrainSection = terrainSections[i];
 
-                FTerrainBatch TerrainBatch;
-                TerrainBatch.NumQuad = TerrainSection.numQuad;
-                TerrainBatch.LODIndex = TerrainSection.lodIndex;
-                TerrainBatch.BoundingBox = TerrainSection.boundBox;
-                TerrainBatch.PivotPosition = TerrainSection.pivotPos;
-                TerrainBatch.FractionLOD = TerrainSection.fractionLOD;
-                TerrainBatch.NeighborFractionLOD = new float4(1, 1, 1, 1);
-
-                terrainBatchs[i] = TerrainBatch;
+                FTerrainBatch terrainBatch;
+                terrainBatch.numQuad = terrainSection.numQuad;
+                terrainBatch.lODIndex = terrainSection.lodIndex;
+                terrainBatch.pivotPos = terrainSection.pivotPos;
+                terrainBatch.boundBox = terrainSection.boundBox;
+                terrainBatch.fractionLOD = terrainSection.fractionLOD;
+                terrainBatchs[i] = terrainBatch;
             }
         }
 

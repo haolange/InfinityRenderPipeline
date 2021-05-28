@@ -7,38 +7,37 @@ namespace InfinityTech.Rendering.TerrainPipeline
 {
     public struct FTerrainBatch : IComparable<FTerrainBatch>, IEquatable<FTerrainBatch>
     {
-        public int NumQuad;
-        public int LODIndex;
-        public float FractionLOD;
-        public FBound BoundingBox;
-        public float3 PivotPosition;
-        public float4 NeighborFractionLOD;
+        public int numQuad;
+        public int lODIndex;
+        public float fractionLOD;
+        public float3 pivotPos;
+        public FBound boundBox;
 
 
         public bool Equals(FTerrainBatch Target)
         {
-            return NumQuad.Equals(Target.NumQuad) && LODIndex.Equals(Target.LODIndex) && FractionLOD.Equals(Target.FractionLOD) && BoundingBox.Equals(Target.BoundingBox) && PivotPosition.Equals(Target.PivotPosition) && NeighborFractionLOD.Equals(Target.NeighborFractionLOD);
+            return numQuad.Equals(Target.numQuad) && lODIndex.Equals(Target.lODIndex) && fractionLOD.Equals(Target.fractionLOD) && boundBox.Equals(Target.boundBox) && pivotPos.Equals(Target.pivotPos);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object target)
         {
-            return Equals((FTerrainBatch)obj);
+            return Equals((FTerrainBatch)target);
         }
 
-        public int CompareTo(FTerrainBatch MeshBatch)
+        public int CompareTo(FTerrainBatch target)
         {
-            return LODIndex.CompareTo(MeshBatch.LODIndex);
+            return lODIndex.CompareTo(target.lODIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int MatchForDynamicInstance(ref FTerrainBatch Target)
+        public static int MatchForDynamicInstance(ref FTerrainBatch target)
         {
-            return Target.LODIndex;
+            return target.lODIndex;
         }
 
         public override int GetHashCode()
         {
-            int hashCode = LODIndex;
+            int hashCode = lODIndex;
 
             return hashCode;
         }

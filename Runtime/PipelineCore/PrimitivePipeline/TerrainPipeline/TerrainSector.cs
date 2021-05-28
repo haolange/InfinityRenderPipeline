@@ -8,11 +8,8 @@ using InfinityTech.Core.Geometry;
 namespace InfinityTech.Rendering.TerrainPipeline
 {
     [Serializable]
-    public class FTerrainSector
+    public class FTerrainSector : IDisposable
     {
-        //public bool nativeCreated { get { return m_Sections.IsCreated; } }
-
-        public int[] maxLODs;
         public FBound boundBox;
         public FTerrainSection[] sections;
         internal NativeArray<FTerrainSection> m_Sections;
@@ -22,7 +19,6 @@ namespace InfinityTech.Rendering.TerrainPipeline
             int sectorSize_Half = sectorSize / 2;
             int sectionSize_Half = sectionSize / 2;
 
-            maxLODs = new int[numSection * numSection];
             sections = new FTerrainSection[numSection * numSection];
             boundBox = new FBound(new float3(sectorPivotPos.x + sectorSize_Half, sectorPivotPos.y + (sectorBound.size.y / 2), sectorPivotPos.z + sectorSize_Half), sectorBound.size * 0.5f);
 
@@ -31,47 +27,26 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 for (int y = 0; y < numSection; ++y)
                 {
                     int sectionId = (x * numSection) + y;
-                    float3 SectionPivotPosition = sectorPivotPos + new float3(sectionSize * x, 0, sectionSize * y);
-                    float3 SectionCenterPosition = SectionPivotPosition + new float3(sectionSize_Half, 0, sectionSize_Half);
+                    float3 pivotPosition = sectorPivotPos + new float3(sectionSize * x, 0, sectionSize * y);
+                    float3 centerPosition = pivotPosition + new float3(sectionSize_Half, 0, sectionSize_Half);
 
                     sections[sectionId] = new FTerrainSection();
-                    sections[sectionId].pivotPos = SectionPivotPosition;
-                    sections[sectionId].centerPos = SectionCenterPosition;
-                    sections[sectionId].boundBox = new FAABB(SectionCenterPosition, new float3(sectionSize, 1, sectionSize));
+                    sections[sectionId].pivotPos = pivotPosition;
+                    sections[sectionId].boundBox = new FAABB(centerPosition, new float3(sectionSize, 1, sectionSize));
                 }
             }
-
-            InitializLOD(7);
         }
 
-        public void BuildNativeCollection()
+        public void Initializ()
         {
             m_Sections = new NativeArray<FTerrainSection>(sections.Length, Allocator.Persistent);
-
-            for (int i = 0; i < sections.Length; ++i)
-            {
-                m_Sections[i] = sections[i];
-            }
-        }
-
-        public void ReleaseNativeCollection()
-        {
-            m_Sections.Dispose();
-        }
-
-        private void InitializLOD(in int maxLOD)
-        {
-            for (int i = 0; i < maxLODs.Length; ++i)
-            {
-                maxLODs[i] = maxLOD;
-            }
         }
 
         public void BuildLODData(in float lod0ScreenSize, in float lod0Distribution, in float lodDistribution)
         {
+            int maxLOD = 7;
             for (int i = 0; i < sections.Length; ++i)
             {
-                ref int maxLOD = ref maxLODs[i];
                 ref FSectionLODData LODSetting = ref sections[i].lodSetting;
 
                 float CurrentScreenSizeRatio = lod0ScreenSize;
@@ -97,6 +72,9 @@ namespace InfinityTech.Rendering.TerrainPipeline
                 LODSetting.lastLODIndex = maxLOD;
                 LODSetting.lastLODScreenSizeSquared = LODScreenRatioSquared[maxLOD - 1];
             }
+
+            m_Sections.CopyFrom(sections);
+            //sections = null;
         }
 
         public void UpdateLODData(in int numQuad, in float3 viewOringin, in float4x4 matrix_Proj)
@@ -122,6 +100,11 @@ namespace InfinityTech.Rendering.TerrainPipeline
             sectionLODDataParallelUpdateJob.Schedule(m_NativeSections.Length, 32).Complete();*/
         }
 
+        public void Dispose()
+        {
+            m_Sections.Dispose();
+        }
+
 #if UNITY_EDITOR
         public void DrawBound(in bool useLODColor = false)
         {
@@ -140,7 +123,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
         }
 
-        public void BuildBounds(int sectorSize, int sectionSize, float scaleHeight, float3 terrianPosition, Texture2D heightmap)
+        public void BuildBounds(in int sectorSize, in int sectionSize, in float scaleHeight, in float3 terrianPosition, Texture2D heightmap)
         {
             int sectorSize_Half = sectorSize / 2;
 
@@ -169,9 +152,9 @@ namespace InfinityTech.Rendering.TerrainPipeline
                     }
                 }
 
-                float posHeight = ((section.centerPos.y + minHeight * scaleHeight) + (section.centerPos.y + maxHeight * scaleHeight)) * 0.5f;
-                float sizeHeight = ((section.centerPos.y + minHeight * scaleHeight) - (section.centerPos.y + maxHeight * scaleHeight));
-                float3 newBoundCenter = new float3(section.centerPos.x, posHeight, section.centerPos.z);
+                float posHeight = ((section.boundBox.center.y + minHeight * scaleHeight) + (section.boundBox.center.y + maxHeight * scaleHeight)) * 0.5f;
+                float sizeHeight = ((section.boundBox.center.y + minHeight * scaleHeight) - (section.boundBox.center.y + maxHeight * scaleHeight));
+                float3 newBoundCenter = new float3(section.boundBox.center.x, posHeight, section.boundBox.center.z);
                 section.boundBox = new FAABB(newBoundCenter, new float3(sectionSize, sizeHeight, sectionSize));
             }
         }

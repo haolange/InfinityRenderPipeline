@@ -53,7 +53,6 @@ namespace InfinityTech.Component
         [HideInInspector]
         public FTerrainSector terrainSector;
 
-
         public TerrainComponent() : base()
         {
 
@@ -62,9 +61,8 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             GetWorld().AddWorldTerrain(this);
-
+            terrainSector?.Initializ();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
-            terrainSector?.BuildNativeCollection();
         }
 
         protected override void OnTransformChange()
@@ -85,7 +83,7 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             GetWorld().RemoveWorldTerrain(this);
-            terrainSector?.ReleaseNativeCollection();
+            terrainSector?.Dispose();
         }
 
         public void UpdateLODData(in float3 viewOringin, in float4x4 matrix_Proj)

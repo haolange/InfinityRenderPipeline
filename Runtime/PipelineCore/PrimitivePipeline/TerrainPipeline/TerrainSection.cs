@@ -10,8 +10,8 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int lastLODIndex;
         public float lod0ScreenSizeSquared;
 		public float lod1ScreenSizeSquared;
-		public float lodOnePlusDistributionScalarSquared;
 		public float lastLODScreenSizeSquared;
+		public float lodOnePlusDistributionScalarSquared;
 	};
 
     [Serializable]
@@ -20,16 +20,14 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public int numQuad;
         public int lodIndex;
         public float fractionLOD;
-
-        public FBound boundBox;
         public float3 pivotPos;
-        public float3 centerPos;
+        public FBound boundBox;
         public FSectionLODData lodSetting;
 
 
         public bool Equals(FTerrainSection target)
         {
-            return numQuad.Equals(target.numQuad) && lodIndex.Equals(target.lodIndex) && fractionLOD.Equals(target.fractionLOD) && boundBox.Equals(target.boundBox) && pivotPos.Equals(target.pivotPos) && centerPos.Equals(target.centerPos);
+            return numQuad.Equals(target.numQuad) && lodIndex.Equals(target.lodIndex) && fractionLOD.Equals(target.fractionLOD) && boundBox.Equals(target.boundBox) && pivotPos.Equals(target.pivotPos);
         }
 
         public int CompareTo(FTerrainSection target)
@@ -48,7 +46,6 @@ namespace InfinityTech.Rendering.TerrainPipeline
             hashCode += lodIndex.GetHashCode();
             hashCode += boundBox.GetHashCode();
             hashCode += pivotPos.GetHashCode();
-            hashCode += centerPos.GetHashCode();
             hashCode += fractionLOD.GetHashCode();
             return hashCode;
         }
