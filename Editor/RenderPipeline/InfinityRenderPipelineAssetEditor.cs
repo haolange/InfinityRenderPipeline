@@ -8,25 +8,27 @@ namespace InfinityTech.Editor.Component
     [CustomEditor(typeof(InfinityRenderPipelineAsset))]
     public class InfinityRenderPipelineAssetEditor : UnityEditor.Editor
     {
-        public bool ResourceTab = true;
-        public bool RenderingTab = true;
+        public bool showShader = false;
+        public bool showMaterial = false;
+        public bool showAdvanced = true;
 
-        public SerializedProperty SRPBatch;
-        public SerializedProperty DynamicBatch;
-        public SerializedProperty GPUInstance;
-        public SerializedProperty RayTracing;
-
-        public SerializedProperty DefaultShader;
-        public SerializedProperty DefaultMaterial;
+        private SerializedProperty m_RayTracing;
+        private SerializedProperty m_SRPBatch;
+        private SerializedProperty m_GPUInstance;
+        private SerializedProperty m_DynamicBatch;
+        private SerializedProperty m_DefaultShader;
+        private SerializedProperty m_DefaultMaterial;
 
         void OnEnable()
         {
-            SRPBatch = serializedObject.FindProperty("EnableSRPBatch");
-            DynamicBatch = serializedObject.FindProperty("EnableDynamicBatch");
-            GPUInstance = serializedObject.FindProperty("EnableInstanceBatch");
-            RayTracing = serializedObject.FindProperty("EnableRayTracing");
-            DefaultShader = serializedObject.FindProperty("DefaultShader");
-            DefaultMaterial = serializedObject.FindProperty("DefaultMaterial");
+            m_RayTracing = serializedObject.FindProperty("EnableRayTracing");
+
+            m_SRPBatch = serializedObject.FindProperty("EnableSRPBatch");
+            m_GPUInstance = serializedObject.FindProperty("EnableInstanceBatch");
+            m_DynamicBatch = serializedObject.FindProperty("EnableDynamicBatch");
+
+            m_DefaultShader = serializedObject.FindProperty("DefaultShader");
+            m_DefaultMaterial = serializedObject.FindProperty("DefaultMaterial");
         }
 
         public override void OnInspectorGUI()
@@ -34,20 +36,27 @@ namespace InfinityTech.Editor.Component
             serializedObject.Update();
 
             //////////////////////
-            ResourceTab = EditorGUILayout.BeginFoldoutHeaderGroup(ResourceTab, "Resource");
-            if (ResourceTab)
+            showShader = EditorGUILayout.BeginFoldoutHeaderGroup(showShader, "Shaders");
+            if (showShader)
             {
-                EditorGUILayout.PropertyField(DefaultShader, new GUIContent("Default Shader"), GUILayout.Height(18));
-                EditorGUILayout.PropertyField(DefaultMaterial, new GUIContent("Default Material"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_DefaultShader, new GUIContent("Default Shader"), GUILayout.Height(18));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
-            RenderingTab = EditorGUILayout.BeginFoldoutHeaderGroup(RenderingTab, "Rendering");
-            if (RenderingTab) {
-                EditorGUILayout.PropertyField(RayTracing, new GUIContent("Ray Tracing"), GUILayout.Height(25));
-                EditorGUILayout.PropertyField(SRPBatch, new GUIContent("SRP Batcher"), GUILayout.Height(25));
-                EditorGUILayout.PropertyField(DynamicBatch, new GUIContent("Dynamic Batcher"), GUILayout.Height(25));
-                EditorGUILayout.PropertyField(GPUInstance, new GUIContent("GPU Instance"), GUILayout.Height(25));
+            showMaterial = EditorGUILayout.BeginFoldoutHeaderGroup(showMaterial, "Materials");
+            if (showMaterial)
+            {
+                EditorGUILayout.PropertyField(m_DefaultMaterial, new GUIContent("Default Material"), GUILayout.Height(18));
+            }
+            EditorGUILayout.EndFoldoutHeaderGroup();
+
+            showAdvanced = EditorGUILayout.BeginFoldoutHeaderGroup(showAdvanced, "Advanced");
+            if (showAdvanced) 
+            {
+                EditorGUILayout.PropertyField(m_RayTracing, new GUIContent("Ray Trace"), GUILayout.Height(25));
+                EditorGUILayout.PropertyField(m_SRPBatch, new GUIContent("SRP Batch"), GUILayout.Height(25));
+                EditorGUILayout.PropertyField(m_GPUInstance, new GUIContent("GPU Instance"), GUILayout.Height(25));
+                EditorGUILayout.PropertyField(m_DynamicBatch, new GUIContent("Dynamic Batcher"), GUILayout.Height(25));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
