@@ -1,5 +1,5 @@
-#ifndef _Random_ush_
-#define _Random_ush_
+#ifndef _RandomInclude
+#define _RandomInclude
 
 inline int2 ihash(int2 n)
 {

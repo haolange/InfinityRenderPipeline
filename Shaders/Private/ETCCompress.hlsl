@@ -1,5 +1,5 @@
-#ifndef _ETCCompress_
-#define _ETCCompress_
+#ifndef _ETCCompressInclude
+#define _ETCCompressInclude
 
 #define BLOCK_MODE_INDIVIDUAL				0
 #define BLOCK_MODE_DIFFERENTIAL				1

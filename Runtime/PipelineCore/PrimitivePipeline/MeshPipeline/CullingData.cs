@@ -9,12 +9,14 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     internal unsafe static class FCullingUtility
     {
-        public static void DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, Camera view, ref FCullingData cullingData)
+        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isRendererView, Camera view)
         {
+            FCullingData cullingData = new FCullingData(isRendererView);
             cullingData.CullState = false;
-            if(gpuScene.meshElements.IsCreated == false) { return; }
-            cullingData.CullState = true;
 
+            if(gpuScene.meshElements.IsCreated == false || isRendererView != true) { return cullingData; }
+
+            cullingData.CullState = true;
             cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
             Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(view);
             for (int i = 0; i < 6; ++i)
@@ -31,14 +33,17 @@ namespace InfinityTech.Rendering.MeshPipeline
                 meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
             }
             meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+            return cullingData;
         }
 
-        public static void DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, ref ScriptableCullingParameters cullingParameters, ref FCullingData cullingData)
+        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isRendererView, ref ScriptableCullingParameters cullingParameters)
         {
+            FCullingData cullingData = new FCullingData(isRendererView);
             cullingData.CullState = false;
-            if(gpuScene.meshElements.IsCreated == false || cullingData.isRendererView != true) { return; }
-            cullingData.CullState = true;
 
+            if(gpuScene.meshElements.IsCreated == false || isRendererView != true) { return cullingData; }
+
+            cullingData.CullState = true;
             cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
             for (int i = 0; i < 6; ++i)
             {
@@ -54,6 +59,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
             }
             meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+            return cullingData;
         }
     }
 

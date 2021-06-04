@@ -1,9 +1,7 @@
-Shader "InfinityPipeline/TerrainLit"
+Shader "Hidden/InfinityPipeline/TerrainLitAdd"
 {
     Properties
     {
-        [HideInInspector] [ToggleUI] _EnableHeightBlend("EnableHeightBlend", Float) = 0.0
-        _HeightTransition("Height Transition", Range(0, 1.0)) = 0.0
         // Layer count is passed down to guide height-blend enable/disable, due
         // to the fact that heigh-based blend will be broken with multipass.
         [HideInInspector] [PerRendererData] _NumLayersCount ("Total Layer Count", Float) = 1.0
@@ -35,9 +33,7 @@ Shader "InfinityPipeline/TerrainLit"
         [HideInInspector] _MainTex("BaseMap (RGB)", 2D) = "grey" {}
         [HideInInspector] _BaseColor("Main Color", Color) = (1,1,1,1)
 		
-		[HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {} 
-
-        [Toggle (_TERRAIN_INSTANCED_PERPIXEL_NORMAL)] EnableInstancedPerPixelNormal ("Enable Instanced per-pixel normal", Range(0, 1)) = 0
+		[HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {}
     }
 
 	HLSLINCLUDE
@@ -46,14 +42,15 @@ Shader "InfinityPipeline/TerrainLit"
 	
     SubShader
     {
-        Tags{ "Queue" = "Geometry-100" "RenderType" = "Opaque" "RenderPipeline" = "InfinityPipeline" "IgnoreProjector" = "false" "TerrainCompatible" = "True"}
+        Tags{ "Queue" = "Geometry-99" "RenderType" = "Opaque" "RenderPipeline" = "InfinityPipeline" "IgnoreProjector" = "false" }
 
         Pass
         {
-			Name "ForwardPass"
+			Name "TerrainAdd"
 			Tags { "LightMode" = "ForwardPlus" }
-            
-			ZTest LEqual ZWrite On Cull Back
+
+            Blend One One
+			ZTest Equal ZWrite Off Cull Back
 
             HLSLPROGRAM
             #pragma vertex SplatmapVert
@@ -66,14 +63,11 @@ Shader "InfinityPipeline/TerrainLit"
             #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _TERRAIN_BLEND_HEIGHT
             #pragma shader_feature_local _TERRAIN_INSTANCED_PERPIXEL_NORMAL
-    
-            #define _METALLICSPECGLOSSMAP 1
-            #define _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A 1
 
+            #define TERRAIN_SPLAT_ADDPASS
+    
             #include "TerrainLitInclude.hlsl"
             ENDHLSL
         }
     }
-
-    Dependency "AddPassShader" = "Hidden/InfinityPipeline/TerrainLitAdd"
 }

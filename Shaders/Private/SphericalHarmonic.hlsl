@@ -1,5 +1,5 @@
-#ifndef _SphericalHarmonic_
-#define _SphericalHarmonic_
+#ifndef _SphericalHarmonicInclude
+#define _SphericalHarmonicInclude
 
 //#include "Common.hlsl"
 //#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"

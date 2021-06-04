@@ -1,5 +1,5 @@
-#ifndef RT_COMMON_H_
-#define RT_COMMON_H_
+#ifndef _DXRCommonInclude
+#define _DXRCommonInclude
 
 // Engine includes
 #include "UnityRaytracingMeshUtils.cginc"

@@ -59,7 +59,7 @@
 
 			//#define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod) SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, 0, lod)
 			#include "../Private/Common.hlsl"
-			#include "../Private/PackData.hlsl"
+			#include "../Private/GBufferPack.hlsl"
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 

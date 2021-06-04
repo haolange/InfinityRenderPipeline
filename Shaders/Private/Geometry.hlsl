@@ -1,5 +1,5 @@
-#ifndef _Geometry_
-#define _Geometry_
+#ifndef _GeometryInclude
+#define _GeometryInclude
 
 struct FBound
 {

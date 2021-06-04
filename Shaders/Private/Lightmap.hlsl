@@ -1,5 +1,5 @@
-#ifndef _BSDF_
-#define _BSDF_
+#ifndef _LightmapInclude
+#define _LightmapInclude
 
 #include "ShaderVariable.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"

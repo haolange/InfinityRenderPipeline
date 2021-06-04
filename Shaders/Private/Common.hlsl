@@ -1,5 +1,5 @@
-#ifndef _BaseCommon_
-#define _BaseCommon_
+#ifndef _CommonInclude
+#define _CommonInclude
 
 
 //#define float half

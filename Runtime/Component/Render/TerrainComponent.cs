@@ -1,6 +1,8 @@
 using UnityEditor;
 using UnityEngine;
 using Unity.Mathematics;
+using UnityEngine.Rendering;
+using System.Collections.Generic;
 using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Component
@@ -20,7 +22,7 @@ namespace InfinityTech.Component
         {
             get
             {
-                return sectorSize / 32;
+                return sectorSize / 64;
             }
         }
         public int sectorSize
@@ -62,27 +64,35 @@ namespace InfinityTech.Component
             GetWorld().AddWorldTerrain(this);
             terrainSector?.Initializ();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
+
+            //RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
         }
 
-        protected override void OnTransformChange()
+        /*void OnBeginCameraRendering(ScriptableRenderContext renderContext, Camera camera)
         {
+            List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
+            float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
 
-        }
+            for(int i = 0; i < terrains.Count; ++i)
+            {
+                TerrainComponent terrain = terrains[i];
+                terrain.UpdateLODData(camera.transform.position, matrix_Proj);
 
-        protected override void EventPlay()
-        {
-
-        }
-
-        protected override void EventTick()
-        {
-
-        }
+                #if UNITY_EDITOR
+                    if (Handles.ShouldRenderGizmos())
+                    {
+                        terrain.DrawBounds(true);
+                    }
+                #endif
+            }
+        }*/
 
         protected override void UnRegister()
         {
-            GetWorld().RemoveWorldTerrain(this);
             terrainSector?.Dispose();
+            GetWorld().RemoveWorldTerrain(this);
+
+            //RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         }
 
         public void UpdateLODData(in float3 viewOringin, in float4x4 matrix_Proj)

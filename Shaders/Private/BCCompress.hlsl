@@ -1,5 +1,5 @@
-#ifndef _BC3Compress_
-#define _BC3Compress_
+#ifndef _BC3CompressInclude
+#define _BC3CompressInclude
 
 half LinearToSrgbBranchingChannel(half lin)
 {

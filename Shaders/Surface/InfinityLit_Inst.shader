@@ -104,8 +104,8 @@
 
 			#include "../Private/Common.hlsl"
 			#include "../Private/GPUScene.hlsl"
-			#include "../Private/PackData.hlsl"
 			#include "../Private/Lightmap.hlsl"
+			#include "../Private/GBufferPack.hlsl"
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
@@ -153,7 +153,7 @@
 			{
 				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
 
-				ThinGBufferData GBufferData;
+				FGBufferData GBufferData;
 				GBufferData.WorldNormal = normalize(In.normal);
 				GBufferData.BaseColor = BaseColor;
 				GBufferData.Roughness = BaseColor.r;
@@ -180,8 +180,8 @@
 
 			#include "../Private/Common.hlsl"
 			#include "../Private/GPUScene.hlsl"
-			#include "../Private/PackData.hlsl"
 			#include "../Private/Lightmap.hlsl"
+			#include "../Private/GBufferPack.hlsl"
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"

@@ -1,5 +1,5 @@
-#ifndef _Montcalo_
-#define _Montcalo_
+#ifndef _MontcaloInclude
+#define _MontcaloInclude
 
 #include "Common.hlsl"
 

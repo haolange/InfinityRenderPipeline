@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
         }
 
-        public void UnpateViewUnifrom(in bool isLastData, Camera camera)
+        public void UnpateViewUnifrom(Camera camera, in bool isLastData = false)
         {
             if(!isLastData) {
                 UnpateCurrBufferData(camera);
@@ -239,17 +239,15 @@ namespace InfinityTech.Rendering.Pipeline
 
                         m_MeshPassTaskRefs.Clear();
                         VFXManager.PrepareCamera(camera);
-                        m_ViewUnifrom.UnpateViewUnifrom(false, camera);
+                        VFXManager.ProcessCameraCommand(camera, cmdBuffer);
+                        m_ViewUnifrom.UnpateViewUnifrom(camera);
                         m_ViewUnifrom.SetViewUnifrom(cmdBuffer);
                         renderContext.SetupCameraProperties(camera);
-                        VFXManager.ProcessCameraCommand(camera, cmdBuffer);
 
                         //Culling Context
                         camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                         CullingResults cullingResult = renderContext.Cull(ref cullingParameters);
-
-                        FCullingData cullingData = new FCullingData(isRendererView);
-                        renderContext.DispatchCull(m_GPUScene, ref cullingParameters, ref cullingData);
+                        FCullingData cullingData = renderContext.DispatchCull(m_GPUScene, isRendererView, ref cullingParameters);
 
                         //Terrain Context
                         List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
@@ -258,6 +256,7 @@ namespace InfinityTech.Rendering.Pipeline
                         {
                             TerrainComponent terrain = terrains[j];
                             terrain.UpdateLODData(camera.transform.position, matrix_Proj);
+                            
                             #if UNITY_EDITOR
                                 if (Handles.ShouldRenderGizmos())
                                 {
@@ -283,7 +282,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         #region ReleaseViewContext
                         cullingData.Release();
-                        m_ViewUnifrom.UnpateViewUnifrom(true, camera);
+                        m_ViewUnifrom.UnpateViewUnifrom(camera, true);
                         #endregion //ReleaseViewContext
                     }
                     EndCameraRendering(renderContext, camera);

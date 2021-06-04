@@ -1,5 +1,5 @@
-#ifndef __SHADING_MODEL__
-#define __SHADING_MODEL__
+#ifndef _ShadingModelInclude
+#define _ShadingModelInclude
 
 #include "BSDF.hlsl"
 

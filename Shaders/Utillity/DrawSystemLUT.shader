@@ -271,7 +271,8 @@
 			for(uint i = 0; i < coneZStepCount; ++i)
 			{
 				float z = cosConeAngle + (i * zStep);
-				float xy = sqrt(1 - z * z);
+				float xy = sqrt(1 - z);
+				//float xy = sqrt(1 - z * z);
 
 				for(uint j = 0; j < conePhiStepCount; ++j)
 				{

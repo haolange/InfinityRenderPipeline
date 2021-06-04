@@ -163,8 +163,8 @@
 
 
 			#include "../Private/Common.hlsl"
-			#include "../Private/PackData.hlsl"
 			#include "../Private/Lightmap.hlsl"
+			#include "../Private/GBufferPack.hlsl"
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
@@ -234,7 +234,7 @@
 				//GBufferA = float4(BaseColor, 1);
 				//GBufferB = uint4((In.normal * 127 + 127), 1);
 
-				ThinGBufferData GBufferData;
+				FGBufferData GBufferData;
 				GBufferData.WorldNormal = normalize(In.normal);
 				GBufferData.BaseColor = BaseColor;
 				GBufferData.Roughness = BaseColor.r;
@@ -319,8 +319,8 @@
 
 
 			#include "../Private/Common.hlsl"
-			#include "../Private/PackData.hlsl"
 			#include "../Private/Lightmap.hlsl"
+			#include "../Private/GBufferPack.hlsl"
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"

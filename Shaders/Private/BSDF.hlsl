@@ -1,5 +1,5 @@
-#ifndef _BSDF_
-#define _BSDF_
+#ifndef _BSDFInclude
+#define _BSDFInclude
 
 #include "Common.hlsl"
 #include "Montcalo.hlsl"

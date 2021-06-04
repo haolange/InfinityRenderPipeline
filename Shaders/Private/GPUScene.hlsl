@@ -1,5 +1,5 @@
-#ifndef _GPUScene_
-#define _GPUScene_
+#ifndef _GPUSceneInclude
+#define _GPUSceneInclude
 
 #include "Common.hlsl"
 #include "Geometry.hlsl"

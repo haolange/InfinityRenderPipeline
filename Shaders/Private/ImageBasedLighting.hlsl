@@ -1,5 +1,5 @@
-#ifndef _ImageBasedLighting_
-#define _ImageBasedLighting_
+#ifndef _ImageBasedLightingInclude
+#define _ImageBasedLightingInclude
 
 #include "BSDF.hlsl"
 #include "ShadingModel.hlsl"

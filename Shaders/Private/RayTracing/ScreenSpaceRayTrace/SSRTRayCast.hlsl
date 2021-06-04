@@ -1,5 +1,5 @@
-#ifndef _SSRTRayCast_
-#define _SSRTRayCast_
+#ifndef _SSRayCastInclude
+#define _SSRayCastInclude
 
 ////////////////////////GlobalData////////////////////////
 #include "UnityCG.cginc"

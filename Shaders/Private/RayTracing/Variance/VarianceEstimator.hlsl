@@ -1,5 +1,5 @@
-#ifndef _VarianceEstimator_
-#define _VarianceEstimator_
+#ifndef _VarianceEstimatorInclude
+#define _VarianceEstimatorInclude
 
 struct VarianceEstimator
 {
