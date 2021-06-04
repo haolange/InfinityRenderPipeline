@@ -253,7 +253,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         //Terrain Context
                         List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
-                        float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix((camera.fieldOfView) * 0.5f, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
+                        float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
                         for(int j = 0; j < terrains.Count; ++j)
                         {
                             TerrainComponent terrain = terrains[j];

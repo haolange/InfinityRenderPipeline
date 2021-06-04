@@ -12,7 +12,6 @@ namespace InfinityTech.Component
     [AddComponentMenu("InfinityRenderer/Terrain Component")]
     public class TerrainComponent : EntityComponent
     {
-        [Header("Terrain Setting")]
         public float lod0ScreenSize = 0.5f;
         public float lod0Distribution = 1.25f;
         public float lodXDistribution = 2.8f;
