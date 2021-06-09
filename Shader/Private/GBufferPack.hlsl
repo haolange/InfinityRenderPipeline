@@ -9,7 +9,7 @@
 float3 Pack1212To888(float2 x)
 {
 	// Pack 12:12 to 8:8:8
-    #if 1
+    #if 0
         uint2 x1212 = (uint2)(x * 4095);
         uint2 High = x1212 >> 8;
         uint2 Low = x1212 & 255;
@@ -27,7 +27,7 @@ float3 Pack1212To888(float2 x)
 float2 Pack888To1212(float3 x)
 {
 	// Pack 8:8:8 to 12:12
-    #if 1
+    #if 0
         uint3 x888 = (uint3)(x * 255);
         uint High = x888.z >> 4;
         uint Low = x888.z & 15;
