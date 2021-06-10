@@ -274,7 +274,7 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderPresentView(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
                         #endregion //InitViewCommand
 
-                        #region ExecuteViewRender
+                        #region ExecuteViewCommand
                         m_GraphBuilder.Execute(renderContext, GetWorld(), resourceFactory, m_MeshPassTaskRefs, cmdBuffer, m_ViewUnifrom.frameIndex);
                         #endregion //ExecuteViewRender
 
