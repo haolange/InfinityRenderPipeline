@@ -290,9 +290,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             //Execute FrameContext
             renderContext.ExecuteCommandBuffer(cmdBuffer);
-            cmdBuffer.Clear();
             renderContext.Submit();
-
+            cmdBuffer.Clear();
+            
             //Release FrameContext
             m_GPUScene.Release(resourceFactory);
             CommandBufferPool.Release(cmdBuffer);
