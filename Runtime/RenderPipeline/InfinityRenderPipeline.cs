@@ -210,21 +210,19 @@ namespace InfinityTech.Rendering.Pipeline
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
-            //Init FrameContext
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
             FResourceFactory resourceFactory = GetWorld().resourceFactory;
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
             m_GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, 1, false);
 
-            //Do FrameRender
+            //Setup FrameContext
             BeginFrameRendering(renderContext, cameras);
             for (int i = 0; i < cameras.Length; ++i)
             {
-                //Init View
                 Camera camera = cameras[i];
                 CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
-                //Render View
+                //Camera RenderLoop
                 using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(ERGProfileId.InfinityRenderer)))
                 {
                     BeginCameraRendering(renderContext, camera);
@@ -287,13 +285,13 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     EndCameraRendering(renderContext, camera);
                 }
-
-                //Submit ViewCommand
-                renderContext.ExecuteCommandBuffer(cmdBuffer);
-                cmdBuffer.Clear();
-                renderContext.Submit();
             }
             EndFrameRendering(renderContext, cameras);
+
+            //Execute FrameContext
+            renderContext.ExecuteCommandBuffer(cmdBuffer);
+            cmdBuffer.Clear();
+            renderContext.Submit();
 
             //Release FrameContext
             m_GPUScene.Release(resourceFactory);
