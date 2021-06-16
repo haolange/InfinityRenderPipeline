@@ -250,7 +250,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, FResourceFactory resourceFactory, in NativeList<JobHandle> meshPassTaskRefs, CommandBuffer cmd, in int frameIndex)
+        public void Execute(FRenderWorld world, ScriptableRenderContext renderContext, FResourceFactory resourceFactory, in NativeList<JobHandle> meshPassTaskRefs, CommandBuffer cmd, in int frameIndex)
         {
             #region SetupRenderPass
             SetupRenderPass();
