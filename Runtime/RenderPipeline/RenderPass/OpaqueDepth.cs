@@ -49,16 +49,16 @@ namespace InfinityTech.Rendering.Pipeline
             });
         }
 
-        /*void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
+        void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
         {
             RendererList rendererList = RendererList.Create(CreateRendererListDesc(camera, cullingResult, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
             TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueDepthString.TextureName, depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
-            RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FOpaqueDepthData>(FOpaqueDepthString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueDepth));
-
+            RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FOpaqueDepthData>(FOpaqueDepthString.PassName, ref passData, ProfilingSampler.Get(CustomSamplerId.OpaqueDepth));
             passData.rendererList = rendererList;
             passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
+            
             m_DepthMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
 
             passBuilder.SetExecuteFunc((ref FOpaqueDepthData passData, ref RDGGraphContext graphContext) =>
@@ -73,6 +73,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
                 graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
             });
-        }*/
+        }
     }
 }
