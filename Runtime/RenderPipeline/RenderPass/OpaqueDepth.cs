@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
             });
         }
 
-        void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
+        /*void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
         {
             RendererList rendererList = RendererList.Create(CreateRendererListDesc(camera, cullingResult, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
             TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueDepthString.TextureName, depthBufferBits = EDepthBits.Depth32 };
@@ -73,6 +73,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
                 graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
             });
-        }
+        }*/
     }
 }
