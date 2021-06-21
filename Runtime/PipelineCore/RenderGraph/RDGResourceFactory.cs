@@ -10,7 +10,10 @@ namespace InfinityTech.Rendering.RDG
     {
         GraphBuilderClear,
         GraphBuilderBind,
-        InfinityRenderer
+        BeginFrameRendering,
+        EndFrameRendering,
+        SceneRendering,
+        CameraRendering
     }
 
     class RDGResourceFactory
