@@ -4,6 +4,13 @@
 	{
 		[Header(Cubemap)]
 		_Cubemap("Cubemap", Cube) = "black" {}
+		
+		[Header(Subsurface)]
+        _Albedo("ScatterColor", Color) = (1, 1, 1, 1)
+		_ScatterColor("FalloffColor", Color) = (1, 0.15, 0.01, 1)
+        _ScatterScale("ScatterScale", Range(0, 1)) = 0.05
+		_ScatterRadiuMin("ScatterRadiuMin", Float) = 0.15
+		_ScatterRadiuMax("ScatterRadiuMax", Float) = 5
 	}
 
 	CGINCLUDE
@@ -11,6 +18,9 @@
 		#include "../Private/Random.hlsl"
 		#include "../Private/SphericalHarmonic.hlsl"
 		#include "../Private/ImageBasedLighting.hlsl"
+
+        float _ScatterScale, _ScatterRadiuMin, _ScatterRadiuMax;
+        float4 _Albedo, _ScatterColor;
 
 		TextureCube _Cubemap;
 		SamplerState sampler_Cubemap;
@@ -25,6 +35,22 @@
 		{
 			float3 v = v0 - v1;
 			return sqrt(dot(v, v));
+		}
+
+		float3 ToneMapping(float3 color)
+		{
+			float3 x = max(0, color - 0.004);
+			return  (x * (6.2 * x + 0.5)) / (x * (6.2 * x + 1.7) + 0.06);
+		}
+
+		float3 ACESToneMapping(float3 color)
+		{
+			const float A = 2.51f;
+			const float B = 0.03f;
+			const float C = 2.43f;
+			const float D = 0.59f;
+			const float E = 0.14f;
+			return (color * (A * color + B)) / (color * (C * color + D) + E);
 		}
 
 		// in BurleyNormalizedSSSCommon.ush
@@ -48,7 +74,7 @@
 
 		float3 CaculateBurleyV2(float offset, float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float maxRadiusInMM, float minRadiusInMM)
 		{
-			float x = UV.x;
+			float x = UV.x - offset;
 			float y = UV.y;
 
 			// cm to mm
@@ -173,7 +199,6 @@
 			return saturate(rgb);
 		}
 
-
 		float frag_Integrated_DiffuseGF(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
@@ -201,15 +226,18 @@
 		float3 frag_Integrated_SkinScatter(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
-			uv.y = 1 - uv.y;
-			return CaculateBurleyV2(0, uv, 1, float3(1, 0.15, 0.01), 0.05, 0.15, 5);
+			//uv.y = 1 - uv.y;
+			float3 LUTColor = CaculateBurleyV2(0, uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
+			return (LUTColor);
 		}
 
 		float3 frag_Integrated_SkinShadow(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
 			uv.y = 1 - uv.y;
-			return CaculateBurleyV2(0.15, uv, 1, float3(1, 0.15, 0.01), 0.05, 0.15, 5);
+			//return CaculateBurleyV2(0.15, uv, 1, float3(1, 0.15, 0.01), 0.05, 0.15, 5);
+			float3 LUTColor = CaculateBurleyV2(0.15, uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMin, _ScatterRadiuMax);
+			return (LUTColor);
 		}
 
 		float3 frag_Prefilter_Diffuse(v2f_customrendertexture i) : SV_Target
