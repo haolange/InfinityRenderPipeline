@@ -6,7 +6,7 @@ using Unity.Collections;
 namespace InfinityTech.Rendering.TerrainPipeline
 {
     [BurstCompile]
-    public struct FSectionLODDataUpdateJob : IJob
+    public struct FTerrainComputeLODJob : IJob
     {
         [ReadOnly]
         public int numQuad;
@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
     }
 
     [BurstCompile]
-    public struct FSectionLODDataParallelUpdateJob : IJobParallelFor
+    public struct FTerrainComputeLODParallelJob : IJobParallelFor
     {
         [ReadOnly]
         public int numQuad;

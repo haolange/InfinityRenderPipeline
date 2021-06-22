@@ -230,11 +230,11 @@ namespace InfinityTech.Rendering.Pipeline
                         BeginCameraRendering(renderContext, camera);
                         {
                             #region InitViewContext
-                            bool isSceneView = camera.cameraType == CameraType.SceneView;
-                            bool isRendererView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
+                            bool isEditView = camera.cameraType == CameraType.SceneView;
+                            bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
                             #if UNITY_EDITOR
-                                if (isSceneView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); }
+                                if (isEditView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); }
                             #endif
 
                             m_MeshPassTaskRefs.Clear();
@@ -246,23 +246,31 @@ namespace InfinityTech.Rendering.Pipeline
 
                             //Culling Context
                             camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
+
+                            //Unity Culling
                             CullingResults cullingResult = renderContext.Cull(ref cullingParameters);
-                            FCullingData cullingData = renderContext.DispatchCull(m_GPUScene, isRendererView, ref cullingParameters);
+
+                            //Custom Culling
+                            FCullingData cullingData;
+                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.CullingScene)))
+                            {
+                                cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
+                            }
 
                             //Terrain Context
-                            List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
-                            float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
-                            for(int j = 0; j < terrains.Count; ++j)
+                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ComputeLOD)))
                             {
-                                TerrainComponent terrain = terrains[j];
-                                terrain.UpdateLODData(camera.transform.position, matrix_Proj);
-                                
-                                #if UNITY_EDITOR
-                                    if (Handles.ShouldRenderGizmos())
-                                    {
-                                        terrain.DrawBounds(true);
-                                    }
-                                #endif
+                                List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
+                                float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
+                                for(int j = 0; j < terrains.Count; ++j)
+                                {
+                                    TerrainComponent terrain = terrains[j];
+                                    terrain.ComputeLOD(camera.transform.position, matrix_Proj);
+                                    
+                                    #if UNITY_EDITOR
+                                        if (Handles.ShouldRenderGizmos()) { terrain.DrawBounds(true); }
+                                    #endif
+                                }
                             }
                             #endregion //InitViewContext
 

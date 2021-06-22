@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal void DispatchSetup(ref FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
         {
-            if (m_GPUScene.meshElements.IsCreated == false || cullingData.viewMeshBatchs.IsCreated == false || cullingData.isRendererView != true) { return; }
+            if (m_GPUScene.meshElements.IsCreated == false || cullingData.viewMeshBatchs.IsCreated == false || cullingData.isSceneView != true) { return; }
             if (cullingData.viewMeshBatchs.Length == 0) { return; }
 
             m_MeshBatchIndexs = new NativeArray<int>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);

@@ -157,55 +157,51 @@ namespace InfinityTech.Rendering.TerrainPipeline
     {
         public static Color[] LODColor = new Color[7] { new Color(1, 1, 1, 1), new Color(1, 0, 0, 1), new Color(0, 1, 0, 1), new Color(0, 0, 1, 1), new Color(1, 1, 0, 1), new Color(1, 0, 1, 1), new Color(0, 1, 1, 1) };
         
-        public static float Squared(in float A)
+        public static float Squared(in float a)
         {
-            return A * A;
+            return a * a;
         }
 
-        public static float DistSquared(in float3 V1, in float3 V2)
+        public static float DistSquared(in float3 a, in float3 b)
         {
-            return Squared(V2.x - V1.x) + Squared(V2.y - V1.y) + Squared(V2.z - V1.z);
+            return Squared(b.x - a.x) + Squared(b.y - a.y) + Squared(b.z - a.z);
         }
 
-        public static float LogX(in float Base, in float Value)
+        public static float LogX(in float x, in float value)
         {
-            return math.log(Value) / math.log(Base);
+            return math.log(value) / math.log(x);
         }
 
-        public static float GetBoundRadius(in FBound BoundBox)
+        public static float GetBoundRadius(in FBound boundBox)
         {
-            float3 Extents = BoundBox.extents;
-	        return math.max(math.max(math.abs(Extents.x), math.abs(Extents.y)), math.abs(Extents.z) );
+	        return math.max(math.max(math.abs(boundBox.extents.x), math.abs(boundBox.extents.y)), math.abs(boundBox.extents.z) );
         }
 
-        public static float4x4 GetProjectionMatrix(in float HalfFOV, in float Width, in float Height, in float MinZ, in float MaxZ)
+        public static float4x4 GetProjectionMatrix(in float halfFOV, in float width, in float height, in float near, in float far)
         {
-            float4 column0 = new float4(1.0f / math.tan(HalfFOV),	    0.0f,									0.0f,							                        0.0f);
-            float4 column1 = new float4(0.0f,						    Width / math.tan(HalfFOV) / Height,	    0.0f,							                        0.0f);
-            float4 column2 = new float4(0.0f,						    0.0f,									MinZ == MaxZ ? 1.0f : MaxZ / (MaxZ - MinZ),			    1.0f);
-            float4 column3 = new float4(0.0f,						    0.0f,								   -MinZ * (MinZ == MaxZ ? 1.0f : MaxZ / (MaxZ - MinZ)),	0.0f);
+            float4 column0 = new float4(1.0f / math.tan(halfFOV),	    0.0f,									0.0f,							                        0.0f);
+            float4 column1 = new float4(0.0f,						    width / math.tan(halfFOV) / height,	    0.0f,							                        0.0f);
+            float4 column2 = new float4(0.0f,						    0.0f,									near == far ? 1.0f : far / (far - near),			    1.0f);
+            float4 column3 = new float4(0.0f,						    0.0f,								   -near * (near == far ? 1.0f : far / (far - near)),	    0.0f);
 
             return new float4x4(column0, column1, column2, column3);
         }
 
-        public static float ComputeBoundsScreenRadiusSquared(in float SphereRadius, in float3 BoundsOrigin, in float3 ViewOrigin, in Matrix4x4 ProjMatrix)
+        public static float ComputeBoundsScreenRadiusSquared(in float sphereRadius, in float3 boundOrigin, in float3 viewOrigin, in Matrix4x4 projMatrix)
         {
-            float DistSqr = DistSquared(BoundsOrigin, ViewOrigin) * ProjMatrix.m23;
+            float DistSqr = DistSquared(boundOrigin, viewOrigin) * projMatrix.m23;
 
-            float ScreenMultiple = math.max(0.5f * ProjMatrix.m00, 0.5f * ProjMatrix.m11);
-            ScreenMultiple *= SphereRadius;
+            float ScreenMultiple = math.max(0.5f * projMatrix.m00, 0.5f * projMatrix.m11);
+            ScreenMultiple *= sphereRadius;
 
             return (ScreenMultiple * ScreenMultiple) / math.max(1, DistSqr);
         }
 
-        public static float ComputeBoundsScreenRadiusSquared(in float SphereRadius, in float3 BoundsOrigin, in float3 ViewOrigin, in float4x4 ProjMatrix)
+        public static float ComputeBoundsScreenRadiusSquared(in float sphereRadius, in float3 boundOrigin, in float3 viewOrigin, in float4x4 projMatrix)
         {
-            float DistSqr = DistSquared(BoundsOrigin, ViewOrigin) * ProjMatrix.c2.z;
-
-            float ScreenMultiple = math.max(0.5f * ProjMatrix.c0.x, 0.5f * ProjMatrix.c1.y);
-            ScreenMultiple *= SphereRadius;
-
-            return (ScreenMultiple * ScreenMultiple) / math.max(1, DistSqr);
+            float distSqr = DistSquared(boundOrigin, viewOrigin) * projMatrix.c2.z;
+            float screenMultiple = math.max(0.5f * projMatrix.c0.x, 0.5f * projMatrix.c1.y) * sphereRadius;
+            return Squared(screenMultiple) / math.max(1, distSqr);
         }
 
         public static bool IntersectAABBFrustum(FPlane[] plane, in Bounds bound)
@@ -226,19 +222,20 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return true;
         }
 
-        public static int GetLODFromScreenSize(in FSectionLODData LODSetting, in float InScreenSizeSquared, in float InViewLODScale, out float OutFractionalLOD)
+        public static int GetLODFromScreenSize(in FSectionLODData lodSetting, float screenSizeSquared, in float viewLODScale, out float fractionalLOD)
         {
-            float ScreenSizeSquared = InScreenSizeSquared / InViewLODScale;
+            screenSizeSquared /= viewLODScale;
             
-            if (ScreenSizeSquared <= LODSetting.lastLODScreenSizeSquared) {
-                OutFractionalLOD = LODSetting.lastLODIndex;
-                return LODSetting.lastLODIndex;
-            } else if (ScreenSizeSquared > LODSetting.lod1ScreenSizeSquared) {
-                OutFractionalLOD = (LODSetting.lod0ScreenSizeSquared - math.min(ScreenSizeSquared, LODSetting.lod0ScreenSizeSquared)) / (LODSetting.lod0ScreenSizeSquared - LODSetting.lod1ScreenSizeSquared);
+            if (screenSizeSquared <= lodSetting.lastLODScreenSizeSquared) 
+            {
+                fractionalLOD = lodSetting.lastLODIndex;
+                return lodSetting.lastLODIndex;
+            } else if (screenSizeSquared > lodSetting.lod1ScreenSizeSquared) {
+                fractionalLOD = (lodSetting.lod0ScreenSizeSquared - math.min(screenSizeSquared, lodSetting.lod0ScreenSizeSquared)) / (lodSetting.lod0ScreenSizeSquared - lodSetting.lod1ScreenSizeSquared);
                 return 0;
             } else {
-                OutFractionalLOD = 1 + LogX(LODSetting.lodOnePlusDistributionScalarSquared, LODSetting.lod1ScreenSizeSquared / ScreenSizeSquared);
-                return (int)OutFractionalLOD;
+                fractionalLOD = 1 + LogX(lodSetting.lodOnePlusDistributionScalarSquared, lodSetting.lod1ScreenSizeSquared / screenSizeSquared);
+                return (int)fractionalLOD;
             }
         }
         

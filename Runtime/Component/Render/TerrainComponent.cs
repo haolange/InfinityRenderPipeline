@@ -54,11 +54,6 @@ namespace InfinityTech.Component
         [HideInInspector]
         public FTerrainSector terrainSector;
 
-        public TerrainComponent() : base()
-        {
-
-        }
-
         protected override void OnRegister()
         {
             GetWorld().AddWorldTerrain(this);
@@ -95,9 +90,9 @@ namespace InfinityTech.Component
             //RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         }
 
-        public void UpdateLODData(in float3 viewOringin, in float4x4 matrix_Proj)
+        public void ComputeLOD(in float3 viewOringin, in float4x4 matrix_Proj)
         {
-            terrainSector.UpdateLODData(sectionSize, viewOringin, matrix_Proj);
+            terrainSector.ComputeLOD(sectionSize, viewOringin, matrix_Proj);
         }
 
 #if UNITY_EDITOR

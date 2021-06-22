@@ -77,27 +77,27 @@ namespace InfinityTech.Rendering.TerrainPipeline
             //sections = null;
         }
 
-        public void UpdateLODData(in int numQuad, in float3 viewOringin, in float4x4 matrix_Proj)
+        public void ComputeLOD(in int numQuad, in float3 viewOringin, in float4x4 matrix_Proj)
         {
             if(m_Sections.IsCreated == false) { return; }
 
-            FSectionLODDataUpdateJob sectionLODDataUpdateJob = new FSectionLODDataUpdateJob();
+            FTerrainComputeLODJob computeLODJob = new FTerrainComputeLODJob();
             {
-                sectionLODDataUpdateJob.numQuad = numQuad;
-                sectionLODDataUpdateJob.viewOringin = viewOringin;
-                sectionLODDataUpdateJob.matrix_Proj = matrix_Proj;
-                sectionLODDataUpdateJob.nativeSections = m_Sections;
+                computeLODJob.numQuad = numQuad;
+                computeLODJob.viewOringin = viewOringin;
+                computeLODJob.matrix_Proj = matrix_Proj;
+                computeLODJob.nativeSections = m_Sections;
             }
-            sectionLODDataUpdateJob.Run();
+            computeLODJob.Run();
 
-            /*FSectionLODDataParallelUpdateJob sectionLODDataParallelUpdateJob = new FSectionLODDataParallelUpdateJob();
+            /*FTerrainComputeLODParallelJob parallelComputeLODJob = new FTerrainComputeLODParallelJob();
             {
-                sectionLODDataParallelUpdateJob.numQuad = numQuad;
-                sectionLODDataParallelUpdateJob.viewOringin = viewOringin;
-                sectionLODDataParallelUpdateJob.matrix_Proj = matrix_Proj;
-                sectionLODDataParallelUpdateJob.nativeSections = m_NativeSections;
+                parallelComputeLODJob.numQuad = numQuad;
+                parallelComputeLODJob.viewOringin = viewOringin;
+                parallelComputeLODJob.matrix_Proj = matrix_Proj;
+                parallelComputeLODJob.nativeSections = m_Sections;
             }
-            sectionLODDataParallelUpdateJob.Schedule(m_NativeSections.Length, 32).Complete();*/
+            parallelComputeLODJob.Schedule(m_Sections.Length, 16).Complete();*/
         }
 
         public void Dispose()

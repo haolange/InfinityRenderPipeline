@@ -9,78 +9,86 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     internal unsafe static class FCullingUtility
     {
-        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isRendererView, Camera view)
+        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isSceneView, Camera view)
         {
-            FCullingData cullingData = new FCullingData(isRendererView);
-            cullingData.CullState = false;
+            FCullingData cullingData = new FCullingData(isSceneView);
+            cullingData.cullState = false;
 
-            if(gpuScene.meshElements.IsCreated == false || isRendererView != true) { return cullingData; }
+            if(gpuScene.meshElements.IsCreated == false || isSceneView != true) { return cullingData; }
 
-            cullingData.CullState = true;
+            cullingData.cullState = true;
             cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            Plane[] FrustumPlane = GeometryUtility.CalculateFrustumPlanes(view);
-            for (int i = 0; i < 6; ++i)
-            {
-                cullingData.viewFrustum[i] = FrustumPlane[i];
-            }
-
             cullingData.viewMeshBatchs = new NativeList<int>(gpuScene.meshElements.Length, Allocator.TempJob);
 
-            FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
-            {
-                meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
-                meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
+            Plane[] frustumPlane = GeometryUtility.CalculateFrustumPlanes(view);
+            for (int i = 0; i < 6; ++i) 
+            { 
+                cullingData.viewFrustum[i] = frustumPlane[i]; 
             }
-            meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+
+            if(gpuScene.meshElements.Length != 0)
+            {
+                FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
+                {
+                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
+                }
+                meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+            }
+            
             return cullingData;
         }
 
-        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isRendererView, ref ScriptableCullingParameters cullingParameters)
+        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isSceneView, ref ScriptableCullingParameters cullingParameters)
         {
-            FCullingData cullingData = new FCullingData(isRendererView);
-            cullingData.CullState = false;
+            FCullingData cullingData = new FCullingData(isSceneView);
+            cullingData.cullState = false;
 
-            if(gpuScene.meshElements.IsCreated == false || isRendererView != true) { return cullingData; }
+            if(gpuScene.meshElements.IsCreated == false || isSceneView != true) { return cullingData; }
 
-            cullingData.CullState = true;
+            cullingData.cullState = true;
             cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            for (int i = 0; i < 6; ++i)
-            {
-                cullingData.viewFrustum[i] = cullingParameters.GetCullingPlane(i);
-            }
-
             cullingData.viewMeshBatchs = new NativeArray<int>(gpuScene.meshElements.Length, Allocator.TempJob);
-
-            FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
-            {
-                meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
-                meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
+            
+            for (int i = 0; i < 6; ++i) 
+            { 
+                cullingData.viewFrustum[i] = cullingParameters.GetCullingPlane(i); 
             }
-            meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+            
+            if(gpuScene.meshElements.Length != 0)
+            {
+                FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
+                {
+                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
+                }
+                meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+            }
+
             return cullingData;
         }
     }
 
     public struct FCullingData
     {
-        public bool CullState;
-        public bool isRendererView;
+        public bool cullState;
+        public bool isSceneView;
         public NativeArray<int> viewMeshBatchs;
         public NativeArray<FPlane> viewFrustum;
 
-        public FCullingData(in bool isRendererView)
+        public FCullingData(in bool isSceneView)
         {
-            this.CullState = false;
+            this.cullState = false;
             this.viewFrustum = default;
             this.viewMeshBatchs = default;
-            this.isRendererView = isRendererView;
+            this.isSceneView = isSceneView;
         }
 
         public void Release()
         {
-            if(CullState)
+            if(cullState)
             {
                 viewFrustum.Dispose();
                 viewMeshBatchs.Dispose();
