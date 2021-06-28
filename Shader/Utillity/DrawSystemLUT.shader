@@ -29,7 +29,7 @@
 		#define INTEGRAL_DOMAIN_SPHERE_3D 0
 		#define INTEGRAL_DOMAIN_SPHERE_2D 1
 		#define INTEGRAL_DOMAIN_SPHERE_1D 2
-		#define INTEGRAL_DOMAIN_FUNC INTEGRAL_DOMAIN_SPHERE_2D
+		#define INTEGRAL_DOMAIN_FUNC INTEGRAL_DOMAIN_SPHERE_3D
 
 		float Distance(float3 v0, float3 v1)
 		{
@@ -78,7 +78,7 @@
 			float y = UV.y;
 
 			// cm to mm
-			meanFreePathColor *= (10.0 * meanFreePathScale);
+			meanFreePathColor *= (10 * meanFreePathScale);
 
 			float CurvatureMin = 1.0 / maxRadiusInMM;
 			float CurvatureMax = 1.0 / minRadiusInMM;
@@ -228,7 +228,7 @@
 			float2 uv = i.localTexcoord.xy;
 			//uv.y = 1 - uv.y;
 			float3 LUTColor = CaculateBurleyV2(0, uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
-			return (LUTColor);
+			return ACESToneMapping(saturate(LUTColor * 1.25));
 		}
 
 		float3 frag_Integrated_SkinShadow(v2f_customrendertexture i) : SV_Target
@@ -237,7 +237,7 @@
 			uv.y = 1 - uv.y;
 			//return CaculateBurleyV2(0.15, uv, 1, float3(1, 0.15, 0.01), 0.05, 0.15, 5);
 			float3 LUTColor = CaculateBurleyV2(0.15, uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMin, _ScatterRadiuMax);
-			return (LUTColor);
+			return ACESToneMapping(saturate(LUTColor * 1.5));
 		}
 
 		float3 frag_Prefilter_Diffuse(v2f_customrendertexture i) : SV_Target

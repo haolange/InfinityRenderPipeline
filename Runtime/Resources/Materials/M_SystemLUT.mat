@@ -72,9 +72,9 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _ScatterRadiuMax: 5
-    - _ScatterRadiuMin: 0.1
-    - _ScatterScale: 0.05
+    - _ScatterRadiuMax: 100
+    - _ScatterRadiuMin: 3
+    - _ScatterScale: 1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SpecularLevel: 0.5
@@ -82,9 +82,9 @@ Material:
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
-    - _Albedo: {r: 1, g: 0.19360533, b: 0, a: 1}
+    - _Albedo: {r: 1, g: 0.24206914, b: 0, a: 1}
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _ScatterColor: {r: 1, g: 0.15702912, b: 0, a: 1}
+    - _ScatterColor: {r: 1, g: 0.15686275, b: 0, a: 1}
   m_BuildTextureStacks: []
