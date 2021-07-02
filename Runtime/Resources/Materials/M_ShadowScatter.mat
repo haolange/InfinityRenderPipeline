@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_SystemLUT
+  m_Name: M_ShadowScatter
   m_Shader: {fileID: 4800000, guid: e89dca435d9323a4c9caccc3f51a3fbf, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
@@ -72,8 +72,8 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _ScatterRadiuMax: 3.5
-    - _ScatterRadiuMin: 0
+    - _ScatterRadiuMax: 0
+    - _ScatterRadiuMin: 10
     - _ScatterScale: 1
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
@@ -87,5 +87,5 @@ Material:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DistributeCorrect: {r: 0, g: 1, b: 0, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _ScatterColor: {r: 1, g: 0.15686275, b: 0, a: 1}
+    - _ScatterColor: {r: 0.8584906, g: 0.13466519, b: 0, a: 1}
   m_BuildTextureStacks: []

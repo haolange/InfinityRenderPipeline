@@ -11,6 +11,7 @@
         _ScatterScale("ScatterScale", Range(0, 1)) = 0.05
 		_ScatterRadiuMin("ScatterRadiuMin", Float) = 0.15
 		_ScatterRadiuMax("ScatterRadiuMax", Float) = 5
+		_DistributeCorrect("DistributeCorrect", Vector) = (0, 1, 0, 1)
 	}
 
 	CGINCLUDE
@@ -20,7 +21,7 @@
 		#include "../Private/ImageBasedLighting.hlsl"
 
         float _ScatterScale, _ScatterRadiuMin, _ScatterRadiuMax;
-        float4 _Albedo, _ScatterColor;
+        float4 _Albedo, _ScatterColor, _DistributeCorrect;
 
 		TextureCube _Cubemap;
 		SamplerState sampler_Cubemap;
@@ -30,6 +31,18 @@
 		#define INTEGRAL_DOMAIN_SPHERE_2D 1
 		#define INTEGRAL_DOMAIN_SPHERE_1D 2
 		#define INTEGRAL_DOMAIN_FUNC INTEGRAL_DOMAIN_SPHERE_3D
+
+		#define PREINTEGRATEDSSS_SHADOWLUT_RANGEMUL 0.2
+
+		float GetShadowRangeInCMFromYCoord(float yCoord)
+		{
+			return (1.0 / yCoord - 1) / PREINTEGRATEDSSS_SHADOWLUT_RANGEMUL;
+		}
+
+		float GetYCoordFromShadowRangeInCM(float ShadowRangeInCM)
+		{
+			return 1.0 / (ShadowRangeInCM * PREINTEGRATEDSSS_SHADOWLUT_RANGEMUL + 1.0);
+		}
 
 		float Distance(float3 v0, float3 v1)
 		{
@@ -72,7 +85,33 @@
 			return max((exp(NegRbyD) + exp(NegRbyD / 3.0)) / (D*L)*Inv8Pi, 0);
 		}
 
-		float3 CaculateBurleyV2(float offset, float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float maxRadiusInMM, float minRadiusInMM)
+		float3 IntegralBurley2DTo1D(float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, uint width, float halfRangeInMM)
+		{
+			// cm to mm
+			meanFreePathColor *= (10.0 * meanFreePathScale);
+
+			float DistMin = -halfRangeInMM;
+			float DistMax = halfRangeInMM;
+			float DistX = lerp(DistMin, DistMax, UV.x);
+
+			float3 rgb = 0;
+			float x2 = DistX * DistX;
+			
+			for(uint iY = 0;iY < width;++iY)
+			{
+				float Y = (iY + 0.5) / (float)width;
+				float DistY = lerp(DistMin, DistMax, Y);
+				float y2 = DistY * DistY;
+				float Dist = sqrt(x2 + y2);
+				float3 BurleyValue = EvaluateBurleyDiffusionProfile(meanFreePathColor, albedo, Dist);
+
+				rgb += BurleyValue;
+			}
+
+			return rgb;
+		}
+
+		float3 BakeBurleySSSLUT(float offset, float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float maxRadiusInMM, float minRadiusInMM)
 		{
 			float x = UV.x - offset;
 			float y = UV.y;
@@ -199,6 +238,167 @@
 			return saturate(rgb);
 		}
 
+		float3 BakeBurleyShadowSSSLUT_NoL_ShadowValue(float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float halfRangeInMM, float maxScatterDistInMM)
+		{
+			// cm to mm
+			meanFreePathColor *= (10.0 * meanFreePathScale);
+
+			// Position is the x of projection space
+			float Position = lerp(-halfRangeInMM, halfRangeInMM, UV.x);
+			float Shadow = (Position>0)?1:0;
+			float PosMin = Position - halfRangeInMM;
+			float PosMax = Position + halfRangeInMM;
+
+			float NdotLMin = 0.0;
+			float NdotLMax = 1.0;
+			float NdotL = lerp(NdotLMin, NdotLMax, UV.y);
+
+			float3 Integral = float3(0,0,0);
+			float3 rgb = float3(0,0,0);
+
+			// 1D integral
+			static int NumSamplesDist = 1024;
+
+			float PosScale = (PosMax - PosMin) / NumSamplesDist;
+			float PosBias = PosMin + 0.5 * PosScale;
+			float dx = PosScale;
+
+			[loop]
+			for(int iX = 0;iX < NumSamplesDist;++iX)
+			{
+				float PositionNew = iX * PosScale + PosBias;
+				// PositionOffset = offset / costheta
+				float PositionOffset = (PositionNew - Position) / max(NdotL, 0.0001);
+				PositionOffset = abs(PositionOffset);
+
+				// ∫∫ Irradiance(Position + x) * D(x) * dx
+
+				// Irradiance = NdotL * shadow(Position + x)
+				// shadow function is hard 01 function when pre integrate
+				float ShadowNew = (PositionNew > 0)?1:0;
+				// just as shadow, don't mul NdotL
+				// float Irradiance = NdotL * ShadowNew;
+				float Irradiance = 1 * ShadowNew;
+
+				// todo, lut sample
+				float3 Dr = EvaluateBurleyDiffusionProfile(meanFreePathColor, albedo, PositionOffset);
+
+				// ∫∫ D(x) * dx
+				Integral += Dr * dx;
+
+				rgb += Irradiance * Dr * dx;
+			}
+
+			rgb /= Integral;
+			// rgb -= max(0.0, NdotL * Shadow);
+			// rgb *= 2.0;
+			// rgb += 0.5;
+			rgb = saturate(rgb);
+			return max(rgb, 0.0);
+		}
+
+		float3 BakeBurleyShadowSSSLUT_ShadowRange_ShadowValue(float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float halfRangeInMM, float maxScatterDistInMM, float shadowSSSDistributeCorrectDark, float shadowSSSDistributeCorrectBright, float shadowSSSFinalCorrectDark, float shadowSSSFinalCorrectBright)
+		{
+			//  _____________  x(shadow value)
+			// |
+			// |
+			// |
+			// |
+			// |
+			// |
+			//  1 / (shadow range + 1)
+
+			// cm to mm
+			meanFreePathColor *= (10.0 * meanFreePathScale);
+
+			float xCoord = UV.x;
+			float yCoord = UV.y;
+
+			// yCoord = 1 / (ShadowRangeInCM * RangeMul + 1)
+			// ShadowRangeInCM = (1 / yCoord - 1) / RangeMul
+			
+			// yCoord = ShadowOffsetInMM / (ShadowRangeInMM + ShadowOffsetInMM)
+			// ShadowRangeInMM = ShadowOffsetInMM / yCoord - ShadowOffsetInMM;
+
+			// RangeMul = 0.1:      [1cm, 30cm] -> [0.333, 0.909]
+			// RangeMul = 0.2:      [1cm, 30cm] -> [0.143, 0.833]
+			// RangeMul = 0.3:      [1cm, 30cm] -> [0.1, 0.769]
+			const float RangeMul = PREINTEGRATEDSSS_SHADOWLUT_RANGEMUL;
+			const float ShadowOffsetInMM = 20;
+			float DistributeCorrectDark = shadowSSSDistributeCorrectDark;
+			float DistributeCorrectBright = shadowSSSDistributeCorrectBright;
+			float FinalCorrectDark = shadowSSSFinalCorrectDark;
+			float FinalCorrectBright = shadowSSSFinalCorrectBright;
+			
+			float ShadowRangeInCM = GetShadowRangeInCMFromYCoord(yCoord);
+			float ShadowRangeInMM = ShadowRangeInCM * 10;
+
+			// float ShadowRangeInMM = (ShadowOffsetInMM / yCoord) - ShadowOffsetInMM;
+			//               shadowrange
+			//           __________________
+			//          |__________________|
+			//          |    |             |
+			//       shadow=0|          shadow = 1
+			//   <---------- x ---------->
+			//  x-L                     x+L
+			// integral [x-L, x+L] scatter energy to x
+			// yCoord is shadow range, xCoord is shadow value
+			// x should do remap, since shadow after sss will be wider than origin shadow
+			// origin x is ranged in [shadow=0, shadow=1], new x is ranged from [shadow=0 - ShadowOffsetInMM, shadow=1 + ShadowOffsetInMM]
+			float Shadow0Position = -0.5 * ShadowRangeInMM;
+			float xInMM = (xCoord - 0.5) * (ShadowRangeInMM + 2 * ShadowOffsetInMM);
+			float LInMM = maxScatterDistInMM;
+			float LeftBound = xInMM - LInMM;
+			float RightBound = xInMM + LInMM;
+
+			float3 Integral = float3(0,0,0);
+			float3 rgb = float3(0,0,0);
+			static int NumSamplesDist = 1024;
+
+			float PosScale = (RightBound - LeftBound) / NumSamplesDist;
+			float PosBias = LeftBound + 0.5 * PosScale;
+			float dx = PosScale;
+
+			[loop]
+			for(int iX = 0;iX < NumSamplesDist;++iX)
+			{
+				float PositionNew = iX * PosScale + PosBias;
+				float PositionOffset = abs(xInMM - PositionNew);
+
+				// ∫∫ Shadow'(s + x) * D(x) * dx
+
+				float ShadowNew = saturate((PositionNew - Shadow0Position) / ShadowRangeInMM);
+				
+				float3 Dr = EvaluateBurleyDiffusionProfile(meanFreePathColor, albedo, PositionOffset);
+
+				// ∫∫ D(x) * dx
+				Integral += Dr * dx;
+
+				rgb += ShadowNew * Dr * dx;
+			}
+
+			rgb /= Integral;
+			rgb = saturate(rgb);
+
+			// finally lerp sss color to shadow color, trick
+			float LerpFactor = abs(xCoord - 0.5) * 2;
+			LerpFactor = pow(LerpFactor, (xCoord < 0.5)?DistributeCorrectDark:DistributeCorrectBright);
+			LerpFactor = lerp(LerpFactor, 1, (xCoord < 0.5)?FinalCorrectDark:FinalCorrectBright);
+			//rgb = lerp(rgb, xCoord, LerpFactor);
+
+			// // 1\ luminance lerp to original
+			// float3 Origin = float3(xCoord, xCoord, xCoord);
+			// float LumNew = Luminance(rgb);
+			// float LumOri = Luminance(Origin);
+			// float LumMul = LumOri / max(0.001, LumNew);
+			// rgb *= (lerp(1, LumMul, LuminanceCorrect));
+
+			// // 2\ final lerp to original
+			// rgb = lerp(rgb, Origin, FinalCorrect);
+
+			return saturate(rgb);
+		}
+
 		float frag_Integrated_DiffuseGF(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
@@ -226,18 +426,17 @@
 		float3 frag_Integrated_SkinScatter(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
-			//uv.y = 1 - uv.y;
-			float3 LUTColor = CaculateBurleyV2(0, uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
-			return ACESToneMapping(saturate(LUTColor * 1.25));
+			float3 LUTColor = BakeBurleyShadowSSSLUT_NoL_ShadowValue(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
+			return LUTColor;
 		}
 
 		float3 frag_Integrated_SkinShadow(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
-			uv.y = 1 - uv.y;
-			//return CaculateBurleyV2(0.15, uv, 1, float3(1, 0.15, 0.01), 0.05, 0.15, 5);
-			float3 LUTColor = CaculateBurleyV2(0.15, uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMin, _ScatterRadiuMax);
-			return ACESToneMapping(saturate(LUTColor * 1.5));
+			//uv.x -= 0.175;
+			//float3 LUTColor = BakeBurleyShadowSSSLUT_ShadowRange_ShadowValue(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
+			float3 LUTColor = BakeBurleyShadowSSSLUT_ShadowRange_ShadowValue(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale * 10, _ScatterRadiuMax, _ScatterRadiuMin, _DistributeCorrect.x, _DistributeCorrect.y, _DistributeCorrect.z, _DistributeCorrect.w);
+			return LUTColor;
 		}
 
 		float3 frag_Prefilter_Diffuse(v2f_customrendertexture i) : SV_Target
