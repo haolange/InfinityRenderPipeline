@@ -4,7 +4,6 @@
 #include "Common.hlsl"
 #include "Montcalo.hlsl"
 
-
 struct BSDFContext
 {
 	float NoL;
@@ -45,7 +44,6 @@ void Init_Aniso(inout AnisoBSDFContext LightData, float3 Tangent, float3 Bitange
     LightData.BoL = dot(Bitangent, L);
 	LightData.BoV = dot(Bitangent, V);
 }
-
 
 
 /////////////////////////////////////////////////////////////////Specular F
@@ -93,7 +91,6 @@ float F_Hair(float CosTheta) {
 	const float F0 = Square((1 - n) / (1 + n));
 	return F0 + (1 - F0) * pow5(1 - CosTheta);
 }
-
 
 
 /////////////////////////////////////////////////////////////////Diffuse
@@ -150,7 +147,6 @@ float3 Diffuse_OrenNayar(float VoH, float NoL, float NoV, float Roughness, float
 {
 	return Diffuse_OrenNayar_NoPi(VoH, NoL, NoV, Roughness) * (DiffuseColor * Inv_Pi);
 }
-
 
 
 /////////////////////////////////////////////////////////////////Specular D
@@ -365,7 +361,8 @@ float3 Flim_Iridescence(float eta_1, float cosTheta1, float iridescenceThickness
     return I;
 }
 
-void RefractionSphere(float3 V, float3 positionWS, float3 normalWS, float ior, float thickness, out float dist, out float3 position, out float3 rayWS) {
+void RefractionSphere(float3 V, float3 positionWS, float3 normalWS, float ior, float thickness, out float dist, out float3 position, out float3 rayWS) 
+{
     float3 R1 = refract(-V, normalWS, 1 / ior);
     float3 C = positionWS - normalWS * thickness * 0.5;
 
@@ -382,7 +379,8 @@ void RefractionSphere(float3 V, float3 positionWS, float3 normalWS, float ior, f
     rayWS = R2;
 }
 
-void RefractionPlane(float3 V, float3 positionWS, float3 normalWS, float ior, float thickness, out float dist, out float3 position, out float3 rayWS) {
+void RefractionPlane(float3 V, float3 positionWS, float3 normalWS, float ior, float thickness, out float dist, out float3 position, out float3 rayWS) 
+{
     float3 R = refract(-V, normalWS, 1 / ior);
     float distance = thickness / dot(R, -normalWS);
 
@@ -391,11 +389,13 @@ void RefractionPlane(float3 V, float3 positionWS, float3 normalWS, float ior, fl
     rayWS = -V;
 }
 
-float3 TransmissionBRDF_Wrap(float3 L, float3 N, float3 W) {
+float3 TransmissionBRDF_Wrap(float3 L, float3 N, float3 W) 
+{
     return saturate( ( dot(L, N) + W ) / ( (1 + W) * (1 + W) ) );
 }
 
-float3 TransmissionBRDF_UE4(float3 L, float3 V, float3 N, float3 H, float3 SSS_Color, float3 AO, float3 SSS_Thickness) {
+float3 TransmissionBRDF_UE4(float3 L, float3 V, float3 N, float3 H, float3 SSS_Color, float3 AO, float3 SSS_Thickness) 
+{
 	float3 InScatter = pow(saturate(dot(L, -V)), 12) * lerp(3, 0.1, SSS_Thickness);
 	float3 NormalContribution = saturate(dot(N, H) * SSS_Thickness + 1 - SSS_Thickness);
 	float3 BackScatter = AO * NormalContribution / (Pi * 2);

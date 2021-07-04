@@ -111,9 +111,9 @@
 			return rgb;
 		}
 
-		float3 BakeBurleySSSLUT(float offset, float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float maxRadiusInMM, float minRadiusInMM)
+		float3 BakeBurleySSSLUT(float2 UV, float3 albedo, float3 meanFreePathColor, float meanFreePathScale, float maxRadiusInMM, float minRadiusInMM)
 		{
-			float x = UV.x - offset;
+			float x = UV.x;
 			float y = UV.y;
 
 			// cm to mm
@@ -399,6 +399,138 @@
 			return saturate(rgb);
 		}
 
+		static const float diffusionSigmas[] = { 0.080f, 0.220f, 0.432f, 0.753f, 1.411f, 2.722f };
+		static const float diffusionWeightsR[] = { 0.233f, 0.100f, 0.118f, 0.113f, 0.358f, 0.078f };
+		static const float diffusionWeightsG[] = { 0.455f, 0.336f, 0.198f, 0.007f, 0.004f, 0.000f };
+		static const float diffusionWeightsB[] = { 0.649f, 0.344f, 0.000f, 0.007f, 0.000f, 0.000f };
+
+		void EvaluateDiffusionProfile(float x, inout float3 rgb)	// x in millimeters
+		{
+			for (int i = 0; i < 6; ++i)
+			{
+				static const float rsqrtTwoPi = 0.39894228f;
+				float sigma = diffusionSigmas[i];
+				float gaussian = (rsqrtTwoPi / sigma) * exp(-0.5f * (x*x) / (sigma*sigma));
+
+				rgb[0] += diffusionWeightsR[i] * gaussian;
+				rgb[1] += diffusionWeightsG[i] * gaussian;
+				rgb[2] += diffusionWeightsB[i] * gaussian;
+			}
+		}
+
+		float3 CaculateShadowScatter(float2 samplePos, float shadowBias, float shadowScale, float shadowSharp, float resolution)
+		{
+			// Calculate input position relative to the shadow edge, by approximately
+			// inverting the transfer function of a disc or Gaussian filter.
+			float u = (samplePos.x) / resolution;
+			float inputPos = (sqrt(u) - sqrt(1.0f - u)) * 0.5f + 0.5f;
+
+			float rcpWidth = float(samplePos.y) * shadowScale + shadowBias;
+
+			// Sample points along a line perpendicular to the shadow edge, and
+			// Monte-Carlo-integrate the scattered lighting using the diffusion profile
+
+			static const int cIter = 128;
+			float3 rgb = 0;
+
+			float iterScale = 20.0f / float(cIter);
+			float iterBias = -10.0f + 0.5f * iterScale;
+
+			for (int iIter = 0; iIter < cIter; ++iIter)
+			{
+				float delta = float(iIter) * iterScale + iterBias;
+				float3 rgbDiffusion = 0;
+				EvaluateDiffusionProfile(delta, rgbDiffusion);
+
+				// Use smoothstep as an approximation of the transfer function of a
+				// disc or Gaussian filter.
+				float newPos = (inputPos + delta * rcpWidth) * shadowSharp + (-0.5f * shadowSharp + 0.5f);
+				float newPosClamped = min(max(newPos, 0.0f), 1.0f);
+				float newShadow = (3.0f - 2.0f * newPosClamped) * newPosClamped * newPosClamped;
+
+				rgb[0] += newShadow * rgbDiffusion.x;
+				rgb[1] += newShadow * rgbDiffusion.y;
+				rgb[2] += newShadow * rgbDiffusion.z;
+			}
+
+			// Scale sum of samples to get value of integral.  Also hack in a
+			// fade to ensure the left edge of the image goes strictly to zero.
+			float scale = 20.0f / float(cIter);
+			if (samplePos.x * 25 < resolution)
+			{
+				scale *= min(25.0f * float(samplePos.x) / resolution, 1.0f);
+			}
+			rgb[0] *= scale;
+			rgb[1] *= scale;
+			rgb[2] *= scale;
+
+			// Clamp to [0, 1]
+			rgb[0] = min(max(rgb[0], 0.0f), 1.0f);
+			rgb[1] = min(max(rgb[1], 0.0f), 1.0f);
+			rgb[2] = min(max(rgb[2], 0.0f), 1.0f);
+
+			// Convert linear to sRGB
+			rgb[0] = (rgb[0] < 0.0031308f) ? (12.92f * rgb[0]) : (1.055f * pow(rgb[0], 1.0f / 2.4f) - 0.055f);
+			rgb[1] = (rgb[1] < 0.0031308f) ? (12.92f * rgb[1]) : (1.055f * pow(rgb[1], 1.0f / 2.4f) - 0.055f);
+			rgb[2] = (rgb[2] < 0.0031308f) ? (12.92f * rgb[2]) : (1.055f * pow(rgb[2], 1.0f / 2.4f) - 0.055f);
+
+			return rgb;
+		}
+
+		float3 CaculateDirectScatter(float2 samplePos, float curvatureBias, float curvatureScale, float NdotLBias, float NdotLScale)
+		{
+			float NdotL = samplePos.x * NdotLScale + NdotLBias;
+			float theta = acos(NdotL);
+
+			float curvature = float(samplePos.y) * curvatureScale + curvatureBias;
+			float radius = 1.0f / curvature;
+
+			// Sample points around a ring, and Monte-Carlo-integrate the
+			// scattered lighting using the diffusion profile
+
+			static const int cIter = 128;
+			float3 rgb = 0;
+
+			// Set integration bounds in arc-length in mm on the sphere
+			float lowerBound = max(-3.14f * radius, -10.0f);
+			float upperBound = min(3.14f * radius, 10.0f);
+
+			float iterScale = (upperBound - lowerBound) / float(cIter);
+			float iterBias = lowerBound + 0.5f * iterScale;
+
+			for (int iIter = 0; iIter < cIter; ++iIter)
+			{
+				float delta = float(iIter) * iterScale + iterBias;
+				float3 rgbDiffusion = 0;
+				EvaluateDiffusionProfile(delta, rgbDiffusion);
+
+				float NdotLDelta = max(0.0f, cos(theta - delta * curvature));
+				rgb[0] += NdotLDelta * rgbDiffusion.x;
+				rgb[1] += NdotLDelta * rgbDiffusion.y;
+				rgb[2] += NdotLDelta * rgbDiffusion.z;
+			}
+
+			// Scale sum of samples to get value of integral
+			float scale = (upperBound - lowerBound) / float(cIter);
+			rgb[0] *= scale;
+			rgb[1] *= scale;
+			rgb[2] *= scale;
+
+			// Calculate delta from standard diffuse lighting (saturate(N.L)) to
+			// scattered result, remapped from [-.25, .25] to [0, 1].
+			float rgbAdjust = -max(0.0f, NdotL) * 2.0f + 0.5f;
+			rgb[0] = rgb[0] * 2.0f + rgbAdjust;
+			rgb[1] = rgb[1] * 2.0f + rgbAdjust;
+			rgb[2] = rgb[2] * 2.0f + rgbAdjust;
+
+			// Clamp to [0, 1]
+			rgb[0] = min(max(rgb[0], 0.0f), 1.0f);
+			rgb[1] = min(max(rgb[1], 0.0f), 1.0f);
+			rgb[2] = min(max(rgb[2], 0.0f), 1.0f);
+
+			return radius;
+		}
+
 		float frag_Integrated_DiffuseGF(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
@@ -426,17 +558,32 @@
 		float3 frag_Integrated_SkinScatter(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
-			float3 LUTColor = BakeBurleyShadowSSSLUT_NoL_ShadowValue(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
+			float curvatiRcpWidthMin = 10.0f / _ScatterRadiuMax;
+			float curvatiRcpWidthMax = 10.0f / _ScatterRadiuMin;
+			float curvatiScale = (curvatiRcpWidthMax - curvatiRcpWidthMin) / 128.0f;
+			float curvatiBias = curvatiRcpWidthMin + 0.5f * curvatiScale;
+			float NdotLBias = -1.0f + 0.5f * 64.0f;
+			
+			//float3 LUTColor = CaculateDirectScatter(uv * 128.0, curvatiBias, curvatiScale, NdotLBias, 64.0);
+			//float3 LUTColor = BakeBurleyShadowSSSLUT_NoL_ShadowValue(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
+			float3 LUTColor = BakeBurleySSSLUT(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
+
+			// Convert linear to sRGB
+			/*LUTColor[0] = (LUTColor[0] < 0.0031308f) ? (12.92f * LUTColor[0]) : (1.055f * pow(LUTColor[0], 1.0f / 2.4f) - 0.055f);
+			LUTColor[1] = (LUTColor[1] < 0.0031308f) ? (12.92f * LUTColor[1]) : (1.055f * pow(LUTColor[1], 1.0f / 2.4f) - 0.055f);
+			LUTColor[2] = (LUTColor[2] < 0.0031308f) ? (12.92f * LUTColor[2]) : (1.055f * pow(LUTColor[2], 1.0f / 2.4f) - 0.055f);*/
+
 			return LUTColor;
 		}
 
 		float3 frag_Integrated_SkinShadow(v2f_customrendertexture i) : SV_Target
 		{
 			float2 uv = i.localTexcoord.xy;
-			//uv.x -= 0.175;
-			//float3 LUTColor = BakeBurleyShadowSSSLUT_ShadowRange_ShadowValue(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale, _ScatterRadiuMax, _ScatterRadiuMin);
-			float3 LUTColor = BakeBurleyShadowSSSLUT_ShadowRange_ShadowValue(uv, _Albedo.rgb, max(0.01, _ScatterColor.rgb), _ScatterScale * 10, _ScatterRadiuMax, _ScatterRadiuMin, _DistributeCorrect.x, _DistributeCorrect.y, _DistributeCorrect.z, _DistributeCorrect.w);
-			return LUTColor;
+			float shadowRcpWidthMin = 1.0f / _ScatterRadiuMax;
+			float shadowRcpWidthMax = 1.0f / _ScatterRadiuMin;
+			float shadowScale = (shadowRcpWidthMax - shadowRcpWidthMin) / 128.0f;
+			float shadowBias = shadowRcpWidthMin + 0.5f * shadowScale;
+			return CaculateShadowScatter(uv * 128.0, shadowBias, shadowScale, 10.0f, 128.0f);
 		}
 
 		float3 frag_Prefilter_Diffuse(v2f_customrendertexture i) : SV_Target

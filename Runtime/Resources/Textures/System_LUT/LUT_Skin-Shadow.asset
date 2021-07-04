@@ -41,8 +41,8 @@ CustomRenderTexture:
   m_InitMaterial: {fileID: 0}
   m_InitColor: {r: 1, g: 1, b: 1, a: 1}
   m_InitTexture: {fileID: 0}
-  m_UpdateMode: 1
-  m_InitializationMode: 1
+  m_UpdateMode: 0
+  m_InitializationMode: 0
   m_UpdateZoneSpace: 0
   m_CurrentUpdateZoneSpace: 0
   m_UpdateZones: []
