@@ -6,7 +6,7 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace InfinityTech.Core.Native
 {
-    public static class FSortFactory 
+    /*public static class FSortFactory 
     {
         public const int QUICKSORT_THRESHOLD_LENGTH = 512;
  
@@ -178,5 +178,5 @@ namespace InfinityTech.Core.Native
                 }
             }
         }
-    }
+    }*/
 }
