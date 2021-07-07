@@ -20,25 +20,24 @@ namespace InfinityTech.Rendering.MeshPipeline
         public FMeshElement* meshElements;
 
         [WriteOnly]
-        public NativeArray<int> viewMeshBatchs;
-
+        public NativeArray<int> viewMeshElements;
 
         public void Execute(int index)
         {
-            int VisibleState = 1;
+            int visible = 1;
             float2 distRadius = new float2(0, 0);
-            ref FMeshElement MeshBatch = ref meshElements[index];
+            ref FMeshElement  meshElement = ref meshElements[index];
 
             for (int i = 0; i < 6; ++i)
             {
                 ref FPlane plane = ref viewFrustum[i];
-                distRadius.x = math.dot(plane.normalDist.xyz, MeshBatch.boundBox.center) + plane.normalDist.w;
-                distRadius.y = math.dot(math.abs(plane.normalDist.xyz), MeshBatch.boundBox.extents);
+                distRadius.x = math.dot(plane.normalDist.xyz,  meshElement.boundBox.center) + plane.normalDist.w;
+                distRadius.y = math.dot(math.abs(plane.normalDist.xyz),  meshElement.boundBox.extents);
 
-                VisibleState = math.select(VisibleState, 0, distRadius.x + distRadius.y < 0);
+                visible = math.select(visible, 0, distRadius.x + distRadius.y < 0);
             }
 
-            viewMeshBatchs[index] = math.select(0, VisibleState, MeshBatch.visible == 1);
+            viewMeshElements[index] = math.select(0, visible,  meshElement.visible == 1);
         }
     }
 
@@ -57,32 +56,31 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly]
         public FMeshPassDesctiption meshPassDesctiption;
 
-        public NativeList<FPassMeshSection> m_PassMeshSections;
+        public NativeList<FPassMeshSection> passMeshSections;
 
         public NativeList<FMeshDrawCommand> meshDrawCommands;
-
 
         public void Execute()
         {
             FMeshElement meshElement;
 
             //Gather PassMeshBatch
-            for (int i = 0; i < cullingData.viewMeshBatchs.Length; ++i)
+            for (int i = 0; i < cullingData.viewMeshElements.Length; ++i)
             {
-                if (cullingData.viewMeshBatchs[i] != 0)
+                if (cullingData.viewMeshElements[i] != 0)
                 {
                     meshElement = meshElements[i];
 
                     if(meshElement.priority >= meshPassDesctiption.renderQueueMin && meshElement.priority <= meshPassDesctiption.renderQueueMax)
                     {
-                        FPassMeshSection PassMeshBatch = new FPassMeshSection(i, FMeshElement.MatchForDynamicInstance(ref meshElement));
-                        m_PassMeshSections.Add(PassMeshBatch);
+                        FPassMeshSection passMeshBatch = new FPassMeshSection(i, FMeshElement.MatchForDynamicInstance(ref meshElement));
+                        passMeshSections.Add(passMeshBatch);
                     }
                 }
             }
 
             //Sort PassMeshBatch
-            m_PassMeshSections.Sort();
+            passMeshSections.Sort();
 
             //Build MeshDrawCommand
             FPassMeshSection passMeshSection;
@@ -91,9 +89,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             FMeshDrawCommand meshDrawCommand;
             FMeshDrawCommand cacheMeshDrawCommand;
 
-            for (int j = 0; j < m_PassMeshSections.Length; ++j)
+            for (int j = 0; j < passMeshSections.Length; ++j)
             {
-                passMeshSection = m_PassMeshSections[j];
+                passMeshSection = passMeshSections[j];
                 meshBatchIndexs[j] = passMeshSection.meshElementId;
                 meshElement = meshElements[passMeshSection.meshElementId];
 
@@ -113,36 +111,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 cacheMeshDrawCommand.countOffset.x += 1;
                 meshDrawCommands[meshDrawCommands.Length - 1] = cacheMeshDrawCommand;
             }
-        }
-    }
-
-    [BurstCompile]
-    public struct FHashmapGatherValueJob<TKey, TValue> : IJob where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TValue> dscArray;
-
-        [ReadOnly]
-        public NativeHashMap<TKey, TValue> srcMap;
-
-        public void Execute()
-        {
-            srcMap.GetValueArray(dscArray);
-        }
-    }
-
-    [BurstCompile]
-    public unsafe struct FHashmapParallelGatherValueJob<TKey, TValue> : IJobParallelFor where TKey : struct, IEquatable<TKey> where TValue : struct
-    {
-        [WriteOnly]
-        public NativeArray<TValue> dscArray;
-
-        [ReadOnly]
-        public NativeHashMap<TKey, TValue> srcMap;
-
-        public void Execute(int index)
-        {
-            dscArray[index] = UnsafeUtility.ReadArrayElement<TValue>(srcMap.m_HashMapData.m_Buffer->values, index);
         }
     }
 }

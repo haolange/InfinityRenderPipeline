@@ -9,34 +9,43 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         private bool m_IsUpdate = true;
         public BufferRef bufferRef;
-        public NativeArray<FMeshElement> meshElements;
+        public int count
+        {
+            get
+            {
+                return m_MeshBatchCollector.count;
+            }
+        }
+        public NativeArray<FMeshElement> meshElements
+        {
+            get
+            {
+                return m_MeshBatchCollector.cacheMeshElements;
+            }
+        }
         private FMeshBatchCollector m_MeshBatchCollector;
-
-        public void Gather(FMeshBatchCollector meshBatchCollector, FResourceFactory resourceFactory, CommandBuffer cmdBuffer, in int methdo = 0, in bool block = false)
+        
+        public void Update(FMeshBatchCollector meshBatchCollector, FResourceFactory resourceFactory, CommandBuffer cmdBuffer, in bool block = false)
         {
             if(block) { return; }
 
             m_MeshBatchCollector = meshBatchCollector;
-            if(meshBatchCollector.cacheMeshElementsBuckets.IsCreated)
+            if(meshBatchCollector.cacheMeshElements.IsCreated)
             {
-                meshElements = new NativeArray<FMeshElement>(meshBatchCollector.cacheMeshElementsBuckets.Count(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                meshBatchCollector.GatherMeshBatch(ref meshElements, methdo);
-
                 bufferRef = resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(FMeshElement))));
 
                 if (m_IsUpdate)
                 {
                     m_IsUpdate = false;
-                    cmdBuffer.SetBufferData(bufferRef.buffer, meshElements);
+                    cmdBuffer.SetBufferData(bufferRef.buffer, meshBatchCollector.cacheMeshElements, 0, 0, m_MeshBatchCollector.count);
                 }
             }
         }
 
         public void Release(FResourceFactory resourceFactory)
         {
-            if (meshElements.IsCreated)
+            if (m_MeshBatchCollector.cacheMeshElements.IsCreated)
             {
-                meshElements.Dispose();
                 resourceFactory.ReleaseBuffer(bufferRef);
             }
         }

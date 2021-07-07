@@ -1,66 +1,48 @@
-﻿using Unity.Jobs;
+﻿using UnityEngine;
 using Unity.Collections;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
     public class FMeshBatchCollector
     {
-        public NativeHashMap<int, FMeshElement> cacheMeshElementsBuckets;
-
-        public FMeshBatchCollector() 
-        { 
-
+        private int m_Index;
+        public int count
+        {
+            get
+            {
+                return m_Index + 1;
+            }
         }
+        public NativeArray<FMeshElement> cacheMeshElements;
 
         public void Initializ()
         {
-            cacheMeshElementsBuckets = new NativeHashMap<int, FMeshElement>(10000, Allocator.Persistent);
+            m_Index = -1;
+            cacheMeshElements = new NativeArray<FMeshElement>(10000, Allocator.Persistent);
         }
 
-        public void GatherMeshBatch(ref NativeArray<FMeshElement> meshElements, in int methdo = 0)
+        public int AddMeshBatch(in FMeshElement meshElement)
         {
-            if(!cacheMeshElementsBuckets.IsCreated) { return; }
-            
-            if(cacheMeshElementsBuckets.Count() == 0) { return; }
+            if(m_Index > 10000 - 1){ return 0; }
 
-            if (methdo == 0)
-            {
-                FHashmapGatherValueJob<int, FMeshElement> MeshBatchGatherJob = new FHashmapGatherValueJob<int, FMeshElement>();
-                MeshBatchGatherJob.dscArray = meshElements;
-                MeshBatchGatherJob.srcMap = cacheMeshElementsBuckets;
-                MeshBatchGatherJob.Run();
-            } else {
-                FHashmapParallelGatherValueJob<int, FMeshElement> MeshBatchGatherJob = new FHashmapParallelGatherValueJob<int, FMeshElement>();
-                MeshBatchGatherJob.dscArray = meshElements;
-                MeshBatchGatherJob.srcMap = cacheMeshElementsBuckets;
-                MeshBatchGatherJob.Schedule(meshElements.Length, 256).Complete();
-            }
+            m_Index += 1;
+            cacheMeshElements[m_Index] = meshElement;
+            return m_Index;
         }
 
-        public void AddMeshBatch(in FMeshElement meshElement, in int key)
+        public void UpdateMeshBatch(in int index, in FMeshElement meshElement)
         {
-            cacheMeshElementsBuckets.TryAdd(key, meshElement);
-        }
-
-        public void UpdateMeshBatch(in FMeshElement meshElement, in int key)
-        {
-            cacheMeshElementsBuckets[key] = meshElement;
+            cacheMeshElements[index] = meshElement;
         }
 
         public void RemoveMeshBatch(in int key)
         {
-            if(cacheMeshElementsBuckets.IsCreated == false) { return; }
-            cacheMeshElementsBuckets.Remove(key);
-        }
 
-        public void Reset()
-        {
-            cacheMeshElementsBuckets.Clear();
         }
 
         public void Release()
         {
-            cacheMeshElementsBuckets.Dispose();
+            cacheMeshElements.Dispose();
         }
     }
 }

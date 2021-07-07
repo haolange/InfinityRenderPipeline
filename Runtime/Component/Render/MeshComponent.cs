@@ -55,25 +55,22 @@ namespace InfinityTech.Component
         [HideInInspector]
         public NativeArray<float> customMeshDatas;
 
-
-        public MeshComponent() : base()
-        {
- 
-        }
-
         protected override void OnRegister()
         {
             //bInitTransfrom = false;
-            AddWorldMesh(movebility);
+            UpdateMatrix();
+            UpdateBounds();
+            //UpdateMaterial();
             BuildMeshBatch();
+            AddWorldMesh(movebility);
             customMeshDatas = new NativeArray<float>(16, Allocator.Persistent);
         }
 
         protected override void OnTransformChange()
         {
-            UpdateMatrix();
-            UpdateBounds();
-            UpdateMeshBatch();
+            //UpdateMatrix();
+            //UpdateBounds();
+            //UpdateMeshBatch();
             /*if (bInitTransfrom == false) {
                 bInitTransfrom = true;
                 UpdateMeshBatch();
@@ -91,16 +88,16 @@ namespace InfinityTech.Component
 
         protected virtual void OnStateTypeChange(in EStateType LastGeometryState)
         {
-            AddWorldMesh(movebility);
-            RemoveWorldMesh(LastGeometryState);
+            //AddWorldMesh(movebility);
+            //RemoveWorldMesh(LastGeometryState);
         }
 
         protected virtual void OnStaticMeshChange()
         {
-            UpdateBounds();
-            UpdateMaterial();
-            ReleaseMeshBatch();
-            BuildMeshBatch();
+            //UpdateBounds();
+            //UpdateMaterial();
+            //ReleaseMeshBatch();
+            //BuildMeshBatch();
         }
 
         protected override void EventPlay()
@@ -111,27 +108,27 @@ namespace InfinityTech.Component
         protected override void EventTick()
         {
             //Update By StateDirty
-            EStateType stateType;
-            if (GetStateTypeDirty(out stateType))
+            //EStateType stateType;
+            /*if (GetStateTypeDirty(out stateType))
             {
                 OnStateTypeChange(stateType);
-            }
+            }*/
 
             //ReInit MeshBatch
-            if (GetMeshStateDirty()) 
+            /*if (GetMeshStateDirty()) 
             {
                 OnStaticMeshChange();
-            }
+            }*/
 
             //Update MeshBatch
-            UpdateMeshBatch();
+            //UpdateMeshBatch();
         }
 
         protected override void UnRegister()
         {
-            ReleaseMeshBatch();
-            RemoveWorldMesh(movebility);
+            //ReleaseMeshBatch();
             customMeshDatas.Dispose();
+            RemoveWorldMesh(movebility);
         }
 
 #if UNITY_EDITOR
@@ -218,8 +215,7 @@ namespace InfinityTech.Component
 
         public void UpdateBounds()
         {
-            if(!staticMesh)
-                return;
+            if (!staticMesh) { return; }
 
             boundBox = Geometry.CaculateWorldBound(staticMesh.bounds, matrix_LocalToWorld);
             boundSphere = new FSphere(Geometry.CaculateBoundRadius(boundBox), boundBox.center);
@@ -269,15 +265,14 @@ namespace InfinityTech.Component
                     meshElement.matrix_LocalToWorld = matrix_LocalToWorld;
                     //meshElement.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
                     
-                    meshBatchCacheID[i] = FMeshElement.MatchForCacheMeshBatch(ref meshElement, this.GetInstanceID());
-                    GetWorld().GetMeshBatchColloctor().AddMeshBatch(meshElement, meshBatchCacheID[i]);
+                    meshBatchCacheID[i] = GetWorld().GetMeshBatchColloctor().AddMeshBatch(meshElement);
                 }
             }
         }
 
         public void UpdateMeshBatch()
         {
-            if (staticMesh != null)
+            /*if (staticMesh != null)
             {
                 for (int i = 0; i < meshBatchCacheID.Length; ++i)
                 {
@@ -296,22 +291,18 @@ namespace InfinityTech.Component
 
                     GetWorld().GetMeshBatchColloctor().UpdateMeshBatch(meshElement, meshBatchCacheID[i]);
                 }
-            }
+            }*/
         }
 
         public void ReleaseMeshBatch()
         {
-            //if (MeshBatchCacheID.Length == 0) { return; }
-
-            //if (GetWorld().GetMeshBatchColloctor().CollectorAvalible() == false) { return; }
-
-            if (staticMesh != null)
+            /*if (staticMesh != null)
             {
                 for (int Index = 0; Index < meshBatchCacheID.Length; ++Index)
                 {
                     GetWorld().GetMeshBatchColloctor().RemoveMeshBatch(meshBatchCacheID[Index]);
                 }
-            }
+            }*/
         }
 
         // RenderData Interface

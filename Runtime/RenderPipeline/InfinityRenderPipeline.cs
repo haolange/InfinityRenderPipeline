@@ -214,7 +214,7 @@ namespace InfinityTech.Rendering.Pipeline
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
             FResourceFactory resourceFactory = GetWorld().resourceFactory;
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
-            m_GPUScene.Gather(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, 1, false);
+            m_GPUScene.Update(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, false);
 
             using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.SceneRendering)))
             {

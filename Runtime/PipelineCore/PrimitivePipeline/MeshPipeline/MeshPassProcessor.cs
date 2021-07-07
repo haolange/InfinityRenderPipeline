@@ -52,12 +52,12 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal void DispatchSetup(ref FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
         {
-            if (m_GPUScene.meshElements.IsCreated == false || cullingData.viewMeshBatchs.IsCreated == false || cullingData.isSceneView != true) { return; }
-            if (cullingData.viewMeshBatchs.Length == 0) { return; }
+            if (m_GPUScene.meshElements.IsCreated == false || cullingData.viewMeshElements.IsCreated == false || cullingData.isSceneView != true) { return; }
+            if (cullingData.viewMeshElements.Length == 0) { return; }
 
-            m_MeshBatchIndexs = new NativeArray<int>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
-            m_PassMeshSections = new NativeList<FPassMeshSection>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
-            m_MeshDrawCommands = new NativeList<FMeshDrawCommand>(cullingData.viewMeshBatchs.Length, Allocator.TempJob);
+            m_MeshBatchIndexs = new NativeArray<int>(cullingData.viewMeshElements.Length, Allocator.TempJob);
+            m_PassMeshSections = new NativeList<FPassMeshSection>(cullingData.viewMeshElements.Length, Allocator.TempJob);
+            m_MeshDrawCommands = new NativeList<FMeshDrawCommand>(cullingData.viewMeshElements.Length, Allocator.TempJob);
 
             FMeshDrawCommandBuildJob meshDrawCommandBuildJob = new FMeshDrawCommandBuildJob();
             {
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 meshDrawCommandBuildJob.meshElements = m_GPUScene.meshElements;
                 meshDrawCommandBuildJob.meshBatchIndexs = m_MeshBatchIndexs;
                 meshDrawCommandBuildJob.meshDrawCommands = m_MeshDrawCommands;
-                meshDrawCommandBuildJob.m_PassMeshSections = m_PassMeshSections;
+                meshDrawCommandBuildJob.passMeshSections = m_PassMeshSections;
                 meshDrawCommandBuildJob.meshPassDesctiption = meshPassDesctiption;
             }
             m_MeshPassTaskRefs.Add(meshDrawCommandBuildJob.Schedule());

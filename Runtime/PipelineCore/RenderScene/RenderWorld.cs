@@ -201,7 +201,6 @@ namespace InfinityTech.Rendering.Core
             materialAssets.Reset();
 
             m_MeshBatchCollector.Initializ();
-            m_MeshBatchCollector.Reset();
 
             resourceFactory = new FResourceFactory();
         }

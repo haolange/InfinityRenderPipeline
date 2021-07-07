@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             cullingData.cullState = true;
             cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            cullingData.viewMeshBatchs = new NativeList<int>(gpuScene.meshElements.Length, Allocator.TempJob);
+            cullingData.viewMeshElements = new NativeArray<int>(gpuScene.count, Allocator.TempJob);
 
             Plane[] frustumPlane = GeometryUtility.CalculateFrustumPlanes(view);
             for (int i = 0; i < 6; ++i) 
@@ -26,15 +26,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                 cullingData.viewFrustum[i] = frustumPlane[i]; 
             }
 
-            if(gpuScene.meshElements.Length != 0)
+            if(gpuScene.count != 0)
             {
                 FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
                 {
-                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
                     meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                    meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
+                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.viewMeshElements = cullingData.viewMeshElements;
                 }
-                meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+                meshElementCullingJob.Schedule(gpuScene.count, 256).Complete();
             }
             
             return cullingData;
@@ -49,22 +49,22 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             cullingData.cullState = true;
             cullingData.viewFrustum = new NativeArray<FPlane>(6, Allocator.TempJob);
-            cullingData.viewMeshBatchs = new NativeArray<int>(gpuScene.meshElements.Length, Allocator.TempJob);
+            cullingData.viewMeshElements = new NativeArray<int>(gpuScene.count, Allocator.TempJob);
             
             for (int i = 0; i < 6; ++i) 
             { 
                 cullingData.viewFrustum[i] = cullingParameters.GetCullingPlane(i); 
             }
             
-            if(gpuScene.meshElements.Length != 0)
+            if(gpuScene.count != 0)
             {
                 FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
                 {
-                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
                     meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                    meshElementCullingJob.viewMeshBatchs = cullingData.viewMeshBatchs;
+                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.viewMeshElements = cullingData.viewMeshElements;
                 }
-                meshElementCullingJob.Schedule(gpuScene.meshElements.Length, 256).Complete();
+                meshElementCullingJob.Schedule(gpuScene.count, 256).Complete();
             }
 
             return cullingData;
@@ -75,15 +75,15 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public bool cullState;
         public bool isSceneView;
-        public NativeArray<int> viewMeshBatchs;
+        public NativeArray<int> viewMeshElements;
         public NativeArray<FPlane> viewFrustum;
 
         public FCullingData(in bool isSceneView)
         {
             this.cullState = false;
             this.viewFrustum = default;
-            this.viewMeshBatchs = default;
             this.isSceneView = isSceneView;
+            this.viewMeshElements = default;
         }
 
         public void Release()
@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if(cullState)
             {
                 viewFrustum.Dispose();
-                viewMeshBatchs.Dispose();
+                viewMeshElements.Dispose();
             }
         }
     }
