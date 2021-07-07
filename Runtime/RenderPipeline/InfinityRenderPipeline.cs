@@ -245,15 +245,12 @@ namespace InfinityTech.Rendering.Pipeline
                             renderContext.SetupCameraProperties(camera);
 
                             //Culling Context
-                            camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-
-                            //Unity Culling
-                            CullingResults cullingResult = renderContext.Cull(ref cullingParameters);
-
-                            //Custom Culling
                             FCullingData cullingData;
+                            CullingResults cullingResult;
+                            camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                             using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.CullingScene)))
                             {
+                                cullingResult = renderContext.Cull(ref cullingParameters);
                                 cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
                             }
 
