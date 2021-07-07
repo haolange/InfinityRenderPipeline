@@ -10,8 +10,10 @@ namespace InfinityTech.Rendering.RDG
     {
         GraphBuilderClear,
         GraphBuilderBind,
-        CullingScene,
+        ViewContext,
+        CullScene,
         ComputeLOD,
+        ViewCommand,
         BeginFrameRendering,
         EndFrameRendering,
         SceneRendering,
