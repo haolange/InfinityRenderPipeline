@@ -346,7 +346,6 @@ namespace InfinityTech.Rendering.Pipeline
                 , enlighten = true
                 , overridesLODBias = true
                 , overridesMaximumLODLevel = true
-                , terrainDetailUnsupported = true
             };
         }        
        
