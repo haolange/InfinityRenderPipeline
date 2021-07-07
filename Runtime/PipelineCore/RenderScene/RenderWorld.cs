@@ -43,15 +43,15 @@ namespace InfinityTech.Rendering.Core
         }
 
         #region WorldView
-        public void AddWorldView(CameraComponent InViewComponent)
+        public void AddWorldView(CameraComponent viewComponent)
         {
-            m_ViewList.Add(InViewComponent);
+            m_ViewList.Add(viewComponent);
         }
 
-        public void RemoveWorldView(CameraComponent InViewComponent)
+        public void RemoveWorldView(CameraComponent viewComponent)
         {
             if(bDisable == true) { return; }
-            m_ViewList.Remove(InViewComponent);
+            m_ViewList.Remove(viewComponent);
         }
 
         public List<CameraComponent> GetWorldView()
@@ -66,15 +66,15 @@ namespace InfinityTech.Rendering.Core
         #endregion //WorldView
 
         #region WorldLight
-        public void AddWorldLight(LightComponent InLightComponent)
+        public void AddWorldLight(LightComponent lightComponent)
         {
-            m_LightList.Add(InLightComponent);
+            m_LightList.Add(lightComponent);
         }
 
-        public void RemoveWorldLight(LightComponent InLightComponent)
+        public void RemoveWorldLight(LightComponent lightComponent)
         {
             if(bDisable == true) { return; }
-            m_LightList.Remove(InLightComponent);
+            m_LightList.Remove(lightComponent);
         }
 
         public List<LightComponent> GetWorldLight()
@@ -89,15 +89,15 @@ namespace InfinityTech.Rendering.Core
         #endregion //WorldLight
 
         #region WorldTerrain
-        public void AddWorldTerrain(TerrainComponent InTerrainComponent)
+        public void AddWorldTerrain(TerrainComponent terrainComponent)
         {
-            m_TerrainList.Add(InTerrainComponent);
+            m_TerrainList.Add(terrainComponent);
         }
 
-        public void RemoveWorldTerrain(TerrainComponent InTerrainComponent)
+        public void RemoveWorldTerrain(TerrainComponent terrainComponent)
         {
             if (bDisable == true) { return; }
-            m_TerrainList.Remove(InTerrainComponent);
+            m_TerrainList.Remove(terrainComponent);
         }
 
         public List<TerrainComponent> GetWorldTerrains()
@@ -113,9 +113,9 @@ namespace InfinityTech.Rendering.Core
 
         #region WorldPrimitive
         //Static
-        public void AddWorldStaticMesh(MeshComponent InMeshComponent)
+        public void AddWorldStaticMesh(MeshComponent meshComponent)
         {
-            m_StaticMeshList.Add(InMeshComponent);
+            m_StaticMeshList.Add(meshComponent);
         }
 
         public void InvokeWorldStaticMeshUpdate()
@@ -128,10 +128,10 @@ namespace InfinityTech.Rendering.Core
             }
         }
 
-        public void RemoveWorldStaticMesh(MeshComponent InMeshComponent)
+        public void RemoveWorldStaticMesh(MeshComponent meshComponent)
         {
             if(bDisable == true) { return; }
-            m_StaticMeshList.Remove(InMeshComponent);
+            m_StaticMeshList.Remove(meshComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -146,9 +146,9 @@ namespace InfinityTech.Rendering.Core
         }
 
         //Dynamic
-        public void AddWorldDynamicMesh(MeshComponent InMeshComponent)
+        public void AddWorldDynamicMesh(MeshComponent meshComponent)
         {
-            m_DynamicMeshList.Add(InMeshComponent);
+            m_DynamicMeshList.Add(meshComponent);
         }
 
         public void InvokeWorldDynamicMeshUpdate()
@@ -161,10 +161,10 @@ namespace InfinityTech.Rendering.Core
             }
         }
 
-        public void RemoveWorldDynamicMesh(MeshComponent InMeshComponent)
+        public void RemoveWorldDynamicMesh(MeshComponent meshComponent)
         {
             if(bDisable == true) { return; }
-            m_DynamicMeshList.Remove(InMeshComponent);
+            m_DynamicMeshList.Remove(meshComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
