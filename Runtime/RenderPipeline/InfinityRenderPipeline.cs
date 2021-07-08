@@ -249,15 +249,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 m_ViewUnifrom.SetViewUnifrom(cmdBuffer);
                                 renderContext.SetupCameraProperties(camera);
 
-                                //Culling Context
-                                camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                                using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.CullScene)))
-                                {
-                                    cullingResult = renderContext.Cull(ref cullingParameters);
-                                    cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
-                                }
-
-                                //Terrain Context
+                                //Compute LOD
                                 using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ComputeLOD)))
                                 {
                                     List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
@@ -271,6 +263,16 @@ namespace InfinityTech.Rendering.Pipeline
                                             if (Handles.ShouldRenderGizmos()) { terrain.DrawBounds(true); }
                                         #endif
                                     }
+                                }
+
+                                //Scene Culling
+                                camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
+                                cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
+
+                                using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.CulllingScene)))
+                                {
+                                    cullingResult = renderContext.Cull(ref cullingParameters);
+                                    cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
                                 }
                             }
                             #endregion //InitViewContext
