@@ -276,17 +276,14 @@ namespace InfinityTech.Rendering.Pipeline
                             #endregion //InitViewContext
 
                             #region InitViewCommand
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ViewCommand)))
-                            {
-                                RenderOpaqueDepth(camera, cullingData, cullingResult);
-                                RenderOpaqueGBuffer(camera, cullingData, cullingResult);
-                                RenderOpaqueMotion(camera, cullingData, cullingResult);
-                                RenderOpaqueForward(camera, cullingData, cullingResult);
-                                RenderSkyBox(camera);
-                                RenderGizmos(camera, GizmoSubset.PostImageEffects);
-                                RenderPresentView(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
-                                m_GraphBuilder.Execute(GetWorld(), renderContext, resourceFactory, m_MeshPassTaskRefs, cmdBuffer, m_ViewUnifrom.frameIndex);
-                            }
+                            RenderOpaqueDepth(camera, cullingData, cullingResult);
+                            RenderOpaqueGBuffer(camera, cullingData, cullingResult);
+                            RenderOpaqueMotion(camera, cullingData, cullingResult);
+                            RenderOpaqueForward(camera, cullingData, cullingResult);
+                            RenderSkyBox(camera);
+                            RenderGizmos(camera, GizmoSubset.PostImageEffects);
+                            RenderPresentView(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
+                            m_GraphBuilder.Execute(GetWorld(), renderContext, resourceFactory, m_MeshPassTaskRefs, cmdBuffer, m_ViewUnifrom.frameIndex);
                             #endregion //InitViewCommand
 
                             #region ReleaseViewContext

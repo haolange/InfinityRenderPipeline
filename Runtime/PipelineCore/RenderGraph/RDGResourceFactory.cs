@@ -13,7 +13,6 @@ namespace InfinityTech.Rendering.RDG
         ViewContext,
         CullScene,
         ComputeLOD,
-        ViewCommand,
         BeginFrameRendering,
         EndFrameRendering,
         SceneRendering,
