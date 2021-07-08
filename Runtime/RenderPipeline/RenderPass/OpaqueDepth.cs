@@ -1,9 +1,9 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
-using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -17,13 +17,11 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct FOpaqueDepthData
         {
-            public RendererList rendererList;
             public RDGTextureRef depthBuffer;
         }
 
-        void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResult)
+        void RenderOpaqueDepth(Camera camera, FCullingData cullingData, CullingResults cullingResults)
         {
-            RendererList rendererList = RendererList.Create(CreateRendererListDesc(camera, cullingResult, InfinityPassIDs.OpaqueDepth, new RenderQueueRange(2450, 2999)));
             TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueDepthString.TextureName, depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
@@ -31,7 +29,6 @@ namespace InfinityTech.Rendering.Pipeline
             m_GraphBuilder.AddPass<FOpaqueDepthData>(FOpaqueDepthString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueDepth),
             (ref FOpaqueDepthData passData, ref RDGPassBuilder passBuilder) =>
             {
-                passData.rendererList = rendererList;
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 m_DepthMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(2450, 2999));
             },
@@ -41,11 +38,21 @@ namespace InfinityTech.Rendering.Pipeline
                 m_DepthMeshProcessor.DispatchDraw(ref graphContext, 0);
 
                 //UnityDrawPipeline
-                passData.rendererList.drawSettings.sortingSettings = new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack };
-                passData.rendererList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
-                passData.rendererList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
-                passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(2450, 2999);
-                graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
+                FilteringSettings filteringSettings = new FilteringSettings
+                {
+                    //renderingLayerMask = 1,
+                    //layerMask = RenderCamera.cullingMask,
+                    renderQueueRange = new RenderQueueRange(2450, 2999),
+                };
+                DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueDepth, new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack })
+                {
+                    //perObjectData = PerObjectData.Lightmaps,
+                    enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch,
+                    enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch
+                };
+                graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+                graphContext.cmdBuffer.Clear();
+                graphContext.renderContext.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
             });
         }
 

@@ -95,30 +95,5 @@ namespace InfinityTech.Rendering.Pipeline
                 graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(camera), passData.srcBuffer, passData.dscBuffer, 1);
             });
         }
-
-        public static RendererListDesc CreateRendererListDesc(Camera camera, in CullingResults cullingResult, in ShaderTagId passName, in RenderQueueRange? renderQueueRange = null, in PerObjectData rendererConfiguration = 0, in bool excludeObjectMotionVectors = false, Material overrideMaterial = null, in RenderStateBlock ? stateBlock = null)
-        {
-            RendererListDesc result = new RendererListDesc(passName, cullingResult, camera)
-            {
-                rendererConfiguration = rendererConfiguration,
-                renderQueueRange = RenderQueueRange.opaque,
-                sortingCriteria = SortingCriteria.CommonOpaque,
-                stateBlock = stateBlock,
-                overrideMaterial = overrideMaterial,
-                excludeObjectMotionVectors = excludeObjectMotionVectors
-            };
-            return result;
-        }
-
-        public static void DrawRendererList(in ScriptableRenderContext renderContext, ref RendererList rendererList)
-        {
-            if (rendererList.stateBlock == null) {
-                renderContext.DrawRenderers(rendererList.cullingResult, ref rendererList.drawSettings, ref rendererList.filteringSettings);
-            } else {
-                var RenderStateBlock = rendererList.stateBlock.Value;
-                renderContext.DrawRenderers(rendererList.cullingResult, ref rendererList.drawSettings, ref rendererList.filteringSettings, ref RenderStateBlock);
-            }
-        }
-
     }
 }

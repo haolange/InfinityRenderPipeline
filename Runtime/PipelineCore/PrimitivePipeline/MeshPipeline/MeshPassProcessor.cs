@@ -6,7 +6,7 @@ using InfinityTech.Rendering.RDG;
 using System.Runtime.InteropServices;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
-using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -17,12 +17,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int renderLayerMask;
         public bool excludeMotionVectorObjects;
 
-        public FMeshPassDesctiption(in RendererList rendererList)
+        public FMeshPassDesctiption(in RendererListDesc rendererListDesc)
         {
-            renderLayerMask = (int)rendererList.filteringSettings.renderingLayerMask;
-            renderQueueMin = rendererList.filteringSettings.renderQueueRange.lowerBound;
-            renderQueueMax = rendererList.filteringSettings.renderQueueRange.upperBound;
-            excludeMotionVectorObjects = rendererList.filteringSettings.excludeMotionVectorObjects;
+            renderLayerMask = (int)rendererListDesc.layerMask;
+            renderQueueMin = rendererListDesc.renderQueueRange.lowerBound;
+            renderQueueMax = rendererListDesc.renderQueueRange.upperBound;
+            excludeMotionVectorObjects = rendererListDesc.excludeObjectMotionVectors;
         }
 
         public FMeshPassDesctiption(in int minQueue, in int maxQueue)

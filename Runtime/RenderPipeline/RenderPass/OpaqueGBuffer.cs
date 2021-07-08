@@ -21,12 +21,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef GBufferA;
             public RDGTextureRef GBufferB;
             public RDGTextureRef depthBuffer;
-            public RendererList rendererList;
         }
 
-        void RenderOpaqueGBuffer(Camera camera, FCullingData cullingData, in CullingResults cullingResult)
+        void RenderOpaqueGBuffer(Camera camera, FCullingData cullingData, CullingResults cullingResults)
         {
-            RendererList rendererList = RendererList.Create(CreateRendererListDesc(camera, cullingResult, InfinityPassIDs.OpaqueGBuffer));
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
             TextureDescription GBufferADescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueGBufferString.TextureAName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
             RDGTextureRef GBufferATexure = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferA, GBufferADescription);
@@ -37,7 +35,6 @@ namespace InfinityTech.Rendering.Pipeline
             m_GraphBuilder.AddPass<FOpaqueGBufferData>(FOpaqueGBufferString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer),
             (ref FOpaqueGBufferData passData, ref RDGPassBuilder passBuilder) =>
             {
-                passData.rendererList = rendererList;
                 passData.GBufferA = passBuilder.UseColorBuffer(GBufferATexure, 0);
                 passData.GBufferB = passBuilder.UseColorBuffer(GBufferBTexure, 1);
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
@@ -49,10 +46,21 @@ namespace InfinityTech.Rendering.Pipeline
                 m_GBufferMeshProcessor.DispatchDraw(ref graphContext, 1);
 
                 //UnityDrawPipeline
-                passData.rendererList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
-                passData.rendererList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
-                passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
-                graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
+                FilteringSettings filteringSettings = new FilteringSettings
+                {
+                    //renderingLayerMask = 1,
+                    //layerMask = RenderCamera.cullingMask,
+                    renderQueueRange = new RenderQueueRange(0, 2999),
+                };
+                DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueGBuffer, new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack })
+                {
+                    perObjectData = PerObjectData.Lightmaps,
+                    enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch,
+                    enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch
+                };
+                graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+                graphContext.cmdBuffer.Clear();
+                graphContext.renderContext.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
             });
         }
     }

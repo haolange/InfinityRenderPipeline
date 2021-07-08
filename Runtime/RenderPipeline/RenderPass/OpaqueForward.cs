@@ -18,15 +18,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct FOpaqueForwardData
         {
-            public RendererList rendererList;
             public RDGTextureRef depthBuffer;
             public RDGTextureRef diffuseBuffer;
             public RDGTextureRef specularBuffer;
         }
 
-        void RenderOpaqueForward(Camera camera, FCullingData cullingData, in CullingResults cullingResult)
+        void RenderOpaqueForward(Camera camera, FCullingData cullingData, CullingResults cullingResults)
         {
-            RendererList rendererList = RendererList.Create(CreateRendererListDesc(camera, cullingResult, InfinityPassIDs.ForwardPlus, new RenderQueueRange(0, 2999), PerObjectData.Lightmaps));
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
             TextureDescription diffuseDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueForwardString.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef diffuseTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer, diffuseDescription);
@@ -37,7 +35,6 @@ namespace InfinityTech.Rendering.Pipeline
             m_GraphBuilder.AddPass<FOpaqueForwardData>(FOpaqueForwardString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueForward),
             (ref FOpaqueForwardData passData, ref RDGPassBuilder passBuilder) =>
             {
-                passData.rendererList = rendererList;
                 passData.diffuseBuffer = passBuilder.UseColorBuffer(diffuseTexture, 0);
                 passData.specularBuffer = passBuilder.UseColorBuffer(specularTexture, 1);
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
@@ -49,11 +46,21 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ForwardMeshProcessor.DispatchDraw(ref graphContext, 2);
 
                 //UnityDrawPipeline
-                passData.rendererList.drawSettings.perObjectData = PerObjectData.Lightmaps;
-                passData.rendererList.drawSettings.enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch;
-                passData.rendererList.drawSettings.enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch;
-                passData.rendererList.filteringSettings.renderQueueRange = new RenderQueueRange(0, 2999);
-                graphContext.renderContext.DrawRenderers(passData.rendererList.cullingResult, ref passData.rendererList.drawSettings, ref passData.rendererList.filteringSettings);
+                FilteringSettings filteringSettings = new FilteringSettings
+                {
+                    //renderingLayerMask = 1,
+                    //layerMask = RenderCamera.cullingMask,
+                    renderQueueRange = new RenderQueueRange(0, 2999),
+                };
+                DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.ForwardPlus, new SortingSettings(camera) { criteria = SortingCriteria.OptimizeStateChanges })
+                {
+                    perObjectData = PerObjectData.Lightmaps,
+                    enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch,
+                    enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch
+                };
+                graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+                graphContext.cmdBuffer.Clear();
+                graphContext.renderContext.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
             });
         }
     }
