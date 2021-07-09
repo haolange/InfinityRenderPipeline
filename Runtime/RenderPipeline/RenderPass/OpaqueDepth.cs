@@ -46,12 +46,9 @@ namespace InfinityTech.Rendering.Pipeline
                 };
                 DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueDepth, new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack })
                 {
-                    //perObjectData = PerObjectData.Lightmaps,
                     enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch,
                     enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch
                 };
-                graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
-                graphContext.cmdBuffer.Clear();
                 graphContext.renderContext.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
             });
         }
