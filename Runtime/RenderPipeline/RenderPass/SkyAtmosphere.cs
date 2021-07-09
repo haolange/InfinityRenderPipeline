@@ -20,15 +20,17 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyAtmosphere(Camera RenderCamera)
         {
             //Add SkyAtmospherePass
-            m_GraphBuilder.AddPass<FSkyAtmosphereData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.SkyAtmosphere),
-            (ref FSkyAtmosphereData passData, ref RDGPassBuilder passBuilder) =>
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FSkyAtmosphereData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.SkyAtmosphere)))
             {
+                //Setup Phase
+                ref FSkyAtmosphereData passData = ref passBuilder.GetPassData<FSkyAtmosphereData>();
 
-            },
-            (ref FSkyAtmosphereData passData, ref RDGGraphContext graphContext) =>
-            {
+                //Execute Phase
+                passBuilder.SetRenderFunc((ref FOpaqueDepthData passData, ref RDGGraphContext graphContext) =>
+                {
 
-            });
+                });
+            }
         }
     }
 }

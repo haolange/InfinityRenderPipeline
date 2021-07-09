@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshPassTaskRefs = meshPassTaskRefs;
         }
 
-        internal void DispatchSetup(ref FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
+        internal void DispatchSetup(in FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
         {
             if (m_GPUScene.meshElements.IsCreated == false || cullingData.viewMeshElements.IsCreated == false || cullingData.isSceneView != true) { return; }
             if (cullingData.viewMeshElements.Length == 0) { return; }

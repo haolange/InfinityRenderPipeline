@@ -18,47 +18,57 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct FOpaqueGBufferData
         {
-            public RDGTextureRef GBufferA;
-            public RDGTextureRef GBufferB;
-            public RDGTextureRef depthBuffer;
+            public Camera camera;
+            public CullingResults cullingResults;
+            public RDGTextureRef gbufferTextureA;
+            public RDGTextureRef gbufferTextureB;
+            public RDGTextureRef depthBufferTexture;
+            public FMeshPassProcessor meshPassProcessor;
         }
 
-        void RenderOpaqueGBuffer(Camera camera, FCullingData cullingData, CullingResults cullingResults)
+        void RenderOpaqueGBuffer(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
-            TextureDescription GBufferADescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueGBufferString.TextureAName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
-            RDGTextureRef GBufferATexure = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferA, GBufferADescription);
-            TextureDescription GBufferBDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueGBufferString.TextureBName, colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
-            RDGTextureRef GBufferBTexure = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferB, GBufferBDescription);
+            TextureDescription GBufferDescriptionA = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueGBufferString.TextureAName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm };
+            RDGTextureRef gbufferTexureA = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferA, GBufferDescriptionA);
+            TextureDescription GBufferDescriptionB = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueGBufferString.TextureBName, colorFormat = GraphicsFormat.A2B10G10R10_UIntPack32 };
+            RDGTextureRef gbufferTexureB = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferB, GBufferDescriptionB);
 
             //Add OpaqueGBufferPass
-            m_GraphBuilder.AddPass<FOpaqueGBufferData>(FOpaqueGBufferString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer),
-            (ref FOpaqueGBufferData passData, ref RDGPassBuilder passBuilder) =>
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FOpaqueGBufferData>(FOpaqueGBufferString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueGBuffer)))
             {
-                passData.GBufferA = passBuilder.UseColorBuffer(GBufferATexure, 0);
-                passData.GBufferB = passBuilder.UseColorBuffer(GBufferBTexure, 1);
-                passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
-                m_GBufferMeshProcessor.DispatchSetup(ref cullingData, new FMeshPassDesctiption(0, 2999));
-            },
-            (ref FOpaqueGBufferData passData, ref RDGGraphContext graphContext) =>
-            {
-                //MeshDrawPipeline
-                m_GBufferMeshProcessor.DispatchDraw(ref graphContext, 1);
+                //Setup Phase
+                ref FOpaqueGBufferData passData = ref passBuilder.GetPassData<FOpaqueGBufferData>();
+                passData.camera = camera;
+                passData.cullingResults = cullingResults;
+                passData.meshPassProcessor = m_GBufferMeshProcessor;
+                passData.gbufferTextureA = passBuilder.UseColorBuffer(gbufferTexureA, 0);
+                passData.gbufferTextureB = passBuilder.UseColorBuffer(gbufferTexureB, 1);
+                passData.depthBufferTexture = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
+                
+                m_GBufferMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
 
-                //UnityDrawPipeline
-                FilteringSettings filteringSettings = new FilteringSettings
+                //Execute Phase
+                passBuilder.SetRenderFunc((ref FOpaqueGBufferData passData, ref RDGGraphContext graphContext) =>
                 {
-                    renderingLayerMask = 1,
-                    layerMask = camera.cullingMask,
-                    renderQueueRange = new RenderQueueRange(0, 2999),
-                };
-                DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueGBuffer, new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack })
-                {
-                    enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch,
-                    enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch
-                };
-                graphContext.renderContext.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
-            });
+                    //MeshDrawPipeline
+                    passData.meshPassProcessor.DispatchDraw(ref graphContext, 1);
+
+                    //UnityDrawPipeline
+                    FilteringSettings filteringSettings = new FilteringSettings
+                    {
+                        renderingLayerMask = 1,
+                        layerMask = passData.camera.cullingMask,
+                        renderQueueRange = new RenderQueueRange(0, 2999),
+                    };
+                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueGBuffer, new SortingSettings(passData.camera) { criteria = SortingCriteria.QuantizedFrontToBack })
+                    {
+                        enableInstancing = true,
+                        enableDynamicBatching = false
+                    };
+                    graphContext.renderContext.DrawRenderers(passData.cullingResults, ref drawingSettings, ref filteringSettings);
+                });
+            }
         }
     }
 }

@@ -17,11 +17,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct FOpaqueMotionData
         {
+            public Camera camera;
             public RDGTextureRef depthBuffer;
             public RDGTextureRef motionBuffer;
+            public CullingResults cullingResults;
         }
 
-        void RenderOpaqueMotion(Camera camera, FCullingData cullingData, CullingResults cullingResults)
+        void RenderOpaqueMotion(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
@@ -29,29 +31,34 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
 
             //Add OpaqueMotionPass
-            m_GraphBuilder.AddPass<FOpaqueMotionData>(FOpaqueMotionString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueMotion),
-            (ref FOpaqueMotionData passData, ref RDGPassBuilder passBuilder) =>
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FOpaqueMotionData>(FOpaqueMotionString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueMotion)))
             {
+                //Setup Phase
+                ref FOpaqueMotionData passData = ref passBuilder.GetPassData<FOpaqueMotionData>();
+                passData.camera = camera;
+                passData.cullingResults = cullingResults;
                 passData.motionBuffer = passBuilder.UseColorBuffer(motionTexture, 0);
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
-            },
-            (ref FOpaqueMotionData passData, ref RDGGraphContext graphContext) =>
-            {
-                FilteringSettings filteringSettings = new FilteringSettings
+
+                //Execute Phase
+                passBuilder.SetRenderFunc((ref FOpaqueMotionData passData, ref RDGGraphContext graphContext) =>
                 {
-                    renderingLayerMask = 1,
-                    excludeMotionVectorObjects = false,
-                    layerMask = camera.cullingMask,
-                    renderQueueRange = RenderQueueRange.opaque,
-                };
-                DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueGBuffer, new SortingSettings(camera) { criteria = SortingCriteria.CommonOpaque })
-                {
-                    perObjectData = PerObjectData.MotionVectors,
-                    enableInstancing = m_RenderPipelineAsset.EnableInstanceBatch,
-                    enableDynamicBatching = m_RenderPipelineAsset.EnableDynamicBatch
-                };
-                graphContext.renderContext.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
-            });
+                    FilteringSettings filteringSettings = new FilteringSettings
+                    {
+                        renderingLayerMask = 1,
+                        excludeMotionVectorObjects = false,
+                        layerMask = passData.camera.cullingMask,
+                        renderQueueRange = RenderQueueRange.opaque,
+                    };
+                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueGBuffer, new SortingSettings(passData.camera) { criteria = SortingCriteria.CommonOpaque })
+                    {
+                        perObjectData = PerObjectData.MotionVectors,
+                        enableInstancing = true,
+                        enableDynamicBatching = false
+                    };
+                    graphContext.renderContext.DrawRenderers(passData.cullingResults, ref drawingSettings, ref filteringSettings);
+                });
+            }
         }
 
     }

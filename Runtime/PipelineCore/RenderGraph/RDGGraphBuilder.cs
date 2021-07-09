@@ -208,54 +208,19 @@ namespace InfinityTech.Rendering.RDG
             return Texture;
         }
 
-        public void AddPass<T>(string passName, ProfilingSampler profilerSampler, StepAction<T> StepFunc, ExecuteAction<T> ExecuteFunc) where T : struct
+        public RDGPassBuilder AddPass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
         {
             var renderPass = m_ObjectPool.Get<RDGPass<T>>();
             renderPass.Clear();
             renderPass.name = passName;
-            renderPass.StepFunc = StepFunc;
-            renderPass.ExecuteFunc = ExecuteFunc;
             renderPass.index = m_RenderPasses.Count;
-            //renderPass.passData = m_ObjectPool.Get<T>();
             renderPass.customSampler = profilerSampler;
-
             m_RenderPasses.Add(renderPass);
-        }
-
-        private void SetupRenderPass()
-        {
-            try
-            {
-                for (int passIndex = 0; passIndex < m_RenderPasses.Count; ++passIndex)
-                {
-                    var renderPass = m_RenderPasses[passIndex];
-                    RDGPassBuilder passBuilder = new RDGPassBuilder(renderPass, m_Resources);
-
-                    try
-                    {
-                        renderPass.Step(ref passBuilder);
-                    }
-
-                    catch (Exception exception)
-                    {
-                        Debug.LogException(exception);
-                        Debug.LogError($"RenderGraph Setup error at pass {renderPass.name} ({passIndex})");
-                    }
-                }
-            }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception);
-                Debug.LogError("RenderGraph Setup error");
-            }
+            return new RDGPassBuilder(renderPass, m_Resources);
         }
 
         public void Execute(FRenderWorld world, ScriptableRenderContext renderContext, FResourceFactory resourceFactory, in NativeList<JobHandle> meshPassTaskRefs, CommandBuffer cmd, in int frameIndex)
         {
-            #region SetupRenderPass
-            SetupRenderPass();
-            #endregion //SetupRenderPass
-
             m_ExecutionExceptionWasRaised = false;
             JobHandle.CompleteAll(meshPassTaskRefs);
 

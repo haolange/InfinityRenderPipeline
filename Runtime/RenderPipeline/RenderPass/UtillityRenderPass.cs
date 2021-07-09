@@ -35,16 +35,19 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 // Add GizmosPass
-                m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.Gizmos),
-                (ref GizmosPassData passData, ref RDGPassBuilder PassBuilder) =>
+                using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.Gizmos)))
                 {
+                    //Setup Phase
+                    ref GizmosPassData passData = ref passBuilder.GetPassData<GizmosPassData>();
                     passData.camera = camera;
                     passData.gizmoSubset = gizmoSubset;
-                },
-                (ref GizmosPassData passData, ref RDGGraphContext graphContext) =>
-                {
-                    graphContext.renderContext.DrawGizmos(passData.camera, passData.gizmoSubset);
-                });
+
+                    //Execute Phase
+                    passBuilder.SetRenderFunc((ref GizmosPassData passData, ref RDGGraphContext graphContext) =>
+                    {
+                        graphContext.renderContext.DrawGizmos(passData.camera, passData.gizmoSubset);
+                    });
+                }
             }
 #endif
         }
@@ -57,43 +60,53 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderSkyBox(Camera camera)
         {
-            // Add SkyAtmospherePass
-            m_GraphBuilder.AddPass<SkyBoxData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.SkyBox),
-            (ref SkyBoxData passData, ref RDGPassBuilder passBuilder) =>
+            // Add SkyBoxPass
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<SkyBoxData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.SkyBox)))
             {
+                //Setup Phase
+                ref SkyBoxData passData = ref passBuilder.GetPassData<SkyBoxData>();
                 passData.camera = camera;
-            },
-            (ref SkyBoxData passData, ref RDGGraphContext graphContext) =>
-            {
-                graphContext.renderContext.DrawSkybox(passData.camera);
-            });
+
+                //Execute Phase
+                passBuilder.SetRenderFunc((ref SkyBoxData passData, ref RDGGraphContext graphContext) =>
+                {
+                    graphContext.renderContext.DrawSkybox(passData.camera);
+                });
+            }
         }
 
         ///////////Present Graph
         struct PresentViewData
         {
-            public RDGTextureRef srcBuffer;
-            public RenderTargetIdentifier dscBuffer;
+            public Camera camera;
+            public RDGTextureRef srcTexture;
+            public RenderTexture dscTexture;
         }
 
-        void RenderPresentView(Camera camera, RDGTextureRef srcTexture, RenderTexture dscTexture)
+        void RenderPresentView(Camera camera, in RDGTextureRef srcTexture, RenderTexture dscTexture)
         {
             // Add PresentPass
-            m_GraphBuilder.AddPass<PresentViewData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.Present),
-            (ref PresentViewData passData, ref RDGPassBuilder passBuilder) =>
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<PresentViewData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.Present)))
             {
-                passData.srcBuffer = passBuilder.ReadTexture(srcTexture);
-                passData.dscBuffer = new RenderTargetIdentifier(dscTexture);
-            },
-            (ref PresentViewData passData, ref RDGGraphContext graphContext) =>
-            {
-                RenderTexture SrcBuffer = passData.srcBuffer;
-                float4 ScaleBias = new float4((float)camera.pixelWidth / (float)SrcBuffer.width, (float)camera.pixelHeight / (float)SrcBuffer.height, 0.0f, 0.0f);
-                if (!dscTexture) { ScaleBias.w = ScaleBias.y; ScaleBias.y *= -1; }
+                //Setup Phase
+                ref PresentViewData passData = ref passBuilder.GetPassData<PresentViewData>();
+                passData.camera = camera;
+                passData.dscTexture = dscTexture;
+                passData.srcTexture = passBuilder.ReadTexture(srcTexture);
 
-                graphContext.cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, ScaleBias);
-                graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(camera), passData.srcBuffer, passData.dscBuffer, 1);
-            });
+                //Execute Phase
+                passBuilder.SetRenderFunc((ref PresentViewData passData, ref RDGGraphContext graphContext) =>
+                {
+                    RenderTexture srcBuffer = passData.srcTexture;
+                    RenderTexture dscBuffer = passData.dscTexture;
+
+                    float4 ScaleBias = new float4((float)passData.camera.pixelWidth / (float)srcBuffer.width, (float)passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
+                    if (!passData.dscTexture) { ScaleBias.w = ScaleBias.y; ScaleBias.y *= -1; }
+
+                    graphContext.cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, ScaleBias);
+                    graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(passData.camera), srcBuffer, new RenderTargetIdentifier(dscBuffer), 1);
+                });
+            }
         }
     }
 }
