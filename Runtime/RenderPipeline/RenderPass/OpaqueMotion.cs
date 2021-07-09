@@ -39,9 +39,9 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 FilteringSettings filteringSettings = new FilteringSettings
                 {
-                    //renderingLayerMask = 1,
+                    renderingLayerMask = 1,
                     excludeMotionVectorObjects = false,
-                    //layerMask = RenderCamera.cullingMask,
+                    layerMask = camera.cullingMask,
                     renderQueueRange = RenderQueueRange.opaque,
                 };
                 DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueGBuffer, new SortingSettings(camera) { criteria = SortingCriteria.CommonOpaque })

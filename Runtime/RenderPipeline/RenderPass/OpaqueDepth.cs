@@ -40,8 +40,8 @@ namespace InfinityTech.Rendering.Pipeline
                 //UnityDrawPipeline
                 FilteringSettings filteringSettings = new FilteringSettings
                 {
-                    //renderingLayerMask = 1,
-                    //layerMask = RenderCamera.cullingMask,
+                    renderingLayerMask = 1,
+                    layerMask = camera.cullingMask,
                     renderQueueRange = new RenderQueueRange(2450, 2999),
                 };
                 DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueDepth, new SortingSettings(camera) { criteria = SortingCriteria.QuantizedFrontToBack })
