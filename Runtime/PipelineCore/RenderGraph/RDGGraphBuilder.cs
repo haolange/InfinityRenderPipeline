@@ -216,7 +216,7 @@ namespace InfinityTech.Rendering.RDG
             renderPass.StepFunc = StepFunc;
             renderPass.ExecuteFunc = ExecuteFunc;
             renderPass.index = m_RenderPasses.Count;
-            renderPass.passData = m_ObjectPool.Get<T>();
+            //renderPass.passData = m_ObjectPool.Get<T>();
             renderPass.customSampler = profilerSampler;
 
             m_RenderPasses.Add(renderPass);
