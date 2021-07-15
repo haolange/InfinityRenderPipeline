@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public partial class InfinityRenderPipeline
     {
-        struct FSkyAtmosphereData
+        struct FAtmospherePassData
         {
             public RDGTextureRef SkyTarget;
             public RDGTextureRef VolumeLUT;
@@ -20,13 +20,13 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyAtmosphere(Camera RenderCamera)
         {
             //Add SkyAtmospherePass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FSkyAtmosphereData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.SkyAtmosphere)))
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FAtmospherePassData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
             {
                 //Setup Phase
-                ref FSkyAtmosphereData passData = ref passBuilder.GetPassData<FSkyAtmosphereData>();
+                ref FAtmospherePassData passData = ref passBuilder.GetPassData<FAtmospherePassData>();
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref FOpaqueDepthData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetRenderFunc((ref FAtmospherePassData passData, ref RDGGraphContext graphContext) =>
                 {
 
                 });

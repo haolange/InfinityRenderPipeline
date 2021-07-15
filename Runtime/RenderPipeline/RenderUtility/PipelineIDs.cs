@@ -8,14 +8,14 @@ namespace InfinityTech.Rendering.Pipeline
     {
         MeshBatch,
         TerrainBatch,
-        OpaqueDepth,
-        OpaqueGBuffer,
-        OpaqueMotion,
-        OpaqueForward,
-        SkyAtmosphere,
-        SkyBox,
-        Gizmos,
-        Present,
+        RenderDepth,
+        RenderGBuffer,
+        RenderMotion,
+        RenderForward,
+        RenderAtmosphere,
+        RenderSkyBox,
+        RenderGizmos,
+        FinalPresent,
         Max,
     }
 
@@ -41,7 +41,6 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
     
-
     public static class InfinityShaderIDs
     {
         public static int DepthBuffer = Shader.PropertyToID("_DepthTexture");
@@ -50,22 +49,19 @@ namespace InfinityTech.Rendering.Pipeline
         public static int MotionBuffer = Shader.PropertyToID("_MotionTexture");
         public static int DiffuseBuffer = Shader.PropertyToID("_DiffuseTexture");
         public static int SpecularBuffer = Shader.PropertyToID("_SpecularTexture");
-
-        public static RenderTargetIdentifier[] GBuffer_IDs = { GBufferA, GBufferB };
-
         public static int RT_MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");
-
         public static int MeshBatchOffset = Shader.PropertyToID("meshBatchOffset");
         public static int MeshBatchIndexs = Shader.PropertyToID("meshBatchIndexs");
         public static int MeshBatchBuffer = Shader.PropertyToID("meshBatchBuffer");
     }
     
-    public static class InfinityPassIDs {
-        public static ShaderTagId OpaqueDepth = new ShaderTagId("OpaqueDepth");
-        public static ShaderTagId OpaqueGBuffer = new ShaderTagId("OpaqueGBuffer");
-        public static ShaderTagId OpaqueMotion = new ShaderTagId("OpaqueMotion");
-        public static ShaderTagId ForwardPlus = new ShaderTagId("ForwardPlus");
+    public static class InfinityPassIDs 
+    {
+        public static ShaderTagId DepthPass = new ShaderTagId("DepthPass");
+        public static ShaderTagId GBufferPass = new ShaderTagId("GBufferPass");
+        public static ShaderTagId MotionPass = new ShaderTagId("MotionPass");
+        public static ShaderTagId ForwardPass = new ShaderTagId("ForwardPass");
     }
 
     public static class InfinityRenderQueue

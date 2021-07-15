@@ -34,11 +34,11 @@
 	{
 		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
 
-		//DepthBuffer
+		//DepthPass
 		Pass
 		{
-			Name "OpaqueDepthPass"
-			Tags { "LightMode" = "OpaqueDepth" }
+			Name "DepthPass"
+			Tags { "LightMode" = "DepthPass" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0 
 
@@ -91,8 +91,8 @@
 		//Gbuffer
 		Pass
 		{
-			Name "OpaqueGBufferPass"
-			Tags { "LightMode" = "OpaqueGBuffer" }
+			Name "GBufferPass"
+			Tags { "LightMode" = "GBufferPass" }
 			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
 
 			HLSLPROGRAM
@@ -168,7 +168,7 @@
 		Pass
 		{
 			Name "ForwardPass"
-			Tags { "LightMode" = "ForwardPlus" }
+			Tags { "LightMode" = "ForwardPass" }
 			ZTest Equal ZWrite Off Cull Back
 
 			HLSLPROGRAM

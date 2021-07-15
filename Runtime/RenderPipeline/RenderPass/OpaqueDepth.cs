@@ -3,45 +3,44 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
-using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FOpaqueDepthString
+    internal static class FDepthPassString
     {
-        internal static string PassName = "OpaqueDepth";
+        internal static string PassName = "Depth";
         internal static string TextureName = "DepthTexture";
     }
 
     public partial class InfinityRenderPipeline
     {
-        struct FOpaqueDepthData
+        struct FDepthPassData
         {
             public Camera camera;
+            public RDGTextureRef depthBuffer;
             public CullingResults cullingResults;
-            public RDGTextureRef depthBufferTexture;
             public FMeshPassProcessor meshPassProcessor;
         }
 
-        void RenderOpaqueDepth(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
+        void RenderDepth(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
-            TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueDepthString.TextureName, depthBufferBits = EDepthBits.Depth32 };
+            TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FDepthPassString.TextureName, depthBufferBits = EDepthBits.Depth32 };
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
-            //Add OpaqueDepthPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FOpaqueDepthData>(FOpaqueDepthString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueDepth)))
+            //Add DepthPass
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
-                ref FOpaqueDepthData passData = ref passBuilder.GetPassData<FOpaqueDepthData>();
+                ref FDepthPassData passData = ref passBuilder.GetPassData<FDepthPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
                 passData.meshPassProcessor = m_DepthMeshProcessor;
-                passData.depthBufferTexture = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
+                passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 
                 m_DepthMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(2450, 2999));
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref FOpaqueDepthData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetRenderFunc((ref FDepthPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(ref graphContext, 0);
@@ -53,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
                         layerMask = passData.camera.cullingMask,
                         renderQueueRange = new RenderQueueRange(2450, 2999),
                     };
-                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueDepth, new SortingSettings(passData.camera) { criteria = SortingCriteria.QuantizedFrontToBack })
+                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.DepthPass, new SortingSettings(passData.camera) { criteria = SortingCriteria.QuantizedFrontToBack })
                     {
                         enableInstancing = true,
                         enableDynamicBatching = false

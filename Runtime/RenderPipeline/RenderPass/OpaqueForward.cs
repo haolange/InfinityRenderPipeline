@@ -7,16 +7,16 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FOpaqueForwardString
+    internal static class FForwardPassString
     {
-        internal static string PassName = "OpaqueForward";
+        internal static string PassName = "ForwardPass";
         internal static string TextureAName = "DiffuseTexture";
         internal static string TextureBName = "SpecularTexture";
     }
 
     public partial class InfinityRenderPipeline
     {
-        struct FOpaqueForwardData
+        struct FForwardPassData
         {
             public Camera camera;
             public RDGTextureRef depthBuffer;
@@ -26,19 +26,19 @@ namespace InfinityTech.Rendering.Pipeline
             public FMeshPassProcessor meshPassProcessor;
         }
 
-        void RenderOpaqueForward(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
+        void RenderForward(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
-            TextureDescription diffuseDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueForwardString.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            TextureDescription diffuseDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassString.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef diffuseTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer, diffuseDescription);
-            TextureDescription specularDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FOpaqueForwardString.TextureBName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            TextureDescription specularDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassString.TextureBName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
             RDGTextureRef specularTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.SpecularBuffer, specularDescription);
 
-            //Add OpaqueForwardPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FOpaqueForwardData>(FOpaqueForwardString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueForward)))
+            //Add ForwardPass
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
-                ref FOpaqueForwardData passData = ref passBuilder.GetPassData<FOpaqueForwardData>();
+                ref FForwardPassData passData = ref passBuilder.GetPassData<FForwardPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
                 passData.meshPassProcessor = m_ForwardMeshProcessor;
@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ForwardMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref FOpaqueForwardData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetRenderFunc((ref FForwardPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(ref graphContext, 2);
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
                         layerMask = passData.camera.cullingMask,
                         renderQueueRange = new RenderQueueRange(0, 2999),
                     };
-                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.ForwardPlus, new SortingSettings(passData.camera) { criteria = SortingCriteria.OptimizeStateChanges })
+                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.ForwardPass, new SortingSettings(passData.camera) { criteria = SortingCriteria.OptimizeStateChanges })
                     {
                         perObjectData = PerObjectData.Lightmaps,
                         enableInstancing = true,

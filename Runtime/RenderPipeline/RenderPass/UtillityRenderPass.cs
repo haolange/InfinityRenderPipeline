@@ -29,13 +29,13 @@ namespace InfinityTech.Rendering.Pipeline
         #endif
         }
 
+#if UNITY_EDITOR
         void RenderGizmos(Camera camera, GizmoSubset gizmoSubset)
         {
-#if UNITY_EDITOR
             if (Handles.ShouldRenderGizmos())
             {
                 // Add GizmosPass
-                using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.Gizmos)))
+                using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
                     ref GizmosPassData passData = ref passBuilder.GetPassData<GizmosPassData>();
@@ -49,8 +49,8 @@ namespace InfinityTech.Rendering.Pipeline
                     });
                 }
             }
-#endif
         }
+#endif
 
         ///////////SkyBox Graph
         struct SkyBoxData
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera camera)
         {
             // Add SkyBoxPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<SkyBoxData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.SkyBox)))
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<SkyBoxData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
                 ref SkyBoxData passData = ref passBuilder.GetPassData<SkyBoxData>();
@@ -83,10 +83,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RenderTexture dscTexture;
         }
 
-        void RenderPresentView(Camera camera, in RDGTextureRef srcTexture, RenderTexture dscTexture)
+        void RenderPresent(Camera camera, in RDGTextureRef srcTexture, RenderTexture dscTexture)
         {
             // Add PresentPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<PresentViewData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.Present)))
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<PresentViewData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
             {
                 //Setup Phase
                 ref PresentViewData passData = ref passBuilder.GetPassData<PresentViewData>();

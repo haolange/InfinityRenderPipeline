@@ -644,7 +644,7 @@ namespace InfinityTech.Rendering.RDG
 
                     if (pass.depthBuffer.IsValid())
                     {
-                        using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                        using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.BindRenderTarget)))
                         {
                             CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer));
                         }
@@ -655,18 +655,18 @@ namespace InfinityTech.Rendering.RDG
                     if (pass.depthBuffer.IsValid())
                     {
                         if (pass.colorBufferMaxIndex > -1) {
-                            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.BindRenderTarget)))
                             {
                                 CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), m_Resources.GetTexture(pass.depthBuffer));
                             }
                         } else {
-                            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.BindRenderTarget)))
                             {
                                 CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer));
                             }
                         }
                     } else {
-                        using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.GraphBuilderBind)))
+                        using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.BindRenderTarget)))
                         {
                             CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]));
                         }

@@ -7,15 +7,15 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FOpaqueMotionString
+    internal static class FMotionPassString
     {
-        internal static string PassName = "OpaqueMotion";
-        internal static string TextureName = "MotionBufferTexture";
+        internal static string PassName = "MotionPass";
+        internal static string TextureName = "MotionTexture";
     }
 
     public partial class InfinityRenderPipeline
     {
-        struct FOpaqueMotionData
+        struct FMotionPassData
         {
             public Camera camera;
             public RDGTextureRef depthBuffer;
@@ -23,25 +23,25 @@ namespace InfinityTech.Rendering.Pipeline
             public CullingResults cullingResults;
         }
 
-        void RenderOpaqueMotion(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
+        void RenderMotion(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
-            TextureDescription motionDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = FOpaqueMotionString.TextureName, colorFormat = GraphicsFormat.R16G16_SFloat };
+            TextureDescription motionDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = FMotionPassString.TextureName, colorFormat = GraphicsFormat.R16G16_SFloat };
             RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
 
-            //Add OpaqueMotionPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FOpaqueMotionData>(FOpaqueMotionString.PassName, ProfilingSampler.Get(CustomSamplerId.OpaqueMotion)))
+            //Add MotionPass
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
             {
                 //Setup Phase
-                ref FOpaqueMotionData passData = ref passBuilder.GetPassData<FOpaqueMotionData>();
+                ref FMotionPassData passData = ref passBuilder.GetPassData<FMotionPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
                 passData.motionBuffer = passBuilder.UseColorBuffer(motionTexture, 0);
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref FOpaqueMotionData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetRenderFunc((ref FMotionPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     FilteringSettings filteringSettings = new FilteringSettings
                     {
@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
                         layerMask = passData.camera.cullingMask,
                         renderQueueRange = RenderQueueRange.opaque,
                     };
-                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.OpaqueGBuffer, new SortingSettings(passData.camera) { criteria = SortingCriteria.CommonOpaque })
+                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.MotionPass, new SortingSettings(passData.camera) { criteria = SortingCriteria.CommonOpaque })
                     {
                         perObjectData = PerObjectData.MotionVectors,
                         enableInstancing = true,

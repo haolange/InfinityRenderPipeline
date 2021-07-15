@@ -34,11 +34,11 @@
 	{
 		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
 
-		//ShadowBuffer
+		//ShadowPass
 		Pass
 		{
-			Name "ShadowBufferPass"
-			Tags { "LightMode" = "ShadowBuffer" }
+			Name "ShadowPass"
+			Tags { "LightMode" = "ShadowPass" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0 
 
@@ -90,11 +90,11 @@
 			ENDHLSL
 		}
 
-		//DepthBuffer
+		//DepthPass
 		Pass
 		{
-			Name "OpaqueDepthPass"
-			Tags { "LightMode" = "OpaqueDepth" }
+			Name "DepthPass"
+			Tags { "LightMode" = "DepthPass" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0 
 
@@ -146,11 +146,11 @@
 			ENDHLSL
 		}
 
-		//Gbuffer
+		//GBufferPass
 		Pass
 		{
-			Name "OpaqueGBufferPass"
-			Tags { "LightMode" = "OpaqueGBuffer" }
+			Name "GBufferPass"
+			Tags { "LightMode" = "GBufferPass" }
 			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
 
 			HLSLPROGRAM
@@ -245,70 +245,13 @@
 			ENDHLSL
 		}
 
-		//MotionBuffer
-		Pass
-		{
-			Name "OpaqueMotionPass"
-			Tags { "LightMode" = "OpaqueMotion" }
-			ZTest Equal ZWrite Off Cull Back
-
-			HLSLPROGRAM
-			#pragma target 4.5
-			#pragma vertex vert
-			#pragma fragment frag
-			#pragma multi_compile_instancing
-			#pragma enable_d3d11_debug_symbols
-
-			#include "../Private/ShaderVariable.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-
-			struct Attributes
-			{
-				float4 vertex : POSITION;
-				float3 vertex_Old : TEXCOORD4;
-				UNITY_VERTEX_INPUT_INSTANCE_ID
-			};
-
-			struct Varyings
-			{
-				float4 vertex : SV_POSITION;
-				float4 clipPos : TEXCOORD0;
-				float4 clipPos_Old : TEXCOORD1;
-				UNITY_VERTEX_INPUT_INSTANCE_ID
-			};
-
-			Varyings vert(Attributes In)
-			{
-				Varyings Out = (Varyings)0;
-				UNITY_SETUP_INSTANCE_ID(In);
-				UNITY_TRANSFER_INSTANCE_ID(In, Out);
-
-				Out.clipPos = mul(Matrix_ViewProj, mul(unity_ObjectToWorld, In.vertex));
-				Out.clipPos_Old = mul(Matrix_PrevViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertex_Old, 1) : In.vertex));
-
-				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1));
-				Out.vertex = mul(Matrix_ViewJitterProj, WorldPos);//UNITY_MATRIX_VP
-				return Out;
-			}
-
-			float2 frag(Varyings In) : SV_Target
-			{
-				float2 NDC_PixelPos = (In.clipPos.xy / In.clipPos.w);
-				float2 NDC_PixelPos_Old = (In.clipPos_Old.xy / In.clipPos_Old.w);
-				float2 ObjectMotion = (NDC_PixelPos - NDC_PixelPos_Old) * 0.5;
-				return lerp(ObjectMotion, 0, unity_MotionVectorsParams.y == 0);
-			}
-			ENDHLSL
-		}
-
 		//ForwardPlus
 		Pass
 		{
 			Name "ForwardPass"
-			Tags { "LightMode" = "ForwardPlus" }
+			Tags { "LightMode" = "ForwardPass" }
 			ZTest Equal ZWrite Off Cull Back
-
+		
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
@@ -393,6 +336,63 @@
 			ENDHLSL
 		}
 
+		//MotionBuffer
+		Pass
+		{
+			Name "MotionPass"
+			Tags { "LightMode" = "MotionPass" }
+			ZTest Equal ZWrite Off Cull Back
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma multi_compile_instancing
+			#pragma enable_d3d11_debug_symbols
+
+			#include "../Private/ShaderVariable.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+
+			struct Attributes
+			{
+				float4 vertex : POSITION;
+				float3 vertex_Old : TEXCOORD4;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct Varyings
+			{
+				float4 vertex : SV_POSITION;
+				float4 clipPos : TEXCOORD0;
+				float4 clipPos_Old : TEXCOORD1;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out = (Varyings)0;
+				UNITY_SETUP_INSTANCE_ID(In);
+				UNITY_TRANSFER_INSTANCE_ID(In, Out);
+
+				Out.clipPos = mul(Matrix_ViewProj, mul(unity_ObjectToWorld, In.vertex));
+				Out.clipPos_Old = mul(Matrix_PrevViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertex_Old, 1) : In.vertex));
+
+				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1));
+				Out.vertex = mul(Matrix_ViewJitterProj, WorldPos);//UNITY_MATRIX_VP
+				return Out;
+			}
+
+			float2 frag(Varyings In) : SV_Target
+			{
+				float2 NDC_PixelPos = (In.clipPos.xy / In.clipPos.w);
+				float2 NDC_PixelPos_Old = (In.clipPos_Old.xy / In.clipPos_Old.w);
+				float2 ObjectMotion = (NDC_PixelPos - NDC_PixelPos_Old) * 0.5;
+				return lerp(ObjectMotion, 0, unity_MotionVectorsParams.y == 0);
+			}
+			ENDHLSL
+		}
+		
 		//BakeLighting
 		Pass
 		{

@@ -278,13 +278,15 @@ namespace InfinityTech.Rendering.Pipeline
                             #endregion //InitViewContext
 
                             #region InitViewCommand
-                            RenderOpaqueDepth(camera, cullingData, cullingResult);
-                            RenderOpaqueGBuffer(camera, cullingData, cullingResult);
-                            RenderOpaqueMotion(camera, cullingData, cullingResult);
-                            RenderOpaqueForward(camera, cullingData, cullingResult);
+                            RenderDepth(camera, cullingData, cullingResult);
+                            RenderGBuffer(camera, cullingData, cullingResult);
+                            RenderMotion(camera, cullingData, cullingResult);
+                            RenderForward(camera, cullingData, cullingResult);
                             RenderSkyBox(camera);
-                            RenderGizmos(camera, GizmoSubset.PostImageEffects);
-                            RenderPresentView(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
+                            #if UNITY_EDITOR
+                                RenderGizmos(camera, GizmoSubset.PostImageEffects);
+                            #endif
+                            RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
                             m_GraphBuilder.Execute(GetWorld(), renderContext, resourceFactory, m_MeshPassTaskRefs, cmdBuffer, m_ViewUnifrom.frameIndex);
                             #endregion //InitViewCommand
 
