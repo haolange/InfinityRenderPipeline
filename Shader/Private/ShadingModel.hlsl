@@ -117,7 +117,8 @@ float3 HairLit(float3 L, float3 V, half3 N, float3 SpecularColor, float Specular
 	};
 
 	// R
-	if(1) {
+	if(1) 
+	{
 		const float sa = sin(Alpha[0]);
 		const float ca = cos(Alpha[0]);
 		float Shift = 2*sa* (ca * CosHalfPhi * sqrt(1 - SinThetaV * SinThetaV) + sa * SinThetaV);
@@ -127,7 +128,8 @@ float3 HairLit(float3 L, float3 V, half3 N, float3 SpecularColor, float Specular
 		S += Specular * Mp * Np * Fp * lerp(1, Backlit, saturate(-VoL));
 	}
 	// TRT
-	if(1) {
+	if(1) 
+	{
 		float Mp = Vis_Hair(B[2], SinThetaL + SinThetaV - Alpha[2]);
 		float f = F_Hair(CosThetaD * 0.5);
 		float Fp = Square(1 - f) * f;
@@ -136,7 +138,8 @@ float3 HairLit(float3 L, float3 V, half3 N, float3 SpecularColor, float Specular
 		S += Mp * Np * Fp * Tp;
 	}
 	// TT
-	if(1) {
+	if(1) 
+	{
 		float Mp = Vis_Hair(B[1], SinThetaL + SinThetaV - Alpha[1]);
 		float a = 1 / n_prime;
 		float h = CosHalfPhi * (1 + a * (0.6 - 0.8 * CosPhi));
@@ -147,14 +150,18 @@ float3 HairLit(float3 L, float3 V, half3 N, float3 SpecularColor, float Specular
 		S += Mp * Np * Fp * Tp * Backlit;
 	}
     // Scatter
-	if(1) {
+	if(1) 
+	{
+		float KajiyaDiffuse = 1 - abs(dot(N, L));
+
 		float3 FakeNormal = normalize(V - N * dot(V, N));
 		N = FakeNormal;
+
 		float Wrap = 1;
 		float NoL = saturate((dot(N, L) + Wrap) / Square(1 + Wrap));
-		float DiffuseScatter = Inv_Pi * NoL * Scatter;
+		float DiffuseScatter = Inv_Pi * lerp(NoL, KajiyaDiffuse, 0.33) * Scatter;
 		float Luma = Luminance(SpecularColor);
-		float3 ScatterTint = pow(SpecularColor / Luma, Shadow);
+		float3 ScatterTint = pow(SpecularColor / Luma, 1 - Shadow);
 		S += sqrt(SpecularColor) * DiffuseScatter * ScatterTint;
 	}
 	S = -min(-S, 0);
