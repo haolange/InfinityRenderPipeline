@@ -13,6 +13,7 @@
 
 
         [Header (Normal)]
+		//[NoScaleOffset]g_NormalScaleTable ("BestFitTexture", 2D) = "white" {}
         [NoScaleOffset]_NomralTexture ("NomralTexture", 2D) = "bump" {}
         _NormalTile ("NormalTile", Range(0, 100)) = 1
 
@@ -219,7 +220,7 @@
 				return Out;
 			}
 			
-			void frag (Varyings In, out float4 GBufferA : SV_Target0, out uint4 GBufferB : SV_Target1)
+			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 				
@@ -235,12 +236,12 @@
 				//GBufferB = uint4((In.normal * 127 + 127), 1);
 
 				FGBufferData GBufferData;
-				GBufferData.WorldNormal = normalize(In.normal);
 				GBufferData.BaseColor = BaseColor;
 				GBufferData.Roughness = BaseColor.r;
-				GBufferData.Specular = _SpecularLevel;
+				GBufferData.Specular = _SpecularLevel * BaseColor.g;
 				GBufferData.Reflactance = BaseColor.b;
-				EncodeGBuffer(GBufferData, GBufferA, GBufferB);
+				GBufferData.WorldNormal = normalize(In.normal);
+				EncodeGBuffer(GBufferData, GBufferA, GBufferB, GBufferC);
 			}
 			ENDHLSL
 		}

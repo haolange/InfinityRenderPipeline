@@ -11,7 +11,7 @@
     "com.unity.terrain-tools": "4.0.0-pre.2",
     "com.unity.shadergraph": "12.0.0",
     "com.unity.mathematics": "1.2.1",
-    "com.unity.addressables": "1.18.11",
+    "com.unity.addressables": "1.18.13",
     "com.unity.visualeffectgraph": "12.0.0",
     "com.unity.render-pipelines.core": "12.0.0"
   }

@@ -5,6 +5,8 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
+Texture2D g_NormalScaleTable;
+
 //PackingData
 float3 Pack1212To888(float2 x)
 {
@@ -83,6 +85,47 @@ struct FGBufferData
 	float3 WorldNormal;
 };
 
+/*float3 EncodeNormalBestFit(float3 n)
+{
+    float3 nU = abs(n);
+    float maxNAbs = max(nU.z, max(nU.x, nU.y));
+    float2 TC = nU.z<maxNAbs? (nU.y<maxNAbs? nU.yz : nU.xz) : nU.xy;
+    TC = TC.x<TC.y? TC.yx : TC.xy;
+    TC.y /= TC.x;
+
+    n /= maxNAbs;
+    n *= g_NormalScaleTable.Load(int3(TC.x * 1023, TC.y * 1023, 0)).a;
+    return n * 0.5 + 0.5;
+}*/
+
+float3 EncodeNormalBestFit(float3 N)
+{
+    float3 uN = abs(N);
+    float maxNAbs = max(uN.z, max(uN.x, uN.y));
+    float2 texcoord = uN.z < maxNAbs ? (uN.y < maxNAbs ? uN.yz : uN.xz) : uN.xy;
+    texcoord = texcoord.x < texcoord.y ? texcoord.yx : texcoord.xy;
+    texcoord.y /= texcoord.x;
+    N /= maxNAbs;
+    N *= g_NormalScaleTable.Sample(Global_point_clamp_sampler, texcoord).a;
+    return N * 0.5 + 0.5;
+}
+
+void EncodeGBuffer(FGBufferData GBufferData, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC)
+{
+    GBufferA = float4(GBufferData.BaseColor, 1);
+    GBufferC = float4(GBufferData.Roughness, GBufferData.Reflactance, 1, 1);
+    GBufferB = float4(EncodeNormalBestFit(GBufferData.WorldNormal), GBufferData.Specular);
+}
+
+void DecodeGBuffer(float4 GBufferA, float4 GBufferB, float4 GBufferC, out FGBufferData GBufferData)
+{
+    GBufferData.Specular = GBufferB.a;
+    GBufferData.Roughness = GBufferC.r;
+    GBufferData.BaseColor = GBufferA.rgb;
+    GBufferData.Reflactance = GBufferC.g;
+    GBufferData.WorldNormal = normalize(GBufferB.xyz * 2 - 1);
+}
+
 uint2 EncodeMetallicSpecular(float Metallic, float Specular)
 {
     uint2 MetallicSpecular = 0;
@@ -102,14 +145,14 @@ void DecodeMetallicSpecular(uint2 MetallicSpecular, out float Metallic, out floa
     Specular = Specular4Bit / 15.0f;
 }
 
-void EncodeGBuffer(FGBufferData GBufferData, out float4 PackedGBufferA, out uint4 PackedGBufferB)
+void EncodeGBuffer_Normal20(FGBufferData GBufferData, out float4 PackedGBufferA, out uint4 PackedGBufferB)
 {
     uint2 EncodeNormal = floor(UnitVectorToOctahedron(GBufferData.WorldNormal) * 511 + 512);
     PackedGBufferA = float4(GBufferData.BaseColor, GBufferData.Roughness);
     PackedGBufferB = uint4(EncodeNormal, EncodeMetallicSpecular(GBufferData.Reflactance, GBufferData.Specular));
 }
 
-void DecodeGBuffer(float4 PackedGBufferA, float4 PackedGBufferB, out FGBufferData GBufferData)
+void DecodeGBuffer_Normal20(float4 PackedGBufferA, float4 PackedGBufferB, out FGBufferData GBufferData)
 {
     GBufferData.Roughness = PackedGBufferA.a;
     GBufferData.BaseColor = PackedGBufferA.rgb;

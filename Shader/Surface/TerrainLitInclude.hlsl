@@ -95,7 +95,7 @@ TEXTURE2D(_MetallicTex);   SAMPLER(sampler_MetallicTex);
 
 #ifdef _ALPHATEST_ON
 
-TEXTURE2D _TerrainHolesTexture;
+Texture2D _TerrainHolesTexture;
 SamplerState sampler_TerrainHolesTexture;
 
 void ClipHoles(float2 uv)

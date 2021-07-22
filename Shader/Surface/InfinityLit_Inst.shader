@@ -143,23 +143,25 @@
 				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
-				Out.normal = In.normal;
+				//Out.normal = In.normal;
+				Out.normal = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normal));
+				//Out.normal = normalize(mul(Out.normal, (float3x3)meshBatch.matrix_LocalToWorld));
 				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex_CS = mul(Matrix_ViewJitterProj, Out.vertex_WS);
 				return Out;
 			}
 			
-			void frag (Varyings In, out float4 GBufferA : SV_Target0, out uint4 GBufferB : SV_Target1)
+			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2)
 			{
 				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
 
 				FGBufferData GBufferData;
-				GBufferData.WorldNormal = normalize(In.normal);
 				GBufferData.BaseColor = BaseColor;
 				GBufferData.Roughness = BaseColor.r;
-				GBufferData.Specular = _SpecularLevel;
+				GBufferData.Specular = _SpecularLevel * BaseColor.g;
 				GBufferData.Reflactance = BaseColor.b;
-				EncodeGBuffer(GBufferData, GBufferA, GBufferB);
+				GBufferData.WorldNormal = normalize(In.normal);
+				EncodeGBuffer(GBufferData, GBufferA, GBufferB, GBufferC);
 			}
 			ENDHLSL
 		}

@@ -620,6 +620,8 @@
 			}
 			return Irradiance;*/
 		}
+		Texture2D _BestFitLUT;
+		SamplerState sampler_BestFitLUT;
 
 		float frag_Integrated_ProxyShadow(v2f_customrendertexture i) : SV_Target
 		{
@@ -660,6 +662,7 @@
 			}
 
 			return float(numHit) / float(coneZStepCount * conePhiStepCount);
+			//return _BestFitLUT.Sample(sampler_BestFitLUT, uv);
 		}
 	ENDCG
 

@@ -3,6 +3,7 @@
     SubShader
     {
         Tags{ "RenderPipeline" = "InfinityRenderPipeline" }
+		
 		Pass
 		{
 			Name"DefaultDrawFullScreen"
@@ -63,11 +64,7 @@
 			#include "../Private/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
-			float4 _ScaleBais;
-
-			SamplerState sampler_LinearClamp;
-			//SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
-				
+			float4 _ScaleBais;	
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 			//Texture2D<uint4> _MainTex; SamplerState sampler_MainTex;
 
@@ -95,9 +92,10 @@
 			float4 frag(Varyings i) : SV_Target
 			{
 				float2 UV = i.uv.xy;
-				return _MainTex.SampleLevel(sampler_LinearClamp, UV, 0);
+				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
 
-				//ThinGBufferData GBufferData;
+				//FGBufferData GBufferData;
+				//DecodeGBuffer(1, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV, 0), 1, GBufferData);
 				//DecodeGBuffer(1, _MainTex.Load(int3(i.vertex.xy, 0)), GBufferData);
 				//return GBufferData.Specular;
 				//return float4(GBufferData.WorldNormal, 1);
