@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
 
         ///////////SkyBox Graph
-        struct SkyBoxData
+        struct SkyBoxPassData
         {
             public Camera camera;
         }
@@ -61,14 +61,14 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera camera)
         {
             // Add SkyBoxPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<SkyBoxData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
-                ref SkyBoxData passData = ref passBuilder.GetPassData<SkyBoxData>();
+                ref SkyBoxPassData passData = ref passBuilder.GetPassData<SkyBoxPassData>();
                 passData.camera = camera;
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref SkyBoxData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetRenderFunc((ref SkyBoxPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     graphContext.renderContext.DrawSkybox(passData.camera);
                 });
@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         ///////////Present Graph
-        struct PresentViewData
+        struct PresentPassData
         {
             public Camera camera;
             public RDGTextureRef srcTexture;
@@ -86,16 +86,16 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderPresent(Camera camera, in RDGTextureRef srcTexture, RenderTexture dscTexture)
         {
             // Add PresentPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<PresentViewData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
+            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
             {
                 //Setup Phase
-                ref PresentViewData passData = ref passBuilder.GetPassData<PresentViewData>();
+                ref PresentPassData passData = ref passBuilder.GetPassData<PresentPassData>();
                 passData.camera = camera;
                 passData.dscTexture = dscTexture;
                 passData.srcTexture = passBuilder.ReadTexture(srcTexture);
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref PresentViewData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetRenderFunc((ref PresentPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     RenderTexture srcBuffer = passData.srcTexture;
                     RenderTexture dscBuffer = passData.dscTexture;
