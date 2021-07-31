@@ -1,7 +1,7 @@
 #ifndef _TerrainLitInclude
 #define _TerrainLitInclude
 
-#include "../Private/ShaderVariable.hlsl"
+#include "../Include/ShaderVariable.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"

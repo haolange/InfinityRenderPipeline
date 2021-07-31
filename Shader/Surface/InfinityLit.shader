@@ -50,7 +50,7 @@
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
 
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -106,7 +106,7 @@
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
 
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -163,10 +163,10 @@
 			//#pragma multi_compile _ LIGHTMAP_ON
 
 
-			#include "../Private/Common.hlsl"
-			#include "../Private/Lightmap.hlsl"
-			#include "../Private/GBufferPack.hlsl"
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/Common.hlsl"
+			#include "../Include/Lightmap.hlsl"
+			#include "../Include/GBufferPack.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -262,10 +262,10 @@
 			#pragma multi_compile LIGHTMAP_OFF LIGHTMAP_ON
 
 
-			#include "../Private/Common.hlsl"
-			#include "../Private/Lightmap.hlsl"
-			#include "../Private/GBufferPack.hlsl"
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/Common.hlsl"
+			#include "../Include/Lightmap.hlsl"
+			#include "../Include/GBufferPack.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -351,7 +351,7 @@
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
 
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -406,7 +406,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
@@ -517,13 +517,13 @@
 		//RayTrace AO
 		/*Pass
 		{
-			Name "RTAOPass"
+			Name "RTAO"
 			Tags { "LightMode" = "RayTraceAmbientOcclusion" }
 
 			HLSLPROGRAM
 			#pragma raytracing test
 
-			#include "../Private/RayTracing/Common/RayTracingCommon.hlsl"
+			#include "../Include/RayTracing/Common/RayTracingCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)

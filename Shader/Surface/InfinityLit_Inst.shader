@@ -34,7 +34,7 @@
 	{
 		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
 
-		//DepthPass
+		//Depth Pass
 		Pass
 		{
 			Name "DepthPass"
@@ -49,8 +49,8 @@
 			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
 
-			#include "../Private/GPUScene.hlsl"
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/GPUScene.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -88,7 +88,7 @@
 			ENDHLSL
 		}
 
-		//Gbuffer
+		//Gbuffer Pass
 		Pass
 		{
 			Name "GBufferPass"
@@ -102,11 +102,11 @@
 			#pragma enable_d3d11_debug_symbols
 
 
-			#include "../Private/Common.hlsl"
-			#include "../Private/GPUScene.hlsl"
-			#include "../Private/Lightmap.hlsl"
-			#include "../Private/GBufferPack.hlsl"
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/Common.hlsl"
+			#include "../Include/GPUScene.hlsl"
+			#include "../Include/Lightmap.hlsl"
+			#include "../Include/GBufferPack.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -166,7 +166,7 @@
 			ENDHLSL
 		}
 
-		//ForwardPlus
+		//Forward Pass
 		Pass
 		{
 			Name "ForwardPass"
@@ -180,11 +180,11 @@
 			#pragma enable_d3d11_debug_symbols
 
 
-			#include "../Private/Common.hlsl"
-			#include "../Private/GPUScene.hlsl"
-			#include "../Private/Lightmap.hlsl"
-			#include "../Private/GBufferPack.hlsl"
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/Common.hlsl"
+			#include "../Include/GPUScene.hlsl"
+			#include "../Include/Lightmap.hlsl"
+			#include "../Include/GBufferPack.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 

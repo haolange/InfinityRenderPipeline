@@ -51,7 +51,7 @@ Shader "InfinityPipeline/TerrainLit"
         Pass
         {
 			Name "ForwardPass"
-			Tags { "LightMode" = "ForwardPlus" }
+			Tags { "LightMode" = "ForwardPass" }
             
 			ZTest LEqual ZWrite On Cull Back
 

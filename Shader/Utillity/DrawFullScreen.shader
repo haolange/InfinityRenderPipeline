@@ -6,7 +6,7 @@
 		
 		Pass
 		{
-			Name"DefaultDrawFullScreen"
+			Name"DefaultFullScreen"
 			ZTest Always ZWrite Off  Blend Off Cull Off
 
 			HLSLPROGRAM
@@ -50,7 +50,7 @@
 
 		Pass
 		{
-			Name"SmartDrawFullScreen"
+			Name"SmartFullScreen"
 			ZTest Always ZWrite Off  Blend Off Cull Off
 
 			HLSLPROGRAM
@@ -59,9 +59,9 @@
 			#pragma target 4.5
 
 			//#define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod) SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, 0, lod)
-			#include "../Private/Common.hlsl"
-			#include "../Private/GBufferPack.hlsl"
-			#include "../Private/ShaderVariable.hlsl"
+			#include "../Include/Common.hlsl"
+			#include "../Include/GBufferPack.hlsl"
+			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			float4 _ScaleBais;	

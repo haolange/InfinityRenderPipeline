@@ -47,7 +47,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
         Pass
         {
 			Name "TerrainAdd"
-			Tags { "LightMode" = "ForwardPlus" }
+			Tags { "LightMode" = "ForwardPass" }
 
             Blend One One
 			ZTest Equal ZWrite Off Cull Back
