@@ -73,9 +73,9 @@ namespace InfinityTech.Rendering.RDG
             return input;
         }
 
-        public void SetRenderFunc<T>(ExecuteAction<T> RenderFunc) where T : struct
+        public void SetExecuteFunc<T>(FExecuteAction<T> ExcuteFunc) where T : struct
         {
-            ((RDGPass<T>)m_RenderPass).RenderFunc = RenderFunc;
+            ((RDGPass<T>)m_RenderPass).ExcuteFunc = ExcuteFunc;
         }
 
         public void Dispose()

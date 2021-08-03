@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_GBufferMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref FGBufferPassData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetExecuteFunc((ref FGBufferPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(ref graphContext, 1);

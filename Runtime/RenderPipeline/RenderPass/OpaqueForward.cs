@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ForwardMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref FForwardPassData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetExecuteFunc((ref FForwardPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(ref graphContext, 2);

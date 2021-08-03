@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
-                passBuilder.SetRenderFunc((ref FMotionPassData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetExecuteFunc((ref FMotionPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     FilteringSettings filteringSettings = new FilteringSettings
                     {

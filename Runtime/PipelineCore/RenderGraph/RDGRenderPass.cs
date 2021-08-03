@@ -103,30 +103,28 @@ namespace InfinityTech.Rendering.RDG
 
     }
 
-
-    public delegate void StepAction<T>(ref T passData, ref RDGPassBuilder passBuilder) where T : struct;
-    public delegate void ExecuteAction<T>(ref T passData, ref RDGGraphContext graphContext) where T : struct;
+    public delegate void FExecuteAction<T>(ref T passData, ref RDGGraphContext graphContext) where T : struct;
 
     internal sealed class RDGPass<T> : IRDGPass where T : struct
     {
         internal T passData;
-        internal ExecuteAction<T> RenderFunc;
+        internal FExecuteAction<T> ExcuteFunc;
 
         public override void Execute(ref RDGGraphContext graphContext)
         {
-            RenderFunc(ref passData, ref graphContext);
+            ExcuteFunc(ref passData, ref graphContext);
         }
 
         public override void Release(RDGObjectPool objectPool)
         {
             Clear();
-            RenderFunc = null;
+            ExcuteFunc = null;
             objectPool.Release(this);
         }
 
         public override bool HasRenderFunc()
         {
-            return RenderFunc != null;
+            return ExcuteFunc != null;
         }
     }
 }
