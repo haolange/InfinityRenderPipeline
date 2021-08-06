@@ -10,7 +10,7 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FUtilityPassString
+    internal struct FUtilityPassString
     {
         internal static string SkyBoxPassName = "Gizmos";
         internal static string GizmosPassName = "SkyBox";

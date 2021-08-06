@@ -59,23 +59,21 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassMeshSections = new NativeList<FPassMeshSection>(cullingData.viewMeshElements.Length, Allocator.TempJob);
             m_MeshDrawCommands = new NativeList<FMeshDrawCommand>(cullingData.viewMeshElements.Length, Allocator.TempJob);
 
-            FMeshDrawCommandBuildJob meshDrawCommandBuildJob = new FMeshDrawCommandBuildJob();
-            {
-                meshDrawCommandBuildJob.cullingData = cullingData;
-                meshDrawCommandBuildJob.meshElements = m_GPUScene.meshElements;
-                meshDrawCommandBuildJob.meshBatchIndexs = m_MeshBatchIndexs;
-                meshDrawCommandBuildJob.meshDrawCommands = m_MeshDrawCommands;
-                meshDrawCommandBuildJob.passMeshSections = m_PassMeshSections;
-                meshDrawCommandBuildJob.meshPassDesctiption = meshPassDesctiption;
-            }
+            FMeshDrawCommandBuildJob meshDrawCommandBuildJob;
+            meshDrawCommandBuildJob.cullingData = cullingData;
+            meshDrawCommandBuildJob.meshElements = m_GPUScene.meshElements;
+            meshDrawCommandBuildJob.meshBatchIndexs = m_MeshBatchIndexs;
+            meshDrawCommandBuildJob.meshDrawCommands = m_MeshDrawCommands;
+            meshDrawCommandBuildJob.passMeshSections = m_PassMeshSections;
+            meshDrawCommandBuildJob.meshPassDesctiption = meshPassDesctiption;
             m_MeshPassTaskRefs.Add(meshDrawCommandBuildJob.Schedule());
         }
 
-        internal void DispatchDraw(ref RDGGraphContext graphContext, in int passIndex)
+        internal void DispatchDraw(in RDGGraphContext graphContext, in int passIndex)
         {
             if (!m_MeshBatchIndexs.IsCreated && !m_PassMeshSections.IsCreated && !m_MeshDrawCommands.IsCreated) { return; }
 
-            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.MeshBatch)))
+            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.DrawMeshBatcher)))
             {
                 BufferRef bufferRef = graphContext.resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
                 graphContext.cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs);

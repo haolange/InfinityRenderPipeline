@@ -7,7 +7,7 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FForwardPassString
+    internal struct FForwardPassString
     {
         internal static string PassName = "ForwardPass";
         internal static string TextureAName = "DiffuseTexture";
@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passBuilder.SetExecuteFunc((ref FForwardPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(ref graphContext, 2);
+                    passData.meshPassProcessor.DispatchDraw(graphContext, 2);
 
                     //UnityDrawPipeline
                     FilteringSettings filteringSettings = new FilteringSettings

@@ -7,7 +7,7 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FMotionPassString
+    internal struct FMotionPassString
     {
         internal static string PassName = "MotionPass";
         internal static string TextureName = "MotionTexture";

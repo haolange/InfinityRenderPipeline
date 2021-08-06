@@ -6,7 +6,7 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FDepthPassString
+    internal struct FDepthPassString
     {
         internal static string PassName = "Depth";
         internal static string TextureName = "DepthTexture";
@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passBuilder.SetExecuteFunc((ref FDepthPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(ref graphContext, 0);
+                    passData.meshPassProcessor.DispatchDraw(graphContext, 0);
 
                     //UnityDrawPipeline
                     FilteringSettings filteringSettings = new FilteringSettings

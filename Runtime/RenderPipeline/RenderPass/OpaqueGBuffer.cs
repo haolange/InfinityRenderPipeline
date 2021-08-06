@@ -7,7 +7,7 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FGBufferPassString
+    internal struct FGBufferPassString
     {
         internal static string PassName = "GBufferPass";
         internal static string TextureAName = "GBufferTextureA";
@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passBuilder.SetExecuteFunc((ref FGBufferPassData passData, ref RDGGraphContext graphContext) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(ref graphContext, 1);
+                    passData.meshPassProcessor.DispatchDraw(graphContext, 1);
 
                     //UnityDrawPipeline
                     FilteringSettings filteringSettings = new FilteringSettings
