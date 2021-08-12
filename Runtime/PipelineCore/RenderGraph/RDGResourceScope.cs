@@ -4,28 +4,28 @@ namespace InfinityTech.Rendering.RDG
 {
     internal class RDGResourceScope<Type> where Type : struct
     {
-        internal Dictionary<int, Type> ResourceMap;
+        internal Dictionary<int, Type> resourceMap;
 
         internal RDGResourceScope()
         {
-            ResourceMap = new Dictionary<int, Type>(64);
+            resourceMap = new Dictionary<int, Type>(64);
         }
 
-        internal void Set(int InKey, Type InValue)
+        internal void Set(in int key, in Type value)
         {
-            ResourceMap.Add(InKey, InValue);
+            resourceMap.TryAdd(key, value);
         }
 
-        internal Type Get(int InKey)
+        internal Type Get(in int key)
         {
-            Type OutHandle;
-            ResourceMap.TryGetValue(InKey, out OutHandle);
-            return OutHandle;
+            Type output;
+            resourceMap.TryGetValue(key, out output);
+            return output;
         }
 
         internal void ClearScope()
         {
-            ResourceMap.Clear();
+            resourceMap.Clear();
         }
     }
 }
