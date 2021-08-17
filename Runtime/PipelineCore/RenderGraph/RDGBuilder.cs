@@ -158,7 +158,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.GetBufferResourceDesc(bufferRef.handle);
         }
 
-        public RDGTextureRef ImportTexture(RenderTexture texture, int shaderProperty = 0)
+        public RDGTextureRef ImportTexture(RTHandle texture, int shaderProperty = 0)
         {
             return m_Resources.ImportTexture(texture, shaderProperty);
         }
@@ -253,8 +253,8 @@ namespace InfinityTech.Rendering.RDG
 
         void InitializeCompilationData()
         {
-            InitResourceInfosData(m_CompiledResourcesInfos[(int)RDGResourceType.Buffer], m_Resources.GetBufferResourceCount());
-            InitResourceInfosData(m_CompiledResourcesInfos[(int)RDGResourceType.Texture], m_Resources.GetTextureResourceCount());
+            InitResourceInfosData(m_CompiledResourcesInfos[(int)ERDGResourceType.Buffer], m_Resources.GetBufferResourceCount());
+            InitResourceInfosData(m_CompiledResourcesInfos[(int)ERDGResourceType.Texture], m_Resources.GetTextureResourceCount());
 
             m_CompiledPassInfos.Resize(m_RenderPasses.Count);
             for (int i = 0; i < m_CompiledPassInfos.size; ++i)
@@ -661,12 +661,12 @@ namespace InfinityTech.Rendering.RDG
 
             // TODO RENDERGRAPH remove this when we do away with auto global texture setup
             // (can't put it in the profiling scope otherwise it might be executed on compute queue which is not possible for global sets)
-            m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)RDGResourceType.Texture]);
+            m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERDGResourceType.Texture]);
 
-            foreach (var BufferHandle in passInfo.resourceCreateList[(int)RDGResourceType.Buffer])
+            foreach (var BufferHandle in passInfo.resourceCreateList[(int)ERDGResourceType.Buffer])
                 m_Resources.CreateRealBuffer(BufferHandle);
 
-            foreach (var texture in passInfo.resourceCreateList[(int)RDGResourceType.Texture])
+            foreach (var texture in passInfo.resourceCreateList[(int)ERDGResourceType.Texture])
                 m_Resources.CreateRealTexture(ref graphContext, texture);
 
             PreRenderPassSetRenderTargets(ref graphContext, passInfo);
@@ -706,10 +706,10 @@ namespace InfinityTech.Rendering.RDG
 
             m_ObjectPool.ReleaseAllTempAlloc();
 
-            foreach (var buffer in passInfo.resourceReleaseList[(int)RDGResourceType.Buffer])
+            foreach (var buffer in passInfo.resourceReleaseList[(int)ERDGResourceType.Buffer])
                 m_Resources.ReleaseRealBuffer(buffer);
 
-            foreach (var texture in passInfo.resourceReleaseList[(int)RDGResourceType.Texture])
+            foreach (var texture in passInfo.resourceReleaseList[(int)ERDGResourceType.Texture])
                 m_Resources.ReleaseRealTexture(texture);
 
         }

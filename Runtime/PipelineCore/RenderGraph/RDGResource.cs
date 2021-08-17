@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.RDG
         ReadWrite = Read | Write,
     }
 
-    internal enum RDGResourceType
+    internal enum ERDGResourceType
     {
         Buffer,
         Texture
@@ -26,10 +26,10 @@ namespace InfinityTech.Rendering.RDG
         bool m_IsValid;
 
         public int index { get; private set; }
-        public RDGResourceType type { get; private set; }
+        public ERDGResourceType type { get; private set; }
         public int iType { get { return (int)type; } }
 
-        internal RDGResourceRef(int value, RDGResourceType type)
+        internal RDGResourceRef(int value, ERDGResourceType type)
         {
             index = value;
             this.type = type;
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.RDG
     {
         internal RDGResourceRef handle;
 
-        internal RDGBufferRef(int handle) { this.handle = new RDGResourceRef(handle, RDGResourceType.Buffer); }
+        internal RDGBufferRef(int handle) { this.handle = new RDGResourceRef(handle, ERDGResourceType.Buffer); }
         public static implicit operator ComputeBuffer(RDGBufferRef bufferHandle) => bufferHandle.IsValid() ? RDGResourceFactory.current.GetBuffer(bufferHandle) : null;
         public bool IsValid() => handle.IsValid();
     }
@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.RDG
 
         internal RDGResourceRef handle;
 
-        internal RDGTextureRef(int handle) { this.handle = new RDGResourceRef(handle, RDGResourceType.Texture); }
+        internal RDGTextureRef(int handle) { this.handle = new RDGResourceRef(handle, ERDGResourceType.Texture); }
 
         public static implicit operator RenderTexture(RDGTextureRef texture) => texture.IsValid() ? RDGResourceFactory.current.GetTexture(texture) : null;
         public static implicit operator RenderTargetIdentifier(RDGTextureRef texture) => texture.IsValid() ? RDGResourceFactory.current.GetTexture(texture) : null;
@@ -214,7 +214,7 @@ namespace InfinityTech.Rendering.RDG
         }
     }
 
-    internal class RDGTexture : RDGResource<TextureDescription, RenderTexture>
+    internal class RDGTexture : RDGResource<TextureDescription, RTHandle>
     {
         public override string GetName()
         {

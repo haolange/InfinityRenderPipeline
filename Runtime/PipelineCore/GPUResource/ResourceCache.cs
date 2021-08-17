@@ -176,7 +176,7 @@ namespace InfinityTech.Rendering.GPUResource
             list.Add(resource);
         }
 
-        public void Disposed()
+        public void Dispose()
         {
             foreach (var kvp in m_ResourcePool)
             {

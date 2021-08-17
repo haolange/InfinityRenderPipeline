@@ -213,7 +213,7 @@ namespace InfinityTech.Rendering.Core
 
             meshAssets.Clear();
             materialAssets.Clear();
-            resourcePool.Disposed();
+            resourcePool.Dispose();
             m_MeshBatchCollector.Release();
         }
 

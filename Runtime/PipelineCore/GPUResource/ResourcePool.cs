@@ -52,10 +52,10 @@ namespace InfinityTech.Rendering.GPUResource
             m_TexturePool.Push(textureRef.handle, textureRef.texture);
         }
 
-        public void Disposed()
+        public void Dispose()
         {
-            m_BufferPool.Disposed();
-            m_TexturePool.Disposed();
+            m_BufferPool.Dispose();
+            m_TexturePool.Dispose();
         }
     }
 }
