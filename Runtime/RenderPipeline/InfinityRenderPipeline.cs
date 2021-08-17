@@ -187,8 +187,8 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private FGPUScene m_GPUScene;
+        private RDGBuilder m_GraphBuilder;
         private FViewUnifrom m_ViewUnifrom;
-        private RDGGraphBuilder m_GraphBuilder;
         private NativeList<JobHandle> m_MeshPassTaskRefs;
         private FMeshPassProcessor m_DepthMeshProcessor;
         private FMeshPassProcessor m_GBufferMeshProcessor;
@@ -200,7 +200,7 @@ namespace InfinityTech.Rendering.Pipeline
             SetGraphicsSetting();
             m_GPUScene = new FGPUScene();
             m_ViewUnifrom = new FViewUnifrom();
-            m_GraphBuilder = new RDGGraphBuilder("InfinityGraph");
+            m_GraphBuilder = new RDGBuilder("RenderGraph");
             m_MeshPassTaskRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
             m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
@@ -285,7 +285,9 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderGizmos(camera, GizmoSubset.PostImageEffects);
                         #endif
                         RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
-                        m_GraphBuilder.Execute(GetWorld(), renderContext, resourceFactory, m_MeshPassTaskRefs, cmdBuffer, m_ViewUnifrom.frameIndex);
+
+                        JobHandle.CompleteAll(m_MeshPassTaskRefs);
+                        m_GraphBuilder.Execute(renderContext, GetWorld(), resourceFactory, cmdBuffer);
                         #endregion //InitViewCommand
 
                         #region ReleaseViewContext

@@ -4,12 +4,10 @@ using UnityEngine.Rendering;
 using System.Collections.Generic;
 using InfinityTech.Rendering.Core;
 using InfinityTech.Rendering.GPUResource;
-using Unity.Collections;
-using Unity.Jobs;
 
 namespace InfinityTech.Rendering.RDG
 {
-    public struct RDGGraphContext
+    public struct RDGContext
     {
         public FRenderWorld world;
         public CommandBuffer cmdBuffer;
@@ -18,81 +16,76 @@ namespace InfinityTech.Rendering.RDG
         public ScriptableRenderContext renderContext;
     }
 
-    public struct RDGExecuteParams
+    internal struct CompiledPassInfo
     {
-        public int currentFrameIndex;
-    }
+        public IRDGPass pass;
+        public int refCount;
+        public int syncToPassIndex; // Index of the pass that needs to be waited for.
+        public int syncFromPassIndex; // Smaller pass index that waits for this pass.
+        public bool culled;
+        public bool hasSideEffect;
+        public bool needGraphicsFence;
+        public GraphicsFence fence;
+        public List<int>[] resourceCreateList;
+        public List<int>[] resourceReleaseList;
 
-    public class RDGGraphBuilder 
-    {
-        internal struct CompiledResourceInfo
+        public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
+        public bool allowPassCulling { get { return pass.allowPassCulling; } }
+
+
+        public void Reset(IRDGPass pass)
         {
-            public int refCount;
-            public bool resourceCreated;
-            public List<int> producers;
-            public List<int> consumers;
+            this.pass = pass;
 
-            public void Reset()
+            if (resourceCreateList == null)
             {
-                if (producers == null)
-                    producers = new List<int>();
-                if (consumers == null)
-                    consumers = new List<int>();
-
-                producers.Clear();
-                consumers.Clear();
-                resourceCreated = false;
-                refCount = 0;
-            }
-        }
-
-        internal struct CompiledPassInfo
-        {
-            public IRDGPass pass;
-            public int refCount;
-            public int syncToPassIndex; // Index of the pass that needs to be waited for.
-            public int syncFromPassIndex; // Smaller pass index that waits for this pass.
-            public bool culled;
-            public bool hasSideEffect;
-            public bool needGraphicsFence;
-            public GraphicsFence fence;
-            public List<int>[] resourceCreateList;
-            public List<int>[] resourceReleaseList;
-
-            public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
-            public bool allowPassCulling { get { return pass.allowPassCulling; } }
-
-
-            public void Reset(IRDGPass pass)
-            {
-                this.pass = pass;
-
-                if (resourceCreateList == null)
-                {
-                    resourceCreateList = new List<int>[2];
-                    resourceReleaseList = new List<int>[2];
-                    for (int i = 0; i < 2; ++i)
-                    {
-                        resourceCreateList[i] = new List<int>();
-                        resourceReleaseList[i] = new List<int>();
-                    }
-                }
-
+                resourceCreateList = new List<int>[2];
+                resourceReleaseList = new List<int>[2];
                 for (int i = 0; i < 2; ++i)
                 {
-                    resourceCreateList[i].Clear();
-                    resourceReleaseList[i].Clear();
+                    resourceCreateList[i] = new List<int>();
+                    resourceReleaseList[i] = new List<int>();
                 }
-
-                refCount = 0;
-                culled = false;
-                hasSideEffect = false;
-                syncToPassIndex = -1;
-                syncFromPassIndex = -1;
-                needGraphicsFence = false;
             }
-        }
 
+            for (int i = 0; i < 2; ++i)
+            {
+                resourceCreateList[i].Clear();
+                resourceReleaseList[i].Clear();
+            }
+
+            refCount = 0;
+            culled = false;
+            hasSideEffect = false;
+            syncToPassIndex = -1;
+            syncFromPassIndex = -1;
+            needGraphicsFence = false;
+        }
+    }
+
+    internal struct CompiledResourceInfo
+    {
+        public int refCount;
+        public bool resourceCreated;
+        public List<int> consumers;
+        public List<int> producers;
+
+        public void Reset()
+        {
+            if (producers == null)
+                producers = new List<int>();
+            if (consumers == null)
+                consumers = new List<int>();
+
+            producers.Clear();
+            consumers.Clear();
+            resourceCreated = false;
+            refCount = 0;
+        }
+    }
+
+    public class RDGBuilder 
+    {
         public string name;
         RDGResourceFactory m_Resources;
         RDGResourceScope<RDGBufferRef> m_BufferScope;
@@ -100,16 +93,15 @@ namespace InfinityTech.Rendering.RDG
         List<IRDGPass> m_RenderPasses = new List<IRDGPass>(64);
 
         bool m_ExecutionExceptionWasRaised;
-        RDGGraphContext m_GraphContext = new RDGGraphContext();
+        RDGContext m_GraphContext = new RDGContext();
         RDGObjectPool m_ObjectPool = new RDGObjectPool();
 
         // Compiled Render Graph info.
         Stack<int> m_CullingStack = new Stack<int>();
         DynamicArray<CompiledPassInfo> m_CompiledPassInfos = new DynamicArray<CompiledPassInfo>();
         DynamicArray<CompiledResourceInfo>[] m_CompiledResourcesInfos = new DynamicArray<CompiledResourceInfo>[2];
-        #region Public Interface
 
-        public RDGGraphBuilder(string name)
+        public RDGBuilder(string name)
         {
             this.name = name;
             this.m_Resources = new RDGResourceFactory();
@@ -124,34 +116,9 @@ namespace InfinityTech.Rendering.RDG
 
         public void Cleanup()
         {
+            m_Resources.Cleanup();
             m_BufferScope.ClearScope();
             m_TextureScope.ClearScope();
-            m_Resources.Cleanup();
-        }
-
-        public void PurgeUnusedResources()
-        {
-            m_Resources.CullingUnusedResources();
-        }
-
-        public RDGTextureRef ImportTexture(RenderTexture rt, int shaderProperty = 0)
-        {
-            return m_Resources.ImportTexture(rt, shaderProperty);
-        }
-
-        public RDGTextureRef CreateTexture(in TextureDescription desc, int shaderProperty = 0)
-        {
-            return m_Resources.CreateTexture(desc, shaderProperty);
-        }
-
-        public RDGTextureRef CreateTexture(RDGTextureRef texture, int shaderProperty = 0)
-        {
-            return m_Resources.CreateTexture(m_Resources.GetTextureResourceDesc(texture.handle), shaderProperty);
-        }
-
-        public TextureDescription GetTextureDesc(RDGTextureRef texture)
-        {
-            return m_Resources.GetTextureResourceDesc(texture.handle);
         }
 
         public RDGBufferRef ImportBuffer(ComputeBuffer buffer)
@@ -159,53 +126,73 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.ImportBuffer(buffer);
         }
 
-        public RDGBufferRef CreateBuffer(in BufferDescription desc)
+        public RDGBufferRef CreateBuffer(in BufferDescription bufferDesc)
         {
-            return m_Resources.CreateBuffer(desc);
+            return m_Resources.CreateBuffer(bufferDesc);
         }
 
-        public RDGBufferRef CreateBuffer(in RDGBufferRef bufferHandle)
+        public RDGBufferRef CreateBuffer(in RDGBufferRef bufferRef)
         {
-            return m_Resources.CreateBuffer(m_Resources.GetBufferResourceDesc(bufferHandle.handle));
+            return m_Resources.CreateBuffer(m_Resources.GetBufferResourceDesc(bufferRef.handle));
         }
 
-        public BufferDescription GetBufferDesc(in RDGBufferRef bufferHandle)
+        public RDGBufferRef ScopeBuffer(in int handle)
         {
-            return m_Resources.GetBufferResourceDesc(bufferHandle.handle);
+            return m_BufferScope.Get(handle);
         }
 
-        public RDGBufferRef ScopeBuffer(in int Handle)
+        public void ScopeBuffer(int handle, in RDGBufferRef bufferRef)
         {
-            return m_BufferScope.Get(Handle);
+            m_BufferScope.Set(handle, bufferRef);
         }
 
-        public void ScopeBuffer(int Handle, in RDGBufferRef Buffer)
+        public RDGBufferRef ScopeBuffer(in int handle, in BufferDescription bufferDesc)
         {
-            m_BufferScope.Set(Handle, Buffer);
+            RDGBufferRef bufferRef = CreateBuffer(bufferDesc);
+            m_BufferScope.Set(handle, bufferRef);
+            return bufferRef;
         }
 
-        public RDGBufferRef ScopeBuffer(in int Handle, in BufferDescription BufferDesc)
+        public BufferDescription GetBufferDesc(in RDGBufferRef bufferRef)
         {
-            RDGBufferRef Buffer = CreateBuffer(BufferDesc);
-            m_BufferScope.Set(Handle, Buffer);
-            return Buffer;
+            return m_Resources.GetBufferResourceDesc(bufferRef.handle);
         }
 
-        public RDGTextureRef ScopeTexture(in int Handle)
+        public RDGTextureRef ImportTexture(RenderTexture texture, int shaderProperty = 0)
         {
-            return m_TextureScope.Get(Handle);
+            return m_Resources.ImportTexture(texture, shaderProperty);
         }
 
-        public void ScopeTexture(int Handle, in RDGTextureRef Texture)
+        public RDGTextureRef CreateTexture(in TextureDescription textureDesc, int shaderProperty = 0)
         {
-            m_TextureScope.Set(Handle, Texture);
+            return m_Resources.CreateTexture(textureDesc, shaderProperty);
         }
 
-        public RDGTextureRef ScopeTexture(in int Handle, in TextureDescription TextureDesc)
+        public RDGTextureRef CreateTexture(RDGTextureRef textureRef, int shaderProperty = 0)
         {
-            RDGTextureRef Texture = CreateTexture(TextureDesc, Handle);
-            m_TextureScope.Set(Handle, Texture);
-            return Texture;
+            return m_Resources.CreateTexture(m_Resources.GetTextureResourceDesc(textureRef.handle), shaderProperty);
+        }
+
+        public RDGTextureRef ScopeTexture(in int handle)
+        {
+            return m_TextureScope.Get(handle);
+        }
+
+        public void ScopeTexture(int handle, in RDGTextureRef textureRef)
+        {
+            m_TextureScope.Set(handle, textureRef);
+        }
+
+        public RDGTextureRef ScopeTexture(in int handle, in TextureDescription textureDesc)
+        {
+            RDGTextureRef textureRef = CreateTexture(textureDesc, handle);
+            m_TextureScope.Set(handle, textureRef);
+            return textureRef;
+        }
+
+        public TextureDescription GetTextureDesc(RDGTextureRef textureRef)
+        {
+            return m_Resources.GetTextureResourceDesc(textureRef.handle);
         }
 
         public RDGPassBuilder AddPass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
@@ -219,17 +206,16 @@ namespace InfinityTech.Rendering.RDG
             return new RDGPassBuilder(renderPass, m_Resources);
         }
 
-        public void Execute(FRenderWorld world, ScriptableRenderContext renderContext, FResourceFactory resourceFactory, in NativeList<JobHandle> meshPassTaskRefs, CommandBuffer cmd, in int frameIndex)
+        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, FResourceFactory resourceFactory, CommandBuffer cmdBuffer)
         {
             m_ExecutionExceptionWasRaised = false;
-            JobHandle.CompleteAll(meshPassTaskRefs);
 
             #region ExecuteRenderPass
             try
             {
-                m_Resources.BeginRender(frameIndex);
+                m_Resources.BeginRender();
                 CompileRenderPass();
-                ExecuteRenderPass(renderContext, world, resourceFactory, cmd);
+                ExecuteRenderPass(renderContext, world, resourceFactory, cmdBuffer);
             } catch (Exception exception) {
                 Debug.LogError("RenderGraph Execute error");
                 if (!m_ExecutionExceptionWasRaised)
@@ -239,21 +225,14 @@ namespace InfinityTech.Rendering.RDG
                 ClearCompiledPass();
                 m_Resources.EndRender();
             }
-            #endregion //ExecuteRenderPass
-        }
-        #endregion
-
-        #region Private Interface
-
-        // Internal for testing purpose only
-        internal DynamicArray<CompiledPassInfo> GetCompiledPassInfos() { return m_CompiledPassInfos; }
-
-        private RDGGraphBuilder()
-        {
-
+            #endregion
         }
 
-        // Internal for testing purpose only
+        internal DynamicArray<CompiledPassInfo> GetCompiledPassInfos() 
+        { 
+            return m_CompiledPassInfos; 
+        }
+
         internal void ClearCompiledPass()
         {
             ClearRenderPasses();
@@ -274,8 +253,8 @@ namespace InfinityTech.Rendering.RDG
 
         void InitializeCompilationData()
         {
-            InitResourceInfosData(m_CompiledResourcesInfos[(int)RDGResourceType.Texture], m_Resources.GetTextureResourceCount());
             InitResourceInfosData(m_CompiledResourcesInfos[(int)RDGResourceType.Buffer], m_Resources.GetBufferResourceCount());
+            InitResourceInfosData(m_CompiledResourcesInfos[(int)RDGResourceType.Texture], m_Resources.GetTextureResourceCount());
 
             m_CompiledPassInfos.Resize(m_RenderPasses.Count);
             for (int i = 0; i < m_CompiledPassInfos.size; ++i)
@@ -489,7 +468,6 @@ namespace InfinityTech.Rendering.RDG
             return -1;
         }
 
-
         void UpdateResourceAllocationAndSynchronization()
         {
             int lastGraphicsPipeSync = -1;
@@ -624,7 +602,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassSetRenderTargets(ref RDGGraphContext graphContext, in CompiledPassInfo passInfo)
+        void PreRenderPassSetRenderTargets(ref RDGContext graphContext, in CompiledPassInfo passInfo)
         {
             var pass = passInfo.pass;
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
@@ -676,7 +654,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PreRenderPassExecute(ref RDGGraphContext graphContext, in CompiledPassInfo passInfo)
+        void PreRenderPassExecute(ref RDGContext graphContext, in CompiledPassInfo passInfo)
         {
             // TODO RENDERGRAPH merge clear and setup here if possible
             IRDGPass pass = passInfo.pass;
@@ -711,7 +689,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void PostRenderPassExecute(CommandBuffer cmdBuffer, ref RDGGraphContext graphContext, ref CompiledPassInfo passInfo)
+        void PostRenderPassExecute(CommandBuffer cmdBuffer, ref RDGContext graphContext, ref CompiledPassInfo passInfo)
         {
             IRDGPass pass = passInfo.pass;
 
@@ -748,6 +726,5 @@ namespace InfinityTech.Rendering.RDG
             m_BufferScope.ClearScope();
             m_TextureScope.ClearScope();
         }
-        #endregion
     }
 }

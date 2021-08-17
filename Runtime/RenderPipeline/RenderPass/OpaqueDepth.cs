@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_DepthMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(2450, 2999));
 
                 //Execute Phase
-                passBuilder.SetExecuteFunc((ref FDepthPassData passData, ref RDGGraphContext graphContext) =>
+                passBuilder.SetExecuteFunc((ref FDepthPassData passData, ref RDGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 0);

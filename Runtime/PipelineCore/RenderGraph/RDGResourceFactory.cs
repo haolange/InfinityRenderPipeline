@@ -21,8 +21,6 @@ namespace InfinityTech.Rendering.RDG
 
     class RDGResourceFactory
     {
-        static readonly ShaderTagId s_EmptyName = new ShaderTagId("");
-
         static RDGResourceFactory m_CurrentRegistry;
         internal static RDGResourceFactory current
         {
@@ -33,11 +31,9 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        int m_CurrentFrameIndex;
-        FRGTexturePool m_TexturePool = new FRGTexturePool();
         FRGBufferPool m_BufferPool = new FRGBufferPool();
+        FRGTexturePool m_TexturePool = new FRGTexturePool();
         DynamicArray<IRDGResource>[] m_Resources = new DynamicArray<IRDGResource>[2];
-
 
         internal ComputeBuffer GetBuffer(in RDGBufferRef handle)
         {
@@ -62,10 +58,9 @@ namespace InfinityTech.Rendering.RDG
             return res.resource;
         }
 
-        internal void BeginRender(int InFrameIndex)
+        internal void BeginRender()
         {
             current = this;
-            m_CurrentFrameIndex = InFrameIndex;
         }
 
         internal void EndRender()
@@ -197,14 +192,14 @@ namespace InfinityTech.Rendering.RDG
                 if (resource.resource == null)
                     throw new InvalidOperationException($"Tried to release a compute buffer ({resource.desc.name}) that was never created. Check that there is at least one pass writing to it first.");
 
-                m_BufferPool.Release(resource.cachedHash, resource.resource, m_CurrentFrameIndex);
+                m_BufferPool.Release(resource.cachedHash, resource.resource);
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
             }
         }
 
-        internal void CreateRealTexture(ref RDGGraphContext graphContext, int index)
+        internal void CreateRealTexture(ref RDGContext graphContext, int index)
         {
             var resource = m_Resources[(int)RDGResourceType.Texture][index] as RDGTexture;
 
@@ -253,14 +248,14 @@ namespace InfinityTech.Rendering.RDG
                     CoreUtils.SetRenderTarget(rgContext.CmdBuffer, GetTexture(new RDGTextureHandle(index)), clearFlag, Color.magenta);
                 }*/
 
-                m_TexturePool.Release(resource.cachedHash, resource.resource, m_CurrentFrameIndex);
+                m_TexturePool.Release(resource.cachedHash, resource.resource);
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
             }
         }
 
-        internal void SetGlobalTextures(ref RDGGraphContext graphContext, List<RDGResourceRef> textures)
+        internal void SetGlobalTextures(ref RDGContext graphContext, List<RDGResourceRef> textures)
         {
             foreach (var resource in textures)
             {
@@ -280,12 +275,6 @@ namespace InfinityTech.Rendering.RDG
             for (int i = 0; i < 2; ++i) { 
                 m_Resources[i].Clear();
             }
-        }
-
-        internal void CullingUnusedResources()
-        {
-            m_BufferPool.CullingUnusedResources(m_CurrentFrameIndex);
-            m_TexturePool.CullingUnusedResources(m_CurrentFrameIndex);
         }
 
         internal void Cleanup()
