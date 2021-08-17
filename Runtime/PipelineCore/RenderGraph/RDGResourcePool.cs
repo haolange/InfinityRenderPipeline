@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.RDG
             list.Add(resource);
         }
 
-        public void Cleanup()
+        public void Dispose()
         {
             foreach (var kvp in m_ResourcePool)
             {

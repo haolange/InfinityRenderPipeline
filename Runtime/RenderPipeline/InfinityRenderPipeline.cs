@@ -352,7 +352,7 @@ namespace InfinityTech.Rendering.Pipeline
        
         protected override void Dispose(bool disposing)
         {
-            m_GraphBuilder.Cleanup();
+            m_GraphBuilder.Dispose();
             m_MeshPassTaskRefs.Dispose();
         }
     }

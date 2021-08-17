@@ -277,10 +277,10 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void Cleanup()
+        internal void Dispose()
         {
-            m_BufferPool.Cleanup();
-            m_TexturePool.Cleanup();
+            m_BufferPool.Dispose();
+            m_TexturePool.Dispose();
         }
 
         #endregion

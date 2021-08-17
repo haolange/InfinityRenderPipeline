@@ -14,11 +14,6 @@ namespace InfinityTech.Rendering.GPUResource
             m_TexturePool = new FTexturePool();
         }
 
-        public void Reset()
-        {
-
-        }
-
         public BufferRef AllocateBuffer(in BufferDescription description)
         {
             ComputeBuffer buffer;

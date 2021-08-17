@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using Unity.Collections;
+using System.Collections.Generic;
 
 namespace InfinityTech.Rendering.RDG
 {
     internal class RDGResourceScope<Type> where Type : struct
     {
-        internal Dictionary<int, Type> resourceMap;
+        internal NativeHashMap<int, Type> resourceMap;
 
         internal RDGResourceScope()
         {
-            resourceMap = new Dictionary<int, Type>(64);
+            resourceMap = new NativeHashMap<int, Type>(64, Allocator.Persistent);
         }
 
         internal void Set(in int key, in Type value)
@@ -23,9 +24,14 @@ namespace InfinityTech.Rendering.RDG
             return output;
         }
 
-        internal void ClearScope()
+        internal void Clear()
         {
             resourceMap.Clear();
+        }
+
+        internal void Dispose()
+        {
+            resourceMap.Dispose();
         }
     }
 }

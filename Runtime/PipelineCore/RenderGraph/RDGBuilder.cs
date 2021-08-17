@@ -114,11 +114,11 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        public void Cleanup()
+        public void Dispose()
         {
-            m_Resources.Cleanup();
-            m_BufferScope.ClearScope();
-            m_TextureScope.ClearScope();
+            m_Resources.Dispose();
+            m_BufferScope.Dispose();
+            m_TextureScope.Dispose();
         }
 
         public RDGBufferRef ImportBuffer(ComputeBuffer buffer)
@@ -721,10 +721,9 @@ namespace InfinityTech.Rendering.RDG
                 pass.Release(m_ObjectPool);
             }
 
+            m_BufferScope.Clear();
+            m_TextureScope.Clear();
             m_RenderPasses.Clear();
-
-            m_BufferScope.ClearScope();
-            m_TextureScope.ClearScope();
         }
     }
 }
