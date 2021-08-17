@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.RDG
 
         internal void CreateRealBuffer(int index)
         {
-            var resource = m_Resources[(int)RDGResourceType.Buffer][index] as RDGBuffer;
+            RDGBuffer resource = m_Resources[(int)RDGResourceType.Buffer][index] as RDGBuffer;
             if (!resource.imported)
             {
                 var desc = resource.desc;
@@ -185,7 +185,7 @@ namespace InfinityTech.Rendering.RDG
 
         internal void ReleaseRealBuffer(int index)
         {
-            var resource = m_Resources[(int)RDGResourceType.Buffer][index] as RDGBuffer;
+            RDGBuffer resource = m_Resources[(int)RDGResourceType.Buffer][index] as RDGBuffer;
 
             if (!resource.imported)
             {
@@ -201,7 +201,7 @@ namespace InfinityTech.Rendering.RDG
 
         internal void CreateRealTexture(ref RDGContext graphContext, int index)
         {
-            var resource = m_Resources[(int)RDGResourceType.Texture][index] as RDGTexture;
+            RDGTexture resource = m_Resources[(int)RDGResourceType.Texture][index] as RDGTexture;
 
             if (!resource.imported)
             {
@@ -235,7 +235,7 @@ namespace InfinityTech.Rendering.RDG
 
         internal void ReleaseRealTexture(int index)
         {
-            var resource = m_Resources[(int)RDGResourceType.Texture][index] as RDGTexture;
+            RDGTexture resource = m_Resources[(int)RDGResourceType.Texture][index] as RDGTexture;
 
             if (!resource.imported)
             {
