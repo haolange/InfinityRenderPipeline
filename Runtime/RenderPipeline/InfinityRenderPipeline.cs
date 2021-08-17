@@ -212,9 +212,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             //Setup FrameContext
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
-            FResourceFactory resourceFactory = GetWorld().resourceFactory;
+            FResourcePool resourcePool = GetWorld().resourcePool;
             //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
-            m_GPUScene.Update(GetWorld().GetMeshBatchColloctor(), resourceFactory, cmdBuffer, false);
+            m_GPUScene.Update(GetWorld().GetMeshBatchColloctor(), resourcePool, cmdBuffer, false);
 
             BeginFrameRendering(renderContext, cameras);
             for (int i = 0; i < cameras.Length; ++i)
@@ -287,7 +287,7 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
 
                         JobHandle.CompleteAll(m_MeshPassTaskRefs);
-                        m_GraphBuilder.Execute(renderContext, GetWorld(), resourceFactory, cmdBuffer);
+                        m_GraphBuilder.Execute(renderContext, GetWorld(), resourcePool, cmdBuffer);
                         #endregion //InitViewCommand
 
                         #region ReleaseViewContext
@@ -306,7 +306,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdBuffer.Clear();
             
             //Release FrameContext
-            m_GPUScene.Release(resourceFactory);
+            m_GPUScene.Release(resourcePool);
             CommandBufferPool.Release(cmdBuffer);
         }
 

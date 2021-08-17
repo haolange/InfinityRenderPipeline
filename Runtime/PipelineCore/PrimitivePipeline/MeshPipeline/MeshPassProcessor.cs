@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.DrawMeshBatcher)))
             {
-                BufferRef bufferRef = graphContext.resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
+                BufferRef bufferRef = graphContext.resourcePool.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
                 graphContext.cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs);
 
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)
@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     graphContext.cmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
                 }
 
-                graphContext.resourceFactory.ReleaseBuffer(bufferRef);
+                graphContext.resourcePool.ReleaseBuffer(bufferRef);
             }
 
             m_MeshBatchIndexs.Dispose();

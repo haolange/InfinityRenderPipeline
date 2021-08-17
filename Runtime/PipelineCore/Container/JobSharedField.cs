@@ -66,7 +66,7 @@ namespace InfinityTech.Core
             m_SharedRefs.Remove(objRef.Id);
         }
 
-        public void Reset()
+        public void Clear()
         {
             m_SharedRefs.Clear();
         }

@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.RDG
         public FRenderWorld world;
         public CommandBuffer cmdBuffer;
         public RDGObjectPool objectPool;
-        public FResourceFactory resourceFactory;
+        public FResourcePool resourcePool;
         public ScriptableRenderContext renderContext;
     }
 
@@ -206,7 +206,7 @@ namespace InfinityTech.Rendering.RDG
             return new RDGPassBuilder(renderPass, m_Resources);
         }
 
-        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, FResourceFactory resourceFactory, CommandBuffer cmdBuffer)
+        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, FResourcePool resourcePool, CommandBuffer cmdBuffer)
         {
             m_ExecutionExceptionWasRaised = false;
 
@@ -215,7 +215,7 @@ namespace InfinityTech.Rendering.RDG
             {
                 m_Resources.BeginRender();
                 CompileRenderPass();
-                ExecuteRenderPass(renderContext, world, resourceFactory, cmdBuffer);
+                ExecuteRenderPass(renderContext, world, resourcePool, cmdBuffer);
             } catch (Exception exception) {
                 Debug.LogError("RenderGraph Execute error");
                 if (!m_ExecutionExceptionWasRaised)
@@ -564,13 +564,13 @@ namespace InfinityTech.Rendering.RDG
             UpdateResourceAllocationAndSynchronization();
         }
 
-        void ExecuteRenderPass(ScriptableRenderContext renderContext, FRenderWorld renderWorld, FResourceFactory resourceFactory, CommandBuffer cmdBuffer)
+        void ExecuteRenderPass(ScriptableRenderContext renderContext, FRenderWorld renderWorld, FResourcePool resourcePool, CommandBuffer cmdBuffer)
         {
             m_GraphContext.world = renderWorld;
             m_GraphContext.cmdBuffer = cmdBuffer;
             m_GraphContext.objectPool = m_ObjectPool;
+            m_GraphContext.resourcePool = resourcePool;
             m_GraphContext.renderContext = renderContext;
-            m_GraphContext.resourceFactory = resourceFactory;
 
             for (int passIndex = 0; passIndex < m_CompiledPassInfos.size; ++passIndex)
             {

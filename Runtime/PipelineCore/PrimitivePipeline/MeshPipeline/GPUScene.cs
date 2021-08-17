@@ -25,14 +25,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
         private FMeshBatchCollector m_MeshBatchCollector;
         
-        public void Update(FMeshBatchCollector meshBatchCollector, FResourceFactory resourceFactory, CommandBuffer cmdBuffer, in bool block = false)
+        public void Update(FMeshBatchCollector meshBatchCollector, FResourcePool resourcePool, CommandBuffer cmdBuffer, in bool block = false)
         {
             if(block) { return; }
 
             m_MeshBatchCollector = meshBatchCollector;
             if(meshBatchCollector.cacheMeshElements.IsCreated)
             {
-                bufferRef = resourceFactory.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(FMeshElement))));
+                bufferRef = resourcePool.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(FMeshElement))));
 
                 if (m_IsUpdate)
                 {
@@ -42,11 +42,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        public void Release(FResourceFactory resourceFactory)
+        public void Release(FResourcePool resourcePool)
         {
             if (m_MeshBatchCollector.cacheMeshElements.IsCreated)
             {
-                resourceFactory.ReleaseBuffer(bufferRef);
+                resourcePool.ReleaseBuffer(bufferRef);
             }
         }
     }

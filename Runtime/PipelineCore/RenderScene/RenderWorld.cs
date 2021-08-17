@@ -17,14 +17,12 @@ namespace InfinityTech.Rendering.Core
         public SharedRefFactory<Mesh> meshAssets;
         public SharedRefFactory<Material> materialAssets;
 
-        public FResourceFactory resourceFactory;
-
+        public FResourcePool resourcePool;
         private List<CameraComponent> m_ViewList;
         private List<LightComponent> m_LightList;
         private List<TerrainComponent> m_TerrainList;
         private List<MeshComponent> m_StaticMeshList;
         private List<MeshComponent> m_DynamicMeshList;
-
         private FMeshBatchCollector m_MeshBatchCollector;
 
 
@@ -197,12 +195,10 @@ namespace InfinityTech.Rendering.Core
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
 
-            meshAssets.Reset();
-            materialAssets.Reset();
-
+            meshAssets.Clear();
+            materialAssets.Clear();
             m_MeshBatchCollector.Initializ();
-
-            resourceFactory = new FResourceFactory();
+            resourcePool = new FResourcePool();
         }
 
         public void Release()
@@ -215,9 +211,9 @@ namespace InfinityTech.Rendering.Core
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
 
-            meshAssets.Reset();
-            materialAssets.Reset();
-            resourceFactory.Disposed();
+            meshAssets.Clear();
+            materialAssets.Clear();
+            resourcePool.Disposed();
             m_MeshBatchCollector.Release();
         }
 
