@@ -95,24 +95,17 @@ namespace InfinityTech.Rendering.LightPipeline
         public float GlobalIlluminationIntensity;
 
         ///IES and Cookie Property
-        public float IESIntensity;
         public int IESTextureIndex;
         public int CookieTextureIndex;
 
         ///Shadow Property
         public int EnableShadow;
-        public ELightLayer ShadowLayer;
         public EShadowType ShadowType;
-        public EShadowResolution ShadowResolution;
-        public Color ShadowColor;
-        public float ShadowIntensity;
-        public float ShadowBias;
-        public float ShadowNormalBias;
-        public float ShadowNearPlane;
+        public ELightLayer ShadowLayer;
+        public EShadowResolution Resolution;
+        public float NearPlane;
         public float MinSoftness;
         public float MaxSoftness;
-        public EShadowCascade CascadeType;
-        public float ShadowDistance;
 
         ///Contact Shadow Property
         public int EnableContactShadow;

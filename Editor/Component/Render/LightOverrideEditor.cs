@@ -46,10 +46,7 @@ namespace InfinityTech.Editor.Component
         #endregion //IndirectLighting
 
         #region IESCookie
-        public SerializedProperty EnableIES;
-        public SerializedProperty IESIntensity;
         public SerializedProperty IESTexture;
-        public SerializedProperty EnableCookie;
         public SerializedProperty CookieTexture;
         #endregion //IESCookie
 
@@ -57,16 +54,10 @@ namespace InfinityTech.Editor.Component
         public SerializedProperty EnableShadow;
         public SerializedProperty ShadowLayer;
         public SerializedProperty ShadowType;
-        public SerializedProperty ShadowResolution;
-        public SerializedProperty ShadowColor;
-        public SerializedProperty ShadowIntensity;
-        public SerializedProperty ShadowBias;
-        public SerializedProperty ShadowNormalBias;
-        public SerializedProperty ShadowNearPlane;
+        public SerializedProperty Resolution;
+        public SerializedProperty NearPlane;
         public SerializedProperty MinSoftness;
         public SerializedProperty MaxSoftness;
-        public SerializedProperty CascadeType;
-        public SerializedProperty ShadowDistance;
         #endregion //Shadow
 
         #region ContactShadow
@@ -90,8 +81,6 @@ namespace InfinityTech.Editor.Component
         public bool ShowEmission = true;
         public bool ShowGlobalillumination = true;
         public bool ShowLightMask = false;
-        public bool ShowIES = true;
-        public bool ShowCookie = true;
         public bool ShowShadow = false;
         public bool ShowContactShadow = true;
         public bool ShowVolumetricFog = true;
@@ -140,25 +129,16 @@ namespace InfinityTech.Editor.Component
             EnableGlobalIllumination = IntinityLightObject.FindProperty("EnableGlobalIllumination");
             GlobalIlluminationIntensity = IntinityLightObject.FindProperty("GlobalIlluminationIntensity");
 
-            EnableIES = IntinityLightObject.FindProperty("EnableIES");
             IESTexture = IntinityLightObject.FindProperty("IESTexture");
-            IESIntensity = IntinityLightObject.FindProperty("IESIntensity");
-            EnableCookie = IntinityLightObject.FindProperty("EnableCookie");
             CookieTexture = IntinityLightObject.FindProperty("CookieTexture");
 
             EnableShadow = IntinityLightObject.FindProperty("EnableShadow");
-            ShadowLayer = IntinityLightObject.FindProperty("ShadowLayer");
             ShadowType = IntinityLightObject.FindProperty("ShadowType");
-            ShadowResolution = IntinityLightObject.FindProperty("ShadowResolution");
-            ShadowColor = IntinityLightObject.FindProperty("ShadowColor");
-            ShadowIntensity = IntinityLightObject.FindProperty("ShadowIntensity");
-            ShadowBias = IntinityLightObject.FindProperty("ShadowBias");
-            ShadowNormalBias = IntinityLightObject.FindProperty("ShadowNormalBias");
-            ShadowNearPlane = IntinityLightObject.FindProperty("ShadowNearPlane");
+            ShadowLayer = IntinityLightObject.FindProperty("ShadowLayer");
+            Resolution = IntinityLightObject.FindProperty("Resolution");
+            NearPlane = IntinityLightObject.FindProperty("NearPlane");
             MinSoftness = IntinityLightObject.FindProperty("MinSoftness");
             MaxSoftness = IntinityLightObject.FindProperty("MaxSoftness");
-            CascadeType = IntinityLightObject.FindProperty("CascadeType");
-            ShadowDistance = IntinityLightObject.FindProperty("ShadowDistance");
 
             EnableContactShadow = IntinityLightObject.FindProperty("EnableContactShadow");
             ContactShadowLength = IntinityLightObject.FindProperty("ContactShadowLength");
@@ -186,7 +166,7 @@ namespace InfinityTech.Editor.Component
         private void DrawInspector()
         {
             IntinityLightObject.Update();
-            //////////////////////
+
             ShowGeneral = EditorGUILayout.BeginFoldoutHeaderGroup(ShowGeneral, "General");
             if (ShowGeneral)
             {
@@ -198,7 +178,6 @@ namespace InfinityTech.Editor.Component
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
-            //////////////////////
             ShowEmission = EditorGUILayout.BeginFoldoutHeaderGroup(ShowEmission, "Emission");
             if (ShowEmission)
             {
@@ -255,7 +234,6 @@ namespace InfinityTech.Editor.Component
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
-            //////////////////////
             ShowGlobalillumination = EditorGUILayout.BeginFoldoutHeaderGroup(ShowGlobalillumination, "Indirect Lighting");
             if (ShowGlobalillumination)
             {
@@ -269,46 +247,24 @@ namespace InfinityTech.Editor.Component
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
-            //////////////////////
             if (LightState.enumValueIndex != (int)ELightState.Static)
             {
                 ShowLightMask = EditorGUILayout.BeginFoldoutHeaderGroup(ShowLightMask, "Light Mask");
                 if (ShowLightMask)
                 {
                     EditorGUI.indentLevel++;
+
                     if (LightType.enumValueIndex != (int)ELightType.Directional)
                     {
-                        ShowIES = EditorGUILayout.Foldout(ShowIES, "IES", true, EditorStyles.foldoutHeader);
-                        if (ShowIES)
-                        {
-                            EditorGUI.indentLevel++;
-                            EditorGUILayout.PropertyField(EnableIES, new GUIContent("Enable"));
-                            using (new EditorGUI.DisabledScope(!EnableIES.boolValue))
-                            {
-                                EditorGUILayout.PropertyField(IESTexture, new GUIContent("Texture"));
-                                EditorGUILayout.Slider(IESIntensity, 0, 1, new GUIContent("Intensity"));
-                            }
-                            EditorGUI.indentLevel--;
-                        }
+                        EditorGUILayout.PropertyField(IESTexture, new GUIContent("IES Profiler"));
                     }
 
-                    ShowCookie = EditorGUILayout.Foldout(ShowCookie, "Cookie", true, EditorStyles.foldoutHeader);
-                    if (ShowCookie)
-                    {
-                        EditorGUI.indentLevel++;
-                        EditorGUILayout.PropertyField(EnableCookie, new GUIContent("Enable"));
-                        using (new EditorGUI.DisabledScope(!EnableCookie.boolValue))
-                        {
-                            EditorGUILayout.PropertyField(CookieTexture, new GUIContent("Texture"));
-                        }
-                        EditorGUI.indentLevel--;
-                    }
+                    EditorGUILayout.PropertyField(CookieTexture, new GUIContent("Cookie Texture"));
                     EditorGUI.indentLevel--;
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
             }
 
-            //////////////////////
             ShowShadow = EditorGUILayout.BeginFoldoutHeaderGroup(ShowShadow, "Shadow");
             if (ShowShadow)
             {
@@ -318,27 +274,15 @@ namespace InfinityTech.Editor.Component
                 {
                     if (LightState.enumValueIndex != (int)ELightState.Static)
                     {
-                        EditorGUILayout.PropertyField(ShadowLayer, new GUIContent("Layer"));
                         EditorGUILayout.PropertyField(ShadowType, new GUIContent("Type"));
-                        EditorGUILayout.PropertyField(ShadowColor, new GUIContent("Color"));
-                        EditorGUILayout.Slider(ShadowIntensity, 0, 1, new GUIContent("Opacity"));
-                        EditorGUILayout.PropertyField(ShadowResolution, new GUIContent("Resolution"));
-                        EditorGUILayout.Slider(ShadowBias, 0, 2, new GUIContent("Depth Bias"));
-                        EditorGUILayout.Slider(ShadowNormalBias, 0, 3, new GUIContent("Normal Bias"));
-                        EditorGUILayout.Slider(ShadowNearPlane, 0, 10, new GUIContent("Near Plane"));
+                        EditorGUILayout.PropertyField(ShadowLayer, new GUIContent("Layer"));
+                        EditorGUILayout.PropertyField(Resolution, new GUIContent("Resolution"));
+                        EditorGUILayout.Slider(NearPlane, 0, 10, new GUIContent("Near Plane"));
                         switch (ShadowType.enumValueIndex)
                         {
                             case (int)EShadowType.PCSS:
                                 EditorGUILayout.Slider(MinSoftness, 0, 2, new GUIContent("Min Softness"));
                                 EditorGUILayout.Slider(MaxSoftness, 0, 2, new GUIContent("Max Softness"));
-                                break;
-                        }
-
-                        switch (LightType.enumValueIndex)
-                        {
-                            case (int)ELightType.Directional:
-                                EditorGUILayout.PropertyField(CascadeType, new GUIContent("Type"));
-                                EditorGUILayout.PropertyField(ShadowDistance, new GUIContent("Distance"));
                                 break;
                         }
 
@@ -359,7 +303,6 @@ namespace InfinityTech.Editor.Component
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
-            //////////////////////
             if (LightState.enumValueIndex != (int)ELightState.Static)
             {
                 ShowVolumetricFog = EditorGUILayout.BeginFoldoutHeaderGroup(ShowVolumetricFog, "Volumetric Fog");
@@ -393,15 +336,14 @@ namespace InfinityTech.Editor.Component
                     EditorGUILayout.EndFoldoutHeaderGroup();
                 }
             }
-
-            //////////////////////
+            
             IntinityLight.OnGUIChange();
             IntinityLightObject.ApplyModifiedProperties();
         }
 
         private void InitTemperature()
         {
-            TemperatureLUT = AssetDatabase.LoadAssetAtPath<Texture2D>("Packages/com.unity.render-pipelines.infinity/Editor/Resources/ColorTemperature.png");
+            TemperatureLUT = AssetDatabase.LoadAssetAtPath<Texture2D>("Packages/com.infinity.render-pipeline/Editor/Resources/ColorTemperature.png");
             var sliderMethod = typeof(EditorGUILayout).
                        GetMethod(
                             "SliderWithTexture",

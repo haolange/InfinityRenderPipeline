@@ -146,33 +146,23 @@ namespace InfinityTech.Component
         public float GlobalIlluminationIntensity = 1;
 
         ///IES and Cookie Property
-        public bool EnableIES = false;
-        public float IESIntensity = 1;
         public Texture2D IESTexture;
         public int IESTextureIndex = 0;
-        public bool EnableCookie = false;
         public Texture2D CookieTexture;
         public int CookieTextureIndex = 0;
 
         ///Shadow Property
         public bool EnableShadow = true;
-        public ELightLayer ShadowLayer = ELightLayer.LightLayerDefault;
-        public EShadowType ShadowType = EShadowType.PCF;
-        public EShadowResolution ShadowResolution = EShadowResolution.X1024;
-        public Color ShadowColor = Color.black;
-        public float ShadowIntensity = 1;
-        public float ShadowBias = 0.01f;
-        public float ShadowNormalBias = 0.01f;
-        public float ShadowNearPlane = 0.05f;
+        public float NearPlane = 0.05f;
         public float MinSoftness = 0.1f;
         public float MaxSoftness = 1;
-        public EShadowCascade CascadeType = EShadowCascade.Four;
-        public float ShadowDistance = 128;
+        public EShadowType ShadowType = EShadowType.PCF;
+        public ELightLayer ShadowLayer = ELightLayer.LightLayerDefault;
+        public EShadowResolution Resolution = EShadowResolution.X1024;
 
         ///Contact Shadow Property
         public bool EnableContactShadow = false;
         public float ContactShadowLength = 0.05f;
-
 
         ///VolumetricFog Property
         public bool EnableVolumetric = true;
@@ -234,9 +224,9 @@ namespace InfinityTech.Component
                 LightBatch.LightState = LightState;
                 LightBatch.LightType = LightType;
                 LightBatch.LightLayer = LightLayer;
-                LightBatch.LightIntensity = LightIntensity;
                 LightBatch.LightColor = LightColor;
                 LightBatch.Temperature = Temperature;
+                LightBatch.LightIntensity = LightIntensity;
                 LightBatch.LightRange = LightRange;
                 LightBatch.LightDiffuse = LightDiffuse;
                 LightBatch.LightSpecular = LightSpecular;
@@ -248,22 +238,15 @@ namespace InfinityTech.Component
                 LightBatch.SourceHeight = SourceHeight;
                 LightBatch.EnableGlobalIllumination = EnableGlobalIllumination ? 1 : 0;
                 LightBatch.GlobalIlluminationIntensity = GlobalIlluminationIntensity;
-                LightBatch.IESIntensity = IESIntensity;
                 LightBatch.IESTextureIndex = IESTextureIndex;
                 LightBatch.CookieTextureIndex = CookieTextureIndex;
                 LightBatch.EnableShadow = EnableShadow ? 1 : 0;
                 LightBatch.ShadowLayer = ShadowLayer;
                 LightBatch.ShadowType = ShadowType;
-                LightBatch.ShadowResolution = ShadowResolution;
-                LightBatch.ShadowColor = ShadowColor;
-                LightBatch.ShadowIntensity = ShadowIntensity;
-                LightBatch.ShadowBias = ShadowBias;
-                LightBatch.ShadowNormalBias = ShadowNormalBias;
-                LightBatch.ShadowNearPlane = ShadowNearPlane;
+                LightBatch.Resolution = Resolution;
+                LightBatch.NearPlane = NearPlane;
                 LightBatch.MinSoftness = MinSoftness;
                 LightBatch.MaxSoftness = MaxSoftness;
-                LightBatch.CascadeType = CascadeType;
-                LightBatch.ShadowDistance = ShadowDistance;
                 LightBatch.EnableContactShadow = EnableContactShadow ? 1 : 0;
                 LightBatch.ContactShadowLength = ContactShadowLength;
                 LightBatch.EnableVolumetric = EnableVolumetric ? 1 : 0;
