@@ -70,70 +70,70 @@ namespace InfinityTech.Rendering.LightPipeline
         Four = 3
     }
 
-    public struct FLightBatch /*: IComparable<FLightBatch>, IEquatable<FLightBatch>*/
+    public struct FLightElement /*: IComparable<FLightElement>, IEquatable<FLightElement>*/
     {
-        public ELightState LightState;
-        public ELightType LightType;
-        public ELightLayer LightLayer;
+        public ELightState state;
+        public ELightType lightType;
+        public ELightLayer lightLayer;
 
         ///Emission Property
-        public Color LightColor;
-        public float LightIntensity;
-        public float Temperature;
-        public float LightRange;
-        public float LightDiffuse;
-        public float LightSpecular;
-        public float SourceRadius;
-        public float SourceLength;
-        public float SourceInnerAngle;
-        public float SourceOuterAngle;
-        public float SourceWidth;
-        public float SourceHeight;
+        public Color color;
+        public float intensity;
+        public float temperature;
+        public float range;
+        public float diffuse;
+        public float specular;
+        public float radius;
+        public float length;
+        public float innerAngle;
+        public float outerAngle;
+        public float width;
+        public float height;
 
         ///Globalillumination Property
-        public int EnableGlobalIllumination;
-        public float GlobalIlluminationIntensity;
+        public int enableIndirect;
+        public float indirectIntensity;
 
         ///IES and Cookie Property
-        public int IESTextureIndex;
-        public int CookieTextureIndex;
+        public int IESIndex;
+        public int cookieIndex;
 
         ///Shadow Property
-        public int EnableShadow;
-        public EShadowType ShadowType;
-        public ELightLayer ShadowLayer;
-        public EShadowResolution Resolution;
-        public float NearPlane;
-        public float MinSoftness;
-        public float MaxSoftness;
+        public int enableShadow;
+        public EShadowType shadowType;
+        public ELightLayer shadowLayer;
+        public EShadowResolution resolution;
+        public float nearPlane;
+        public float minSoftness;
+        public float maxSoftness;
 
         ///Contact Shadow Property
-        public int EnableContactShadow;
-        public float ContactShadowLength;
+        public int enableContactShadow;
+        public float contactShadowLength;
 
         ///VolumetricFog Property
-        public int EnableVolumetric;
-        public float VolumetricScatterIntensity;
-        public float VolumetricScatterOcclusion;
+        public int enableVolumetric;
+        public float volumetricIntensity;
+        public float volumetricOcclusion;
 
         ///Performance Property
-        public float MaxDrawDistance;
-        public float MaxDrawDistanceFade;
+        public float maxDrawDistance;
+        public float maxDrawDistanceFade;
 
 
-        /*public bool Equals(FLightBatch Target)
+        /*public bool Equals(FLightElement target)
         {
-            return SubmeshIndex.Equals(Target.SubmeshIndex) && Mesh.Equals(Target.Mesh) && Material.Equals(Target.Material);
+            return SubmeshIndex.Equals(target.SubmeshIndex) && Mesh.Equals(target.Mesh) && Material.Equals(target.Material);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object target)
         {
-            return Equals((FLightBatch)obj);
+            return Equals((FLightElement)target);
         }
 
-        public int CompareTo(FLightBatch MeshBatch)
+        public int CompareTo(FLightElement target)
         {
-            return Priority.CompareTo(MeshBatch.Priority);
+            return Priority.CompareTo(target.Priority);
         }
 
         public override int GetHashCode()

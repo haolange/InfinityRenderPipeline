@@ -3,115 +3,114 @@ using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Component
 {
-    public static class FLightUtility
+    internal static class FLightUtility
     {
-        public static void InitLightType(this LightComponent Light, Light UnityLight) 
+        public static void InitLightType(this LightComponent light, Light unityLight) 
         {
-            switch (UnityLight.type)
+            switch (unityLight.type)
             {
                 case UnityEngine.LightType.Directional:
-                    Light.LightType = ELightType.Directional;
+                    light.lightType = ELightType.Directional;
                     break;
 
                 case UnityEngine.LightType.Point:
-                    Light.LightType = ELightType.Point;
+                    light.lightType = ELightType.Point;
                     break;
 
                 case UnityEngine.LightType.Spot:
-                    Light.LightType = ELightType.Spot;
+                    light.lightType = ELightType.Spot;
                     break;
 
                 case UnityEngine.LightType.Disc:
-                    Light.LightType = ELightType.Spot;
+                    light.lightType = ELightType.Spot;
                     break;
 
                 case UnityEngine.LightType.Rectangle:
-                    Light.LightType = ELightType.Rect;
+                    light.lightType = ELightType.Rect;
                     break;
             }
         }
 
-        public static void UpdateLightShadowParameters(this LightComponent Light, Light UnityLight)
+        public static void UpdateLightShadowParameters(this LightComponent light, Light unityLight)
         {
-            if(Light.EnableShadow)
+            if(light.enableShadow)
             {
-                switch (Light.ShadowType)
+                switch (light.shadowType)
                 {
                     case EShadowType.Hard:
-                        UnityLight.shadows = LightShadows.Hard;
+                        unityLight.shadows = LightShadows.Hard;
                         break;
 
                     case EShadowType.PCF:
-                        UnityLight.shadows = LightShadows.Soft;
+                        unityLight.shadows = LightShadows.Soft;
                         break;
 
                     case EShadowType.PCSS:
-                        UnityLight.shadows = LightShadows.Soft;
+                        unityLight.shadows = LightShadows.Soft;
                         break;
                 }
             } else {
-                UnityLight.shadows = LightShadows.None;
+                unityLight.shadows = LightShadows.None;
             }
         }
 
-        public static void UpdateUnityDirecitonLightParameters(this LightComponent Light, Light UnityLight)
+        public static void UpdateUnityDirecitonLightParameters(this LightComponent light, Light unityLight)
         {
-            UnityLight.type = UnityEngine.LightType.Directional;
-            UnityLight.intensity = Light.LightIntensity;
-            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
+            unityLight.type = UnityEngine.LightType.Directional;
+            unityLight.intensity = light.intensity;
+            unityLight.bounceIntensity = light.indirectIntensity;
 
-            UpdateLightShadowParameters(Light, UnityLight);
+            UpdateLightShadowParameters(light, unityLight);
         }
 
-        public static void UpdateUnityPointLightParameters(this LightComponent Light, Light UnityLight)
+        public static void UpdateUnityPointLightParameters(this LightComponent light, Light unityLight)
         {
-            UnityLight.type = UnityEngine.LightType.Point;
-            UnityLight.intensity = Light.LightIntensity;
-            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
-            UpdateLightShadowParameters(Light, UnityLight);
+            unityLight.type = UnityEngine.LightType.Point;
+            unityLight.intensity = light.intensity;
+            unityLight.bounceIntensity = light.indirectIntensity;
+            UpdateLightShadowParameters(light, unityLight);
         }
 
-        public static void UpdateUnitySpotLightParameters(this LightComponent Light, Light UnityLight)
+        public static void UpdateUnitySpotLightParameters(this LightComponent light, Light unityLight)
         {
-            UnityLight.type = UnityEngine.LightType.Spot;
-            UnityLight.intensity = Light.LightIntensity;
-            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
+            unityLight.type = UnityEngine.LightType.Spot;
+            unityLight.intensity = light.intensity;
+            unityLight.bounceIntensity = light.indirectIntensity;
 
-            if(Light.SourceRadius > 0) {
-                UnityLight.type = UnityEngine.LightType.Disc;
+            if(light.radius > 0) {
+                unityLight.type = UnityEngine.LightType.Disc;
             }
 
-            UpdateLightShadowParameters(Light, UnityLight);
+            UpdateLightShadowParameters(light, unityLight);
         }
 
-        public static void UpdateUnityRectLightParameters(this LightComponent Light, Light UnityLight)
+        public static void UpdateUnityRectLightParameters(this LightComponent light, Light unityLight)
         {
-            UnityLight.type = UnityEngine.LightType.Rectangle;
-            UnityLight.intensity = Light.LightIntensity;
-            UnityLight.bounceIntensity = Light.GlobalIlluminationIntensity;
+            unityLight.type = UnityEngine.LightType.Rectangle;
+            unityLight.intensity = light.intensity;
+            unityLight.bounceIntensity = light.indirectIntensity;
 
-            UpdateLightShadowParameters(Light, UnityLight);
+            UpdateLightShadowParameters(light, unityLight);
         }
 
-        public static void UpdateUnityLightParameters(this LightComponent Light, Light UnityLight, in ELightType LightType)
+        public static void UpdateUnityLightParameters(this LightComponent light, Light unityLight, in ELightType lightType)
         {
-            //Update UnityLightType
-            switch (LightType)
+            switch (lightType)
             {
                 case ELightType.Directional:
-                    UpdateUnityDirecitonLightParameters(Light, UnityLight);
+                    UpdateUnityDirecitonLightParameters(light, unityLight);
                     break;
 
                 case ELightType.Point:
-                    UpdateUnityPointLightParameters(Light, UnityLight);
+                    UpdateUnityPointLightParameters(light, unityLight);
                     break;
 
                 case ELightType.Spot:
-                    UpdateUnitySpotLightParameters(Light, UnityLight);
+                    UpdateUnitySpotLightParameters(light, unityLight);
                     break;
 
                 case ELightType.Rect:
-                    UpdateUnityRectLightParameters(Light, UnityLight);
+                    UpdateUnityRectLightParameters(light, unityLight);
                     break;
             }
         }
@@ -123,71 +122,63 @@ namespace InfinityTech.Component
     public class LightComponent : BaseComponent
     {
         ///General Property
-        public ELightState LightState = ELightState.Dynamic;
-        public ELightType LightType = ELightType.Directional;
-        public ELightLayer LightLayer = ELightLayer.LightLayerDefault;
+        public Light unityLight;
+        public ELightState state = ELightState.Dynamic;
+        public ELightType lightType = ELightType.Directional;
+        public ELightLayer lightLayer = ELightLayer.LightLayerDefault;
 
         ///Emission Property
-        public Color LightColor = Color.white;
-        public float LightIntensity = 10;
-        public float Temperature = 7000;
-        public float LightRange = 10;
-        public float LightDiffuse = 1;
-        public float LightSpecular = 1;
-        public float SourceRadius = 0;
-        public float SourceLength = 0;
-        public float SourceInnerAngle = 32;
-        public float SourceOuterAngle = 90;
-        public float SourceWidth = 0.5f;
-        public float SourceHeight = 0.5f;
+        public Color color = Color.white;
+        public float intensity = 10;
+        public float temperature = 7000;
+        public float range = 10;
+        public float diffuse = 1;
+        public float specular = 1;
+        public float radius = 0;
+        public float length = 0;
+        public float innerAngle = 32;
+        public float outerAngle = 90;
+        public float width = 0.5f;
+        public float height = 0.5f;
 
         ///Globalillumination Property
-        public bool EnableGlobalIllumination = true;
-        public float GlobalIlluminationIntensity = 1;
+        public bool enableIndirect = true;
+        public float indirectIntensity = 1;
 
         ///IES and Cookie Property
+        public int IESIndex = 0;
         public Texture2D IESTexture;
-        public int IESTextureIndex = 0;
-        public Texture2D CookieTexture;
-        public int CookieTextureIndex = 0;
+        public int cookieIndex = 0;
+        public Texture2D cookieTexture;
 
         ///Shadow Property
-        public bool EnableShadow = true;
-        public float NearPlane = 0.05f;
-        public float MinSoftness = 0.1f;
-        public float MaxSoftness = 1;
-        public EShadowType ShadowType = EShadowType.PCF;
-        public ELightLayer ShadowLayer = ELightLayer.LightLayerDefault;
-        public EShadowResolution Resolution = EShadowResolution.X1024;
+        public bool enableShadow = true;
+        public float nearPlane = 0.05f;
+        public float minSoftness = 0.1f;
+        public float maxSoftness = 1;
+        public EShadowType shadowType = EShadowType.PCF;
+        public ELightLayer shadowLayer = ELightLayer.LightLayerDefault;
+        public EShadowResolution resolution = EShadowResolution.X1024;
 
         ///Contact Shadow Property
-        public bool EnableContactShadow = false;
-        public float ContactShadowLength = 0.05f;
+        public bool enableContactShadow = false;
+        public float contactShadowLength = 0.05f;
 
         ///VolumetricFog Property
-        public bool EnableVolumetric = true;
-        public float VolumetricScatterIntensity = 1;
-        public float VolumetricScatterOcclusion = 1;
+        public bool enableVolumetric = true;
+        public float volumetricIntensity = 1;
+        public float volumetricOcclusion = 1;
 
         ///Performance Property
-        public float MaxDrawDistance = 128;
-        public float MaxDrawDistanceFade = 1;
-
-        public Light UnityLight;
-
-
-        // Function
-        public LightComponent() : base()
-        {
-
-        }
+        public float maxDrawDistance = 128;
+        public float maxDrawDistanceFade = 1;
 
         protected override void OnRegister()
         {
             GetWorld().AddWorldLight(this);
 
-            UnityLight = GetComponent<Light>();
-            FLightUtility.InitLightType(this, UnityLight);
+            unityLight = GetComponent<Light>();
+            FLightUtility.InitLightType(this, unityLight);
         }
 
         protected override void EventPlay()
@@ -213,49 +204,49 @@ namespace InfinityTech.Component
 #if UNITY_EDITOR
         public void OnGUIChange()
         {
-            FLightUtility.UpdateUnityLightParameters(this, UnityLight, LightType);
+            FLightUtility.UpdateUnityLightParameters(this, unityLight, lightType);
         }
 #endif
 
-        public FLightBatch GetLightBatchElement() 
+        public FLightElement GetLightElementElement() 
         {
-            FLightBatch LightBatch;
+            FLightElement lightElement;
             {
-                LightBatch.LightState = LightState;
-                LightBatch.LightType = LightType;
-                LightBatch.LightLayer = LightLayer;
-                LightBatch.LightColor = LightColor;
-                LightBatch.Temperature = Temperature;
-                LightBatch.LightIntensity = LightIntensity;
-                LightBatch.LightRange = LightRange;
-                LightBatch.LightDiffuse = LightDiffuse;
-                LightBatch.LightSpecular = LightSpecular;
-                LightBatch.SourceRadius = SourceRadius;
-                LightBatch.SourceLength = SourceLength;
-                LightBatch.SourceInnerAngle = SourceInnerAngle;
-                LightBatch.SourceOuterAngle = SourceOuterAngle;
-                LightBatch.SourceWidth = SourceWidth;
-                LightBatch.SourceHeight = SourceHeight;
-                LightBatch.EnableGlobalIllumination = EnableGlobalIllumination ? 1 : 0;
-                LightBatch.GlobalIlluminationIntensity = GlobalIlluminationIntensity;
-                LightBatch.IESTextureIndex = IESTextureIndex;
-                LightBatch.CookieTextureIndex = CookieTextureIndex;
-                LightBatch.EnableShadow = EnableShadow ? 1 : 0;
-                LightBatch.ShadowLayer = ShadowLayer;
-                LightBatch.ShadowType = ShadowType;
-                LightBatch.Resolution = Resolution;
-                LightBatch.NearPlane = NearPlane;
-                LightBatch.MinSoftness = MinSoftness;
-                LightBatch.MaxSoftness = MaxSoftness;
-                LightBatch.EnableContactShadow = EnableContactShadow ? 1 : 0;
-                LightBatch.ContactShadowLength = ContactShadowLength;
-                LightBatch.EnableVolumetric = EnableVolumetric ? 1 : 0;
-                LightBatch.VolumetricScatterIntensity = VolumetricScatterIntensity;
-                LightBatch.VolumetricScatterOcclusion = VolumetricScatterOcclusion;
-                LightBatch.MaxDrawDistance = MaxDrawDistance;
-                LightBatch.MaxDrawDistanceFade = MaxDrawDistanceFade;
+                lightElement.state = state;
+                lightElement.lightType = lightType;
+                lightElement.lightLayer = lightLayer;
+                lightElement.color = color;
+                lightElement.temperature = temperature;
+                lightElement.intensity = intensity;
+                lightElement.range = range;
+                lightElement.diffuse = diffuse;
+                lightElement.specular = specular;
+                lightElement.radius = radius;
+                lightElement.length = length;
+                lightElement.innerAngle = innerAngle;
+                lightElement.outerAngle = outerAngle;
+                lightElement.width = width;
+                lightElement.height = height;
+                lightElement.enableIndirect = enableIndirect ? 1 : 0;
+                lightElement.indirectIntensity = indirectIntensity;
+                lightElement.IESIndex = IESIndex;
+                lightElement.cookieIndex = cookieIndex;
+                lightElement.enableShadow = enableShadow ? 1 : 0;
+                lightElement.shadowLayer = shadowLayer;
+                lightElement.shadowType = shadowType;
+                lightElement.resolution = resolution;
+                lightElement.nearPlane = nearPlane;
+                lightElement.minSoftness = minSoftness;
+                lightElement.maxSoftness = maxSoftness;
+                lightElement.enableContactShadow = enableContactShadow ? 1 : 0;
+                lightElement.contactShadowLength = contactShadowLength;
+                lightElement.enableVolumetric = enableVolumetric ? 1 : 0;
+                lightElement.volumetricIntensity = volumetricIntensity;
+                lightElement.volumetricOcclusion = volumetricOcclusion;
+                lightElement.maxDrawDistance = maxDrawDistance;
+                lightElement.maxDrawDistanceFade = maxDrawDistanceFade;
             }
-            return LightBatch;
+            return lightElement;
         }
     }
 }
