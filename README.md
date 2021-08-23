@@ -5,10 +5,10 @@ InfinityRenderPipeline is a ExtremeGraphics Research for SRP in Unity.
 
 ## Feature
 Completed : 
+* ThinGBuffer
 * TemporalAA
 * RenderGraph
 * DiaphragmDOF
-* 8Byte ThinGBuffer
 * MaskOnly PreDepth
 * ScreenSpaceGlobalIllumination
 * StochasticScreenSpaceReflection
