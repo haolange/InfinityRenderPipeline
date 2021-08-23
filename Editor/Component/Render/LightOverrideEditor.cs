@@ -65,8 +65,8 @@ namespace InfinityTech.Editor.Component
 
         #region VolumetricFog
         public SerializedProperty enableVolumetric;
-        public SerializedProperty volumetricScatterIntensity;
-        public SerializedProperty volumetricScatterOcclusion;
+        public SerializedProperty volumetricIntensity;
+        public SerializedProperty volumetricOcclusion;
         #endregion //VolumetricFog
 
         #region Performance
@@ -281,10 +281,10 @@ namespace InfinityTech.Editor.Component
                     EditorGUILayout.PropertyField(enableVolumetric, new GUIContent("Enable"));
                     using (new EditorGUI.DisabledScope(!enableVolumetric.boolValue))
                     {
-                        EditorGUILayout.Slider(volumetricScatterIntensity, 0, 32, new GUIContent("Intensity"));
+                        EditorGUILayout.Slider(volumetricIntensity, 0, 32, new GUIContent("Intensity"));
                         if (enableShadow.boolValue == true)
                         {
-                            EditorGUILayout.Slider(volumetricScatterOcclusion, 0, 1, new GUIContent("Occlusion"));
+                            EditorGUILayout.Slider(volumetricOcclusion, 0, 1, new GUIContent("Occlusion"));
                         }
                     }
                     EditorGUI.indentLevel--;
@@ -399,8 +399,8 @@ namespace InfinityTech.Editor.Component
             contactShadowLength = m_SerializeLight.FindProperty("contactShadowLength");
 
             enableVolumetric = m_SerializeLight.FindProperty("enableVolumetric");
-            volumetricScatterIntensity = m_SerializeLight.FindProperty("volumetricIntensity");
-            volumetricScatterOcclusion = m_SerializeLight.FindProperty("volumetricOcclusion");
+            volumetricIntensity = m_SerializeLight.FindProperty("volumetricIntensity");
+            volumetricOcclusion = m_SerializeLight.FindProperty("volumetricOcclusion");
 
             maxDrawDistance = m_SerializeLight.FindProperty("maxDrawDistance");
             maxDrawDistanceFade = m_SerializeLight.FindProperty("maxDrawDistanceFade");
