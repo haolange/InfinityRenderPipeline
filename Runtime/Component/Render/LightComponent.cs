@@ -121,13 +121,22 @@ namespace InfinityTech.Component
     [AddComponentMenu("InfinityRenderer/Light Component")]
     public class LightComponent : BaseComponent
     {
-        ///General Property
+        public bool showGeneral = true;
+        public bool showEmission = true;
+        public bool showIndirect = true;
+        public bool showLightMask = false;
+        public bool showShadow = false;
+        public bool showContactShadow = true;
+        public bool showVolumetricFog = true;
+        public bool showPerformance = true;
+
+        //General Property
         public Light unityLight;
         public ELightState state = ELightState.Dynamic;
         public ELightType lightType = ELightType.Directional;
         public ELightLayer lightLayer = ELightLayer.LightLayerDefault;
 
-        ///Emission Property
+        //Emission Property
         public Color color = Color.white;
         public float intensity = 10;
         public float temperature = 7000;
@@ -141,17 +150,17 @@ namespace InfinityTech.Component
         public float width = 0.5f;
         public float height = 0.5f;
 
-        ///Globalillumination Property
+        //Globalillumination Property
         public bool enableIndirect = true;
         public float indirectIntensity = 1;
 
-        ///IES and Cookie Property
+        //IES and Cookie Property
         public int IESIndex = 0;
         public Texture2D IESTexture;
         public int cookieIndex = 0;
         public Texture2D cookieTexture;
 
-        ///Shadow Property
+        //Shadow Property
         public bool enableShadow = true;
         public float nearPlane = 0.05f;
         public float minSoftness = 0.1f;
@@ -160,16 +169,16 @@ namespace InfinityTech.Component
         public ELightLayer shadowLayer = ELightLayer.LightLayerDefault;
         public EShadowResolution resolution = EShadowResolution.X1024;
 
-        ///Contact Shadow Property
+        //Contact Shadow Property
         public bool enableContactShadow = false;
         public float contactShadowLength = 0.05f;
 
-        ///VolumetricFog Property
+        //VolumetricFog Property
         public bool enableVolumetric = true;
         public float volumetricIntensity = 1;
         public float volumetricOcclusion = 1;
 
-        ///Performance Property
+        //Performance Property
         public float maxDrawDistance = 128;
         public float maxDrawDistanceFade = 1;
 

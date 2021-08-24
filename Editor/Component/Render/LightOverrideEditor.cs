@@ -75,14 +75,14 @@ namespace InfinityTech.Editor.Component
         #endregion //Performance
 
         #region ShowPannalProperty
-        public bool showGeneral = true;
-        public bool showEmission = true;
-        public bool showGlobalillumination = true;
-        public bool showLightMask = false;
-        public bool showShadow = false;
-        public bool showContactShadow = true;
-        public bool showVolumetricFog = true;
-        public bool showPerformance = true;
+        public bool showGeneral { get { return m_LightComponent.showGeneral; } set { m_LightComponent.showGeneral = value; } }
+        public bool showEmission { get { return m_LightComponent.showEmission; } set { m_LightComponent.showEmission = value; } }
+        public bool showIndirect { get { return m_LightComponent.showIndirect; } set { m_LightComponent.showIndirect = value; } }
+        public bool showLightMask { get { return m_LightComponent.showLightMask; } set { m_LightComponent.showLightMask = value; } }
+        public bool showShadow { get { return m_LightComponent.showShadow; } set { m_LightComponent.showShadow = value; } }
+        public bool showContactShadow { get { return m_LightComponent.showContactShadow; } set { m_LightComponent.showContactShadow = value; } }
+        public bool showVolumetricFog { get { return m_LightComponent.showVolumetricFog; } set { m_LightComponent.showVolumetricFog = value; } }
+        public bool showPerformance { get { return m_LightComponent.showPerformance; } set { m_LightComponent.showPerformance = value; } }
         #endregion //ShowPannalProperty
 
         #region Temperature
@@ -194,8 +194,8 @@ namespace InfinityTech.Editor.Component
 
         private void DrawIndirect()
         {
-            showGlobalillumination = EditorGUILayout.BeginFoldoutHeaderGroup(showGlobalillumination, "Indirect Lighting");
-            if (showGlobalillumination)
+            showIndirect = EditorGUILayout.BeginFoldoutHeaderGroup(showIndirect, "Indirect Lighting");
+            if (showIndirect)
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(enableIndirect, new GUIContent("Enable"));
