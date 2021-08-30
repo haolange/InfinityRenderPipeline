@@ -92,7 +92,7 @@
 			float4 frag(Varyings i) : SV_Target
 			{
 				float2 UV = i.uv.xy;
-				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
+				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV - TAAJitter.zw, 0);
 
 				//FGBufferData GBufferData;
 				//DecodeGBuffer(1, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV, 0), 1, GBufferData);

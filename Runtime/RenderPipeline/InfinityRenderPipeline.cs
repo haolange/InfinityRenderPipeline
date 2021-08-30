@@ -77,18 +77,18 @@ namespace InfinityTech.Rendering.Pipeline
             float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
             float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
             tempJitter = new float2(jitterX, jitterY);
-            float4 taaJitter = new float4(jitterX, jitterY, jitterX / view.pixelRect.size.x, jitterY / view.pixelRect.size.y);
-
+            
             if (++frameIndex >= 8)
                 frameIndex = 0;
 
             Matrix4x4 proj;
 
-            if (view.orthographic) {
+            if (view.orthographic) 
+            {
                 float vertical = view.orthographicSize;
                 float horizontal = vertical * view.aspect;
 
-                var offset = taaJitter;
+                float2 offset = tempJitter;
                 offset.x *= horizontal / (0.5f * view.pixelRect.size.x);
                 offset.y *= vertical / (0.5f * view.pixelRect.size.y);
 
@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
         }
 
-        public void UnpateViewUnifrom(Camera camera, in bool isLastData = false)
+        public void UnpateViewUnifromData(Camera camera, in bool isLastData = false)
         {
             if(!isLastData) {
                 UnpateCurrBufferData(camera);
@@ -156,11 +156,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void SetViewUnifrom(CommandBuffer cmdBuffer)
+        public void SetViewUnifromDataToGPU(CommandBuffer cmdBuffer, in float2 resolution)
         {
             cmdBuffer.SetGlobalInt(ID_FrameIndex, frameIndex);
             cmdBuffer.SetGlobalInt(ID_LastFrameIndex, lastFrameIndex);
-            cmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(tempJitter.x, tempJitter.y, lastTempJitter.x, lastTempJitter.y));
+            cmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(tempJitter.x / resolution.x, tempJitter.y / resolution.y, lastTempJitter.x / resolution.x, lastTempJitter.y / resolution.y));
             cmdBuffer.SetGlobalMatrix(ID_Matrix_WorldToView, matrix_WorldToView);
             cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewToWorld, matrix_ViewToWorld);
             cmdBuffer.SetGlobalMatrix(ID_Matrix_Proj, matrix_Proj);
@@ -243,9 +243,9 @@ namespace InfinityTech.Rendering.Pipeline
                             m_MeshPassTaskRefs.Clear();
                             VFXManager.PrepareCamera(camera);
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer);
-                            m_ViewUnifrom.UnpateViewUnifrom(camera);
-                            m_ViewUnifrom.SetViewUnifrom(cmdBuffer);
                             renderContext.SetupCameraProperties(camera);
+                            m_ViewUnifrom.UnpateViewUnifromData(camera);
+                            m_ViewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
 
                             //Compute LOD
                             using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ComputeLOD)))
@@ -292,7 +292,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         #region ReleaseViewContext
                         cullingData.Release();
-                        m_ViewUnifrom.UnpateViewUnifrom(camera, true);
+                        m_ViewUnifrom.UnpateViewUnifromData(camera, true);
                         #endregion //ReleaseViewContext
                     }
                     EndCameraRendering(renderContext, camera);
