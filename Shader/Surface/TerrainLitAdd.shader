@@ -46,6 +46,32 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
 
         Pass
         {
+			Name "GBufferPass"
+			Tags { "LightMode" = "GBufferPass" }
+
+            Blend One One
+			ZTest Equal ZWrite Off Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex SplatmapVert
+            #pragma fragment DeferredFragment
+            
+            #pragma multi_compile_instancing
+            #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
+
+            #pragma shader_feature_local _MASKMAP
+            #pragma shader_feature_local _NORMALMAP
+            #pragma shader_feature_local _TERRAIN_BLEND_HEIGHT
+            #pragma shader_feature_local _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+
+            #define TERRAIN_SPLAT_ADDPASS
+    
+            #include "TerrainLitInclude.hlsl"
+            ENDHLSL
+        }
+
+        Pass
+        {
 			Name "TerrainAdd"
 			Tags { "LightMode" = "ForwardPass" }
 
@@ -54,7 +80,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
 
             HLSLPROGRAM
             #pragma vertex SplatmapVert
-            #pragma fragment SplatmapFragment
+            #pragma fragment ForwardFragment
             
             #pragma multi_compile_instancing
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap

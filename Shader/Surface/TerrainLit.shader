@@ -50,14 +50,40 @@ Shader "InfinityPipeline/TerrainLit"
 
         Pass
         {
-			Name "ForwardPass"
-			Tags { "LightMode" = "ForwardPass" }
+			Name "GBufferPass"
+			Tags { "LightMode" = "GBufferPass" }
             
 			ZTest LEqual ZWrite On Cull Back
 
             HLSLPROGRAM
             #pragma vertex SplatmapVert
-            #pragma fragment SplatmapFragment
+            #pragma fragment DeferredFragment
+            
+            #pragma multi_compile_instancing
+            #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
+
+            #pragma shader_feature_local _MASKMAP
+            #pragma shader_feature_local _NORMALMAP
+            #pragma shader_feature_local _TERRAIN_BLEND_HEIGHT
+            #pragma shader_feature_local _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+    
+            #define _METALLICSPECGLOSSMAP 1
+            #define _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A 1
+
+            #include "TerrainLitInclude.hlsl"
+            ENDHLSL
+        }
+
+        Pass
+        {
+			Name "ForwardPass"
+			Tags { "LightMode" = "ForwardPass" }
+            
+			ZTest Equal ZWrite On Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex SplatmapVert
+            #pragma fragment ForwardFragment
             
             #pragma multi_compile_instancing
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap

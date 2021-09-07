@@ -1,6 +1,7 @@
 #ifndef _TerrainLitInclude
 #define _TerrainLitInclude
 
+#include "../Include/GBufferPack.hlsl"
 #include "../Include/ShaderVariable.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
@@ -29,8 +30,6 @@ Texture2D _PageTableTexture;
 
 SamplerState sampler_PhyscisAlbedo;
 SamplerState sampler_PhyscisNormal;
-SamplerState Global_point_clamp_sampler;
-SamplerState Global_bilinear_clamp_sampler;
 
 UNITY_INSTANCING_BUFFER_START(Terrain)
     UNITY_DEFINE_INSTANCED_PROP(float4, _TerrainPatchInstanceData)  // float4(xBase, yBase, skipScale, ~)
@@ -461,7 +460,7 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 
 #endif
 
-void SplatmapFragment(Varyings IN, out float3 DiffuseBuffer : SV_Target0, out float3 SpecularBuffer : SV_Target1)
+void ForwardFragment(Varyings IN, out float3 DiffuseBuffer : SV_Target0, out float3 SpecularBuffer : SV_Target1)
 {
     #ifdef _ALPHATEST_ON
         ClipHoles(IN.uvMainAndLM.xy);
@@ -502,6 +501,56 @@ void SplatmapFragment(Varyings IN, out float3 DiffuseBuffer : SV_Target0, out fl
     //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
     DiffuseBuffer = mixedDiffuse.rgb * weight;
     SpecularBuffer = inputData.normalWS * weight;
+}
+
+void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2)
+{
+    #ifdef _ALPHATEST_ON
+        ClipHoles(IN.uvMainAndLM.xy);
+    #endif
+
+    half3 normalTS = half3(0, 0, 1);
+    
+    #ifdef TERRAIN_SPLAT_BASEPASS
+        half3 albedo = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy).rgb;
+        half smoothness = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy).a;
+        half metallic = SAMPLE_TEXTURE2D(_MetallicTex, sampler_MetallicTex, IN.uvMainAndLM.xy).r;
+        half alpha = 1;
+        half occlusion = 1;
+    #else
+
+    half4 hasMask = half4(_LayerHasMask0, _LayerHasMask1, _LayerHasMask2, _LayerHasMask3);
+    half4 masks[4];
+    ComputeMasks(masks, hasMask, IN);
+
+    float2 splatUV = (IN.uvMainAndLM.xy * (_Control_TexelSize.zw - 1.0f) + 0.5f) * _Control_TexelSize.xy;
+    half4 splatControl = SAMPLE_TEXTURE2D(_Control, sampler_Control, splatUV);
+
+    #ifdef _TERRAIN_BLEND_HEIGHT
+        // disable Height Based blend when there are more than 4 layers (multi-pass breaks the normalization)
+        if (_NumLayersCount <= 4)
+            HeightBasedSplatModify(splatControl, masks);
+    #endif
+
+    half weight;
+    half4 mixedDiffuse;
+    half4 defaultSmoothness;
+    SplatmapMix(IN.uvMainAndLM, IN.uvSplat01, IN.uvSplat23, splatControl, weight, mixedDiffuse, defaultSmoothness, normalTS);
+
+    #endif
+    
+    InputData inputData;
+    InitializeInputData(IN, normalTS, inputData);
+    //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
+
+    FGBufferData GBufferData;
+    GBufferData.BaseColor = mixedDiffuse.rgb * weight;
+    GBufferData.Roughness = mixedDiffuse.r * weight;
+    GBufferData.Specular = mixedDiffuse.g * weight;
+    GBufferData.Reflactance = mixedDiffuse.b * weight;
+    GBufferData.WorldNormal = normalize(inputData.normalWS);
+    EncodeGBuffer(GBufferData, GBufferA, GBufferB, GBufferC);
+    GBufferB.xyz *= weight;
 }
 
 // Shadow pass
