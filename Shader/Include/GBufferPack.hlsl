@@ -5,7 +5,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
-Texture2D g_NormalScaleTable;
+Texture2D g_BestFirNormal_LUT;
 
 //PackingData
 float3 Pack1212To888(float2 x)
@@ -85,19 +85,6 @@ struct FGBufferData
 	float3 WorldNormal;
 };
 
-/*float3 EncodeNormalBestFit(float3 n)
-{
-    float3 nU = abs(n);
-    float maxNAbs = max(nU.z, max(nU.x, nU.y));
-    float2 TC = nU.z<maxNAbs? (nU.y<maxNAbs? nU.yz : nU.xz) : nU.xy;
-    TC = TC.x<TC.y? TC.yx : TC.xy;
-    TC.y /= TC.x;
-
-    n /= maxNAbs;
-    n *= g_NormalScaleTable.Load(int3(TC.x * 1023, TC.y * 1023, 0)).a;
-    return n * 0.5 + 0.5;
-}*/
-
 float3 EncodeNormalBestFit(float3 N)
 {
     float3 uN = abs(N);
@@ -106,7 +93,7 @@ float3 EncodeNormalBestFit(float3 N)
     texcoord = texcoord.x < texcoord.y ? texcoord.yx : texcoord.xy;
     texcoord.y /= texcoord.x;
     N /= maxNAbs;
-    N *= g_NormalScaleTable.Sample(Global_point_clamp_sampler, texcoord).a;
+    N *= g_BestFirNormal_LUT.SampleLevel(Global_point_clamp_sampler, texcoord, 0).r;
     return N * 0.5 + 0.5;
 }
 

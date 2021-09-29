@@ -327,7 +327,7 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsSettings.lightsUseLinearIntensity = true;
             GraphicsSettings.lightsUseColorTemperature = true;
             InfinityRenderPipelineAsset PipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
-            GraphicsSettings.useScriptableRenderPipelineBatching = PipelineAsset.EnableSRPBatch;
+            GraphicsSettings.useScriptableRenderPipelineBatching = PipelineAsset.enableSRPBatch;
 
             SupportedRenderingFeatures.active = new SupportedRenderingFeatures()
             {

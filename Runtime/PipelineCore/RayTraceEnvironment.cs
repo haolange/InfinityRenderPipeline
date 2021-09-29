@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Core
         private void InitRTMannager() {
             InfinityRenderPipelineAsset PipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
-            if (TracingAccelerationStructure == null && PipelineAsset.EnableRayTracing == true)
+            if (TracingAccelerationStructure == null && PipelineAsset.enableRayTrace == true)
             {
                 RayTracingAccelerationStructure.RASSettings TracingAccelerationStructureSetting = new RayTracingAccelerationStructure.RASSettings(RayTracingAccelerationStructure.ManagementMode.Automatic, RayTracingAccelerationStructure.RayTracingModeMask.Everything, -1 ^ (1 << 9));
                 TracingAccelerationStructure = new RayTracingAccelerationStructure(TracingAccelerationStructureSetting);

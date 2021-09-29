@@ -662,7 +662,6 @@
 			}
 
 			return float(numHit) / float(coneZStepCount * conePhiStepCount);
-			//return _BestFitLUT.Sample(sampler_BestFitLUT, uv);
 		}
 	ENDCG
 

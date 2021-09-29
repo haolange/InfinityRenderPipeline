@@ -94,12 +94,9 @@
 				float2 UV = i.uv.xy;
 				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV - TAAJitter.zw, 0);
 
-				//FGBufferData GBufferData;
-				//DecodeGBuffer(_MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV, 0), 1, 1, GBufferData);
-				//DecodeGBuffer(1, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV, 0), 1, GBufferData);
-				//DecodeGBuffer(1, _MainTex.Load(int3(i.vertex.xy, 0)), GBufferData);
-				//return GBufferData.Specular;
-				//return float4(GBufferData.WorldNormal, 1);
+				/*FGBufferData GBufferData;
+				DecodeGBuffer(1, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV - TAAJitter.zw, 0), 1, GBufferData);
+				return float4(GBufferData.WorldNormal, 1);*/
 			}
 			ENDHLSL
 		}
