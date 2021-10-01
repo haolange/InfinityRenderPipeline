@@ -3,8 +3,8 @@ using UnityEngine;
 namespace InfinityTech.Rendering.Feature
 {
     [ExecuteInEditMode]
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/AtmosphereSkyAsset", order = 359)]
-    public sealed class AtmosphereSkyAsset : ScriptableObject
+    [CreateAssetMenu(menuName = "InfinityRenderPipeline/AtmosphericalProfile", order = 359)]
+    public sealed class AtmosphericalProfile : ScriptableObject
     {
         [Header("PlanetSetting")]
         [Min(10000)]
