@@ -3,14 +3,13 @@ using Unity.Mathematics;
 using Unity.Collections;
 using System.Collections.Generic;
 using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.FoliagePipeline;
 
 namespace InfinityTech.Component
 {
     [AddComponentMenu("InfinityRenderer/Foliage Component")]
     public class FoliageComponent : EntityComponent
     {
-        [Header("Culling")]
+        /*[Header("Culling")]
         public float CullDistance;
 
         [Header("Foliage")]
@@ -18,7 +17,7 @@ namespace InfinityTech.Component
 
         [Header("Instances")]
         [HideInInspector]
-        public FTransform[] InstancesTransfrom;
+        public FTransform[] InstancesTransfrom;*/
 
 
         public FoliageComponent() : base()
