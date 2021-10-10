@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
 
             //Add MotionPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
+            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
             {
                 //Setup Phase
                 ref FMotionPassData passData = ref passBuilder.GetPassData<FMotionPassData>();

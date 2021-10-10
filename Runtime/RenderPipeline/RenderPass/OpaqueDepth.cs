@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
             //Add DepthPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
+            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
                 ref FDepthPassData passData = ref passBuilder.GetPassData<FDepthPassData>();

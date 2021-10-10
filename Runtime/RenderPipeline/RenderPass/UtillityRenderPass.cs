@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 // Add GizmosPass
-                using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
+                using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
                     ref GizmosPassData passData = ref passBuilder.GetPassData<GizmosPassData>();
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera camera)
         {
             // Add SkyBoxPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
+            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
                 ref SkyBoxPassData passData = ref passBuilder.GetPassData<SkyBoxPassData>();
@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderPresent(Camera camera, in RDGTextureRef srcTexture, RenderTexture dscTexture)
         {
             // Add PresentPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
+            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
             {
                 //Setup Phase
                 ref PresentPassData passData = ref passBuilder.GetPassData<PresentPassData>();

@@ -195,7 +195,7 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.GetTextureResourceDesc(textureRef.handle);
         }
 
-        public RDGPassBuilder AddPass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
+        public RDGPassRef AddPass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
         {
             var renderPass = m_ObjectPool.Get<RDGPass<T>>();
             renderPass.Clear();
@@ -203,7 +203,7 @@ namespace InfinityTech.Rendering.RDG
             renderPass.index = m_RenderPasses.Count;
             renderPass.customSampler = profilerSampler;
             m_RenderPasses.Add(renderPass);
-            return new RDGPassBuilder(renderPass, m_Resources);
+            return new RDGPassRef(renderPass, m_Resources);
         }
 
         public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, FResourcePool resourcePool, CommandBuffer cmdBuffer)

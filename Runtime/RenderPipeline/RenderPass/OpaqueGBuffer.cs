@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef gbufferC = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
 
             //Add GBufferPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FGBufferPassData>(FGBufferPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
+            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<FGBufferPassData>(FGBufferPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
             {
                 //Setup Phase
                 ref FGBufferPassData passData = ref passBuilder.GetPassData<FGBufferPassData>();

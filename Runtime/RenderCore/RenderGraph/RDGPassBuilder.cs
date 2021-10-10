@@ -3,14 +3,19 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
-    public struct RDGPassBuilder : IDisposable
+    public struct RDGPassRef : IDisposable
     {
         bool m_Disposed;
         IRDGPass m_RenderPass;
         RDGResourceFactory m_Resources;
 
+        internal RDGPassRef(IRDGPass renderPass, RDGResourceFactory resources)
+        {
+            m_RenderPass = renderPass;
+            m_Resources = resources;
+            m_Disposed = false;
+        }
 
-        #region Public Interface
         public ref T GetPassData<T>() where T : struct => ref ((RDGPass<T>)m_RenderPass).passData;
 
         public void EnableAsyncCompute(bool value)
@@ -82,15 +87,6 @@ namespace InfinityTech.Rendering.RDG
         {
             Dispose(true);
         }
-        #endregion
-
-        #region Internal Interface
-        internal RDGPassBuilder(IRDGPass renderPass, RDGResourceFactory resources)
-        {
-            m_RenderPass = renderPass;
-            m_Resources = resources;
-            m_Disposed = false;
-        }
 
         void Dispose(bool disposing)
         {
@@ -99,6 +95,5 @@ namespace InfinityTech.Rendering.RDG
 
             m_Disposed = true;
         }
-        #endregion
     }
 }

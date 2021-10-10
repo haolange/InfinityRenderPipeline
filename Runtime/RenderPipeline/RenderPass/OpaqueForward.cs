@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef specularTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.SpecularBuffer, specularDescription);
 
             //Add ForwardPass
-            using (RDGPassBuilder passBuilder = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
+            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
                 ref FForwardPassData passData = ref passBuilder.GetPassData<FForwardPassData>();
