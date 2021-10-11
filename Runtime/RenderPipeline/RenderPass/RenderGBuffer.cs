@@ -39,22 +39,22 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef gbufferC = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
 
             //Add GBufferPass
-            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<FGBufferPassData>(FGBufferPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FGBufferPassData>(FGBufferPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
             {
                 //Setup Phase
-                ref FGBufferPassData passData = ref passBuilder.GetPassData<FGBufferPassData>();
+                ref FGBufferPassData passData = ref passRef.GetPassData<FGBufferPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
                 passData.meshPassProcessor = m_GBufferMeshProcessor;
-                passData.gbufferA = passBuilder.UseColorBuffer(gbufferA, 0);
-                passData.gbufferB = passBuilder.UseColorBuffer(gbufferB, 1);
-                passData.gbufferC = passBuilder.UseColorBuffer(gbufferC, 2);
-                passData.depthBuffer = passBuilder.UseDepthBuffer(depthBuffer, EDepthAccess.ReadWrite);
+                passData.gbufferA = passRef.UseColorBuffer(gbufferA, 0);
+                passData.gbufferB = passRef.UseColorBuffer(gbufferB, 1);
+                passData.gbufferC = passRef.UseColorBuffer(gbufferC, 2);
+                passData.depthBuffer = passRef.UseDepthBuffer(depthBuffer, EDepthAccess.ReadWrite);
                 
                 m_GBufferMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
 
                 //Execute Phase
-                passBuilder.SetExecuteFunc((ref FGBufferPassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref FGBufferPassData passData, ref RDGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 1);

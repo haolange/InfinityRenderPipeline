@@ -31,17 +31,17 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
 
             //Add MotionPass
-            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
             {
                 //Setup Phase
-                ref FMotionPassData passData = ref passBuilder.GetPassData<FMotionPassData>();
+                ref FMotionPassData passData = ref passRef.GetPassData<FMotionPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
-                passData.motionBuffer = passBuilder.UseColorBuffer(motionTexture, 0);
-                passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
+                passData.motionBuffer = passRef.UseColorBuffer(motionTexture, 0);
+                passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
-                passBuilder.SetExecuteFunc((ref FMotionPassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref FMotionPassData passData, ref RDGContext graphContext) =>
                 {
                     FilteringSettings filteringSettings = new FilteringSettings
                     {

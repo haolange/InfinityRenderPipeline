@@ -35,15 +35,15 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 // Add GizmosPass
-                using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
+                using (RDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
-                    ref GizmosPassData passData = ref passBuilder.GetPassData<GizmosPassData>();
+                    ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     passData.camera = camera;
                     passData.gizmoSubset = gizmoSubset;
 
                     //Execute Phase
-                    passBuilder.SetExecuteFunc((ref GizmosPassData passData, ref RDGContext graphContext) =>
+                    passRef.SetExecuteFunc((ref GizmosPassData passData, ref RDGContext graphContext) =>
                     {
                         graphContext.renderContext.DrawGizmos(passData.camera, passData.gizmoSubset);
                     });
@@ -61,14 +61,14 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera camera)
         {
             // Add SkyBoxPass
-            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
-                ref SkyBoxPassData passData = ref passBuilder.GetPassData<SkyBoxPassData>();
+                ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
                 passData.camera = camera;
 
                 //Execute Phase
-                passBuilder.SetExecuteFunc((ref SkyBoxPassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref SkyBoxPassData passData, ref RDGContext graphContext) =>
                 {
                     graphContext.renderContext.DrawSkybox(passData.camera);
                 });
@@ -86,16 +86,16 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderPresent(Camera camera, in RDGTextureRef srcTexture, RenderTexture dscTexture)
         {
             // Add PresentPass
-            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
             {
                 //Setup Phase
-                ref PresentPassData passData = ref passBuilder.GetPassData<PresentPassData>();
+                ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
                 passData.camera = camera;
                 passData.dscTexture = dscTexture;
-                passData.srcTexture = passBuilder.ReadTexture(srcTexture);
+                passData.srcTexture = passRef.ReadTexture(srcTexture);
 
                 //Execute Phase
-                passBuilder.SetExecuteFunc((ref PresentPassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref PresentPassData passData, ref RDGContext graphContext) =>
                 {
                     RenderTexture srcBuffer = passData.srcTexture;
                     RenderTexture dscBuffer = passData.dscTexture;
