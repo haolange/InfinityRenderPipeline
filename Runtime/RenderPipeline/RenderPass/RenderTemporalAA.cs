@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         taaOutputData.mergeColorTexture = passData.antiAliasingTexture;
                     }
-                    FTemporalAAParameter taaParameter = new FTemporalAAParameter(0.96f, 0.85f, 8, 1);
+                    FTemporalAAParameter taaParameter = new FTemporalAAParameter(0.95f, 0.75f, 6000, 1);
 
                     //graphContext.cmdBuffer.Blit(passData.aliasingTexture, passData.antiAliasingTexture);
                     passData.temporalAA.Render(graphContext.cmdBuffer, taaParameter, taaInputData, taaOutputData);

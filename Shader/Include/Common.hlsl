@@ -14,7 +14,7 @@
 #define Two_Pi 6.2831852
 #define Inv_Two_Pi 0.15915494
 
-SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
+SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler, Global_point_mirror_sampler, Global_bilinear_mirror_sampler;
 
 float Square(float x)
 {

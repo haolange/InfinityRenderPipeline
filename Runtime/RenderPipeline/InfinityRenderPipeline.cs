@@ -184,6 +184,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 Camera camera = cameras[i];
                 CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
+                if(!cameraComponent)
+                {
+                    cameraComponent = camera.gameObject.AddComponent<CameraComponent>();
+                }
 
                 //Camera Rendering
                 using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(ERGProfileId.CameraRendering)))
@@ -249,7 +253,7 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderSkyBox(camera);
                         #if UNITY_EDITOR
                         RenderGizmos(camera, GizmoSubset.PostImageEffects);
-#endif
+                        #endif
                         RenderTemporalAA(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), cameraComponent.historyTexture);
                         RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.TemporalBuffer), camera.targetTexture);
 
