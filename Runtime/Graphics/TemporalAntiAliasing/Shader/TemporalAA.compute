@@ -38,7 +38,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     float2 unJitterUV = screenUV - TAAJitter.xy;
 	uint2 pixelCoord = uint2(screenUV.xy * TAA_Resolution.xy);
 
-    float2 velocity = SRV_MotionTexture.SampleLevel(Global_point_mirror_sampler, screenUV, 0).xy;
+    float2 velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).xy;
     float velocityLength = length(velocity);
 
     float totalWeight = 0;
@@ -48,7 +48,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     [unroll]
     for(uint i = 0; i < 9; ++i) 
     {
-        sampleColors[i] = SRV_CurrColorTexture.SampleLevel(Global_point_mirror_sampler, unJitterUV + (SampleOffsets[i] * TAA_Resolution.zw), 0);
+        sampleColors[i] = SRV_CurrColorTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV + (SampleOffsets[i] * TAA_Resolution.zw), 0);
     }
 
     #if 0
@@ -86,7 +86,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     minColor = min(minColor, currColor);
     maxColor = max(maxColor, currColor);
     
-    float4 prevColor = SRV_PrevColorTexture.SampleLevel(Global_point_mirror_sampler, screenUV - velocity, 0);
+    float4 prevColor = SRV_PrevColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0);
     prevColor = ClipAABB(prevColor, minColor, maxColor);
 
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, velocityLength * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
