@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using InfinityTech.Rendering.Core;
+using InfinityTech.Component;
 
-namespace InfinityTech.Editor.Component
+namespace InfinityTech.ActorAction.Editor
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(RayTraceEnvironment))]

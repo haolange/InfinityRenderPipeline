@@ -9,6 +9,7 @@ using InfinityTech.Component;
 using System.Collections.Generic;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
+using InfinityTech.Rendering.Feature;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
@@ -19,7 +20,7 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public partial struct FViewUnifrom
+    internal struct FViewUnifrom
     {
         private static readonly int ID_FrameIndex = Shader.PropertyToID("FrameIndex");
         private static readonly int ID_TAAJitter = Shader.PropertyToID("TAAJitter");
@@ -71,63 +72,17 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_LastViewProj;
         public Matrix4x4 matrix_LastViewFlipYProj;
 
-        private Matrix4x4 GetJitteredProjectionMatrix(in Matrix4x4 origProj, Camera view)
-        {
-
-            float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
-            float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
-            tempJitter = new float2(jitterX, jitterY);
-            
-            if (++frameIndex >= 8)
-                frameIndex = 0;
-
-            Matrix4x4 proj;
-
-            if (view.orthographic) 
-            {
-                float vertical = view.orthographicSize;
-                float horizontal = vertical * view.aspect;
-
-                float2 offset = tempJitter;
-                offset.x *= horizontal / (0.5f * view.pixelRect.size.x);
-                offset.y *= vertical / (0.5f * view.pixelRect.size.y);
-
-                float left = offset.x - horizontal;
-                float right = offset.x + horizontal;
-                float top = offset.y + vertical;
-                float bottom = offset.y - vertical;
-
-                proj = Matrix4x4.Ortho(left, right, bottom, top, view.nearClipPlane, view.farClipPlane);
-            } else {
-                var planes = origProj.decomposeProjection;
-
-                float vertFov = Math.Abs(planes.top) + Math.Abs(planes.bottom);
-                float horizFov = Math.Abs(planes.left) + Math.Abs(planes.right);
-
-                var planeJitter = new Vector2(jitterX * horizFov / view.pixelRect.size.x, jitterY * vertFov / view.pixelRect.size.y);
-
-                planes.left += planeJitter.x;
-                planes.right += planeJitter.x;
-                planes.top += planeJitter.y;
-                planes.bottom += planeJitter.y;
-
-                proj = Matrix4x4.Frustum(planes);
-            }
-
-            return proj;
-        }
-
         private void UnpateCurrBufferData(Camera camera)
         {
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_InvProj = matrix_Proj.inverse;
-            matrix_JitterProj = GetJitteredProjectionMatrix(matrix_Proj, camera);
+            matrix_JitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref tempJitter, matrix_Proj);
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
-            matrix_FlipYJitterProj = GetJitteredProjectionMatrix(matrix_FlipYProj, camera);
+            matrix_FlipYJitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref tempJitter, matrix_FlipYProj, false);
             matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
             matrix_ViewProj = matrix_Proj * matrix_WorldToView;
             matrix_InvViewProj = matrix_ViewProj.inverse;
@@ -189,11 +144,18 @@ namespace InfinityTech.Rendering.Pipeline
         private FGPUScene m_GPUScene;
         private RDGBuilder m_GraphBuilder;
         private FViewUnifrom m_ViewUnifrom;
-        private NativeList<JobHandle> m_MeshPassTaskRefs;
+        private NativeList<JobHandle> m_MeshPassJobRefs;
         private FMeshPassProcessor m_DepthMeshProcessor;
         private FMeshPassProcessor m_GBufferMeshProcessor;
         private FMeshPassProcessor m_ForwardMeshProcessor;
-        private InfinityRenderPipelineAsset m_RenderPipelineAsset;
+
+        internal InfinityRenderPipelineAsset renderPipelineAsset 
+        { 
+            get 
+            { 
+                return (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline; 
+            }
+        }
 
         public InfinityRenderPipeline()
         {
@@ -201,19 +163,18 @@ namespace InfinityTech.Rendering.Pipeline
             m_GPUScene = new FGPUScene();
             m_ViewUnifrom = new FViewUnifrom();
             m_GraphBuilder = new RDGBuilder("RenderGraph");
-            m_MeshPassTaskRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
-            m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
-            m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
-            m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassTaskRefs);
-            m_RenderPipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
+            m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
+            m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
+            m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
+            m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
             //Setup FrameContext
+            RTHandles.Initialize(Screen.width, Screen.height);
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
             FResourcePool resourcePool = GetWorld().resourcePool;
-            //RTHandles.Initialize(Screen.width, Screen.height, false, MSAASamples.None);
             m_GPUScene.Update(GetWorld().GetMeshBatchColloctor(), resourcePool, cmdBuffer, false);
 
             BeginFrameRendering(renderContext, cameras);
@@ -237,10 +198,13 @@ namespace InfinityTech.Rendering.Pipeline
                             bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
                             #if UNITY_EDITOR
-                                if (isEditView) { ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); }
+                            if (isEditView) 
+                            { 
+                                ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); 
+                            }
                             #endif
 
-                            m_MeshPassTaskRefs.Clear();
+                            m_MeshPassJobRefs.Clear();
                             VFXManager.PrepareCamera(camera);
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer);
                             renderContext.SetupCameraProperties(camera);
@@ -282,11 +246,11 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderForward(camera, cullingData, cullingResult);
                         RenderSkyBox(camera);
                         #if UNITY_EDITOR
-                            RenderGizmos(camera, GizmoSubset.PostImageEffects);
+                        RenderGizmos(camera, GizmoSubset.PostImageEffects);
                         #endif
                         RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
 
-                        JobHandle.CompleteAll(m_MeshPassTaskRefs);
+                        JobHandle.CompleteAll(m_MeshPassJobRefs);
                         m_GraphBuilder.Execute(renderContext, GetWorld(), resourcePool, cmdBuffer);
                         #endregion //InitViewCommand
 
@@ -349,11 +313,13 @@ namespace InfinityTech.Rendering.Pipeline
                 , overridesMaximumLODLevel = true
             };
         }        
-       
+        
         protected override void Dispose(bool disposing)
         {
+            if (!disposing) { return; }
+
             m_GraphBuilder.Dispose();
-            m_MeshPassTaskRefs.Dispose();
+            m_MeshPassJobRefs.Dispose();
         }
     }
 }

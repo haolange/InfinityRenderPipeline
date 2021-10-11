@@ -1,8 +1,6 @@
-﻿using UnityEngine;
-using UnityEditor;
-using InfinityTech.Component;
+﻿using UnityEditor;
 
-namespace InfinityTech.Editor.Component
+namespace InfinityTech.Component.Editor
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(CameraComponent))]

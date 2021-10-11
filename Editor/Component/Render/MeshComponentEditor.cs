@@ -1,9 +1,8 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using InfinityTech.Component;
 
-namespace InfinityTech.Editor.Component
+namespace InfinityTech.Component.Editor
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(MeshComponent))]

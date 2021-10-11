@@ -3,7 +3,7 @@ using UnityEditor;
 using InfinityTech.Component;
 //using Unity.Mathematics;
 
-namespace InfinityTech.Editor.Tool
+namespace InfinityTech.Tool.Editor
 {
     public class Utility
     {

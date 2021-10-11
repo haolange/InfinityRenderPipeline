@@ -2,7 +2,7 @@
 using UnityEditor.VFX;
 using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Editor.Tool
+namespace InfinityTech.Tool.Editor
 {
     class VFXInfinityRPBinder : VFXSRPBinder
     {

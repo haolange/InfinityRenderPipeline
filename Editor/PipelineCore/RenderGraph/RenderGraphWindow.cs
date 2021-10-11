@@ -3,30 +3,33 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.Experimental.GraphView;
 
-public class RenderGraphWindow : EditorWindow
+namespace InfinityTech.Rendering.RDG.Editor
 {
-    private RenderGraphView graphView;
-
-
-    [MenuItem("Tool/GraphBuilderView")]
-    public static void ShowWindow()
+    public class RenderGraphWindow : EditorWindow
     {
-        RenderGraphWindow graphWindow = GetWindow<RenderGraphWindow>();
-        graphWindow.minSize = new Vector2(500, 400);
-        graphWindow.titleContent = new GUIContent("GraphBuilderView");
+        private RenderGraphView graphView;
 
-    }
 
-    public void OnEnable()
-    { 
-        graphView = new RenderGraphView();
-        graphView.StretchToParentSize();
+        [MenuItem("Tool/GraphBuilderView")]
+        public static void ShowWindow()
+        {
+            RenderGraphWindow graphWindow = GetWindow<RenderGraphWindow>();
+            graphWindow.minSize = new Vector2(500, 400);
+            graphWindow.titleContent = new GUIContent("GraphBuilderView");
 
-        rootVisualElement.Add(graphView);
-    }
+        }
 
-    public void OnDisable()
-    {
-        rootVisualElement.Remove(graphView);
+        public void OnEnable()
+        {
+            graphView = new RenderGraphView();
+            graphView.StretchToParentSize();
+
+            rootVisualElement.Add(graphView);
+        }
+
+        public void OnDisable()
+        {
+            rootVisualElement.Remove(graphView);
+        }
     }
 }

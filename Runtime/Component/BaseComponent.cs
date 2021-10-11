@@ -15,9 +15,6 @@ namespace InfinityTech.Component
         [HideInInspector]
         private RenderTransfrom m_LastTransform;
 
-
-        public BaseComponent() { }
-
         void OnEnable()
         {
             OnRegister();

@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace InfinityTech.Editor.ActorAction
+namespace InfinityTech.ActorAction.Editor
 {
     public class SetMeshRendererRandomMeshWizard : ScriptableWizard
     {

@@ -7,32 +7,44 @@ namespace InfinityTech.Rendering.Pipeline
     [CreateAssetMenu(menuName = "InfinityRenderPipeline/InfinityRenderPipelineAsset", order = 360)]
     public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset
     {
+        public bool showShader = false;
+        public bool showTexture = false;
+        public bool showMaterial = false;
+        public bool showAdvanced = true;
+
         public bool enableRayTrace = false;
         public bool enableSRPBatch = true;
         public bool enableDynamicBatch = true;
         public bool enableInstanceBatch = true;
 
-        public Shader defaultShaderProxy;
+        public ComputeShader ssrShader;
+        public ComputeShader ssaoShader;
+        public ComputeShader ssgiShader;
+        public ComputeShader temporalAAShader;
+
         public Material defaultMaterialProxy;
 
-        public Texture2D bestFitNormal;
+        public Texture2D bestFitNormalTexture;
 
-        public InfinityRenderPipeline RenderPipeline;
+        public InfinityRenderPipeline renderPipeline;
+
+
+        public Shader defaultShaderProxy;
         public override Shader defaultShader { get { return defaultShaderProxy; } }
+
         public override Material defaultMaterial { get { return defaultMaterialProxy; } }
 
 
         protected override RenderPipeline CreatePipeline() 
         {
-            RenderPipeline = new InfinityRenderPipeline();
-            Shader.SetGlobalTexture("g_BestFirNormal_LUT", bestFitNormal);
-
-            return RenderPipeline;
+            renderPipeline = new InfinityRenderPipeline();
+            Shader.SetGlobalTexture("g_BestFirNormal_LUT", bestFitNormalTexture);
+            return renderPipeline;
         }
 
         protected override void OnValidate() 
         {
-            
+
         }
 
         protected override void OnDisable() 

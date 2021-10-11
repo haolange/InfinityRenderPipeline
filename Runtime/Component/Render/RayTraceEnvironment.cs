@@ -3,7 +3,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using UnityEngine.Experimental.Rendering;
 
-namespace InfinityTech.Rendering.Core
+namespace InfinityTech.Component
 {
     [ExecuteAlways]
     public class RayTraceEnvironment : MonoBehaviour

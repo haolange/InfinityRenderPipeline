@@ -1,59 +1,72 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using InfinityTech.Rendering.Pipeline;
 
-namespace InfinityTech.Editor.Component
+namespace InfinityTech.Rendering.Pipeline.Editor
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(InfinityRenderPipelineAsset))]
     public class InfinityRenderPipelineAssetEditor : UnityEditor.Editor
     {
-        public bool showShader = false;
-        public bool showTexture = false;
-        public bool showMaterial = false;
-        public bool showAdvanced = true;
+        public InfinityRenderPipelineAsset renderipelineAsset { get { return target as InfinityRenderPipelineAsset; } }
+        public bool showShader { get { return renderipelineAsset.showShader; } set { renderipelineAsset.showShader = value; } }
+        public bool showTexture { get { return renderipelineAsset.showTexture; } set { renderipelineAsset.showTexture = value; } }
+        public bool showMaterial { get { return renderipelineAsset.showMaterial; } set { renderipelineAsset.showMaterial = value; } }
+        public bool showAdvanced { get { return renderipelineAsset.showAdvanced; } set { renderipelineAsset.showAdvanced = value; } }
 
         private SerializedProperty m_RayTrace;
         private SerializedProperty m_SRPBatch;
         private SerializedProperty m_GPUInstance;
         private SerializedProperty m_DynamicBatch;
 
-        private SerializedProperty m_BestFitNormal;
+        private SerializedProperty m_SSRShader;
+        private SerializedProperty m_SSAOShader;
+        private SerializedProperty m_SSGIShader;
+        private SerializedProperty m_TAAShader;
 
         private SerializedProperty m_DefaultShader;
 
         private SerializedProperty m_DefaultMaterial;
 
+        private SerializedProperty m_BestFitNormalTexture;
+
         void OnEnable()
         {
             m_RayTrace = serializedObject.FindProperty("enableRayTrace");
-
             m_SRPBatch = serializedObject.FindProperty("enableSRPBatch");
             m_GPUInstance = serializedObject.FindProperty("enableInstanceBatch");
             m_DynamicBatch = serializedObject.FindProperty("enableDynamicBatch");
 
-            m_BestFitNormal = serializedObject.FindProperty("bestFitNormal");
-
             m_DefaultShader = serializedObject.FindProperty("defaultShaderProxy");
+
+            m_SSRShader = serializedObject.FindProperty("ssrShader");
+            m_SSAOShader = serializedObject.FindProperty("ssaoShader");
+            m_SSGIShader = serializedObject.FindProperty("ssgiShader");
+            m_TAAShader = serializedObject.FindProperty("temporalAAShader");
+
             m_DefaultMaterial = serializedObject.FindProperty("defaultMaterialProxy");
+
+            m_BestFitNormalTexture = serializedObject.FindProperty("bestFitNormalTexture");
         }
 
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
 
-            //////////////////////
             showShader = EditorGUILayout.BeginFoldoutHeaderGroup(showShader, "Shaders");
             if (showShader)
             {
                 EditorGUILayout.PropertyField(m_DefaultShader, new GUIContent("Default Shader"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_SSRShader, new GUIContent("SSR Shader"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_TAAShader, new GUIContent("TAA Shader"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_SSGIShader, new GUIContent("SSGI Shader"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_SSAOShader, new GUIContent("SSAO Shader"), GUILayout.Height(18));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
             showTexture = EditorGUILayout.BeginFoldoutHeaderGroup(showTexture, "Textures");
             if (showTexture)
             {
-                EditorGUILayout.PropertyField(m_BestFitNormal, new GUIContent("Best Fit Normal LUT"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_BestFitNormalTexture, new GUIContent("Best Fit Normal LUT"), GUILayout.Height(18));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
@@ -74,7 +87,6 @@ namespace InfinityTech.Editor.Component
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
-            //////////////////////
             serializedObject.ApplyModifiedProperties();
         }
     }

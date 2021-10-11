@@ -1,8 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
-using InfinityTech.Component;
 
-namespace InfinityTech.Editor.Component
+namespace InfinityTech.Component.Editor
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(TerrainComponent))]

@@ -3,7 +3,10 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.Experimental.GraphView;
 
-public class RenderPassNode : Node
+namespace InfinityTech.Rendering.RDG.Editor
 {
-    public string GUID;
+    public class RenderPassNode : Node
+    {
+        public string GUID;
+    }
 }

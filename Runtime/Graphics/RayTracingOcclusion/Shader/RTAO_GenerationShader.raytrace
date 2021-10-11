@@ -1,6 +1,6 @@
-﻿#include "../../../../../../Shader/Private/BSDF.hlsl"
-#include "../../../../../../Shader/Private/Random.hlsl"
-#include "../../../../../../Shader/Private/RayTracing/Common/RayTracingCommon.hlsl"
+﻿#include "../../../../Shader/Include/BSDF.hlsl"
+#include "../../../../Shader/Include/Random.hlsl"
+#include "../../../../Shader/Include/RayTracing/Common/RayTracingCommon.hlsl"
 
 #pragma max_recursion_depth 1
 
@@ -12,7 +12,7 @@ Texture2D SRV_SceneDepth, SRV_GBufferNormal;
 RWTexture2D<float> UAV_ScreenOcclusion;
 
 [shader("raygeneration")]
-void RTAO_Generation()
+void RayGeneration()
 {
     uint2 dispatchIdx = DispatchRaysIndex().xy;
 	uint2 launchDim   = DispatchRaysDimensions().xy;
@@ -28,7 +28,8 @@ void RTAO_Generation()
     float RayHitDistance = 0;
 
     [loop]
-	for (int i = 0; i < RTAO_NumRays; ++i) {
+	for (int i = 0; i < RTAO_NumRays; ++i) 
+    {
 		uint2 Random = Rand3DPCG16( uint3( dispatchIdx, fmod(RTAO_FrameIndex, 8) ) ).xy;
 		float2 Hash = Hammersley16(i, (uint)RTAO_NumRays, Random);
 
@@ -54,10 +55,4 @@ void RTAO_Generation()
 	}
 
     UAV_ScreenOcclusion[dispatchIdx] = OutOcclusion / RTAO_NumRays;
-}
-
-[shader("miss")]
-void RTAO_Miss(inout AORayPayload RayIntersectionAO : SV_RayPayload)
-{
-    RayIntersectionAO.HitDistance = -1;
 }
