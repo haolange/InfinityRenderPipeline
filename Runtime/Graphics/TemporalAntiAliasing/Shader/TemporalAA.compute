@@ -11,6 +11,7 @@ RWTexture2D<float4> UAV_MergeColorTexture;
 static const int2 SampleOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
 
 #include "../../../../Shader/Include/Common.hlsl"
+#include "../../../../Shader/Include/ShaderVariable.hlsl"
 
 float4 ClipAABB(float4 prevData, float4 aabbMin, float4 aabbMax)
 {
@@ -30,10 +31,11 @@ float4 ClipAABB(float4 prevData, float4 aabbMin, float4 aabbMax)
     }
 }
 
-[numthreads(8,8,1)]
+[numthreads(16, 16, 1)]
 void Main (uint3 id : SV_DispatchThreadID)
 {
     float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
+    float2 unJitterUV = screenUV - TAAJitter.zw;
 	uint2 pixelCoord = uint2(screenUV.xy * TAA_Resolution.xy);
 
     float2 velocity = SRV_MotionTexture.SampleLevel(Global_point_repeat_sampler, screenUV, 0).xy;
@@ -46,7 +48,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     [unroll]
     for(uint i = 0; i < 9; i++) 
     {
-        sampleColors[i] = SRV_CurrColorTexture.SampleLevel(Global_point_repeat_sampler, screenUV + (SampleOffsets[i] * TAA_Resolution.zw), 0);
+        sampleColors[i] = SRV_CurrColorTexture.SampleLevel(Global_point_repeat_sampler, unJitterUV + (SampleOffsets[i] * TAA_Resolution.zw), 0);
     }
 
     #if 0

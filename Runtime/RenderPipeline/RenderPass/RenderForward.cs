@@ -29,27 +29,27 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderForward(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
-            TextureDescription diffuseDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassString.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            TextureDescription diffuseDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassString.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
             RDGTextureRef diffuseTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer, diffuseDescription);
-            TextureDescription specularDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassString.TextureBName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32 };
+            TextureDescription specularDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassString.TextureBName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
             RDGTextureRef specularTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.SpecularBuffer, specularDescription);
 
             //Add ForwardPass
-            using (RDGPassRef passBuilder = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
-                ref FForwardPassData passData = ref passBuilder.GetPassData<FForwardPassData>();
+                ref FForwardPassData passData = ref passRef.GetPassData<FForwardPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
                 passData.meshPassProcessor = m_ForwardMeshProcessor;
-                passData.diffuseBuffer = passBuilder.UseColorBuffer(diffuseTexture, 0);
-                passData.specularBuffer = passBuilder.UseColorBuffer(specularTexture, 1);
-                passData.depthBuffer = passBuilder.UseDepthBuffer(depthTexture, EDepthAccess.Read);
+                passData.diffuseBuffer = passRef.UseColorBuffer(diffuseTexture, 0);
+                passData.specularBuffer = passRef.UseColorBuffer(specularTexture, 1);
+                passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
                 
                 m_ForwardMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
 
                 //Execute Phase
-                passBuilder.SetExecuteFunc((ref FForwardPassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref FForwardPassData passData, ref RDGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 2);

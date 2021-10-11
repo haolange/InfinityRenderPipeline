@@ -93,7 +93,7 @@
 			{
 				float2 uv = i.uv.xy;
 				//return float4(frac(uv * int2(160, 90)), 0, 1);
-				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv - TAAJitter.zw, 0);
+				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0);
 
 				/*FGBufferData GBufferData;
 				DecodeGBuffer(1, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV - TAAJitter.zw, 0), 1, GBufferData);

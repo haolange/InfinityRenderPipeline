@@ -144,6 +144,7 @@ namespace InfinityTech.Rendering.Pipeline
         private FGPUScene m_GPUScene;
         private RDGBuilder m_GraphBuilder;
         private FViewUnifrom m_ViewUnifrom;
+        private FTemporalAntiAliasing m_TemporalAA;
         private NativeList<JobHandle> m_MeshPassJobRefs;
         private FMeshPassProcessor m_DepthMeshProcessor;
         private FMeshPassProcessor m_GBufferMeshProcessor;
@@ -164,6 +165,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_ViewUnifrom = new FViewUnifrom();
             m_GraphBuilder = new RDGBuilder("RenderGraph");
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
+            m_TemporalAA = new FTemporalAntiAliasing(renderPipelineAsset.temporalAAShader);
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
@@ -247,8 +249,9 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderSkyBox(camera);
                         #if UNITY_EDITOR
                         RenderGizmos(camera, GizmoSubset.PostImageEffects);
-                        #endif
-                        RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), camera.targetTexture);
+#endif
+                        RenderTemporalAA(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), cameraComponent.historyTexture);
+                        RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.TemporalBuffer), camera.targetTexture);
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
                         m_GraphBuilder.Execute(renderContext, GetWorld(), resourcePool, cmdBuffer);

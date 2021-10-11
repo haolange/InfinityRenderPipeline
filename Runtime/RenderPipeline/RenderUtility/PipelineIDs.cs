@@ -12,8 +12,9 @@ namespace InfinityTech.Rendering.Pipeline
         RenderGBuffer,
         RenderMotion,
         RenderForward,
-        RenderAtmosphere,
         RenderSkyBox,
+        RenderAtmosphere,
+        RenderAntiAliasing,
         RenderGizmos,
         FinalPresent,
         Max,
@@ -50,6 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int MotionBuffer = Shader.PropertyToID("_MotionTexture");
         public static int DiffuseBuffer = Shader.PropertyToID("_DiffuseTexture");
         public static int SpecularBuffer = Shader.PropertyToID("_SpecularTexture");
+        public static int TemporalBuffer = Shader.PropertyToID("_TemporalAATexture");
         public static int RT_MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");
         public static int MeshBatchOffset = Shader.PropertyToID("meshBatchOffset");

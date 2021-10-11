@@ -2,6 +2,7 @@
 using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Core.Geometry;
+using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Component
 {
@@ -11,7 +12,7 @@ namespace InfinityTech.Component
     public class CameraComponent : BaseComponent
     {
         public Camera unityCamera;
-        public RenderTexture historyTexture;
+        public RTHandle historyTexture;
         public ProfilingSampler viewProfiler;
 
         protected override void OnRegister()
@@ -19,14 +20,7 @@ namespace InfinityTech.Component
             GetWorld().AddWorldView(this);
             unityCamera = GetComponent<Camera>();
             viewProfiler = new ProfilingSampler(this.name);
-            historyTexture = new RenderTexture(unityCamera.pixelWidth, unityCamera.pixelHeight, 0, RenderTextureFormat.RGB111110Float, 0);
-            historyTexture.depth = 0;
-            historyTexture.anisoLevel = 0;
-            historyTexture.antiAliasing = 1;
-            historyTexture.useMipMap = false;
-            historyTexture.bindTextureMS = false;
-            historyTexture.autoGenerateMips = false;
-            historyTexture.Create();
+            historyTexture = RTHandles.Alloc(unityCamera.pixelWidth, unityCamera.pixelHeight, 0, DepthBits.None, GraphicsFormat.B10G11R11_UFloatPack32, FilterMode.Bilinear, TextureWrapMode.Repeat, TextureDimension.Tex2D, false, false, false, false);
         }
 
         protected override void EventPlay()
@@ -46,7 +40,7 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            historyTexture.Release();
+            RTHandles.Release(historyTexture);
             GetWorld().RemoveWorldView(this);
         }
     }
