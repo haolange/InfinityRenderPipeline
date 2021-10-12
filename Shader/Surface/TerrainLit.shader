@@ -56,6 +56,7 @@ Shader "InfinityPipeline/TerrainLit"
 			ZTest LEqual ZWrite On Cull Back
 
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex SplatmapVert
             #pragma fragment DeferredFragment
             
@@ -66,7 +67,7 @@ Shader "InfinityPipeline/TerrainLit"
             #pragma shader_feature_local _NORMALMAP
             #pragma shader_feature_local _TERRAIN_BLEND_HEIGHT
             #pragma shader_feature_local _TERRAIN_INSTANCED_PERPIXEL_NORMAL
-    
+            
             #define _METALLICSPECGLOSSMAP 1
             #define _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A 1
 
@@ -82,6 +83,7 @@ Shader "InfinityPipeline/TerrainLit"
 			ZTest Equal ZWrite On Cull Back
 
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex SplatmapVert
             #pragma fragment ForwardFragment
             

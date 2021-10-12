@@ -10,8 +10,8 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal struct FAntiAliasingPassString
     {
-        internal static string PassName = "AntiAliasing";
-        internal static string TextureName = "AntiAliasingTexture";
+        internal static string PassName = "AntiAliasingPass";
+        internal static string TextureName = "AccmulateTexture";
     }
 
     public partial class InfinityRenderPipeline

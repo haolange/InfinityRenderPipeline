@@ -8,8 +8,6 @@ namespace InfinityTech.Rendering.RDG
 {
     internal enum ERGProfileId
     {
-        ClearRenderTarget,
-        BindRenderTarget,
         ViewContext,
         ComputeLOD,
         CulllingScene,
@@ -223,12 +221,9 @@ namespace InfinityTech.Rendering.RDG
                 if (resource.desc.clearBuffer)
                 {
                     bool debugClear = !resource.desc.clearBuffer;
-                    using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(ERGProfileId.ClearRenderTarget)))
-                    {
-                        var clearFlag = resource.desc.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
-                        var clearColor = debugClear ? Color.magenta : resource.desc.clearColor;
-                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, resource.resource, clearFlag, clearColor);
-                    }
+                    var clearFlag = resource.desc.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
+                    var clearColor = debugClear ? Color.magenta : resource.desc.clearColor;
+                    CoreUtils.SetRenderTarget(graphContext.cmdBuffer, resource.resource, clearFlag, clearColor);
                 }
             }
         }

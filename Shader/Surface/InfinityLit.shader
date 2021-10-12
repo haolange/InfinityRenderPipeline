@@ -162,7 +162,6 @@
 			//#pragma enable_d3d11_debug_symbols
 			//#pragma multi_compile _ LIGHTMAP_ON
 
-
 			#include "../Include/Common.hlsl"
 			#include "../Include/Lightmap.hlsl"
 			#include "../Include/GBufferPack.hlsl"
@@ -170,13 +169,11 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
-
 			CBUFFER_START(UnityPerMaterial)
 				int _BaseColorTile;
 				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
-			
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct Attributes
@@ -258,9 +255,8 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+			#pragma multi_compile _ LIGHTMAP_ON
 			//#pragma enable_d3d11_debug_symbols
-			#pragma multi_compile LIGHTMAP_OFF LIGHTMAP_ON
-
 
 			#include "../Include/Common.hlsl"
 			#include "../Include/Lightmap.hlsl"
@@ -269,13 +265,11 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
-
 			CBUFFER_START(UnityPerMaterial)
 				int _BaseColorTile;
 				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
-
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct Attributes
@@ -414,17 +408,14 @@
 				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
-
-			Texture2D _MainTex; SamplerState sampler_MainTex;
-
 			CBUFFER_START(UnityMetaPass)
 				bool4 unity_MetaVertexControl;
 				bool4 unity_MetaFragmentControl;
 			CBUFFER_END
-
 			float unity_OneOverOutputBoost;
 			float unity_MaxOutputValue;
 			float unity_UseLinearSpace;
+			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct MetaInput
 			{

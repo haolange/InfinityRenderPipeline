@@ -1,12 +1,17 @@
 #ifndef _TerrainLitInclude
 #define _TerrainLitInclude
 
+#define UNITY_PREV_MATRIX_M unity_MatrixPreviousM;
+#define UNITY_PREV_MATRIX_I_M unity_MatrixPreviousMI;
+
+#include "../Include/Common.hlsl"
 #include "../Include/GBufferPack.hlsl"
 #include "../Include/ShaderVariable.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
-#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
 
 #if defined(UNITY_INSTANCING_ENABLED) && defined(_TERRAIN_INSTANCED_PERPIXEL_NORMAL)
     #define ENABLE_TERRAIN_PERPIXEL_NORMAL

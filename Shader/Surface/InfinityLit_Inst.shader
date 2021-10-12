@@ -46,7 +46,6 @@
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma multi_compile_instancing
 			#pragma enable_d3d11_debug_symbols
 
 			#include "../Include/GPUScene.hlsl"
