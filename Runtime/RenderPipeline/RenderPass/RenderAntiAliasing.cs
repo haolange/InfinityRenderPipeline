@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef aliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer);
             RDGTextureRef antiAliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer, antiAliasingDescription);
 
-            //Add DepthPass
+            //Add AntiAliasingPass
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<FAntiAliasingPassData>(FAntiAliasingPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderAntiAliasing)))
             {
                 //Setup Phase
