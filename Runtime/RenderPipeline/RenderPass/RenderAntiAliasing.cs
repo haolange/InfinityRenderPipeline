@@ -8,7 +8,7 @@ using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct FTAAPassString
+    internal struct FAntiAliasingPassString
     {
         internal static string PassName = "AntiAliasing";
         internal static string TextureName = "AntiAliasingTexture";
@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        struct FTAAPassData
+        struct FAntiAliasingPassData
         {
             public Camera camera;
             public RDGTextureRef depthTexture;
@@ -27,19 +27,21 @@ namespace InfinityTech.Rendering.Pipeline
             public FTemporalAntiAliasing temporalAA;
         }
 
-        void RenderTemporalAA(Camera camera, in RDGTextureRef aliasingTexture, RTHandle historyRenderTexture)
+        void RenderAntiAliasing(Camera camera, RTHandle historyRenderTexture)
         {
+            TextureDescription antiAliasingDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FAntiAliasingPassString.TextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
+
+            RDGTextureRef hsitoryTexture = m_GraphBuilder.ImportTexture(historyRenderTexture);
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
             RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer);
-            RDGTextureRef hsitoryTexture = m_GraphBuilder.ImportTexture(historyRenderTexture);
-            TextureDescription antiAliasingDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FTAAPassString.TextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
-            RDGTextureRef antiAliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.TemporalBuffer, antiAliasingDescription);
+            RDGTextureRef aliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer);
+            RDGTextureRef antiAliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer, antiAliasingDescription);
 
             //Add DepthPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FTAAPassData>(FTAAPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderAntiAliasing)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FAntiAliasingPassData>(FAntiAliasingPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderAntiAliasing)))
             {
                 //Setup Phase
-                ref FTAAPassData passData = ref passRef.GetPassData<FTAAPassData>();
+                ref FAntiAliasingPassData passData = ref passRef.GetPassData<FAntiAliasingPassData>();
                 passData.camera = camera;
                 passData.temporalAA = m_TemporalAA;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
@@ -49,21 +51,21 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.antiAliasingTexture = passRef.WriteTexture(antiAliasingTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref FTAAPassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref FAntiAliasingPassData passData, ref RDGContext graphContext) =>
                 {
                     FTemporalAAInputData taaInputData;
                     {
                         taaInputData.resolution = new float4(passData.camera.pixelWidth, passData.camera.pixelHeight, 1.0f / passData.camera.pixelWidth, 1.0f / passData.camera.pixelHeight);
                         taaInputData.depthTexture = passData.depthTexture;
                         taaInputData.motionTexture = passData.motionTexture;
-                        taaInputData.prevColorTexture = passData.hsitoryTexture;
-                        taaInputData.currColorTexture = passData.aliasingTexture;
+                        taaInputData.prevTexture = passData.hsitoryTexture;
+                        taaInputData.currTexture = passData.aliasingTexture;
                     }
                     FTemporalAAOutputData taaOutputData;
                     {
-                        taaOutputData.mergeColorTexture = passData.antiAliasingTexture;
+                        taaOutputData.mergeTexture = passData.antiAliasingTexture;
                     }
-                    FTemporalAAParameter taaParameter = new FTemporalAAParameter(0.95f, 0.75f, 6000, 1);
+                    FTemporalAAParameter taaParameter = new FTemporalAAParameter(0.95f, 0.75f, 7500, 1);
 
                     //graphContext.cmdBuffer.Blit(passData.aliasingTexture, passData.antiAliasingTexture);
                     passData.temporalAA.Render(graphContext.cmdBuffer, taaParameter, taaInputData, taaOutputData);

@@ -83,10 +83,12 @@ namespace InfinityTech.Rendering.Pipeline
             public RenderTexture dscTexture;
         }
 
-        void RenderPresent(Camera camera, in RDGTextureRef srcTexture, RenderTexture dscTexture)
+        void RenderPresent(Camera camera, RenderTexture dscTexture)
         {
+            RDGTextureRef srcTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            
             // Add PresentPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.FinalPresent)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
             {
                 //Setup Phase
                 ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();

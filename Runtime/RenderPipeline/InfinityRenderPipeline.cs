@@ -254,8 +254,8 @@ namespace InfinityTech.Rendering.Pipeline
                         #if UNITY_EDITOR
                         RenderGizmos(camera, GizmoSubset.PostImageEffects);
                         #endif
-                        RenderTemporalAA(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer), cameraComponent.historyTexture);
-                        RenderPresent(camera, m_GraphBuilder.ScopeTexture(InfinityShaderIDs.TemporalBuffer), camera.targetTexture);
+                        RenderAntiAliasing(camera, cameraComponent.historyTexture);
+                        RenderPresent(camera, camera.targetTexture);
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
                         m_GraphBuilder.Execute(renderContext, GetWorld(), resourcePool, cmdBuffer);

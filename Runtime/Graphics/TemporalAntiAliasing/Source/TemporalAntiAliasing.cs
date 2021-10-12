@@ -38,13 +38,13 @@ namespace InfinityTech.Rendering.Feature
         public float4 resolution;
         public RenderTargetIdentifier depthTexture;
         public RenderTargetIdentifier motionTexture;
-        public RenderTargetIdentifier currColorTexture;
-        public RenderTargetIdentifier prevColorTexture;
+        public RenderTargetIdentifier currTexture;
+        public RenderTargetIdentifier prevTexture;
     }
 
     public struct FTemporalAAOutputData
     {
-        public RenderTargetIdentifier mergeColorTexture;
+        public RenderTargetIdentifier mergeTexture;
     }
 
     internal static class FTemporalAntiAliasingShaderID
@@ -73,11 +73,11 @@ namespace InfinityTech.Rendering.Feature
             cmdBuffer.SetComputeVectorParam(m_Shader, FTemporalAntiAliasingShaderID.BlendParameter, parameter.blendParameter);
             cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.DepthTexture, inputData.depthTexture);
             cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.MotionTexture, inputData.motionTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.CurrColorTexture, inputData.currColorTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.PrevColorTexture, inputData.prevColorTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.MergeColorTexture, outputData.mergeColorTexture);
+            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.CurrColorTexture, inputData.currTexture);
+            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.PrevColorTexture, inputData.prevTexture);
+            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.MergeColorTexture, outputData.mergeTexture);
             cmdBuffer.DispatchCompute(m_Shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-            cmdBuffer.CopyTexture(outputData.mergeColorTexture, inputData.prevColorTexture);
+            cmdBuffer.CopyTexture(outputData.mergeTexture, inputData.prevTexture);
         }
 
         public static Matrix4x4 CaculateProjectionMatrix(Camera view, ref int frameIndex, ref float2 tempJitter, in Matrix4x4 origProj, in bool flipY = true)
