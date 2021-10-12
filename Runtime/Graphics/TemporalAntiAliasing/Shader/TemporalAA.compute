@@ -4,9 +4,9 @@ float4 TAA_Resolution;
 float4 TAA_BlendParameter;// x: static, y: dynamic, z: motion amplification, w: temporalScale
 Texture2D SRV_DepthTexture;
 Texture2D SRV_MotionTexture;
-Texture2D SRV_CurrColorTexture;
-Texture2D SRV_PrevColorTexture;
-RWTexture2D<float4> UAV_MergeColorTexture;
+Texture2D SRV_HistoryTexture;
+Texture2D SRV_AliasingTexture;
+RWTexture2D<float4> UAV_AccmulateTexture;
 
 static const int2 SampleOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
 
@@ -48,7 +48,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     [unroll]
     for(uint i = 0; i < 9; ++i) 
     {
-        sampleColors[i] = SRV_CurrColorTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV + (SampleOffsets[i] * TAA_Resolution.zw), 0);
+        sampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV + (SampleOffsets[i] * TAA_Resolution.zw), 0);
     }
 
     #if 0
@@ -86,9 +86,9 @@ void Main (uint3 id : SV_DispatchThreadID)
     minColor = min(minColor, currColor);
     maxColor = max(maxColor, currColor);
     
-    float4 prevColor = SRV_PrevColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0);
+    float4 prevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0);
     prevColor = ClipAABB(prevColor, minColor, maxColor);
 
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, velocityLength * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
-    UAV_MergeColorTexture[id.xy] = lerp(currColor, prevColor, weight);
+    UAV_AccmulateTexture[id.xy] = lerp(currColor, prevColor, weight);
 }

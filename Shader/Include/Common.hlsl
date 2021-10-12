@@ -12,6 +12,7 @@
 #define Pi 3.1415926
 #define Inv_Pi 0.3183091
 #define Two_Pi 6.2831852
+#define Half_Pi 1.5707963
 #define Inv_Two_Pi 0.15915494
 
 SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler, Global_point_mirror_sampler, Global_bilinear_mirror_sampler;
@@ -559,6 +560,14 @@ float3 GetViewSpacePos(float3 NDCPos, float4x4 matrix_InvProj)
 {
     float4 viewPos = mul(matrix_InvProj, float4(NDCPos, 1));
     return viewPos.xyz / viewPos.w;
+}
+
+float3 GetViewSpacePosInvZ(float3 screenPos, float4x4 matrix_InvProj)
+{
+    float4 viewPos = mul(matrix_InvProj, float4(screenPos, 1));
+	viewPos.xyz /= viewPos.w;;
+	viewPos.z = -viewPos.z;
+    return viewPos.xyz;
 }
 
 float3 GetWorldSpacePos(float3 NDCPos, float4x4 matrix_InvViewProj)

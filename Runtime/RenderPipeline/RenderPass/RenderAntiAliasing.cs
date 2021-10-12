@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef motionTexture;
             public RDGTextureRef hsitoryTexture;
             public RDGTextureRef aliasingTexture;
-            public RDGTextureRef antiAliasingTexture;
+            public RDGTextureRef accmulateTexture;
             public FTemporalAntiAliasing temporalAA;
         }
 
@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
             RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer);
             RDGTextureRef aliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer);
-            RDGTextureRef antiAliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer, antiAliasingDescription);
+            RDGTextureRef accmulateTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer, antiAliasingDescription);
 
             //Add AntiAliasingPass
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<FAntiAliasingPassData>(FAntiAliasingPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderAntiAliasing)))
@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
                 passData.hsitoryTexture = passRef.ReadTexture(hsitoryTexture);
                 passData.aliasingTexture = passRef.ReadTexture(aliasingTexture);
-                passData.antiAliasingTexture = passRef.WriteTexture(antiAliasingTexture);
+                passData.accmulateTexture = passRef.WriteTexture(accmulateTexture);
 
                 //Execute Phase
                 passRef.SetExecuteFunc((ref FAntiAliasingPassData passData, ref RDGContext graphContext) =>
@@ -58,16 +58,14 @@ namespace InfinityTech.Rendering.Pipeline
                         taaInputData.resolution = new float4(passData.camera.pixelWidth, passData.camera.pixelHeight, 1.0f / passData.camera.pixelWidth, 1.0f / passData.camera.pixelHeight);
                         taaInputData.depthTexture = passData.depthTexture;
                         taaInputData.motionTexture = passData.motionTexture;
-                        taaInputData.prevTexture = passData.hsitoryTexture;
-                        taaInputData.currTexture = passData.aliasingTexture;
+                        taaInputData.hsitoryTexture = passData.hsitoryTexture;
+                        taaInputData.aliasingTexture = passData.aliasingTexture;
                     }
                     FTemporalAAOutputData taaOutputData;
                     {
-                        taaOutputData.mergeTexture = passData.antiAliasingTexture;
+                        taaOutputData.accmulateTexture = passData.accmulateTexture;
                     }
                     FTemporalAAParameter taaParameter = new FTemporalAAParameter(0.95f, 0.75f, 7500, 1);
-
-                    //graphContext.cmdBuffer.Blit(passData.aliasingTexture, passData.antiAliasingTexture);
                     passData.temporalAA.Render(graphContext.cmdBuffer, taaParameter, taaInputData, taaOutputData);
                 });
             }

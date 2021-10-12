@@ -1,38 +1,36 @@
 #ifndef _SSRayCastInclude
 #define _SSRayCastInclude
 
-////////////////////////GlobalData////////////////////////
 #include "UnityCG.cginc"
 #include "../../Common.hlsl"
 #include "../../Random.hlsl"
 #include "../../Montcalo.hlsl"
 
-//float _Time, _ZBufferParams;
-
-//////Linear 3DTrace
-float4 LinearTraceRay3DSpace(Texture2D _DepthTexture, int NumSteps, float Thickness, float2 BlueNoise, float3 rayPos, float3 rayDir) {
-    Thickness = clamp(Thickness / 500, 0.001, 0.01);
+float4 LinearTraceRay(Texture2D DepthTexture, float3 rayPos, float3 rayDir, float2 jitter, float thickness, int numSteps) 
+{
+    thickness = clamp(thickness / 500, 0.001, 0.01);
     float mask = 1;
     float rayDepth = -rayPos.z;
 
-	float2 jitter = BlueNoise + 0.5;
-	float StepSize = 1 / (float)NumSteps;
+	jitter += 0.5;
+	float StepSize = 1 / (float)numSteps;
 	StepSize = StepSize * (jitter.x + jitter.y) + StepSize;
 
-	for (int i = 0;  i < NumSteps; i++) {
-		float endDepth = -Texture2DSampleLevel(_DepthTexture, Global_point_clamp_sampler, rayPos.xy, 0).r;
+	for (int i = 0;  i < numSteps; ++i) 
+	{
+		float endDepth = -Texture2DSampleLevel(DepthTexture, Global_point_clamp_sampler, rayPos.xy, 0).r;
         
-		if (-rayPos.z < endDepth) {
+		if (-rayPos.z < endDepth) 
+		{
 			rayPos += rayDir * StepSize;
-		} else if(-rayPos.z > endDepth + Thickness) {
+		} else if(-rayPos.z > endDepth + thickness) {
             float delta = ( -LinearEyeDepth(endDepth) ) - ( -LinearEyeDepth(rayPos.z) );
-            mask = delta <= Thickness && i > 0;
+            mask = delta <= thickness && i > 0;
 		}
 	}
 	return float4(rayPos, mask);
 }
 
-//////Hierarchical_Z Trace_1
 float GetScreenFadeBord(float2 pos, float value)
 {
     float borderDist = min(1 - max(pos.x, pos.y), min(pos.x, pos.y));
@@ -54,13 +52,15 @@ float4 HiZ_Trace(int NumSteps, float Thickness, float2 RaytraceSize, float3 rayO
     float RayMask = 0.0;
     
     [loop]
-    for (int i = 0; i < NumSteps; ++i) {
+    for (int i = 0; i < NumSteps; ++i) 
+	{
         SamplerSize = GetMarchSize( Curr_RayPos.xy, Curr_RayPos.xy + rayDir.xy, RaytraceSize * exp2(level + 1.0) );
         float3 Prev_RayPos = Curr_RayPos + rayDir * SamplerSize;
         float MinZPlane = RT_PyramidDepth.SampleLevel(Global_point_clamp_sampler, Prev_RayPos.xy, level).r;
 
         [branch]
-        if (MinZPlane < Prev_RayPos.z) {
+        if (MinZPlane < Prev_RayPos.z) 
+		{
             level = min(level + 1.0, 6.0);
             Curr_RayPos = Prev_RayPos;
         } else {
@@ -68,7 +68,8 @@ float4 HiZ_Trace(int NumSteps, float Thickness, float2 RaytraceSize, float3 rayO
         }
 
         [branch]
-        if (level < 0.0) {
+        if (level < 0.0) 
+		{
             float IntersectionDiff = -LinearEyeDepth(MinZPlane) + LinearEyeDepth(Curr_RayPos.z);
             RayMask = IntersectionDiff <= Thickness && i > 0.0;
             return float4(Curr_RayPos, RayMask);
@@ -77,12 +78,13 @@ float4 HiZ_Trace(int NumSteps, float Thickness, float2 RaytraceSize, float3 rayO
     return float4(Curr_RayPos, RayMask);
 }
 
-//////Hierarchical_Z Trace_2
-float2 cell(float2 ray, float2 cell_count) {
+float2 cell(float2 ray, float2 cell_count) 
+{
 	return floor(ray.xy * cell_count);
 }
 
-float2 cell_count(float level, float2 ScreenSize) {
+float2 cell_count(float level, float2 ScreenSize) 
+{
 	return ScreenSize / (level == 0 ? 1 : exp2(level));
 }
 
@@ -99,11 +101,13 @@ float3 intersect_cell_boundary(float3 rayOrigin, float3 rayDir, float2 cellIndex
     return intersection_pos;
 }
 
-bool crossed_cell_boundary(float2 cell_id_one, float2 cell_id_two) {
+bool crossed_cell_boundary(float2 cell_id_one, float2 cell_id_two) 
+{
 	return (int)cell_id_one.x != (int)cell_id_two.x || (int)cell_id_one.y != (int)cell_id_two.y;
 }
 
-float minimum_depth_plane(float2 ray, float level, float2 cell_count, Texture2D SceneDepth) {
+float minimum_depth_plane(float2 ray, float level, float2 cell_count, Texture2D SceneDepth) 
+{
 	return -SceneDepth.Load( int3( (ray * cell_count), level ) ).r;
 }
 
