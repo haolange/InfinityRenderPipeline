@@ -187,10 +187,6 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 Camera camera = cameras[i];
                 CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
-                if(!cameraComponent)
-                {
-                    cameraComponent = camera.gameObject.AddComponent<CameraComponent>();
-                }
 
                 //Camera Rendering
                 using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(ERGProfileId.CameraRendering)))
