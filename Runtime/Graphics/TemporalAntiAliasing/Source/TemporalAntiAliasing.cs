@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.Feature
                 float vertFov = math.abs(planes.top) + math.abs(planes.bottom);
                 float horizFov = math.abs(planes.left) + math.abs(planes.right);
 
-                var planeJitter = new Vector2(jitterX * horizFov / view.pixelRect.size.x, jitterY * vertFov / view.pixelRect.size.y);
+                var planeJitter = new Vector2(tempJitter.x * horizFov / view.pixelRect.size.x, tempJitter.y * vertFov / view.pixelRect.size.y);
 
                 planes.left += planeJitter.x;
                 planes.right += planeJitter.x;

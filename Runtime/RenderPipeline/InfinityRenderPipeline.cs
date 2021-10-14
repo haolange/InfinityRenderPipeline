@@ -20,7 +20,7 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct FViewUnifrom
+    internal class FViewUnifrom
     {
         private static readonly int ID_FrameIndex = Shader.PropertyToID("FrameIndex");
         private static readonly int ID_TAAJitter = Shader.PropertyToID("TAAJitter");
@@ -103,7 +103,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void UnpateViewUnifromData(Camera camera, in bool isLastData = false)
         {
-            if(!isLastData) {
+            if(!isLastData) 
+            {
                 UnpateCurrBufferData(camera);
             } else {
                 UnpateLastBufferData();
@@ -142,13 +143,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         private FGPUScene m_GPUScene;
         private RDGBuilder m_GraphBuilder;
-        private FViewUnifrom m_ViewUnifrom;
         private FResourcePool m_ResourcePool;
         private FTemporalAntiAliasing m_TemporalAA;
         private NativeList<JobHandle> m_MeshPassJobRefs;
         private FMeshPassProcessor m_DepthMeshProcessor;
         private FMeshPassProcessor m_GBufferMeshProcessor;
         private FMeshPassProcessor m_ForwardMeshProcessor;
+        private Dictionary<int, FViewUnifrom> m_ViewUnifroms;
         private Dictionary<int, FHistoryCache> m_HistoryCaches;
 
         internal InfinityRenderPipelineAsset renderPipelineAsset 
@@ -163,9 +164,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             SetGraphicsSetting();
             m_GPUScene = new FGPUScene();
-            m_ViewUnifrom = new FViewUnifrom();
             m_ResourcePool = new FResourcePool();
             m_GraphBuilder = new RDGBuilder("RenderGraph");
+            m_ViewUnifroms = new Dictionary<int, FViewUnifrom>();
             m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
             m_TemporalAA = new FTemporalAntiAliasing(renderPipelineAsset.temporalAAShader);
@@ -197,26 +198,37 @@ namespace InfinityTech.Rendering.Pipeline
                     BeginCameraRendering(renderContext, camera);
                     {
                         FCullingData cullingData;
+                        FViewUnifrom viewUnifrom;
                         FHistoryCache historyCache;
                         CullingResults cullingResult;
-                        
+
+                        int cameraId = GetCameraID(camera);
+                        bool isEditView = camera.cameraType == CameraType.SceneView;
+                        bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
+
+                        #region InitPerViewData
+                        // Get PerCamera History ResourceCache Manager
+                        if (!m_HistoryCaches.ContainsKey(cameraId))
+                        {
+                            historyCache = new FHistoryCache();
+                            m_HistoryCaches.Add(cameraId, historyCache);
+                        } else {
+                            historyCache = m_HistoryCaches[cameraId];
+                        }
+
+                        // Get PerCamera ViewData
+                        if (!m_ViewUnifroms.ContainsKey(cameraId))
+                        {
+                            viewUnifrom = new FViewUnifrom();
+                            m_ViewUnifroms.Add(cameraId, viewUnifrom);
+                        } else {
+                            viewUnifrom = m_ViewUnifroms[cameraId];
+                        }
+                        #endregion //InitPerViewData
+
                         #region InitViewContext
                         using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ViewContext)))
                         {
-                            bool isEditView = camera.cameraType == CameraType.SceneView;
-                            bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
-
-                            int cameraId = camera.GetHashCode();
-                            if (camera.cameraType == CameraType.Preview)
-                            {
-                                if (camera.pixelHeight == 64)
-                                {
-                                    cameraId += 1;
-                                }
-                                // Unity will use one PreviewCamera to draw Material icon and Material Preview together, this will cause resources identity be confused.
-                                // We found that the Material preview can not be less than 70 pixel, and the icon is always 64, so we use this to distinguish them.
-                            }
-
                             #if UNITY_EDITOR
                             if (isEditView) 
                             { 
@@ -224,22 +236,15 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             #endif
 
-                            // Get History ResourceCache Manager
-                            if (!m_HistoryCaches.ContainsKey(cameraId))
-                            {
-                                historyCache = new FHistoryCache();
-                                m_HistoryCaches.Add(cameraId, historyCache);
-                            } else {
-                                historyCache = m_HistoryCaches[cameraId];
-                            }
-
-                            // Update VFX and Unifrom
+                            // Update Vfx
                             m_MeshPassJobRefs.Clear();
                             VFXManager.PrepareCamera(camera);
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer);
+
+                            // Update ViewUnifrom
                             renderContext.SetupCameraProperties(camera);
-                            m_ViewUnifrom.UnpateViewUnifromData(camera);
-                            m_ViewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
+                            viewUnifrom.UnpateViewUnifromData(camera, false);
+                            viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
 
                             //Compute LOD
                             using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ComputeLOD)))
@@ -287,7 +292,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         #region ReleaseViewContext
                         cullingData.Release();
-                        m_ViewUnifrom.UnpateViewUnifromData(camera, true);
+                        viewUnifrom.UnpateViewUnifromData(camera, true);
                         #endregion //ReleaseViewContext
                     }
                     EndCameraRendering(renderContext, camera);
@@ -343,8 +348,25 @@ namespace InfinityTech.Rendering.Pipeline
                 , overridesLODBias = true
                 , overridesMaximumLODLevel = true
             };
-        }        
-        
+        }
+
+        protected int GetCameraID(Camera camera)
+        {
+            int cameraId = camera.GetHashCode();
+
+            if (camera.cameraType == CameraType.Preview)
+            {
+                if (camera.pixelHeight == 64)
+                {
+                    cameraId += 1;
+                }
+                // Unity will use one PreviewCamera to draw Material icon and Material Preview together, this will cause resources identity be confused.
+                // We found that the Material preview can not be less than 70 pixel, and the icon is always 64, so we use this to distinguish them.
+            }
+
+            return cameraId;
+        }
+
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
