@@ -22,12 +22,12 @@ namespace InfinityTech.Rendering.Pipeline
         struct FAntiAliasingPassData
         {
             public Camera camera;
+            public ComputeShader taaShader;
             public RDGTextureRef depthTexture;
             public RDGTextureRef motionTexture;
             public RDGTextureRef hsitoryTexture;
             public RDGTextureRef aliasingTexture;
             public RDGTextureRef accmulateTexture;
-            public FTemporalAntiAliasing temporalAA;
         }
 
         void RenderAntiAliasing(Camera camera, FHistoryCache historyCache)
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 ref FAntiAliasingPassData passData = ref passRef.GetPassData<FAntiAliasingPassData>();
                 passData.camera = camera;
-                passData.temporalAA = m_TemporalAA;
+                passData.taaShader = pipelineAsset.taaShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
                 passData.hsitoryTexture = passRef.ReadTexture(hsitoryTexture);
@@ -70,7 +70,9 @@ namespace InfinityTech.Rendering.Pipeline
                         taaOutputData.accmulateTexture = passData.accmulateTexture;
                     }
                     FTemporalAAParameter taaParameter = new FTemporalAAParameter(0.95f, 0.75f, 7500, 1);
-                    passData.temporalAA.Render(graphContext.cmdBuffer, taaParameter, taaInputData, taaOutputData);
+
+                    FTemporalAntiAliasing temporalAA = graphContext.objectPool.Get<FTemporalAntiAliasing>();
+                    temporalAA.Render(graphContext.cmdBuffer, passData.taaShader, taaParameter, taaInputData, taaOutputData);
                 });
             }
         }

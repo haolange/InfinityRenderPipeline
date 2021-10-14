@@ -38,10 +38,10 @@ namespace InfinityTech.Rendering.Pipeline.Editor
 
             m_DefaultShader = serializedObject.FindProperty("defaultShaderProxy");
 
+            m_TAAShader = serializedObject.FindProperty("taaShader");
             m_SSRShader = serializedObject.FindProperty("ssrShader");
             m_SSAOShader = serializedObject.FindProperty("ssaoShader");
             m_SSGIShader = serializedObject.FindProperty("ssgiShader");
-            m_TAAShader = serializedObject.FindProperty("temporalAAShader");
 
             m_DefaultMaterial = serializedObject.FindProperty("defaultMaterialProxy");
 

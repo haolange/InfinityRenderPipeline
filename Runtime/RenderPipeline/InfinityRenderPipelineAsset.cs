@@ -18,9 +18,9 @@ namespace InfinityTech.Rendering.Pipeline
         public bool enableInstanceBatch = true;
 
         public ComputeShader ssrShader;
+        public ComputeShader taaShader;
         public ComputeShader ssaoShader;
         public ComputeShader ssgiShader;
-        public ComputeShader temporalAAShader;
         public Material defaultMaterialProxy;
         public Texture2D bestFitNormalTexture;
         public InfinityRenderPipeline renderPipeline;

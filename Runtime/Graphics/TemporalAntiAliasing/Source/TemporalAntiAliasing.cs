@@ -60,23 +60,16 @@ namespace InfinityTech.Rendering.Feature
 
     public sealed class FTemporalAntiAliasing
     {
-        private ComputeShader m_Shader;
-
-        public FTemporalAntiAliasing(ComputeShader shader)
+        public void Render(CommandBuffer cmdBuffer, ComputeShader shader, in FTemporalAAParameter parameter, in FTemporalAAInputData inputData, in FTemporalAAOutputData outputData)
         {
-            this.m_Shader = shader;
-        }
-
-        public void Render(CommandBuffer cmdBuffer, in FTemporalAAParameter parameter, in FTemporalAAInputData inputData, in FTemporalAAOutputData outputData)
-        {
-            cmdBuffer.SetComputeVectorParam(m_Shader, FTemporalAntiAliasingShaderID.Resolution, inputData.resolution);
-            cmdBuffer.SetComputeVectorParam(m_Shader, FTemporalAntiAliasingShaderID.BlendParameter, parameter.blendParameter);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.DepthTexture, inputData.depthTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.MotionTexture, inputData.motionTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.AliasingTexture, inputData.aliasingTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.HistoryTexture, inputData.hsitoryTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, FTemporalAntiAliasingShaderID.AccmulateTexture, outputData.accmulateTexture);
-            cmdBuffer.DispatchCompute(m_Shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
+            cmdBuffer.SetComputeVectorParam(shader, FTemporalAntiAliasingShaderID.Resolution, inputData.resolution);
+            cmdBuffer.SetComputeVectorParam(shader, FTemporalAntiAliasingShaderID.BlendParameter, parameter.blendParameter);
+            cmdBuffer.SetComputeTextureParam(shader, 0, FTemporalAntiAliasingShaderID.DepthTexture, inputData.depthTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, FTemporalAntiAliasingShaderID.MotionTexture, inputData.motionTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, FTemporalAntiAliasingShaderID.AliasingTexture, inputData.aliasingTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, FTemporalAntiAliasingShaderID.HistoryTexture, inputData.hsitoryTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, FTemporalAntiAliasingShaderID.AccmulateTexture, outputData.accmulateTexture);
+            cmdBuffer.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
             cmdBuffer.CopyTexture(outputData.accmulateTexture, inputData.hsitoryTexture);
         }
 

@@ -144,7 +144,6 @@ namespace InfinityTech.Rendering.Pipeline
         private FGPUScene m_GPUScene;
         private RDGBuilder m_GraphBuilder;
         private FResourcePool m_ResourcePool;
-        private FTemporalAntiAliasing m_TemporalAA;
         private NativeList<JobHandle> m_MeshPassJobRefs;
         private FMeshPassProcessor m_DepthMeshProcessor;
         private FMeshPassProcessor m_GBufferMeshProcessor;
@@ -152,7 +151,7 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, FViewUnifrom> m_ViewUnifroms;
         private Dictionary<int, FHistoryCache> m_HistoryCaches;
 
-        internal InfinityRenderPipelineAsset renderPipelineAsset 
+        internal InfinityRenderPipelineAsset pipelineAsset 
         { 
             get 
             { 
@@ -169,7 +168,6 @@ namespace InfinityTech.Rendering.Pipeline
             m_ViewUnifroms = new Dictionary<int, FViewUnifrom>();
             m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
-            m_TemporalAA = new FTemporalAntiAliasing(renderPipelineAsset.temporalAAShader);
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
