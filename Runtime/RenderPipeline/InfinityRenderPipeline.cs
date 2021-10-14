@@ -202,7 +202,7 @@ namespace InfinityTech.Rendering.Pipeline
                         bool isEditView = camera.cameraType == CameraType.SceneView;
                         bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
-                        #region InitPerViewData
+                        #region SetupPerViewData
                         // Get PerCamera History ResourceCache Manager
                         if (!m_HistoryCaches.ContainsKey(cameraId))
                         {
@@ -220,9 +220,9 @@ namespace InfinityTech.Rendering.Pipeline
                         } else {
                             viewUnifrom = m_ViewUnifroms[cameraId];
                         }
-                        #endregion //InitPerViewData
+                        #endregion //SetupPerViewData
 
-                        #region InitViewContext
+                        #region SetupViewContext
                         using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ViewContext)))
                         {
                             #if UNITY_EDITOR
@@ -268,9 +268,9 @@ namespace InfinityTech.Rendering.Pipeline
                                 cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
                             }
                         }
-                        #endregion //InitViewContext
+                        #endregion //SetupViewContext
 
-                        #region InitViewCommand
+                        #region SetupViewCommand
                         RenderDepth(camera, cullingData, cullingResult);
                         RenderGBuffer(camera, cullingData, cullingResult);
                         RenderMotion(camera, cullingData, cullingResult);
@@ -284,7 +284,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
                         m_GraphBuilder.Execute(renderContext, cmdBuffer, GetWorld(), m_ResourcePool);
-                        #endregion //InitViewCommand
+                        #endregion //SetupViewCommand
 
                         #region ReleaseViewContext
                         cullingData.Release();
