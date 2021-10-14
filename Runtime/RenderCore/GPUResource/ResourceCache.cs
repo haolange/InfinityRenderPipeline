@@ -112,6 +112,25 @@ namespace InfinityTech.Rendering.GPUResource
             hashCode = hashCode * 23 + (bindTextureMS ? 1 : 0);
             return hashCode;
         }
+
+        public static implicit operator RenderTextureDescriptor(in TextureDescription description)
+        {
+            RenderTextureDescriptor rtDescription = new RenderTextureDescriptor(description.width, description.height, description.colorFormat, (int)description.depthBufferBits, -1);
+            rtDescription.vrUsage = VRTextureUsage.None;
+            rtDescription.volumeDepth = description.slices;
+            rtDescription.useMipMap = description.useMipMap;
+            rtDescription.dimension = description.dimension;
+            rtDescription.stencilFormat = GraphicsFormat.None;
+            rtDescription.bindMS = description.bindTextureMS;
+            rtDescription.depthStencilFormat = GraphicsFormat.None;
+            rtDescription.memoryless = RenderTextureMemoryless.None;
+            rtDescription.msaaSamples = (int)description.msaaSamples;
+            rtDescription.shadowSamplingMode = ShadowSamplingMode.None;
+            rtDescription.autoGenerateMips = description.autoGenerateMips;
+            rtDescription.autoGenerateMips = description.autoGenerateMips;
+            rtDescription.enableRandomWrite = description.enableRandomWrite;
+            return rtDescription;
+        }
     }
 
     public struct BufferRef
@@ -125,7 +144,7 @@ namespace InfinityTech.Rendering.GPUResource
             this.buffer = buffer; 
         }
 
-        public static implicit operator ComputeBuffer(BufferRef bufferRef) => bufferRef.buffer;
+        public static implicit operator ComputeBuffer(in BufferRef bufferRef) => bufferRef.buffer;
     }
 
     public struct TextureRef
@@ -139,7 +158,7 @@ namespace InfinityTech.Rendering.GPUResource
             this.texture = texture; 
         }
 
-        public static implicit operator RTHandle(TextureRef textureRef) => textureRef.texture;
+        public static implicit operator RTHandle(in TextureRef textureRef) => textureRef.texture;
     }
 
     public abstract class FGPUResourceCache<Type> where Type : class
@@ -150,7 +169,7 @@ namespace InfinityTech.Rendering.GPUResource
         abstract protected string GetResourceName(Type res);
         abstract protected string GetResourceTypeName();
 
-        public bool Pull(int hashCode, out Type resource)
+        public bool Pull(in int hashCode, out Type resource)
         {
             if (m_ResourcePool.TryGetValue(hashCode, out var list) && list.Count > 0)
             {
@@ -165,7 +184,7 @@ namespace InfinityTech.Rendering.GPUResource
             return false;
         }
 
-        public void Push(int hash, Type resource)
+        public void Push(in int hash, Type resource)
         {
             if (!m_ResourcePool.TryGetValue(hash, out var list))
             {

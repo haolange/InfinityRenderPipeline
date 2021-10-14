@@ -46,11 +46,10 @@ namespace InfinityTech.Rendering.Pipeline
         private static readonly int ID_Matrix_LastViewProj = Shader.PropertyToID("Matrix_PrevViewProj");
         private static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_PrevViewFlipYProj");
 
-
         public int frameIndex;
-        public float2 tempJitter;
         public int lastFrameIndex;
-        public float2 lastTempJitter;
+        public float2 jitter;
+        public float2 lastJitter;
         public Matrix4x4 matrix_WorldToView;
         public Matrix4x4 matrix_ViewToWorld;
         public Matrix4x4 matrix_Proj;
@@ -78,11 +77,11 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_InvProj = matrix_Proj.inverse;
-            matrix_JitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref tempJitter, matrix_Proj);
+            matrix_JitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_Proj);
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
-            matrix_FlipYJitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref tempJitter, matrix_FlipYProj, false);
+            matrix_FlipYJitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_FlipYProj, false);
             matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
             matrix_ViewProj = matrix_Proj * matrix_WorldToView;
             matrix_InvViewProj = matrix_ViewProj.inverse;
@@ -96,8 +95,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         private void UnpateLastBufferData()
         {
+            lastJitter = jitter;
             lastFrameIndex = frameIndex;
-            lastTempJitter = tempJitter;
             matrix_LastViewProj = matrix_ViewProj;
             matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
         }
@@ -115,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             cmdBuffer.SetGlobalInt(ID_FrameIndex, frameIndex);
             cmdBuffer.SetGlobalInt(ID_LastFrameIndex, lastFrameIndex);
-            cmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(tempJitter.x / resolution.x, tempJitter.y / resolution.y, lastTempJitter.x / resolution.x, lastTempJitter.y / resolution.y));
+            cmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(jitter.x / resolution.x, jitter.y / resolution.y, lastJitter.x / resolution.x, lastJitter.y / resolution.y));
             cmdBuffer.SetGlobalMatrix(ID_Matrix_WorldToView, matrix_WorldToView);
             cmdBuffer.SetGlobalMatrix(ID_Matrix_ViewToWorld, matrix_ViewToWorld);
             cmdBuffer.SetGlobalMatrix(ID_Matrix_Proj, matrix_Proj);
@@ -144,11 +143,13 @@ namespace InfinityTech.Rendering.Pipeline
         private FGPUScene m_GPUScene;
         private RDGBuilder m_GraphBuilder;
         private FViewUnifrom m_ViewUnifrom;
+        private FResourcePool m_ResourcePool;
         private FTemporalAntiAliasing m_TemporalAA;
         private NativeList<JobHandle> m_MeshPassJobRefs;
         private FMeshPassProcessor m_DepthMeshProcessor;
         private FMeshPassProcessor m_GBufferMeshProcessor;
         private FMeshPassProcessor m_ForwardMeshProcessor;
+        private Dictionary<int, FHistoryCache> m_HistoryCaches;
 
         internal InfinityRenderPipelineAsset renderPipelineAsset 
         { 
@@ -163,7 +164,9 @@ namespace InfinityTech.Rendering.Pipeline
             SetGraphicsSetting();
             m_GPUScene = new FGPUScene();
             m_ViewUnifrom = new FViewUnifrom();
+            m_ResourcePool = new FResourcePool();
             m_GraphBuilder = new RDGBuilder("RenderGraph");
+            m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
             m_TemporalAA = new FTemporalAntiAliasing(renderPipelineAsset.temporalAAShader);
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
@@ -176,9 +179,8 @@ namespace InfinityTech.Rendering.Pipeline
             //Setup FrameContext
             RTHandles.Initialize(Screen.width, Screen.height);
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
-            FResourcePool resourcePool = GetWorld().resourcePool;
-            m_GPUScene.Update(GetWorld().GetMeshBatchColloctor(), resourcePool, cmdBuffer, false);
-
+            m_GPUScene.Update(GetWorld().GetMeshBatchColloctor(), m_ResourcePool, cmdBuffer, false);
+            
             BeginFrameRendering(renderContext, cameras);
             for (int i = 0; i < cameras.Length; ++i)
             {
@@ -195,6 +197,7 @@ namespace InfinityTech.Rendering.Pipeline
                     BeginCameraRendering(renderContext, camera);
                     {
                         FCullingData cullingData;
+                        FHistoryCache historyCache;
                         CullingResults cullingResult;
                         
                         #region InitViewContext
@@ -203,6 +206,17 @@ namespace InfinityTech.Rendering.Pipeline
                             bool isEditView = camera.cameraType == CameraType.SceneView;
                             bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
+                            int cameraId = camera.GetHashCode();
+                            if (camera.cameraType == CameraType.Preview)
+                            {
+                                if (camera.pixelHeight == 64)
+                                {
+                                    cameraId += 1;
+                                }
+                                // Unity will use one PreviewCamera to draw Material icon and Material Preview together, this will cause resources identity be confused.
+                                // We found that the Material preview can not be less than 70 pixel, and the icon is always 64, so we use this to distinguish them.
+                            }
+
                             #if UNITY_EDITOR
                             if (isEditView) 
                             { 
@@ -210,6 +224,16 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             #endif
 
+                            // Get History ResourceCache Manager
+                            if (!m_HistoryCaches.ContainsKey(cameraId))
+                            {
+                                historyCache = new FHistoryCache();
+                                m_HistoryCaches.Add(cameraId, historyCache);
+                            } else {
+                                historyCache = m_HistoryCaches[cameraId];
+                            }
+
+                            // Update VFX and Unifrom
                             m_MeshPassJobRefs.Clear();
                             VFXManager.PrepareCamera(camera);
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer);
@@ -254,11 +278,11 @@ namespace InfinityTech.Rendering.Pipeline
                         #if UNITY_EDITOR
                         RenderGizmos(camera, GizmoSubset.PostImageEffects);
                         #endif
-                        RenderAntiAliasing(camera, cameraComponent.historyTexture);
+                        RenderAntiAliasing(camera, historyCache);
                         RenderPresent(camera, camera.targetTexture);
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
-                        m_GraphBuilder.Execute(renderContext, GetWorld(), resourcePool, cmdBuffer);
+                        m_GraphBuilder.Execute(renderContext, cmdBuffer, GetWorld(), m_ResourcePool);
                         #endregion //InitViewCommand
 
                         #region ReleaseViewContext
@@ -277,7 +301,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdBuffer.Clear();
             
             //Release FrameContext
-            m_GPUScene.Release(resourcePool);
+            m_GPUScene.Release(m_ResourcePool);
             CommandBufferPool.Release(cmdBuffer);
         }
 
@@ -323,10 +347,19 @@ namespace InfinityTech.Rendering.Pipeline
         
         protected override void Dispose(bool disposing)
         {
-            if (!disposing) { return; }
+            base.Dispose(disposing);
 
-            m_GraphBuilder.Dispose();
-            m_MeshPassJobRefs.Dispose();
+            if (disposing)
+            {
+                m_ResourcePool.Dispose();
+                m_GraphBuilder.Dispose();
+                m_MeshPassJobRefs.Dispose();
+                foreach (var historyCache in m_HistoryCaches)
+                {
+                    historyCache.Value.Release();
+                }
+                m_HistoryCaches.Clear();
+            }
         }
     }
 }

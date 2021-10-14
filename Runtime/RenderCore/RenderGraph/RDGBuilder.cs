@@ -206,7 +206,7 @@ namespace InfinityTech.Rendering.RDG
             return new RDGPassRef(renderPass, m_Resources);
         }
 
-        public void Execute(ScriptableRenderContext renderContext, FRenderWorld world, FResourcePool resourcePool, CommandBuffer cmdBuffer)
+        public void Execute(ScriptableRenderContext renderContext, CommandBuffer cmdBuffer, FRenderWorld world, FResourcePool resourcePool)
         {
             m_ExecutionExceptionWasRaised = false;
 

@@ -93,40 +93,6 @@ namespace InfinityTech.Rendering.RDG
             return result;
         }
 
-        internal RDGTextureRef ImportTexture(RTHandle rt, int shaderProperty = 0)
-        {
-            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out RDGTexture texResource);
-            texResource.resource = rt;
-            texResource.imported = true;
-            texResource.shaderProperty = shaderProperty;
-
-            return new RDGTextureRef(newHandle);
-        }
-
-        internal RDGTextureRef CreateTexture(in TextureDescription desc, int shaderProperty = 0, int temporalPassIndex = -1)
-        {
-            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out RDGTexture texResource);
-            texResource.desc = desc;
-            texResource.shaderProperty = shaderProperty;
-            texResource.temporalPassIndex = temporalPassIndex;
-            return new RDGTextureRef(newHandle);
-        }
-
-        internal int GetTextureResourceCount()
-        {
-            return m_Resources[(int)ERDGResourceType.Texture].size;
-        }
-
-        RDGTexture GetTextureResource(in RDGResourceRef handle)
-        {
-            return m_Resources[(int)ERDGResourceType.Texture][handle] as RDGTexture;
-        }
-
-        internal TextureDescription GetTextureResourceDesc(in RDGResourceRef handle)
-        {
-            return (m_Resources[(int)ERDGResourceType.Texture][handle] as RDGTexture).desc;
-        }
-
         internal RDGBufferRef ImportBuffer(ComputeBuffer computeBuffer)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out RDGBuffer bufferResource);
@@ -160,6 +126,39 @@ namespace InfinityTech.Rendering.RDG
             return (m_Resources[(int)ERDGResourceType.Buffer][handle] as RDGBuffer).desc;
         }
 
+        internal RDGTextureRef ImportTexture(RTHandle rt, int shaderProperty = 0)
+        {
+            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out RDGTexture texResource);
+            texResource.resource = rt;
+            texResource.imported = true;
+            texResource.shaderProperty = shaderProperty;
+
+            return new RDGTextureRef(newHandle);
+        }
+
+        internal RDGTextureRef CreateTexture(in TextureDescription desc, int shaderProperty = 0, int temporalPassIndex = -1)
+        {
+            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out RDGTexture texResource);
+            texResource.desc = desc;
+            texResource.shaderProperty = shaderProperty;
+            texResource.temporalPassIndex = temporalPassIndex;
+            return new RDGTextureRef(newHandle);
+        }
+
+        internal int GetTextureResourceCount()
+        {
+            return m_Resources[(int)ERDGResourceType.Texture].size;
+        }
+
+        RDGTexture GetTextureResource(in RDGResourceRef handle)
+        {
+            return m_Resources[(int)ERDGResourceType.Texture][handle] as RDGTexture;
+        }
+
+        internal TextureDescription GetTextureResourceDesc(in RDGResourceRef handle)
+        {
+            return (m_Resources[(int)ERDGResourceType.Texture][handle] as RDGTexture).desc;
+        }
 
         internal void CreateRealBuffer(int index)
         {

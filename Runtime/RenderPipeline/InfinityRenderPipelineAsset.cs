@@ -21,19 +21,13 @@ namespace InfinityTech.Rendering.Pipeline
         public ComputeShader ssaoShader;
         public ComputeShader ssgiShader;
         public ComputeShader temporalAAShader;
-
         public Material defaultMaterialProxy;
-
         public Texture2D bestFitNormalTexture;
-
         public InfinityRenderPipeline renderPipeline;
-
 
         public Shader defaultShaderProxy;
         public override Shader defaultShader { get { return defaultShaderProxy; } }
-
         public override Material defaultMaterial { get { return defaultMaterialProxy; } }
-
 
         protected override RenderPipeline CreatePipeline() 
         {
@@ -44,12 +38,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         protected override void OnValidate() 
         {
-
+            base.OnValidate();
         }
 
         protected override void OnDisable() 
         {
-
+            base.OnDisable();
         }
     }
 }

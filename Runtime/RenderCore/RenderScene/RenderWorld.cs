@@ -17,14 +17,12 @@ namespace InfinityTech.Rendering.Core
         public SharedRefFactory<Mesh> meshAssets;
         public SharedRefFactory<Material> materialAssets;
 
-        public FResourcePool resourcePool;
         private List<CameraComponent> m_ViewList;
         private List<LightComponent> m_LightList;
         private List<TerrainComponent> m_TerrainList;
         private List<MeshComponent> m_StaticMeshList;
         private List<MeshComponent> m_DynamicMeshList;
         private FMeshBatchCollector m_MeshBatchCollector;
-
 
         public FRenderWorld(string name)
         {
@@ -198,7 +196,6 @@ namespace InfinityTech.Rendering.Core
             meshAssets.Clear();
             materialAssets.Clear();
             m_MeshBatchCollector.Initializ();
-            resourcePool = new FResourcePool();
         }
 
         public void Release()
@@ -213,7 +210,6 @@ namespace InfinityTech.Rendering.Core
 
             meshAssets.Clear();
             materialAssets.Clear();
-            resourcePool.Dispose();
             m_MeshBatchCollector.Release();
         }
 

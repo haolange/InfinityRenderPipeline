@@ -8,10 +8,13 @@ using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct FAntiAliasingPassString
+    internal static class FAntiAliasingUtilityData
     {
         internal static string PassName = "AntiAliasingPass";
-        internal static string TextureName = "AccmulateTexture";
+        internal static string HistoryTextureName = "HistoryTexture";
+        internal static string AccmulateTextureName = "AccmulateTexture";
+
+        internal static int HistoryTextureID = Shader.PropertyToID("HistoryTexture");
     }
 
     public partial class InfinityRenderPipeline
@@ -27,18 +30,21 @@ namespace InfinityTech.Rendering.Pipeline
             public FTemporalAntiAliasing temporalAA;
         }
 
-        void RenderAntiAliasing(Camera camera, RTHandle historyRenderTexture)
+        void RenderAntiAliasing(Camera camera, FHistoryCache historyCache)
         {
-            TextureDescription antiAliasingDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FAntiAliasingPassString.TextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
+            TextureDescription historyDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FAntiAliasingUtilityData.HistoryTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
+            TextureDescription accmulateDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FAntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
 
-            RDGTextureRef hsitoryTexture = m_GraphBuilder.ImportTexture(historyRenderTexture);
+            //RDGTextureRef hsitoryTexture = m_GraphBuilder.ImportTexture(historyRenderTexture);
+            //RTHandle test = historyCache.GetTexture(FAntiAliasingPassString.HistoryTextureID, historyDescription);
+            RDGTextureRef hsitoryTexture = m_GraphBuilder.ImportTexture(historyCache.GetTexture(FAntiAliasingUtilityData.HistoryTextureID, historyDescription));
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
             RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer);
             RDGTextureRef aliasingTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DiffuseBuffer);
-            RDGTextureRef accmulateTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer, antiAliasingDescription);
+            RDGTextureRef accmulateTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescription);
 
             //Add AntiAliasingPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FAntiAliasingPassData>(FAntiAliasingPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderAntiAliasing)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FAntiAliasingPassData>(FAntiAliasingUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderAntiAliasing)))
             {
                 //Setup Phase
                 ref FAntiAliasingPassData passData = ref passRef.GetPassData<FAntiAliasingPassData>();
