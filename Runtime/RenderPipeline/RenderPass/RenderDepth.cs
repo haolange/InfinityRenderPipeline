@@ -6,7 +6,7 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct FDepthPassString
+    internal static class FDepthPassUtilityData
     {
         internal static string PassName = "Depth";
         internal static string TextureName = "DepthTexture";
@@ -24,12 +24,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderDepth(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
-            TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FDepthPassString.TextureName, depthBufferBits = EDepthBits.Depth32 };
+            TextureDescription depthDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FDepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
             
             RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
             //Add DepthPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassString.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
                 ref FDepthPassData passData = ref passRef.GetPassData<FDepthPassData>();

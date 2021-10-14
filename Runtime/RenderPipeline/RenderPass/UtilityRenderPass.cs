@@ -10,7 +10,7 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal struct FUtilityPassString
+    internal static class FUtilityPassUtilityData
     {
         internal static string SkyBoxPassName = "Gizmos";
         internal static string GizmosPassName = "SkyBox";
@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 // Add GizmosPass
-                using (RDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassString.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
+                using (RDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassUtilityData.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera camera)
         {
             // Add SkyBoxPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassString.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassUtilityData.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef srcTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer);
             
             // Add PresentPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassString.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassUtilityData.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
             {
                 //Setup Phase
                 ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
