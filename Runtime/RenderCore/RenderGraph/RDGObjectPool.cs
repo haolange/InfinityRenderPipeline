@@ -3,31 +3,34 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Rendering.RDG
 {
-    public sealed class RDGObjectPool
+    internal class FRDGSharedObjectPool<T> where T : new()
     {
-        class SharedObjectPool<T> where T : new()
+        Stack<T> m_Pool = new Stack<T>();
+
+        public T Get()
         {
-            Stack<T> m_Pool = new Stack<T>();
-
-            public T Get()
-            {
-                var result = m_Pool.Count == 0 ? new T() : m_Pool.Pop();
-                return result;
-            }
-
-            public void Release(T value)
-            {
-                m_Pool.Push(value);
-            }
-
-            static readonly Lazy<SharedObjectPool<T>> s_Instance = new Lazy<SharedObjectPool<T>>();
-            public static SharedObjectPool<T> sharedPool => s_Instance.Value;
+            var result = m_Pool.Count == 0 ? new T() : m_Pool.Pop();
+            return result;
         }
 
-        Dictionary<(Type, int), Stack<object>> m_ArrayPool = new Dictionary<(Type, int), Stack<object>>();
-        List<(object, (Type, int))> m_AllocatedArrays = new List<(object, (Type, int))>();
+        public void Release(T value)
+        {
+            m_Pool.Push(value);
+        }
 
-        internal RDGObjectPool() { }
+        static readonly Lazy<FRDGSharedObjectPool<T>> s_Instance = new Lazy<FRDGSharedObjectPool<T>>();
+        public static FRDGSharedObjectPool<T> sharedPool => s_Instance.Value;
+    }
+
+    public sealed class FRDGObjectPool
+    {
+        List<(object, (Type, int))> m_AllocatedArrays = new List<(object, (Type, int))>();
+        Dictionary<(Type, int), Stack<object>> m_ArrayPool = new Dictionary<(Type, int), Stack<object>>();
+
+        internal FRDGObjectPool()
+        { 
+
+        }
 
         public T[] GetTempArray<T>(int size)
         {
@@ -55,13 +58,13 @@ namespace InfinityTech.Rendering.RDG
 
         internal T Get<T>() where T : new()
         {
-            var toto = SharedObjectPool<T>.sharedPool;
+            var toto = FRDGSharedObjectPool<T>.sharedPool;
             return toto.Get();
         }
 
         internal void Release<T>(T value) where T : new()
         {
-            var toto = SharedObjectPool<T>.sharedPool;
+            var toto = FRDGSharedObjectPool<T>.sharedPool;
             toto.Release(value);
         }
     }

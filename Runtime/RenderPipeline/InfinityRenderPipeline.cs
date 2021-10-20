@@ -142,7 +142,7 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private FGPUScene m_GPUScene;
-        private RDGBuilder m_GraphBuilder;
+        private FRDGBuilder m_GraphBuilder;
         private FResourcePool m_ResourcePool;
         private NativeList<JobHandle> m_MeshPassJobRefs;
         private FMeshPassProcessor m_DepthMeshProcessor;
@@ -164,7 +164,7 @@ namespace InfinityTech.Rendering.Pipeline
             SetGraphicsSetting();
             m_GPUScene = new FGPUScene();
             m_ResourcePool = new FResourcePool();
-            m_GraphBuilder = new RDGBuilder("RenderGraph");
+            m_GraphBuilder = new FRDGBuilder("RenderGraph");
             m_ViewUnifroms = new Dictionary<int, FViewUnifrom>();
             m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);

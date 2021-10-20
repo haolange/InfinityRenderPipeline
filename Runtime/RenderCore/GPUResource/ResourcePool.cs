@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_TexturePool = new FTextureCache();
         }
 
-        public BufferRef AllocateBuffer(in BufferDescription description)
+        public FBufferRef AllocateBuffer(in FBufferDescription description)
         {
             ComputeBuffer buffer;
             int handle = description.GetHashCode();
@@ -25,15 +25,15 @@ namespace InfinityTech.Rendering.GPUResource
                 buffer.name = description.name;
             }
 
-            return new BufferRef(handle, buffer);
+            return new FBufferRef(handle, buffer);
         }
 
-        public void ReleaseBuffer(in BufferRef bufferRef)
+        public void ReleaseBuffer(in FBufferRef bufferRef)
         {
             m_BufferPool.Push(bufferRef.handle, bufferRef.buffer);
         }
 
-        public TextureRef AllocateTexture(in TextureDescription description)
+        public FTextureRef AllocateTexture(in FTextureDescription description)
         {
             RTHandle texture;
             int handle = description.GetHashCode();
@@ -44,10 +44,10 @@ namespace InfinityTech.Rendering.GPUResource
                                           description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
             }
 
-            return new TextureRef(handle, texture);
+            return new FTextureRef(handle, texture);
         }
 
-        public void ReleaseTexture(in TextureRef textureRef)
+        public void ReleaseTexture(in FTextureRef textureRef)
         {
             m_TexturePool.Push(textureRef.handle, textureRef.texture);
         }

@@ -94,13 +94,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshPassTaskRefs.Add(meshPassBuildJob.Schedule(sortHandle));
         }
 
-        internal void DispatchDraw(in RDGContext graphContext, in int passIndex)
+        internal void DispatchDraw(in FRDGContext graphContext, in int passIndex)
         {
             if (!m_MeshBatchIndexs.IsCreated && !m_PassMeshSections.IsCreated && !m_MeshDrawCommands.IsCreated) { return; }
 
             using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.DrawMeshBatcher)))
             {
-                BufferRef bufferRef = graphContext.resourcePool.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(int))));
+                FBufferRef bufferRef = graphContext.resourcePool.AllocateBuffer(new FBufferDescription(10000, Marshal.SizeOf(typeof(int))));
                 graphContext.cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs);
 
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)

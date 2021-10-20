@@ -11,22 +11,22 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct FAtmospherePassData
         {
-            public RDGTextureRef SkyTarget;
-            public RDGTextureRef VolumeLUT;
-            public RDGTextureRef ScatteringLUT;
-            public RDGTextureRef TransmittionLUT;
+            public FRDGTextureRef skyTarget;
+            public FRDGTextureRef volumeLUT;
+            public FRDGTextureRef scatteringLUT;
+            public FRDGTextureRef transmittionLUT;
         }
 
         void RenderSkyAtmosphere(Camera RenderCamera)
         {
             //Add SkyAtmospherePass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FAtmospherePassData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
+            using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FAtmospherePassData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
             {
                 //Setup Phase
                 ref FAtmospherePassData passData = ref passRef.GetPassData<FAtmospherePassData>();
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref FAtmospherePassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref FAtmospherePassData passData, ref FRDGContext graphContext) =>
                 {
 
                 });

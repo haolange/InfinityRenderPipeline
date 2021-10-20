@@ -18,8 +18,8 @@ namespace InfinityTech.Rendering.Pipeline
         struct FMotionPassData
         {
             public Camera camera;
-            public RDGTextureRef depthBuffer;
-            public RDGTextureRef motionBuffer;
+            public FRDGTextureRef depthBuffer;
+            public FRDGTextureRef motionBuffer;
             public CullingResults cullingResults;
         }
 
@@ -27,13 +27,13 @@ namespace InfinityTech.Rendering.Pipeline
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
-            TextureDescription motionDescription = new TextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = FMotionPassUtilityData.TextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
-            
-            RDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
-            RDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
+            FTextureDescription motionDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = FMotionPassUtilityData.TextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
+
+            FRDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
+            FRDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
 
             //Add MotionPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
+            using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
             {
                 //Setup Phase
                 ref FMotionPassData passData = ref passRef.GetPassData<FMotionPassData>();
@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref FMotionPassData passData, ref RDGContext graphContext) =>
+                passRef.SetExecuteFunc((ref FMotionPassData passData, ref FRDGContext graphContext) =>
                 {
                     FilteringSettings filteringSettings = new FilteringSettings
                     {

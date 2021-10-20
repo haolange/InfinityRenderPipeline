@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public class FGPUScene
     {
         private bool m_IsUpdate = true;
-        public BufferRef bufferRef;
+        public FBufferRef bufferRef;
         public int count
         {
             get
@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshBatchCollector = meshBatchCollector;
             if(meshBatchCollector.cacheMeshElements.IsCreated)
             {
-                bufferRef = resourcePool.AllocateBuffer(new BufferDescription(10000, Marshal.SizeOf(typeof(FMeshElement))));
+                bufferRef = resourcePool.AllocateBuffer(new FBufferDescription(10000, Marshal.SizeOf(typeof(FMeshElement))));
 
                 if (m_IsUpdate)
                 {

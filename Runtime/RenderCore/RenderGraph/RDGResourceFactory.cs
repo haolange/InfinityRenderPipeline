@@ -17,10 +17,10 @@ namespace InfinityTech.Rendering.RDG
         CameraRendering
     }
 
-    class RDGResourceFactory
+    internal class FRDGResourceFactory
     {
-        static RDGResourceFactory m_CurrentRegistry;
-        internal static RDGResourceFactory current
+        static FRDGResourceFactory m_CurrentRegistry;
+        internal static FRDGResourceFactory current
         {
             get {
                 return m_CurrentRegistry;
@@ -33,18 +33,18 @@ namespace InfinityTech.Rendering.RDG
         FTextureCache m_TexturePool = new FTextureCache();
         DynamicArray<IRDGResource>[] m_Resources = new DynamicArray<IRDGResource>[2];
 
-        internal ComputeBuffer GetBuffer(in RDGBufferRef handle)
+        internal ComputeBuffer GetBuffer(in FRDGBufferRef bufferRef)
         {
-            return GetBufferResource(handle.handle).resource;
+            return GetBufferResource(bufferRef.handle).resource;
         }
 
-        internal RenderTexture GetTexture(in RDGTextureRef handle)
+        internal RenderTexture GetTexture(in FRDGTextureRef textureRef)
         {
-            return GetTextureResource(handle.handle).resource;
+            return GetTextureResource(textureRef.handle).resource;
         }
 
         #region Internal Interface
-        internal RDGResourceFactory()
+        public FRDGResourceFactory()
         {
             for (int i = 0; i < 2; ++i)
                 m_Resources[i] = new DynamicArray<IRDGResource>();
@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.RDG
 
         ResType GetResource<DescType, ResType>(DynamicArray<IRDGResource> resourceArray, int index) where DescType : struct where ResType : class
         {
-            var res = resourceArray[index] as RDGResource<DescType, ResType>;
+            var res = resourceArray[index] as FRDGResource<DescType, ResType>;
             return res.resource;
         }
 
@@ -66,19 +66,19 @@ namespace InfinityTech.Rendering.RDG
             current = null;
         }
 
-        internal string GetResourceName(in RDGResourceRef res)
+        internal string GetResourceName(in FRDGResourceHandle handle)
         {
-            return m_Resources[res.iType][res.index].GetName();
+            return m_Resources[handle.iType][handle.index].GetName();
         }
 
-        internal bool IsResourceImported(in RDGResourceRef res)
+        internal bool IsResourceImported(in FRDGResourceHandle handle)
         {
-            return m_Resources[res.iType][res.index].imported;
+            return m_Resources[handle.iType][handle.index].imported;
         }
 
-        internal int GetResourceTemporalIndex(in RDGResourceRef res)
+        internal int GetResourceTemporalIndex(in FRDGResourceHandle handle)
         {
-            return m_Resources[res.iType][res.index].temporalPassIndex;
+            return m_Resources[handle.iType][handle.index].temporalPassIndex;
         }
 
         int AddNewResource<ResType>(DynamicArray<IRDGResource> resourceArray, out ResType outRes) where ResType : IRDGResource, new()
@@ -93,22 +93,22 @@ namespace InfinityTech.Rendering.RDG
             return result;
         }
 
-        internal RDGBufferRef ImportBuffer(ComputeBuffer computeBuffer)
+        internal FRDGBufferRef ImportBuffer(ComputeBuffer computeBuffer)
         {
-            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out RDGBuffer bufferResource);
-            bufferResource.resource = computeBuffer;
-            bufferResource.imported = true;
+            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out FRDGBuffer rdgBuffer);
+            rdgBuffer.resource = computeBuffer;
+            rdgBuffer.imported = true;
 
-            return new RDGBufferRef(newHandle);
+            return new FRDGBufferRef(newHandle);
         }
 
-        internal RDGBufferRef CreateBuffer(in BufferDescription desc, int temporalPassIndex = -1)
+        internal FRDGBufferRef CreateBuffer(in FBufferDescription description, int temporalPassIndex = -1)
         {
-            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out RDGBuffer bufferResource);
-            bufferResource.desc = desc;
-            bufferResource.temporalPassIndex = temporalPassIndex;
+            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out FRDGBuffer rdgBuffer);
+            rdgBuffer.description = description;
+            rdgBuffer.temporalPassIndex = temporalPassIndex;
 
-            return new RDGBufferRef(newHandle);
+            return new FRDGBufferRef(newHandle);
         }
 
         internal int GetBufferResourceCount()
@@ -116,33 +116,33 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources[(int)ERDGResourceType.Buffer].size;
         }
 
-        RDGBuffer GetBufferResource(in RDGResourceRef handle)
+        FRDGBuffer GetBufferResource(in FRDGResourceHandle handle)
         {
-            return m_Resources[(int)ERDGResourceType.Buffer][handle] as RDGBuffer;
+            return m_Resources[(int)ERDGResourceType.Buffer][handle] as FRDGBuffer;
         }
 
-        internal BufferDescription GetBufferResourceDesc(in RDGResourceRef handle)
+        internal FBufferDescription GetBufferResourceDesc(in FRDGResourceHandle handle)
         {
-            return (m_Resources[(int)ERDGResourceType.Buffer][handle] as RDGBuffer).desc;
+            return (m_Resources[(int)ERDGResourceType.Buffer][handle] as FRDGBuffer).description;
         }
 
-        internal RDGTextureRef ImportTexture(RTHandle rt, int shaderProperty = 0)
+        internal FRDGTextureRef ImportTexture(RTHandle rt, in int shaderProperty = 0)
         {
-            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out RDGTexture texResource);
-            texResource.resource = rt;
-            texResource.imported = true;
-            texResource.shaderProperty = shaderProperty;
+            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out FRDGTexture rdgTexture);
+            rdgTexture.resource = rt;
+            rdgTexture.imported = true;
+            rdgTexture.shaderProperty = shaderProperty;
 
-            return new RDGTextureRef(newHandle);
+            return new FRDGTextureRef(newHandle);
         }
 
-        internal RDGTextureRef CreateTexture(in TextureDescription desc, int shaderProperty = 0, int temporalPassIndex = -1)
+        internal FRDGTextureRef CreateTexture(in FTextureDescription description, in int shaderProperty = 0, in int temporalPassIndex = -1)
         {
-            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out RDGTexture texResource);
-            texResource.desc = desc;
-            texResource.shaderProperty = shaderProperty;
-            texResource.temporalPassIndex = temporalPassIndex;
-            return new RDGTextureRef(newHandle);
+            int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out FRDGTexture rdgTexture);
+            rdgTexture.description = description;
+            rdgTexture.shaderProperty = shaderProperty;
+            rdgTexture.temporalPassIndex = temporalPassIndex;
+            return new FRDGTextureRef(newHandle);
         }
 
         internal int GetTextureResourceCount()
@@ -150,31 +150,31 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources[(int)ERDGResourceType.Texture].size;
         }
 
-        RDGTexture GetTextureResource(in RDGResourceRef handle)
+        FRDGTexture GetTextureResource(in FRDGResourceHandle handle)
         {
-            return m_Resources[(int)ERDGResourceType.Texture][handle] as RDGTexture;
+            return m_Resources[(int)ERDGResourceType.Texture][handle] as FRDGTexture;
         }
 
-        internal TextureDescription GetTextureResourceDesc(in RDGResourceRef handle)
+        internal FTextureDescription GetTextureResourceDesc(in FRDGResourceHandle handle)
         {
-            return (m_Resources[(int)ERDGResourceType.Texture][handle] as RDGTexture).desc;
+            return (m_Resources[(int)ERDGResourceType.Texture][handle] as FRDGTexture).description;
         }
 
         internal void CreateRealBuffer(int index)
         {
-            RDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as RDGBuffer;
+            FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
             if (!resource.imported)
             {
-                var desc = resource.desc;
+                var desc = resource.description;
                 int hashCode = desc.GetHashCode();
 
                 if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.desc.name));
+                    throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.description.name));
 
                 resource.resource = null;
                 if (!m_BufferPool.Pull(hashCode, out resource.resource))
                 {
-                    resource.resource = new ComputeBuffer(resource.desc.count, resource.desc.stride, resource.desc.type);
+                    resource.resource = new ComputeBuffer(resource.description.count, resource.description.stride, resource.description.type);
                 }
                 resource.cachedHash = hashCode;
             }
@@ -182,12 +182,12 @@ namespace InfinityTech.Rendering.RDG
 
         internal void ReleaseRealBuffer(int index)
         {
-            RDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as RDGBuffer;
+            FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
 
             if (!resource.imported)
             {
                 if (resource.resource == null)
-                    throw new InvalidOperationException($"Tried to release a compute buffer ({resource.desc.name}) that was never created. Check that there is at least one pass writing to it first.");
+                    throw new InvalidOperationException($"Tried to release a compute buffer ({resource.description.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 m_BufferPool.Push(resource.cachedHash, resource.resource);
                 resource.cachedHash = -1;
@@ -196,17 +196,17 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void CreateRealTexture(ref RDGContext graphContext, int index)
+        internal void CreateRealTexture(ref FRDGContext graphContext, int index)
         {
-            RDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as RDGTexture;
+            FRDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as FRDGTexture;
 
             if (!resource.imported)
             {
-                var desc = resource.desc;
+                var desc = resource.description;
                 int hashCode = desc.GetHashCode();
 
                 if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.desc.name));
+                    throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.description.name));
 
                 resource.resource = null;
                 if (!m_TexturePool.Pull(hashCode, out resource.resource)) 
@@ -217,11 +217,11 @@ namespace InfinityTech.Rendering.RDG
 
                 resource.cachedHash = hashCode;
 
-                if (resource.desc.clearBuffer)
+                if (resource.description.clearBuffer)
                 {
-                    bool debugClear = !resource.desc.clearBuffer;
-                    var clearFlag = resource.desc.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
-                    var clearColor = debugClear ? Color.magenta : resource.desc.clearColor;
+                    bool debugClear = !resource.description.clearBuffer;
+                    var clearFlag = resource.description.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
+                    var clearColor = debugClear ? Color.magenta : resource.description.clearColor;
                     CoreUtils.SetRenderTarget(graphContext.cmdBuffer, resource.resource, clearFlag, clearColor);
                 }
             }
@@ -229,12 +229,12 @@ namespace InfinityTech.Rendering.RDG
 
         internal void ReleaseRealTexture(int index)
         {
-            RDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as RDGTexture;
+            FRDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as FRDGTexture;
 
             if (!resource.imported)
             {
                 if (resource.resource == null)
-                    throw new InvalidOperationException($"Tried to release a texture ({resource.desc.name}) that was never created. Check that there is at least one pass writing to it first.");
+                    throw new InvalidOperationException($"Tried to release a texture ({resource.description.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 /*using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.RenderGraphClearDebug)))
                 {
@@ -249,11 +249,11 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        internal void SetGlobalTextures(ref RDGContext graphContext, List<RDGResourceRef> textures)
+        internal void SetGlobalTextures(ref FRDGContext graphContext, List<FRDGResourceHandle> textures)
         {
             foreach (var resource in textures)
             {
-                RDGTexture Texture = GetTextureResource(resource);
+                FRDGTexture Texture = GetTextureResource(resource);
                 if (Texture.shaderProperty != 0)
                 {
                     if (Texture.resource != null)

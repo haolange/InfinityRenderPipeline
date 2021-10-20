@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.GPUResource
         MSAA8x = 8
     }
 
-    public struct BufferDescription
+    public struct FBufferDescription
     {
         public string name;
 
@@ -30,14 +30,14 @@ namespace InfinityTech.Rendering.GPUResource
         public int stride;
         public ComputeBufferType type;
 
-        public BufferDescription(int count, int stride) : this()
+        public FBufferDescription(int count, int stride) : this()
         {
             this.count = count;
             this.stride = stride;
             type = ComputeBufferType.Default;
         }
 
-        public BufferDescription(int count, int stride, ComputeBufferType type) : this()
+        public FBufferDescription(int count, int stride, ComputeBufferType type) : this()
         {
             this.type = type;
             this.count = count;
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct TextureDescription
+    public struct FTextureDescription
     {
         public string name;
 
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.GPUResource
         public bool clearBuffer;
         public Color clearColor;
 
-        public TextureDescription(int Width, int Height) : this()
+        public FTextureDescription(int Width, int Height) : this()
         {
             width = Width;
             height = Height;
@@ -113,7 +113,7 @@ namespace InfinityTech.Rendering.GPUResource
             return hashCode;
         }
 
-        public static implicit operator RenderTextureDescriptor(in TextureDescription description)
+        public static implicit operator RenderTextureDescriptor(in FTextureDescription description)
         {
             RenderTextureDescriptor rtDescription = new RenderTextureDescriptor(description.width, description.height, description.colorFormat, (int)description.depthBufferBits, -1);
             rtDescription.vrUsage = VRTextureUsage.None;
@@ -133,32 +133,32 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct BufferRef
+    public struct FBufferRef
     {
         internal int handle;
         public ComputeBuffer buffer;
 
-        public BufferRef(in int handle, ComputeBuffer buffer) 
+        public FBufferRef(in int handle, ComputeBuffer buffer) 
         { 
             this.handle = handle;
             this.buffer = buffer; 
         }
 
-        public static implicit operator ComputeBuffer(in BufferRef bufferRef) => bufferRef.buffer;
+        public static implicit operator ComputeBuffer(in FBufferRef bufferRef) => bufferRef.buffer;
     }
 
-    public struct TextureRef
+    public struct FTextureRef
     {
         internal int handle;
         public RTHandle texture;
 
-        internal TextureRef(in int handle, RTHandle texture) 
+        internal FTextureRef(in int handle, RTHandle texture) 
         {
             this.handle = handle;
             this.texture = texture; 
         }
 
-        public static implicit operator RTHandle(in TextureRef textureRef) => textureRef.texture;
+        public static implicit operator RTHandle(in FTextureRef textureRef) => textureRef.texture;
     }
 
     public abstract class FGPUResourceCache<Type> where Type : class

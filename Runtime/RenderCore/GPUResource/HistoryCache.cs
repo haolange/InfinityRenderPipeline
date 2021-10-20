@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_CacheResources = new Dictionary<int, RTHandle>(); 
         }
 
-        public RTHandle GetTexture(in int id, in TextureDescription description)
+        public RTHandle GetTexture(in int id, in FTextureDescription description)
         {
             RTHandle texture = null;
             if (m_CacheResources.ContainsKey(id))

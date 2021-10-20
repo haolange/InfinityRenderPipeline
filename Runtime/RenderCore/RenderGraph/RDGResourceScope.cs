@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Rendering.RDG
 {
-    internal class RDGResourceScope<Type> where Type : struct
+    internal class FRDGResourceScope<Type> where Type : struct
     {
         internal NativeHashMap<int, Type> resourceMap;
 
-        internal RDGResourceScope()
+        internal FRDGResourceScope()
         {
             resourceMap = new NativeHashMap<int, Type>(64, Allocator.Persistent);
         }
