@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override RenderPipeline CreatePipeline() 
         {
             renderPipeline = new InfinityRenderPipeline();
-            Shader.SetGlobalTexture("g_BestFirNormal_LUT", bestFitNormalTexture);
+            Shader.SetGlobalTexture("g_BestFitNormal_LUT", bestFitNormalTexture);
             return renderPipeline;
         }
 

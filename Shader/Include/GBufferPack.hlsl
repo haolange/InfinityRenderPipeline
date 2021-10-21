@@ -5,7 +5,7 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
-Texture2D g_BestFirNormal_LUT;
+Texture2D g_BestFitNormal_LUT;
 
 //PackingData
 float3 Pack1212To888(float2 x)
@@ -93,7 +93,7 @@ float3 EncodeNormalBestFit(float3 N)
     texcoord = texcoord.x < texcoord.y ? texcoord.yx : texcoord.xy;
     texcoord.y /= texcoord.x;
     N /= maxNAbs;
-    N *= g_BestFirNormal_LUT.SampleLevel(Global_point_clamp_sampler, texcoord, 0).r;
+    N *= g_BestFitNormal_LUT.SampleLevel(Global_point_clamp_sampler, texcoord, 0).r;
     return N * 0.5 + 0.5;
 }
 
