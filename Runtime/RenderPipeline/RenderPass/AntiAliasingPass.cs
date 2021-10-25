@@ -13,7 +13,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string PassName = "AntiAliasingPass";
         internal static string HistoryTextureName = "HistoryTexture";
         internal static string AccmulateTextureName = "AccmulateTexture";
-
         internal static int HistoryTextureID = Shader.PropertyToID("HistoryTexture");
     }
 
