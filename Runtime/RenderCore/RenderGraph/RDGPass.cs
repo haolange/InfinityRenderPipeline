@@ -6,7 +6,7 @@ namespace InfinityTech.Rendering.RDG
 {
     abstract class IRDGPass
     {
-        public abstract void Execute(ref FRDGContext graphContext);
+        public abstract void Execute(in FRDGContext graphContext);
         public abstract void Release(FRDGObjectPool objectPool);
         public abstract bool HasRenderFunc();
 
@@ -104,16 +104,16 @@ namespace InfinityTech.Rendering.RDG
 
     }
 
-    public delegate void FExecuteAction<T>(ref T passData, ref FRDGContext graphContext) where T : struct;
+    public delegate void FExecuteAction<T>(in T passData, in FRDGContext graphContext) where T : struct;
 
     internal sealed class FRDGPass<T> : IRDGPass where T : struct
     {
         internal T passData;
         internal FExecuteAction<T> ExcuteFunc;
 
-        public override void Execute(ref FRDGContext graphContext)
+        public override void Execute(in FRDGContext graphContext)
         {
-            ExcuteFunc(ref passData, ref graphContext);
+            ExcuteFunc(in passData, in graphContext);
         }
 
         public override void Release(FRDGObjectPool objectPool)

@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref FAtmospherePassData passData = ref passRef.GetPassData<FAtmospherePassData>();
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref FAtmospherePassData passData, ref FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in FAtmospherePassData passData, in FRDGContext graphContext) =>
                 {
 
                 });

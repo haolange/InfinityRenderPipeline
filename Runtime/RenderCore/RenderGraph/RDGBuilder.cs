@@ -588,7 +588,7 @@ namespace InfinityTech.Rendering.RDG
                     using (new ProfilingScope(m_GraphContext.cmdBuffer, passInfo.pass.customSampler))
                     {
                         PreRenderPassExecute(ref m_GraphContext, passInfo);
-                        passInfo.pass.Execute(ref m_GraphContext);
+                        passInfo.pass.Execute(m_GraphContext);
                         PostRenderPassExecute(cmdBuffer, ref m_GraphContext, ref passInfo);
                     }
                 }

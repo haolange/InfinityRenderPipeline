@@ -211,14 +211,14 @@ namespace InfinityTech.Component.Editor
         {
             if (state.enumValueIndex != (int)ELightState.Static)
             {
-                showLightMask = EditorGUILayout.BeginFoldoutHeaderGroup(showLightMask, "Light Mask");
+                showLightMask = EditorGUILayout.BeginFoldoutHeaderGroup(showLightMask, "Mask");
                 if (showLightMask)
                 {
                     EditorGUI.indentLevel++;
 
                     if (lightType.enumValueIndex != (int)ELightType.Directional)
                     {
-                        EditorGUILayout.PropertyField(IESTexture, new GUIContent("IES Profiler"));
+                        EditorGUILayout.PropertyField(IESTexture, new GUIContent("IES Texture"));
                     }
 
                     EditorGUILayout.PropertyField(cookieTexture, new GUIContent("Cookie Texture"));

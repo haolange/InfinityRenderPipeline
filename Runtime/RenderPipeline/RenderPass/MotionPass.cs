@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref FMotionPassData passData, ref FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in FMotionPassData passData, in FRDGContext graphContext) =>
                 {
                     FilteringSettings filteringSettings = new FilteringSettings
                     {

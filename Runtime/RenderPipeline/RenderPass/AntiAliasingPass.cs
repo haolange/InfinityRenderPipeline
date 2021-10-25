@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.accmulateTexture = passRef.WriteTexture(accmulateTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref FAntiAliasingPassData passData, ref FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in FAntiAliasingPassData passData, in FRDGContext graphContext) =>
                 {
                     FTemporalAAInputData taaInputData;
                     {

@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.gizmoSubset = gizmoSubset;
 
                     //Execute Phase
-                    passRef.SetExecuteFunc((ref GizmosPassData passData, ref FRDGContext graphContext) =>
+                    passRef.SetExecuteFunc((in GizmosPassData passData, in FRDGContext graphContext) =>
                     {
                         graphContext.renderContext.DrawGizmos(passData.camera, passData.gizmoSubset);
                     });
@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.camera = camera;
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref SkyBoxPassData passData, ref FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in SkyBoxPassData passData, in FRDGContext graphContext) =>
                 {
                     graphContext.renderContext.DrawSkybox(passData.camera);
                 });
@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.srcTexture = passRef.ReadTexture(srcTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref PresentPassData passData, ref FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in PresentPassData passData, in FRDGContext graphContext) =>
                 {
                     RenderTexture srcBuffer = passData.srcTexture;
                     RenderTexture dscBuffer = passData.dscTexture;

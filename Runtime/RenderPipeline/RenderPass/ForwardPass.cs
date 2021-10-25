@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ForwardMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(0, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((ref FForwardPassData passData, ref FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in FForwardPassData passData, in FRDGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 2);

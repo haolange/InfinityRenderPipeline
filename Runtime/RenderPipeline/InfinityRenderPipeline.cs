@@ -162,12 +162,12 @@ namespace InfinityTech.Rendering.Pipeline
         public InfinityRenderPipeline()
         {
             SetGraphicsSetting();
-            m_GPUScene = new FGPUScene();
             m_ResourcePool = new FResourcePool();
             m_GraphBuilder = new FRDGBuilder("RenderGraph");
             m_ViewUnifroms = new Dictionary<int, FViewUnifrom>();
             m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
+            m_GPUScene = new FGPUScene(m_ResourcePool, GetWorld().GetMeshBatchColloctor());
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
@@ -178,7 +178,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Setup FrameContext
             RTHandles.Initialize(Screen.width, Screen.height);
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
-            m_GPUScene.Update(GetWorld().GetMeshBatchColloctor(), m_ResourcePool, cmdBuffer, false);
+            m_GPUScene.Update(cmdBuffer);
             
             BeginFrameRendering(renderContext, cameras);
             for (int i = 0; i < cameras.Length; ++i)
@@ -200,7 +200,7 @@ namespace InfinityTech.Rendering.Pipeline
                         bool isEditView = camera.cameraType == CameraType.SceneView;
                         bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
-                        #region SetupPerViewData
+                        #region BeginViewContext
                         // Get PerCamera History ResourceCache Manager
                         if (!m_HistoryCaches.ContainsKey(cameraId))
                         {
@@ -240,6 +240,15 @@ namespace InfinityTech.Rendering.Pipeline
                             viewUnifrom.UnpateViewUnifromData(camera, false);
                             viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
 
+                            //Scene Culling
+                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.CulllingScene)))
+                            {
+                                camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
+                                cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
+                                cullingResult = renderContext.Cull(ref cullingParameters);
+                                cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
+                            }
+                            
                             //Compute LOD
                             using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ComputeLOD)))
                             {
@@ -254,16 +263,6 @@ namespace InfinityTech.Rendering.Pipeline
                                         if (Handles.ShouldRenderGizmos()) { terrain.DrawBounds(true); }
                                     #endif
                                 }
-                            }
-
-                            //Scene Culling
-                            camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                            cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
-
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.CulllingScene)))
-                            {
-                                cullingResult = renderContext.Cull(ref cullingParameters);
-                                cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
                             }
                         }
                         #endregion //SetupViewContext
@@ -284,7 +283,7 @@ namespace InfinityTech.Rendering.Pipeline
                         m_GraphBuilder.Execute(renderContext, cmdBuffer, GetWorld(), m_ResourcePool);
                         #endregion //SetupViewCommand
 
-                        #region ReleaseViewContext
+                        #region EndViewContext
                         cullingData.Release();
                         viewUnifrom.UnpateViewUnifromData(camera, true);
                         #endregion //ReleaseViewContext
@@ -300,7 +299,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdBuffer.Clear();
             
             //Release FrameContext
-            m_GPUScene.Release(m_ResourcePool);
+            m_GPUScene.Clear();
             CommandBufferPool.Release(cmdBuffer);
         }
 
