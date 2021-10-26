@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_TexturePool = new FTextureCache();
         }
 
-        public FBufferRef AllocateBuffer(in FBufferDescription description)
+        public FBufferRef GetBuffer(in FBufferDescription description)
         {
             ComputeBuffer buffer;
             int handle = description.GetHashCode();
@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_BufferPool.Push(bufferRef.handle, bufferRef.buffer);
         }
 
-        public FTextureRef AllocateTexture(in FTextureDescription description)
+        public FTextureRef GetTexture(in FTextureDescription description)
         {
             RTHandle texture;
             int handle = description.GetHashCode();
