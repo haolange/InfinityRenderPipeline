@@ -175,7 +175,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
-            //Setup FrameContext
+            //Begin FrameContext
             RTHandles.Initialize(Screen.width, Screen.height);
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
             m_GPUScene.Update(cmdBuffer);
@@ -298,7 +298,7 @@ namespace InfinityTech.Rendering.Pipeline
             renderContext.Submit();
             cmdBuffer.Clear();
             
-            //Release FrameContext
+            //End FrameContext
             m_GPUScene.Clear();
             CommandBufferPool.Release(cmdBuffer);
         }
