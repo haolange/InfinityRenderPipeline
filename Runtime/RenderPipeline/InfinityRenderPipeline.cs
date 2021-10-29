@@ -187,7 +187,7 @@ namespace InfinityTech.Rendering.Pipeline
                 CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
                 //Camera Rendering
-                using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(ERGProfileId.CameraRendering)))
+                using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(ERDGProfileId.CameraRendering)))
                 {
                     BeginCameraRendering(renderContext, camera);
                     {
@@ -221,7 +221,7 @@ namespace InfinityTech.Rendering.Pipeline
                         #endregion //SetupPerViewData
 
                         #region SetupViewContext
-                        using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ViewContext)))
+                        using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERDGProfileId.ViewContext)))
                         {
                             #if UNITY_EDITOR
                             if (isEditView) 
@@ -241,7 +241,7 @@ namespace InfinityTech.Rendering.Pipeline
                             viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
 
                             //Scene Culling
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.CulllingScene)))
+                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERDGProfileId.CulllingScene)))
                             {
                                 camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                                 cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
@@ -250,7 +250,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             
                             //Compute LOD
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERGProfileId.ComputeLOD)))
+                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERDGProfileId.ComputeLOD)))
                             {
                                 List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
                                 float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);

@@ -6,7 +6,7 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
-    internal enum ERGProfileId
+    internal enum ERDGProfileId
     {
         ViewContext,
         ComputeLOD,
