@@ -22,5 +22,4 @@ uint meshBatchOffset;
 Buffer<uint> meshBatchIndexs;
 StructuredBuffer<FMeshBatch> meshBatchBuffer;
 
-
 #endif
