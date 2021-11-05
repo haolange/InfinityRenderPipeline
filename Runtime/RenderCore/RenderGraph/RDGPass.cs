@@ -1,30 +1,24 @@
 ﻿using System;
+using UnityEngine.Rendering;
 using System.Collections.Generic;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
-    abstract class IRDGPass
+    internal abstract class IRDGPass
     {
-        public abstract void Execute(in FRDGContext graphContext);
-        public abstract void Release(FRDGObjectPool objectPool);
-        public abstract bool HasRenderFunc();
-
-        public string name;
         public int index;
-        public UnityEngine.Rendering.ProfilingSampler customSampler;
-        public bool             enableAsyncCompute { get; protected set; }
-        public bool             allowPassCulling { get; protected set; }
-
+        public string name;
+        public ProfilingSampler customSampler;
+        public int refCount { get; protected set; }
+        public int colorBufferMaxIndex { get; protected set; } = -1;
+        public bool enablePassCulling { get; protected set; }
+        public bool enableAsyncCompute { get; protected set; }
         public FRDGTextureRef depthBuffer { get; protected set; }
         public FRDGTextureRef[]  colorBuffers { get; protected set; } = new FRDGTextureRef[8];
-        public int              colorBufferMaxIndex { get; protected set; } = -1;
-        public int              refCount { get; protected set; }
-
         public List<FRDGResourceHandle>[] resourceReadLists = new List<FRDGResourceHandle>[2];
         public List<FRDGResourceHandle>[] resourceWriteLists = new List<FRDGResourceHandle>[2];
         public List<FRDGResourceHandle>[] temporalResourceList = new List<FRDGResourceHandle>[2];
-
 
         public IRDGPass()
         {
@@ -36,14 +30,18 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        public void AddResourceWrite(in FRDGResourceHandle handle)
-        {
-            resourceWriteLists[handle.iType].Add(handle);
-        }
+        public abstract void Execute(in FRDGContext graphContext);
+        public abstract void Release(FRDGObjectPool objectPool);
+        public abstract bool HasRenderFunc();
 
         public void AddResourceRead(in FRDGResourceHandle handle)
         {
             resourceReadLists[handle.iType].Add(handle);
+        }
+
+        public void AddResourceWrite(in FRDGResourceHandle handle)
+        {
+            resourceWriteLists[handle.iType].Add(handle);
         }
 
         public void AddTemporalResource(in FRDGResourceHandle handle)
@@ -72,9 +70,9 @@ namespace InfinityTech.Rendering.RDG
             enableAsyncCompute = value;
         }
 
-        public void AllowPassCulling(in bool value)
+        public void EnablePassCulling(in bool value)
         {
-            allowPassCulling = value;
+            enablePassCulling = value;
         }
 
         public void Clear()
@@ -90,7 +88,7 @@ namespace InfinityTech.Rendering.RDG
             }
 
             refCount = 0;
-            allowPassCulling = true;
+            enablePassCulling = true;
             enableAsyncCompute = false;
 
             // Invalidate everything
@@ -101,7 +99,6 @@ namespace InfinityTech.Rendering.RDG
                 colorBuffers[i] = new FRDGTextureRef();
             }
         }
-
     }
 
     public delegate void FExecuteAction<T>(in T passData, in FRDGContext graphContext) where T : struct;
@@ -151,7 +148,7 @@ namespace InfinityTech.Rendering.RDG
 
         public void AllowPassCulling(bool value)
         {
-            m_RenderPass.AllowPassCulling(value);
+            m_RenderPass.EnablePassCulling(value);
         }
 
         public FRDGTextureRef ReadTexture(in FRDGTextureRef input)

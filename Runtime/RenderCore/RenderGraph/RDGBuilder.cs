@@ -29,8 +29,8 @@ namespace InfinityTech.Rendering.RDG
         public List<int>[] resourceCreateList;
         public List<int>[] resourceReleaseList;
 
+        public bool enablePassCulling { get { return pass.enablePassCulling; } }
         public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
-        public bool allowPassCulling { get { return pass.allowPassCulling; } }
 
 
         public void Reset(IRDGPass pass)
@@ -307,7 +307,7 @@ namespace InfinityTech.Rendering.RDG
             {
                 ref FRDGPassCompileInfo passInfo = ref m_PassCompileInfos[pass];
 
-                if (passInfo.refCount == 0 && !passInfo.hasSideEffect && passInfo.allowPassCulling)
+                if (passInfo.refCount == 0 && !passInfo.hasSideEffect && passInfo.enablePassCulling)
                 {
                     passInfo.culled = true;
                     for (int type = 0; type < 2; ++type)
@@ -345,7 +345,7 @@ namespace InfinityTech.Rendering.RDG
                     {
                         ref var producerInfo = ref m_PassCompileInfos[producerIndex];
                         producerInfo.refCount--;
-                        if (producerInfo.refCount == 0 && !producerInfo.hasSideEffect && producerInfo.allowPassCulling)
+                        if (producerInfo.refCount == 0 && !producerInfo.hasSideEffect && producerInfo.enablePassCulling)
                         {
                             producerInfo.culled = true;
 
