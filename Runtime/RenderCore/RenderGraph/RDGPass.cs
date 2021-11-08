@@ -65,14 +65,14 @@ namespace InfinityTech.Rendering.RDG
                 AddResourceWrite(resource.handle);
         }
 
-        public void EnableAsyncCompute(in bool value)
-        {
-            enableAsyncCompute = value;
-        }
-
         public void EnablePassCulling(in bool value)
         {
             enablePassCulling = value;
+        }
+
+        public void EnableAsyncCompute(in bool value)
+        {
+            enableAsyncCompute = value;
         }
 
         public void Clear()
