@@ -251,7 +251,7 @@ namespace InfinityTech.Rendering.RDG
                 resourceInfos[i].Reset();
         }
 
-        void InitializeCompilationData()
+        void InitializeCompileData()
         {
             InitResourceInfosData(m_ResourcesCompileInfos[(int)ERDGResourceType.Buffer], m_Resources.GetBufferResourceCount());
             InitResourceInfosData(m_ResourcesCompileInfos[(int)ERDGResourceType.Texture], m_Resources.GetTextureResourceCount());
@@ -261,7 +261,7 @@ namespace InfinityTech.Rendering.RDG
                 m_PassCompileInfos[i].Reset(m_RenderPasses[i]);
         }
 
-        void CountReferences()
+        void CountPassReferences()
         {
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
             {
@@ -315,14 +315,13 @@ namespace InfinityTech.Rendering.RDG
                         foreach (var index in passInfo.pass.resourceReadLists[type])
                         {
                             m_ResourcesCompileInfos[type][index].refCount--;
-
                         }
                     }
                 }
             }
         }
 
-        void CulledUnusedPasses()
+        void CullingUnusedPass()
         {
             for (int type = 0; type < 2; ++type)
             {
@@ -395,9 +394,7 @@ namespace InfinityTech.Rendering.RDG
                         {
                             UpdatePassSynchronization(ref currentPassInfo, ref m_PassCompileInfos[lastProducer], currentPassIndex, lastProducer, ref lastGraphicsPipeSync);
                         }
-                    }
-                    else
-                    {
+                    } else {
                         if (lastProducer > lastComputePipeSync)
                         {
                             UpdatePassSynchronization(ref currentPassInfo, ref m_PassCompileInfos[lastProducer], currentPassIndex, lastProducer, ref lastComputePipeSync);
@@ -468,10 +465,10 @@ namespace InfinityTech.Rendering.RDG
             return -1;
         }
 
-        void UpdateResourceAllocationAndSynchronization()
+        void UpdateResource()
         {
-            int lastGraphicsPipeSync = -1;
             int lastComputePipeSync = -1;
+            int lastGraphicsPipeSync = -1;
 
             // First go through all passes.
             // - Update the last pass read index for each resource.
@@ -496,7 +493,6 @@ namespace InfinityTech.Rendering.RDG
                     {
                         UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource]);
                     }
-
                 }
             }
 
@@ -545,9 +541,7 @@ namespace InfinityTech.Rendering.RDG
                                 IRDGPass invalidPass = m_RenderPasses[lastReadPassIndex];
                                 throw new InvalidOperationException($"Asynchronous pass {invalidPass.name} was never synchronized on the graphics pipeline.");
                             }
-                        }
-                        else
-                        {
+                        } else {
                             ref FRDGPassCompileInfo passInfo = ref m_PassCompileInfos[lastReadPassIndex];
                             passInfo.resourceReleaseList[type].Add(i);
                         }
@@ -558,10 +552,10 @@ namespace InfinityTech.Rendering.RDG
 
         internal void CompileRenderPass()
         {
-            InitializeCompilationData();
-            CountReferences();
-            CulledUnusedPasses();
-            UpdateResourceAllocationAndSynchronization();
+            InitializeCompileData();
+            CountPassReferences();
+            CullingUnusedPass();
+            UpdateResource();
         }
 
         void ExecuteRenderPass(ScriptableRenderContext renderContext, FRenderWorld renderWorld, FResourcePool resourcePool, CommandBuffer cmdBuffer)
@@ -591,9 +585,7 @@ namespace InfinityTech.Rendering.RDG
                         passInfo.pass.Execute(m_GraphContext);
                         PostRenderPassExecute(cmdBuffer, ref m_GraphContext, ref passInfo);
                     }
-                }
-                catch (Exception e)
-                {
+                } catch (Exception e) {
                     m_ExecutionExceptionWasRaised = true;
                     Debug.LogError($"RenderGraph Execute error at pass {passInfo.pass.name} ({passIndex})");
                     Debug.LogException(e);
