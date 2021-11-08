@@ -244,6 +244,7 @@ namespace InfinityTech.Rendering.Pipeline
                             using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERDGProfileId.CulllingScene)))
                             {
                                 camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
+                                cullingParameters.shadowDistance = 128;
                                 cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
                                 cullingResult = renderContext.Cull(ref cullingParameters);
                                 cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
