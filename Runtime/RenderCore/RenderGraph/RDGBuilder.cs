@@ -300,27 +300,6 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
-        void CulledOutputlessPasses()
-        {
-            m_CullingStack.Clear();
-            for (int pass = 0; pass < m_PassCompileInfos.size; ++pass)
-            {
-                ref FRDGPassCompileInfo passInfo = ref m_PassCompileInfos[pass];
-
-                if (passInfo.refCount == 0 && !passInfo.hasSideEffect && passInfo.enablePassCulling)
-                {
-                    passInfo.culled = true;
-                    for (int type = 0; type < 2; ++type)
-                    {
-                        foreach (var index in passInfo.pass.resourceReadLists[type])
-                        {
-                            m_ResourcesCompileInfos[type][index].refCount--;
-                        }
-                    }
-                }
-            }
-        }
-
         void CullingUnusedPass()
         {
             for (int type = 0; type < 2; ++type)
@@ -347,7 +326,6 @@ namespace InfinityTech.Rendering.RDG
                         if (producerInfo.refCount == 0 && !producerInfo.hasSideEffect && producerInfo.enablePassCulling)
                         {
                             producerInfo.culled = true;
-
                             foreach (var resourceIndex in producerInfo.pass.resourceReadLists[type])
                             {
                                 ref FResourceCompileInfo resourceInfo = ref resourceUsageList[resourceIndex];
