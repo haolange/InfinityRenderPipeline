@@ -158,19 +158,19 @@ namespace InfinityTech.Rendering.RDG
             return m_Resources.GetBufferResourceDesc(bufferRef.handle);
         }
 
-        public FRDGTextureRef ImportTexture(RTHandle texture, int shaderProperty = 0)
+        public FRDGTextureRef ImportTexture(RTHandle texture, in int shaderProperty = 0)
         {
             return m_Resources.ImportTexture(texture, shaderProperty);
+        }
+
+        public FRDGTextureRef CreateTexture(in FRDGTextureRef textureRef, int shaderProperty = 0)
+        {
+            return m_Resources.CreateTexture(m_Resources.GetTextureResourceDesc(textureRef.handle), shaderProperty);
         }
 
         public FRDGTextureRef CreateTexture(in FTextureDescription textureDesc, int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(textureDesc, shaderProperty);
-        }
-
-        public FRDGTextureRef CreateTexture(FRDGTextureRef textureRef, int shaderProperty = 0)
-        {
-            return m_Resources.CreateTexture(m_Resources.GetTextureResourceDesc(textureRef.handle), shaderProperty);
         }
 
         public FRDGTextureRef ScopeTexture(in int handle)
@@ -190,7 +190,7 @@ namespace InfinityTech.Rendering.RDG
             return textureRef;
         }
 
-        public FTextureDescription GetTextureDesc(FRDGTextureRef textureRef)
+        public FTextureDescription GetTextureDesc(in FRDGTextureRef textureRef)
         {
             return m_Resources.GetTextureResourceDesc(textureRef.handle);
         }
