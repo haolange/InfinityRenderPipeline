@@ -572,7 +572,7 @@ namespace InfinityTech.Rendering.RDG
                 if (passInfo.culled)
                     continue;
 
-                if (!passInfo.pass.HasRenderFunc())
+                if (!passInfo.pass.hasExecuteFunc)
                 {
                     throw new InvalidOperationException(string.Format("RenderPass {0} was not provided with an execute function.", passInfo.pass.name));
                 }

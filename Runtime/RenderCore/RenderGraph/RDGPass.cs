@@ -11,7 +11,8 @@ namespace InfinityTech.Rendering.RDG
         public string name;
         public ProfilingSampler customSampler;
         public int refCount { get; protected set; }
-        public int colorBufferMaxIndex { get; protected set; } = -1;
+        internal virtual bool hasExecuteFunc => false;
+        public int colorBufferMaxIndex { get; protected set; }
         public bool enablePassCulling { get; protected set; }
         public bool enableAsyncCompute { get; protected set; }
         public FRDGTextureRef depthBuffer { get; protected set; }
@@ -22,6 +23,8 @@ namespace InfinityTech.Rendering.RDG
 
         public IRDGPass()
         {
+            colorBufferMaxIndex = -1;
+
             for (int i = 0; i < 2; ++i)
             {
                 resourceReadLists[i] = new List<FRDGResourceHandle>();
@@ -32,7 +35,6 @@ namespace InfinityTech.Rendering.RDG
 
         public abstract void Execute(in FRDGContext graphContext);
         public abstract void Release(FRDGObjectPool objectPool);
-        public abstract bool HasRenderFunc();
 
         public void AddResourceRead(in FRDGResourceHandle handle)
         {
@@ -107,6 +109,7 @@ namespace InfinityTech.Rendering.RDG
     {
         internal T passData;
         internal FExecuteAction<T> ExcuteFunc;
+        internal override bool hasExecuteFunc { get { return ExcuteFunc != null; } }
 
         public override void Execute(in FRDGContext graphContext)
         {
@@ -119,11 +122,6 @@ namespace InfinityTech.Rendering.RDG
             ExcuteFunc = null;
             objectPool.Release(this);
         }
-
-        public override bool HasRenderFunc()
-        {
-            return ExcuteFunc != null;
-        }
     }
 
     public struct FRDGPassRef : IDisposable
@@ -134,21 +132,19 @@ namespace InfinityTech.Rendering.RDG
 
         internal FRDGPassRef(IRDGPass renderPass, FRDGResourceFactory resources)
         {
-            m_RenderPass = renderPass;
-            m_Resources = resources;
             m_Disposed = false;
+            m_Resources = resources;
+            m_RenderPass = renderPass;
         }
 
-        public ref T GetPassData<T>() where T : struct => ref ((FRDGPass<T>)m_RenderPass).passData;
-
-        public void EnableAsyncCompute(bool value)
-        {
-            m_RenderPass.EnableAsyncCompute(value);
-        }
-
-        public void AllowPassCulling(bool value)
+        public void EnablePassCulling(in bool value)
         {
             m_RenderPass.EnablePassCulling(value);
+        }
+
+        public void EnableAsyncCompute(in bool value)
+        {
+            m_RenderPass.EnableAsyncCompute(value);
         }
 
         public FRDGTextureRef ReadTexture(in FRDGTextureRef input)
@@ -163,7 +159,19 @@ namespace InfinityTech.Rendering.RDG
             return input;
         }
 
-        public FRDGTextureRef CreateTemporalTexture(in FTextureDescription description)
+        public FRDGTextureRef UseDepthBuffer(in FRDGTextureRef input, in EDepthAccess flags)
+        {
+            m_RenderPass.SetDepthBuffer(input, flags);
+            return input;
+        }
+
+        public FRDGTextureRef UseColorBuffer(in FRDGTextureRef input, int index)
+        {
+            m_RenderPass.SetColorBuffer(input, index);
+            return input;
+        }
+
+        public FRDGTextureRef CreateTemporaryTexture(in FTextureDescription description)
         {
             var result = m_Resources.CreateTexture(description, 0, m_RenderPass.index);
             m_RenderPass.AddTemporalResource(result.handle);
@@ -182,23 +190,16 @@ namespace InfinityTech.Rendering.RDG
             return bufferRef;
         }
 
-        public FRDGBufferRef CreateTemporalBuffer(in FBufferDescription description)
+        public FRDGBufferRef CreateTemporaryBuffer(in FBufferDescription description)
         {
             FRDGBufferRef bufferRef = m_Resources.CreateBuffer(description, m_RenderPass.index);
             m_RenderPass.AddTemporalResource(bufferRef.handle);
             return bufferRef;
         }
 
-        public FRDGTextureRef UseDepthBuffer(in FRDGTextureRef input, in EDepthAccess flags)
+        public ref T GetPassData<T>() where T : struct
         {
-            m_RenderPass.SetDepthBuffer(input, flags);
-            return input;
-        }
-
-        public FRDGTextureRef UseColorBuffer(in FRDGTextureRef input, int index)
-        {
-            m_RenderPass.SetColorBuffer(input, index);
-            return input;
+            return ref ((FRDGPass<T>)m_RenderPass).passData;
         }
 
         public void SetExecuteFunc<T>(FExecuteAction<T> ExcuteFunc) where T : struct
