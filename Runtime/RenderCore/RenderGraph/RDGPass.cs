@@ -159,15 +159,15 @@ namespace InfinityTech.Rendering.RDG
             return input;
         }
 
-        public FRDGTextureRef UseDepthBuffer(in FRDGTextureRef input, in EDepthAccess flags)
-        {
-            m_RenderPass.SetDepthBuffer(input, flags);
-            return input;
-        }
-
         public FRDGTextureRef UseColorBuffer(in FRDGTextureRef input, int index)
         {
             m_RenderPass.SetColorBuffer(input, index);
+            return input;
+        }
+
+        public FRDGTextureRef UseDepthBuffer(in FRDGTextureRef input, in EDepthAccess flags)
+        {
+            m_RenderPass.SetDepthBuffer(input, flags);
             return input;
         }
 
