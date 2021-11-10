@@ -572,17 +572,16 @@ namespace InfinityTech.Rendering.RDG
             var pass = passCompileInfo.pass;
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
             {
-                var mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(pass.colorBufferMaxIndex + 1);
-                var colorBuffers = pass.colorBuffers;
-
                 if (pass.colorBufferMaxIndex > 0)
                 {
+                    var mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(pass.colorBufferMaxIndex + 1);
+
                     for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
                     {
-                        if (!colorBuffers[i].IsValid())
+                        if (!pass.colorBuffers[i].IsValid())
                             throw new InvalidOperationException("MRT setup is invalid. Some indices are not used.");
 
-                        mrtArray[i] = m_Resources.GetTexture(colorBuffers[i]);
+                        mrtArray[i] = m_Resources.GetTexture(pass.colorBuffers[i]);
                     }
 
                     if (pass.depthBuffer.IsValid()) {
@@ -601,7 +600,6 @@ namespace InfinityTech.Rendering.RDG
                     } else {
                         CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]));
                     }
-
                 }
             }
         }
