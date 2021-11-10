@@ -180,6 +180,7 @@ namespace InfinityTech.Rendering.RDG
         internal void CreateRealBuffer(int index)
         {
             FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
+
             if (!resource.imported)
             {
                 var desc = resource.description;
