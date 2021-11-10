@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
@@ -137,40 +138,47 @@ namespace InfinityTech.Rendering.RDG
             m_RenderPass = renderPass;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnablePassCulling(in bool value)
         {
             m_RenderPass.EnablePassCulling(value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnableAsyncCompute(in bool value)
         {
             m_RenderPass.EnableAsyncCompute(value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGTextureRef ReadTexture(in FRDGTextureRef input)
         {
             m_RenderPass.AddResourceRead(input.handle);
             return input;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGTextureRef WriteTexture(in FRDGTextureRef input)
         {
             m_RenderPass.AddResourceWrite(input.handle);
             return input;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGTextureRef UseColorBuffer(in FRDGTextureRef input, int index)
         {
             m_RenderPass.SetColorBuffer(input, index);
             return input;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGTextureRef UseDepthBuffer(in FRDGTextureRef input, in EDepthAccess flags)
         {
             m_RenderPass.SetDepthBuffer(input, flags);
             return input;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGTextureRef CreateTemporaryTexture(in FTextureDescription description)
         {
             var result = m_Resources.CreateTexture(description, 0, m_RenderPass.index);
@@ -178,18 +186,21 @@ namespace InfinityTech.Rendering.RDG
             return result;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGBufferRef ReadBuffer(in FRDGBufferRef bufferRef)
         {
             m_RenderPass.AddResourceRead(bufferRef.handle);
             return bufferRef;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGBufferRef WriteBuffer(in FRDGBufferRef bufferRef)
         {
             m_RenderPass.AddResourceWrite(bufferRef.handle);
             return bufferRef;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGBufferRef CreateTemporaryBuffer(in FBufferDescription description)
         {
             FRDGBufferRef bufferRef = m_Resources.CreateBuffer(description, m_RenderPass.index);
@@ -197,11 +208,13 @@ namespace InfinityTech.Rendering.RDG
             return bufferRef;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetPassData<T>() where T : struct
         {
             return ref ((FRDGPass<T>)m_RenderPass).passData;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetExecuteFunc<T>(FExecuteAction<T> ExcuteFunc) where T : struct
         {
             ((FRDGPass<T>)m_RenderPass).ExcuteFunc = ExcuteFunc;

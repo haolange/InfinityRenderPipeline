@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
@@ -33,66 +34,72 @@ namespace InfinityTech.Rendering.RDG
         FTextureCache m_TexturePool = new FTextureCache();
         DynamicArray<IRDGResource>[] m_Resources = new DynamicArray<IRDGResource>[2];
 
+        public FRDGResourceFactory()
+        {
+            for (int i = 0; i < 2; ++i)
+            {
+                m_Resources[i] = new DynamicArray<IRDGResource>();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ComputeBuffer GetBuffer(in FRDGBufferRef bufferRef)
         {
             return GetBufferResource(bufferRef.handle).resource;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RenderTexture GetTexture(in FRDGTextureRef textureRef)
         {
             return GetTextureResource(textureRef.handle).resource;
         }
 
-        #region Internal Interface
-        public FRDGResourceFactory()
-        {
-            for (int i = 0; i < 2; ++i)
-                m_Resources[i] = new DynamicArray<IRDGResource>();
-        }
-
-        ResType GetResource<DescType, ResType>(DynamicArray<IRDGResource> resourceArray, int index) where DescType : struct where ResType : class
-        {
-            var res = resourceArray[index] as FRDGResource<DescType, ResType>;
-            return res.resource;
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void BeginRender()
         {
             current = this;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EndRender()
         {
             current = null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal string GetResourceName(in FRDGResourceHandle handle)
         {
             return m_Resources[handle.iType][handle.index].GetName();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool IsResourceImported(in FRDGResourceHandle handle)
         {
             return m_Resources[handle.iType][handle.index].imported;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int GetResourceTemporalIndex(in FRDGResourceHandle handle)
         {
             return m_Resources[handle.iType][handle.index].temporalPassIndex;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int AddNewResource<ResType>(DynamicArray<IRDGResource> resourceArray, out ResType outRes) where ResType : IRDGResource, new()
         {
             int result = resourceArray.size;
             resourceArray.Resize(resourceArray.size + 1, true);
             if (resourceArray[result] == null)
+            {
                 resourceArray[result] = new ResType();
+            }
 
             outRes = resourceArray[result] as ResType;
             outRes.Reset();
             return result;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal FRDGBufferRef ImportBuffer(ComputeBuffer computeBuffer)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out FRDGBuffer rdgBuffer);
@@ -102,6 +109,7 @@ namespace InfinityTech.Rendering.RDG
             return new FRDGBufferRef(newHandle);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal FRDGBufferRef CreateBuffer(in FBufferDescription description, int temporalPassIndex = -1)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out FRDGBuffer rdgBuffer);
@@ -111,21 +119,25 @@ namespace InfinityTech.Rendering.RDG
             return new FRDGBufferRef(newHandle);
         }
 
-        internal int GetBufferResourceCount()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int GetBufferCount()
         {
             return m_Resources[(int)ERDGResourceType.Buffer].size;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         FRDGBuffer GetBufferResource(in FRDGResourceHandle handle)
         {
             return m_Resources[(int)ERDGResourceType.Buffer][handle] as FRDGBuffer;
         }
 
-        internal FBufferDescription GetBufferResourceDesc(in FRDGResourceHandle handle)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal FBufferDescription GetBufferDescription(in FRDGResourceHandle handle)
         {
             return (m_Resources[(int)ERDGResourceType.Buffer][handle] as FRDGBuffer).description;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal FRDGTextureRef ImportTexture(RTHandle rt, in int shaderProperty = 0)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out FRDGTexture rdgTexture);
@@ -136,6 +148,7 @@ namespace InfinityTech.Rendering.RDG
             return new FRDGTextureRef(newHandle);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal FRDGTextureRef CreateTexture(in FTextureDescription description, in int shaderProperty = 0, in int temporalPassIndex = -1)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out FRDGTexture rdgTexture);
@@ -145,21 +158,25 @@ namespace InfinityTech.Rendering.RDG
             return new FRDGTextureRef(newHandle);
         }
 
-        internal int GetTextureResourceCount()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int GetTextureCount()
         {
             return m_Resources[(int)ERDGResourceType.Texture].size;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         FRDGTexture GetTextureResource(in FRDGResourceHandle handle)
         {
             return m_Resources[(int)ERDGResourceType.Texture][handle] as FRDGTexture;
         }
 
-        internal FTextureDescription GetTextureResourceDesc(in FRDGResourceHandle handle)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal FTextureDescription GetTextureDescription(in FRDGResourceHandle handle)
         {
             return (m_Resources[(int)ERDGResourceType.Texture][handle] as FRDGTexture).description;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void CreateRealBuffer(int index)
         {
             FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
@@ -180,6 +197,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ReleaseRealBuffer(int index)
         {
             FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
@@ -196,6 +214,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void CreateRealTexture(ref FRDGContext graphContext, int index)
         {
             FRDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as FRDGTexture;
@@ -227,6 +246,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ReleaseRealTexture(int index)
         {
             FRDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as FRDGTexture;
@@ -249,6 +269,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetGlobalTextures(ref FRDGContext graphContext, List<FRDGResourceHandle> textures)
         {
             foreach (var resource in textures)
@@ -264,6 +285,7 @@ namespace InfinityTech.Rendering.RDG
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {
             for (int i = 0; i < 2; ++i) { 
@@ -276,7 +298,5 @@ namespace InfinityTech.Rendering.RDG
             m_BufferPool.Dispose();
             m_TexturePool.Dispose();
         }
-
-        #endregion
     }
 }

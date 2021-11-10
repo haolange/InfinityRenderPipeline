@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.Core;
 using InfinityTech.Rendering.Feature;
+using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
@@ -281,7 +282,7 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderPresent(camera, camera.targetTexture);
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
-                        m_GraphBuilder.Execute(renderContext, cmdBuffer, GetWorld(), m_ResourcePool);
+                        m_GraphBuilder.Execute(renderContext, GetWorld(), cmdBuffer, m_ResourcePool);
                         #endregion //SetupViewCommand
 
                         #region EndViewContext
@@ -304,14 +305,10 @@ namespace InfinityTech.Rendering.Pipeline
             CommandBufferPool.Release(cmdBuffer);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected FRenderWorld GetWorld()
         {
-            if (FRenderWorld.RenderWorld != null) 
-            {
-                return FRenderWorld.RenderWorld;
-            }
-
-            return null;
+            return FRenderWorld.RenderWorld != null ? FRenderWorld.RenderWorld : null;
         }
 
         protected void SetGraphicsSetting()
@@ -344,6 +341,7 @@ namespace InfinityTech.Rendering.Pipeline
             };
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected int GetCameraID(Camera camera)
         {
             int cameraId = camera.GetHashCode();
