@@ -572,13 +572,11 @@ namespace InfinityTech.Rendering.RDG
             // (can't put it in the profiling scope otherwise it might be executed on compute queue which is not possible for global sets)
             m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERDGResourceType.Texture]);
 
-            foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Buffer])
-            {
+            foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Buffer]) {
                 m_Resources.CreateRealBuffer(bufferHandle);
             }
 
-            foreach (var textureHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Texture])
-            {
+            foreach (var textureHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Texture]) {
                 m_Resources.CreateRealTexture(ref graphContext, textureHandle);
             }
 
@@ -588,16 +586,14 @@ namespace InfinityTech.Rendering.RDG
             graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
             graphContext.cmdBuffer.Clear();
 
-            if (pass.enableAsyncCompute)
-            {
+            if (pass.enableAsyncCompute) {
                 CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
                 asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
                 graphContext.cmdBuffer = asyncCmdBuffer;
             }
 
             // Synchronize with graphics or compute pipe if needed.
-            if (passCompileInfo.syncToPassIndex != -1)
-            {
+            if (passCompileInfo.syncToPassIndex != -1) {
                 graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(m_PassCompileInfos[passCompileInfo.syncToPassIndex].fence);
             }
         }
@@ -607,11 +603,11 @@ namespace InfinityTech.Rendering.RDG
         {
             IRDGPass pass = passCompileInfo.pass;
 
-            if (passCompileInfo.needGraphicsFence)
+            if (passCompileInfo.needGraphicsFence) {
                 passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
+            }
 
-            if (pass.enableAsyncCompute)
-            {
+            if (pass.enableAsyncCompute) {
                 // The command buffer has been filled. We can kick the async task.
                 graphContext.renderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
                 CommandBufferPool.Release(graphContext.cmdBuffer);
@@ -620,11 +616,13 @@ namespace InfinityTech.Rendering.RDG
 
             m_ObjectPool.ReleaseAllTempAlloc();
 
-            foreach (var buffer in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Buffer])
+            foreach (var buffer in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Buffer]) {
                 m_Resources.ReleaseRealBuffer(buffer);
+            }
 
-            foreach (var texture in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Texture])
+            foreach (var texture in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Texture]) {
                 m_Resources.ReleaseRealTexture(texture);
+            }
 
         }
 
@@ -638,8 +636,7 @@ namespace InfinityTech.Rendering.RDG
                 ref var passInfo = ref m_PassCompileInfos[passIndex];
                 if (passInfo.culled) { continue; }
 
-                if (!passInfo.pass.hasExecuteFunc)
-                {
+                if (!passInfo.pass.hasExecuteFunc) {
                     throw new InvalidOperationException(string.Format("RenderPass {0} was not provided with an execute function.", passInfo.pass.name));
                 }
 
