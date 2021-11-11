@@ -623,7 +623,6 @@ namespace InfinityTech.Rendering.RDG
             foreach (var texture in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Texture]) {
                 m_Resources.ReleaseTextureResource(texture);
             }
-
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
