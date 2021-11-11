@@ -29,8 +29,8 @@ namespace InfinityTech.Rendering.Pipeline
 
             FTextureDescription motionDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = FMotionPassUtilityData.TextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
 
-            FRDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer);
-            FRDGTextureRef motionTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
+            FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            FRDGTextureRef motionTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
 
             //Add MotionPass
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))

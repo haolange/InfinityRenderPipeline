@@ -143,6 +143,7 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private FGPUScene m_GPUScene;
+        private FRDGScoper m_GraphScoper;
         private FRDGBuilder m_GraphBuilder;
         private FResourcePool m_ResourcePool;
         private NativeList<JobHandle> m_MeshPassJobRefs;
@@ -165,6 +166,7 @@ namespace InfinityTech.Rendering.Pipeline
             SetGraphicsSetting();
             m_ResourcePool = new FResourcePool();
             m_GraphBuilder = new FRDGBuilder("RenderGraph");
+            m_GraphScoper = new FRDGScoper(m_GraphBuilder);
             m_ViewUnifroms = new Dictionary<int, FViewUnifrom>();
             m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
@@ -287,6 +289,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                         #region EndViewContext
                         cullingData.Release();
+                        m_GraphScoper.Clear();
                         viewUnifrom.UnpateViewUnifromData(camera, true);
                         #endregion //ReleaseViewContext
                     }
@@ -365,8 +368,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (disposing)
             {
-                m_ResourcePool.Dispose();
+                m_GraphScoper.Dispose();
                 m_GraphBuilder.Dispose();
+                m_ResourcePool.Dispose();
                 m_MeshPassJobRefs.Dispose();
                 foreach (var historyCache in m_HistoryCaches)
                 {

@@ -54,19 +54,19 @@ namespace InfinityTech.Rendering.GPUResource
 
     public class FHistoryCache
     {
-        private Dictionary<int, RTHandle> m_CacheResources;
+        private Dictionary<int, RTHandle> m_CacheTextures;
 
         public FHistoryCache() 
         {
-            m_CacheResources = new Dictionary<int, RTHandle>(); 
+            m_CacheTextures = new Dictionary<int, RTHandle>(); 
         }
 
         public RTHandle GetTexture(in int id, in FTextureDescription description)
         {
             RTHandle texture = null;
-            if (m_CacheResources.ContainsKey(id))
+            if (m_CacheTextures.ContainsKey(id))
             {
-                texture = m_CacheResources[id];
+                texture = m_CacheTextures[id];
             }
 
             if (texture == null)
@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.GPUResource
                 }
                 texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
                                                              description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
-                m_CacheResources[id] = texture;
+                m_CacheTextures[id] = texture;
             }
 
             RenderTextureDescriptor rtDescription = description;
@@ -86,21 +86,21 @@ namespace InfinityTech.Rendering.GPUResource
                 RTHandles.Release(texture);
                 texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
                                                              description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
-                m_CacheResources[id] = texture;
+                m_CacheTextures[id] = texture;
             }
             return texture;
         }
 
         public void Release()
         {
-            foreach (var pair in m_CacheResources)
+            foreach (var pair in m_CacheTextures)
             {
                 if (pair.Value != null)
                 {
                     pair.Value.Release();
                 }
             }
-            m_CacheResources.Clear();
+            m_CacheTextures.Clear();
         }
     }
 }

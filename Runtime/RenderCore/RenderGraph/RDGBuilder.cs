@@ -90,8 +90,6 @@ namespace InfinityTech.Rendering.RDG
         public string name;
         bool m_ExecuteExceptionIsRaised;
         FRDGResourceFactory m_Resources;
-        FRDGResourceScope<FRDGBufferRef> m_BufferScope;
-        FRDGResourceScope<FRDGTextureRef> m_TextureScope;
 
         Stack<int> m_CullingStack = new Stack<int>();
         List<IRDGPass> m_PassList = new List<IRDGPass>(64);
@@ -103,8 +101,6 @@ namespace InfinityTech.Rendering.RDG
         {
             this.name = name;
             this.m_Resources = new FRDGResourceFactory();
-            this.m_BufferScope = new FRDGResourceScope<FRDGBufferRef>();
-            this.m_TextureScope = new FRDGResourceScope<FRDGTextureRef>();
             this.m_PassCompileInfos = new DynamicArray<FRDGPassCompileInfo>();
             this.m_ResourcesCompileInfos = new DynamicArray<FResourceCompileInfo>[2];
 
@@ -133,26 +129,6 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGBufferRef ScopeBuffer(in int handle)
-        {
-            return m_BufferScope.Get(handle);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ScopeBuffer(int handle, in FRDGBufferRef bufferRef)
-        {
-            m_BufferScope.Set(handle, bufferRef);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGBufferRef ScopeBuffer(in int handle, in FBufferDescription description)
-        {
-            FRDGBufferRef bufferRef = CreateBuffer(description);
-            m_BufferScope.Set(handle, bufferRef);
-            return bufferRef;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FBufferDescription GetBufferDescription(in FRDGBufferRef bufferRef)
         {
             return m_Resources.GetBufferDescription(bufferRef.handle);
@@ -174,26 +150,6 @@ namespace InfinityTech.Rendering.RDG
         public FRDGTextureRef CreateTexture(in FTextureDescription description, int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(description, shaderProperty);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef ScopeTexture(in int handle)
-        {
-            return m_TextureScope.Get(handle);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ScopeTexture(int handle, in FRDGTextureRef textureRef)
-        {
-            m_TextureScope.Set(handle, textureRef);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef ScopeTexture(in int handle, in FTextureDescription description)
-        {
-            FRDGTextureRef textureRef = CreateTexture(description, handle);
-            m_TextureScope.Set(handle, textureRef);
-            return textureRef;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -252,8 +208,6 @@ namespace InfinityTech.Rendering.RDG
 
             m_PassList.Clear();
             m_Resources.Clear();
-            m_BufferScope.Clear();
-            m_TextureScope.Clear();
 
             for (int i = 0; i < 2; ++i)
             {
@@ -705,8 +659,6 @@ namespace InfinityTech.Rendering.RDG
         public void Dispose()
         {
             m_Resources.Dispose();
-            m_BufferScope.Dispose();
-            m_TextureScope.Dispose();
         }
     }
 }

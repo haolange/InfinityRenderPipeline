@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             FTextureDescription depthDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FDepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
 
-            FRDGTextureRef depthTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
+            FRDGTextureRef depthTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
 
             //Add DepthPass
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))

@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderPresent(Camera camera, RenderTexture dscTexture)
         {
-            FRDGTextureRef srcTexture = m_GraphBuilder.ScopeTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            FRDGTextureRef srcTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
             
             // Add PresentPass
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassUtilityData.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
