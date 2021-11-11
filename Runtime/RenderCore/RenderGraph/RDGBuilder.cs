@@ -573,11 +573,11 @@ namespace InfinityTech.Rendering.RDG
             m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERDGResourceType.Texture]);
 
             foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Buffer]) {
-                m_Resources.CreateRealBuffer(bufferHandle);
+                m_Resources.CreateBufferResource(bufferHandle);
             }
 
             foreach (var textureHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Texture]) {
-                m_Resources.CreateRealTexture(ref graphContext, textureHandle);
+                m_Resources.CreateTextureResource(ref graphContext, textureHandle);
             }
 
             SetRenderTarget(ref graphContext, passCompileInfo);
@@ -617,11 +617,11 @@ namespace InfinityTech.Rendering.RDG
             m_ObjectPool.ReleaseAllTempAlloc();
 
             foreach (var buffer in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Buffer]) {
-                m_Resources.ReleaseRealBuffer(buffer);
+                m_Resources.ReleaseBufferResource(buffer);
             }
 
             foreach (var texture in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Texture]) {
-                m_Resources.ReleaseRealTexture(texture);
+                m_Resources.ReleaseTextureResource(texture);
             }
 
         }

@@ -177,7 +177,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void CreateRealBuffer(int index)
+        internal void CreateBufferResource(int index)
         {
             FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
 
@@ -199,7 +199,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ReleaseRealBuffer(int index)
+        internal void ReleaseBufferResource(int index)
         {
             FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
 
@@ -216,7 +216,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void CreateRealTexture(ref FRDGContext graphContext, int index)
+        internal void CreateTextureResource(ref FRDGContext graphContext, int index)
         {
             FRDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as FRDGTexture;
 
@@ -247,7 +247,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ReleaseRealTexture(int index)
+        internal void ReleaseTextureResource(int index)
         {
             FRDGTexture resource = m_Resources[(int)ERDGResourceType.Texture][index] as FRDGTexture;
 
