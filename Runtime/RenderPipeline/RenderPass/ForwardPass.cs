@@ -28,8 +28,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderForward(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
-            FTextureDescription diffuseDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassUtilityData.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
-            FTextureDescription specularDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FForwardPassUtilityData.TextureBName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
+            FTextureDescription diffuseDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FForwardPassUtilityData.TextureAName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
+            FTextureDescription specularDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FForwardPassUtilityData.TextureBName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
 
             FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             FRDGTextureRef diffuseTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.DiffuseBuffer, diffuseDescription);
@@ -39,6 +39,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
+                passRef.SetOption(false, true, Color.black);
+
                 ref FForwardPassData passData = ref passRef.GetPassData<FForwardPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;

@@ -84,6 +84,10 @@ namespace InfinityTech.Rendering.GPUResource
             height = Height;
             slices = 1;
 
+            clearColor = Color.black;
+            enableMSAA = false;
+            bindTextureMS = false;
+            clearBuffer = false;
             isShadowMap = false;
             enableRandomWrite = false;
 

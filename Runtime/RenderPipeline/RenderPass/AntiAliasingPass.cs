@@ -31,8 +31,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderAntiAliasing(Camera camera, FHistoryCache historyCache)
         {
-            FTextureDescription historyDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = false, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FAntiAliasingUtilityData.HistoryTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
-            FTextureDescription accmulateDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, clearColor = Color.clear, dimension = TextureDimension.Tex2D, enableMSAA = false, bindTextureMS = false, name = FAntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
+            FTextureDescription historyDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FAntiAliasingUtilityData.HistoryTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
+            FTextureDescription accmulateDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FAntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
 
             FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             FRDGTextureRef motionTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);

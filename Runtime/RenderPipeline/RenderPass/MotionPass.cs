@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
-            FTextureDescription motionDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { clearBuffer = true, dimension = TextureDimension.Tex2D, clearColor = Color.clear, enableMSAA = false, bindTextureMS = false, name = FMotionPassUtilityData.TextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
+            FTextureDescription motionDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FMotionPassUtilityData.TextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
 
             FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             FRDGTextureRef motionTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionDescription);
@@ -36,6 +36,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
             {
                 //Setup Phase
+                passRef.SetOption(false, true, Color.black);
+
                 ref FMotionPassData passData = ref passRef.GetPassData<FMotionPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
