@@ -21,6 +21,17 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
+    internal enum EPipelineProfileId
+    {
+        ViewContext,
+        ComputeLOD,
+        CulllingScene,
+        BeginFrameRendering,
+        EndFrameRendering,
+        SceneRendering,
+        CameraRendering
+    }
+
     internal class FViewUnifrom
     {
         private static readonly int ID_FrameIndex = Shader.PropertyToID("FrameIndex");
@@ -190,7 +201,7 @@ namespace InfinityTech.Rendering.Pipeline
                 CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
                 //Camera Rendering
-                using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(ERDGProfileId.CameraRendering)))
+                using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
                 {
                     BeginCameraRendering(renderContext, camera);
                     {
@@ -224,7 +235,7 @@ namespace InfinityTech.Rendering.Pipeline
                         #endregion //SetupPerViewData
 
                         #region SetupViewContext
-                        using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERDGProfileId.ViewContext)))
+                        using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.ViewContext)))
                         {
                             #if UNITY_EDITOR
                             if (isEditView) 
@@ -244,7 +255,7 @@ namespace InfinityTech.Rendering.Pipeline
                             viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
 
                             //Scene Culling
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERDGProfileId.CulllingScene)))
+                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
                             {
                                 camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                                 cullingParameters.shadowDistance = 128;
@@ -254,7 +265,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             
                             //Compute LOD
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(ERDGProfileId.ComputeLOD)))
+                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.ComputeLOD)))
                             {
                                 List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
                                 float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);

@@ -265,8 +265,9 @@ namespace InfinityTech.Rendering.RDG
                         passInfo.refCount++;
 
                         // Writing to an imported texture is considered as a side effect because we don't know what users will do with it outside of render graph.
-                        if (m_Resources.IsResourceImported(resource))
+                        if (m_Resources.IsResourceImported(resource)) {
                             passInfo.hasSideEffect = true;
+                        }
                     }
 
                     foreach (int resourceIndex in passInfo.pass.temporalResourceList[type])
@@ -285,10 +286,10 @@ namespace InfinityTech.Rendering.RDG
         {
             for (int type = 0; type < 2; ++type)
             {
+                m_CullingStack.Clear();
                 DynamicArray<FResourceCompileInfo> resourceUsageList = m_ResourcesCompileInfos[type];
 
                 // Gather resources that are never read.
-                m_CullingStack.Clear();
                 for (int i = 0; i < resourceUsageList.size; ++i)
                 {
                     if (resourceUsageList[i].refCount == 0)
@@ -312,8 +313,9 @@ namespace InfinityTech.Rendering.RDG
                                 ref FResourceCompileInfo resourceInfo = ref resourceUsageList[resourceIndex];
                                 resourceInfo.refCount--;
                                 // If a resource is not used anymore, add it to the stack to be processed in subsequent iteration.
-                                if (resourceInfo.refCount == 0)
+                                if (resourceInfo.refCount == 0) {
                                     m_CullingStack.Push(resourceIndex);
+                                }
                             }
                         }
                     }
@@ -324,17 +326,18 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void UpdatePassSynchronization(ref FRDGPassCompileInfo currentPassInfo, ref FRDGPassCompileInfo producerPassInfo, int currentPassIndex, int lastProducer, ref int intLastSyncIndex)
         {
-            // Current pass needs to wait for pass index lastProducer
-            currentPassInfo.syncToPassIndex = lastProducer;
             // Update latest pass waiting for the other pipe.
             intLastSyncIndex = lastProducer;
+            // Current pass needs to wait for pass index lastProducer
+            currentPassInfo.syncToPassIndex = lastProducer;
 
             // Producer will need a graphics fence that this pass will wait on.
             producerPassInfo.needGraphicsFence = true;
             // We update the producer pass with the index of the smallest pass waiting for it.
             // This will be used to "lock" resource from being reused until the pipe has been synchronized.
-            if (producerPassInfo.syncFromPassIndex == -1)
+            if (producerPassInfo.syncFromPassIndex == -1) {
                 producerPassInfo.syncFromPassIndex = currentPassIndex;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -374,9 +377,11 @@ namespace InfinityTech.Rendering.RDG
             {
                 // producers are by construction in increasing order.
                 if (producer < passIndex)
+                {
                     result = producer;
-                else
+                } else {
                     return result;
+                }
             }
 
             return result;
@@ -385,14 +390,16 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int GetLatestValidReadIndex(in FResourceCompileInfo resourceInfo)
         {
-            if (resourceInfo.consumers.Count == 0)
+            if (resourceInfo.consumers.Count == 0) {
                 return -1;
+            }
 
             var consumers = resourceInfo.consumers;
             for (int i = consumers.Count - 1; i >= 0; --i)
             {
-                if (!m_PassCompileInfos[consumers[i]].culled)
+                if (!m_PassCompileInfos[consumers[i]].culled) {
                     return consumers[i];
+                }
             }
 
             return -1;
@@ -401,14 +408,16 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int GetFirstValidWriteIndex(in FResourceCompileInfo resourceInfo)
         {
-            if (resourceInfo.producers.Count == 0)
+            if (resourceInfo.producers.Count == 0) {
                 return -1;
+            }
 
             var producers = resourceInfo.producers;
             for (int i = 0; i < producers.Count; ++i)
             {
-                if (!m_PassCompileInfos[producers[i]].culled)
+                if (!m_PassCompileInfos[producers[i]].culled) {
                     return producers[i];
+                }
             }
 
             return -1;
@@ -417,14 +426,16 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int GetLatestValidWriteIndex(in FResourceCompileInfo resourceInfo)
         {
-            if (resourceInfo.producers.Count == 0)
+            if (resourceInfo.producers.Count == 0) {
                 return -1;
+            }
 
             var producers = resourceInfo.producers;
             for (int i = producers.Count - 1; i >= 0; --i)
             {
-                if (!m_PassCompileInfos[producers[i]].culled)
+                if (!m_PassCompileInfos[producers[i]].culled) {
                     return producers[i];
+                }
             }
 
             return -1;
@@ -460,31 +471,22 @@ namespace InfinityTech.Rendering.RDG
             for (int type = 0; type < 2; ++type)
             {
                 var resourceInfos = m_ResourcesCompileInfos[type];
-                // Now push resources to the release list of the pass that reads it last.
                 for (int i = 0; i < resourceInfos.size; ++i)
                 {
                     FResourceCompileInfo resourceInfo = resourceInfos[i];
 
-                    // Resource creation
                     int firstWriteIndex = GetFirstValidWriteIndex(resourceInfo);
-                    // Index -1 can happen for imported resources (for example an imported dummy black texture will never be written to but does not need creation anyway)
-                    if (firstWriteIndex != -1)
+                    if (firstWriteIndex != -1) {
                         m_PassCompileInfos[firstWriteIndex].resourceCreateList[type].Add(i);
+                    }
 
-                    // Texture release
-                    // Sometimes, a texture can be written by a pass after the last pass that reads it.
-                    // In this case, we need to extend its lifetime to this pass otherwise the pass would get an invalid texture.
                     int lastReadPassIndex = Math.Max(GetLatestValidReadIndex(resourceInfo), GetLatestValidWriteIndex(resourceInfo));
-
                     if (lastReadPassIndex != -1)
                     {
-                        // In case of async passes, we need to extend lifetime of resource to the first pass on the graphics pipeline that wait for async passes to be over.
-                        // Otherwise, if we freed the resource right away during an async pass, another non async pass could reuse the resource even though the async pipe is not done.
                         if (m_PassCompileInfos[lastReadPassIndex].enableAsyncCompute)
                         {
                             int currentPassIndex = lastReadPassIndex;
                             int firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
-                            // Find the first async pass that is synchronized by the graphics pipeline (ie: passInfo.syncFromPassIndex != -1)
                             while (firstWaitingPassIndex == -1 && currentPassIndex < m_PassCompileInfos.size)
                             {
                                 currentPassIndex++;
@@ -493,14 +495,12 @@ namespace InfinityTech.Rendering.RDG
                                 }
                             }
 
-                            // Finally add the release command to the pass before the first pass that waits for the compute pipe.
                             ref FRDGPassCompileInfo passInfo = ref m_PassCompileInfos[Math.Max(0, firstWaitingPassIndex - 1)];
                             passInfo.resourceReleaseList[type].Add(i);
 
-                            // Fail safe in case render graph is badly formed.
                             if (currentPassIndex == m_PassCompileInfos.size) {
                                 IRDGPass invalidPass = m_PassList[lastReadPassIndex];
-                                throw new InvalidOperationException($"Asynchronous pass {invalidPass.name} was never synchronized on the graphics pipeline.");
+                                throw new InvalidOperationException($"Async pass {invalidPass.name} was never synchronized on the graphics pipeline.");
                             }
                         } else {
                             ref FRDGPassCompileInfo passInfo = ref m_PassCompileInfos[lastReadPassIndex];
@@ -565,12 +565,7 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void PrePassExecute(ref FRDGContext graphContext, in FRDGPassCompileInfo passCompileInfo)
         {
-            // TODO RENDERGRAPH merge clear and setup here if possible
             IRDGPass pass = passCompileInfo.pass;
-
-            // TODO RENDERGRAPH remove this when we do away with auto global texture setup
-            // (can't put it in the profiling scope otherwise it might be executed on compute queue which is not possible for global sets)
-            m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERDGResourceType.Texture]);
 
             foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Buffer]) {
                 m_Resources.CreateBufferResource(bufferHandle);
@@ -581,8 +576,7 @@ namespace InfinityTech.Rendering.RDG
             }
 
             SetRenderTarget(ref graphContext, passCompileInfo);
-
-            // Flush first the current command buffer on the render context.
+            m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERDGResourceType.Texture]);
             graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
             graphContext.cmdBuffer.Clear();
 
@@ -592,7 +586,6 @@ namespace InfinityTech.Rendering.RDG
                 graphContext.cmdBuffer = asyncCmdBuffer;
             }
 
-            // Synchronize with graphics or compute pipe if needed.
             if (passCompileInfo.syncToPassIndex != -1) {
                 graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(m_PassCompileInfos[passCompileInfo.syncToPassIndex].fence);
             }
@@ -608,10 +601,9 @@ namespace InfinityTech.Rendering.RDG
             }
 
             if (pass.enableAsyncCompute) {
-                // The command buffer has been filled. We can kick the async task.
                 graphContext.renderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
                 CommandBufferPool.Release(graphContext.cmdBuffer);
-                graphContext.cmdBuffer = cmdBuffer; // Restore the main command buffer.
+                graphContext.cmdBuffer = cmdBuffer;
             }
 
             m_ObjectPool.ReleaseAllTempAlloc();

@@ -87,10 +87,13 @@ namespace InfinityTech.Rendering.RDG
         public void SetDepthBuffer(in FRDGTextureRef resource, in EDepthAccess flags)
         {
             depthBuffer = resource;
-            if ((flags & EDepthAccess.Read) != 0)
+            if ((flags & EDepthAccess.Read) != 0) {
                 AddResourceRead(resource.handle);
-            if ((flags & EDepthAccess.Write) != 0)
+            }
+                
+            if ((flags & EDepthAccess.Write) != 0) {
                 AddResourceWrite(resource.handle);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -284,9 +287,7 @@ namespace InfinityTech.Rendering.RDG
 
         void Dispose(bool disposing)
         {
-            if (m_Disposed)
-                return;
-
+            if (m_Disposed) { return; }
             m_Disposed = true;
         }
     }

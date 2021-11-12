@@ -1,31 +1,67 @@
-﻿using System.Runtime.CompilerServices;
+﻿using Unity.Collections;
+using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
+    internal class FRDGResourceMap<Type> where Type : struct
+    {
+        internal NativeHashMap<int, Type> m_ResourceMap;
+
+        internal FRDGResourceMap()
+        {
+            m_ResourceMap = new NativeHashMap<int, Type>(64, Allocator.Persistent);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Set(in int key, in Type value)
+        {
+            m_ResourceMap.TryAdd(key, value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Type Get(in int key)
+        {
+            Type output;
+            m_ResourceMap.TryGetValue(key, out output);
+            return output;
+        }
+
+        internal void Clear()
+        {
+            m_ResourceMap.Clear();
+        }
+
+        internal void Dispose()
+        {
+            m_ResourceMap.Dispose();
+        }
+    }
+
+
     public class FRDGScoper
     {
         FRDGBuilder m_GraphBuilder;
-        FRDGResourceScoper<FRDGBufferRef> m_BufferScoper;
-        FRDGResourceScoper<FRDGTextureRef> m_TextureScoper;
+        FRDGResourceMap<FRDGBufferRef> m_BufferMap;
+        FRDGResourceMap<FRDGTextureRef> m_TextureMap;
 
         public FRDGScoper(FRDGBuilder graphBuilder)
         {
             m_GraphBuilder = graphBuilder;
-            m_BufferScoper = new FRDGResourceScoper<FRDGBufferRef>();
-            m_TextureScoper = new FRDGResourceScoper<FRDGTextureRef>();
+            m_BufferMap = new FRDGResourceMap<FRDGBufferRef>();
+            m_TextureMap = new FRDGResourceMap<FRDGTextureRef>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGBufferRef QueryBuffer(in int handle)
         {
-            return m_BufferScoper.Get(handle);
+            return m_BufferMap.Get(handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RegisterBuffer(int handle, in FRDGBufferRef bufferRef)
         {
-            m_BufferScoper.Set(handle, bufferRef);
+            m_BufferMap.Set(handle, bufferRef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -39,13 +75,13 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGTextureRef QueryTexture(in int handle)
         {
-            return m_TextureScoper.Get(handle);
+            return m_TextureMap.Get(handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RegisterTexture(int handle, in FRDGTextureRef textureRef)
         {
-            m_TextureScoper.Set(handle, textureRef);
+            m_TextureMap.Set(handle, textureRef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -59,14 +95,14 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
-            m_BufferScoper.Clear();
-            m_TextureScoper.Clear();
+            m_BufferMap.Clear();
+            m_TextureMap.Clear();
         }
 
         public void Dispose()
         {
-            m_BufferScoper.Dispose();
-            m_TextureScoper.Dispose();
+            m_BufferMap.Dispose();
+            m_TextureMap.Dispose();
         }
     }
 }
