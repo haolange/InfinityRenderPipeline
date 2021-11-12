@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
 using UnityEngine.Experimental.Rendering;
@@ -22,7 +23,7 @@ namespace InfinityTech.Rendering.GPUResource
         MSAA8x = 8
     }
 
-    public struct FBufferDescription
+    public struct FBufferDescription : IEquatable<FBufferDescription>
     {
         public string name;
 
@@ -44,6 +45,16 @@ namespace InfinityTech.Rendering.GPUResource
             this.stride = stride;
         }
 
+        public bool Equals(FBufferDescription target)
+        {
+            return this.GetHashCode().Equals(target.GetHashCode());
+        }
+
+        public override bool Equals(object target)
+        {
+            return Equals((FBufferDescription)target);
+        }
+
         public override int GetHashCode()
         {
             int hashCode = 17;
@@ -54,7 +65,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct FTextureDescription
+    public struct FTextureDescription : IEquatable<FTextureDescription>
     {
         public string name;
 
@@ -94,6 +105,16 @@ namespace InfinityTech.Rendering.GPUResource
             msaaSamples = EMSAASamples.None;
             depthBufferBits = EDepthBits.None;
             wrapMode = TextureWrapMode.Repeat;
+        }
+
+        public bool Equals(FTextureDescription target)
+        {
+            return this.GetHashCode().Equals(target.GetHashCode());
+        }
+
+        public override bool Equals(object target)
+        {
+            return Equals((FTextureDescription)target);
         }
 
         public override int GetHashCode()

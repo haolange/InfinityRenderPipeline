@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
-using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.GPUResource
 {
@@ -54,50 +53,89 @@ namespace InfinityTech.Rendering.GPUResource
 
     public class FHistoryCache
     {
-        private Dictionary<int, RTHandle> m_CacheTextures;
+        Dictionary<int, FBufferRef> m_CacheBuffers;
+        Dictionary<int, FTextureRef> m_CacheTextures;
 
         public FHistoryCache() 
         {
-            m_CacheTextures = new Dictionary<int, RTHandle>(); 
+            m_CacheBuffers = new Dictionary<int, FBufferRef>();
+            m_CacheTextures = new Dictionary<int, FTextureRef>(); 
         }
 
-        public RTHandle GetTexture(in int id, in FTextureDescription description)
+        public FBufferRef GetBuffer(in int id, in FBufferDescription description)
         {
-            RTHandle texture = null;
-            if (m_CacheTextures.ContainsKey(id))
+            FBufferRef bufferRef = new FBufferRef(-1, null);
+            if (m_CacheBuffers.ContainsKey(id))
             {
-                texture = m_CacheTextures[id];
+                bufferRef = m_CacheBuffers[id];
             }
 
-            if (texture == null)
+            if (bufferRef.buffer == null)
             {
-                if (texture != null)
+                if (bufferRef.buffer != null)
                 {
-                    RTHandles.Release(texture);
+                    bufferRef.buffer.Release();
                 }
-                texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
+                bufferRef.buffer = new ComputeBuffer(description.count, description.stride);
+                m_CacheBuffers[id] = bufferRef;
+            }
+
+            FBufferDescription bufferDescription = new FBufferDescription(bufferRef.buffer.count, bufferRef.buffer.stride);
+            if (!description.Equals(bufferDescription))
+            {
+                bufferRef.buffer.Release();
+                bufferRef.buffer = new ComputeBuffer(description.count, description.stride); 
+                m_CacheBuffers[id] = bufferRef;
+            }
+            return bufferRef;
+        }
+
+        public FTextureRef GetTexture(in int id, in FTextureDescription description)
+        {
+            FTextureRef textureRef = new FTextureRef(-1, null);
+            if (m_CacheTextures.ContainsKey(id))
+            {
+                textureRef = m_CacheTextures[id];
+            }
+
+            if (textureRef.texture == null)
+            {
+                if (textureRef.texture != null)
+                {
+                    RTHandles.Release(textureRef.texture);
+                }
+                textureRef.texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
                                                              description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
-                m_CacheTextures[id] = texture;
+                m_CacheTextures[id] = textureRef;
             }
 
             RenderTextureDescriptor rtDescription = description;
-            if (!rtDescription.Equal(texture.rt.descriptor))
+            if (!rtDescription.Equal(textureRef.texture.rt.descriptor))
             {
-                RTHandles.Release(texture);
-                texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
+                RTHandles.Release(textureRef.texture);
+                textureRef.texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
                                                              description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
-                m_CacheTextures[id] = texture;
+                m_CacheTextures[id] = textureRef;
             }
-            return texture;
+            return textureRef;
         }
 
         public void Release()
         {
+            foreach (var pair in m_CacheBuffers)
+            {
+                if (pair.Value.buffer != null)
+                {
+                    pair.Value.buffer.Release();
+                }
+            }
+            m_CacheBuffers.Clear();
+
             foreach (var pair in m_CacheTextures)
             {
-                if (pair.Value != null)
+                if (pair.Value.texture != null)
                 {
-                    pair.Value.Release();
+                    pair.Value.texture.Release();
                 }
             }
             m_CacheTextures.Clear();
