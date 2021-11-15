@@ -289,7 +289,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void CreateBufferResource(int index)
+        internal void CreateBufferResource(in int index)
         {
             FRDGBuffer resource = m_Resources[(int)ERDGResourceType.Buffer][index] as FRDGBuffer;
 

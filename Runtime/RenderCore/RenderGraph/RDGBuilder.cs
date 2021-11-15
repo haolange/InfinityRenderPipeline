@@ -29,10 +29,8 @@ namespace InfinityTech.Rendering.RDG
         public GraphicsFence fence;
         public List<int>[] resourceCreateList;
         public List<int>[] resourceReleaseList;
-
         public bool enablePassCulling { get { return pass.enablePassCulling; } }
         public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
-
 
         public void Reset(IRDGPass pass)
         {
