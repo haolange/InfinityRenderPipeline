@@ -139,13 +139,13 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef CreateTexture(in FRDGTextureRef textureRef, int shaderProperty = 0)
+        public FRDGTextureRef CreateTexture(in FRDGTextureRef textureRef, in int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(m_Resources.GetTextureDescription(textureRef.handle), shaderProperty);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef CreateTexture(in FTextureDescription description, int shaderProperty = 0)
+        public FRDGTextureRef CreateTexture(in FTextureDescription description, in int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(description, shaderProperty);
         }
@@ -216,7 +216,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void InitResourceInfoData(DynamicArray<FResourceCompileInfo> resourceInfos, int count)
+        void InitResourceInfoData(DynamicArray<FResourceCompileInfo> resourceInfos, in int count)
         {
             resourceInfos.Resize(count);
             for (int i = 0; i < resourceInfos.size; ++i)
@@ -322,7 +322,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void UpdatePassSynchronization(ref FRDGPassCompileInfo currentPassInfo, ref FRDGPassCompileInfo producerPassInfo, int currentPassIndex, int lastProducer, ref int intLastSyncIndex)
+        void UpdatePassSynchronization(ref FRDGPassCompileInfo currentPassInfo, ref FRDGPassCompileInfo producerPassInfo, in int currentPassIndex, in int lastProducer, ref int intLastSyncIndex)
         {
             // Update latest pass waiting for the other pipe.
             intLastSyncIndex = lastProducer;
@@ -339,7 +339,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void UpdateResourceSynchronization(ref int lastGraphicsPipeSync, ref int lastComputePipeSync, int currentPassIndex, in FResourceCompileInfo resourceInfo)
+        void UpdateResourceSynchronization(ref int lastGraphicsPipeSync, ref int lastComputePipeSync, in int currentPassIndex, in FResourceCompileInfo resourceInfo)
         {
             int lastProducer = GetLatestProducerIndex(currentPassIndex, resourceInfo);
             if (lastProducer != -1)
@@ -367,7 +367,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetLatestProducerIndex(int passIndex, in FResourceCompileInfo resourceInfo)
+        int GetLatestProducerIndex(in int passIndex, in FResourceCompileInfo resourceInfo)
         {
             // We want to know the highest pass index below the current pass that writes to the resource.
             int result = -1;
