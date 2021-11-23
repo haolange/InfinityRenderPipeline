@@ -2,47 +2,55 @@ using UnityEngine;
 using Unity.Collections;
 using System.Collections;
 using System.Collections.Generic;
+using InfinityTech.Core.Container;
+using System.Runtime.CompilerServices;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
     public class FLightElementCollector
     {
-        public NativeHashMap<int, FLightElement> cacheLightBatchStateBuckets;
+        public bool collectorAvalible
+        {
+            get
+            {
+                return cacheLightElements.IsCreated;
+            }
+        }
 
+        public TNativeSparseArray<FLightElement> cacheLightElements;
 
         public FLightElementCollector() 
         { 
 
         }
 
-        public bool CollectorAvalible()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int AddLightElement(in FLightElement lightElement)
         {
-            return cacheLightBatchStateBuckets.IsCreated;
+            return cacheLightElements.Add(lightElement);
         }
 
-        public void AddLightBatch(in FLightElement lightElement, in int key)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void UpdateLightElement(in FLightElement lightElement, in int key)
         {
-            cacheLightBatchStateBuckets.Add(key, lightElement);
+            cacheLightElements[key] = lightElement;
         }
 
-        public void UpdateLightBatch(in FLightElement lightElement, in int key)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RemoveLightElement(in int key)
         {
-            cacheLightBatchStateBuckets[key] = lightElement;
+            cacheLightElements.Remove(key);
         }
 
-        public void RemoveLightBatch(in int removeKey)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Clear()
         {
-            cacheLightBatchStateBuckets.Remove(removeKey);
-        }
-
-        public void Reset()
-        {
-            cacheLightBatchStateBuckets.Clear();
+            
         }
 
         public void Release()
         {
-            cacheLightBatchStateBuckets.Dispose();
+            cacheLightElements.Dispose();
         }
     }
 }

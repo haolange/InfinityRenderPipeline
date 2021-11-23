@@ -167,9 +167,10 @@ namespace InfinityTech.Core.Container
             }
         }
 
-        private T* m_Array;
-        private int m_Capacity;
-        private Allocator m_Allocator;
+        [NativeDisableUnsafePtrRestriction]
+        internal T* m_Array;
+        internal int m_Capacity;
+        internal Allocator m_Allocator;
 
         public TNativeArray(in Allocator allocator, in int capacity = 64)
         {

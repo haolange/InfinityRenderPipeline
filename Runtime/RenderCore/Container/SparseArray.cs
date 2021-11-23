@@ -1,4 +1,5 @@
 ﻿using System;
+using Unity.Collections;
 
 namespace InfinityTech.Core.Container
 {
@@ -11,7 +12,6 @@ namespace InfinityTech.Core.Container
                 return m_Array.length;
             }
         }
-        
         public ref T this[int index]
         {
             get
@@ -52,6 +52,64 @@ namespace InfinityTech.Core.Container
         {
             m_Array[index] = default(T);
             m_PoolArray.Add(index);
+        }
+    }
+
+    public unsafe struct TNativeSparseArray<T> : IDisposable where T : unmanaged
+    {
+        public int length
+        {
+            get
+            {
+                return m_Array.length;
+            }
+        }
+        public ref T this[int index]
+        {
+            get
+            {
+                return ref m_Array[index];
+            }
+        }
+
+        internal TNativeArray<T>* m_Array;
+        internal TNativeArray<int>* m_PoolArray;
+
+        public TNativeSparseArray(in Allocator allocator, in int capacity = 64)
+        {
+            m_Array = default;
+            m_PoolArray = default;
+            //m_Array = new TNativeArray<T>(allocator, capacity);
+            //m_PoolArray = new TNativeArray<int>(allocator, capacity / 2);
+        }
+
+        public int Add(in T value)
+        {
+            TNativeArray<T> array = *m_Array;
+            TNativeArray<int> poolArray = *m_PoolArray;
+
+            if (poolArray.length != 0)
+            {
+                int poolIndex = poolArray[poolArray.length - 1];
+                poolArray.RemoveSwapAtIndex(poolArray.length - 1);
+
+                array[poolIndex] = value;
+                return poolIndex;
+            }
+            return array.Add(value);
+        }
+
+        public void Remove(in int index)
+        {
+            TNativeArray<T> array = *m_Array;
+            array[index] = default(T);
+            m_PoolArray->Add(index);
+        }
+
+        public void Dispose()
+        {
+            m_Array->Dispose();
+            m_PoolArray->Dispose();
         }
     }
 }
