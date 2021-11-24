@@ -13,44 +13,43 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             get
             {
-                return cacheLightElements.IsCreated;
+                return cacheLightProxys.IsCreated;
             }
         }
-
-        public TNativeSparseArray<FLightElement> cacheLightElements;
+        internal NativeHashMap<int, FLightElement> cacheLightProxys;
 
         public FLightElementCollector() 
-        { 
-
+        {
+            cacheLightProxys = new NativeHashMap<int, FLightElement>(64, Allocator.Persistent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int AddLightElement(in FLightElement lightElement)
+        public void AddLightElement(in FLightElement lightElement, in int key)
         {
-            return cacheLightElements.Add(lightElement);
+            cacheLightProxys.Add(key, lightElement);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateLightElement(in FLightElement lightElement, in int key)
         {
-            cacheLightElements[key] = lightElement;
+            cacheLightProxys[key] = lightElement;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveLightElement(in int key)
         {
-            cacheLightElements.Remove(key);
+            cacheLightProxys.Remove(key);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
-            
+            cacheLightProxys.Clear();
         }
 
         public void Release()
         {
-            cacheLightElements.Dispose();
+            cacheLightProxys.Dispose();
         }
     }
 }

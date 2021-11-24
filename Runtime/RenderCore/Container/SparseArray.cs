@@ -61,14 +61,15 @@ namespace InfinityTech.Core.Container
         {
             get
             {
-                return m_Array.length;
+                return m_Array->length;
             }
         }
         public ref T this[int index]
         {
             get
             {
-                return ref m_Array[index];
+                TNativeArray<T> array = *m_Array;
+                return ref array[index];
             }
         }
 
