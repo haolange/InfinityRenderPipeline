@@ -36,8 +36,8 @@ CBUFFER_START(ViewUnifrom)
     float4x4 Matrix_InvViewJitterProj;
     float4x4 Matrix_ViewFlipYJitterProj;
     float4x4 Matrix_InvViewFlipYJitterProj;
-    float4x4 Matrix_PrevViewProj;
-    float4x4 Matrix_PrevViewFlipYProj;
+    float4x4 Matrix_LastViewProj;
+    float4x4 Matrix_LastViewFlipYProj;
 CBUFFER_END
 
 CBUFFER_START(UnityPerFrame)

@@ -55,8 +55,8 @@ namespace InfinityTech.Rendering.Pipeline
         private static readonly int ID_Matrix_ViewFlipYJitterProj = Shader.PropertyToID("Matrix_ViewFlipYJitterProj");
         private static readonly int ID_Matrix_InvViewFlipYJitterProj = Shader.PropertyToID("Matrix_InvViewFlipYJitterProj");
         private static readonly int ID_LastFrameIndex = Shader.PropertyToID("Prev_FrameIndex");
-        private static readonly int ID_Matrix_LastViewProj = Shader.PropertyToID("Matrix_PrevViewProj");
-        private static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_PrevViewFlipYProj");
+        private static readonly int ID_Matrix_LastViewProj = Shader.PropertyToID("Matrix_LastViewProj");
+        private static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_LastViewFlipYProj");
 
         public int frameIndex;
         public int lastFrameIndex;

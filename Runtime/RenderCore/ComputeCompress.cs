@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
-public class RuntimeCompress : MonoBehaviour
+public class ComputeCompress : MonoBehaviour
 {
     public int Size = 256;
     private int m_QuadSize

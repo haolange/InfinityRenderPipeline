@@ -4,8 +4,9 @@
 #include "BSDF.hlsl"
 #include "ShadingModel.hlsl"
 
-//////////////////////////Environment LUT 
-float IBL_Defualt_DiffuseIntegrated(float Roughness, float NoV) {
+// Environment LUT 
+float IBL_Defualt_DiffuseIntegrated(float Roughness, float NoV) 
+{
     float r = 0; 
 	const uint NumSamples = 1024;
 
@@ -25,7 +26,8 @@ float IBL_Defualt_DiffuseIntegrated(float Roughness, float NoV) {
     return r / NumSamples;
 }
 
-float2 IBL_Defualt_SpecularIntegrated(float Roughness, float NoV) {
+float2 IBL_Defualt_SpecularIntegrated(float Roughness, float NoV) 
+{
     float2 r = 0;
     const uint NumSamples = 1024;
 
@@ -73,8 +75,7 @@ float2 IBL_Ashikhmin_SpecularIntegrated(float Roughness, float NoV)
         float VoH = saturate( dot(V, H) );
         float NoL = saturate( dot(N, L) );
 
-        if (NoL > 0)
-        {
+        if (NoL > 0) {
             //float Gv = 2 * NoL * D_Ashikhmin_NoPi(NoH, Roughness) * Vis_Ashikhmin(NoL, NoV);
             float Gv = 2 * NoL * D_Charlie_NoPi(NoH, Roughness) * Vis_Charlie(NoL, NoV, Roughness);
             float Fc = pow(1 - VoH, 5);
@@ -86,7 +87,8 @@ float2 IBL_Ashikhmin_SpecularIntegrated(float Roughness, float NoV)
     return r /= NumSamples;
 }
 
-float2 IBL_Defualt_SpecularIntegrated_Approx(float Roughness, float NoV) {
+float2 IBL_Defualt_SpecularIntegrated_Approx(float Roughness, float NoV) 
+{
     const float4 c0 = float4(-1.0, -0.0275, -0.572,  0.022);
     const float4 c1 = float4( 1.0,  0.0425,  1.040, -0.040);
     float4 r = Roughness * c0 + c1;
@@ -94,7 +96,8 @@ float2 IBL_Defualt_SpecularIntegrated_Approx(float Roughness, float NoV) {
     return float2(-1.04, 1.04) * a004 + r.zw;
 }
 
-float IBL_Defualt_SpecularIntegrated_Approx_Nonmetal(float Roughness, float NoV) {
+float IBL_Defualt_SpecularIntegrated_Approx_Nonmetal(float Roughness, float NoV) 
+{
 	const float2 c0 = { -1, -0.0275 };
 	const float2 c1 = { 1, 0.0425 };
 	float2 r = Roughness * c0 + c1;
@@ -102,7 +105,8 @@ float IBL_Defualt_SpecularIntegrated_Approx_Nonmetal(float Roughness, float NoV)
 }
 
 
-float2 IBL_Ashikhmin_SpecularIntegrated_Approx(float Roughness, float NoV) {
+float2 IBL_Ashikhmin_SpecularIntegrated_Approx(float Roughness, float NoV) 
+{
     const float4 c0 = float4(0.24,  0.93, 0.01, 0.20);
     const float4 c1 = float4(2, -1.30, 0.40, 0.03);
 
@@ -115,7 +119,8 @@ float2 IBL_Ashikhmin_SpecularIntegrated_Approx(float Roughness, float NoV) {
     return float2(r, r * c1.w);
 }
 
-float2 IBL_Charlie_SpecularIntegrated_Approx(float Roughness, float NoV) {
+float2 IBL_Charlie_SpecularIntegrated_Approx(float Roughness, float NoV) 
+{
     const float3 c0 = float3(0.95, 1250, 0.0095);
     const float4 c1 = float4(0.04, 0.2, 0.3, 0.2);
 
@@ -174,7 +179,7 @@ float3 IBL_Hair_FullIntegrated(float3 V, float3 N, float3 SpecularColor, float R
 	return Lighting;
 }
 
-//////////Enviornment BRDF
+// Enviornment BRDF
 float4 PreintegratedDGF_LUT(sampler2D PreintegratedLUT, inout float3 EnergyCompensation, float3 SpecularColor, float Roughness, float NoV)
 {
     float3 Enviorfilter_GFD = tex2Dlod( PreintegratedLUT, float4(Roughness, NoV, 0, 0) ).rgb;

@@ -371,7 +371,7 @@
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
 				Out.clipPos = mul(Matrix_ViewProj, mul(unity_ObjectToWorld, In.vertex));
-				Out.clipPos_Old = mul(Matrix_PrevViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertex_Old, 1) : In.vertex));
+				Out.clipPos_Old = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertex_Old, 1) : In.vertex));
 
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1));
 				Out.vertex = mul(Matrix_ViewJitterProj, WorldPos);//UNITY_MATRIX_VP

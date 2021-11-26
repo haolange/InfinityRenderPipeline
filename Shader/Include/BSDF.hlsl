@@ -46,7 +46,7 @@ void Init_Aniso(inout AnisoBSDFContext LightData, float3 Tangent, float3 Bitange
 }
 
 
-/////////////////////////////////////////////////////////////////Specular F
+// Fersnel
 float IorToFresnel(float transmittedIor, float incidentIor)
 {
 	return pow2(transmittedIor - incidentIor) / pow2(transmittedIor + incidentIor);
@@ -93,7 +93,7 @@ float F_Hair(float CosTheta) {
 }
 
 
-/////////////////////////////////////////////////////////////////Diffuse
+// Diffuse
 float3 Diffuse_Lambert(float3 DiffuseColor)
 {
 	return DiffuseColor * Inv_Pi;
@@ -148,8 +148,7 @@ float3 Diffuse_OrenNayar(float VoH, float NoL, float NoV, float Roughness, float
 	return Diffuse_OrenNayar_NoPi(VoH, NoL, NoV, Roughness) * (DiffuseColor * Inv_Pi);
 }
 
-
-/////////////////////////////////////////////////////////////////Specular D
+// Distrubution
 float D_GGX_NoPi(float NoH, float Roughness)
 {
 	float Roughness2 = pow2(Roughness);
@@ -174,12 +173,14 @@ float D_Beckmann(float NoH, float Roughness)
 	return Inv_Pi * D_Beckmann_NoPi(NoH, Roughness);
 }
 
-float D_AnisotropyGGX_NoPi(float ToH, float BoH, float NoH, float RoughnessT, float RoughnessB) {
+float D_AnisotropyGGX_NoPi(float ToH, float BoH, float NoH, float RoughnessT, float RoughnessB) 
+{
     float D = ToH * ToH / pow2(RoughnessT) + BoH * BoH / pow2(RoughnessB) + pow2(NoH);
     return rcp( RoughnessT * RoughnessB * pow2(D) );
 }
 
-float D_AnisotropyGGX(float ToH, float BoH, float NoH, float RoughnessT, float RoughnessB) {
+float D_AnisotropyGGX(float ToH, float BoH, float NoH, float RoughnessT, float RoughnessB) 
+{
     return Inv_Pi * D_AnisotropyGGX_NoPi(ToH, BoH, NoH, RoughnessT, RoughnessB);
 }
 
@@ -210,13 +211,15 @@ float D_InvBeckmann(float NoH, float Roughness)
 	return Inv_Pi * D_InvBeckmann_NoPi(NoH, Roughness);
 }
 
-float D_Ashikhmin_NoPi(float NoH, float Roughness) {
+float D_Ashikhmin_NoPi(float NoH, float Roughness) 
+{
 	float a2 = pow4(Roughness);
 	float d = (NoH - a2 * NoH) * NoH + a2;
 	return rcp (1 + 4 * a2) * ( 1 + 4 * a2 * a2 / (d * d) );
 }
 
-float D_Ashikhmin(float NoH, float Roughness) {
+float D_Ashikhmin(float NoH, float Roughness) 
+{
 	return Inv_Pi * D_Ashikhmin_NoPi(NoH, Roughness);
 }
 
@@ -233,9 +236,7 @@ float D_Charlie(float NoH, float Roughness)
     return Inv_Pi * D_Charlie_NoPi(NoH, Roughness);
 }
 
-
-
-/////////////////////////////////////////////////////////////////Specular V
+// Visbility
 float Vis_Neumann(float NoL, float NoV)
 {
 	return rcp( 4 * max(NoL, NoV) );
@@ -321,9 +322,7 @@ float Vis_Hair(float B, float Theta) {
 	return exp(-0.5 * Square(Theta) / (B * B)) / (sqrt(2 * Pi) * B);
 }
 
-
-
-/////////////////////////////////////////////////////////////////Utillity
+// Utility
 float3 EvalSensitivity(float opd, float shift) {
     float phase = 2 * Pi * opd * 1e-6;
     float3 val = float3(5.4856e-13, 4.4201e-13, 5.2481e-13);
