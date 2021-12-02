@@ -526,6 +526,7 @@ namespace InfinityTech.Rendering.RDG
             {
                 ref FRDGPassOption passOption = ref pass.GetPassOption();
                 ClearFlag clearFlag = passOption.IsClearDepth && passOption.IsClearColor ? ClearFlag.All : ClearFlag.Color;
+                clearFlag = passOption.IsActive ? clearFlag : ClearFlag.None;
 
                 if (pass.colorBufferMaxIndex > 0)
                 {

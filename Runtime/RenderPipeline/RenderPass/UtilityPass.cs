@@ -25,29 +25,31 @@ namespace InfinityTech.Rendering.Pipeline
         {
             #if UNITY_EDITOR
             public Camera camera;
-            public RenderTexture colorBuffer;
+            public FRDGTextureRef depthBuffer;
+            public FRDGTextureRef colorBuffer;
             #endif
         }
 
         #if UNITY_EDITOR
-        void RenderGizmos(Camera camera, RenderTexture dscTexture)
+        void RenderGizmos(Camera camera)
         {
             if (Handles.ShouldRenderGizmos())
             {
+                FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+                FRDGTextureRef colorTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+
                 // Add GizmosPass
                 using (FRDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassUtilityData.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     passData.camera = camera;
-                    passData.colorBuffer = dscTexture;
+                    passData.colorBuffer = passRef.UseColorBuffer(colorTexture, 0);
+                    passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                     //Execute Phase
                     passRef.SetExecuteFunc((in GizmosPassData passData, in FRDGContext graphContext) =>
                     {
-                        graphContext.cmdBuffer.SetRenderTarget(passData.colorBuffer);
-                        graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
-                        graphContext.cmdBuffer.Clear();
                         graphContext.renderContext.DrawGizmos(passData.camera, GizmoSubset.PostImageEffects);
                     });
                 }
