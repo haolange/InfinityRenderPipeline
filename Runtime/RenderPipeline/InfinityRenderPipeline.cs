@@ -288,11 +288,11 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderMotion(camera, cullingData, cullingResult);
                         RenderForward(camera, cullingData, cullingResult);
                         RenderSkyBox(camera);
-                        #if UNITY_EDITOR
-                        RenderGizmos(camera, GizmoSubset.PostImageEffects);
-                        #endif
                         RenderAntiAliasing(camera, historyCache);
                         RenderPresent(camera, camera.targetTexture);
+                        #if UNITY_EDITOR
+                        RenderGizmos(camera, camera.targetTexture);
+                        #endif
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
                         m_GraphBuilder.Execute(renderContext, GetWorld(), cmdBuffer, m_ResourcePool);

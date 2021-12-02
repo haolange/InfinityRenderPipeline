@@ -505,7 +505,7 @@ void ForwardFragment(Varyings IN, out float3 DiffuseBuffer : SV_Target0, out flo
     InitializeInputData(IN, normalTS, inputData);
     //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
     DiffuseBuffer = mixedDiffuse.rgb * weight;
-    SpecularBuffer = inputData.normalWS * weight;
+    SpecularBuffer = mixedDiffuse.bgr * weight;
 }
 
 void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2)

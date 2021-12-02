@@ -20,17 +20,17 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline
     {
 
-        ///////////Gizmos Graph
+        // Gizmos Graph
         struct GizmosPassData
         {
-        #if UNITY_EDITOR
+            #if UNITY_EDITOR
             public Camera camera;
-            public GizmoSubset gizmoSubset;
-        #endif
+            public RenderTexture colorBuffer;
+            #endif
         }
 
-#if UNITY_EDITOR
-        void RenderGizmos(Camera camera, GizmoSubset gizmoSubset)
+        #if UNITY_EDITOR
+        void RenderGizmos(Camera camera, RenderTexture dscTexture)
         {
             if (Handles.ShouldRenderGizmos())
             {
@@ -40,19 +40,22 @@ namespace InfinityTech.Rendering.Pipeline
                     //Setup Phase
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     passData.camera = camera;
-                    passData.gizmoSubset = gizmoSubset;
+                    passData.colorBuffer = dscTexture;
 
                     //Execute Phase
                     passRef.SetExecuteFunc((in GizmosPassData passData, in FRDGContext graphContext) =>
                     {
-                        graphContext.renderContext.DrawGizmos(passData.camera, passData.gizmoSubset);
+                        graphContext.cmdBuffer.SetRenderTarget(passData.colorBuffer);
+                        graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+                        graphContext.cmdBuffer.Clear();
+                        graphContext.renderContext.DrawGizmos(passData.camera, GizmoSubset.PostImageEffects);
                     });
                 }
             }
         }
-#endif
+        #endif
 
-        ///////////SkyBox Graph
+        // SkyBox Graph
         struct SkyBoxPassData
         {
             public Camera camera;
@@ -75,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        ///////////Present Graph
+        // Present Graph
         struct PresentPassData
         {
             public Camera camera;
