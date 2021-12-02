@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public ELightType lightType;
         public ELightLayer lightLayer;
 
-        ///Emission Property
+        // Emission Property
         public Color color;
         public float intensity;
         public float temperature;
@@ -90,15 +90,15 @@ namespace InfinityTech.Rendering.LightPipeline
         public float width;
         public float height;
 
-        ///Globalillumination Property
+        // Indirect Property
         public int enableIndirect;
         public float indirectIntensity;
 
-        ///IES and Cookie Property
+        // IES and Cookie Property
         public int IESIndex;
         public int cookieIndex;
 
-        ///Shadow Property
+        // Shadow Property
         public int enableShadow;
         public EShadowType shadowType;
         public ELightLayer shadowLayer;
@@ -107,16 +107,16 @@ namespace InfinityTech.Rendering.LightPipeline
         public float minSoftness;
         public float maxSoftness;
 
-        ///Contact Shadow Property
+        // Contact Shadow Property
         public int enableContactShadow;
         public float contactShadowLength;
 
-        ///VolumetricFog Property
+        // VolumetricFog Property
         public int enableVolumetric;
         public float volumetricIntensity;
         public float volumetricOcclusion;
 
-        ///Performance Property
+        // Performance Property
         public float maxDrawDistance;
         public float maxDrawDistanceFade;
 

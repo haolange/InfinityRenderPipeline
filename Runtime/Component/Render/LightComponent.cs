@@ -130,13 +130,13 @@ namespace InfinityTech.Component
         public bool showVolumetricFog = true;
         public bool showPerformance = true;
 
-        //General Property
+        // General Property
         public Light unityLight;
         public ELightState state = ELightState.Dynamic;
         public ELightType lightType = ELightType.Directional;
         public ELightLayer lightLayer = ELightLayer.LightLayerDefault;
 
-        //Emission Property
+        // Emission Property
         public Color color = Color.white;
         public float intensity = 10;
         public float temperature = 7000;
@@ -150,17 +150,17 @@ namespace InfinityTech.Component
         public float width = 0.5f;
         public float height = 0.5f;
 
-        //Globalillumination Property
+        // Indirect Property
         public bool enableIndirect = true;
         public float indirectIntensity = 1;
 
-        //IES and Cookie Property
+        // IES and Cookie Property
         public int IESIndex = 0;
         public Texture2D IESTexture;
         public int cookieIndex = 0;
         public Texture2D cookieTexture;
 
-        //Shadow Property
+        // Shadow Property
         public bool enableShadow = true;
         public float nearPlane = 0.05f;
         public float minSoftness = 0.1f;
@@ -169,16 +169,16 @@ namespace InfinityTech.Component
         public ELightLayer shadowLayer = ELightLayer.LightLayerDefault;
         public EShadowResolution resolution = EShadowResolution.X1024;
 
-        //Contact Shadow Property
+        // Contact Shadow Property
         public bool enableContactShadow = false;
         public float contactShadowLength = 0.05f;
 
-        //VolumetricFog Property
+        // VolumetricFog Property
         public bool enableVolumetric = true;
         public float volumetricIntensity = 1;
         public float volumetricOcclusion = 1;
 
-        //Performance Property
+        // Performance Property
         public float maxDrawDistance = 128;
         public float maxDrawDistanceFade = 1;
 
@@ -217,45 +217,41 @@ namespace InfinityTech.Component
         }
 #endif
 
-        public FLightElement GetLightElementElement() 
+        public void GetLightElementElement(ref FLightElement lightElement) 
         {
-            FLightElement lightElement;
-            {
-                lightElement.state = state;
-                lightElement.lightType = lightType;
-                lightElement.lightLayer = lightLayer;
-                lightElement.color = color;
-                lightElement.temperature = temperature;
-                lightElement.intensity = intensity;
-                lightElement.range = range;
-                lightElement.diffuse = diffuse;
-                lightElement.specular = specular;
-                lightElement.radius = radius;
-                lightElement.length = length;
-                lightElement.innerAngle = innerAngle;
-                lightElement.outerAngle = outerAngle;
-                lightElement.width = width;
-                lightElement.height = height;
-                lightElement.enableIndirect = enableIndirect ? 1 : 0;
-                lightElement.indirectIntensity = indirectIntensity;
-                lightElement.IESIndex = IESIndex;
-                lightElement.cookieIndex = cookieIndex;
-                lightElement.enableShadow = enableShadow ? 1 : 0;
-                lightElement.shadowLayer = shadowLayer;
-                lightElement.shadowType = shadowType;
-                lightElement.resolution = resolution;
-                lightElement.nearPlane = nearPlane;
-                lightElement.minSoftness = minSoftness;
-                lightElement.maxSoftness = maxSoftness;
-                lightElement.enableContactShadow = enableContactShadow ? 1 : 0;
-                lightElement.contactShadowLength = contactShadowLength;
-                lightElement.enableVolumetric = enableVolumetric ? 1 : 0;
-                lightElement.volumetricIntensity = volumetricIntensity;
-                lightElement.volumetricOcclusion = volumetricOcclusion;
-                lightElement.maxDrawDistance = maxDrawDistance;
-                lightElement.maxDrawDistanceFade = maxDrawDistanceFade;
-            }
-            return lightElement;
+            lightElement.state = state;
+            lightElement.lightType = lightType;
+            lightElement.lightLayer = lightLayer;
+            lightElement.color = color;
+            lightElement.temperature = temperature;
+            lightElement.intensity = intensity;
+            lightElement.range = range;
+            lightElement.diffuse = diffuse;
+            lightElement.specular = specular;
+            lightElement.radius = radius;
+            lightElement.length = length;
+            lightElement.innerAngle = innerAngle;
+            lightElement.outerAngle = outerAngle;
+            lightElement.width = width;
+            lightElement.height = height;
+            lightElement.enableIndirect = enableIndirect ? 1 : 0;
+            lightElement.indirectIntensity = indirectIntensity;
+            lightElement.IESIndex = IESIndex;
+            lightElement.cookieIndex = cookieIndex;
+            lightElement.enableShadow = enableShadow ? 1 : 0;
+            lightElement.shadowLayer = shadowLayer;
+            lightElement.shadowType = shadowType;
+            lightElement.resolution = resolution;
+            lightElement.nearPlane = nearPlane;
+            lightElement.minSoftness = minSoftness;
+            lightElement.maxSoftness = maxSoftness;
+            lightElement.enableContactShadow = enableContactShadow ? 1 : 0;
+            lightElement.contactShadowLength = contactShadowLength;
+            lightElement.enableVolumetric = enableVolumetric ? 1 : 0;
+            lightElement.volumetricIntensity = volumetricIntensity;
+            lightElement.volumetricOcclusion = volumetricOcclusion;
+            lightElement.maxDrawDistance = maxDrawDistance;
+            lightElement.maxDrawDistanceFade = maxDrawDistanceFade;
         }
     }
 }
