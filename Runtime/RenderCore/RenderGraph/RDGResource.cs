@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.RDG
     internal class FRDGResource<DescType, ResType> : IRDGResource where DescType : struct where ResType : class
     {
         public ResType resource;
-        public DescType description;
+        public DescType descriptor;
 
         protected FRDGResource()
         {
@@ -111,19 +111,19 @@ namespace InfinityTech.Rendering.RDG
         }
     }
 
-    internal class FRDGBuffer : FRDGResource<FBufferDescription, ComputeBuffer>
+    internal class FRDGBuffer : FRDGResource<FBufferDescriptor, ComputeBuffer>
     {
         public override string GetName()
         {
-            return description.name;
+            return descriptor.name;
         }
     }
 
-    internal class FRDGTexture : FRDGResource<FTextureDescription, RTHandle>
+    internal class FRDGTexture : FRDGResource<FTextureDescriptor, RTHandle>
     {
         public override string GetName()
         {
-            return description.name;
+            return descriptor.name;
         }
     }
 
@@ -222,10 +222,10 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal FRDGBufferRef CreateBuffer(in FBufferDescription description, int temporalPassIndex = -1)
+        internal FRDGBufferRef CreateBuffer(in FBufferDescriptor descriptor, int temporalPassIndex = -1)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Buffer], out FRDGBuffer rdgBuffer);
-            rdgBuffer.description = description;
+            rdgBuffer.descriptor = descriptor;
             rdgBuffer.temporalPassIndex = temporalPassIndex;
 
             return new FRDGBufferRef(newHandle);
@@ -244,9 +244,9 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal FBufferDescription GetBufferDescription(in FRDGResourceHandle handle)
+        internal FBufferDescriptor GetBufferDescriptor(in FRDGResourceHandle handle)
         {
-            return (m_Resources[(int)ERDGResourceType.Buffer][handle] as FRDGBuffer).description;
+            return (m_Resources[(int)ERDGResourceType.Buffer][handle] as FRDGBuffer).descriptor;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -261,10 +261,10 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal FRDGTextureRef CreateTexture(in FTextureDescription description, in int shaderProperty = 0, in int temporalPassIndex = -1)
+        internal FRDGTextureRef CreateTexture(in FTextureDescriptor descriptor, in int shaderProperty = 0, in int temporalPassIndex = -1)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERDGResourceType.Texture], out FRDGTexture rdgTexture);
-            rdgTexture.description = description;
+            rdgTexture.descriptor = descriptor;
             rdgTexture.shaderProperty = shaderProperty;
             rdgTexture.temporalPassIndex = temporalPassIndex;
             return new FRDGTextureRef(newHandle);
@@ -283,9 +283,9 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal FTextureDescription GetTextureDescription(in FRDGResourceHandle handle)
+        internal FTextureDescriptor GetTextureDescriptor(in FRDGResourceHandle handle)
         {
-            return (m_Resources[(int)ERDGResourceType.Texture][handle] as FRDGTexture).description;
+            return (m_Resources[(int)ERDGResourceType.Texture][handle] as FRDGTexture).descriptor;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -295,16 +295,16 @@ namespace InfinityTech.Rendering.RDG
 
             if (!resource.imported)
             {
-                var desc = resource.description;
+                var desc = resource.descriptor;
                 int hashCode = desc.GetHashCode();
 
                 if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.description.name));
+                    throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
                 resource.resource = null;
                 if (!m_BufferPool.Pull(hashCode, out resource.resource))
                 {
-                    resource.resource = new ComputeBuffer(resource.description.count, resource.description.stride, resource.description.type);
+                    resource.resource = new ComputeBuffer(resource.descriptor.count, resource.descriptor.stride, resource.descriptor.type);
                 }
                 resource.cachedHash = hashCode;
             }
@@ -318,7 +318,7 @@ namespace InfinityTech.Rendering.RDG
             if (!resource.imported)
             {
                 if (resource.resource == null)
-                    throw new InvalidOperationException($"Tried to release a compute buffer ({resource.description.name}) that was never created. Check that there is at least one pass writing to it first.");
+                    throw new InvalidOperationException($"Tried to release a compute buffer ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 m_BufferPool.Push(resource.cachedHash, resource.resource);
                 resource.cachedHash = -1;
@@ -334,11 +334,11 @@ namespace InfinityTech.Rendering.RDG
 
             if (!resource.imported)
             {
-                var desc = resource.description;
+                var desc = resource.descriptor;
                 int hashCode = desc.GetHashCode();
 
                 if (resource.resource != null)
-                    throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.description.name));
+                    throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
                 resource.resource = null;
                 if (!m_TexturePool.Pull(hashCode, out resource.resource))
@@ -348,11 +348,11 @@ namespace InfinityTech.Rendering.RDG
                 }
                 resource.cachedHash = hashCode;
 
-                if (resource.description.clearBuffer)
+                if (resource.descriptor.clearBuffer)
                 {
-                    bool debugClear = !resource.description.clearBuffer;
-                    var clearFlag = resource.description.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
-                    var clearColor = debugClear ? Color.magenta : resource.description.clearColor;
+                    bool debugClear = !resource.descriptor.clearBuffer;
+                    var clearFlag = resource.descriptor.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
+                    var clearColor = debugClear ? Color.magenta : resource.descriptor.clearColor;
                     CoreUtils.SetRenderTarget(graphContext.cmdBuffer, resource.resource, clearFlag, clearColor);
                 }
             }
@@ -366,7 +366,7 @@ namespace InfinityTech.Rendering.RDG
             if (!resource.imported)
             {
                 if (resource.resource == null)
-                    throw new InvalidOperationException($"Tried to release a texture ({resource.description.name}) that was never created. Check that there is at least one pass writing to it first.");
+                    throw new InvalidOperationException($"Tried to release a texture ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
                 /*using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.RenderGraphClearDebug)))
                 {

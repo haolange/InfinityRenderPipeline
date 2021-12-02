@@ -24,9 +24,9 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderDepth(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
-            FTextureDescription depthDescription = new FTextureDescription(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FDepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
+            FTextureDescriptor depthDescriptor = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FDepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
 
-            FRDGTextureRef depthTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthDescription);
+            FRDGTextureRef depthTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthDescriptor);
 
             //Add DepthPass
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.meshPassProcessor = m_DepthMeshProcessor;
                 passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 
-                m_DepthMeshProcessor.DispatchSetup(cullingData, new FMeshPassDesctiption(2450, 2999));
+                m_DepthMeshProcessor.DispatchSetup(cullingData, new FMeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in FDepthPassData passData, in FRDGContext graphContext) =>

@@ -14,15 +14,15 @@ namespace InfinityTech.Rendering.GPUResource
             m_TexturePool = new FTextureCache();
         }
 
-        public FBufferRef GetBuffer(in FBufferDescription description)
+        public FBufferRef GetBuffer(in FBufferDescriptor descriptor)
         {
             ComputeBuffer buffer;
-            int handle = description.GetHashCode();
+            int handle = descriptor.GetHashCode();
 
             if (!m_BufferPool.Pull(handle, out buffer))
             {
-                buffer = new ComputeBuffer(description.count, description.stride, description.type);
-                buffer.name = description.name;
+                buffer = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
+                buffer.name = descriptor.name;
             }
 
             return new FBufferRef(handle, buffer);
@@ -33,15 +33,15 @@ namespace InfinityTech.Rendering.GPUResource
             m_BufferPool.Push(bufferRef.handle, bufferRef.buffer);
         }
 
-        public FTextureRef GetTexture(in FTextureDescription description)
+        public FTextureRef GetTexture(in FTextureDescriptor descriptor)
         {
             RTHandle texture;
-            int handle = description.GetHashCode();
+            int handle = descriptor.GetHashCode();
 
             if (!m_TexturePool.Pull(handle, out texture))
             {
-                texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
-                                          description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
+                texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
+                                          descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, RenderTextureMemoryless.None, descriptor.name);
             }
 
             return new FTextureRef(handle, texture);

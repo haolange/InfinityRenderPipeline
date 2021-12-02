@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.GPUResource
         MSAA8x = 8
     }
 
-    public struct FBufferDescription : IEquatable<FBufferDescription>
+    public struct FBufferDescriptor : IEquatable<FBufferDescriptor>
     {
         public string name;
 
@@ -31,28 +31,28 @@ namespace InfinityTech.Rendering.GPUResource
         public int stride;
         public ComputeBufferType type;
 
-        public FBufferDescription(int count, int stride) : this()
+        public FBufferDescriptor(int count, int stride) : this()
         {
             this.count = count;
             this.stride = stride;
             type = ComputeBufferType.Default;
         }
 
-        public FBufferDescription(int count, int stride, ComputeBufferType type) : this()
+        public FBufferDescriptor(int count, int stride, ComputeBufferType type) : this()
         {
             this.type = type;
             this.count = count;
             this.stride = stride;
         }
 
-        public bool Equals(FBufferDescription target)
+        public bool Equals(FBufferDescriptor target)
         {
             return this.GetHashCode().Equals(target.GetHashCode());
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FBufferDescription)target);
+            return Equals((FBufferDescriptor)target);
         }
 
         public override int GetHashCode()
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct FTextureDescription : IEquatable<FTextureDescription>
+    public struct FTextureDescriptor : IEquatable<FTextureDescriptor>
     {
         public string name;
 
@@ -89,7 +89,7 @@ namespace InfinityTech.Rendering.GPUResource
         public bool clearBuffer;
         public Color clearColor;
 
-        public FTextureDescription(int Width, int Height) : this()
+        public FTextureDescriptor(int Width, int Height) : this()
         {
             width = Width;
             height = Height;
@@ -107,14 +107,14 @@ namespace InfinityTech.Rendering.GPUResource
             wrapMode = TextureWrapMode.Repeat;
         }
 
-        public bool Equals(FTextureDescription target)
+        public bool Equals(FTextureDescriptor target)
         {
             return this.GetHashCode().Equals(target.GetHashCode());
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FTextureDescription)target);
+            return Equals((FTextureDescriptor)target);
         }
 
         public override int GetHashCode()
@@ -138,23 +138,23 @@ namespace InfinityTech.Rendering.GPUResource
             return hashCode;
         }
 
-        public static implicit operator RenderTextureDescriptor(in FTextureDescription description)
+        public static implicit operator RenderTextureDescriptor(in FTextureDescriptor descriptor)
         {
-            RenderTextureDescriptor rtDescription = new RenderTextureDescriptor(description.width, description.height, description.colorFormat, (int)description.depthBufferBits, -1);
-            rtDescription.vrUsage = VRTextureUsage.None;
-            rtDescription.volumeDepth = description.slices;
-            rtDescription.useMipMap = description.useMipMap;
-            rtDescription.dimension = description.dimension;
-            rtDescription.stencilFormat = GraphicsFormat.None;
-            rtDescription.bindMS = description.bindTextureMS;
-            rtDescription.depthStencilFormat = GraphicsFormat.None;
-            rtDescription.memoryless = RenderTextureMemoryless.None;
-            rtDescription.msaaSamples = (int)description.msaaSamples;
-            rtDescription.shadowSamplingMode = ShadowSamplingMode.None;
-            rtDescription.autoGenerateMips = description.autoGenerateMips;
-            rtDescription.autoGenerateMips = description.autoGenerateMips;
-            rtDescription.enableRandomWrite = description.enableRandomWrite;
-            return rtDescription;
+            RenderTextureDescriptor rtDescriptor = new RenderTextureDescriptor(descriptor.width, descriptor.height, descriptor.colorFormat, (int)descriptor.depthBufferBits, -1);
+            rtDescriptor.vrUsage = VRTextureUsage.None;
+            rtDescriptor.volumeDepth = descriptor.slices;
+            rtDescriptor.useMipMap = descriptor.useMipMap;
+            rtDescriptor.dimension = descriptor.dimension;
+            rtDescriptor.stencilFormat = GraphicsFormat.None;
+            rtDescriptor.bindMS = descriptor.bindTextureMS;
+            rtDescriptor.depthStencilFormat = GraphicsFormat.None;
+            rtDescriptor.memoryless = RenderTextureMemoryless.None;
+            rtDescriptor.msaaSamples = (int)descriptor.msaaSamples;
+            rtDescriptor.shadowSamplingMode = ShadowSamplingMode.None;
+            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
+            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
+            rtDescriptor.enableRandomWrite = descriptor.enableRandomWrite;
+            return rtDescriptor;
         }
     }
 

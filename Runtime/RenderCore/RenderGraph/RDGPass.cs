@@ -239,9 +239,9 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef CreateTemporaryTexture(in FTextureDescription description)
+        public FRDGTextureRef CreateTemporaryTexture(in FTextureDescriptor descriptor)
         {
-            var result = m_Resources.CreateTexture(description, 0, m_Pass.index);
+            var result = m_Resources.CreateTexture(descriptor, 0, m_Pass.index);
             m_Pass.AddTemporalResource(result.handle);
             return result;
         }
@@ -261,9 +261,9 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGBufferRef CreateTemporaryBuffer(in FBufferDescription description)
+        public FRDGBufferRef CreateTemporaryBuffer(in FBufferDescriptor descriptor)
         {
-            FRDGBufferRef bufferRef = m_Resources.CreateBuffer(description, m_Pass.index);
+            FRDGBufferRef bufferRef = m_Resources.CreateBuffer(descriptor, m_Pass.index);
             m_Pass.AddTemporalResource(bufferRef.handle);
             return bufferRef;
         }

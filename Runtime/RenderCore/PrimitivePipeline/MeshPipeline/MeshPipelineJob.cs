@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly]
         public NativeArray<FMeshElement> meshElements;
 
-        public FMeshPassDesctiption meshPassDesctiption;
+        public FMeshPassDescriptor meshPassDescriptor;
 
         [WriteOnly]
         public NativeList<FPassMeshSection> passMeshSections;
@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     meshElement = meshElements[i];
 
-                    if (meshElement.priority >= meshPassDesctiption.renderQueueMin && meshElement.priority <= meshPassDesctiption.renderQueueMax)
+                    if (meshElement.priority >= meshPassDescriptor.renderQueueMin && meshElement.priority <= meshPassDescriptor.renderQueueMax)
                     {
                         FPassMeshSection passMeshBatch = new FPassMeshSection(i, FMeshElement.MatchForDynamicInstance(ref meshElement));
                         passMeshSections.Add(passMeshBatch);
@@ -205,7 +205,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<FMeshElement> meshElements;
 
         [ReadOnly]
-        public FMeshPassDesctiption meshPassDesctiption;
+        public FMeshPassDescriptor meshPassDescriptor;
 
         public NativeList<FPassMeshSection> passMeshSections;
 
@@ -222,7 +222,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     meshElement = meshElements[i];
 
-                    if(meshElement.priority >= meshPassDesctiption.renderQueueMin && meshElement.priority <= meshPassDesctiption.renderQueueMax)
+                    if(meshElement.priority >= meshPassDescriptor.renderQueueMin && meshElement.priority <= meshPassDescriptor.renderQueueMax)
                     {
                         FPassMeshSection passMeshBatch = new FPassMeshSection(i, FMeshElement.MatchForDynamicInstance(ref meshElement));
                         passMeshSections.Add(passMeshBatch);

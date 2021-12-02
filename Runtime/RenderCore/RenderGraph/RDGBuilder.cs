@@ -115,21 +115,21 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGBufferRef CreateBuffer(in FBufferDescription description)
+        public FRDGBufferRef CreateBuffer(in FBufferDescriptor descriptor)
         {
-            return m_Resources.CreateBuffer(description);
+            return m_Resources.CreateBuffer(descriptor);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGBufferRef CreateBuffer(in FRDGBufferRef bufferRef)
         {
-            return m_Resources.CreateBuffer(m_Resources.GetBufferDescription(bufferRef.handle));
+            return m_Resources.CreateBuffer(m_Resources.GetBufferDescriptor(bufferRef.handle));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FBufferDescription GetBufferDescription(in FRDGBufferRef bufferRef)
+        public FBufferDescriptor GetBufferDescriptor(in FRDGBufferRef bufferRef)
         {
-            return m_Resources.GetBufferDescription(bufferRef.handle);
+            return m_Resources.GetBufferDescriptor(bufferRef.handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -141,19 +141,19 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FRDGTextureRef CreateTexture(in FRDGTextureRef textureRef, in int shaderProperty = 0)
         {
-            return m_Resources.CreateTexture(m_Resources.GetTextureDescription(textureRef.handle), shaderProperty);
+            return m_Resources.CreateTexture(m_Resources.GetTextureDescriptor(textureRef.handle), shaderProperty);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef CreateTexture(in FTextureDescription description, in int shaderProperty = 0)
+        public FRDGTextureRef CreateTexture(in FTextureDescriptor descriptor, in int shaderProperty = 0)
         {
-            return m_Resources.CreateTexture(description, shaderProperty);
+            return m_Resources.CreateTexture(descriptor, shaderProperty);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FTextureDescription GetTextureDescription(in FRDGTextureRef textureRef)
+        public FTextureDescriptor GetTextureDescriptor(in FRDGTextureRef textureRef)
         {
-            return m_Resources.GetTextureDescription(textureRef.handle);
+            return m_Resources.GetTextureDescriptor(textureRef.handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

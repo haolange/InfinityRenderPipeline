@@ -31,23 +31,23 @@ namespace InfinityTech.Rendering.GPUResource
             return !dif;
         }
 
-        /*internal static RenderTextureDescriptor GetRTDescription(this TextureDescription description)
+        /*internal static RenderTextureDescriptor GetRTDescriptor(this TextureDescriptor descriptor)
         {
-            RenderTextureDescriptor rtDescription = new RenderTextureDescriptor(description.width, description.height, description.colorFormat, (int)description.depthBufferBits, -1);
-            rtDescription.vrUsage = VRTextureUsage.None;
-            rtDescription.volumeDepth = description.slices;
-            rtDescription.useMipMap = description.useMipMap;
-            rtDescription.dimension = description.dimension;
-            rtDescription.stencilFormat = GraphicsFormat.None;
-            rtDescription.bindMS = description.bindTextureMS;
-            rtDescription.depthStencilFormat = GraphicsFormat.None;
-            rtDescription.memoryless = RenderTextureMemoryless.None;
-            rtDescription.msaaSamples = (int)description.msaaSamples;
-            rtDescription.shadowSamplingMode = ShadowSamplingMode.None;
-            rtDescription.autoGenerateMips = description.autoGenerateMips;
-            rtDescription.autoGenerateMips = description.autoGenerateMips;
-            rtDescription.enableRandomWrite = description.enableRandomWrite;
-            return rtDescription;
+            RenderTextureDescriptor rtDescriptor = new RenderTextureDescriptor(descriptor.width, descriptor.height, descriptor.colorFormat, (int)descriptor.depthBufferBits, -1);
+            rtDescriptor.vrUsage = VRTextureUsage.None;
+            rtDescriptor.volumeDepth = descriptor.slices;
+            rtDescriptor.useMipMap = descriptor.useMipMap;
+            rtDescriptor.dimension = descriptor.dimension;
+            rtDescriptor.stencilFormat = GraphicsFormat.None;
+            rtDescriptor.bindMS = descriptor.bindTextureMS;
+            rtDescriptor.depthStencilFormat = GraphicsFormat.None;
+            rtDescriptor.memoryless = RenderTextureMemoryless.None;
+            rtDescriptor.msaaSamples = (int)descriptor.msaaSamples;
+            rtDescriptor.shadowSamplingMode = ShadowSamplingMode.None;
+            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
+            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
+            rtDescriptor.enableRandomWrite = descriptor.enableRandomWrite;
+            return rtDescriptor;
         }*/
     }
 
@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_CacheTextures = new Dictionary<int, FTextureRef>(); 
         }
 
-        public FBufferRef GetBuffer(in int id, in FBufferDescription description)
+        public FBufferRef GetBuffer(in int id, in FBufferDescriptor descriptor)
         {
             FBufferRef bufferRef = new FBufferRef(-1, null);
             if (m_CacheBuffers.ContainsKey(id))
@@ -76,21 +76,21 @@ namespace InfinityTech.Rendering.GPUResource
                 {
                     bufferRef.buffer.Release();
                 }
-                bufferRef.buffer = new ComputeBuffer(description.count, description.stride);
+                bufferRef.buffer = new ComputeBuffer(descriptor.count, descriptor.stride);
                 m_CacheBuffers[id] = bufferRef;
             }
 
-            FBufferDescription bufferDescription = new FBufferDescription(bufferRef.buffer.count, bufferRef.buffer.stride);
-            if (!description.Equals(bufferDescription))
+            FBufferDescriptor bufferDescriptor = new FBufferDescriptor(bufferRef.buffer.count, bufferRef.buffer.stride);
+            if (!descriptor.Equals(bufferDescriptor))
             {
                 bufferRef.buffer.Release();
-                bufferRef.buffer = new ComputeBuffer(description.count, description.stride); 
+                bufferRef.buffer = new ComputeBuffer(descriptor.count, descriptor.stride); 
                 m_CacheBuffers[id] = bufferRef;
             }
             return bufferRef;
         }
 
-        public FTextureRef GetTexture(in int id, in FTextureDescription description)
+        public FTextureRef GetTexture(in int id, in FTextureDescriptor descriptor)
         {
             FTextureRef textureRef = new FTextureRef(-1, null);
             if (m_CacheTextures.ContainsKey(id))
@@ -104,17 +104,17 @@ namespace InfinityTech.Rendering.GPUResource
                 {
                     RTHandles.Release(textureRef.texture);
                 }
-                textureRef.texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
-                                                             description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
+                textureRef.texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
+                                                             descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, RenderTextureMemoryless.None, descriptor.name);
                 m_CacheTextures[id] = textureRef;
             }
 
-            RenderTextureDescriptor rtDescription = description;
-            if (!rtDescription.Equal(textureRef.texture.rt.descriptor))
+            RenderTextureDescriptor rtDescriptor = descriptor;
+            if (!rtDescriptor.Equal(textureRef.texture.rt.descriptor))
             {
                 RTHandles.Release(textureRef.texture);
-                textureRef.texture = RTHandles.Alloc(description.width, description.height, description.slices, (DepthBits)description.depthBufferBits, description.colorFormat, description.filterMode, description.wrapMode, description.dimension, description.enableRandomWrite,
-                                                             description.useMipMap, description.autoGenerateMips, description.isShadowMap, description.anisoLevel, description.mipMapBias, (MSAASamples)description.msaaSamples, description.bindTextureMS, false, RenderTextureMemoryless.None, description.name);
+                textureRef.texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
+                                                             descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, RenderTextureMemoryless.None, descriptor.name);
                 m_CacheTextures[id] = textureRef;
             }
             return textureRef;

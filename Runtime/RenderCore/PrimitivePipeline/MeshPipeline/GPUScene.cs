@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             if(m_MeshBatchCollector.cacheMeshElements.IsCreated)
             {
-                bufferRef = m_ResourcePool.GetBuffer(new FBufferDescription(10000, Marshal.SizeOf(typeof(FMeshElement))));
+                bufferRef = m_ResourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(FMeshElement))));
 
                 if (m_IsUpdate)
                 {

@@ -11,14 +11,14 @@ using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    public struct FMeshPassDesctiption
+    public struct FMeshPassDescriptor
     {
         public int renderQueueMin;
         public int renderQueueMax;
         public int renderLayerMask;
         public bool excludeMotionVectorObjects;
 
-        public FMeshPassDesctiption(in RendererListDesc rendererListDesc)
+        public FMeshPassDescriptor(in RendererListDesc rendererListDesc)
         {
             renderLayerMask = (int)rendererListDesc.layerMask;
             renderQueueMin = rendererListDesc.renderQueueRange.lowerBound;
@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             excludeMotionVectorObjects = rendererListDesc.excludeObjectMotionVectors;
         }
 
-        public FMeshPassDesctiption(in int minQueue, in int maxQueue)
+        public FMeshPassDescriptor(in int minQueue, in int maxQueue)
         {
             renderLayerMask = 0;
             renderQueueMin = minQueue;
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshPassTaskRefs = meshPassTaskRefs;
         }
 
-        internal void DispatchSetup(in FCullingData cullingData, in FMeshPassDesctiption meshPassDesctiption)
+        internal void DispatchSetup(in FCullingData cullingData, in FMeshPassDescriptor meshPassDescriptor)
         {
             if (m_GPUScene.meshElements.IsCreated == false || cullingData.viewMeshElements.IsCreated == false || cullingData.isSceneView != true) { return; }
             if (cullingData.viewMeshElements.Length == 0) { return; }
@@ -66,14 +66,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             meshPassGenerateJob.meshBatchIndexs = m_MeshBatchIndexs;
             meshPassGenerateJob.meshDrawCommands = m_MeshDrawCommands;
             meshPassGenerateJob.passMeshSections = m_PassMeshSections;
-            meshPassGenerateJob.meshPassDesctiption = meshPassDesctiption;
+            meshPassGenerateJob.meshPassDescriptor = meshPassDescriptor;
             m_MeshPassTaskRefs.Add(meshPassGenerateJob.Schedule());*/
 
             FMeshPassFilterJob meshPassFilterJob;
             meshPassFilterJob.cullingData = cullingData;
             meshPassFilterJob.meshElements = m_GPUScene.meshElements;
             meshPassFilterJob.passMeshSections = m_PassMeshSections;
-            meshPassFilterJob.meshPassDesctiption = meshPassDesctiption;
+            meshPassFilterJob.meshPassDescriptor = meshPassDescriptor;
             JobHandle filterHandle = meshPassFilterJob.Schedule();
 
             FMeshPassSortJob meshPassSortJob;
@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.DrawMeshBatcher)))
             {
-                FBufferRef bufferRef = graphContext.resourcePool.GetBuffer(new FBufferDescription(10000, Marshal.SizeOf(typeof(int))));
+                FBufferRef bufferRef = graphContext.resourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(int))));
                 graphContext.cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs);
 
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)

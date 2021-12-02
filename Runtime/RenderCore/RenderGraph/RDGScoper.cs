@@ -65,9 +65,9 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGBufferRef CreateBuffer(in int handle, in FBufferDescription description)
+        public FRDGBufferRef CreateBuffer(in int handle, in FBufferDescriptor descriptor)
         {
-            FRDGBufferRef bufferRef = m_GraphBuilder.CreateBuffer(description);
+            FRDGBufferRef bufferRef = m_GraphBuilder.CreateBuffer(descriptor);
             RegisterBuffer(handle, bufferRef);
             return bufferRef;
         }
@@ -85,9 +85,9 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef CreateAndRegisterTexture(in int handle, in FTextureDescription description)
+        public FRDGTextureRef CreateAndRegisterTexture(in int handle, in FTextureDescriptor descriptor)
         {
-            FRDGTextureRef textureRef = m_GraphBuilder.CreateTexture(description, handle);
+            FRDGTextureRef textureRef = m_GraphBuilder.CreateTexture(descriptor, handle);
             RegisterTexture(handle, textureRef);
             return textureRef;
         }
