@@ -42,6 +42,8 @@ namespace InfinityTech.Rendering.Pipeline
                 using (FRDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassUtilityData.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
+                    passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     passData.camera = camera;
                     passData.colorBuffer = passRef.UseColorBuffer(colorTexture, 0);
@@ -107,10 +109,13 @@ namespace InfinityTech.Rendering.Pipeline
                     RenderTexture srcBuffer = passData.srcTexture;
                     RenderTexture dscBuffer = passData.dscTexture;
 
-                    float4 ScaleBias = new float4((float)passData.camera.pixelWidth / (float)srcBuffer.width, (float)passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
-                    if (!passData.dscTexture) { ScaleBias.w = ScaleBias.y; ScaleBias.y *= -1; }
+                    float4 scaleBias = new float4((float)passData.camera.pixelWidth / (float)srcBuffer.width, (float)passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
+                    if (!passData.dscTexture) { 
+                        scaleBias.w = scaleBias.y; 
+                        scaleBias.y *= -1; 
+                    }
 
-                    graphContext.cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, ScaleBias);
+                    graphContext.cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
                     graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(passData.camera), srcBuffer, new RenderTargetIdentifier(dscBuffer), 1);
                 });
             }

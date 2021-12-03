@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FDepthPassData>(FDepthPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
-                passRef.SetOption(true, true, Color.black);
+                passRef.SetOption(ClearFlag.All, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
 
                 ref FDepthPassData passData = ref passRef.GetPassData<FDepthPassData>();
                 passData.camera = camera;

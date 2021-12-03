@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
-                passRef.SetOption(false, true, Color.black);
+                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare);
 
                 ref FForwardPassData passData = ref passRef.GetPassData<FForwardPassData>();
                 passData.camera = camera;

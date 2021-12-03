@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FMotionPassData>(FMotionPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderMotion)))
             {
                 //Setup Phase
-                passRef.SetOption(false, true, Color.black);
+                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare);
 
                 ref FMotionPassData passData = ref passRef.GetPassData<FMotionPassData>();
                 passData.camera = camera;

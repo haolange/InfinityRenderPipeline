@@ -525,8 +525,6 @@ namespace InfinityTech.Rendering.RDG
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
             {
                 ref FRDGPassOption passOption = ref pass.GetPassOption();
-                ClearFlag clearFlag = passOption.IsClearDepth && passOption.IsClearColor ? ClearFlag.All : ClearFlag.Color;
-                clearFlag = passOption.IsActive ? clearFlag : ClearFlag.None;
 
                 if (pass.colorBufferMaxIndex > 0)
                 {
@@ -542,7 +540,7 @@ namespace InfinityTech.Rendering.RDG
                     }
 
                     if (pass.depthBuffer.IsValid()) {
-                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer), clearFlag);
+                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer), passOption.clearFlag);
                     } else {
                         throw new InvalidOperationException("Setting MRTs without a depth buffer is not supported.");
                     }
@@ -550,12 +548,12 @@ namespace InfinityTech.Rendering.RDG
                     if (pass.depthBuffer.IsValid())
                     {
                         if (pass.colorBufferMaxIndex > -1) {
-                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), passOption.colorLoadAction, passOption.colorStoreAction, m_Resources.GetTexture(pass.depthBuffer), passOption.depthLoadAction, passOption.depthStoreAction, clearFlag);
+                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), passOption.colorLoadAction, passOption.colorStoreAction, m_Resources.GetTexture(pass.depthBuffer), passOption.depthLoadAction, passOption.depthStoreAction, passOption.clearFlag);
                         } else {
-                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer), passOption.depthLoadAction, passOption.depthStoreAction, clearFlag);
+                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer), passOption.depthLoadAction, passOption.depthStoreAction, passOption.clearFlag);
                         }
                     } else {
-                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), passOption.colorLoadAction, passOption.colorStoreAction, clearFlag);
+                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), passOption.colorLoadAction, passOption.colorStoreAction, passOption.clearFlag);
                     }
                 }
             }

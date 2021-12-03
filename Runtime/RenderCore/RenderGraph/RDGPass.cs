@@ -10,9 +10,7 @@ namespace InfinityTech.Rendering.RDG
     internal struct FRDGPassOption
     {
         public bool IsActive;
-        public bool IsClearDepth;
-        public bool IsClearColor;
-        public Color clearColor;
+        public ClearFlag clearFlag;
 
         public RenderBufferLoadAction colorLoadAction;
         public RenderBufferStoreAction colorStoreAction;
@@ -175,9 +173,7 @@ namespace InfinityTech.Rendering.RDG
 
             ref FRDGPassOption passOption = ref m_Pass.GetPassOption();
             passOption.IsActive = false;
-            passOption.clearColor = Color.black;
-            passOption.IsClearDepth = false;
-            passOption.IsClearColor = false;
+            passOption.clearFlag = ClearFlag.All;
             passOption.colorLoadAction = RenderBufferLoadAction.DontCare;
             passOption.depthLoadAction = RenderBufferLoadAction.DontCare;
             passOption.colorStoreAction = RenderBufferStoreAction.Store;
@@ -197,13 +193,11 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetOption(in bool clearDetph, in bool clearColor, in Color color, in RenderBufferLoadAction colorLoadAction = RenderBufferLoadAction.DontCare, in RenderBufferStoreAction colorStoreAction = RenderBufferStoreAction.Store, in RenderBufferLoadAction depthLoadAction = RenderBufferLoadAction.DontCare, in RenderBufferStoreAction depthStoreAction = RenderBufferStoreAction.Store)
+        public void SetOption(in ClearFlag clearFlag, in RenderBufferLoadAction colorLoadAction = RenderBufferLoadAction.DontCare, in RenderBufferStoreAction colorStoreAction = RenderBufferStoreAction.Store, in RenderBufferLoadAction depthLoadAction = RenderBufferLoadAction.DontCare, in RenderBufferStoreAction depthStoreAction = RenderBufferStoreAction.Store)
         {
             ref FRDGPassOption passOption = ref m_Pass.GetPassOption();
             passOption.IsActive = true;
-            passOption.clearColor = color;
-            passOption.IsClearDepth = clearDetph;
-            passOption.IsClearColor = clearDetph;
+            passOption.clearFlag = clearFlag;
             passOption.colorLoadAction = colorLoadAction;
             passOption.depthLoadAction = depthLoadAction;
             passOption.colorStoreAction = colorStoreAction;
