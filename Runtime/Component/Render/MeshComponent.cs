@@ -17,13 +17,14 @@ namespace InfinityTech.Component
         [Header("State")]
         public EStateType movebility = EStateType.Static;
 
-        [Header("MeshElement")]
+        [Header("Mesh")]
         public Mesh staticMesh;
 
-        [Header("MaterialElement")]
+        [Header("Material")]
         public Material[] materials;
-        [HideInInspector]
-        public Material[] lastMaterials;
+#if UNITY_EDITOR
+        private Material[] m_LastMaterials;
+#endif
 
         [Header("Lighting")]
         public ECastShadowMethod castShadow = ECastShadowMethod.Off;
@@ -36,24 +37,15 @@ namespace InfinityTech.Component
         public int renderPriority = 0;
         public EMotionType motionVector = EMotionType.Object;
 
-        //[HideInInspector]
         //public bool bInitTransfrom;
-        [HideInInspector]
-        public int lastMeshInstanceID;
-        [HideInInspector]
-        public EStateType lastMovebility;
-        [HideInInspector]
-        public FAABB boundBox;
-        [HideInInspector]
-        public FSphere boundSphere;
-        [HideInInspector]
-        public float4x4 matrix_LocalToWorld;
-        [HideInInspector]
-        public float4x4 matrix_WorldToLocal;
-        [HideInInspector]
-        public int[] meshBatchCacheID;
-        [HideInInspector]
-        public NativeArray<float> customMeshDatas;
+        private int[] m_CacheID;
+        private int m_LastInstanceID;
+        private EStateType m_LastMovebility;
+        private FAABB m_BoundBox;
+        private FSphere m_BoundSphere;
+        private float4x4 m_LocalToWorldMatrix;
+        private float4x4 m_WorldToLocalMatrix;
+        private NativeArray<float> m_CustomDatas;
 
         protected override void OnRegister()
         {
@@ -63,7 +55,7 @@ namespace InfinityTech.Component
             //UpdateMaterial();
             BuildMeshBatch();
             AddWorldMesh(movebility);
-            customMeshDatas = new NativeArray<float>(16, Allocator.Persistent);
+            m_CustomDatas = new NativeArray<float>(16, Allocator.Persistent);
         }
 
         protected override void OnTransformChange()
@@ -127,7 +119,7 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             //ReleaseMeshBatch();
-            customMeshDatas.Dispose();
+            m_CustomDatas.Dispose();
             RemoveWorldMesh(movebility);
         }
 
@@ -135,12 +127,12 @@ namespace InfinityTech.Component
         private void DrawBound()
         {
             #if UNITY_EDITOR
-            Geometry.DrawBound(boundBox, Color.blue);
+            Geometry.DrawBound(m_BoundBox, Color.blue);
 
             UnityEditor.Handles.color = Color.yellow;
-            UnityEditor.Handles.DrawWireDisc(boundSphere.center, Vector3.up, boundSphere.radius);
-            UnityEditor.Handles.DrawWireDisc(boundSphere.center, Vector3.back, boundSphere.radius);
-            UnityEditor.Handles.DrawWireDisc(boundSphere.center, Vector3.right, boundSphere.radius);
+            UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.up, m_BoundSphere.radius);
+            UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.back, m_BoundSphere.radius);
+            UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.right, m_BoundSphere.radius);
             #endif
         }
 
@@ -181,12 +173,12 @@ namespace InfinityTech.Component
         private bool GetStateTypeDirty(out EStateType stateType)
         {
             bool outState = false;
-            stateType = lastMovebility;
+            stateType = m_LastMovebility;
 
-            if (lastMovebility != movebility)
+            if (m_LastMovebility != movebility)
             {
                 outState = true;
-                lastMovebility = movebility;
+                m_LastMovebility = movebility;
             }
 
             return outState;
@@ -197,10 +189,10 @@ namespace InfinityTech.Component
             bool OutState = false;
             if (staticMesh != null)
             {
-                if (lastMeshInstanceID != staticMesh.GetInstanceID())
+                if (m_LastInstanceID != staticMesh.GetInstanceID())
                 {
                     OutState = true;
-                    lastMeshInstanceID = staticMesh.GetInstanceID();
+                    m_LastInstanceID = staticMesh.GetInstanceID();
                 }
             }
 
@@ -209,52 +201,54 @@ namespace InfinityTech.Component
 
         public void UpdateMatrix()
         {
-            matrix_LocalToWorld = transform.localToWorldMatrix;
-            matrix_WorldToLocal = transform.localToWorldMatrix.inverse;
+            m_LocalToWorldMatrix = transform.localToWorldMatrix;
+            m_WorldToLocalMatrix = transform.localToWorldMatrix.inverse;
         }
 
         public void UpdateBounds()
         {
             if (!staticMesh) { return; }
 
-            boundBox = Geometry.CaculateWorldBound(staticMesh.bounds, matrix_LocalToWorld);
-            boundSphere = new FSphere(Geometry.CaculateBoundRadius(boundBox), boundBox.center);
+            m_BoundBox = Geometry.CaculateWorldBound(staticMesh.bounds, m_LocalToWorldMatrix);
+            m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
         }
 
+#if UNITY_EDITOR
         public void UpdateMaterial()
         {
             if(materials.Length != 0)
             {
-                lastMaterials = new Material[materials.Length];
-                for (int i = 0; i < lastMaterials.Length; ++i)
+                m_LastMaterials = new Material[materials.Length];
+                for (int i = 0; i < m_LastMaterials.Length; ++i)
                 {
-                    lastMaterials[i] = materials[i];
+                    m_LastMaterials[i] = materials[i];
                 }
             }
 
             materials = new Material[staticMesh.subMeshCount];
             for (int i = 0; i < materials.Length; ++i)
             {
-                if(i < lastMaterials.Length)
+                if(i < m_LastMaterials.Length)
                 {
-                    materials[i] = lastMaterials[i];
+                    materials[i] = m_LastMaterials[i];
                 } else {
                     materials[i] = Resources.Load<Material>("Materials/M_DefaultLit");
                 } 
             }
         }
+#endif
 
         public void BuildMeshBatch()
         {
             if (staticMesh != null) 
             {
-                meshBatchCacheID = new int[staticMesh.subMeshCount];
+                m_CacheID = new int[staticMesh.subMeshCount];
 
                 for (int i = 0; i < staticMesh.subMeshCount; ++i)
                 {
                     FMeshElement meshElement;
                     meshElement.visible = visible ? 1 : 0;
-                    meshElement.boundBox = boundBox;
+                    meshElement.boundBox = m_BoundBox;
                     meshElement.castShadow = (int)castShadow;
                     meshElement.motionType = (int)motionVector;
                     meshElement.renderLayer = renderLayer;
@@ -262,10 +256,10 @@ namespace InfinityTech.Component
                     meshElement.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
                     meshElement.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
                     meshElement.priority = renderPriority + materials[i].renderQueue;
-                    meshElement.matrix_LocalToWorld = matrix_LocalToWorld;
+                    meshElement.matrix_LocalToWorld = m_LocalToWorldMatrix;
                     //meshElement.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
-                    
-                    meshBatchCacheID[i] = GetWorld().GetMeshBatchColloctor().AddMeshBatch(meshElement);
+
+                    m_CacheID[i] = GetWorld().GetMeshBatchColloctor().AddMeshBatch(meshElement);
                 }
             }
         }
@@ -308,12 +302,12 @@ namespace InfinityTech.Component
         // RenderData Interface
         public float4 GetCustomPrimitiveData(int offset)
         {
-            return new float4(customMeshDatas[offset], customMeshDatas[offset + 1], customMeshDatas[offset + 2], customMeshDatas[offset + 3]);
+            return new float4(m_CustomDatas[offset], m_CustomDatas[offset + 1], m_CustomDatas[offset + 2], m_CustomDatas[offset + 3]);
         }
 
         public void SetCustomPrimitiveData(int offset, float data)
         {
-            customMeshDatas[offset] = data;
+            m_CustomDatas[offset] = data;
         }
 
         public void SetCustomPrimitiveData(int offset, float2 data)

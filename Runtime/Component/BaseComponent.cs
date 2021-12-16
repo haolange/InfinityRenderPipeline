@@ -10,9 +10,7 @@ namespace InfinityTech.Component
 #endif
     public class BaseComponent : MonoBehaviour
     {
-        [HideInInspector]
         private RenderTransfrom m_CurrTransform;
-        [HideInInspector]
         private RenderTransfrom m_LastTransform;
 
         void OnEnable()

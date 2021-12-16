@@ -29,11 +29,8 @@ namespace InfinityTech.Component
 
     public class EntityComponent : MonoBehaviour
     {
-        [HideInInspector]
         private RenderTransfrom m_CurrTransform;
-        [HideInInspector]
         private RenderTransfrom m_LastTransform;
-
 
         public EntityComponent() { }
 
