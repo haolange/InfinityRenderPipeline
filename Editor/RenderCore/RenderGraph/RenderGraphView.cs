@@ -1,10 +1,7 @@
-using System;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
 using UnityEditor.Experimental.GraphView;
-using UnityEditor.VFX.UI;
 
 namespace InfinityTech.Rendering.RDG.Editor
 {
@@ -24,10 +21,10 @@ namespace InfinityTech.Rendering.RDG.Editor
             Insert(0, gridBackground);
             gridBackground.StretchToParentSize();
 
-            AddElement(GenerateNode("OpaqueDepth", new string[] { }, new string[] { "DepthBuffer" }, new Rect(0, 0, 100, 150)));
-            AddElement(GenerateNode("OpaqueGBuffer", new string[] { "DepthBuffer" }, new string[] { "GBufferA", "GBufferB" }, new Rect(200, 0, 100, 150)));
-            AddElement(GenerateNode("SkyAtmosphere", new string[] { "InColorBuffer" }, new string[] { "OutColorBuffer" }, new Rect(450, 0, 100, 150)));
-            AddElement(GenerateNode("PresentBackBuffer", new string[] { "SwapBuffer" }, new string[] { }, new Rect(740, 0, 100, 150)));
+            AddElement(GenerateNode("RenderDepth", new string[] { }, new string[] { "DepthBuffer" }, new Rect(0, 0, 100, 150)));
+            AddElement(GenerateNode("RenderGBuffer", new string[] { "DepthBuffer" }, new string[] { "GBufferA", "GBufferB" }, new Rect(200, 0, 100, 150)));
+            AddElement(GenerateNode("RenderSky", new string[] { "ColorBuffer" }, new string[] { "ColorBuffer" }, new Rect(450, 0, 100, 150)));
+            AddElement(GenerateNode("RenderPresent", new string[] { "PresentBuffer" }, new string[] { }, new Rect(740, 0, 100, 150)));
         }
 
         public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
