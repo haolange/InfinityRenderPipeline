@@ -9,10 +9,10 @@
     "com.unity.jobs": "0.11.0-preview.6",
     "com.unity.burst": "1.7.0-pre.1",
     "com.unity.terrain-tools": "4.0.3",
-    "com.unity.shadergraph": "12.1.1",
+    "com.unity.shadergraph": "12.1.4",
     "com.unity.mathematics": "1.2.5",
-    "com.unity.addressables": "1.19.11",
-    "com.unity.visualeffectgraph": "12.1.1",
-    "com.unity.render-pipelines.core": "12.1.1"
+    "com.unity.addressables": "1.19.17",
+    "com.unity.visualeffectgraph": "12.1.4",
+    "com.unity.render-pipelines.core": "12.1.4"
   }
 }
