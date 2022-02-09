@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderGBuffer(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
-            FTextureDescriptor gbufferADsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureAName, colorFormat = GraphicsFormat.R5G6B5_UNormPack16, depthBufferBits = EDepthBits.None };
+            FTextureDescriptor gbufferADsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureAName, colorFormat = GraphicsFormat.B5G6R5_UNormPack16, depthBufferBits = EDepthBits.None };
             FTextureDescriptor gbufferBDsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureBName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
             FTextureDescriptor gbufferCDsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureCName, colorFormat = GraphicsFormat.R8G8_UNorm, depthBufferBits = EDepthBits.None };
                     
