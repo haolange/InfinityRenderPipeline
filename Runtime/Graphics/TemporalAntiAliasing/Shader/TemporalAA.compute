@@ -1,7 +1,7 @@
 #pragma kernel Main
 
 float4 TAA_Resolution;
-float4 TAA_BlendParameter;// x: static, y: dynamic, z: motion amplification, w: temporalScale
+float4 TAA_BlendParameter; // x: static, y: dynamic, z: motion amplification, w: temporalScale
 Texture2D SRV_DepthTexture;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryTexture;
