@@ -614,7 +614,7 @@
 			SH2Basis SHBasis = InitSH2Basis(SHTable, Radiance);
 
 			float3 Irradiance = 0;
-			for(int j = 0; j < 9; j++)
+			for(int j = 0; j < 9; ++j)
 			{
 				Irradiance += SHTable.Coefficients[j] * SHBasis.Basis[j];
 			}

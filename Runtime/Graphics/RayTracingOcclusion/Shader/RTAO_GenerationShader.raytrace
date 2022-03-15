@@ -35,9 +35,7 @@ void RayGeneration()
 
         float3 TraceDir = CosineSampleHemisphere(Hash);
 		float3 TraceDir_WS = mul(TraceDir, TangentToWorld);
-		if (dot(WorldNormal, TraceDir_WS) <= 0) {
-            continue;
-        }
+		if (dot(WorldNormal, TraceDir_WS) <= 0) { continue; }
 
         RayDesc RayDescriptorAO;
         RayDescriptorAO.Origin    = WorldPos - 1e-4 * WorldNormal;              
