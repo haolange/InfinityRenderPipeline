@@ -32,7 +32,7 @@ namespace InfinityTech.Component
         private RenderTransfrom m_CurrTransform;
         private RenderTransfrom m_LastTransform;
 
-        public EntityComponent() { }
+        protected FRenderWorld renderWorld => FRenderWorld.RenderWorld;
 
         void OnEnable()
         {
@@ -88,16 +88,6 @@ namespace InfinityTech.Component
         protected virtual void UnRegister()
         {
 
-        }
-
-        protected FRenderWorld GetWorld()
-        {
-            if(FRenderWorld.RenderWorld != null) 
-            {
-                return FRenderWorld.RenderWorld;
-            }
-
-            return null;
         }
     }
 }

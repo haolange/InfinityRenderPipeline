@@ -164,6 +164,7 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, FViewUnifrom> m_ViewUnifroms;
         private Dictionary<int, FHistoryCache> m_HistoryCaches;
 
+        internal FRenderWorld renderWorld => FRenderWorld.RenderWorld;
         internal InfinityRenderPipelineAsset pipelineAsset 
         { 
             get 
@@ -181,7 +182,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_ViewUnifroms = new Dictionary<int, FViewUnifrom>();
             m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
-            m_GPUScene = new FGPUScene(m_ResourcePool, GetWorld().GetMeshBatchColloctor());
+            m_GPUScene = new FGPUScene(m_ResourcePool, renderWorld.GetMeshBatchColloctor());
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
@@ -267,7 +268,7 @@ namespace InfinityTech.Rendering.Pipeline
                             //Compute LOD
                             using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.ComputeLOD)))
                             {
-                                List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
+                                List<TerrainComponent> terrains = renderWorld.GetWorldTerrains();
                                 float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
                                 for(int j = 0; j < terrains.Count; ++j)
                                 {
@@ -295,7 +296,7 @@ namespace InfinityTech.Rendering.Pipeline
                         RenderPresent(camera, camera.targetTexture);
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
-                        m_GraphBuilder.Execute(renderContext, GetWorld(), cmdBuffer, m_ResourcePool);
+                        m_GraphBuilder.Execute(renderContext, renderWorld, cmdBuffer, m_ResourcePool);
                         #endregion //SetupViewCommand
 
                         #region EndViewContext
@@ -317,12 +318,6 @@ namespace InfinityTech.Rendering.Pipeline
             //End FrameContext
             m_GPUScene.Clear();
             CommandBufferPool.Release(cmdBuffer);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected FRenderWorld GetWorld()
-        {
-            return FRenderWorld.RenderWorld != null ? FRenderWorld.RenderWorld : null;
         }
 
         protected void SetGraphicsSetting()

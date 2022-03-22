@@ -148,12 +148,12 @@ namespace InfinityTech.Component
         {
             if(stateType == EStateType.Static)
             {
-                GetWorld().AddWorldStaticMesh(this);
+                renderWorld.AddWorldStaticMesh(this);
             }
 
             if (stateType == EStateType.Dynamic)
             {
-                GetWorld().AddWorldDynamicMesh(this);
+                renderWorld.AddWorldDynamicMesh(this);
             }
         }
 
@@ -161,12 +161,12 @@ namespace InfinityTech.Component
         {
             if (stateType == EStateType.Static)
             {
-                GetWorld().RemoveWorldStaticMesh(this);
+                renderWorld.RemoveWorldStaticMesh(this);
             }
 
             if (stateType == EStateType.Dynamic)
             {
-                GetWorld().RemoveWorldDynamicMesh(this);
+                renderWorld.RemoveWorldDynamicMesh(this);
             }
         }
 
@@ -253,13 +253,13 @@ namespace InfinityTech.Component
                     meshElement.motionType = (int)motionVector;
                     meshElement.renderLayer = renderLayer;
                     meshElement.sectionIndex = i;
-                    meshElement.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
-                    meshElement.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
+                    meshElement.staticMeshRef = renderWorld.meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
+                    meshElement.materialRef = renderWorld.materialAssets.Add(materials[i], materials[i].GetInstanceID());
                     meshElement.priority = renderPriority + materials[i].renderQueue;
                     meshElement.matrix_LocalToWorld = m_LocalToWorldMatrix;
                     //meshElement.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
 
-                    m_CacheID[i] = GetWorld().GetMeshBatchColloctor().AddMeshBatch(meshElement);
+                    m_CacheID[i] = renderWorld.GetMeshBatchColloctor().AddMeshBatch(meshElement);
                 }
             }
         }

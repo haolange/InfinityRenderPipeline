@@ -56,7 +56,7 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            GetWorld().AddWorldTerrain(this);
+            renderWorld.AddWorldTerrain(this);
             terrainSector?.Initializ();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
 
@@ -65,7 +65,7 @@ namespace InfinityTech.Component
 
         /*void OnBeginCameraRendering(ScriptableRenderContext renderContext, Camera camera)
         {
-            List<TerrainComponent> terrains = GetWorld().GetWorldTerrains();
+            List<TerrainComponent> terrains = renderWorld.GetWorldTerrains();
             float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
 
             for(int i = 0; i < terrains.Count; ++i)
@@ -85,7 +85,7 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             terrainSector?.Dispose();
-            GetWorld().RemoveWorldTerrain(this);
+            renderWorld.RemoveWorldTerrain(this);
 
             //RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         }

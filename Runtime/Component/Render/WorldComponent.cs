@@ -62,17 +62,6 @@ namespace InfinityTech.Component
         void OnDisable()
         {
             m_RenderWorld.Release();
-            m_RenderWorld.Dispose();
-        }
-
-        protected FRenderWorld GetWorld()
-        {
-            if (FRenderWorld.RenderWorld != null)
-            {
-                return FRenderWorld.RenderWorld;
-            }
-
-            return null;
         }
     }
 }
