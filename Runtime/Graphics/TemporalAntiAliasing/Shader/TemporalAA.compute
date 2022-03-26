@@ -35,7 +35,7 @@ float4 ClipAABB(float4 prevData, float4 aabbMin, float4 aabbMax)
 void Main (uint3 id : SV_DispatchThreadID)
 {
     float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
-    float2 unJitterUV = screenUV - TAAJitter.xy;
+    float2 unJitterUV = screenUV - TAAJitter.zw;
 	uint2 pixelCoord = uint2(screenUV.xy * TAA_Resolution.xy);
 
     float2 velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).xy;

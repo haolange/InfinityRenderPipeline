@@ -2,6 +2,7 @@
 #define _PackDataInclude
 
 #include "Common.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
@@ -85,31 +86,58 @@ struct FGBufferData
 	float3 WorldNormal;
 };
 
-float3 EncodeNormalBestFit(float3 N)
+struct FReconstructInput
 {
-    float3 uN = abs(N);
+    uint2 PixelCoord;
+    float2 CoCgR;
+    float2 CoCgL;
+    float2 CoCgT;
+    float2 CoCgB;
+};
+
+float3 EncodeBestFit(float3 Dir)
+{
+    float3 uN = abs(Dir);
     float maxNAbs = max(uN.z, max(uN.x, uN.y));
     float2 texcoord = uN.z < maxNAbs ? (uN.y < maxNAbs ? uN.yz : uN.xz) : uN.xy;
     texcoord = texcoord.x < texcoord.y ? texcoord.yx : texcoord.xy;
     texcoord.y /= texcoord.x;
-    N /= maxNAbs;
-    N *= g_BestFitNormal_LUT.SampleLevel(Global_point_clamp_sampler, texcoord, 0).r;
-    return N * 0.5 + 0.5;
+    Dir /= maxNAbs;
+    Dir *= g_BestFitNormal_LUT.SampleLevel(Global_point_clamp_sampler, texcoord, 0).r;
+    return Dir;
 }
 
-void EncodeGBuffer(FGBufferData GBufferData, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC)
+float EdgeFilter(float2 center, float2 a0, float2 a1, float2 a2, float2 a3)
 {
-    GBufferA = float4(GBufferData.BaseColor, 1);
-    GBufferC = float4(GBufferData.Roughness, GBufferData.Reflactance, 1, 1);
-    GBufferB = float4(EncodeNormalBestFit(GBufferData.WorldNormal), GBufferData.Specular);
+    float4 lum = float4(a0.x, a1.x, a2.x, a3.x);
+    float4 w = 1.0f - step(0.1176, abs(lum - center.x));
+    float W = w.x + w.y + w.z + w.w;
+    //Handle the special case where all the weights are zero.
+    //In HDR scenes it's better to set the chrominance to zero.
+    //Here we just use the chrominance of the first neighbor.
+    w.x = (W == 0) ? 1 : w.x;
+    W = (W == 0) ? 1 : W;
+
+    return (w.x * a0.y + w.y* a1.y + w.z* a2.y + w.w * a3.y) / W;
 }
 
-void DecodeGBuffer(float4 GBufferA, float4 GBufferB, float4 GBufferC, out FGBufferData GBufferData)
+void EncodeGBuffer(FGBufferData GBufferData, uint2 PixelCoord, out float4 GBufferA, out float4 GBufferB)
 {
+    float3 YCoCgColor = RGBToYCoCg(GBufferData.BaseColor);
+    GBufferA = float4(((PixelCoord.x & 1) == (PixelCoord.y & 1)) ? YCoCgColor.rg : YCoCgColor.rb, GBufferData.Roughness, GBufferData.Reflactance);
+    GBufferB = float4(EncodeBestFit(GBufferData.WorldNormal) * 0.5 + 0.5, GBufferData.Specular);
+}
+
+void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 GBufferB, out FGBufferData GBufferData)
+{
+    float3 YCoCgColor = GBufferA.rgb;
+    YCoCgColor.b = EdgeFilter(GBufferA.rg, ReconstructInput.CoCgR, ReconstructInput.CoCgL, ReconstructInput.CoCgT, ReconstructInput.CoCgB);
+    YCoCgColor.rgb = ((ReconstructInput.PixelCoord.x & 1) == (ReconstructInput.PixelCoord.y & 1)) ? YCoCgColor.rgb : YCoCgColor.rbg;
+
     GBufferData.Specular = GBufferB.a;
-    GBufferData.Roughness = GBufferC.r;
-    GBufferData.BaseColor = GBufferA.rgb;
-    GBufferData.Reflactance = GBufferC.g;
+    GBufferData.Roughness = GBufferA.b;
+    GBufferData.BaseColor = YCoCgToRGB(YCoCgColor);
+    GBufferData.Reflactance = GBufferA.a;
     GBufferData.WorldNormal = normalize(GBufferB.xyz * 2 - 1);
 }
 

@@ -508,7 +508,7 @@ void ForwardFragment(Varyings IN, out float3 DiffuseBuffer : SV_Target0, out flo
     SpecularBuffer = mixedDiffuse.bgr * weight;
 }
 
-void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2)
+void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)
 {
     #ifdef _ALPHATEST_ON
         ClipHoles(IN.uvMainAndLM.xy);
@@ -549,13 +549,14 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
 
     FGBufferData GBufferData;
-    GBufferData.BaseColor = mixedDiffuse.rgb * weight;
-    GBufferData.Roughness = mixedDiffuse.r * weight;
-    GBufferData.Specular = mixedDiffuse.g * weight;
-    GBufferData.Reflactance = mixedDiffuse.b * weight;
+    GBufferData.BaseColor = mixedDiffuse.rgb;
+    GBufferData.Roughness = mixedDiffuse.r;
+    GBufferData.Specular = mixedDiffuse.g;
+    GBufferData.Reflactance = mixedDiffuse.b;
     GBufferData.WorldNormal = normalize(inputData.normalWS);
-    EncodeGBuffer(GBufferData, GBufferA, GBufferB, GBufferC);
-    GBufferB.xyz *= weight;
+    EncodeGBuffer(GBufferData, IN.clipPos.xy, GBufferA, GBufferB);
+    GBufferA *= weight;
+    GBufferB *= weight;
 }
 
 // Shadow pass

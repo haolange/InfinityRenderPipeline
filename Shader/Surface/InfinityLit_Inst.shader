@@ -150,7 +150,7 @@
 				return Out;
 			}
 			
-			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2)
+			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)
 			{
 				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
 
@@ -160,7 +160,7 @@
 				GBufferData.Specular = _SpecularLevel * BaseColor.g;
 				GBufferData.Reflactance = BaseColor.b;
 				GBufferData.WorldNormal = normalize(In.normal);
-				EncodeGBuffer(GBufferData, GBufferA, GBufferB, GBufferC);
+				EncodeGBuffer(GBufferData, In.vertex_CS.xy, GBufferA, GBufferB);
 			}
 			ENDHLSL
 		}

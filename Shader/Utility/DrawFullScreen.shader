@@ -92,12 +92,17 @@
 			float4 frag(Varyings i) : SV_Target
 			{
 				float2 uv = i.uv.xy;
-				//return float4(frac(uv * int2(160, 90)), 0, 1);
 				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0);
 
 				/*FGBufferData GBufferData;
-				DecodeGBuffer(1, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, UV - TAAJitter.zw, 0), 1, GBufferData);
-				return float4(GBufferData.WorldNormal, 1);*/
+				FReconstructInput ReconstructInput;
+				ReconstructInput.PixelCoord = uv * _ScreenParams.xy;
+				ReconstructInput.CoCgR = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(1, 0)).rg;
+				ReconstructInput.CoCgL = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(-1, 0)).rg;
+				ReconstructInput.CoCgT = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(0, 1)).rg;
+				ReconstructInput.CoCgB = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(0, -1)).rg;
+				DecodeGBuffer(ReconstructInput, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0), 1, GBufferData);
+				return float4(GBufferData.BaseColor, 1);*/
 			}
 			ENDHLSL
 		}

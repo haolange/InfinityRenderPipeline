@@ -12,7 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string PassName = "GBufferPass";
         internal static string TextureAName = "GBufferTextureA";
         internal static string TextureBName = "GBufferTextureB";
-        internal static string TextureCName = "GBufferTextureC";
     }
 
     public partial class InfinityRenderPipeline
@@ -22,7 +21,6 @@ namespace InfinityTech.Rendering.Pipeline
             public Camera camera;
             public FRDGTextureRef gbufferA;
             public FRDGTextureRef gbufferB;
-            public FRDGTextureRef gbufferC;
             public FRDGTextureRef depthBuffer;
             public CullingResults cullingResults;
             public FMeshPassProcessor meshPassProcessor;
@@ -30,14 +28,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderGBuffer(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
-            FTextureDescriptor gbufferADsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureAName, colorFormat = GraphicsFormat.B5G6R5_UNormPack16, depthBufferBits = EDepthBits.None };
+            FTextureDescriptor gbufferADsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureAName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
             FTextureDescriptor gbufferBDsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureBName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
-            FTextureDescriptor gbufferCDsc = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FGBufferPassUtilityData.TextureCName, colorFormat = GraphicsFormat.R8G8_UNorm, depthBufferBits = EDepthBits.None };
                     
             FRDGTextureRef depthBuffer = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             FRDGTextureRef gbufferA = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
             FRDGTextureRef gbufferB = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
-            FRDGTextureRef gbufferC = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
             
             //Add GBufferPass
             using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FGBufferPassData>(FGBufferPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
@@ -51,7 +47,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.meshPassProcessor = m_GBufferMeshProcessor;
                 passData.gbufferA = passRef.UseColorBuffer(gbufferA, 0);
                 passData.gbufferB = passRef.UseColorBuffer(gbufferB, 1);
-                passData.gbufferC = passRef.UseColorBuffer(gbufferC, 2);
                 passData.depthBuffer = passRef.UseDepthBuffer(depthBuffer, EDepthAccess.ReadWrite);
                 
                 m_GBufferMeshProcessor.DispatchSetup(cullingData, new FMeshPassDescriptor(0, 2999));
