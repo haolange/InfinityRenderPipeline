@@ -39,28 +39,26 @@ namespace InfinityTech.Component
 
         //public bool bInitTransfrom;
         private int[] m_CacheID;
-        private int m_LastInstanceID;
-        private EStateType m_LastMovebility;
+        //private int m_LastInstanceID;
+        //private EStateType m_LastMovebility;
         private FAABB m_BoundBox;
-        private FSphere m_BoundSphere;
-        private float4x4 m_LocalToWorldMatrix;
-        private float4x4 m_WorldToLocalMatrix;
-        private NativeArray<float> m_CustomDatas;
+        //private FSphere m_BoundSphere;
+        private float4x4 m_LocalToWorldMatrix => transform.localToWorldMatrix;
+        //private float4x4 m_WorldToLocalMatrix => transform.localToWorldMatrix.inverse;
+        //private NativeArray<float> m_CustomDatas;
 
         protected override void OnRegister()
         {
             //bInitTransfrom = false;
-            UpdateMatrix();
             UpdateBounds();
             //UpdateMaterial();
             BuildMeshBatch();
             AddWorldMesh(movebility);
-            m_CustomDatas = new NativeArray<float>(16, Allocator.Persistent);
+            //m_CustomDatas = new NativeArray<float>(16, Allocator.Persistent);
         }
 
         protected override void OnTransformChange()
         {
-            //UpdateMatrix();
             //UpdateBounds();
             //UpdateMeshBatch();
             /*if (bInitTransfrom == false) {
@@ -119,7 +117,7 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             //ReleaseMeshBatch();
-            m_CustomDatas.Dispose();
+            //m_CustomDatas.Dispose();
             RemoveWorldMesh(movebility);
         }
 
@@ -129,10 +127,10 @@ namespace InfinityTech.Component
             #if UNITY_EDITOR
             Geometry.DrawBound(m_BoundBox, Color.blue);
 
-            UnityEditor.Handles.color = Color.yellow;
-            UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.up, m_BoundSphere.radius);
-            UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.back, m_BoundSphere.radius);
-            UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.right, m_BoundSphere.radius);
+            //UnityEditor.Handles.color = Color.yellow;
+            //UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.up, m_BoundSphere.radius);
+            //UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.back, m_BoundSphere.radius);
+            //UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.right, m_BoundSphere.radius);
             #endif
         }
 
@@ -170,7 +168,7 @@ namespace InfinityTech.Component
             }
         }
 
-        private bool GetStateTypeDirty(out EStateType stateType)
+        /*private bool GetStateTypeDirty(out EStateType stateType)
         {
             bool outState = false;
             stateType = m_LastMovebility;
@@ -197,20 +195,14 @@ namespace InfinityTech.Component
             }
 
             return OutState;
-        }
-
-        public void UpdateMatrix()
-        {
-            m_LocalToWorldMatrix = transform.localToWorldMatrix;
-            m_WorldToLocalMatrix = transform.localToWorldMatrix.inverse;
-        }
+        }*/
 
         public void UpdateBounds()
         {
             if (!staticMesh) { return; }
 
             m_BoundBox = Geometry.CaculateWorldBound(staticMesh.bounds, m_LocalToWorldMatrix);
-            m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
+            //m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
         }
 
 #if UNITY_EDITOR
@@ -256,10 +248,10 @@ namespace InfinityTech.Component
                     meshElement.staticMeshRef = renderWorld.meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
                     meshElement.materialRef = renderWorld.materialAssets.Add(materials[i], materials[i].GetInstanceID());
                     meshElement.priority = renderPriority + materials[i].renderQueue;
-                    meshElement.matrix_LocalToWorld = m_LocalToWorldMatrix;
+                    //meshElement.matrix_LocalToWorld = m_LocalToWorldMatrix;
                     //meshElement.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
 
-                    m_CacheID[i] = renderWorld.GetMeshBatchColloctor().AddMeshBatch(meshElement);
+                    m_CacheID[i] = renderWorld.GetMeshBatchColloctor().AddMeshBatch(meshElement, m_LocalToWorldMatrix);
                 }
             }
         }
@@ -300,14 +292,14 @@ namespace InfinityTech.Component
         }
 
         // RenderData Interface
-        public float4 GetCustomPrimitiveData(int offset)
+        /*public float4 GetCustomPrimitiveData(int offset)
         {
             return new float4(m_CustomDatas[offset], m_CustomDatas[offset + 1], m_CustomDatas[offset + 2], m_CustomDatas[offset + 3]);
-        }
+        }*/
 
         public void SetCustomPrimitiveData(int offset, float data)
         {
-            m_CustomDatas[offset] = data;
+            //m_CustomDatas[offset] = data;
         }
 
         public void SetCustomPrimitiveData(int offset, float2 data)

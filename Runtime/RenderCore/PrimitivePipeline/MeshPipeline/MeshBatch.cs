@@ -40,11 +40,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int castShadow;
         public int motionType;
         public int renderLayer;
-        public int pending1;
-        public int pending2;
         public FBound boundBox;
         //public float4x4 CustomPrimitiveData;
-        public float4x4 matrix_LocalToWorld;
+        //public float4x4 matrix_LocalToWorld;
 
 
         public bool Equals(FMeshElement target)
@@ -77,11 +75,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             int hashCode = sectionIndex;
             hashCode += staticMeshRef.GetHashCode();
             hashCode += materialRef.GetHashCode();
-            //hashCode += CastShadow.GetHashCode();
+            hashCode += castShadow.GetHashCode();
             hashCode += visible.GetHashCode();
-            //hashCode += RenderLayer.GetHashCode();
+            hashCode += renderLayer.GetHashCode();
             hashCode += boundBox.GetHashCode();
-            hashCode += matrix_LocalToWorld.GetHashCode();
+            //hashCode += matrix_LocalToWorld.GetHashCode();
 
             return hashCode;
         }

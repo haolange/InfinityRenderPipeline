@@ -1,4 +1,5 @@
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine.Rendering;
 using System.Runtime.InteropServices;
 using InfinityTech.Rendering.GPUResource;
@@ -13,6 +14,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             get
             {
                 return m_MeshBatchCollector.count;
+            }
+        }
+        internal NativeArray<float4x4> meshMatrixs
+        {
+            get
+            {
+                return m_MeshBatchCollector.cacheMatrixs;
             }
         }
         internal NativeArray<FMeshElement> meshElements
@@ -37,21 +45,21 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             if(block) { return; }
 
-            if(m_MeshBatchCollector.cacheMeshElements.IsCreated)
+            if(m_MeshBatchCollector.cacheMatrixs.IsCreated)
             {
-                bufferRef = m_ResourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(FMeshElement))));
+                bufferRef = m_ResourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
 
                 if (m_IsUpdate)
                 {
                     m_IsUpdate = false;
-                    cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchCollector.cacheMeshElements, 0, 0, m_MeshBatchCollector.count);
+                    cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchCollector.cacheMatrixs, 0, 0, m_MeshBatchCollector.count);
                 }
             }
         }
 
         public void Clear()
         {
-            if (m_MeshBatchCollector.cacheMeshElements.IsCreated)
+            if (m_MeshBatchCollector.cacheMatrixs.IsCreated)
             {
                 m_ResourcePool.ReleaseBuffer(bufferRef);
             }
