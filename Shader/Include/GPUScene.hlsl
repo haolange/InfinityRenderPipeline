@@ -14,6 +14,8 @@ struct FMeshBatch
      int castShadow;
      int motionType;
      int renderLayer;
+     int pending1;
+     int pending2;
      FBound boundBox;
      float4x4 matrix_LocalToWorld;
 };

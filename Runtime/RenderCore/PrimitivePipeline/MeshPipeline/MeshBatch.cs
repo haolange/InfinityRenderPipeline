@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
+using System.Runtime.InteropServices;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -28,6 +29,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         Dynamic = 2
     };
 
+    [StructLayout(LayoutKind.Sequential)]
     public struct FMeshElement : IComparable<FMeshElement>, IEquatable<FMeshElement>
     {
         public int sectionIndex;
@@ -38,6 +40,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int castShadow;
         public int motionType;
         public int renderLayer;
+        public int pending1;
+        public int pending2;
         public FBound boundBox;
         //public float4x4 CustomPrimitiveData;
         public float4x4 matrix_LocalToWorld;

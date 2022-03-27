@@ -246,7 +246,7 @@ namespace InfinityTech.Component
 
                 for (int i = 0; i < staticMesh.subMeshCount; ++i)
                 {
-                    FMeshElement meshElement;
+                    FMeshElement meshElement = default;
                     meshElement.visible = visible ? 1 : 0;
                     meshElement.boundBox = m_BoundBox;
                     meshElement.castShadow = (int)castShadow;
