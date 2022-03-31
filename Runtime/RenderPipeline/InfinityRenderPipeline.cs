@@ -193,6 +193,7 @@ namespace InfinityTech.Rendering.Pipeline
             //Begin FrameContext
             RTHandles.Initialize(Screen.width, Screen.height);
             CommandBuffer cmdBuffer = CommandBufferPool.Get("");
+            cmdBuffer.Clear();
             m_GPUScene.Update(cmdBuffer);
             
             BeginFrameRendering(renderContext, cameras);
@@ -216,28 +217,26 @@ namespace InfinityTech.Rendering.Pipeline
                         bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
                         #region BeginViewContext
-                        // Get PerCamera History ResourceCache Manager
-                        if (!m_HistoryCaches.ContainsKey(cameraId))
-                        {
-                            historyCache = new FHistoryCache();
-                            m_HistoryCaches.Add(cameraId, historyCache);
-                        } else {
-                            historyCache = m_HistoryCaches[cameraId];
-                        }
-
-                        // Get PerCamera ViewData
-                        if (!m_ViewUnifroms.ContainsKey(cameraId))
-                        {
-                            viewUnifrom = new FViewUnifrom();
-                            m_ViewUnifroms.Add(cameraId, viewUnifrom);
-                        } else {
-                            viewUnifrom = m_ViewUnifroms[cameraId];
-                        }
-                        #endregion //SetupPerViewData
-
-                        #region SetupViewContext
                         using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.ViewContext)))
                         {
+                            // Get PerCamera History ResourceCache Manager
+                            if (!m_HistoryCaches.ContainsKey(cameraId))
+                            {
+                                historyCache = new FHistoryCache();
+                                m_HistoryCaches.Add(cameraId, historyCache);
+                            } else {
+                                historyCache = m_HistoryCaches[cameraId];
+                            }
+
+                            // Get PerCamera ViewData
+                            if (!m_ViewUnifroms.ContainsKey(cameraId))
+                            {
+                                viewUnifrom = new FViewUnifrom();
+                                m_ViewUnifroms.Add(cameraId, viewUnifrom);
+                            } else {
+                                viewUnifrom = m_ViewUnifroms[cameraId];
+                            }
+
                             #if UNITY_EDITOR
                             if (isEditView) 
                             { 
@@ -281,9 +280,9 @@ namespace InfinityTech.Rendering.Pipeline
                                 }
                             }
                         }
-                        #endregion //SetupViewContext
+                        #endregion //BeginViewContext
 
-                        #region SetupViewCommand
+                        #region ExecuteViewContext
                         RenderDepth(camera, cullingData, cullingResult);
                         RenderGBuffer(camera, cullingData, cullingResult);
                         RenderMotion(camera, cullingData, cullingResult);
@@ -297,13 +296,13 @@ namespace InfinityTech.Rendering.Pipeline
 
                         JobHandle.CompleteAll(m_MeshPassJobRefs);
                         m_GraphBuilder.Execute(renderContext, renderWorld, cmdBuffer, m_ResourcePool);
-                        #endregion //SetupViewCommand
+                        #endregion //ExecuteViewContext
 
                         #region EndViewContext
                         cullingData.Release();
                         m_GraphScoper.Clear();
                         viewUnifrom.UnpateViewUnifromData(camera, true);
-                        #endregion //ReleaseViewContext
+                        #endregion //EndViewContext
                     }
                     EndCameraRendering(renderContext, camera);
                 }
@@ -313,7 +312,6 @@ namespace InfinityTech.Rendering.Pipeline
             //Execute FrameContext
             renderContext.ExecuteCommandBuffer(cmdBuffer);
             renderContext.Submit();
-            cmdBuffer.Clear();
             
             //End FrameContext
             m_GPUScene.Clear();

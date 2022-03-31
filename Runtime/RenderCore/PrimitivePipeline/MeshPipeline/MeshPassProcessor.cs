@@ -60,15 +60,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassMeshSections = new NativeList<FPassMeshSection>(cullingData.viewMeshElements.Length, Allocator.TempJob);
             m_MeshDrawCommands = new NativeList<FMeshDrawCommand>(cullingData.viewMeshElements.Length, Allocator.TempJob);
 
-            /*FMeshPassGenerateJob meshPassGenerateJob;
-            meshPassGenerateJob.cullingData = cullingData;
-            meshPassGenerateJob.meshElements = m_GPUScene.meshElements;
-            meshPassGenerateJob.meshBatchIndexs = m_MeshBatchIndexs;
-            meshPassGenerateJob.meshDrawCommands = m_MeshDrawCommands;
-            meshPassGenerateJob.passMeshSections = m_PassMeshSections;
-            meshPassGenerateJob.meshPassDescriptor = meshPassDescriptor;
-            m_MeshPassTaskRefs.Add(meshPassGenerateJob.Schedule());*/
-
             FMeshPassFilterJob meshPassFilterJob;
             meshPassFilterJob.cullingData = cullingData;
             meshPassFilterJob.meshElements = m_GPUScene.meshElements;
@@ -79,12 +70,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             FMeshPassSortJob meshPassSortJob;
             meshPassSortJob.passMeshSections = m_PassMeshSections;
             JobHandle sortHandle = meshPassSortJob.Schedule(filterHandle);
-
-            /*FMeshPassSortJobV2 meshPassSortJobV2;
-            meshPassSortJobV2.left = 0;
-            meshPassSortJobV2.right = m_PassMeshSections.Length - 1;
-            meshPassSortJobV2.passMeshSections = m_PassMeshSections;
-            JobHandle sortHandle = meshPassSortJobV2.Schedule(filterHandle);*/
 
             FMeshPassBuildJob meshPassBuildJob;
             meshPassBuildJob.meshElements = m_GPUScene.meshElements;
