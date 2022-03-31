@@ -10,7 +10,7 @@ struct FMeshBatch
 };
 
 uint meshBatchOffset;
-Buffer<uint> meshBatchIndexs;
+StructuredBuffer<uint> meshBatchIndexs;
 StructuredBuffer<FMeshBatch> meshBatchBuffer;
 
 #endif
