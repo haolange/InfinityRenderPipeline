@@ -38,6 +38,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public class FMeshPassProcessor
     {
         private FGPUScene m_GPUScene;
+        private ProfilingSampler m_DrawProfiler;
         private NativeArray<int> m_MeshBatchIndexs;
         private MaterialPropertyBlock m_PropertyBlock;
         private NativeList<JobHandle> m_MeshPassTaskRefs;
@@ -47,6 +48,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public FMeshPassProcessor(FGPUScene gpuScene, ref NativeList<JobHandle> meshPassTaskRefs)
         {
             m_GPUScene = gpuScene;
+            m_DrawProfiler = new ProfilingSampler("RenderLoop.DrawMeshBatcher");
             m_PropertyBlock = new MaterialPropertyBlock();
             m_MeshPassTaskRefs = meshPassTaskRefs;
         }
@@ -83,7 +85,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             if (!m_MeshBatchIndexs.IsCreated && !m_PassMeshSections.IsCreated && !m_MeshDrawCommands.IsCreated) { return; }
 
-            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.DrawMeshBatcher)))
+            using (new ProfilingScope(graphContext.cmdBuffer, m_DrawProfiler))
             {
                 FBufferRef bufferRef = graphContext.resourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(int))));
                 graphContext.cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs);

@@ -14,13 +14,13 @@ namespace InfinityTech.Rendering.TerrainPipeline
     {
         internal Mesh[] Meshes;
         internal Material material;
-        internal NativeList<int2> CountOffsets;
-        internal NativeList<FTerrainDrawCommand> TerrainDrawCommands;
-
+        internal NativeList<int2> countOffsets;
+        private ProfilingSampler m_DrawProfiler;
+        internal NativeList<FTerrainDrawCommand> terrainDrawCommands;
 
         public FTerrainPassProcessor()
         {
-
+            m_DrawProfiler = new ProfilingSampler("RenderLoop.DrawTerrainBatcher");
         }
 
         internal void DispatchSetup()
@@ -35,24 +35,22 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         internal void DispatchDraw(ref FRDGContext graphContext, in int passIndex)
         {
-            //Draw Call
-            using (new ProfilingScope(graphContext.cmdBuffer, ProfilingSampler.Get(CustomSamplerId.DrawTerrainBatcher)))
+            using (new ProfilingScope(graphContext.cmdBuffer, m_DrawProfiler))
             {
-                for (int i = 0; i < TerrainDrawCommands.Length; ++i)
+                for (int i = 0; i < terrainDrawCommands.Length; ++i)
                 {
-                    int2 CountOffset = CountOffsets[i];
-                    FTerrainDrawCommand TerrainDrawCommand = TerrainDrawCommands[i];
+                    int2 countOffset = countOffsets[i];
+                    FTerrainDrawCommand terrainDrawCommand = terrainDrawCommands[i];
 
-                    for (int j = 0; j < CountOffset.x; ++j)
+                    for (int j = 0; j < countOffset.x; ++j)
                     {
-                        graphContext.cmdBuffer.DrawMeshInstancedProcedural(Meshes[TerrainDrawCommand.LOD], 0, material, passIndex, CountOffset.x);
+                        graphContext.cmdBuffer.DrawMeshInstancedProcedural(Meshes[terrainDrawCommand.LOD], 0, material, passIndex, countOffset.x);
                     }
                 }
             }
 
-            //Release TerrainPassData
-            CountOffsets.Dispose();
-            TerrainDrawCommands.Dispose();
+            countOffsets.Dispose();
+            terrainDrawCommands.Dispose();
         }
     }
 }

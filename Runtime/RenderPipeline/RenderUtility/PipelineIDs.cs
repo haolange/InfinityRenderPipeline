@@ -6,8 +6,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public enum CustomSamplerId
     {
-        DrawMeshBatcher,
-        DrawTerrainBatcher,
         RenderDepth,
         RenderGBuffer,
         RenderMotion,
