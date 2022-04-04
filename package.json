@@ -10,7 +10,7 @@
     "com.unity.burst": "1.7.0-pre.1",
     "com.unity.terrain-tools": "4.0.3",
     "com.unity.shadergraph": "12.1.6",
-    "com.unity.mathematics": "1.2.5",
+    "com.unity.mathematics": "1.2.6",
     "com.unity.addressables": "1.19.19",
     "com.unity.visualeffectgraph": "12.1.6",
     "com.unity.render-pipelines.core": "12.1.6"
