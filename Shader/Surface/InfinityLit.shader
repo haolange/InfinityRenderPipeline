@@ -48,7 +48,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			//#pragma enable_d3d11_debug_symbols
+			#pragma enable_d3d11_debug_symbols
 
 			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -104,7 +104,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			//#pragma enable_d3d11_debug_symbols
+			#pragma enable_d3d11_debug_symbols
 
 			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -159,7 +159,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			//#pragma enable_d3d11_debug_symbols
+			#pragma enable_d3d11_debug_symbols
 			//#pragma multi_compile _ LIGHTMAP_ON
 
 			#include "../Include/Common.hlsl"
@@ -222,22 +222,22 @@
 				UNITY_SETUP_INSTANCE_ID(In);
 				
 				float3 WS_PixelPos = In.worldPos.xyz;
-				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
+				float3 Albedo = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
 				
 				/*float3 IndirectLight = 1;
 				#if defined(LIGHTMAP_ON)
 					IndirectLight = SampleLightmap(In.uv1, In.normal);
 				#endif*/
 
-				//GBufferA = float4(BaseColor, 1);
+				//GBufferA = float4(Albedo, 1);
 				//GBufferB = uint4((In.normal * 127 + 127), 1);
 
 				FGBufferData GBufferData;
-				GBufferData.BaseColor = BaseColor;
-				GBufferData.Roughness = BaseColor.r;
-				GBufferData.Specular = _SpecularLevel * BaseColor.g;
-				GBufferData.Reflactance = BaseColor.b;
-				GBufferData.WorldNormal = normalize(In.normal);
+				GBufferData.Albedo = Albedo;
+				GBufferData.Roughness = Albedo.r;
+				GBufferData.Specular = _SpecularLevel * Albedo.g;
+				GBufferData.Reflactance = Albedo.b;
+				GBufferData.Normal = normalize(In.normal);
 				EncodeGBuffer(GBufferData, In.vertex.xy, GBufferA, GBufferB);
 			}
 			ENDHLSL
@@ -256,7 +256,7 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
 			#pragma multi_compile _ LIGHTMAP_ON
-			//#pragma enable_d3d11_debug_symbols
+			#pragma enable_d3d11_debug_symbols
 
 			#include "../Include/Common.hlsl"
 			#include "../Include/Lightmap.hlsl"
@@ -313,20 +313,19 @@
 				return Out;
 			}
 
-			void frag(Varyings In, out float3 DiffuseBuffer : SV_Target0, out float3 SpecularBuffer : SV_Target1)
+			void frag(Varyings In, out float4 LightingBuffer : SV_Target0)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
 				float3 WS_PixelPos = In.worldPos.xyz;
-				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
+				float3 Albedo = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
 
-				float3 IndirectLight = 1;
+				float3 indirectLight = 1;
 				#if defined(LIGHTMAP_ON)
-					IndirectLight = SampleLightmap(In.uv1, In.normal);
+					indirectLight = SampleLightmap(In.uv1, In.normal);
 				#endif
 
-				DiffuseBuffer = BaseColor * IndirectLight;
-				SpecularBuffer = 0.5f;
+				LightingBuffer = float4(Albedo * indirectLight, 1);
 			}
 			ENDHLSL
 		}
@@ -343,7 +342,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			//#pragma enable_d3d11_debug_symbols
+			#pragma enable_d3d11_debug_symbols
 
 			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"

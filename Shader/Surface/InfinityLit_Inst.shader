@@ -100,7 +100,6 @@
 			#pragma fragment frag
 			#pragma enable_d3d11_debug_symbols
 
-
 			#include "../Include/Common.hlsl"
 			#include "../Include/GPUScene.hlsl"
 			#include "../Include/Lightmap.hlsl"
@@ -108,7 +107,6 @@
 			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-
 
 			CBUFFER_START(UnityPerMaterial)
 				float _SpecularLevel;
@@ -152,14 +150,14 @@
 			
 			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)
 			{
-				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
+				float3 Albedo = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
 
 				FGBufferData GBufferData;
-				GBufferData.BaseColor = BaseColor;
-				GBufferData.Roughness = BaseColor.r;
-				GBufferData.Specular = _SpecularLevel * BaseColor.g;
-				GBufferData.Reflactance = BaseColor.b;
-				GBufferData.WorldNormal = normalize(In.normal);
+				GBufferData.Albedo = Albedo;
+				GBufferData.Roughness = Albedo.r;
+				GBufferData.Specular = _SpecularLevel * Albedo.g;
+				GBufferData.Reflactance = Albedo.b;
+				GBufferData.Normal = normalize(In.normal);
 				EncodeGBuffer(GBufferData, In.vertex_CS.xy, GBufferA, GBufferB);
 			}
 			ENDHLSL
@@ -177,7 +175,6 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma enable_d3d11_debug_symbols
-
 
 			#include "../Include/Common.hlsl"
 			#include "../Include/GPUScene.hlsl"
@@ -227,12 +224,10 @@
 				return Out;
 			}
 
-			void frag(Varyings In, out float3 DiffuseBuffer : SV_Target0, out float3 SpecularBuffer : SV_Target1)
+			void frag(Varyings In, out float4 LightingBuffer : SV_Target0)
 			{
-				float3 BaseColor = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
-
-				DiffuseBuffer = BaseColor;
-				SpecularBuffer = 0.5f;
+				float3 Albedo = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
+				LightingBuffer = float4(Albedo, 1);
 			}
 			ENDHLSL
 		}

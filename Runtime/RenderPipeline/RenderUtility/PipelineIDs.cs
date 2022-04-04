@@ -46,8 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int GBufferA = Shader.PropertyToID("_GBufferTextureA");
         public static int GBufferB = Shader.PropertyToID("_GBufferTextureB");
         public static int MotionBuffer = Shader.PropertyToID("_MotionTexture");
-        public static int DiffuseBuffer = Shader.PropertyToID("_DiffuseTexture");
-        public static int SpecularBuffer = Shader.PropertyToID("_SpecularTexture");
+        public static int LightingBuffer = Shader.PropertyToID("_LightingTexture");
         public static int AntiAliasingBuffer = Shader.PropertyToID("_AntiAliasingBuffer");
         public static int RT_MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");

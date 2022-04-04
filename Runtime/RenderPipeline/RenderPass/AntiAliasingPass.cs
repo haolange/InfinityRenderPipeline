@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             FRDGTextureRef motionTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
-            FRDGTextureRef aliasingTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DiffuseBuffer);
+            FRDGTextureRef aliasingTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
             FRDGTextureRef accmulateTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescriptor);
             FRDGTextureRef hsitoryTexture = m_GraphBuilder.ImportTexture(historyCache.GetTexture(FAntiAliasingUtilityData.HistoryTextureID, historyDescriptor));
 

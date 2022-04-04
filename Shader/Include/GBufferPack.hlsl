@@ -82,8 +82,8 @@ struct FGBufferData
     float Specular;
     float Roughness;
     float Reflactance;
-    float3 BaseColor;
-	float3 WorldNormal;
+    float3 Albedo;
+	float3 Normal;
 };
 
 struct FReconstructInput
@@ -123,9 +123,9 @@ float EdgeFilter(float2 center, float2 a0, float2 a1, float2 a2, float2 a3)
 
 void EncodeGBuffer(FGBufferData GBufferData, uint2 PixelCoord, out float4 GBufferA, out float4 GBufferB)
 {
-    float3 YCoCgColor = RGBToYCoCg(GBufferData.BaseColor);
+    float3 YCoCgColor = RGBToYCoCg(GBufferData.Albedo);
     GBufferA = float4(((PixelCoord.x & 1) == (PixelCoord.y & 1)) ? YCoCgColor.rg : YCoCgColor.rb, GBufferData.Roughness, GBufferData.Reflactance);
-    GBufferB = float4(EncodeBestFit(GBufferData.WorldNormal) * 0.5 + 0.5, GBufferData.Specular);
+    GBufferB = float4(EncodeBestFit(GBufferData.Normal) * 0.5 + 0.5, GBufferData.Specular);
 }
 
 void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 GBufferB, out FGBufferData GBufferData)
@@ -136,9 +136,9 @@ void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 G
 
     GBufferData.Specular = GBufferB.a;
     GBufferData.Roughness = GBufferA.b;
-    GBufferData.BaseColor = YCoCgToRGB(YCoCgColor);
+    GBufferData.Albedo = YCoCgToRGB(YCoCgColor);
     GBufferData.Reflactance = GBufferA.a;
-    GBufferData.WorldNormal = normalize(GBufferB.xyz * 2 - 1);
+    GBufferData.Normal = normalize(GBufferB.xyz * 2 - 1);
 }
 
 uint2 EncodeMetallicSpecular(float Metallic, float Specular)
@@ -162,40 +162,40 @@ void DecodeMetallicSpecular(uint2 MetallicSpecular, out float Metallic, out floa
 
 void EncodeGBuffer_Normal20(FGBufferData GBufferData, out float4 GBufferA, out uint4 GBufferB)
 {
-    uint2 EncodeNormal = floor(UnitVectorToOctahedron(GBufferData.WorldNormal) * 511 + 512);
-    GBufferA = float4(GBufferData.BaseColor, GBufferData.Roughness);
+    uint2 EncodeNormal = floor(UnitVectorToOctahedron(GBufferData.Normal) * 511 + 512);
+    GBufferA = float4(GBufferData.Albedo, GBufferData.Roughness);
     GBufferB = uint4(EncodeNormal, EncodeMetallicSpecular(GBufferData.Reflactance, GBufferData.Specular));
 }
 
 void DecodeGBuffer_Normal20(float4 GBufferA, float4 GBufferB, out FGBufferData GBufferData)
 {
     GBufferData.Roughness = GBufferA.a;
-    GBufferData.BaseColor = GBufferA.rgb;
-    GBufferData.WorldNormal = OctahedronToUnitVector((GBufferB.xy / 1023) * 2 - 1);
+    GBufferData.Albedo = GBufferA.rgb;
+    GBufferData.Normal = OctahedronToUnitVector((GBufferB.xy / 1023) * 2 - 1);
     DecodeMetallicSpecular(GBufferB.zw, GBufferData.Reflactance, GBufferData.Specular);
 }
 
 void EncodeGBuffer_Normal24(FGBufferData GBufferData, out float4 GBufferA, out float4 GBufferB)
 {
-    float3 PackedWorldNormal = Pack1212To888(saturate(UnitVectorToOctahedron(GBufferData.WorldNormal) * 0.5 + 0.5));              
-    GBufferA = float4(GBufferData.BaseColor, GBufferData.Roughness);
-    GBufferB = float4(PackedWorldNormal, GBufferData.Reflactance);
+    float3 PackedNormal = Pack1212To888(saturate(UnitVectorToOctahedron(GBufferData.Normal) * 0.5 + 0.5));              
+    GBufferA = float4(GBufferData.Albedo, GBufferData.Roughness);
+    GBufferB = float4(PackedNormal, GBufferData.Reflactance);
 }
 
 void DecodeGBuffer_Normal24(float4 GBufferA, float4 GBufferB, out FGBufferData GBufferData)
 {
-    GBufferData.WorldNormal = OctahedronToUnitVector(Pack888To1212(GBufferB.xyz) * 2 - 1);
+    GBufferData.Normal = OctahedronToUnitVector(Pack888To1212(GBufferB.xyz) * 2 - 1);
     GBufferData.Specular = 0.5;
     GBufferData.Roughness = GBufferA.a;
-    GBufferData.BaseColor = GBufferB.rgb;
+    GBufferData.Albedo = GBufferB.rgb;
     GBufferData.Reflactance = GBufferB.a;
 }
 
 void EncodeGBuffer_RayTrace(FGBufferData GBufferData, out int GBufferA, out int GBufferB)
 {
-    int2 EncodeNormal = int2(saturate(UnitVectorToOctahedron(GBufferData.WorldNormal) * 0.5 + 0.5) * 0xFFF);
+    int2 EncodeNormal = int2(saturate(UnitVectorToOctahedron(GBufferData.Normal) * 0.5 + 0.5) * 0xFFF);
     int EncodeRoughness = int(saturate(GBufferData.Roughness) * 0xFF);
-    int3 EncodeAlbedo = int3(saturate(GBufferData.BaseColor) * 0xFF);
+    int3 EncodeAlbedo = int3(saturate(GBufferData.Albedo) * 0xFF);
     int EncodeReflactance = int(saturate(GBufferData.Reflactance) * 0xFF);
                     
     GBufferA = (EncodeNormal.x << 20) + (EncodeNormal.y << 8) + EncodeRoughness;
@@ -204,10 +204,10 @@ void EncodeGBuffer_RayTrace(FGBufferData GBufferData, out int GBufferA, out int 
 
 void DecodeGBuffer_RayTrace(int GBufferA, int GBufferB, out FGBufferData GBufferData)
 {
-    GBufferData.WorldNormal = OctahedronToUnitVector(2 * ((int2(GBufferA >> 20, GBufferA >> 8) & 0xFFF) / float(0xFFF)) - 1);
+    GBufferData.Normal = OctahedronToUnitVector(2 * ((int2(GBufferA >> 20, GBufferA >> 8) & 0xFFF) / float(0xFFF)) - 1);
     GBufferData.Specular = 0.5;
     GBufferData.Roughness = ((GBufferA >> 32) & 0xFF) / float(0xFF);
-    GBufferData.BaseColor = (int3(GBufferB >> 24, GBufferB >> 16, GBufferB >> 8) & 0xFF) / float(0xFF);
+    GBufferData.Albedo = (int3(GBufferB >> 24, GBufferB >> 16, GBufferB >> 8) & 0xFF) / float(0xFF);
     GBufferData.Reflactance = (GBufferB >> 32 & 0xFF) / float(0xFF);
 }
 

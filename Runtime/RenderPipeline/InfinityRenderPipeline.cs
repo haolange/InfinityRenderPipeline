@@ -217,7 +217,7 @@ namespace InfinityTech.Rendering.Pipeline
                         bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
                         #region BeginViewContext
-                        using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.ViewContext)))
+                        using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ViewContext)))
                         {
                             // Get PerCamera History ResourceCache Manager
                             if (!m_HistoryCaches.ContainsKey(cameraId))
@@ -255,7 +255,7 @@ namespace InfinityTech.Rendering.Pipeline
                             viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
 
                             //Scene Culling
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
+                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
                             {
                                 camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                                 cullingParameters.shadowDistance = 128;
@@ -265,7 +265,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             
                             //Compute LOD
-                            using (new ProfilingScope(cmdBuffer, ProfilingSampler.Get(EPipelineProfileId.ComputeLOD)))
+                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ComputeLOD)))
                             {
                                 List<TerrainComponent> terrains = renderWorld.GetWorldTerrains();
                                 float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);

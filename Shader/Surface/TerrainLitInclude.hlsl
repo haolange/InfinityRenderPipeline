@@ -42,7 +42,7 @@ UNITY_INSTANCING_BUFFER_END(Terrain)
 
 CBUFFER_START(UnityPerMaterial)
     float4 _MainTex_ST;
-    half4 _BaseColor;
+    half4 _AlbedoColor;
     half _Cutoff;
 CBUFFER_END
 
@@ -465,7 +465,7 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 
 #endif
 
-void ForwardFragment(Varyings IN, out float3 DiffuseBuffer : SV_Target0, out float3 SpecularBuffer : SV_Target1)
+void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
 {
     #ifdef _ALPHATEST_ON
         ClipHoles(IN.uvMainAndLM.xy);
@@ -504,8 +504,7 @@ void ForwardFragment(Varyings IN, out float3 DiffuseBuffer : SV_Target0, out flo
     InputData inputData;
     InitializeInputData(IN, normalTS, inputData);
     //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
-    DiffuseBuffer = mixedDiffuse.rgb * weight;
-    SpecularBuffer = mixedDiffuse.bgr * weight;
+    LightingBuffer = float4(mixedDiffuse.rgb * weight, 1);
 }
 
 void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)
@@ -549,11 +548,11 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
 
     FGBufferData GBufferData;
-    GBufferData.BaseColor = mixedDiffuse.rgb;
-    GBufferData.Roughness = mixedDiffuse.r;
+    GBufferData.Albedo = mixedDiffuse.rgb;
     GBufferData.Specular = mixedDiffuse.g;
+    GBufferData.Roughness = mixedDiffuse.r;
     GBufferData.Reflactance = mixedDiffuse.b;
-    GBufferData.WorldNormal = normalize(inputData.normalWS);
+    GBufferData.Normal = normalize(inputData.normalWS);
     EncodeGBuffer(GBufferData, IN.clipPos.xy, GBufferA, GBufferB);
     GBufferA *= weight;
     GBufferB *= weight;
