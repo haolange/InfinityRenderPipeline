@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct FForwardPassData
         {
             public Camera camera;
-            public FRDGTextureRef depthBuffer;
+            public FRDGTextureRef depthTexture;
             public FRDGTextureRef lightingTexture;
             public CullingResults cullingResults;
             public FMeshPassProcessor meshPassProcessor;
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.cullingResults = cullingResults;
                 passData.meshPassProcessor = m_ForwardMeshProcessor;
                 passData.lightingTexture = passRef.UseColorBuffer(lightingTexture, 0);
-                passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
+                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
                 
                 m_ForwardMeshProcessor.DispatchSetup(cullingData, new FMeshPassDescriptor(0, 2999));
 

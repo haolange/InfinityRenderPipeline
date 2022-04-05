@@ -22,9 +22,13 @@ namespace InfinityTech.Rendering.RDG.Editor
             gridBackground.StretchToParentSize();
 
             AddElement(GenerateNode("RenderDepth", new string[] { }, new string[] { "DepthBuffer" }, new Rect(0, 0, 100, 150)));
-            AddElement(GenerateNode("RenderGBuffer", new string[] { "DepthBuffer" }, new string[] { "GBufferA", "GBufferB" }, new Rect(200, 0, 100, 150)));
-            AddElement(GenerateNode("RenderSky", new string[] { "ColorBuffer" }, new string[] { "ColorBuffer" }, new Rect(450, 0, 100, 150)));
-            AddElement(GenerateNode("RenderPresent", new string[] { "PresentBuffer" }, new string[] { }, new Rect(740, 0, 100, 150)));
+            AddElement(GenerateNode("RenderGBuffer", new string[] { "DepthBuffer" }, new string[] { "GBufferA", "GBufferB" }, new Rect(400, 0, 100, 150)));
+            AddElement(GenerateNode("RenderMotion", new string[] { "DepthBuffer" }, new string[] { "MotionBuffer" }, new Rect(800, 0, 100, 150)));
+            AddElement(GenerateNode("RenderForward", new string[] { "DepthBuffer" }, new string[] { "LightingBuffer" }, new Rect(1200, 0, 100, 150)));
+            AddElement(GenerateNode("RenderSky", new string[] { "ColorBuffer", "DepthBuffer" }, new string[] { "ColorBuffer" }, new Rect(1600, 0, 100, 150)));
+            AddElement(GenerateNode("RenderAntiAliasing", new string[] { "DepthBuffer", "MotionBuffer", "HistoryBuffer" }, new string[] { "AliasingBuffer" }, new Rect(2000, 0, 100, 150)));
+            AddElement(GenerateNode("RenderGizmos", new string[] { "ColorBuffer", "DepthBuffer"}, new string[] { "ColorBuffer" }, new Rect(2400, 0, 100, 150)));
+            AddElement(GenerateNode("RenderPresent", new string[] { "ColorBuffer" }, new string[] { }, new Rect(2800, 0, 100, 150)));
         }
 
         public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
@@ -42,35 +46,35 @@ namespace InfinityTech.Rendering.RDG.Editor
             return CompatiblePorts;
         }
 
-        Port GeneratePort(RenderPassNode node, Direction portDirection, Port.Capacity capacity = Port.Capacity.Single)
+        Port GeneratePort(RenderPassNode node, in Direction portDirection, in Port.Capacity capacity = Port.Capacity.Multi)
         {
             return node.InstantiatePort(Orientation.Horizontal, portDirection, capacity, typeof(float));
         }
 
-        RenderPassNode GenerateNode(string NodeName, string[] InPinName, string[] OutPinName, Rect DrawRect)
+        RenderPassNode GenerateNode(string nodeName, string[] inputPinName, string[] outputPinName, in Rect drawRect)
         {
             RenderPassNode node = new RenderPassNode
             {
-                title = NodeName,
+                title = nodeName,
             };
 
-            if (InPinName.Length != 0)
+            if (inputPinName.Length != 0)
             {
-                for (uint i = 0; i <= InPinName.Length - 1; i++)
+                for (uint i = 0; i < inputPinName.Length; ++i)
                 {
                     Port inputPin = GeneratePort(node, Direction.Input);
-                    inputPin.portName = InPinName[i];
+                    inputPin.portName = inputPinName[i];
                     inputPin.portColor = new Color(0.1f, 1, 0.25f);
                     node.inputContainer.Add(inputPin);
                 }
             }
 
-            if (OutPinName.Length != 0)
+            if (outputPinName.Length != 0)
             {
-                for (uint j = 0; j <= OutPinName.Length - 1; j++)
+                for (uint j = 0; j < outputPinName.Length; ++j)
                 {
                     Port outPin = GeneratePort(node, Direction.Output);
-                    outPin.portName = OutPinName[j];
+                    outPin.portName = outputPinName[j];
                     outPin.portColor = new Color(1, 0.4f, 0);
                     node.outputContainer.Add(outPin);
                 }
@@ -78,7 +82,7 @@ namespace InfinityTech.Rendering.RDG.Editor
 
             node.RefreshPorts();
             node.RefreshExpandedState();
-            node.SetPosition(DrawRect);
+            node.SetPosition(drawRect);
             node.styleSheets.Add(Resources.Load<StyleSheet>("StyleSheet/RenderPassNode"));
             return node;
         }

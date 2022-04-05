@@ -18,8 +18,8 @@ namespace InfinityTech.Rendering.Pipeline
         struct FMotionPassData
         {
             public Camera camera;
-            public FRDGTextureRef depthBuffer;
-            public FRDGTextureRef motionBuffer;
+            public FRDGTextureRef depthTexture;
+            public FRDGTextureRef motionTexture;
             public CullingResults cullingResults;
         }
 
@@ -41,8 +41,8 @@ namespace InfinityTech.Rendering.Pipeline
                 ref FMotionPassData passData = ref passRef.GetPassData<FMotionPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
-                passData.motionBuffer = passRef.UseColorBuffer(motionTexture, 0);
-                passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
+                passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0);
+                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in FMotionPassData passData, in FRDGContext graphContext) =>
