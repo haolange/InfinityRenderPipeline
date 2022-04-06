@@ -13,10 +13,10 @@ Completed :
 * ScreenSpaceGlobalIllumination
 * StochasticScreenSpaceReflection
 * GrandTruth Ambient&Reflection Occlusion
-* Instance Terrain use MorphVertex for Low DarwCall
+* Instanced Terrain use MorphVertex for Low DarwCall
 * Runtime VirtualTexture for HighPerformance TerrainRender
 * Instance FoliageSystem for HighPerformance and Mass FoliageRender
-* MeshDrawPipeline a Unfield HighPreformence DrawMeshSystem for EasySetting
+* MeshDrawPipeline a Unfield HighPreformence and EasySetting DrawMeshSystem
 
 
 Developerment : 
