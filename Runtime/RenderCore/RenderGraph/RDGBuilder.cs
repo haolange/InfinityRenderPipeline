@@ -2,19 +2,18 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
-using InfinityTech.Rendering.Core;
 using System.Runtime.CompilerServices;
+using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
     public struct FRDGContext
     {
-        public FRenderWorld world;
         public CommandBuffer cmdBuffer;
         public FRDGObjectPool objectPool;
         public FResourcePool resourcePool;
-        public ScriptableRenderContext renderContext;
+        public FRenderContext renderContext;
     }
 
     internal struct FRDGPassCompileInfo
@@ -89,6 +88,7 @@ namespace InfinityTech.Rendering.RDG
         bool m_ExecuteExceptionIsRaised;
         FRDGResourceFactory m_Resources;
 
+        ProfilingSampler m_ProfileSampler;
         Stack<int> m_CullingStack = new Stack<int>();
         List<IRDGPass> m_PassList = new List<IRDGPass>(64);
         FRDGObjectPool m_ObjectPool = new FRDGObjectPool();
@@ -99,6 +99,7 @@ namespace InfinityTech.Rendering.RDG
         {
             this.name = name;
             this.m_Resources = new FRDGResourceFactory();
+            this.m_ProfileSampler = new ProfilingSampler("ExecuteRDG");
             this.m_PassCompileInfos = new DynamicArray<FRDGPassCompileInfo>();
             this.m_ResourcesCompileInfos = new DynamicArray<FResourceCompileInfo>[2];
 
@@ -169,10 +170,9 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Execute(in ScriptableRenderContext renderContext, FRenderWorld world, CommandBuffer cmdBuffer, FResourcePool resourcePool)
+        public void Execute(FRenderContext renderContext, FResourcePool resourcePool, CommandBuffer cmdBuffer)
         {
             FRDGContext graphContext;
-            graphContext.world = world;
             graphContext.cmdBuffer = cmdBuffer;
             graphContext.objectPool = m_ObjectPool;
             graphContext.resourcePool = resourcePool;
@@ -180,21 +180,24 @@ namespace InfinityTech.Rendering.RDG
             m_ExecuteExceptionIsRaised = false;
 
             #region ExecuteRenderPass
-            try
+            using (new ProfilingScope(null, m_ProfileSampler))
             {
-                m_Resources.BeginRender();
-                CompilePass();
-                ExecutePass(ref graphContext);
-            } catch (Exception exception) {
-                Debug.LogError("RenderGraph Execute error");
-                if (!m_ExecuteExceptionIsRaised) { Debug.LogException(exception); }
-                m_ExecuteExceptionIsRaised = true;
-            } finally {
-                ClearPass();
-                m_Resources.EndRender();
+                try
+                {
+                    m_Resources.BeginRender();
+                    CompilePass();
+                    ExecutePass(ref graphContext);
+                } catch (Exception exception) {
+                    Debug.LogError("RenderGraph Execute error");
+                    if (!m_ExecuteExceptionIsRaised) { Debug.LogException(exception); }
+                    m_ExecuteExceptionIsRaised = true;
+                } finally {
+                    ClearPass();
+                    m_Resources.EndRender();
+                }
             }
             #endregion
-        }
+    }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ClearPass()
@@ -574,7 +577,7 @@ namespace InfinityTech.Rendering.RDG
 
             SetRenderTarget(ref graphContext, passCompileInfo);
             m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERDGResourceType.Texture]);
-            graphContext.renderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+            graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
             graphContext.cmdBuffer.Clear();
 
             if (pass.enableAsyncCompute) {
@@ -598,7 +601,7 @@ namespace InfinityTech.Rendering.RDG
             }
 
             if (pass.enableAsyncCompute) {
-                graphContext.renderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
+                graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
                 CommandBufferPool.Release(graphContext.cmdBuffer);
                 graphContext.cmdBuffer = cmdBuffer;
             }

@@ -1,6 +1,5 @@
 using UnityEditor;
 using UnityEngine;
-using InfinityTech.Rendering.Core;
 
 namespace InfinityTech.Component
 {
@@ -62,22 +61,12 @@ namespace InfinityTech.Component
 
         protected virtual void OnTransformChange()
         {
-
+            
         }
 
         protected virtual void UnRegister()
         {
 
-        }
-
-        protected FRenderWorld GetWorld()
-        {
-            if (FRenderWorld.RenderWorld != null)
-            {
-                return FRenderWorld.RenderWorld;
-            }
-
-            return null;
         }
     }
 }

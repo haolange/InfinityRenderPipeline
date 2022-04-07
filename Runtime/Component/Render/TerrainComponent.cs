@@ -1,8 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 using Unity.Mathematics;
-using UnityEngine.Rendering;
-using System.Collections.Generic;
+using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.TerrainPipeline;
 
 namespace InfinityTech.Component
@@ -56,10 +55,12 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            renderWorld.AddWorldTerrain(this);
             terrainSector?.Initializ();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
-
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                renderContext.AddWorldTerrain(this);
+            });
             //RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
         }
 
@@ -85,8 +86,10 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             terrainSector?.Dispose();
-            renderWorld.RemoveWorldTerrain(this);
-
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                renderContext.RemoveWorldTerrain(this);
+            });
             //RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         }
 

@@ -1,9 +1,6 @@
 ﻿using UnityEngine;
-using Unity.Mathematics;
-using Unity.Collections;
 using UnityEngine.Rendering;
-using InfinityTech.Core.Geometry;
-using UnityEngine.Experimental.Rendering;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Component
 {
@@ -17,9 +14,12 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            GetWorld().AddWorldView(this);
             unityCamera = GetComponent<Camera>();
             viewProfiler = new ProfilingSampler(this.name);
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                renderContext.AddWorldView(this);
+            });
          }
 
         protected override void EventPlay()
@@ -39,7 +39,10 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            GetWorld().RemoveWorldView(this);
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                renderContext.RemoveWorldView(this);
+            });
         }
 
         private void ResizeHistoryBuffer()

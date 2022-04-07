@@ -1,10 +1,10 @@
-﻿using UnityEngine;
+﻿using System;
 using Unity.Collections;
 using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    public class FMeshBatchCollector
+    public class FMeshBatchCollector : IDisposable
     {
         private int m_Index;
         public int count
@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<float4x4> cacheMatrixs;
         public NativeArray<FMeshElement> cacheMeshElements;
 
-        public void Initializ()
+        public FMeshBatchCollector()
         {
             m_Index = -1;
             cacheMatrixs = new NativeArray<float4x4>(10000, Allocator.Persistent);
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         }
 
-        public void Release()
+        public void Dispose()
         {
             cacheMatrixs.Dispose();
             cacheMeshElements.Dispose();

@@ -177,7 +177,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     lastPassMeshSection = passMeshSection;
 
-                    meshDrawCommand.meshIndex = meshElement.staticMeshRef.Id;
+                    meshDrawCommand.meshIndex = meshElement.meshRef.Id;
                     meshDrawCommand.sectionIndex = meshElement.sectionIndex;
                     meshDrawCommand.materialIndex = meshElement.materialRef.Id;
                     meshDrawCommand.countOffset.x = 0;
@@ -251,7 +251,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     lastPassMeshSection = passMeshSection;
 
-                    meshDrawCommand.meshIndex = meshElement.staticMeshRef.Id;
+                    meshDrawCommand.meshIndex = meshElement.meshRef.Id;
                     meshDrawCommand.sectionIndex = meshElement.sectionIndex;
                     meshDrawCommand.materialIndex = meshElement.materialRef.Id;
                     meshDrawCommand.countOffset.x = 0;

@@ -1,8 +1,9 @@
 ﻿using UnityEditor;
 using UnityEngine;
 using Unity.Mathematics;
-using Unity.Collections;
+using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Component
@@ -52,8 +53,12 @@ namespace InfinityTech.Component
             //bInitTransfrom = false;
             UpdateBounds();
             //UpdateMaterial();
-            BuildMeshBatch();
-            AddWorldMesh(movebility);
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                if (!this) { return; }
+                BuildMeshBatch(renderContext);
+                AddWorldMesh(renderContext, movebility);
+            });
             //m_CustomDatas = new NativeArray<float>(16, Allocator.Persistent);
         }
 
@@ -118,7 +123,11 @@ namespace InfinityTech.Component
         {
             //ReleaseMeshBatch();
             //m_CustomDatas.Dispose();
-            RemoveWorldMesh(movebility);
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                if (!this) { return; }
+                RemoveWorldMesh(renderContext, movebility);
+            });
         }
 
 #if UNITY_EDITOR
@@ -142,29 +151,29 @@ namespace InfinityTech.Component
 #endif
 
         // Render Interface
-        private void AddWorldMesh(in EStateType stateType)
+        private void AddWorldMesh(FRenderContext renderContext, in EStateType stateType)
         {
             if(stateType == EStateType.Static)
             {
-                renderWorld.AddWorldStaticMesh(this);
+                renderContext.AddWorldStaticMesh(this);
             }
 
             if (stateType == EStateType.Dynamic)
             {
-                renderWorld.AddWorldDynamicMesh(this);
+                renderContext.AddWorldDynamicMesh(this);
             }
         }
 
-        private void RemoveWorldMesh(in EStateType stateType)
+        private void RemoveWorldMesh(FRenderContext renderContext, in EStateType stateType)
         {
             if (stateType == EStateType.Static)
             {
-                renderWorld.RemoveWorldStaticMesh(this);
+                renderContext.RemoveWorldStaticMesh(this);
             }
 
             if (stateType == EStateType.Dynamic)
             {
-                renderWorld.RemoveWorldDynamicMesh(this);
+                renderContext.RemoveWorldDynamicMesh(this);
             }
         }
 
@@ -230,7 +239,7 @@ namespace InfinityTech.Component
         }
 #endif
 
-        public void BuildMeshBatch()
+        public void BuildMeshBatch(FRenderContext renderContext)
         {
             if (staticMesh != null) 
             {
@@ -245,18 +254,18 @@ namespace InfinityTech.Component
                     meshElement.motionType = (int)motionVector;
                     meshElement.renderLayer = renderLayer;
                     meshElement.sectionIndex = i;
-                    meshElement.staticMeshRef = renderWorld.meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
-                    meshElement.materialRef = renderWorld.materialAssets.Add(materials[i], materials[i].GetInstanceID());
+                    meshElement.meshRef = new UObjectRef<Mesh>(staticMesh.GetInstanceID());
+                    meshElement.materialRef = new UObjectRef<Material>(materials[i].GetInstanceID());
                     meshElement.priority = renderPriority + materials[i].renderQueue;
                     //meshElement.matrix_LocalToWorld = m_LocalToWorldMatrix;
                     //meshElement.CustomPrimitiveData = new float4x4(GetCustomPrimitiveData(0), GetCustomPrimitiveData(4), GetCustomPrimitiveData(8), GetCustomPrimitiveData(12));
 
-                    m_CacheID[i] = renderWorld.GetMeshBatchColloctor().AddMeshBatch(meshElement, m_LocalToWorldMatrix);
+                    m_CacheID[i] = renderContext.GetMeshBatchColloctor().AddMeshBatch(meshElement, m_LocalToWorldMatrix);
                 }
             }
         }
 
-        public void UpdateMeshBatch()
+        public void UpdateMeshBatch(FRenderContext renderContext)
         {
             /*if (staticMesh != null)
             {
@@ -280,7 +289,7 @@ namespace InfinityTech.Component
             }*/
         }
 
-        public void ReleaseMeshBatch()
+        public void ReleaseMeshBatch(FRenderContext renderContext)
         {
             /*if (staticMesh != null)
             {

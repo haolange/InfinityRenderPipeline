@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
                         enableInstancing = true,
                         enableDynamicBatching = false
                     };
-                    graphContext.renderContext.DrawRenderers(passData.cullingResults, ref drawingSettings, ref filteringSettings);
+                    graphContext.renderContext.scriptableRenderContext.DrawRenderers(passData.cullingResults, ref drawingSettings, ref filteringSettings);
                 });
             }
         }

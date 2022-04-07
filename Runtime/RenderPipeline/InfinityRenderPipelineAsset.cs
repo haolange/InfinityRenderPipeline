@@ -12,6 +12,7 @@ namespace InfinityTech.Rendering.Pipeline
         public bool showMaterial = false;
         public bool showAdvanced = true;
 
+        public bool updateProxy = true;
         public bool enableRayTrace = false;
         public bool enableSRPBatch = true;
         public bool enableDynamicBatch = true;

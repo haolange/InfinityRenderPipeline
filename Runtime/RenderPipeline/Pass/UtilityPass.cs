@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
                     //Execute Phase
                     passRef.SetExecuteFunc((in GizmosPassData passData, in FRDGContext graphContext) =>
                     {
-                        graphContext.renderContext.DrawGizmos(passData.camera, GizmoSubset.PostImageEffects);
+                        graphContext.renderContext.scriptableRenderContext.DrawGizmos(passData.camera, GizmoSubset.PostImageEffects);
                     });
                 }
             }
@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Execute Phase
                 passRef.SetExecuteFunc((in SkyBoxPassData passData, in FRDGContext graphContext) =>
                 {
-                    graphContext.renderContext.DrawSkybox(passData.camera);
+                    graphContext.renderContext.scriptableRenderContext.DrawSkybox(passData.camera);
                 });
             }
         }

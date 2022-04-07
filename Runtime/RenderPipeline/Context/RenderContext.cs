@@ -1,21 +1,48 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using InfinityTech.Core;
+using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 
-namespace InfinityTech.Rendering.Core
+namespace InfinityTech.Rendering.Pipeline
 {
-    public class FRenderWorld : Disposer
-    {
-        public static FRenderWorld RenderWorld { get; private set; }
+    public delegate void FGraphicsTask(FRenderContext renderContext);
 
-        public string name;
-        public bool bDisable;
-        public SharedRefFactory<Mesh> meshAssets;
-        public SharedRefFactory<Material> materialAssets;
+    public static class FGraphics
+    {
+        internal static List<FGraphicsTask> GraphicsTasks = new List<FGraphicsTask>(256);
+
+        public static void AddTask(FGraphicsTask graphicsTask)
+        {
+            GraphicsTasks.Add(graphicsTask);
+        }
+
+        internal static void ClearGraphicsTasks()
+        {
+            FGraphics.GraphicsTasks.Clear();
+        }
+
+        internal static void ProcessGraphicsTasks(FRenderContext renderContext)
+        {
+            if(FGraphics.GraphicsTasks.Count == 0) { return; }
+            
+            for (int i = 0; i < FGraphics.GraphicsTasks.Count; ++i) 
+            {
+                if (FGraphics.GraphicsTasks[i] != null) 
+                {
+                    FGraphics.GraphicsTasks[i](renderContext);
+                    FGraphics.GraphicsTasks[i] = null;
+                }
+            }
+        }
+    }
+
+    public class FRenderContext : IDisposable
+    {
+        public ScriptableRenderContext scriptableRenderContext;
 
         private List<CameraComponent> m_ViewList;
         private List<LightComponent> m_LightList;
@@ -24,37 +51,36 @@ namespace InfinityTech.Rendering.Core
         private List<MeshComponent> m_DynamicMeshList;
         private FMeshBatchCollector m_MeshBatchCollector;
 
-        public FRenderWorld(string name)
+        public FRenderContext()
         {
-            this.name = name;
-            FRenderWorld.RenderWorld = this;
-            this.m_ViewList = new List<CameraComponent>(16);
-            this.meshAssets = new SharedRefFactory<Mesh>(512);
-            this.m_LightList = new List<LightComponent>(64);
-            this.m_TerrainList = new List<TerrainComponent>(32);
-            this.materialAssets = new SharedRefFactory<Material>(512);
-            this.m_StaticMeshList = new List<MeshComponent>(8192);
-            this.m_DynamicMeshList = new List<MeshComponent>(8192);
-            this.m_MeshBatchCollector = new FMeshBatchCollector();
+            m_ViewList = new List<CameraComponent>(16);
+            m_LightList = new List<LightComponent>(64);
+            m_TerrainList = new List<TerrainComponent>(32);
+            m_StaticMeshList = new List<MeshComponent>(8192);
+            m_DynamicMeshList = new List<MeshComponent>(8192);
+            m_MeshBatchCollector = new FMeshBatchCollector();
         }
 
         #region WorldView
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddWorldView(CameraComponent viewComponent)
         {
             m_ViewList.Add(viewComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveWorldView(CameraComponent viewComponent)
         {
-            if(bDisable == true) { return; }
             m_ViewList.Remove(viewComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public List<CameraComponent> GetWorldView()
         {
             return m_ViewList;
         }
-
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClearWorldView()
         {
             m_ViewList.Clear();
@@ -62,22 +88,25 @@ namespace InfinityTech.Rendering.Core
         #endregion //WorldView
 
         #region WorldLight
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddWorldLight(LightComponent lightComponent)
         {
             m_LightList.Add(lightComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveWorldLight(LightComponent lightComponent)
         {
-            if(bDisable == true) { return; }
             m_LightList.Remove(lightComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public List<LightComponent> GetWorldLight()
         {
             return m_LightList;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClearWorldLight()
         {
             m_LightList.Clear();
@@ -85,22 +114,25 @@ namespace InfinityTech.Rendering.Core
         #endregion //WorldLight
 
         #region WorldTerrain
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddWorldTerrain(TerrainComponent terrainComponent)
         {
             m_TerrainList.Add(terrainComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveWorldTerrain(TerrainComponent terrainComponent)
         {
-            if (bDisable == true) { return; }
             m_TerrainList.Remove(terrainComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public List<TerrainComponent> GetWorldTerrains()
         {
             return m_TerrainList;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClearWorldTerrains()
         {
             m_TerrainList.Clear();
@@ -108,12 +140,13 @@ namespace InfinityTech.Rendering.Core
         #endregion //WorldTerrain
 
         #region WorldPrimitive
-        //Static
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddWorldStaticMesh(MeshComponent meshComponent)
         {
             m_StaticMeshList.Add(meshComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InvokeWorldStaticMeshUpdate()
         {
             if(m_StaticMeshList.Count == 0) { return; }
@@ -124,9 +157,9 @@ namespace InfinityTech.Rendering.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveWorldStaticMesh(MeshComponent meshComponent)
         {
-            if(bDisable == true) { return; }
             m_StaticMeshList.Remove(meshComponent);
         }
 
@@ -136,17 +169,19 @@ namespace InfinityTech.Rendering.Core
             return m_StaticMeshList;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClearWorldStaticMesh()
         {
             m_StaticMeshList.Clear();
         }
 
-        //Dynamic
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddWorldDynamicMesh(MeshComponent meshComponent)
         {
             m_DynamicMeshList.Add(meshComponent);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InvokeWorldDynamicMeshUpdate()
         {
             if (m_DynamicMeshList.Count == 0) { return; }
@@ -157,9 +192,9 @@ namespace InfinityTech.Rendering.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveWorldDynamicMesh(MeshComponent meshComponent)
         {
-            if(bDisable == true) { return; }
             m_DynamicMeshList.Remove(meshComponent);
         }
 
@@ -169,6 +204,7 @@ namespace InfinityTech.Rendering.Core
             return m_DynamicMeshList;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClearWorldDynamicMesh()
         {
             m_DynamicMeshList.Clear();
@@ -183,44 +219,14 @@ namespace InfinityTech.Rendering.Core
         }
         #endregion //MeshBatchCollector
 
-        public void Initializ()
+        public void Dispose()
         {
-            bDisable = false;
-
             ClearWorldView();
             ClearWorldLight();
             ClearWorldTerrains();
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
-
-            meshAssets.Clear();
-            materialAssets.Clear();
-            m_MeshBatchCollector.Initializ();
-        }
-
-        public void Release()
-        {
-            bDisable = true;
-            
-            ClearWorldView();
-            ClearWorldLight();
-            ClearWorldTerrains();
-            ClearWorldStaticMesh();
-            ClearWorldDynamicMesh();
-
-            meshAssets.Clear();
-            materialAssets.Clear();
-            m_MeshBatchCollector.Release();
-        }
-
-        protected override void DisposeManaged()
-        {
-
-        }
-
-        protected override void DisposeUnManaged()
-        {
-            
+            m_MeshBatchCollector.Dispose();
         }
     }
 }

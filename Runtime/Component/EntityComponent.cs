@@ -1,7 +1,5 @@
-﻿using UnityEditor;
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Mathematics;
-using InfinityTech.Rendering.Core;
 
 namespace InfinityTech.Component
 {
@@ -31,8 +29,6 @@ namespace InfinityTech.Component
     {
         private RenderTransfrom m_CurrTransform;
         private RenderTransfrom m_LastTransform;
-
-        protected FRenderWorld renderWorld => FRenderWorld.RenderWorld;
 
         void OnEnable()
         {

@@ -13,6 +13,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         public bool showMaterial { get { return renderipelineAsset.showMaterial; } set { renderipelineAsset.showMaterial = value; } }
         public bool showAdvanced { get { return renderipelineAsset.showAdvanced; } set { renderipelineAsset.showAdvanced = value; } }
 
+        private SerializedProperty m_UpdateProxy;
         private SerializedProperty m_RayTrace;
         private SerializedProperty m_SRPBatch;
         private SerializedProperty m_GPUInstance;
@@ -31,6 +32,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
 
         void OnEnable()
         {
+            m_UpdateProxy = serializedObject.FindProperty("updateProxy");
             m_RayTrace = serializedObject.FindProperty("enableRayTrace");
             m_SRPBatch = serializedObject.FindProperty("enableSRPBatch");
             m_GPUInstance = serializedObject.FindProperty("enableInstanceBatch");
@@ -80,6 +82,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             showAdvanced = EditorGUILayout.BeginFoldoutHeaderGroup(showAdvanced, "Advanced");
             if (showAdvanced) 
             {
+                EditorGUILayout.PropertyField(m_UpdateProxy, new GUIContent("RefreshProxy"), GUILayout.Height(25));
                 EditorGUILayout.PropertyField(m_RayTrace, new GUIContent("Ray Trace"), GUILayout.Height(25));
                 EditorGUILayout.PropertyField(m_SRPBatch, new GUIContent("SRP Batch"), GUILayout.Height(25));
                 EditorGUILayout.PropertyField(m_GPUInstance, new GUIContent("GPU Instance"), GUILayout.Height(25));

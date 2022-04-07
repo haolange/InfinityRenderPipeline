@@ -8,7 +8,6 @@ using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
 using InfinityTech.Rendering.RDG;
-using InfinityTech.Rendering.Core;
 using InfinityTech.Rendering.Feature;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
@@ -28,7 +27,9 @@ namespace InfinityTech.Rendering.Pipeline
         CulllingScene,
         BeginFrameRendering,
         EndFrameRendering,
-        SceneRendering,
+        FrameRendering,
+        ProxyUpdate,
+        SetupRDG,
         CameraRendering
     }
 
@@ -153,6 +154,7 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline : RenderPipeline
     {
+        private bool m_UpdateInit;
         private FGPUScene m_GPUScene;
         private FRDGScoper m_GraphScoper;
         private FRDGBuilder m_GraphBuilder;
@@ -164,7 +166,7 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, FViewUnifrom> m_ViewUnifroms;
         private Dictionary<int, FHistoryCache> m_HistoryCaches;
 
-        internal FRenderWorld renderWorld => FRenderWorld.RenderWorld;
+        internal FRenderContext renderContext;
         internal InfinityRenderPipelineAsset pipelineAsset 
         { 
             get 
@@ -175,149 +177,161 @@ namespace InfinityTech.Rendering.Pipeline
 
         public InfinityRenderPipeline()
         {
+            m_UpdateInit = true;
             SetGraphicsSetting();
+            renderContext = new FRenderContext();
             m_ResourcePool = new FResourcePool();
             m_GraphBuilder = new FRDGBuilder("RenderGraph");
             m_GraphScoper = new FRDGScoper(m_GraphBuilder);
             m_ViewUnifroms = new Dictionary<int, FViewUnifrom>();
             m_HistoryCaches = new Dictionary<int, FHistoryCache>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
-            m_GPUScene = new FGPUScene(m_ResourcePool, renderWorld.GetMeshBatchColloctor());
+            m_GPUScene = new FGPUScene(m_ResourcePool, renderContext.GetMeshBatchColloctor());
             m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
             m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
         }
 
-        protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
+        protected override void Render(ScriptableRenderContext scriptableRenderContext, Camera[] cameras)
         {
             //Begin FrameContext
-            RTHandles.Initialize(Screen.width, Screen.height);
-            CommandBuffer cmdBuffer = CommandBufferPool.Get("");
-            cmdBuffer.Clear();
-            m_GPUScene.Update(cmdBuffer);
-            
-            BeginFrameRendering(renderContext, cameras);
-            for (int i = 0; i < cameras.Length; ++i)
+            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
-                Camera camera = cameras[i];
-                CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
+                renderContext.scriptableRenderContext = scriptableRenderContext;
+                RTHandles.Initialize(Screen.width, Screen.height);
+                CommandBuffer cmdBuffer = CommandBufferPool.Get("");
+                cmdBuffer.Clear();
 
-                //Camera Rendering
-                using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
+                InvokeProxyUpdate();
+                m_GPUScene.Update();
+                
+                BeginFrameRendering(scriptableRenderContext, cameras);
+                for (int i = 0; i < cameras.Length; ++i)
                 {
-                    BeginCameraRendering(renderContext, camera);
+                    Camera camera = cameras[i];
+                    CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
+
+                    //Camera Rendering
+                    using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
                     {
-                        FCullingData cullingData;
-                        FViewUnifrom viewUnifrom;
-                        FHistoryCache historyCache;
-                        CullingResults cullingResult;
-
-                        int cameraId = GetCameraID(camera);
-                        bool isEditView = camera.cameraType == CameraType.SceneView;
-                        bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
-
-                        #region BeginViewContext
-                        using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ViewContext)))
+                        BeginCameraRendering(scriptableRenderContext, camera);
                         {
-                            // Get PerCamera History ResourceCache Manager
-                            if (!m_HistoryCaches.ContainsKey(cameraId))
+                            FCullingData cullingData;
+                            FViewUnifrom viewUnifrom;
+                            FHistoryCache historyCache;
+                            CullingResults cullingResult;
+
+                            int cameraId = GetCameraID(camera);
+                            bool isEditView = camera.cameraType == CameraType.SceneView;
+                            bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
+
+                            #region BeginViewContext
+                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ViewContext)))
                             {
-                                historyCache = new FHistoryCache();
-                                m_HistoryCaches.Add(cameraId, historyCache);
-                            } else {
-                                historyCache = m_HistoryCaches[cameraId];
-                            }
-
-                            // Get PerCamera ViewData
-                            if (!m_ViewUnifroms.ContainsKey(cameraId))
-                            {
-                                viewUnifrom = new FViewUnifrom();
-                                m_ViewUnifroms.Add(cameraId, viewUnifrom);
-                            } else {
-                                viewUnifrom = m_ViewUnifroms[cameraId];
-                            }
-
-                            #if UNITY_EDITOR
-                            if (isEditView) 
-                            { 
-                                ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); 
-                            }
-                            #endif
-
-                            // Update Vfx
-                            m_MeshPassJobRefs.Clear();
-                            VFXManager.PrepareCamera(camera);
-                            VFXManager.ProcessCameraCommand(camera, cmdBuffer);
-
-                            // Update ViewUnifrom
-                            renderContext.SetupCameraProperties(camera);
-                            viewUnifrom.UnpateViewUnifromData(camera, false);
-                            viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
-
-                            //Scene Culling
-                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
-                            {
-                                camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                                cullingParameters.shadowDistance = 128;
-                                cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
-                                cullingResult = renderContext.Cull(ref cullingParameters);
-                                cullingData = renderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
-                            }
-                            
-                            //Compute LOD
-                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ComputeLOD)))
-                            {
-                                List<TerrainComponent> terrains = renderWorld.GetWorldTerrains();
-                                float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
-                                for(int j = 0; j < terrains.Count; ++j)
+                                // Get PerCamera History ResourceCache Manager
+                                if (!m_HistoryCaches.ContainsKey(cameraId))
                                 {
-                                    TerrainComponent terrain = terrains[j];
-                                    terrain.ComputeLOD(camera.transform.position, matrix_Proj);
-                                    
-                                    #if UNITY_EDITOR
-                                        if (Handles.ShouldRenderGizmos()) { terrain.DrawBounds(true); }
-                                    #endif
+                                    historyCache = new FHistoryCache();
+                                    m_HistoryCaches.Add(cameraId, historyCache);
+                                } else {
+                                    historyCache = m_HistoryCaches[cameraId];
+                                }
+
+                                // Get PerCamera ViewData
+                                if (!m_ViewUnifroms.ContainsKey(cameraId))
+                                {
+                                    viewUnifrom = new FViewUnifrom();
+                                    m_ViewUnifroms.Add(cameraId, viewUnifrom);
+                                } else {
+                                    viewUnifrom = m_ViewUnifroms[cameraId];
+                                }
+
+                                #if UNITY_EDITOR
+                                if (isEditView) 
+                                { 
+                                    ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); 
+                                }
+                                #endif
+
+                                // Update Vfx
+                                m_MeshPassJobRefs.Clear();
+                                VFXManager.PrepareCamera(camera);
+                                VFXManager.ProcessCameraCommand(camera, cmdBuffer);
+
+                                // Update ViewUnifrom
+                                scriptableRenderContext.SetupCameraProperties(camera);
+                                viewUnifrom.UnpateViewUnifromData(camera, false);
+                                viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
+
+                                //Scene Culling
+                                using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
+                                {
+                                    camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
+                                    cullingParameters.shadowDistance = 128;
+                                    cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
+                                    cullingResult = scriptableRenderContext.Cull(ref cullingParameters);
+                                    cullingData = scriptableRenderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
+                                }
+                                
+                                //Compute LOD
+                                using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ComputeLOD)))
+                                {
+                                    List<TerrainComponent> terrains = renderContext.GetWorldTerrains();
+                                    float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
+                                    for(int j = 0; j < terrains.Count; ++j)
+                                    {
+                                        TerrainComponent terrain = terrains[j];
+                                        terrain.ComputeLOD(camera.transform.position, matrix_Proj);
+                                        
+                                        #if UNITY_EDITOR
+                                            if (Handles.ShouldRenderGizmos()) { terrain.DrawBounds(true); }
+                                        #endif
+                                    }
                                 }
                             }
+                            #endregion //BeginViewContext
+
+                            #region ProcessRDGContext
+                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.SetupRDG)))
+                            {
+                                RenderDepth(camera, cullingData, cullingResult);
+                                RenderGBuffer(camera, cullingData, cullingResult);
+                                RenderMotion(camera, cullingData, cullingResult);
+                                RenderForward(camera, cullingData, cullingResult);
+                                RenderSkyBox(camera);
+                                RenderAntiAliasing(camera, historyCache);
+                                #if UNITY_EDITOR
+                                RenderGizmos(camera);
+                                #endif
+                                RenderPresent(camera, camera.targetTexture);
+                                JobHandle.CompleteAll(m_MeshPassJobRefs);
+                            }
+
+                            m_GraphBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                            #endregion //ProcessRDGContext
+
+                            #region EndViewContext
+                            cullingData.Release();
+                            m_GraphScoper.Clear();
+                            viewUnifrom.UnpateViewUnifromData(camera, true);
+                            #endregion //EndViewContext
                         }
-                        #endregion //BeginViewContext
-
-                        #region ExecuteViewContext
-                        RenderDepth(camera, cullingData, cullingResult);
-                        RenderGBuffer(camera, cullingData, cullingResult);
-                        RenderMotion(camera, cullingData, cullingResult);
-                        RenderForward(camera, cullingData, cullingResult);
-                        RenderSkyBox(camera);
-                        RenderAntiAliasing(camera, historyCache);
-                        #if UNITY_EDITOR
-                        RenderGizmos(camera);
-                        #endif
-                        RenderPresent(camera, camera.targetTexture);
-
-                        JobHandle.CompleteAll(m_MeshPassJobRefs);
-                        m_GraphBuilder.Execute(renderContext, renderWorld, cmdBuffer, m_ResourcePool);
-                        #endregion //ExecuteViewContext
-
-                        #region EndViewContext
-                        cullingData.Release();
-                        m_GraphScoper.Clear();
-                        viewUnifrom.UnpateViewUnifromData(camera, true);
-                        #endregion //EndViewContext
+                        EndCameraRendering(scriptableRenderContext, camera);
                     }
-                    EndCameraRendering(renderContext, camera);
                 }
+                EndFrameRendering(scriptableRenderContext, cameras);
+                
+                //Execute FrameContext
+                scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
+                scriptableRenderContext.Submit();
+                
+                //End FrameContext
+                m_GPUScene.Clear();
+                CommandBufferPool.Release(cmdBuffer);
             }
-            EndFrameRendering(renderContext, cameras);
-            
-            //Execute FrameContext
-            renderContext.ExecuteCommandBuffer(cmdBuffer);
-            renderContext.Submit();
-            
-            //End FrameContext
-            m_GPUScene.Clear();
-            CommandBufferPool.Release(cmdBuffer);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void SetGraphicsSetting()
         {
             Shader.globalRenderPipeline = "InfinityRenderPipeline";
@@ -341,10 +355,10 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererPriority = true,
                 overridesFog = true,
                 overridesOtherLightingSettings = true,
-                editableMaterialRenderQueue = true
-                , enlighten = true
-                , overridesLODBias = true
-                , overridesMaximumLODLevel = true
+                editableMaterialRenderQueue = true,
+                enlighten = true,
+                overridesLODBias = true,
+                overridesMaximumLODLevel = true
             };
         }
 
@@ -366,12 +380,53 @@ namespace InfinityTech.Rendering.Pipeline
             return cameraId;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected void InvokeProxyUpdate()
+        {
+            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
+            {
+                FGraphics.ProcessGraphicsTasks(renderContext);
+                FGraphics.ClearGraphicsTasks();
+
+                #if UNITY_EDITOR
+                    InvokeProxyUpdateEditor();
+                #else
+                    InvokeProxyUpdateRuntime();
+                #endif
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected void InvokeProxyUpdateEditor()
+        {
+            if(pipelineAsset.updateProxy)
+            {
+                pipelineAsset.updateProxy = false;
+                renderContext.InvokeWorldStaticMeshUpdate();
+            }
+
+            renderContext.InvokeWorldDynamicMeshUpdate();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected void InvokeProxyUpdateRuntime()
+        {
+            if(m_UpdateInit == true)
+            {
+                m_UpdateInit = false;
+                renderContext.InvokeWorldStaticMeshUpdate();
+            }
+
+            renderContext.InvokeWorldDynamicMeshUpdate();
+        }
+        
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
 
             if (disposing)
             {
+                renderContext.Dispose();
                 m_GraphScoper.Dispose();
                 m_GraphBuilder.Dispose();
                 m_ResourcePool.Dispose();

@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Component
@@ -184,10 +185,12 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            GetWorld().AddWorldLight(this);
-
             unityLight = GetComponent<Light>();
             FLightUtility.InitLightType(this, unityLight);
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                renderContext.AddWorldLight(this);
+            });
         }
 
         protected override void EventPlay()
@@ -207,7 +210,10 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            GetWorld().RemoveWorldLight(this);
+            FGraphics.AddTask((FRenderContext renderContext) =>
+            {
+                renderContext.RemoveWorldLight(this);
+            });
         }
 
 #if UNITY_EDITOR

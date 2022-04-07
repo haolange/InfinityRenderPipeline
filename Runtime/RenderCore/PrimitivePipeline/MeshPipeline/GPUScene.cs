@@ -33,26 +33,32 @@ namespace InfinityTech.Rendering.MeshPipeline
         
         private bool m_IsUpdate = true;
         private FResourcePool m_ResourcePool;
+        private ProfilingSampler m_ProfileSampler;
         private FMeshBatchCollector m_MeshBatchCollector;
 
         public FGPUScene(FResourcePool resourcePool, FMeshBatchCollector meshBatchCollector)
         {
             m_ResourcePool = resourcePool;
+            m_ProfileSampler = new ProfilingSampler("UpdateGPUSccene");
             m_MeshBatchCollector = meshBatchCollector;
         }
 
-        public void Update(CommandBuffer cmdBuffer, in bool block = false)
+        public void Update(in bool block = false)
         {
             if(block) { return; }
 
             if(m_MeshBatchCollector.cacheMatrixs.IsCreated)
             {
-                bufferRef = m_ResourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
-
-                if (m_IsUpdate)
+                using (new ProfilingScope(null, m_ProfileSampler))
                 {
-                    m_IsUpdate = false;
-                    cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchCollector.cacheMatrixs, 0, 0, m_MeshBatchCollector.count);
+                    bufferRef = m_ResourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
+
+                    if(m_IsUpdate)
+                    {
+                        m_IsUpdate = false;
+                        bufferRef.buffer.SetData(m_MeshBatchCollector.cacheMatrixs, 0, 0, m_MeshBatchCollector.count);
+                        //cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchCollector.cacheMatrixs, 0, 0, m_MeshBatchCollector.count);
+                    }
                 }
             }
         }
