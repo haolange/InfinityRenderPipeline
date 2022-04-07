@@ -150,5 +150,4 @@ namespace InfinityTech.Rendering.LightPipeline
             return hashCode;
         }*/
     }
-
 }

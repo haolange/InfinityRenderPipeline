@@ -6,27 +6,44 @@ namespace InfinityTech.Component
 {
     internal static class FLightUtility
     {
+        public static LightmapBakeType StateToLightmapMode(in ELightState state) 
+        {
+            LightmapBakeType lightmapMode = LightmapBakeType.Realtime;
+            switch (state)
+            {
+                case ELightState.Static:
+                    lightmapMode = LightmapBakeType.Baked;
+                    break;
+
+                case ELightState.Mixed:
+                    lightmapMode = LightmapBakeType.Mixed;
+                    break;
+            }
+
+            return lightmapMode;
+        }
+
         public static void InitLightType(this LightComponent light, Light unityLight) 
         {
             switch (unityLight.type)
             {
-                case UnityEngine.LightType.Directional:
+                case LightType.Directional:
                     light.lightType = ELightType.Directional;
                     break;
 
-                case UnityEngine.LightType.Point:
+                case LightType.Point:
                     light.lightType = ELightType.Point;
                     break;
 
-                case UnityEngine.LightType.Spot:
+                case LightType.Spot:
                     light.lightType = ELightType.Spot;
                     break;
 
-                case UnityEngine.LightType.Disc:
+                case LightType.Disc:
                     light.lightType = ELightType.Spot;
                     break;
 
-                case UnityEngine.LightType.Rectangle:
+                case LightType.Rectangle:
                     light.lightType = ELightType.Rect;
                     break;
             }
@@ -55,63 +72,72 @@ namespace InfinityTech.Component
             }
         }
 
-        public static void UpdateUnityDirecitonLightParameters(this LightComponent light, Light unityLight)
+        public static void UpdateUnityDirectionalLightParameters(this LightComponent light, Light unityLight)
         {
-            unityLight.type = UnityEngine.LightType.Directional;
+            unityLight.color = light.color;
+            unityLight.type = LightType.Directional;
             unityLight.intensity = light.intensity;
+            unityLight.colorTemperature = light.temperature;
+            unityLight.lightmapBakeType = StateToLightmapMode(light.state);
             unityLight.bounceIntensity = light.indirectIntensity;
-
+            unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
         }
 
         public static void UpdateUnityPointLightParameters(this LightComponent light, Light unityLight)
         {
-            unityLight.type = UnityEngine.LightType.Point;
+            unityLight.color = light.color;
+            unityLight.type = LightType.Point;
             unityLight.intensity = light.intensity;
+            unityLight.colorTemperature = light.temperature;
+            unityLight.lightmapBakeType = StateToLightmapMode(light.state);
             unityLight.bounceIntensity = light.indirectIntensity;
+            unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
         }
 
         public static void UpdateUnitySpotLightParameters(this LightComponent light, Light unityLight)
         {
-            unityLight.type = UnityEngine.LightType.Spot;
+            unityLight.color = light.color;
             unityLight.intensity = light.intensity;
+            unityLight.colorTemperature = light.temperature;
             unityLight.bounceIntensity = light.indirectIntensity;
-
-            if(light.radius > 0) {
-                unityLight.type = UnityEngine.LightType.Disc;
-            }
-
+            unityLight.lightmapBakeType = StateToLightmapMode(light.state);
+            unityLight.type = light.radius > 0 ? LightType.Disc : LightType.Spot;
+            unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
         }
 
         public static void UpdateUnityRectLightParameters(this LightComponent light, Light unityLight)
         {
-            unityLight.type = UnityEngine.LightType.Rectangle;
+            unityLight.color = light.color;
+            unityLight.type = LightType.Rectangle;
             unityLight.intensity = light.intensity;
+            unityLight.colorTemperature = light.temperature;
             unityLight.bounceIntensity = light.indirectIntensity;
-
+            unityLight.lightmapBakeType = StateToLightmapMode(light.state);
+            unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
         }
 
-        public static void UpdateUnityLightParameters(this LightComponent light, Light unityLight, in ELightType lightType)
+        public static void UpdateUnityLightParameters(this LightComponent light)
         {
-            switch (lightType)
+            switch (light.lightType)
             {
                 case ELightType.Directional:
-                    UpdateUnityDirecitonLightParameters(light, unityLight);
+                    UpdateUnityDirectionalLightParameters(light, light.unityLight);
                     break;
 
                 case ELightType.Point:
-                    UpdateUnityPointLightParameters(light, unityLight);
+                    UpdateUnityPointLightParameters(light, light.unityLight);
                     break;
 
                 case ELightType.Spot:
-                    UpdateUnitySpotLightParameters(light, unityLight);
+                    UpdateUnitySpotLightParameters(light, light.unityLight);
                     break;
 
                 case ELightType.Rect:
-                    UpdateUnityRectLightParameters(light, unityLight);
+                    UpdateUnityRectLightParameters(light, light.unityLight);
                     break;
             }
         }
@@ -189,42 +215,38 @@ namespace InfinityTech.Component
             FLightUtility.InitLightType(this, unityLight);
             FGraphics.AddTask((FRenderContext renderContext) =>
             {
-                renderContext.AddWorldLight(this);
+                renderContext.AddWorldLight(unityLight.GetInstanceID(), this);
             });
         }
-
-        protected override void EventPlay()
+        protected override void OnUpdate()
         {
-            base.EventPlay();
-        }
-
-        protected override void EventTick()
-        {
-            base.EventTick();
+            base.OnUpdate();
         }
 
         protected override void OnTransformChange()
         {
             base.OnTransformChange();
+            Shader.SetGlobalVector("_DirectionalLight", -Vector4.Normalize(transform.forward));
         }
 
         protected override void UnRegister()
         {
             FGraphics.AddTask((FRenderContext renderContext) =>
             {
-                renderContext.RemoveWorldLight(this);
+                renderContext.RemoveWorldLight(unityLight.GetInstanceID());
             });
         }
 
 #if UNITY_EDITOR
         public void OnGUIChange()
         {
-            FLightUtility.UpdateUnityLightParameters(this, unityLight, lightType);
+            this.UpdateUnityLightParameters();
         }
 #endif
 
-        public void GetLightElementElement(ref FLightElement lightElement) 
+        public FLightElement GetLightElement() 
         {
+            FLightElement lightElement;
             lightElement.state = state;
             lightElement.lightType = lightType;
             lightElement.lightLayer = lightLayer;
@@ -258,6 +280,8 @@ namespace InfinityTech.Component
             lightElement.volumetricOcclusion = volumetricOcclusion;
             lightElement.maxDrawDistance = maxDrawDistance;
             lightElement.maxDrawDistanceFade = maxDrawDistanceFade;
+
+            return lightElement;
         }
     }
 }

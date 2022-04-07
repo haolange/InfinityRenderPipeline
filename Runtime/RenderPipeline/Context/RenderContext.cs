@@ -6,6 +6,7 @@ using InfinityTech.Component;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -22,19 +23,19 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static void ClearGraphicsTasks()
         {
-            FGraphics.GraphicsTasks.Clear();
+            GraphicsTasks.Clear();
         }
 
         internal static void ProcessGraphicsTasks(FRenderContext renderContext)
         {
-            if(FGraphics.GraphicsTasks.Count == 0) { return; }
+            if(GraphicsTasks.Count == 0) { return; }
             
-            for (int i = 0; i < FGraphics.GraphicsTasks.Count; ++i) 
+            for (int i = 0; i < GraphicsTasks.Count; ++i) 
             {
-                if (FGraphics.GraphicsTasks[i] != null) 
+                if (GraphicsTasks[i] != null) 
                 {
-                    FGraphics.GraphicsTasks[i](renderContext);
-                    FGraphics.GraphicsTasks[i] = null;
+                    GraphicsTasks[i](renderContext);
+                    GraphicsTasks[i] = null;
                 }
             }
         }
@@ -42,22 +43,25 @@ namespace InfinityTech.Rendering.Pipeline
 
     public class FRenderContext : IDisposable
     {
-        public ScriptableRenderContext scriptableRenderContext;
-
         private List<CameraComponent> m_ViewList;
-        private List<LightComponent> m_LightList;
         private List<TerrainComponent> m_TerrainList;
         private List<MeshComponent> m_StaticMeshList;
         private List<MeshComponent> m_DynamicMeshList;
+        private Dictionary<int, LightComponent> m_LightList;
+
+        internal FLightContext lightContext;
         private FMeshBatchCollector m_MeshBatchCollector;
+        internal ScriptableRenderContext scriptableRenderContext;
 
         public FRenderContext()
         {
             m_ViewList = new List<CameraComponent>(16);
-            m_LightList = new List<LightComponent>(64);
+            m_LightList = new Dictionary<int, LightComponent>(64);
             m_TerrainList = new List<TerrainComponent>(32);
             m_StaticMeshList = new List<MeshComponent>(8192);
             m_DynamicMeshList = new List<MeshComponent>(8192);
+
+            lightContext = new FLightContext();
             m_MeshBatchCollector = new FMeshBatchCollector();
         }
 
@@ -89,19 +93,19 @@ namespace InfinityTech.Rendering.Pipeline
 
         #region WorldLight
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldLight(LightComponent lightComponent)
+        public void AddWorldLight(in int id, LightComponent lightComponent)
         {
-            m_LightList.Add(lightComponent);
+            m_LightList.Add(id, lightComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldLight(LightComponent lightComponent)
+        public void RemoveWorldLight(in int id)
         {
-            m_LightList.Remove(lightComponent);
+            m_LightList.Remove(id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public List<LightComponent> GetWorldLight()
+        public Dictionary<int, LightComponent> GetWorldLight()
         {
             return m_LightList;
         }
@@ -226,6 +230,8 @@ namespace InfinityTech.Rendering.Pipeline
             ClearWorldTerrains();
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
+
+            lightContext.Dispose();
             m_MeshBatchCollector.Dispose();
         }
     }

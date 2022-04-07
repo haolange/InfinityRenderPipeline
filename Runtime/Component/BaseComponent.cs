@@ -15,7 +15,6 @@ namespace InfinityTech.Component
         void OnEnable()
         {
             OnRegister();
-            EventPlay();
         }
 
         void Update()
@@ -25,7 +24,7 @@ namespace InfinityTech.Component
                 OnTransformChange();
             }
 
-            EventTick();
+            OnUpdate();
         }
 
         void OnDisable()
@@ -49,12 +48,7 @@ namespace InfinityTech.Component
 
         }
 
-        protected virtual void EventPlay()
-        {
-
-        }
-
-        protected virtual void EventTick()
+        protected virtual void OnUpdate()
         {
 
         }

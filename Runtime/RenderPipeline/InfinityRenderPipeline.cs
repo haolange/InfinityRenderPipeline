@@ -12,6 +12,7 @@ using InfinityTech.Rendering.Feature;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
 
 #if UNITY_EDITOR
@@ -23,8 +24,9 @@ namespace InfinityTech.Rendering.Pipeline
     internal enum EPipelineProfileId
     {
         ViewContext,
-        ComputeLOD,
         CulllingScene,
+        ProcessingLOD,
+        ProcessingLight,
         BeginFrameRendering,
         EndFrameRendering,
         FrameRendering,
@@ -124,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void SetViewUnifromDataToGPU(CommandBuffer cmdBuffer, in float2 resolution)
+        public void SetViewUnifromData(CommandBuffer cmdBuffer, in float2 resolution)
         {
             cmdBuffer.SetGlobalInt(ID_FrameIndex, frameIndex);
             cmdBuffer.SetGlobalInt(ID_LastFrameIndex, lastFrameIndex);
@@ -194,16 +196,16 @@ namespace InfinityTech.Rendering.Pipeline
 
         protected override void Render(ScriptableRenderContext scriptableRenderContext, Camera[] cameras)
         {
-            //Begin FrameContext
+            // Begin FrameContext
             using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
-                renderContext.scriptableRenderContext = scriptableRenderContext;
                 RTHandles.Initialize(Screen.width, Screen.height);
-                CommandBuffer cmdBuffer = CommandBufferPool.Get("");
-                cmdBuffer.Clear();
+                renderContext.scriptableRenderContext = scriptableRenderContext;
 
                 InvokeProxyUpdate();
                 m_GPUScene.Update();
+                CommandBuffer cmdBuffer = CommandBufferPool.Get("");
+                cmdBuffer.Clear();
                 
                 BeginFrameRendering(scriptableRenderContext, cameras);
                 for (int i = 0; i < cameras.Length; ++i)
@@ -211,7 +213,7 @@ namespace InfinityTech.Rendering.Pipeline
                     Camera camera = cameras[i];
                     CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
-                    //Camera Rendering
+                    // CameraRendering
                     using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
                     {
                         BeginCameraRendering(scriptableRenderContext, camera);
@@ -261,9 +263,9 @@ namespace InfinityTech.Rendering.Pipeline
                                 // Update ViewUnifrom
                                 scriptableRenderContext.SetupCameraProperties(camera);
                                 viewUnifrom.UnpateViewUnifromData(camera, false);
-                                viewUnifrom.SetViewUnifromDataToGPU(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
+                                viewUnifrom.SetViewUnifromData(cmdBuffer, new float2(camera.pixelWidth, camera.pixelHeight));
 
-                                //Scene Culling
+                                // SceneCulling
                                 using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
                                 {
                                     camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
@@ -272,9 +274,9 @@ namespace InfinityTech.Rendering.Pipeline
                                     cullingResult = scriptableRenderContext.Cull(ref cullingParameters);
                                     cullingData = scriptableRenderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
                                 }
-                                
-                                //Compute LOD
-                                using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ComputeLOD)))
+
+                                // ProcessingLOD
+                                using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ProcessingLOD)))
                                 {
                                     List<TerrainComponent> terrains = renderContext.GetWorldTerrains();
                                     float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
@@ -288,10 +290,45 @@ namespace InfinityTech.Rendering.Pipeline
                                         #endif
                                     }
                                 }
-                            }
-                            #endregion //BeginViewContext
 
-                            #region ProcessRDGContext
+                                // ProcessingLight
+                                using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ProcessingLight)))
+                                {
+                                    renderContext.lightContext.Clear();
+                                    NativeArray<VisibleLight> visibleLights = cullingResult.visibleLights;
+                                    Dictionary<int, LightComponent> lights = renderContext.GetWorldLight();
+
+                                    for (int j = 0; j < visibleLights.Length; ++j)
+                                    {
+                                        VisibleLight visibleLight = visibleLights[j];
+                                        if (!lights.TryGetValue(visibleLight.light.GetInstanceID(), out LightComponent light)) continue;
+
+                                        switch (light.lightType)
+                                        {
+                                            case ELightType.Directional:
+                                                renderContext.lightContext.AddDirectionalLight(j, light);
+                                                break;
+
+                                            case ELightType.Point:
+                                                
+                                                break;
+
+                                            case ELightType.Spot:
+                                                
+                                                break;
+
+                                            case ELightType.Rect:
+                                                
+                                                break;
+                                        }
+                                    }
+
+                                    renderContext.lightContext.SetDirectionalLightData(cmdBuffer);
+                                }
+                            }
+                            #endregion // BeginViewContext
+
+                            #region ProcessingRDGContext
                             using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.SetupRDG)))
                             {
                                 RenderDepth(camera, cullingData, cullingResult);
@@ -308,7 +345,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
 
                             m_GraphBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
-                            #endregion //ProcessRDGContext
+                            #endregion // ProcessingRDGContext
 
                             #region EndViewContext
                             cullingData.Release();
@@ -321,11 +358,11 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 EndFrameRendering(scriptableRenderContext, cameras);
                 
-                //Execute FrameContext
+                // Execute FrameContext
                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                 scriptableRenderContext.Submit();
                 
-                //End FrameContext
+                // End FrameContext
                 m_GPUScene.Clear();
                 CommandBufferPool.Release(cmdBuffer);
             }

@@ -465,6 +465,37 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 
 #endif
 
+half4 _DirectionalLight;
+
+struct FDirectionalLightElement
+{
+    float4 color;
+
+    float4 directional;
+
+    float diffuse;
+    float specular;
+    float radius;
+    int lightLayer;
+
+    int enableIndirect;
+    float indirectIntensity;
+    int shadowType;
+    float minSoftness;
+
+    float maxSoftness;
+    int enableContactShadow;
+    float contactShadowLength;
+    int enableVolumetric;
+
+    float volumetricIntensity;
+    float volumetricOcclusion;
+    float maxDrawDistance;
+    float maxDrawDistanceFade;
+};
+int g_DirectionalLightCount;
+StructuredBuffer<FDirectionalLightElement> g_DirectionalLightBuffer;
+
 void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
 {
     #ifdef _ALPHATEST_ON
@@ -503,8 +534,16 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
     
     InputData inputData;
     InitializeInputData(IN, normalTS, inputData);
-    //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
-    LightingBuffer = float4(mixedDiffuse.rgb * weight, 1);
+    //IN.normal.xyz inputData.normalWS  mixedDiffuse.rgb
+
+    LightingBuffer = 0;
+    for(int i = 0; i < g_DirectionalLightCount; ++i)
+    {
+        half3 lighting = saturate(dot(g_DirectionalLightBuffer[i].directional.xyz, inputData.normalWS.xyz));
+        lighting *= 0.318 * mixedDiffuse.rgb * g_DirectionalLightBuffer[i].color.rgb;
+        LightingBuffer.rgb += lighting;
+    }
+    LightingBuffer *= weight;
 }
 
 void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)

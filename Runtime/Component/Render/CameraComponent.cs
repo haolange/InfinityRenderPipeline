@@ -22,14 +22,9 @@ namespace InfinityTech.Component
             });
          }
 
-        protected override void EventPlay()
+        protected override void OnUpdate()
         {
-            base.EventPlay();
-        }
-
-        protected override void EventTick()
-        {
-            base.EventTick();
+            base.OnUpdate();
         }
 
         protected override void OnTransformChange()
