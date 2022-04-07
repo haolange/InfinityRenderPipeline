@@ -78,7 +78,9 @@ namespace InfinityTech.Component
             unityLight.type = LightType.Directional;
             unityLight.intensity = light.intensity;
             unityLight.colorTemperature = light.temperature;
+#if UNITY_EDITOR
             unityLight.lightmapBakeType = StateToLightmapMode(light.state);
+#endif
             unityLight.bounceIntensity = light.indirectIntensity;
             unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
@@ -90,7 +92,9 @@ namespace InfinityTech.Component
             unityLight.type = LightType.Point;
             unityLight.intensity = light.intensity;
             unityLight.colorTemperature = light.temperature;
+#if UNITY_EDITOR
             unityLight.lightmapBakeType = StateToLightmapMode(light.state);
+#endif
             unityLight.bounceIntensity = light.indirectIntensity;
             unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
@@ -102,7 +106,9 @@ namespace InfinityTech.Component
             unityLight.intensity = light.intensity;
             unityLight.colorTemperature = light.temperature;
             unityLight.bounceIntensity = light.indirectIntensity;
+#if UNITY_EDITOR
             unityLight.lightmapBakeType = StateToLightmapMode(light.state);
+#endif
             unityLight.type = light.radius > 0 ? LightType.Disc : LightType.Spot;
             unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
@@ -115,7 +121,9 @@ namespace InfinityTech.Component
             unityLight.intensity = light.intensity;
             unityLight.colorTemperature = light.temperature;
             unityLight.bounceIntensity = light.indirectIntensity;
+#if UNITY_EDITOR
             unityLight.lightmapBakeType = StateToLightmapMode(light.state);
+#endif
             unityLight.useColorTemperature = true;
             UpdateLightShadowParameters(light, unityLight);
         }
