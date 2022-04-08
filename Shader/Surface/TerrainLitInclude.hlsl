@@ -465,8 +465,6 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 
 #endif
 
-half4 _DirectionalLight;
-
 struct FDirectionalLightElement
 {
     float4 color;
@@ -599,8 +597,6 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
 
 // Shadow pass
 // x: global clip space bias, y: normal world space bias
-float3 _LightDirection;
-
 struct AttributesLean
 {
     float4 position     : POSITION;

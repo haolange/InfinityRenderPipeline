@@ -234,7 +234,6 @@ namespace InfinityTech.Component
         protected override void OnTransformChange()
         {
             base.OnTransformChange();
-            Shader.SetGlobalVector("_DirectionalLight", -Vector4.Normalize(transform.forward));
         }
 
         protected override void UnRegister()

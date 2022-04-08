@@ -57,6 +57,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
             #pragma fragment DeferredFragment
             
             #pragma multi_compile_instancing
+            #pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
             #pragma shader_feature_local _MASKMAP
@@ -83,6 +84,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
             #pragma fragment ForwardFragment
             
             #pragma multi_compile_instancing
+            #pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
             #pragma shader_feature_local _MASKMAP
