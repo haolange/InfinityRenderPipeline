@@ -77,27 +77,27 @@ namespace InfinityTech.Rendering.TerrainPipeline
             //sections = null;
         }
 
-        public void ComputeLOD(in int numQuad, in float3 viewOringin, in float4x4 matrix_Proj)
+        public void ProcessLOD(in int numQuad, in float3 viewOringin, in float4x4 matrix_Proj)
         {
             if(m_Sections.IsCreated == false) { return; }
 
-            FTerrainComputeLODJob computeLODJob = new FTerrainComputeLODJob();
+            FTerrainProcessLODJob processLODJob = new FTerrainProcessLODJob();
             {
-                computeLODJob.numQuad = numQuad;
-                computeLODJob.viewOringin = viewOringin;
-                computeLODJob.matrix_Proj = matrix_Proj;
-                computeLODJob.nativeSections = m_Sections;
+                processLODJob.numQuad = numQuad;
+                processLODJob.viewOringin = viewOringin;
+                processLODJob.matrix_Proj = matrix_Proj;
+                processLODJob.nativeSections = m_Sections;
             }
-            computeLODJob.Run();
+            processLODJob.Run();
 
-            /*FTerrainComputeLODParallelJob parallelComputeLODJob = new FTerrainComputeLODParallelJob();
+            /*FTerrainProcessLODParallelJob parallelProcessLODJob = new FTerrainProcessLODParallelJob();
             {
-                parallelComputeLODJob.numQuad = numQuad;
-                parallelComputeLODJob.viewOringin = viewOringin;
-                parallelComputeLODJob.matrix_Proj = matrix_Proj;
-                parallelComputeLODJob.nativeSections = m_Sections;
+                parallelProcessLODJob.numQuad = numQuad;
+                parallelProcessLODJob.viewOringin = viewOringin;
+                parallelProcessLODJob.matrix_Proj = matrix_Proj;
+                parallelProcessLODJob.nativeSections = m_Sections;
             }
-            parallelComputeLODJob.Schedule(m_Sections.Length, 16).Complete();*/
+            parallelProcessLODJob.Schedule(m_Sections.Length, 16).Complete();*/
         }
 
         public void Dispose()

@@ -87,8 +87,6 @@ namespace InfinityTech.Rendering.RDG
         public string name;
         bool m_ExecuteExceptionIsRaised;
         FRDGResourceFactory m_Resources;
-
-        ProfilingSampler m_ProfileSampler;
         Stack<int> m_CullingStack = new Stack<int>();
         List<IRDGPass> m_PassList = new List<IRDGPass>(64);
         FRDGObjectPool m_ObjectPool = new FRDGObjectPool();
@@ -99,7 +97,6 @@ namespace InfinityTech.Rendering.RDG
         {
             this.name = name;
             this.m_Resources = new FRDGResourceFactory();
-            this.m_ProfileSampler = new ProfilingSampler("ExecuteRDG");
             this.m_PassCompileInfos = new DynamicArray<FRDGPassCompileInfo>();
             this.m_ResourcesCompileInfos = new DynamicArray<FResourceCompileInfo>[2];
 
@@ -179,24 +176,19 @@ namespace InfinityTech.Rendering.RDG
             graphContext.renderContext = renderContext;
             m_ExecuteExceptionIsRaised = false;
 
-            #region ExecuteRenderPass
-            using (new ProfilingScope(null, m_ProfileSampler))
+            try
             {
-                try
-                {
-                    m_Resources.BeginRender();
-                    CompilePass();
-                    ExecutePass(ref graphContext);
-                } catch (Exception exception) {
-                    Debug.LogError("RenderGraph Execute error");
-                    if (!m_ExecuteExceptionIsRaised) { Debug.LogException(exception); }
-                    m_ExecuteExceptionIsRaised = true;
-                } finally {
-                    ClearPass();
-                    m_Resources.EndRender();
-                }
+                m_Resources.BeginRender();
+                CompilePass();
+                ExecutePass(ref graphContext);
+            } catch (Exception exception) {
+                Debug.LogError("RenderGraph Execute error");
+                if (!m_ExecuteExceptionIsRaised) { Debug.LogException(exception); }
+                m_ExecuteExceptionIsRaised = true;
+            } finally {
+                ClearPass();
+                m_Resources.EndRender();
             }
-            #endregion
     }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

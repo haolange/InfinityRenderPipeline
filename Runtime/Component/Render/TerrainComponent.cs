@@ -93,9 +93,9 @@ namespace InfinityTech.Component
             //RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         }
 
-        public void ComputeLOD(in float3 viewOringin, in float4x4 matrix_Proj)
+        public void ProcessLOD(in float3 viewOringin, in float4x4 matrix_Proj)
         {
-            terrainSector.ComputeLOD(sectionSize, viewOringin, matrix_Proj);
+            terrainSector.ProcessLOD(sectionSize, viewOringin, matrix_Proj);
         }
 
 #if UNITY_EDITOR
