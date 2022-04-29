@@ -1,6 +1,4 @@
 ﻿using System;
-using UnityEngine;
-using InfinityTech.Core;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
@@ -10,7 +8,7 @@ using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public delegate void FGraphicsTask(FRenderContext renderContext);
+    public delegate void FGraphicsTask(RenderContext renderContext);
 
     public static class FGraphics
     {
@@ -26,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsTasks.Clear();
         }
 
-        internal static void ProcessGraphicsTasks(FRenderContext renderContext)
+        internal static void ProcessGraphicsTasks(RenderContext renderContext)
         {
             if(GraphicsTasks.Count == 0) { return; }
             
@@ -41,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public class FRenderContext : IDisposable
+    public class RenderContext : IDisposable
     {
         private List<CameraComponent> m_ViewList;
         private List<TerrainComponent> m_TerrainList;
@@ -49,11 +47,11 @@ namespace InfinityTech.Rendering.Pipeline
         private List<MeshComponent> m_DynamicMeshList;
         private Dictionary<int, LightComponent> m_LightList;
 
-        internal FLightContext lightContext;
-        private FMeshBatchCollector m_MeshBatchCollector;
+        internal LightContext lightContext;
+        private MeshBatchCollector m_MeshBatchCollector;
         internal ScriptableRenderContext scriptableRenderContext;
 
-        public FRenderContext()
+        public RenderContext()
         {
             m_ViewList = new List<CameraComponent>(16);
             m_LightList = new Dictionary<int, LightComponent>(64);
@@ -61,8 +59,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_StaticMeshList = new List<MeshComponent>(8192);
             m_DynamicMeshList = new List<MeshComponent>(8192);
 
-            lightContext = new FLightContext();
-            m_MeshBatchCollector = new FMeshBatchCollector();
+            lightContext = new LightContext();
+            m_MeshBatchCollector = new MeshBatchCollector();
         }
 
         #region WorldView
@@ -217,7 +215,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         #region MeshBatchCollector
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FMeshBatchCollector GetMeshBatchColloctor()
+        public MeshBatchCollector GetMeshBatchColloctor()
         {
             return m_MeshBatchCollector;
         }

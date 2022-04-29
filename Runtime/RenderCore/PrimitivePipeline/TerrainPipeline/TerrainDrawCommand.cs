@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
-    public struct FTerrainDrawCommand : IComparable<FTerrainDrawCommand>, IEquatable<FTerrainDrawCommand>
+    public struct TerrainDrawCommand : IComparable<TerrainDrawCommand>, IEquatable<TerrainDrawCommand>
     {
         public int LOD;
         public int Index;
@@ -16,18 +16,17 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public FBound BoundingBox;
         public float3 PivotPosition;
 
-
-        public bool Equals(FTerrainDrawCommand Target)
+        public bool Equals(TerrainDrawCommand Target)
         {
             return LOD.Equals(Target.LOD) && Index.Equals(Target.Index) && Scale.Equals(Target.Scale) && BoundingBox.Equals(Target.BoundingBox) && PivotPosition.Equals(Target.PivotPosition);
         }
 
         public override bool Equals(object obj)
         {
-            return Equals((FTerrainDrawCommand)obj);
+            return Equals((TerrainDrawCommand)obj);
         }
 
-        public int CompareTo(FTerrainDrawCommand Target)
+        public int CompareTo(TerrainDrawCommand Target)
         {
             return LOD.CompareTo(Target.LOD);
         }

@@ -8,18 +8,18 @@ using InfinityTech.Core.Geometry;
 namespace InfinityTech.Rendering.TerrainPipeline
 {
     [Serializable]
-    public class FTerrainSector : IDisposable
+    public class TerrainSector : IDisposable
     {
         public FBound boundBox;
-        public FTerrainSection[] sections;
-        internal NativeArray<FTerrainSection> m_Sections;
+        public TerrainSection[] sections;
+        internal NativeArray<TerrainSection> m_Sections;
 
-        public FTerrainSector(in int sectorSize, in int numSection, in int sectionSize, in float3 sectorPivotPos, in FAABB sectorBound)
+        public TerrainSector(in int sectorSize, in int numSection, in int sectionSize, in float3 sectorPivotPos, in FAABB sectorBound)
         {
             int sectorSize_Half = sectorSize / 2;
             int sectionSize_Half = sectionSize / 2;
 
-            sections = new FTerrainSection[numSection * numSection];
+            sections = new TerrainSection[numSection * numSection];
             boundBox = new FBound(new float3(sectorPivotPos.x + sectorSize_Half, sectorPivotPos.y + (sectorBound.size.y / 2), sectorPivotPos.z + sectorSize_Half), sectorBound.size * 0.5f);
 
             for (int x = 0; x < numSection; ++x)
@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
                     float3 pivotPosition = sectorPivotPos + new float3(sectionSize * x, 0, sectionSize * y);
                     float3 centerPosition = pivotPosition + new float3(sectionSize_Half, 0, sectionSize_Half);
 
-                    sections[sectionId] = new FTerrainSection();
+                    sections[sectionId] = new TerrainSection();
                     sections[sectionId].pivotPos = pivotPosition;
                     sections[sectionId].boundBox = new FAABB(centerPosition, new float3(sectionSize, 1, sectionSize));
                 }
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void Initializ()
         {
-            m_Sections = new NativeArray<FTerrainSection>(sections.Length, Allocator.Persistent);
+            m_Sections = new NativeArray<TerrainSection>(sections.Length, Allocator.Persistent);
         }
 
         public void BuildLODData(in float lod0ScreenSize, in float lod0Distribution, in float lodDistribution)
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             int maxLOD = 7;
             for (int i = 0; i < sections.Length; ++i)
             {
-                ref FSectionLODData LODSetting = ref sections[i].lodSetting;
+                ref SectionLODData LODSetting = ref sections[i].lodSetting;
 
                 float CurrentScreenSizeRatio = lod0ScreenSize;
                 float[] LODScreenRatioSquared = new float[maxLOD];
@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
         {
             if(m_Sections.IsCreated == false) { return; }
 
-            FTerrainProcessLODJob processLODJob = new FTerrainProcessLODJob();
+            TerrainProcessLODJob processLODJob = new TerrainProcessLODJob();
             {
                 processLODJob.numQuad = numQuad;
                 processLODJob.viewOringin = viewOringin;
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             }
             processLODJob.Run();
 
-            /*FTerrainProcessLODParallelJob parallelProcessLODJob = new FTerrainProcessLODParallelJob();
+            /*TerrainProcessLODParallelJob parallelProcessLODJob = new TerrainProcessLODParallelJob();
             {
                 parallelProcessLODJob.numQuad = numQuad;
                 parallelProcessLODJob.viewOringin = viewOringin;
@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
             for (int i = 0; i < m_Sections.Length; ++i)
             {
-                FTerrainSection section = m_Sections[i];
+                TerrainSection section = m_Sections[i];
 
                 if (!useLODColor)
                 {
@@ -129,7 +129,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
             for (int i = 0; i < sections.Length; ++i)
             {
-                ref FTerrainSection section = ref sections[i];
+                ref TerrainSection section = ref sections[i];
 
                 float2 positionScale = new float2(terrianPosition.x, terrianPosition.z) + new float2(sectorSize_Half, sectorSize_Half);
                 float2 rectUV = new float2((section.pivotPos.x - positionScale.x) + sectorSize_Half, (section.pivotPos.z - positionScale.y) + sectorSize_Half);

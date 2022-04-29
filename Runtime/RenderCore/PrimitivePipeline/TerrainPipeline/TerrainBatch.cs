@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
-    public struct FTerrainBatch : IComparable<FTerrainBatch>, IEquatable<FTerrainBatch>
+    public struct TerrainElement : IComparable<TerrainElement>, IEquatable<TerrainElement>
     {
         public int numQuad;
         public int lODIndex;
@@ -13,24 +13,23 @@ namespace InfinityTech.Rendering.TerrainPipeline
         public float3 pivotPos;
         public FBound boundBox;
 
-
-        public bool Equals(FTerrainBatch Target)
+        public bool Equals(TerrainElement Target)
         {
             return numQuad.Equals(Target.numQuad) && lODIndex.Equals(Target.lODIndex) && fractionLOD.Equals(Target.fractionLOD) && boundBox.Equals(Target.boundBox) && pivotPos.Equals(Target.pivotPos);
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FTerrainBatch)target);
+            return Equals((TerrainElement)target);
         }
 
-        public int CompareTo(FTerrainBatch target)
+        public int CompareTo(TerrainElement target)
         {
             return lODIndex.CompareTo(target.lODIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int MatchForDynamicInstance(ref FTerrainBatch target)
+        public static int MatchForDynamicInstance(ref TerrainElement target)
         {
             return target.lODIndex;
         }
@@ -43,29 +42,28 @@ namespace InfinityTech.Rendering.TerrainPipeline
         }
     }
 
-    public struct FViewTerrainBatch : IComparable<FViewTerrainBatch>, IEquatable<FViewTerrainBatch>
+    public struct ViewTerrainElement : IComparable<ViewTerrainElement>, IEquatable<ViewTerrainElement>
     {
         public int Index;
 
-
-        public FViewTerrainBatch(in int InIndex)
+        public ViewTerrainElement(in int InIndex)
         {
             Index = InIndex;
         }
 
-        public int CompareTo(FViewTerrainBatch Target)
+        public int CompareTo(ViewTerrainElement Target)
         {
             return Index.CompareTo(Target.Index);
         }
 
-        public bool Equals(FViewTerrainBatch Target)
+        public bool Equals(ViewTerrainElement Target)
         {
             return Index.Equals(Target.Index);
         }
 
         public override bool Equals(object obj)
         {
-            return Equals((FViewTerrainBatch)obj);
+            return Equals((ViewTerrainElement)obj);
         }
 
         public override int GetHashCode()
@@ -73,33 +71,32 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return Index.GetHashCode();
         }
 
-        public static implicit operator Int32(FViewTerrainBatch ViewMeshBatch) { return ViewMeshBatch.Index; }
-        public static implicit operator FViewTerrainBatch(int index) { return new FViewTerrainBatch(index); }
+        public static implicit operator Int32(ViewTerrainElement ViewMeshBatch) { return ViewMeshBatch.Index; }
+        public static implicit operator ViewTerrainElement(int index) { return new ViewTerrainElement(index); }
     }
 
-    public struct FPassTerrainBatch : IComparable<FPassTerrainBatch>, IEquatable<FPassTerrainBatch>
+    public struct PassTerrainElement : IComparable<PassTerrainElement>, IEquatable<PassTerrainElement>
     {
         public int Index;
 
-
-        public FPassTerrainBatch(in int InIndex)
+        public PassTerrainElement(in int InIndex)
         {
             Index = InIndex;
         }
 
-        public int CompareTo(FPassTerrainBatch Target)
+        public int CompareTo(PassTerrainElement Target)
         {
             return Index.CompareTo(Target.Index);
         }
 
-        public bool Equals(FPassTerrainBatch Target)
+        public bool Equals(PassTerrainElement Target)
         {
             return Index.Equals(Target.Index);
         }
 
         public override bool Equals(object obj)
         {
-            return Equals((FPassTerrainBatch)obj);
+            return Equals((PassTerrainElement)obj);
         }
 
         public override int GetHashCode()
@@ -107,7 +104,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return Index.GetHashCode();
         }
 
-        public static implicit operator Int32(FPassTerrainBatch Target) { return Target.Index; }
-        public static implicit operator FPassTerrainBatch(int index) { return new FPassTerrainBatch(index); }
+        public static implicit operator Int32(PassTerrainElement Target) { return Target.Index; }
+        public static implicit operator PassTerrainElement(int index) { return new PassTerrainElement(index); }
     }
 }

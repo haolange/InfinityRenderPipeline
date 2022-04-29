@@ -10,7 +10,7 @@ using Unity.Collections.LowLevel.Unsafe;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     [BurstCompile]
-    public unsafe struct FMeshElementCullingJob : IJobParallelFor
+    public unsafe struct MeshElementCullingJob : IJobParallelFor
     {
         [ReadOnly]
         [NativeDisableUnsafePtrRestriction]
@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         [ReadOnly]
         [NativeDisableUnsafePtrRestriction]
-        public FMeshElement* meshElements;
+        public MeshElement* meshElements;
 
         [WriteOnly]
         public NativeArray<int> viewMeshElements;
@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             int visible = 1;
             float2 distRadius = new float2(0, 0);
-            ref FMeshElement  meshElement = ref meshElements[index];
+            ref MeshElement  meshElement = ref meshElements[index];
 
             for (int i = 0; i < 6; ++i)
             {
@@ -43,22 +43,22 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FMeshPassFilterJob : IJob
+    public struct MeshPassFilterJob : IJob
     {
         [ReadOnly]
         public FCullingData cullingData;
 
         [ReadOnly]
-        public NativeArray<FMeshElement> meshElements;
+        public NativeArray<MeshElement> meshElements;
 
-        public FMeshPassDescriptor meshPassDescriptor;
+        public MeshPassDescriptor meshPassDescriptor;
 
         [WriteOnly]
-        public NativeList<FPassMeshSection> passMeshSections;
+        public NativeList<PassMeshSection> passMeshSections;
 
         public void Execute()
         {
-            FMeshElement meshElement;
+            MeshElement meshElement;
 
             //Gather PassMeshBatch
             for (int i = 0; i < cullingData.viewMeshElements.Length; ++i)
@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
                     if (meshElement.priority >= meshPassDescriptor.renderQueueMin && meshElement.priority <= meshPassDescriptor.renderQueueMax)
                     {
-                        FPassMeshSection passMeshBatch = new FPassMeshSection(i, FMeshElement.MatchForDynamicInstance(ref meshElement));
+                        PassMeshSection passMeshBatch = new PassMeshSection(i, MeshElement.MatchForDynamicInstance(ref meshElement));
                         passMeshSections.Add(passMeshBatch);
                     }
                 }
@@ -78,9 +78,9 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FMeshPassSortJob : IJob
+    public struct MeshPassSortJob : IJob
     {
-        public NativeList<FPassMeshSection> passMeshSections;
+        public NativeList<PassMeshSection> passMeshSections;
 
         public void Execute()
         {
@@ -89,11 +89,11 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FMeshPassSortJobV2 : IJob
+    public struct MeshPassSortJobV2 : IJob
     {
         public int left;
         public int right;
-        public NativeList<FPassMeshSection> passMeshSections;
+        public NativeList<PassMeshSection> passMeshSections;
 
         public void Execute()
         {
@@ -104,7 +104,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             int i = leftValue;
             int j = rightValue;
-            FPassMeshSection pivot = passMeshSections[(leftValue + rightValue) / 2];
+            PassMeshSection pivot = passMeshSections[(leftValue + rightValue) / 2];
 
             while (i <= j)
             {
@@ -123,7 +123,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (i <= j)
                 {
                     // Swap
-                    FPassMeshSection temp = passMeshSections[i];
+                    PassMeshSection temp = passMeshSections[i];
                     passMeshSections[i] = passMeshSections[j];
                     passMeshSections[j] = temp;
 
@@ -146,26 +146,26 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FMeshPassBuildJob : IJob
+    public struct MeshPassBuildJob : IJob
     {
         [WriteOnly]
         public NativeArray<int> meshBatchIndexs;
 
         [ReadOnly]
-        public NativeArray<FMeshElement> meshElements;
+        public NativeArray<MeshElement> meshElements;
 
         [ReadOnly]
-        public NativeList<FPassMeshSection> passMeshSections;
+        public NativeList<PassMeshSection> passMeshSections;
 
-        public NativeList<FMeshDrawCommand> meshDrawCommands;
+        public NativeList<MeshDrawCommand> meshDrawCommands;
 
         public void Execute()
         {
-            FMeshElement meshElement;
-            FMeshDrawCommand meshDrawCommand;
-            FPassMeshSection passMeshSection;
-            FMeshDrawCommand cacheMeshDrawCommand;
-            FPassMeshSection lastPassMeshSection = new FPassMeshSection(-1, -1);
+            MeshElement meshElement;
+            MeshDrawCommand meshDrawCommand;
+            PassMeshSection passMeshSection;
+            MeshDrawCommand cacheMeshDrawCommand;
+            PassMeshSection lastPassMeshSection = new PassMeshSection(-1, -1);
 
             for (int j = 0; j < passMeshSections.Length; ++j)
             {
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct FMeshPassGenerateJob : IJob
+    public struct MeshPassGenerateJob : IJob
     {
         [ReadOnly]
         public FCullingData cullingData;
@@ -202,18 +202,18 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<int> meshBatchIndexs;
 
         [ReadOnly]
-        public NativeArray<FMeshElement> meshElements;
+        public NativeArray<MeshElement> meshElements;
 
         [ReadOnly]
-        public FMeshPassDescriptor meshPassDescriptor;
+        public MeshPassDescriptor meshPassDescriptor;
 
-        public NativeList<FPassMeshSection> passMeshSections;
+        public NativeList<PassMeshSection> passMeshSections;
 
-        public NativeList<FMeshDrawCommand> meshDrawCommands;
+        public NativeList<MeshDrawCommand> meshDrawCommands;
 
         public void Execute()
         {
-            FMeshElement meshElement;
+            MeshElement meshElement;
 
             //Gather PassMeshBatch
             for (int i = 0; i < cullingData.viewMeshElements.Length; ++i)
@@ -224,7 +224,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
                     if(meshElement.priority >= meshPassDescriptor.renderQueueMin && meshElement.priority <= meshPassDescriptor.renderQueueMax)
                     {
-                        FPassMeshSection passMeshBatch = new FPassMeshSection(i, FMeshElement.MatchForDynamicInstance(ref meshElement));
+                        PassMeshSection passMeshBatch = new PassMeshSection(i, MeshElement.MatchForDynamicInstance(ref meshElement));
                         passMeshSections.Add(passMeshBatch);
                     }
                 }
@@ -235,11 +235,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             //Quicksort(0, passMeshSections.Length - 1);
 
             //Build MeshDrawCommand
-            FPassMeshSection passMeshSection;
-            FPassMeshSection lastPassMeshSection = new FPassMeshSection(-1, -1);
+            PassMeshSection passMeshSection;
+            PassMeshSection lastPassMeshSection = new PassMeshSection(-1, -1);
 
-            FMeshDrawCommand meshDrawCommand;
-            FMeshDrawCommand cacheMeshDrawCommand;
+            MeshDrawCommand meshDrawCommand;
+            MeshDrawCommand cacheMeshDrawCommand;
 
             for (int j = 0; j < passMeshSections.Length; ++j)
             {
@@ -270,7 +270,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             int i = leftValue;
             int j = rightValue;
-            FPassMeshSection pivot = passMeshSections[(leftValue + rightValue) / 2];
+            PassMeshSection pivot = passMeshSections[(leftValue + rightValue) / 2];
 
             while (i <= j)
             {
@@ -289,7 +289,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (i <= j)
                 {
                     // Swap
-                    FPassMeshSection temp = passMeshSections[i];
+                    PassMeshSection temp = passMeshSections[i];
                     passMeshSections[i] = passMeshSections[j];
                     passMeshSections[j] = temp;
 

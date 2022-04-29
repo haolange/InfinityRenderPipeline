@@ -222,7 +222,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
             return true;
         }
 
-        public static int GetLODFromScreenSize(in FSectionLODData lodSetting, float screenSizeSquared, in float viewLODScale, out float fractionalLOD)
+        public static int GetLODFromScreenSize(in SectionLODData lodSetting, float screenSizeSquared, in float viewLODScale, out float fractionalLOD)
         {
             screenSizeSquared /= viewLODScale;
             

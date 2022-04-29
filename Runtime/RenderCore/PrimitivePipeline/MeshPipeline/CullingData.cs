@@ -7,9 +7,9 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    internal unsafe static class FCullingUtility
+    internal unsafe static class CullingUtility
     {
-        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isSceneView, Camera view)
+        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, GPUScene gpuScene, in bool isSceneView, Camera view)
         {
             FCullingData cullingData = new FCullingData(isSceneView);
             cullingData.cullState = false;
@@ -28,10 +28,10 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             if(gpuScene.count != 0)
             {
-                FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
+                MeshElementCullingJob meshElementCullingJob = new MeshElementCullingJob();
                 {
                     meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.meshElements = (MeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
                     meshElementCullingJob.viewMeshElements = cullingData.viewMeshElements;
                 }
                 meshElementCullingJob.Schedule(gpuScene.count, 256).Complete();
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return cullingData;
         }
 
-        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, FGPUScene gpuScene, in bool isSceneView, ref ScriptableCullingParameters cullingParameters)
+        public static FCullingData DispatchCull(this ScriptableRenderContext renderContext, GPUScene gpuScene, in bool isSceneView, ref ScriptableCullingParameters cullingParameters)
         {
             FCullingData cullingData = new FCullingData(isSceneView);
             cullingData.cullState = false;
@@ -58,10 +58,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             
             if(gpuScene.count != 0)
             {
-                FMeshElementCullingJob meshElementCullingJob = new FMeshElementCullingJob();
+                MeshElementCullingJob meshElementCullingJob = new MeshElementCullingJob();
                 {
                     meshElementCullingJob.viewFrustum = (FPlane*)cullingData.viewFrustum.GetUnsafeReadOnlyPtr();
-                    meshElementCullingJob.meshElements = (FMeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
+                    meshElementCullingJob.meshElements = (MeshElement*)gpuScene.meshElements.GetUnsafeReadOnlyPtr();
                     meshElementCullingJob.viewMeshElements = cullingData.viewMeshElements;
                 }
                 meshElementCullingJob.Schedule(gpuScene.count, 256).Complete();

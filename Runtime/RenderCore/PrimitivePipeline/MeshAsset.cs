@@ -7,19 +7,19 @@ using InfinityTech.Core.Container;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     [Serializable]
-    public struct FMeshLODInfo : IEquatable<FMeshLODInfo>
+    public struct MeshLODInfo : IEquatable<MeshLODInfo>
     {
         public float screenSize;
         public int[] materialSlot;
 
-        public bool Equals(FMeshLODInfo Target)
+        public bool Equals(MeshLODInfo Target)
         {
             return screenSize.Equals(Target.screenSize) && materialSlot.Equals(Target.materialSlot);
         }
 
         public override bool Equals(object obj)
         {
-            return Equals((FMeshLODInfo)obj);
+            return Equals((MeshLODInfo)obj);
         }
 
         public override int GetHashCode()
@@ -40,10 +40,10 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public Material[] materials;
 
-        public FMeshLODInfo[] lODInfo;
+        public MeshLODInfo[] lODInfo;
         
 
-        public FMesh(Mesh[] meshes, Material[] materials, FMeshLODInfo[] lODInfo)
+        public FMesh(Mesh[] meshes, Material[] materials, MeshLODInfo[] lODInfo)
         {
             this.IsCreated = true;
             this.meshes = meshes;
@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public Material[] materials;
 
         [Header("Culling")]
-        public FMeshLODInfo[] lODInfos;
+        public MeshLODInfo[] lODInfos;
 
         [Header("Proxy")]
         [HideInInspector]
@@ -140,7 +140,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
 #if UNITY_EDITOR
-        void BuildMeshAsset(Mesh[] meshes, Material[] materials, FMeshLODInfo[] lODInfos)
+        void BuildMeshAsset(Mesh[] meshes, Material[] materials, MeshLODInfo[] lODInfos)
         {
             this.meshes = meshes;
             this.materials = materials;
@@ -168,11 +168,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             //Build LODInfo
-            FMeshLODInfo[] lODInfos = new FMeshLODInfo[lods.Length];
+            MeshLODInfo[] lODInfos = new MeshLODInfo[lods.Length];
             for (int l = 0; l < lods.Length; ++l)
             {
                 ref LOD lod = ref lods[l];
-                ref FMeshLODInfo lODInfo = ref lODInfos[l];
+                ref MeshLODInfo lODInfo = ref lODInfos[l];
                 Renderer renderer = lod.renderers[0];
 
                 lODInfo.screenSize = 1 - (l * 0.125f);
@@ -206,9 +206,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             //Build LODInfo
-            FMeshLODInfo[] lODInfos = new FMeshLODInfo[1];
+            MeshLODInfo[] lODInfos = new MeshLODInfo[1];
 
-            ref FMeshLODInfo lODInfo = ref lODInfos[0];
+            ref MeshLODInfo lODInfo = ref lODInfos[0];
             lODInfo.screenSize = 1;
             lODInfo.materialSlot = new int[renderer.sharedMaterials.Length];
 

@@ -10,7 +10,7 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FUtilityPassUtilityData
+    internal static class UtilityPassUtilityData
     {
         internal static string SkyBoxPassName = "Gizmos";
         internal static string GizmosPassName = "SkyBox";
@@ -19,14 +19,13 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-
         // Gizmos Graph
         struct GizmosPassData
         {
             #if UNITY_EDITOR
             public Camera camera;
-            public FRDGTextureRef depthBuffer;
-            public FRDGTextureRef colorBuffer;
+            public RDGTextureRef depthBuffer;
+            public RDGTextureRef colorBuffer;
             #endif
         }
 
@@ -35,11 +34,11 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (Handles.ShouldRenderGizmos())
             {
-                FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-                FRDGTextureRef colorTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+                RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+                RDGTextureRef colorTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
 
                 // Add GizmosPass
-                using (FRDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(FUtilityPassUtilityData.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
+                using (RDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(UtilityPassUtilityData.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
                     passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -50,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                     //Execute Phase
-                    passRef.SetExecuteFunc((in GizmosPassData passData, in FRDGContext graphContext) =>
+                    passRef.SetExecuteFunc((in GizmosPassData passData, in RDGContext graphContext) =>
                     {
                         graphContext.renderContext.scriptableRenderContext.DrawGizmos(passData.camera, GizmoSubset.PostImageEffects);
                     });
@@ -68,14 +67,14 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(Camera camera)
         {
             // Add SkyBoxPass
-            using (FRDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(FUtilityPassUtilityData.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(UtilityPassUtilityData.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
                 passData.camera = camera;
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in SkyBoxPassData passData, in FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in SkyBoxPassData passData, in RDGContext graphContext) =>
                 {
                     graphContext.renderContext.scriptableRenderContext.DrawSkybox(passData.camera);
                 });
@@ -87,15 +86,15 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public Camera camera;
             public RenderTexture dscTexture;
-            public FRDGTextureRef srcTexture;
+            public RDGTextureRef srcTexture;
         }
 
         void RenderPresent(Camera camera, RenderTexture dscTexture)
         {
-            FRDGTextureRef srcTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            RDGTextureRef srcTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
             
             // Add PresentPass
-            using (FRDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(FUtilityPassUtilityData.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(UtilityPassUtilityData.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
             {
                 //Setup Phase
                 ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
@@ -104,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.srcTexture = passRef.ReadTexture(srcTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in PresentPassData passData, in FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in PresentPassData passData, in RDGContext graphContext) =>
                 {
                     RenderTexture srcBuffer = passData.srcTexture;
                     RenderTexture dscBuffer = passData.dscTexture;

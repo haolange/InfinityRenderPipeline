@@ -3,18 +3,18 @@ using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.GPUResource
 {
-    public class FResourcePool
+    public class ResourcePool
     {
-        FBufferCache m_BufferPool;
-        FTextureCache m_TexturePool;
+        BufferCache m_BufferPool;
+        TextureCache m_TexturePool;
 
-        public FResourcePool()
+        public ResourcePool()
         {
-            m_BufferPool = new FBufferCache();
-            m_TexturePool = new FTextureCache();
+            m_BufferPool = new BufferCache();
+            m_TexturePool = new TextureCache();
         }
 
-        public FBufferRef GetBuffer(in FBufferDescriptor descriptor)
+        public FBufferRef GetBuffer(in BufferDescriptor descriptor)
         {
             ComputeBuffer buffer;
             int handle = descriptor.GetHashCode();
@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.GPUResource
             m_BufferPool.Push(bufferRef.handle, bufferRef.buffer);
         }
 
-        public FTextureRef GetTexture(in FTextureDescriptor descriptor)
+        public FTextureRef GetTexture(in TextureDescriptor descriptor)
         {
             RTHandle texture;
             int handle = descriptor.GetHashCode();

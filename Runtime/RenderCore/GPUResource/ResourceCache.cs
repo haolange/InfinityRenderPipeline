@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.GPUResource
         MSAA8x = 8
     }
 
-    public struct FBufferDescriptor : IEquatable<FBufferDescriptor>
+    public struct BufferDescriptor : IEquatable<BufferDescriptor>
     {
         public string name;
 
@@ -31,28 +31,28 @@ namespace InfinityTech.Rendering.GPUResource
         public int stride;
         public ComputeBufferType type;
 
-        public FBufferDescriptor(int count, int stride) : this()
+        public BufferDescriptor(int count, int stride) : this()
         {
             this.count = count;
             this.stride = stride;
             type = ComputeBufferType.Default;
         }
 
-        public FBufferDescriptor(int count, int stride, ComputeBufferType type) : this()
+        public BufferDescriptor(int count, int stride, ComputeBufferType type) : this()
         {
             this.type = type;
             this.count = count;
             this.stride = stride;
         }
 
-        public bool Equals(FBufferDescriptor target)
+        public bool Equals(BufferDescriptor target)
         {
             return this.GetHashCode().Equals(target.GetHashCode());
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FBufferDescriptor)target);
+            return Equals((BufferDescriptor)target);
         }
 
         public override int GetHashCode()
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct FTextureDescriptor : IEquatable<FTextureDescriptor>
+    public struct TextureDescriptor : IEquatable<TextureDescriptor>
     {
         public string name;
 
@@ -89,7 +89,7 @@ namespace InfinityTech.Rendering.GPUResource
         public bool clearBuffer;
         public Color clearColor;
 
-        public FTextureDescriptor(int Width, int Height) : this()
+        public TextureDescriptor(int Width, int Height) : this()
         {
             width = Width;
             height = Height;
@@ -107,14 +107,14 @@ namespace InfinityTech.Rendering.GPUResource
             wrapMode = TextureWrapMode.Repeat;
         }
 
-        public bool Equals(FTextureDescriptor target)
+        public bool Equals(TextureDescriptor target)
         {
             return this.GetHashCode().Equals(target.GetHashCode());
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FTextureDescriptor)target);
+            return Equals((TextureDescriptor)target);
         }
 
         public override int GetHashCode()
@@ -138,7 +138,7 @@ namespace InfinityTech.Rendering.GPUResource
             return hashCode;
         }
 
-        public static implicit operator RenderTextureDescriptor(in FTextureDescriptor descriptor)
+        public static implicit operator RenderTextureDescriptor(in TextureDescriptor descriptor)
         {
             RenderTextureDescriptor rtDescriptor = new RenderTextureDescriptor(descriptor.width, descriptor.height, descriptor.colorFormat, (int)descriptor.depthBufferBits, -1);
             rtDescriptor.vrUsage = VRTextureUsage.None;
@@ -232,7 +232,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public class FBufferCache : FGPUResourceCache<ComputeBuffer>
+    public class BufferCache : FGPUResourceCache<ComputeBuffer>
     {
         protected override void ReleaseInternalResource(ComputeBuffer res)
         {
@@ -250,7 +250,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public class FTextureCache : FGPUResourceCache<RTHandle>
+    public class TextureCache : FGPUResourceCache<RTHandle>
     {
         protected override void ReleaseInternalResource(RTHandle res)
         {

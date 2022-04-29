@@ -4,7 +4,7 @@ using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    public class FMeshBatchCollector : IDisposable
+    public class MeshBatchCollector : IDisposable
     {
         private int m_Index;
         public int count
@@ -15,16 +15,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
         public NativeArray<float4x4> cacheMatrixs;
-        public NativeArray<FMeshElement> cacheMeshElements;
+        public NativeArray<MeshElement> cacheMeshElements;
 
-        public FMeshBatchCollector()
+        public MeshBatchCollector()
         {
             m_Index = -1;
             cacheMatrixs = new NativeArray<float4x4>(10000, Allocator.Persistent);
-            cacheMeshElements = new NativeArray<FMeshElement>(10000, Allocator.Persistent);
+            cacheMeshElements = new NativeArray<MeshElement>(10000, Allocator.Persistent);
         }
 
-        public int AddMeshBatch(in FMeshElement meshElement, in float4x4 matrix)
+        public int AddMeshBatch(in MeshElement meshElement, in float4x4 matrix)
         {
             if(m_Index > 10000 - 1){ return 0; }
 
@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return m_Index;
         }
 
-        public void UpdateMeshBatch(in int index, in FMeshElement meshElement, in float4x4 matrix)
+        public void UpdateMeshBatch(in int index, in MeshElement meshElement, in float4x4 matrix)
         {
             cacheMatrixs[index] = matrix;
             cacheMeshElements[index] = meshElement;

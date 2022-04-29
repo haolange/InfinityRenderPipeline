@@ -7,7 +7,7 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class FForwardPassUtilityData
+    internal static class ForwardPassUtilityData
     {
         internal static string PassName = "ForwardPass";
         internal static string TextureName = "LightingTexture";
@@ -15,39 +15,39 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        struct FForwardPassData
+        struct ForwardPassData
         {
             public Camera camera;
-            public FRDGTextureRef depthTexture;
-            public FRDGTextureRef lightingTexture;
+            public RDGTextureRef depthTexture;
+            public RDGTextureRef lightingTexture;
             public CullingResults cullingResults;
-            public FMeshPassProcessor meshPassProcessor;
+            public MeshPassProcessor meshPassProcessor;
         }
 
         void RenderForward(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
         {
-            FTextureDescriptor textureDescriptor = new FTextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = FForwardPassUtilityData.TextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
+            TextureDescriptor textureDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = ForwardPassUtilityData.TextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
 
-            FRDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            FRDGTextureRef lightingTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, textureDescriptor);
+            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RDGTextureRef lightingTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, textureDescriptor);
 
             //Add ForwardPass
-            using (FRDGPassRef passRef = m_GraphBuilder.AddPass<FForwardPassData>(FForwardPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<ForwardPassData>(ForwardPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
                 passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare);
 
-                ref FForwardPassData passData = ref passRef.GetPassData<FForwardPassData>();
+                ref ForwardPassData passData = ref passRef.GetPassData<ForwardPassData>();
                 passData.camera = camera;
                 passData.cullingResults = cullingResults;
                 passData.meshPassProcessor = m_ForwardMeshProcessor;
                 passData.lightingTexture = passRef.UseColorBuffer(lightingTexture, 0);
                 passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
                 
-                m_ForwardMeshProcessor.DispatchSetup(cullingData, new FMeshPassDescriptor(0, 2999));
+                m_ForwardMeshProcessor.DispatchSetup(cullingData, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in FForwardPassData passData, in FRDGContext graphContext) =>
+                passRef.SetExecuteFunc((in ForwardPassData passData, in RDGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 2);

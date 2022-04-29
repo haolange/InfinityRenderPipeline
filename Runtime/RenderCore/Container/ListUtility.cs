@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Core.Container
 {
-    public static class FListUtility
+    public static class ListUtility
     {
         public static void AddUnique<T>(this List<T> list, T item)
         {

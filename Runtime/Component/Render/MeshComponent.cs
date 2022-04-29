@@ -43,7 +43,7 @@ namespace InfinityTech.Component
         //private int m_LastInstanceID;
         //private EStateType m_LastMovebility;
         private FAABB m_BoundBox;
-        //private FSphere m_BoundSphere;
+        private FSphere m_BoundSphere;
         private float4x4 m_LocalToWorldMatrix => transform.localToWorldMatrix;
         //private float4x4 m_WorldToLocalMatrix => transform.localToWorldMatrix.inverse;
         //private NativeArray<float> m_CustomDatas;
@@ -53,7 +53,7 @@ namespace InfinityTech.Component
             //bInitTransfrom = false;
             UpdateBounds();
             //UpdateMaterial();
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 if (!this) { return; }
                 BuildMeshBatch(renderContext);
@@ -64,7 +64,7 @@ namespace InfinityTech.Component
 
         protected override void OnTransformChange()
         {
-            //UpdateBounds();
+            UpdateBounds();
             //UpdateMeshBatch();
             /*if (bInitTransfrom == false) {
                 bInitTransfrom = true;
@@ -123,7 +123,7 @@ namespace InfinityTech.Component
         {
             //ReleaseMeshBatch();
             //m_CustomDatas.Dispose();
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 if (!this) { return; }
                 RemoveWorldMesh(renderContext, movebility);
@@ -136,10 +136,10 @@ namespace InfinityTech.Component
             #if UNITY_EDITOR
             Geometry.DrawBound(m_BoundBox, Color.blue);
 
-            //UnityEditor.Handles.color = Color.yellow;
-            //UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.up, m_BoundSphere.radius);
-            //UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.back, m_BoundSphere.radius);
-            //UnityEditor.Handles.DrawWireDisc(m_BoundSphere.center, Vector3.right, m_BoundSphere.radius);
+            UnityEditor.Handles.color = Color.yellow;
+            UnityEditor.Handles.DrawWireDisc(m_BoundBox.center + new float3(512, 0, 512), Vector3.up, m_BoundSphere.radius);
+            UnityEditor.Handles.DrawWireDisc(m_BoundBox.center + new float3(512, 0, 512), Vector3.back, m_BoundSphere.radius);
+            UnityEditor.Handles.DrawWireDisc(m_BoundBox.center + new float3(512, 0, 512), Vector3.right, m_BoundSphere.radius);
             #endif
         }
 
@@ -151,7 +151,7 @@ namespace InfinityTech.Component
 #endif
 
         // Render Interface
-        private void AddWorldMesh(FRenderContext renderContext, in EStateType stateType)
+        private void AddWorldMesh(RenderContext renderContext, in EStateType stateType)
         {
             if(stateType == EStateType.Static)
             {
@@ -164,7 +164,7 @@ namespace InfinityTech.Component
             }
         }
 
-        private void RemoveWorldMesh(FRenderContext renderContext, in EStateType stateType)
+        private void RemoveWorldMesh(RenderContext renderContext, in EStateType stateType)
         {
             if (stateType == EStateType.Static)
             {
@@ -211,7 +211,7 @@ namespace InfinityTech.Component
             if (!staticMesh) { return; }
 
             m_BoundBox = Geometry.CaculateWorldBound(staticMesh.bounds, m_LocalToWorldMatrix);
-            //m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
+            m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
         }
 
 #if UNITY_EDITOR
@@ -239,7 +239,7 @@ namespace InfinityTech.Component
         }
 #endif
 
-        public void BuildMeshBatch(FRenderContext renderContext)
+        public void BuildMeshBatch(RenderContext renderContext)
         {
             if (staticMesh != null) 
             {
@@ -247,7 +247,7 @@ namespace InfinityTech.Component
 
                 for (int i = 0; i < staticMesh.subMeshCount; ++i)
                 {
-                    FMeshElement meshElement = default;
+                    MeshElement meshElement = default;
                     meshElement.visible = visible ? 1 : 0;
                     meshElement.boundBox = m_BoundBox;
                     meshElement.castShadow = (int)castShadow;
@@ -265,13 +265,13 @@ namespace InfinityTech.Component
             }
         }
 
-        public void UpdateMeshBatch(FRenderContext renderContext)
+        public void UpdateMeshBatch(RenderContext renderContext)
         {
             /*if (staticMesh != null)
             {
                 for (int i = 0; i < meshBatchCacheID.Length; ++i)
                 {
-                    FMeshElement meshElement;
+                    MeshElement meshElement;
                     meshElement.visible = visible ? 1 : 0;
                     meshElement.boundBox = boundBox;
                     meshElement.castShadow = (int)castShadow;
@@ -289,7 +289,7 @@ namespace InfinityTech.Component
             }*/
         }
 
-        public void ReleaseMeshBatch(FRenderContext renderContext)
+        public void ReleaseMeshBatch(RenderContext renderContext)
         {
             /*if (staticMesh != null)
             {

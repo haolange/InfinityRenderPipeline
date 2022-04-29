@@ -10,14 +10,14 @@ namespace InfinityTech.Rendering.MeshPipeline
         DefaultV2
     }
 
-    public struct FMeshDrawCommand
+    public struct MeshDrawCommand
     {
         public int meshIndex;
         public int sectionIndex;
         public int materialIndex;
         public int2 countOffset;
 
-        public FMeshDrawCommand(in int meshIndex, in int sectionIndex, in int materialIndex, in int2 countOffset)
+        public MeshDrawCommand(in int meshIndex, in int sectionIndex, in int materialIndex, in int2 countOffset)
         {
             this.meshIndex = meshIndex;
             this.countOffset = countOffset;

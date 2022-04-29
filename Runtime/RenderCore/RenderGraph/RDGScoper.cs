@@ -39,55 +39,55 @@ namespace InfinityTech.Rendering.RDG
     }
 
 
-    public class FRDGScoper
+    public class RDGScoper
     {
-        FRDGBuilder m_GraphBuilder;
-        FRDGResourceMap<FRDGBufferRef> m_BufferMap;
-        FRDGResourceMap<FRDGTextureRef> m_TextureMap;
+        RDGBuilder m_GraphBuilder;
+        FRDGResourceMap<RDGBufferRef> m_BufferMap;
+        FRDGResourceMap<RDGTextureRef> m_TextureMap;
 
-        public FRDGScoper(FRDGBuilder graphBuilder)
+        public RDGScoper(RDGBuilder graphBuilder)
         {
             m_GraphBuilder = graphBuilder;
-            m_BufferMap = new FRDGResourceMap<FRDGBufferRef>();
-            m_TextureMap = new FRDGResourceMap<FRDGTextureRef>();
+            m_BufferMap = new FRDGResourceMap<RDGBufferRef>();
+            m_TextureMap = new FRDGResourceMap<RDGTextureRef>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGBufferRef QueryBuffer(in int handle)
+        public RDGBufferRef QueryBuffer(in int handle)
         {
             return m_BufferMap.Get(handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RegisterBuffer(int handle, in FRDGBufferRef bufferRef)
+        public void RegisterBuffer(int handle, in RDGBufferRef bufferRef)
         {
             m_BufferMap.Set(handle, bufferRef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGBufferRef CreateBuffer(in int handle, in FBufferDescriptor descriptor)
+        public RDGBufferRef CreateBuffer(in int handle, in BufferDescriptor descriptor)
         {
-            FRDGBufferRef bufferRef = m_GraphBuilder.CreateBuffer(descriptor);
+            RDGBufferRef bufferRef = m_GraphBuilder.CreateBuffer(descriptor);
             RegisterBuffer(handle, bufferRef);
             return bufferRef;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef QueryTexture(in int handle)
+        public RDGTextureRef QueryTexture(in int handle)
         {
             return m_TextureMap.Get(handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RegisterTexture(int handle, in FRDGTextureRef textureRef)
+        public void RegisterTexture(int handle, in RDGTextureRef textureRef)
         {
             m_TextureMap.Set(handle, textureRef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FRDGTextureRef CreateAndRegisterTexture(in int handle, in FTextureDescriptor descriptor)
+        public RDGTextureRef CreateAndRegisterTexture(in int handle, in TextureDescriptor descriptor)
         {
-            FRDGTextureRef textureRef = m_GraphBuilder.CreateTexture(descriptor, handle);
+            RDGTextureRef textureRef = m_GraphBuilder.CreateTexture(descriptor, handle);
             RegisterTexture(handle, textureRef);
             return textureRef;
         }

@@ -3,11 +3,11 @@ using Unity.Mathematics;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
-    public class FTerrainBatchCollector
+    public class TerrainElementCollector
     {
-        public NativeArray<FTerrainBatch> terrainBatchs;
+        public NativeArray<TerrainElement> terrainBatchs;
 
-        public FTerrainBatchCollector() 
+        public TerrainElementCollector() 
         { 
 
         }
@@ -16,19 +16,19 @@ namespace InfinityTech.Rendering.TerrainPipeline
         {
             if (!terrainBatchs.IsCreated)
             {
-                terrainBatchs = new NativeArray<FTerrainBatch>(Length, Allocator.TempJob);
+                terrainBatchs = new NativeArray<TerrainElement>(Length, Allocator.TempJob);
             }
         }
 
-        public void GetMeshBatch(in NativeArray<FTerrainSection> terrainSections)
+        public void GetMeshBatch(in NativeArray<TerrainSection> terrainSections)
         {
             if (!terrainBatchs.IsCreated) { return; }
 
             for (int i = 0; i < terrainSections.Length; ++i)
             {
-                FTerrainSection terrainSection = terrainSections[i];
+                TerrainSection terrainSection = terrainSections[i];
 
-                FTerrainBatch terrainBatch;
+                TerrainElement terrainBatch;
                 terrainBatch.numQuad = terrainSection.numQuad;
                 terrainBatch.lODIndex = terrainSection.lodIndex;
                 terrainBatch.pivotPos = terrainSection.pivotPos;

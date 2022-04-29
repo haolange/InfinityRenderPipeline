@@ -6,7 +6,7 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
-    public class FGPUScene
+    public class GPUScene
     {
         internal FBufferRef bufferRef;
         internal int count
@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return m_MeshBatchCollector.cacheMatrixs;
             }
         }
-        internal NativeArray<FMeshElement> meshElements
+        internal NativeArray<MeshElement> meshElements
         {
             get
             {
@@ -32,11 +32,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
         
         private bool m_IsUpdate = true;
-        private FResourcePool m_ResourcePool;
+        private ResourcePool m_ResourcePool;
         private ProfilingSampler m_ProfileSampler;
-        private FMeshBatchCollector m_MeshBatchCollector;
+        private MeshBatchCollector m_MeshBatchCollector;
 
-        public FGPUScene(FResourcePool resourcePool, FMeshBatchCollector meshBatchCollector)
+        public GPUScene(ResourcePool resourcePool, MeshBatchCollector meshBatchCollector)
         {
             m_ResourcePool = resourcePool;
             m_ProfileSampler = new ProfilingSampler("UpdateGPUSccene");
@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 using (new ProfilingScope(null, m_ProfileSampler))
                 {
-                    bufferRef = m_ResourcePool.GetBuffer(new FBufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
+                    bufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
 
                     if(m_IsUpdate)
                     {

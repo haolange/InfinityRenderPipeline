@@ -5,7 +5,7 @@ using InfinityTech.Core.Geometry;
 namespace InfinityTech.Rendering.TerrainPipeline
 {
     [Serializable]
-    public struct FSectionLODData
+    public struct SectionLODData
 	{
         public int lastLODIndex;
         public float lod0ScreenSizeSquared;
@@ -15,29 +15,28 @@ namespace InfinityTech.Rendering.TerrainPipeline
 	};
 
     [Serializable]
-    public struct FTerrainSection : IComparable<FTerrainSection>, IEquatable<FTerrainSection>
+    public struct TerrainSection : IComparable<TerrainSection>, IEquatable<TerrainSection>
     {
         public int numQuad;
         public int lodIndex;
         public float fractionLOD;
         public float3 pivotPos;
         public FBound boundBox;
-        public FSectionLODData lodSetting;
+        public SectionLODData lodSetting;
 
-
-        public bool Equals(FTerrainSection target)
+        public bool Equals(TerrainSection target)
         {
             return numQuad.Equals(target.numQuad) && lodIndex.Equals(target.lodIndex) && fractionLOD.Equals(target.fractionLOD) && boundBox.Equals(target.boundBox) && pivotPos.Equals(target.pivotPos);
         }
 
-        public int CompareTo(FTerrainSection target)
+        public int CompareTo(TerrainSection target)
         {
             return lodIndex.CompareTo(target.lodIndex);
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FTerrainSection)target);
+            return Equals((TerrainSection)target);
         }
 
         public override int GetHashCode()

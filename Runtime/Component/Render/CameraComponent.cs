@@ -16,7 +16,7 @@ namespace InfinityTech.Component
         {
             unityCamera = GetComponent<Camera>();
             viewProfiler = new ProfilingSampler(this.name);
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.AddWorldView(this);
             });
@@ -34,7 +34,7 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.RemoveWorldView(this);
             });

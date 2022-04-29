@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.LightPipeline
         Four = 3
     }
 
-    public struct FLightElement /*: IComparable<FLightElement>, IEquatable<FLightElement>*/
+    public struct LightElement /*: IComparable<LightElement>, IEquatable<LightElement>*/
     {
         public ELightState state;
         public ELightType lightType;
@@ -121,17 +121,17 @@ namespace InfinityTech.Rendering.LightPipeline
         public float maxDrawDistanceFade;
 
 
-        /*public bool Equals(FLightElement target)
+        /*public bool Equals(LightElement target)
         {
             return SubmeshIndex.Equals(target.SubmeshIndex) && Mesh.Equals(target.Mesh) && Material.Equals(target.Material);
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FLightElement)target);
+            return Equals((LightElement)target);
         }
 
-        public int CompareTo(FLightElement target)
+        public int CompareTo(LightElement target)
         {
             return Priority.CompareTo(target.Priority);
         }

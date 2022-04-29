@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     };
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct FMeshElement : IComparable<FMeshElement>, IEquatable<FMeshElement>
+    public struct MeshElement : IComparable<MeshElement>, IEquatable<MeshElement>
     {
         public int sectionIndex;
         public UObjectRef<Mesh> meshRef;
@@ -45,27 +45,27 @@ namespace InfinityTech.Rendering.MeshPipeline
         //public float4x4 matrix_LocalToWorld;
 
 
-        public bool Equals(FMeshElement target)
+        public bool Equals(MeshElement target)
         {
             return sectionIndex.Equals(target.sectionIndex) && meshRef.Equals(target.meshRef) && materialRef.Equals(target.materialRef);
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FMeshElement)target);
+            return Equals((MeshElement)target);
         }
 
-        public int CompareTo(FMeshElement meshElement)
+        public int CompareTo(MeshElement meshElement)
         {
             return priority.CompareTo(meshElement.priority);
         }
 
-        public static int MatchForDynamicInstance(ref FMeshElement meshElement)
+        public static int MatchForDynamicInstance(ref MeshElement meshElement)
         {
             return new int3(meshElement.sectionIndex, meshElement.meshRef.Id, meshElement.materialRef.Id).GetHashCode();
         }
 
-        public static int MatchForCacheMeshBatch(ref FMeshElement meshElement, in int instanceID)
+        public static int MatchForCacheMeshBatch(ref MeshElement meshElement, in int instanceID)
         {
             return instanceID + meshElement.GetHashCode();
         }
@@ -85,48 +85,48 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }
 
-    public struct FViewMeshBatch : IComparable<FViewMeshBatch>
+    public struct ViewMeshElement : IComparable<ViewMeshElement>
     {
         public int visible;
 
-        public FViewMeshBatch(in int visible)
+        public ViewMeshElement(in int visible)
         {
             this.visible = visible;
         }
 
-        public int CompareTo(FViewMeshBatch viewMeshBatch)
+        public int CompareTo(ViewMeshElement viewMeshBatch)
         {
             return visible.CompareTo(viewMeshBatch.visible);
         }
 
-        public static implicit operator Int32(FViewMeshBatch viewMeshBatch) { return viewMeshBatch.visible; }
-        public static implicit operator FViewMeshBatch(int index) { return new FViewMeshBatch(index); }
+        public static implicit operator Int32(ViewMeshElement viewMeshBatch) { return viewMeshBatch.visible; }
+        public static implicit operator ViewMeshElement(int index) { return new ViewMeshElement(index); }
     }
 
-    public struct FPassMeshSection : IComparable<FPassMeshSection>, IEquatable<FPassMeshSection>
+    public struct PassMeshSection : IComparable<PassMeshSection>, IEquatable<PassMeshSection>
     {
         public int meshElementId;
         public int instanceGroupId;
 
-        public FPassMeshSection(in int meshElementId, in int instanceGroupId)
+        public PassMeshSection(in int meshElementId, in int instanceGroupId)
         {
             this.meshElementId = meshElementId;
             this.instanceGroupId = instanceGroupId;
         }
 
-        public int CompareTo(FPassMeshSection target)
+        public int CompareTo(PassMeshSection target)
         {
             return instanceGroupId.CompareTo(target.instanceGroupId);
         }
 
-        public bool Equals(FPassMeshSection target)
+        public bool Equals(PassMeshSection target)
         {
             return instanceGroupId.Equals(target.instanceGroupId);
         }
 
         public override bool Equals(object target)
         {
-            return Equals((FPassMeshSection)target);
+            return Equals((PassMeshSection)target);
         }
 
         public override int GetHashCode()

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Rendering.RDG
 {
-    internal class FRDGSharedObjectPool<T> where T : new()
+    internal class RDGSharedObjectPool<T> where T : new()
     {
         Stack<T> m_Pool = new Stack<T>();
 
@@ -18,16 +18,16 @@ namespace InfinityTech.Rendering.RDG
             m_Pool.Push(value);
         }
 
-        static readonly Lazy<FRDGSharedObjectPool<T>> s_Instance = new Lazy<FRDGSharedObjectPool<T>>();
-        public static FRDGSharedObjectPool<T> sharedPool => s_Instance.Value;
+        static readonly Lazy<RDGSharedObjectPool<T>> s_Instance = new Lazy<RDGSharedObjectPool<T>>();
+        public static RDGSharedObjectPool<T> sharedPool => s_Instance.Value;
     }
 
-    public sealed class FRDGObjectPool
+    public sealed class RDGObjectPool
     {
         List<(object, (Type, int))> m_AllocatedArrays = new List<(object, (Type, int))>();
         Dictionary<(Type, int), Stack<object>> m_ArrayPool = new Dictionary<(Type, int), Stack<object>>();
 
-        internal FRDGObjectPool()
+        internal RDGObjectPool()
         { 
 
         }
@@ -58,13 +58,13 @@ namespace InfinityTech.Rendering.RDG
 
         internal T Get<T>() where T : new()
         {
-            var toto = FRDGSharedObjectPool<T>.sharedPool;
+            var toto = RDGSharedObjectPool<T>.sharedPool;
             return toto.Get();
         }
 
         internal void Release<T>(T value) where T : new()
         {
-            var toto = FRDGSharedObjectPool<T>.sharedPool;
+            var toto = RDGSharedObjectPool<T>.sharedPool;
             toto.Release(value);
         }
     }

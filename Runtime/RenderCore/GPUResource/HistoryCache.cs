@@ -51,18 +51,18 @@ namespace InfinityTech.Rendering.GPUResource
         }*/
     }
 
-    public class FHistoryCache
+    public class HistoryCache
     {
         Dictionary<int, FBufferRef> m_CacheBuffers;
         Dictionary<int, FTextureRef> m_CacheTextures;
 
-        public FHistoryCache() 
+        public HistoryCache() 
         {
             m_CacheBuffers = new Dictionary<int, FBufferRef>();
             m_CacheTextures = new Dictionary<int, FTextureRef>(); 
         }
 
-        public FBufferRef GetBuffer(in int id, in FBufferDescriptor descriptor)
+        public FBufferRef GetBuffer(in int id, in BufferDescriptor descriptor)
         {
             FBufferRef bufferRef = new FBufferRef(-1, null);
             if (m_CacheBuffers.ContainsKey(id))
@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.GPUResource
                 m_CacheBuffers[id] = bufferRef;
             }
 
-            FBufferDescriptor bufferDescriptor = new FBufferDescriptor(bufferRef.buffer.count, bufferRef.buffer.stride);
+            BufferDescriptor bufferDescriptor = new BufferDescriptor(bufferRef.buffer.count, bufferRef.buffer.stride);
             if (!descriptor.Equals(bufferDescriptor))
             {
                 bufferRef.buffer.Release();
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.GPUResource
             return bufferRef;
         }
 
-        public FTextureRef GetTexture(in int id, in FTextureDescriptor descriptor)
+        public FTextureRef GetTexture(in int id, in TextureDescriptor descriptor)
         {
             FTextureRef textureRef = new FTextureRef(-1, null);
             if (m_CacheTextures.ContainsKey(id))

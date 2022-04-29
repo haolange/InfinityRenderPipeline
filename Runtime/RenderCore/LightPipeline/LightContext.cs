@@ -50,14 +50,14 @@ namespace InfinityTech.Rendering.LightPipeline
         public static int DirectionalLightBuffer = Shader.PropertyToID("g_DirectionalLightBuffer");
     }
 
-    internal class FLightContext : IDisposable
+    internal class LightContext : IDisposable
     {
         int m_DirectionalLightCount;
         int m_DirectionalLightByteSize;
         GraphicsBuffer m_DirectionalLightBuffer;
         NativeList<FDirectionalLightElement> m_DirectionalLightElements;
 
-        internal FLightContext()
+        internal LightContext()
         {
             m_DirectionalLightCount = 2;
             m_DirectionalLightByteSize = Marshal.SizeOf(typeof(FDirectionalLightElement));

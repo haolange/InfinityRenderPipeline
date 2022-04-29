@@ -10,15 +10,15 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.TerrainPipeline
 {
-    public class FTerrainPassProcessor
+    public class TerrainPassProcessor
     {
         internal Mesh[] Meshes;
         internal Material material;
         internal NativeList<int2> countOffsets;
         private ProfilingSampler m_DrawProfiler;
-        internal NativeList<FTerrainDrawCommand> terrainDrawCommands;
+        internal NativeList<TerrainDrawCommand> terrainDrawCommands;
 
-        public FTerrainPassProcessor()
+        public TerrainPassProcessor()
         {
             m_DrawProfiler = new ProfilingSampler("RenderLoop.DrawTerrainBatcher");
         }
@@ -33,14 +33,14 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         }
 
-        internal void DispatchDraw(ref FRDGContext graphContext, in int passIndex)
+        internal void DispatchDraw(ref RDGContext graphContext, in int passIndex)
         {
             using (new ProfilingScope(graphContext.cmdBuffer, m_DrawProfiler))
             {
                 for (int i = 0; i < terrainDrawCommands.Length; ++i)
                 {
                     int2 countOffset = countOffsets[i];
-                    FTerrainDrawCommand terrainDrawCommand = terrainDrawCommands[i];
+                    TerrainDrawCommand terrainDrawCommand = terrainDrawCommands[i];
 
                     for (int j = 0; j < countOffset.x; ++j)
                     {

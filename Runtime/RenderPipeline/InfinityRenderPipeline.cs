@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
         CameraRendering
     }
 
-    internal class FCameraUniform
+    internal class CameraUniform
     {
         private static readonly int ID_FrameIndex = Shader.PropertyToID("FrameIndex");
         private static readonly int ID_TAAJitter = Shader.PropertyToID("TAAJitter");
@@ -93,11 +93,11 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_InvProj = matrix_Proj.inverse;
-            matrix_JitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_Proj);
+            matrix_JitterProj = TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_Proj);
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
-            matrix_FlipYJitterProj = FTemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_FlipYProj, false);
+            matrix_FlipYJitterProj = TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_FlipYProj, false);
             matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
             matrix_ViewProj = matrix_Proj * matrix_WorldToView;
             matrix_InvViewProj = matrix_ViewProj.inverse;
@@ -159,18 +159,18 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private bool m_UpdateInit;
-        private FGPUScene m_GPUScene;
-        private FRDGScoper m_GraphScoper;
-        private FRDGBuilder m_GraphBuilder;
-        private FResourcePool m_ResourcePool;
+        private GPUScene m_GPUScene;
+        private RDGScoper m_GraphScoper;
+        private RDGBuilder m_GraphBuilder;
+        private ResourcePool m_ResourcePool;
         private NativeList<JobHandle> m_MeshPassJobRefs;
-        private FMeshPassProcessor m_DepthMeshProcessor;
-        private FMeshPassProcessor m_GBufferMeshProcessor;
-        private FMeshPassProcessor m_ForwardMeshProcessor;
-        private Dictionary<int, FHistoryCache> m_HistoryCaches;
-        private Dictionary<int, FCameraUniform> m_CameraUniforms;
+        private MeshPassProcessor m_DepthMeshProcessor;
+        private MeshPassProcessor m_GBufferMeshProcessor;
+        private MeshPassProcessor m_ForwardMeshProcessor;
+        private Dictionary<int, HistoryCache> m_HistoryCaches;
+        private Dictionary<int, CameraUniform> m_CameraUniforms;
 
-        internal FRenderContext renderContext;
+        internal RenderContext renderContext;
         internal InfinityRenderPipelineAsset pipelineAsset 
         { 
             get 
@@ -183,17 +183,17 @@ namespace InfinityTech.Rendering.Pipeline
         {
             m_UpdateInit = true;
             SetGraphicsSetting();
-            renderContext = new FRenderContext();
-            m_ResourcePool = new FResourcePool();
-            m_GraphBuilder = new FRDGBuilder("RenderGraph");
-            m_GraphScoper = new FRDGScoper(m_GraphBuilder);
-            m_HistoryCaches = new Dictionary<int, FHistoryCache>();
-            m_CameraUniforms = new Dictionary<int, FCameraUniform>();
+            renderContext = new RenderContext();
+            m_ResourcePool = new ResourcePool();
+            m_GraphBuilder = new RDGBuilder("RenderGraph");
+            m_GraphScoper = new RDGScoper(m_GraphBuilder);
+            m_HistoryCaches = new Dictionary<int, HistoryCache>();
+            m_CameraUniforms = new Dictionary<int, CameraUniform>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
-            m_GPUScene = new FGPUScene(m_ResourcePool, renderContext.GetMeshBatchColloctor());
-            m_DepthMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
-            m_GBufferMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
-            m_ForwardMeshProcessor = new FMeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
+            m_GPUScene = new GPUScene(m_ResourcePool, renderContext.GetMeshBatchColloctor());
+            m_DepthMeshProcessor = new MeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
+            m_GBufferMeshProcessor = new MeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
+            m_ForwardMeshProcessor = new MeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
         }
 
         protected override void Render(ScriptableRenderContext scriptableRenderContext, Camera[] cameras)
@@ -216,8 +216,8 @@ namespace InfinityTech.Rendering.Pipeline
                     CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
                     FCullingData cullingData;
-                    FHistoryCache historyCache;
-                    FCameraUniform cameraUniform;
+                    HistoryCache historyCache;
+                    CameraUniform cameraUniform;
                     CullingResults cullingResult;
 
                     int cameraId = GetCameraID(camera);
@@ -233,7 +233,7 @@ namespace InfinityTech.Rendering.Pipeline
                             // Get PerCamera HistoryCache
                             if (!m_HistoryCaches.ContainsKey(cameraId))
                             {
-                                historyCache = new FHistoryCache();
+                                historyCache = new HistoryCache();
                                 m_HistoryCaches.Add(cameraId, historyCache);
                             } else {
                                 historyCache = m_HistoryCaches[cameraId];
@@ -242,7 +242,7 @@ namespace InfinityTech.Rendering.Pipeline
                             // Get PerCamera Data
                             if (!m_CameraUniforms.ContainsKey(cameraId))
                             {
-                                cameraUniform = new FCameraUniform();
+                                cameraUniform = new CameraUniform();
                                 m_CameraUniforms.Add(cameraId, cameraUniform);
                             } else {
                                 cameraUniform = m_CameraUniforms[cameraId];

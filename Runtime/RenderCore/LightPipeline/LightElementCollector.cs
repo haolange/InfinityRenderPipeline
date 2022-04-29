@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
-    public class FLightElementCollector
+    public class LightElementCollector
     {
         public bool collectorAvalible
         {
@@ -16,21 +16,21 @@ namespace InfinityTech.Rendering.LightPipeline
                 return cacheLightProxys.IsCreated;
             }
         }
-        internal NativeHashMap<int, FLightElement> cacheLightProxys;
+        internal NativeHashMap<int, LightElement> cacheLightProxys;
 
-        public FLightElementCollector() 
+        public LightElementCollector() 
         {
-            cacheLightProxys = new NativeHashMap<int, FLightElement>(64, Allocator.Persistent);
+            cacheLightProxys = new NativeHashMap<int, LightElement>(64, Allocator.Persistent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddLightElement(in FLightElement lightElement, in int key)
+        public void AddLightElement(in LightElement lightElement, in int key)
         {
             cacheLightProxys.Add(key, lightElement);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UpdateLightElement(in FLightElement lightElement, in int key)
+        public void UpdateLightElement(in LightElement lightElement, in int key)
         {
             cacheLightProxys[key] = lightElement;
         }

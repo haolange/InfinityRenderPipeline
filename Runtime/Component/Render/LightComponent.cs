@@ -221,7 +221,7 @@ namespace InfinityTech.Component
         {
             unityLight = GetComponent<Light>();
             FLightUtility.InitLightType(this, unityLight);
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.AddWorldLight(unityLight.GetInstanceID(), this);
             });
@@ -238,7 +238,7 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.RemoveWorldLight(unityLight.GetInstanceID());
             });
@@ -251,9 +251,9 @@ namespace InfinityTech.Component
         }
 #endif
 
-        public FLightElement GetLightElement() 
+        public LightElement GetLightElement() 
         {
-            FLightElement lightElement;
+            LightElement lightElement;
             lightElement.state = state;
             lightElement.lightType = lightType;
             lightElement.lightLayer = lightLayer;

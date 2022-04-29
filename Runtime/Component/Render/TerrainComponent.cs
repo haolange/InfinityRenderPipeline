@@ -51,13 +51,13 @@ namespace InfinityTech.Component
         [HideInInspector]
         public TerrainData terrainData;
         [HideInInspector]
-        public FTerrainSector terrainSector;
+        public TerrainSector terrainSector;
 
         protected override void OnRegister()
         {
             terrainSector?.Initializ();
             terrainSector?.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.AddWorldTerrain(this);
             });
@@ -86,7 +86,7 @@ namespace InfinityTech.Component
         protected override void UnRegister()
         {
             terrainSector?.Dispose();
-            FGraphics.AddTask((FRenderContext renderContext) =>
+            FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.RemoveWorldTerrain(this);
             });
@@ -115,7 +115,7 @@ namespace InfinityTech.Component
                 }
             }*/
 
-            terrainSector = new FTerrainSector(sectorSize, numSection, sectionSize, transform.position, terrainData.bounds);
+            terrainSector = new TerrainSector(sectorSize, numSection, sectionSize, transform.position, terrainData.bounds);
             terrainSector.BuildBounds(sectorSize, sectionSize, terrainScaleY, transform.position, HeightTexture.HeightMap);
             //terrainSector.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
             //terrainSector.BuildNativeCollection();
