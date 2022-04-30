@@ -35,14 +35,10 @@ namespace InfinityTech.Rendering.MeshPipeline
     public struct FMesh : IEquatable<FMesh>
     {
         public bool IsCreated;
-
         public Mesh[] meshes;
-
         public Material[] materials;
-
         public MeshLODInfo[] lODInfo;
         
-
         public FMesh(Mesh[] meshes, Material[] materials, MeshLODInfo[] lODInfo)
         {
             this.IsCreated = true;

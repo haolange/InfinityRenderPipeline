@@ -11,22 +11,22 @@ namespace InfinityTech.Rendering.TerrainPipeline
 #if UNITY_EDITOR
     public class TerrainTexture
     {
-        public Texture2D HeightMap;
+        public Texture2D heightMap;
 
         public TerrainTexture(int TextureSize)
         {
-            HeightMap = new Texture2D(TextureSize, TextureSize, TextureFormat.R16, false, true);
+            heightMap = new Texture2D(TextureSize, TextureSize, TextureFormat.R16, false, true);
         }
 
         public void TerrainDataToHeightmap(TerrainData InTerrainData)
         {
-            if (HeightMap.width != 0)
-                HeightmapLoader.TerrainDataToTexture(HeightMap, InTerrainData);
+            if (heightMap.width != 0)
+                HeightmapLoader.TerrainDataToTexture(heightMap, InTerrainData);
         }
 
         public void Release()
         {
-            Object.DestroyImmediate(HeightMap);
+            Object.DestroyImmediate(heightMap);
         }
     }
 #endif

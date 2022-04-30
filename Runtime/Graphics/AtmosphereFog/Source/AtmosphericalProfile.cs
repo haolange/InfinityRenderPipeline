@@ -6,40 +6,40 @@ namespace InfinityTech.Rendering.Feature
     [CreateAssetMenu(menuName = "InfinityRenderPipeline/AtmosphericalProfile", order = 359)]
     public sealed class AtmosphericalProfile : ScriptableObject
     {
-        [Header("PlanetSetting")]
+        [Header("Planet")]
         [Min(10000)]
-        public float Radius = 6371e3f;
+        public float radius = 6371e3f;
 
         [Min(100)]
-        public float Thickness = 8e3f;
+        public float thickness = 8e3f;
 
-        [Header("ScatterSetting")]
+        [Header("Scatter")]
         [Range(0.01f, 100f)]
-        public float Brightness = 1;
+        public float brightness = 1;
 
-        public bool DrawGround = false;
+        public bool drawGround = false;
 
-        public Color GroundAlbedo = new Color(0.25f, 0.25f, 0.25f);
+        public Color groundAlbedo = new Color(0.25f, 0.25f, 0.25f);
 
-        public Color RayleighScatter = new Color(0.1752f, 0.40785f, 1f);
-
-        [Min(0)]
-        public float MieStrength = 1;
+        public Color rayleighScatter = new Color(0.1752f, 0.40785f, 1f);
 
         [Min(0)]
-        public float OzoneStrength = 1;
+        public float mieStrength = 1;
 
         [Min(0)]
-        public float RayleighStrength = 1;
+        public float ozoneStrength = 1;
 
         [Min(0)]
-        public float MultiScatterStrength = 1f;
+        public float rayleighStrength = 1;
+
+        [Min(0)]
+        public float multiScatterStrength = 1f;
 
         [Range(0.0001f, 0.03f)]
-        public float SunSolidAngle = (0.5f / 180.0f * Mathf.PI);
+        public float sunAngle = (0.5f / 180.0f * Mathf.PI);
 
         [Header("Material")]
-        public Material LUTMaterial;
-        public ComputeShader LUTCompute;
+        public Material material;
+        public ComputeShader shader;
     }
 }

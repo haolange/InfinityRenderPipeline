@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 {
     public class TerrainPassProcessor
     {
-        internal Mesh[] Meshes;
+        internal Mesh[] meshes;
         internal Material material;
         internal NativeList<int2> countOffsets;
         private ProfilingSampler m_DrawProfiler;
@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
                     for (int j = 0; j < countOffset.x; ++j)
                     {
-                        graphContext.cmdBuffer.DrawMeshInstancedProcedural(Meshes[terrainDrawCommand.LOD], 0, material, passIndex, countOffset.x);
+                        graphContext.cmdBuffer.DrawMeshInstancedProcedural(meshes[terrainDrawCommand.lod], 0, material, passIndex, countOffset.x);
                     }
                 }
             }

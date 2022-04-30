@@ -8,44 +8,52 @@ namespace InfinityTech.Component
     [ExecuteAlways]
     public class RayTraceEnvironment : MonoBehaviour
     {
-        public static  RayTracingAccelerationStructure TracingAccelerationStructure;
+        public RayTracingAccelerationStructure m_AccelerationStructure;
 
-        public void Awake() {
+        public void Awake() 
+        {
 
         }
 
-        public void OnEnable() {
+        public void OnEnable() 
+        {
             InitRTMannager();
         }
 
-        public void Start() {
+        public void Start() 
+        {
 
         }
 
-        public void OnPreRender() {
+        public void OnPreRender() 
+        {
   
         }
 
-        public void OnDisable() {
+        public void OnDisable() 
+        {
             ReleaseRTMannager();
         }
 
-        private void InitRTMannager() {
+        private void InitRTMannager() 
+        {
             InfinityRenderPipelineAsset PipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
 
-            if (TracingAccelerationStructure == null && PipelineAsset.enableRayTrace == true)
+            if (m_AccelerationStructure == null && PipelineAsset.enableRayTrace == true)
             {
                 RayTracingAccelerationStructure.RASSettings TracingAccelerationStructureSetting = new RayTracingAccelerationStructure.RASSettings(RayTracingAccelerationStructure.ManagementMode.Automatic, RayTracingAccelerationStructure.RayTracingModeMask.Everything, -1 ^ (1 << 9));
-                TracingAccelerationStructure = new RayTracingAccelerationStructure(TracingAccelerationStructureSetting);
-                TracingAccelerationStructure.Build();//
+                m_AccelerationStructure = new RayTracingAccelerationStructure(TracingAccelerationStructureSetting);
+                m_AccelerationStructure.Build();//
             }
         }
 
-        private void ReleaseRTMannager() {
-            if (TracingAccelerationStructure != null) {
-                TracingAccelerationStructure.Release();
-                TracingAccelerationStructure.Dispose();
-                TracingAccelerationStructure = null;
+        private void ReleaseRTMannager() 
+        {
+            if (m_AccelerationStructure != null) 
+            {
+                m_AccelerationStructure.Release();
+                m_AccelerationStructure.Dispose();
+                m_AccelerationStructure = null;
             }
         }
     }

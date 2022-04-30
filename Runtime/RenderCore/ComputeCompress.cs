@@ -3,12 +3,12 @@ using UnityEngine.Experimental.Rendering;
 
 public class ComputeCompress : MonoBehaviour
 {
-    public int Size = 256;
+    public int size = 256;
     private int m_QuadSize
     {
         get
         {
-            return Size / 4;
+            return size / 4;
         }
     }
 
@@ -37,14 +37,14 @@ public class ComputeCompress : MonoBehaviour
             enableRandomWrite = true,
         };
         m_CompressTexture.Create();
-        m_DscTexture = new Texture2D(Size, Size, m_DscFormat, TextureCreationFlags.None);
+        m_DscTexture = new Texture2D(size, size, m_DscFormat, TextureCreationFlags.None);
 
         m_Material = GetComponent<MeshRenderer>().sharedMaterial;
     }
 
     void Update()
     {
-        shader.SetInts("_DestRect", 0, 0, Size, Size);
+        shader.SetInts("_DestRect", 0, 0, size, size);
         shader.SetTexture(0, "_SrcTexture", NoneCompressTexture);
         shader.SetTexture(0, "_DstTexture", m_CompressTexture);
         shader.Dispatch(0, (m_QuadSize + 7) / 8, (m_QuadSize + 7) / 8, 1);

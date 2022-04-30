@@ -116,7 +116,7 @@ namespace InfinityTech.Component
             }*/
 
             terrainSector = new TerrainSector(sectorSize, numSection, sectionSize, transform.position, terrainData.bounds);
-            terrainSector.BuildBounds(sectorSize, sectionSize, terrainScaleY, transform.position, HeightTexture.HeightMap);
+            terrainSector.BuildBounds(sectorSize, sectionSize, terrainScaleY, transform.position, HeightTexture.heightMap);
             //terrainSector.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
             //terrainSector.BuildNativeCollection();
 

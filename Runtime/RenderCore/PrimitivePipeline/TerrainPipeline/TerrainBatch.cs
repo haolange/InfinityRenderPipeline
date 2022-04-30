@@ -44,67 +44,67 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
     public struct ViewTerrainElement : IComparable<ViewTerrainElement>, IEquatable<ViewTerrainElement>
     {
-        public int Index;
+        public int index;
 
-        public ViewTerrainElement(in int InIndex)
+        public ViewTerrainElement(in int index)
         {
-            Index = InIndex;
+            this.index = index;
         }
 
-        public int CompareTo(ViewTerrainElement Target)
+        public int CompareTo(ViewTerrainElement target)
         {
-            return Index.CompareTo(Target.Index);
+            return index.CompareTo(target.index);
         }
 
-        public bool Equals(ViewTerrainElement Target)
+        public bool Equals(ViewTerrainElement target)
         {
-            return Index.Equals(Target.Index);
+            return index.Equals(target.index);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object target)
         {
-            return Equals((ViewTerrainElement)obj);
+            return Equals((ViewTerrainElement)target);
         }
 
         public override int GetHashCode()
         {
-            return Index.GetHashCode();
+            return index.GetHashCode();
         }
 
-        public static implicit operator Int32(ViewTerrainElement ViewMeshBatch) { return ViewMeshBatch.Index; }
+        public static implicit operator Int32(ViewTerrainElement element) { return element.index; }
         public static implicit operator ViewTerrainElement(int index) { return new ViewTerrainElement(index); }
     }
 
     public struct PassTerrainElement : IComparable<PassTerrainElement>, IEquatable<PassTerrainElement>
     {
-        public int Index;
+        public int index;
 
-        public PassTerrainElement(in int InIndex)
+        public PassTerrainElement(in int index)
         {
-            Index = InIndex;
+            this.index = index;
         }
 
-        public int CompareTo(PassTerrainElement Target)
+        public int CompareTo(PassTerrainElement target)
         {
-            return Index.CompareTo(Target.Index);
+            return index.CompareTo(target.index);
         }
 
-        public bool Equals(PassTerrainElement Target)
+        public bool Equals(PassTerrainElement target)
         {
-            return Index.Equals(Target.Index);
+            return index.Equals(target.index);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object target)
         {
-            return Equals((PassTerrainElement)obj);
+            return Equals((PassTerrainElement)target);
         }
 
         public override int GetHashCode()
         {
-            return Index.GetHashCode();
+            return index.GetHashCode();
         }
 
-        public static implicit operator Int32(PassTerrainElement Target) { return Target.Index; }
+        public static implicit operator Int32(PassTerrainElement element) { return element.index; }
         public static implicit operator PassTerrainElement(int index) { return new PassTerrainElement(index); }
     }
 }

@@ -10,30 +10,30 @@ namespace InfinityTech.Rendering.TerrainPipeline
 {
     public struct TerrainDrawCommand : IComparable<TerrainDrawCommand>, IEquatable<TerrainDrawCommand>
     {
-        public int LOD;
-        public int Index;
-        public float2 Scale;
-        public FBound BoundingBox;
-        public float3 PivotPosition;
+        public int lod;
+        public int index;
+        public float2 scale;
+        public FBound boundBox;
+        public float3 pivotPosition;
 
-        public bool Equals(TerrainDrawCommand Target)
+        public bool Equals(TerrainDrawCommand target)
         {
-            return LOD.Equals(Target.LOD) && Index.Equals(Target.Index) && Scale.Equals(Target.Scale) && BoundingBox.Equals(Target.BoundingBox) && PivotPosition.Equals(Target.PivotPosition);
+            return lod.Equals(target.lod) && index.Equals(target.index) && scale.Equals(target.scale) && boundBox.Equals(target.boundBox) && pivotPosition.Equals(target.pivotPosition);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object target)
         {
-            return Equals((TerrainDrawCommand)obj);
+            return Equals((TerrainDrawCommand)target);
         }
 
-        public int CompareTo(TerrainDrawCommand Target)
+        public int CompareTo(TerrainDrawCommand target)
         {
-            return LOD.CompareTo(Target.LOD);
+            return lod.CompareTo(target.lod);
         }
 
         public override int GetHashCode()
         {
-            return Index.GetHashCode() + Scale.GetHashCode() + BoundingBox.GetHashCode() + PivotPosition.GetHashCode();
+            return index.GetHashCode() + scale.GetHashCode() + boundBox.GetHashCode() + pivotPosition.GetHashCode();
         }
     }
 }
