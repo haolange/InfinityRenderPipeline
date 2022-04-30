@@ -61,10 +61,13 @@ namespace InfinityTech.Rendering.Pipeline
         private static readonly int ID_LastFrameIndex = Shader.PropertyToID("Prev_FrameIndex");
         private static readonly int ID_Matrix_LastViewProj = Shader.PropertyToID("Matrix_LastViewProj");
         private static readonly int ID_Matrix_LastViewFlipYProj = Shader.PropertyToID("Matrix_LastViewFlipYProj");
+        private static readonly int ID_Matrix_LastViewJitterProj = Shader.PropertyToID("Matrix_LastViewJitterProj");
+        private static readonly int ID_Matrix_LastViewFlipYJitterProj = Shader.PropertyToID("Matrix_LastViewFlipYJitterProj");
 
         public int frameIndex;
         public int lastFrameIndex;
         public float2 jitter;
+        public float2 jitterFlipY;
         public float2 lastJitter;
         public Matrix4x4 matrix_WorldToView;
         public Matrix4x4 matrix_ViewToWorld;
@@ -86,6 +89,8 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_InvViewFlipYJitterProj;
         public Matrix4x4 matrix_LastViewProj;
         public Matrix4x4 matrix_LastViewFlipYProj;
+        public Matrix4x4 matrix_LastViewJitterProj;
+        public Matrix4x4 matrix_LastViewFlipYJitterProj;
 
         private void UpdateCurrFrameData(Camera camera)
         {
@@ -97,7 +102,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
-            matrix_FlipYJitterProj = TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_FlipYProj, false);
+            matrix_FlipYJitterProj = TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitterFlipY, matrix_FlipYProj, false);
             matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
             matrix_ViewProj = matrix_Proj * matrix_WorldToView;
             matrix_InvViewProj = matrix_ViewProj.inverse;
@@ -115,6 +120,8 @@ namespace InfinityTech.Rendering.Pipeline
             lastFrameIndex = frameIndex;
             matrix_LastViewProj = matrix_ViewProj;
             matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
+            matrix_LastViewJitterProj = matrix_ViewJitterProj;
+            matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
         }
 
         public void UnpateUniformData(Camera camera, in bool bLastFrame = false)
@@ -153,6 +160,8 @@ namespace InfinityTech.Rendering.Pipeline
             cmdBuffer.SetGlobalMatrix(ID_Matrix_InvViewFlipYJitterProj, matrix_InvViewFlipYJitterProj);
             cmdBuffer.SetGlobalMatrix(ID_Matrix_LastViewProj, matrix_LastViewProj);
             cmdBuffer.SetGlobalMatrix(ID_Matrix_LastViewFlipYProj, matrix_LastViewFlipYProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_LastViewJitterProj, matrix_LastViewJitterProj);
+            cmdBuffer.SetGlobalMatrix(ID_Matrix_LastViewFlipYJitterProj, matrix_LastViewFlipYJitterProj);
         }
     }
 

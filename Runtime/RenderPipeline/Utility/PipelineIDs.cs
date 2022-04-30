@@ -8,7 +8,9 @@ namespace InfinityTech.Rendering.Pipeline
     {
         RenderDepth,
         RenderGBuffer,
-        RenderMotion,
+        RenderMotionObject,
+        CopyMotionDepth,
+        RenderMotionCamera,
         RenderForward,
         RenderSkyBox,
         RenderAtmosphere,
@@ -46,9 +48,10 @@ namespace InfinityTech.Rendering.Pipeline
         public static int GBufferA = Shader.PropertyToID("_GBufferTextureA");
         public static int GBufferB = Shader.PropertyToID("_GBufferTextureB");
         public static int MotionBuffer = Shader.PropertyToID("_MotionTexture");
+        public static int MotionDepthBuffer = Shader.PropertyToID("_MotionDepthTexture");
         public static int LightingBuffer = Shader.PropertyToID("_LightingTexture");
         public static int AntiAliasingBuffer = Shader.PropertyToID("_AntiAliasingBuffer");
-        public static int RT_MainTexture = Shader.PropertyToID("_MainTex");
+        public static int MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");
         public static int MeshBatchOffset = Shader.PropertyToID("meshBatchOffset");
         public static int MeshBatchIndexs = Shader.PropertyToID("meshBatchIndexs");

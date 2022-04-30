@@ -11,12 +11,10 @@
         _Reflectance ("Reflectance", Range(0, 1)) = 0
         _Roughness ("Roughness", Range(0, 1)) = 0
 
-
         [Header (Normal)]
 		//[NoScaleOffset]g_NormalScaleTable ("BestFitTexture", 2D) = "white" {}
         [NoScaleOffset]_NomralTexture ("NomralTexture", 2D) = "bump" {}
         _NormalTile ("NormalTile", Range(0, 100)) = 1
-
 
         [Header (Iridescence)]
         [Toggle (_Iridescence)] Iridescence ("Iridescence", Range(0, 1)) = 0
@@ -336,7 +334,13 @@
 			Name "MotionPass"
 			Tags { "LightMode" = "MotionPass" }
 			ZTest Equal ZWrite Off Cull Back
-
+            Stencil
+			{
+                Ref 5
+                comp always
+                pass replace
+            }
+			
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
@@ -351,7 +355,7 @@
 			struct Attributes
 			{
 				float4 vertex : POSITION;
-				float3 vertex_Old : TEXCOORD4;
+				float3 vertexOld : TEXCOORD4;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -359,7 +363,7 @@
 			{
 				float4 vertex : SV_POSITION;
 				float4 clipPos : TEXCOORD0;
-				float4 clipPos_Old : TEXCOORD1;
+				float4 clipPosOld : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -369,19 +373,18 @@
 				UNITY_SETUP_INSTANCE_ID(In);
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
-				Out.clipPos = mul(Matrix_ViewProj, mul(unity_ObjectToWorld, In.vertex));
-				Out.clipPos_Old = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertex_Old, 1) : In.vertex));
-
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1));
-				Out.vertex = mul(Matrix_ViewJitterProj, WorldPos);//UNITY_MATRIX_VP
+				Out.vertex = mul(Matrix_ViewJitterProj, WorldPos);
+				Out.clipPos = mul(Matrix_ViewProj, WorldPos);
+				Out.clipPosOld = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
 				return Out;
 			}
 
 			float2 frag(Varyings In) : SV_Target
 			{
-				float2 NDC_PixelPos = (In.clipPos.xy / In.clipPos.w);
-				float2 NDC_PixelPos_Old = (In.clipPos_Old.xy / In.clipPos_Old.w);
-				float2 ObjectMotion = (NDC_PixelPos - NDC_PixelPos_Old) * 0.5;
+				float2 ndcPixelPos = (In.clipPos.xy / In.clipPos.w);
+				float2 ndcPixelPosOld = (In.clipPosOld.xy / In.clipPosOld.w);
+				float2 ObjectMotion = (ndcPixelPos - ndcPixelPosOld) * 0.5;
 				return lerp(ObjectMotion, 0, unity_MotionVectorsParams.y == 0);
 			}
 			ENDHLSL

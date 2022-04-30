@@ -11,11 +11,9 @@
         _Reflectance ("Reflectance", Range(0, 1)) = 0
         _Roughness ("Roughness", Range(0, 1)) = 0
 
-
         [Header (Normal)]
         [NoScaleOffset]_NomralTexture ("NomralTexture", 2D) = "bump" {}
         _NormalTile ("NormalTile", Range(0, 100)) = 1
-
 
         [Header (Iridescence)]
         [Toggle (_Iridescence)] Iridescence ("Iridescence", Range(0, 1)) = 0

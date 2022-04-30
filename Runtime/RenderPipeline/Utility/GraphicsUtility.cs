@@ -46,35 +46,35 @@ namespace InfinityTech.Rendering.Pipeline
         public static void DrawFullScreen(this CommandBuffer cmdBuffer, RTHandle src, in RenderTargetIdentifier dsc)
         {
             cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
             cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1);
         }
 
         public static void DrawFullScreen(this CommandBuffer cmdBuffer, RTHandle src, in RenderTargetIdentifier dsc, MaterialPropertyBlock materialPropertyBlock = null)
         {
             cmdBuffer.SetRenderTarget(dsc);
-            materialPropertyBlock.SetTexture(InfinityShaderIDs.RT_MainTexture, src);
+            materialPropertyBlock.SetTexture(InfinityShaderIDs.MainTexture, src);
             cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 1, materialPropertyBlock);
         }
 
         public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier src, in RenderTargetIdentifier dsc)
         {
             cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
             cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, 0);
         }
 
         public static void DrawFullScreen(this CommandBuffer cmdBuffer, in RenderTargetIdentifier src, in RenderTargetIdentifier dsc, in int passIndex)
         {
             cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
             cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, passIndex);
         }
 
         public static void DrawFullScreen(this CommandBuffer cmdBuffer, in Rect viewport, in RenderTargetIdentifier src, in RenderTargetIdentifier dsc, in int passIndex)
         {
             cmdBuffer.SetRenderTarget(dsc);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.RT_MainTexture, src);
+            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, src);
             cmdBuffer.SetViewport(viewport);
             cmdBuffer.DrawMesh(FullScreenMesh, Matrix4x4.identity, BlitMaterial, 0, passIndex);
         }
