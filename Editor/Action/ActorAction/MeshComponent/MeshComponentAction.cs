@@ -21,7 +21,7 @@ namespace InfinityTech.ActorAction.Editor
             {
                 int meshIndex = Random.Range(0, meshs.Length);
                 meshIndex = Mathf.Clamp(meshIndex, 0, meshs.Length - 1);
-                meshComponent.staticMesh = meshs[meshIndex];
+                meshComponent.meshAsset = meshs[meshIndex];
                 meshComponent.UpdateMaterial();
             }
         }

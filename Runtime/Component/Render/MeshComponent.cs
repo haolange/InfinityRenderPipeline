@@ -19,7 +19,7 @@ namespace InfinityTech.Component
         public EStateType movebility = EStateType.Static;
 
         [Header("Mesh")]
-        public Mesh staticMesh;
+        public Mesh meshAsset;
 
         [Header("Material")]
         public Material[] materials;
@@ -208,9 +208,9 @@ namespace InfinityTech.Component
 
         public void UpdateBounds()
         {
-            if (!staticMesh) { return; }
+            if (!meshAsset) { return; }
 
-            m_BoundBox = Geometry.CaculateWorldBound(staticMesh.bounds, m_LocalToWorldMatrix);
+            m_BoundBox = Geometry.CaculateWorldBound(meshAsset.bounds, m_LocalToWorldMatrix);
             m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
         }
 
@@ -226,7 +226,7 @@ namespace InfinityTech.Component
                 }
             }
 
-            materials = new Material[staticMesh.subMeshCount];
+            materials = new Material[meshAsset.subMeshCount];
             for (int i = 0; i < materials.Length; ++i)
             {
                 if(i < m_LastMaterials.Length)
@@ -241,11 +241,11 @@ namespace InfinityTech.Component
 
         public void BuildMeshBatch(RenderContext renderContext)
         {
-            if (staticMesh != null) 
+            if (meshAsset != null) 
             {
-                m_CacheID = new int[staticMesh.subMeshCount];
+                m_CacheID = new int[meshAsset.subMeshCount];
 
-                for (int i = 0; i < staticMesh.subMeshCount; ++i)
+                for (int i = 0; i < meshAsset.subMeshCount; ++i)
                 {
                     MeshElement meshElement = default;
                     meshElement.visible = visible ? 1 : 0;
@@ -254,7 +254,7 @@ namespace InfinityTech.Component
                     meshElement.motionType = (int)motionVector;
                     meshElement.renderLayer = renderLayer;
                     meshElement.sectionIndex = i;
-                    meshElement.meshRef = new UObjectRef<Mesh>(staticMesh.GetInstanceID());
+                    meshElement.meshRef = new UObjectRef<Mesh>(meshAsset.GetInstanceID());
                     meshElement.materialRef = new UObjectRef<Material>(materials[i].GetInstanceID());
                     meshElement.priority = renderPriority + materials[i].renderQueue;
                     //meshElement.matrix_LocalToWorld = m_LocalToWorldMatrix;
@@ -267,7 +267,7 @@ namespace InfinityTech.Component
 
         public void UpdateMeshBatch(RenderContext renderContext)
         {
-            /*if (staticMesh != null)
+            /*if (meshAsset != null)
             {
                 for (int i = 0; i < meshBatchCacheID.Length; ++i)
                 {
@@ -278,7 +278,7 @@ namespace InfinityTech.Component
                     meshElement.motionType = (int)motionVector;
                     meshElement.renderLayer = renderLayer;
                     meshElement.sectionIndex = i;
-                    meshElement.staticMeshRef = GetWorld().meshAssets.Add(staticMesh, staticMesh.GetInstanceID());
+                    meshElement.staticMeshRef = GetWorld().meshAssets.Add(meshAsset, meshAsset.GetInstanceID());
                     meshElement.materialRef = GetWorld().materialAssets.Add(materials[i], materials[i].GetInstanceID());
                     meshElement.priority = renderPriority + materials[i].renderQueue;
                     meshElement.matrix_LocalToWorld = matrix_LocalToWorld;
@@ -291,7 +291,7 @@ namespace InfinityTech.Component
 
         public void ReleaseMeshBatch(RenderContext renderContext)
         {
-            /*if (staticMesh != null)
+            /*if (meshAsset != null)
             {
                 for (int Index = 0; Index < meshBatchCacheID.Length; ++Index)
                 {
