@@ -42,7 +42,8 @@ CBUFFER_START(ViewUnifrom)
     float4x4 Matrix_LastViewFlipYJitterProj;
 CBUFFER_END
 
-CBUFFER_START(UnityPerFrame)
+CBUFFER_START(UnityPerCamera)
+    float4x4 unity_CameraToWorld;
     float4x4 unity_MatrixV;
     float4x4 unity_MatrixInvV;
     float4x4 unity_MatrixVP;

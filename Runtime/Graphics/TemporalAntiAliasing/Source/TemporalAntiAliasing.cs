@@ -73,7 +73,7 @@ namespace InfinityTech.Rendering.Feature
             cmdBuffer.CopyTexture(outputData.accmulateTexture, inputData.hsitoryTexture);
         }
 
-        public static Matrix4x4 CaculateProjectionMatrix(Camera view, ref int frameIndex, ref float2 tempJitter, in Matrix4x4 origProj, in bool flipY = true)
+        public static void CaculateProjectionMatrix(Camera view, ref int frameIndex, ref float2 tempJitter, in Matrix4x4 origProj, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
         {
             float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
             float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
@@ -83,8 +83,6 @@ namespace InfinityTech.Rendering.Feature
             {
                 frameIndex = 0;
             }
-
-            Matrix4x4 projectionMatrix;
 
             if (view.orthographic)
             {
@@ -100,8 +98,9 @@ namespace InfinityTech.Rendering.Feature
                 float top = offset.y + vertical;
                 float bottom = offset.y - vertical;
 
-                projectionMatrix = Matrix4x4.Ortho(left, right, bottom, top, view.nearClipPlane, view.farClipPlane);
-                projectionMatrix = GL.GetGPUProjectionMatrix(projectionMatrix, flipY);
+                proj = Matrix4x4.Ortho(left, right, bottom, top, view.nearClipPlane, view.farClipPlane);
+                proj = GL.GetGPUProjectionMatrix(proj, true);
+                projFlipY = GL.GetGPUProjectionMatrix(proj, false);
             } else {
                 var planes = origProj.decomposeProjection;
 
@@ -115,10 +114,9 @@ namespace InfinityTech.Rendering.Feature
                 planes.top += planeJitter.y;
                 planes.bottom += planeJitter.y;
 
-                projectionMatrix = Matrix4x4.Frustum(planes);
+                proj = Matrix4x4.Frustum(planes);
+                projFlipY = proj;
             }
-
-            return projectionMatrix;
         }
     }
 }

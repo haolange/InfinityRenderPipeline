@@ -67,7 +67,6 @@ namespace InfinityTech.Rendering.Pipeline
         public int frameIndex;
         public int lastFrameIndex;
         public float2 jitter;
-        public float2 jitterFlipY;
         public float2 lastJitter;
         public Matrix4x4 matrix_WorldToView;
         public Matrix4x4 matrix_ViewToWorld;
@@ -97,12 +96,11 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
-            matrix_InvProj = matrix_Proj.inverse;
-            matrix_JitterProj = TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_Proj);
-            matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
+            TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_Proj, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
+            matrix_InvProj = matrix_Proj.inverse;
+            matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
-            matrix_FlipYJitterProj = TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitterFlipY, matrix_FlipYProj, false);
             matrix_InvFlipYJitterProj = matrix_FlipYJitterProj.inverse;
             matrix_ViewProj = matrix_Proj * matrix_WorldToView;
             matrix_InvViewProj = matrix_ViewProj.inverse;

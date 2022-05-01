@@ -115,9 +115,9 @@ void Main (uint3 id : SV_DispatchThreadID)
     float4 mean = m1 / 9;
     float4 stddev = sqrt((m2 / 9) - pow2(mean));
 
-    float aabbScale = lerp(1, 0.75, saturate(velocityLength * 64)) * TAA_BlendParameter.w;
-    float4 minColor = mean - aabbScale * stddev;
-    float4 maxColor = mean + aabbScale * stddev;
+    //float aabbScale = lerp(1, 0.75, saturate(velocityLength * 64)) * TAA_BlendParameter.w;
+    float4 minColor = mean - TAA_BlendParameter.w * stddev;
+    float4 maxColor = mean + TAA_BlendParameter.w * stddev;
 
     float4 currColor = sampleColors[4];
     minColor = min(minColor, currColor);
