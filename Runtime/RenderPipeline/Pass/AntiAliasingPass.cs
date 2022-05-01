@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         taaOutputData.accmulateTexture = passData.accmulateTexture;
                     }
-                    TemporalAAParameter taaParameter = new TemporalAAParameter(0.95f, 0.85f, 6500, 0.125f);
+                    TemporalAAParameter taaParameter = new TemporalAAParameter(0.95f, 0.75f, 7500, 1);
 
                     TemporalAntiAliasing temporalAA = graphContext.objectPool.Get<TemporalAntiAliasing>();
                     temporalAA.Render(graphContext.cmdBuffer, passData.taaShader, taaParameter, taaInputData, taaOutputData);

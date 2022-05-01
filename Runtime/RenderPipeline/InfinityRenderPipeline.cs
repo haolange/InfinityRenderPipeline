@@ -233,29 +233,32 @@ namespace InfinityTech.Rendering.Pipeline
                     bool isEditView = camera.cameraType == CameraType.SceneView;
                     bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
+                    // Get PerCamera HistoryCache
+                    if (!m_HistoryCaches.ContainsKey(cameraId))
+                    {
+                        historyCache = new HistoryCache();
+                        m_HistoryCaches.Add(cameraId, historyCache);
+                    } else {
+                        historyCache = m_HistoryCaches[cameraId];
+                    }
+
+                    // Get PerCamera Data
+                    if (!m_CameraUniforms.ContainsKey(cameraId))
+                    {
+                        cameraUniform = new CameraUniform();
+                        m_CameraUniforms.Add(cameraId, cameraUniform);
+                    } else {
+                        cameraUniform = m_CameraUniforms[cameraId];
+                    }
+
                     // CameraRendering
+                    cameraUniform.UnpateUniformData(camera, false);
                     using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
                     {
                         BeginCameraRendering(scriptableRenderContext, camera);
                         using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
                         {
-                            // Get PerCamera HistoryCache
-                            if (!m_HistoryCaches.ContainsKey(cameraId))
-                            {
-                                historyCache = new HistoryCache();
-                                m_HistoryCaches.Add(cameraId, historyCache);
-                            } else {
-                                historyCache = m_HistoryCaches[cameraId];
-                            }
-
-                            // Get PerCamera Data
-                            if (!m_CameraUniforms.ContainsKey(cameraId))
-                            {
-                                cameraUniform = new CameraUniform();
-                                m_CameraUniforms.Add(cameraId, cameraUniform);
-                            } else {
-                                cameraUniform = m_CameraUniforms[cameraId];
-                            }
+                            m_MeshPassJobRefs.Clear();
 
                             #if UNITY_EDITOR
                             if (isEditView) 
@@ -264,17 +267,14 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             #endif
 
-                            // ProcessVfx
-                            m_MeshPassJobRefs.Clear();
-                            VFXManager.PrepareCamera(camera);
-                            VFXManager.ProcessCameraCommand(camera, cmdBuffer);
+                            cameraUniform.SetUniformData(cmdBuffer, camera);
+                            scriptableRenderContext.SetupCameraProperties(camera);
                             scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                             cmdBuffer.Clear();
 
-                            // ProcessUniform
-                            cameraUniform.UnpateUniformData(camera, false);
-                            cameraUniform.SetUniformData(cmdBuffer, camera);
-                            scriptableRenderContext.SetupCameraProperties(camera);
+                            // ProcessVfx
+                            VFXManager.PrepareCamera(camera);
+                            VFXManager.ProcessCameraCommand(camera, cmdBuffer);
                             scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                             cmdBuffer.Clear();
 
