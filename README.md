@@ -1,5 +1,5 @@
 ## InfinityRenderPipeline
-InfinityRenderPipeline is a ExtremeGraphics Research for SRP in Unity.
+InfinityRenderPipeline is a Graphics Research for SRP in Unity.
 
 
 
