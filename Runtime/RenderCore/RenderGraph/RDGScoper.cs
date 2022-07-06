@@ -6,11 +6,11 @@ namespace InfinityTech.Rendering.RDG
 {
     internal class FRDGResourceMap<Type> where Type : struct
     {
-        internal NativeHashMap<int, Type> m_ResourceMap;
+        internal NativeParallelHashMap<int, Type> m_ResourceMap;
 
         internal FRDGResourceMap()
         {
-            m_ResourceMap = new NativeHashMap<int, Type>(64, Allocator.Persistent);
+            m_ResourceMap = new NativeParallelHashMap<int, Type>(64, Allocator.Persistent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

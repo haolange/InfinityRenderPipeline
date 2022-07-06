@@ -16,11 +16,11 @@ namespace InfinityTech.Rendering.LightPipeline
                 return cacheLightProxys.IsCreated;
             }
         }
-        internal NativeHashMap<int, LightElement> cacheLightProxys;
+        internal NativeParallelHashMap<int, LightElement> cacheLightProxys;
 
         public LightElementCollector() 
         {
-            cacheLightProxys = new NativeHashMap<int, LightElement>(64, Allocator.Persistent);
+            cacheLightProxys = new NativeParallelHashMap<int, LightElement>(64, Allocator.Persistent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
