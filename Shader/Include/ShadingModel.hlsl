@@ -40,21 +40,21 @@ half3 ClearCoatLit(BSDFContext bsdfContext, half3 MultiScatterEnergy, half3 Clea
 
 	half F0 = pow5(1 - bsdfContext.VoH);
 
-	half ClearCoat_GGX = D_GGX(bsdfContext.NoH, ClearCoat_Roughness);
-	half ClearCoat_Vis = Vis_Kelemen(bsdfContext.VoH);
-	half ClearCoat_Fersnel = (F0 + (1 - F0) * 0.05) * ClearCoat;
-	half ClearCoat_Specular = ClearCoat_GGX * ClearCoat_Vis * ClearCoat_Fersnel;
-	ClearCoat_Specular *= ClearCoat_MultiScatterEnergy;
+	half clearCoat_GGX = D_GGX(bsdfContext.NoH, ClearCoat_Roughness);
+	half clearCoat_Vis = Vis_Kelemen(bsdfContext.VoH);
+	half clearCoat_Fersnel = (F0 + (1 - F0) * 0.05) * ClearCoat;
+	half3 clearCoat_Specular = clearCoat_GGX * clearCoat_Vis * clearCoat_Fersnel;
+	clearCoat_Specular *= ClearCoat_MultiScatterEnergy;
 
     half pbr_GGX = D_GGX(bsdfContext.NoH, Roughness);     
     half pbr_Vis = Vis_SmithJointApprox(bsdfContext.NoL, bsdfContext.NoV, Roughness);
 	half3 pbr_Fresnel = saturate(50 * SpecularColor.g) * F0 + (1 - F0) * SpecularColor;
-	half3 BaseSpecular = (pbr_Vis * pbr_GGX) * pbr_Fresnel;
-	BaseSpecular *= MultiScatterEnergy;
+	half3 baseSpecular = (pbr_Vis * pbr_GGX) * pbr_Fresnel;
+	baseSpecular *= MultiScatterEnergy;
 
-	half LayerAttenuation = (1 - ClearCoat_Fersnel);
+	half LayerAttenuation = (1 - clearCoat_Fersnel);
 	
-	return max( 0, (Diffuse + BaseSpecular + ClearCoat_Specular) * LayerAttenuation );
+	return saturate((Diffuse + baseSpecular + clearCoat_Specular) * LayerAttenuation);
 }
 
 half3 CottonLit(BSDFContext bsdfContext, half3 AlbedoColor, half3 SpecularColor, half Roughness)
