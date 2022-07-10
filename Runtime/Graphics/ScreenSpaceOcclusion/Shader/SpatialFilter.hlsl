@@ -3,7 +3,7 @@
 
 #define BLUR_RADIUS 8
 
-#include "../../../../Shader/Include/Common.hlsl"
+#include "Common.hlsl"
 #include "UnityCG.cginc"
 
 void GetAO_Depth(float2 sampleUV, inout float occlusion, inout float depth)

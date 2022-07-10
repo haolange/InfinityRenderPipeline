@@ -1,14 +1,16 @@
 ﻿#pragma kernel HiZ_Generation
+#pragma enable_d3d11_debug_symbols
 
 float4 _PrevCurr_Inverse_Size;
-Texture2D<float> _PrevMipDepth; SamplerState sampler_PrevMipDepth;
+Texture2D<float> _PrevMipDepth; 
+SamplerState Global_point_clamp_sampler;
 RWTexture2D<float> _HierarchicalDepth;
 
 [numthreads(8, 8, 1)]
 void HiZ_Generation (uint3 id : SV_DispatchThreadID)
 {
     float2 uv = (id.xy + 0.5) * _PrevCurr_Inverse_Size.xy;
-    float FinalMinZ = _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv, 0);
+    float FinalMinZ = _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0);
     
     /*FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2( 1,  0) * _PrevCurr_Inverse_Size.zw, 0) );
     FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(-1,  0) * _PrevCurr_Inverse_Size.zw, 0) );
@@ -19,9 +21,9 @@ void HiZ_Generation (uint3 id : SV_DispatchThreadID)
     FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2( 1, -1) * _PrevCurr_Inverse_Size.zw, 0) );
     FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(-1, -1) * _PrevCurr_Inverse_Size.zw, 0) );*/
 
-    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(0, -1) * _PrevCurr_Inverse_Size.zw, 0));
-    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(-1, 0) * _PrevCurr_Inverse_Size.zw, 0));
-    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(-1, -1) * _PrevCurr_Inverse_Size.zw, 0));
+    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0, int2(0, -1)));
+    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0, int2(-1, 0)));
+    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0, int2(-1, -1)));
     
     _HierarchicalDepth[id.xy] = FinalMinZ;
 }

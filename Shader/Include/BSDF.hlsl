@@ -14,14 +14,17 @@ struct BSDFContext
 	float VoH;
 };
 
-void Init(inout BSDFContext LightData, float3 N, float3 V, float3 L, float3 H)
+BSDFContext InitBXDFContext(float3 N, float3 V, float3 L, float3 H)
 {
-	LightData.NoL = max(dot(N, L), 0);
-	LightData.NoV = max(dot(N, V), 0);
-	LightData.NoH = max(dot(N, H), 0);
-	LightData.LoH = max(dot(L, H), 0);
-	LightData.VoL = max(dot(V, L), 0);
-	LightData.VoH = max(dot(V, H), 0);
+	BSDFContext bsdfContext;
+	bsdfContext.NoL = dot(N, L);
+	bsdfContext.NoV = dot(N, V);
+	bsdfContext.VoL = dot(V, L);
+	float InvLenH = rsqrt(2 + 2 * bsdfContext.VoL);
+	bsdfContext.NoH = saturate((bsdfContext.NoL + bsdfContext.NoV) * InvLenH);
+	bsdfContext.VoH = saturate(InvLenH + InvLenH * bsdfContext.VoL);
+	bsdfContext.LoH = dot(L, H);
+	return bsdfContext;
 }
 
 struct AnisoBSDFContext
@@ -34,17 +37,40 @@ struct AnisoBSDFContext
     float BoV; 
 };
 
-void Init_Aniso(inout AnisoBSDFContext LightData, float3 Tangent, float3 Bitangent, float3 H, float3 L, float3 V)
+AnisoBSDFContext InitBXDFContext(float3 Tangent, float3 Bitangent, float3 H, float3 L, float3 V)
 {
-    LightData.ToH = dot(Tangent, H);
-    LightData.ToL = dot(Tangent, L); 
-    LightData.ToV = dot(Tangent, V); 
+	AnisoBSDFContext bsdfContext;
+    bsdfContext.ToH = dot(Tangent, H);
+    bsdfContext.ToL = dot(Tangent, L); 
+    bsdfContext.ToV = dot(Tangent, V); 
 
-    LightData.BoH = dot(Bitangent, H);
-    LightData.BoL = dot(Bitangent, L);
-	LightData.BoV = dot(Bitangent, V);
+    bsdfContext.BoH = dot(Bitangent, H);
+    bsdfContext.BoL = dot(Bitangent, L);
+	bsdfContext.BoV = dot(Bitangent, V);
+	return bsdfContext;
 }
 
+struct MicrofaceContext
+{
+	float Roughness;
+	float RoughnessPow2;
+	float RoughnessPow4;
+	float RoughnessClamp;
+	float3 AlbedoColor;
+	float3 SpecularColor;
+};
+
+MicrofaceContext InitMicrofaceContext(float Specular, float Roughness, float Reflectance, float3 AlbedoColor)
+{
+	MicrofaceContext microfaceContext;
+	microfaceContext.Roughness = Roughness;
+	microfaceContext.RoughnessClamp = clamp(Roughness, 0.04, 1);
+	microfaceContext.RoughnessPow2 = pow2(microfaceContext.RoughnessClamp);
+	microfaceContext.RoughnessPow4 = pow4(microfaceContext.RoughnessClamp);
+	microfaceContext.AlbedoColor = AlbedoColor * (1 - Reflectance);
+	microfaceContext.SpecularColor = lerp(Specular * 0.08, AlbedoColor, Reflectance);
+	return microfaceContext;
+}
 
 // Fersnel
 float IorToFresnel(float transmittedIor, float incidentIor)
@@ -149,28 +175,27 @@ float3 Diffuse_OrenNayar(float VoH, float NoL, float NoV, float Roughness, float
 }
 
 // Distrubution
-float D_GGX_NoPi(float NoH, float Roughness)
+float D_GGX_NoPi(float NoH, float Roughness4)
 {
-	float Roughness2 = pow2(Roughness);
-	float D = (NoH * Roughness - NoH) * NoH + 1;
-	return Roughness2 / pow2(D);
+	float D = (NoH * Roughness4 - NoH) * NoH + 1;
+	return Roughness4 / pow2(D);
 }
 
-float D_GGX(float NoH, float Roughness)
+float D_GGX(float NoH, float Roughness4)
 {
-	return Inv_Pi * D_GGX_NoPi(NoH, Roughness);
+	return Inv_Pi * D_GGX_NoPi(NoH, Roughness4);
 }
 
-float D_Beckmann_NoPi(float NoH, float Roughness)
+float D_Beckmann_NoPi(float NoH, float Roughness2)
 {
-	float Roughness2 = pow2(Roughness);
+	float Roughness4 = pow2(Roughness2);
 	float NoH2 = pow2(NoH);
-	return exp( (NoH2 - 1) / (Roughness2 * NoH2) ) / (Roughness2 * NoH2);
+	return exp( (NoH2 - 1) / (Roughness4 * NoH2) ) / (Roughness4 * NoH2);
 }
 
-float D_Beckmann(float NoH, float Roughness)
+float D_Beckmann(float NoH, float Roughness2)
 {
-	return Inv_Pi * D_Beckmann_NoPi(NoH, Roughness);
+	return Inv_Pi * D_Beckmann_NoPi(NoH, Roughness2);
 }
 
 float D_AnisotropyGGX_NoPi(float ToH, float BoH, float NoH, float RoughnessT, float RoughnessB) 
@@ -257,30 +282,30 @@ float Vis_Schlick(float NoL, float NoV, float Roughness)
 
 float Vis_Smith(float NoL, float NoV, float Roughness)
 {
-	float a2 = pow4(Roughness);
-	float Vis_SmithV = NoV + sqrt( NoV * (NoV - NoV * a2) + a2 );
-	float Vis_SmithL = NoL + sqrt( NoL * (NoL - NoL * a2) + a2 );
+	float Roughness4 = pow4(Roughness);
+	float Vis_SmithV = NoV + sqrt(NoV * (NoV - NoV * Roughness4) + Roughness4);
+	float Vis_SmithL = NoL + sqrt(NoL * (NoL - NoL * Roughness4) + Roughness4);
 	return rcp(Vis_SmithV * Vis_SmithL);
 }
 
-float Vis_SmithJointApprox_NoPI(float NoL, float NoV, float Roughness)
+float Vis_SmithJointApprox_NoPI(float NoL, float NoV, float Roughness4)
 {
-	float a = pow2(Roughness);
-	float LambdaL = NoV * (NoL * (1 - a) + a);
-	float LambdaV = NoL * (NoV * (1 - a) + a);
+	float Roughness = sqrt(Roughness4);
+	float LambdaL = NoV * (NoL * (1 - Roughness) + Roughness);
+	float LambdaV = NoL * (NoV * (1 - Roughness) + Roughness);
 	return 0.5 / rcp(LambdaV + LambdaL);
 }
 
-float Vis_SmithJointApprox(float NoL, float NoV, float Roughness)
+float Vis_SmithJointApprox(float NoL, float NoV, float Roughness4)
 {
-	return Inv_Pi * Vis_SmithJointApprox_NoPI(NoL, NoV, Roughness);
+	return Inv_Pi * Vis_SmithJointApprox_NoPI(NoL, NoV, Roughness4);
 }
 
 float Vis_SmithJoint_NoPI(float NoL, float NoV, float Roughness)
 {
-	float a2 = pow4(Roughness);
-	float LambdaV = NoL * sqrt(NoV * (NoV - NoV * a2) + a2);
-	float LambdaL = NoV * sqrt(NoL * (NoL - NoL * a2) + a2);
+	float Roughness4 = pow4(Roughness);
+	float LambdaV = NoL * sqrt(NoV * (NoV - NoV * Roughness4) + Roughness4);
+	float LambdaL = NoV * sqrt(NoL * (NoL - NoL * Roughness4) + Roughness4);
 	return 0.5 / rcp(LambdaL + LambdaV);
 }
 

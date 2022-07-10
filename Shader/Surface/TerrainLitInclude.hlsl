@@ -5,6 +5,7 @@
 #define UNITY_PREV_MATRIX_I_M unity_MatrixPreviousMI;
 
 #include "../Include/Common.hlsl"
+#include "../Include/Lighting.hlsl"
 #include "../Include/GBufferPack.hlsl"
 #include "../Include/ShaderVariable.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -464,35 +465,6 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 }
 
 #endif
-
-struct FDirectionalLightElement
-{
-    float4 color;
-
-    float4 directional;
-
-    float diffuse;
-    float specular;
-    float radius;
-    int lightLayer;
-
-    int enableIndirect;
-    float indirectIntensity;
-    int shadowType;
-    float minSoftness;
-
-    float maxSoftness;
-    int enableContactShadow;
-    float contactShadowLength;
-    int enableVolumetric;
-
-    float volumetricIntensity;
-    float volumetricOcclusion;
-    float maxDrawDistance;
-    float maxDrawDistanceFade;
-};
-int g_DirectionalLightCount;
-StructuredBuffer<FDirectionalLightElement> g_DirectionalLightBuffer;
 
 void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
 {

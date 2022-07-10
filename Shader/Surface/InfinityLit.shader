@@ -2,14 +2,16 @@
 {
 	Properties 
 	{
-        [Header (Microface)]
+        [Header (Color)]
         [Toggle (_UseAlbedoTex)]UseBaseColorTex ("UseBaseColorTex", Range(0, 1)) = 0
         [NoScaleOffset]_MainTex ("BaseColorTexture", 2D) = "white" {}
+		_BaseColor ("BaseColor", Color) = (1, 1, 1, 1)
         _BaseColorTile ("BaseColorTile", Range(0, 1024)) = 1
-        _BaseColor ("BaseColor", Color) = (1, 1, 1, 1)
-        _SpecularLevel ("SpecularLevel", Range(0, 1)) = 0.5
-        _Reflectance ("Reflectance", Range(0, 1)) = 0
+
+		[Header (Microface)]
         _Roughness ("Roughness", Range(0, 1)) = 0
+        _Reflectance ("Reflectance", Range(0, 1)) = 0
+        _SpecularLevel ("SpecularLevel", Range(0, 1)) = 0.5
 
         [Header (Normal)]
 		//[NoScaleOffset]g_NormalScaleTable ("BestFitTexture", 2D) = "white" {}
@@ -168,7 +170,9 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
-				int _BaseColorTile;
+				float _Roughness;
+				float _Reflectance;
+				float _BaseColorTile;
 				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
@@ -257,14 +261,19 @@
 			#pragma enable_d3d11_debug_symbols
 
 			#include "../Include/Common.hlsl"
+			#include "../Include/BSDF.hlsl"
 			#include "../Include/Lightmap.hlsl"
+			#include "../Include/Lighting.hlsl"
+			#include "../Include/ShadingModel.hlsl"
 			#include "../Include/GBufferPack.hlsl"
 			#include "../Include/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
-				int _BaseColorTile;
+				float _Roughness;
+				float _Reflectance;
+				float _BaseColorTile;
 				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
@@ -274,22 +283,20 @@
 			{
 				float2 uv0 : TEXCOORD0;
 				float2 uv1 : TEXCOORD1;
-				float3 normal : NORMAL;
-				float4 vertex : POSITION;
+				float3 normalOS : NORMAL;
+				float4 vertexOS : POSITION;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct Varyings
 			{
 				float2 uv0 : TEXCOORD0;
-				float3 normal : TEXCOORD1;
-				float4 worldPos : TEXCOORD2;
-				float4 vertex : SV_POSITION;
-
-				#if defined(LIGHTMAP_ON)
-				float2 uv1 : TEXCOORD3;
-				#endif
-
+			#if defined(LIGHTMAP_ON)
+				float2 uv1 : TEXCOORD1;
+			#endif
+				float3 normalWS : TEXCOORD2;
+				float4 vertexWS : TEXCOORD3;
+				float4 vertexCS : SV_POSITION;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -300,30 +307,51 @@
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
 				Out.uv0 = In.uv0;
-				Out.normal = normalize(mul(In.normal, (float3x3)unity_WorldToObject));
-				Out.worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				Out.vertex = mul(Matrix_ViewJitterProj, Out.worldPos);
-
-				#if defined(LIGHTMAP_ON)
-					Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
-				#endif
-
+			#if defined(LIGHTMAP_ON)
+				Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
+			#endif
+				Out.normalWS = normalize(mul(In.normalOS, (float3x3)unity_WorldToObject));
+				Out.vertexWS = mul(UNITY_MATRIX_M, float4(In.vertexOS.xyz, 1.0));
+				Out.vertexCS = mul(Matrix_ViewJitterProj, Out.vertexWS);
 				return Out;
 			}
 
-			void frag(Varyings In, out float4 LightingBuffer : SV_Target0)
+			void frag(Varyings In, out float4 lightingBuffer : SV_Target0)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
-				float3 WS_PixelPos = In.worldPos.xyz;
-				float3 Albedo = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
+				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
+
+				float3 surfaceAlbedo = albedoMap.rgb * _BaseColor.rgb;
+				float surfaceSpecular = _SpecularLevel;
+				float surfaceReflctance = _Reflectance;
+				float surfaceRoughness = _Roughness;
+				MicrofaceContext microfaceContext = InitMicrofaceContext(surfaceSpecular, surfaceRoughness, surfaceReflctance, surfaceAlbedo);
+
+				float3 normalWS = normalize(In.normalWS.xyz);
+				float3 positionWS = In.vertexWS.xyz;
+				float3 cameraDirWS = normalize(_WorldSpaceCameraPos - positionWS);
 
 				float3 indirectLight = 1;
 				#if defined(LIGHTMAP_ON)
-					indirectLight = SampleLightmap(In.uv1, In.normal);
+					indirectLight = SampleLightmap(In.uv1, In.normalWS);
+				#else
+					indirectLight = 0;
 				#endif
 
-				LightingBuffer = float4(Albedo * indirectLight, 1);
+				lightingBuffer = 0;
+				for(int i = 0; i < g_DirectionalLightCount; ++i)
+				{
+					float3 lightColor = g_DirectionalLightBuffer[i].color.rgb;
+					float3 lightDirWS = g_DirectionalLightBuffer[i].directional.xyz;
+					float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
+
+					BSDFContext bsdfContext = InitBXDFContext(normalWS, cameraDirWS, lightDirWS, halfDirWS);
+					lightingBuffer.rgb += DefultLit(bsdfContext, microfaceContext);
+					lightingBuffer.rgb *= lightColor * bsdfContext.NoL;
+				}
+
+				lightingBuffer += float4(surfaceAlbedo * indirectLight, 1);
 			}
 			ENDHLSL
 		}
@@ -406,14 +434,18 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
-				int _BaseColorTile;
+				float _Roughness;
+				float _Reflectance;
+				float _BaseColorTile;
 				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
+
 			CBUFFER_START(UnityMetaPass)
 				bool4 unity_MetaVertexControl;
 				bool4 unity_MetaFragmentControl;
 			CBUFFER_END
+
 			float unity_OneOverOutputBoost;
 			float unity_MaxOutputValue;
 			float unity_UseLinearSpace;
@@ -520,8 +552,10 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
+				float _Roughness;
+				float _Reflectance;
 				float _SpecularLevel;
-				int _BaseColorTile;
+				float _BaseColorTile;
 				float4 _BaseColor;
 			CBUFFER_END
 

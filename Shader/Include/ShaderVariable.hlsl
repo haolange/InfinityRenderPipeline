@@ -10,9 +10,9 @@ float4 unity_DeltaTime; // dt, 1/dt, smoothdt, 1/smoothdt
 float4 _TimeParameters; // t, sin(t), cos(t)
 
 float3 _WorldSpaceCameraPos;
-float4 _ProjectionParams;
 float4 _ScreenParams;
 float4 _ZBufferParams;
+float4 _ProjectionParams;
 
 CBUFFER_START(ViewUnifrom)
     int FrameIndex;
