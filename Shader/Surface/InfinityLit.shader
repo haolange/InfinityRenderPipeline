@@ -132,7 +132,7 @@
 
 				Out.uv = In.uv;
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				Out.vertex = mul(Matrix_ViewJitterProj, WorldPos);
+				Out.vertex = mul(UNITY_MATRIX_VP, WorldPos);
 				return Out;
 			}
 
@@ -210,7 +210,7 @@
 				Out.uv0 = In.uv0;
 				Out.normal = normalize(mul(In.normal, (float3x3)unity_WorldToObject));
 				Out.worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				Out.vertex = mul(Matrix_ViewJitterProj, Out.worldPos);
+				Out.vertex = mul(UNITY_MATRIX_VP, Out.worldPos);
 
 				/*#if defined(LIGHTMAP_ON)
 					Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
@@ -312,7 +312,7 @@
 			#endif
 				Out.normalWS = normalize(mul(In.normalOS, (float3x3)unity_WorldToObject));
 				Out.vertexWS = mul(UNITY_MATRIX_M, float4(In.vertexOS.xyz, 1.0));
-				Out.vertexCS = mul(Matrix_ViewJitterProj, Out.vertexWS);
+				Out.vertexCS = mul(UNITY_MATRIX_VP, Out.vertexWS);
 				return Out;
 			}
 
@@ -402,7 +402,8 @@
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1));
-				Out.vertex = mul(Matrix_ViewJitterProj, WorldPos);
+				Out.vertex = mul(UNITY_MATRIX_VP, WorldPos);
+				
 				Out.clipPos = mul(Matrix_ViewProj, WorldPos);
 				Out.clipPosOld = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
 				return Out;
@@ -410,10 +411,20 @@
 
 			float2 frag(Varyings In) : SV_Target
 			{
-				float2 ndcPixelPos = (In.clipPos.xy / In.clipPos.w);
-				float2 ndcPixelPosOld = (In.clipPosOld.xy / In.clipPosOld.w);
-				float2 ObjectMotion = (ndcPixelPos - ndcPixelPosOld) * 0.5;
-				return lerp(ObjectMotion, 0, unity_MotionVectorsParams.y == 0);
+				float2 hPos = (In.clipPos.xy / In.clipPos.w);
+				float2 hPosOld = (In.clipPosOld.xy / In.clipPosOld.w);
+
+				// V is the viewport position at this pixel in the range 0 to 1.
+				float2 ndcPos = (hPos.xy + 1.0f) / 2.0f;
+				float2 ndcPosOld = (hPosOld.xy + 1.0f) / 2.0f;
+
+#if UNITY_UV_STARTS_AT_TOP
+				ndcPos.y = 1 - ndcPos.y;
+				ndcPosOld.y = 1 - ndcPosOld.y;
+#endif
+				float2 objectMotion = ndcPos - ndcPosOld;
+				//float2 objectMotion = (ndcPos - ndcPosOld) * 0.5;
+				return lerp(objectMotion, 0, unity_MotionVectorsParams.y == 0);
 			}
 			ENDHLSL
 		}

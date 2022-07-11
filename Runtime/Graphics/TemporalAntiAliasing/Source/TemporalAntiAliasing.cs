@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Feature
             float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
             float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
             tempJitter = new float2(jitterX, jitterY);
-            //tempJitter *= 0.75f;
+            tempJitter *= 0.75f;
 
             if (++frameIndex >= 8)
             {

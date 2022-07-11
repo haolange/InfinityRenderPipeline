@@ -442,10 +442,15 @@ float Luma4(float3 Color)
     return (Color.g * 2) + (Color.r + Color.b);
 }
 
-float CLuminance(float3 rgb)
+float ColorLuminance(float3 rgb)
 {
     return dot( rgb, float3(0.0396819152, 0.458021790, 0.00609653955) );
 }
+
+/*float ColorLuminance(float3 linearRgb)
+{
+    return dot(linearRgb, float3(0.2126729, 0.7151522, 0.0721750));
+}*/
 
 float HdrWeight4(float3 Color, float Exposure)
 {

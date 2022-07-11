@@ -77,7 +77,6 @@ void Main (uint3 id : SV_DispatchThreadID)
 {
     float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
     float2 unJitterUV = screenUV - TAAJitter.xy;
-	uint2 pixelCoord = uint2(screenUV.xy * TAA_Resolution.xy);
 
     float2 velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, GetClosestFragment(screenUV), 0).xy;
     float velocityLength = length(velocity);
@@ -124,7 +123,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     maxColor = max(maxColor, currColor);
     
     float4 corners = ((sampleColors[0] + sampleColors[8] + sampleColors[2] + sampleColors[6]) - currColor) * 2;
-    currColor += (currColor - (currColor * 0.167)) * 2.718 * 0.1; //0.1 is sharpness
+    currColor += (currColor - (corners * 0.167)) * 2.718 * 0.25; //0.25 is sharpness
     currColor = clamp(currColor, 0, 65472);
 
     float4 lastColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0);
@@ -133,3 +132,60 @@ void Main (uint3 id : SV_DispatchThreadID)
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, velocityLength * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
     UAV_AccmulateTexture[id.xy] = clamp(lerp(currColor, lastColor, weight), 0, 65472);
 }
+
+/*float2 GetClosestFragment(float2 uv)
+{
+    const float4 neighborhood = float4(
+        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(-1, -1)).r,
+        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(1, -1)).r,
+        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(-1, 1)).r,
+        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(1, 1)).r
+    );
+
+    float3 result = float3(0.0, 0.0, SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0).r);
+    result = lerp(result, float3(-1.0, -1.0, neighborhood.x), COMPARE_DEPTH(neighborhood.x, result.z));
+    result = lerp(result, float3( 1.0, -1.0, neighborhood.y), COMPARE_DEPTH(neighborhood.y, result.z));
+    result = lerp(result, float3(-1.0,  1.0, neighborhood.z), COMPARE_DEPTH(neighborhood.z, result.z));
+    result = lerp(result, float3( 1.0,  1.0, neighborhood.w), COMPARE_DEPTH(neighborhood.w, result.z));
+
+    return (uv + result.xy * TAA_Resolution.zw);
+}
+
+[numthreads(16, 16, 1)]
+void Main (uint3 id : SV_DispatchThreadID)
+{
+    float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
+    float2 unJitterUV = screenUV - TAAJitter.xy;
+
+    float4 color = SRV_AliasingTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV, 0);
+    float2 motion = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, GetClosestFragment(screenUV), 0).xy;
+
+    float4 topLeft = SRV_AliasingTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV, 0, int2(-1, -1));
+    float4 bottomRight = SRV_AliasingTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV, 0, int2(1, 1));
+
+    float4 corners = 4.0 * (topLeft + bottomRight) - 2.0 * color;
+
+    // Sharpen output
+    color += (color - (corners * 0.166667)) * 2.718282 * 0.25;
+    color = clamp(color, 0.0, 65536);
+
+    // Tonemap color and history samples
+    float4 average = (corners + color) * 0.142857;
+
+    float4 history = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, screenUV - motion, 0);
+
+    float motionLength = length(motion);
+    float2 luma = float2(ColorLuminance(average.rgb), ColorLuminance(color.rgb));
+    //float nudge = 4.0 * abs(luma.x - luma.y);
+    float nudge = lerp(4.0, 0.25, saturate(motionLength * 100.0)) * abs(luma.x - luma.y);
+
+    float4 minimum = min(bottomRight, topLeft) - nudge;
+    float4 maximum = max(topLeft, bottomRight) + nudge;
+
+    // Clip history samples
+    history = ClipAABB(history, minimum, maximum);
+
+    // Blend method
+    float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, motionLength * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
+    UAV_AccmulateTexture[id.xy] = clamp(lerp(color, history, weight), 0, 65472);
+}*/
