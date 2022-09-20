@@ -87,11 +87,13 @@ namespace InfinityTech.Rendering.Pipeline
             public Camera camera;
             public RenderTexture dscTexture;
             public RDGTextureRef srcTexture;
+            public RDGTextureRef depthTexture;
         }
 
         void RenderPresent(Camera camera, RenderTexture dscTexture)
         {
             RDGTextureRef srcTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             
             // Add PresentPass
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(UtilityPassUtilityData.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
@@ -101,6 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.camera = camera;
                 passData.dscTexture = dscTexture;
                 passData.srcTexture = passRef.ReadTexture(srcTexture);
+                passData.depthTexture = passRef.ReadTexture(depthTexture);
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in PresentPassData passData, in RDGContext graphContext) =>
@@ -116,6 +119,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     graphContext.cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
                     graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(passData.camera), passData.srcTexture, new RenderTargetIdentifier(passData.dscTexture), 1);
+                    //graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(passData.camera), passData.srcTexture, new RenderTargetIdentifier(passData.dscTexture), passData.depthTexture, 1);
                 });
             }
         }
