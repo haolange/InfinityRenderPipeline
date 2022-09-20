@@ -4,10 +4,10 @@
 #define UNITY_PREV_MATRIX_M unity_MatrixPreviousM;
 #define UNITY_PREV_MATRIX_I_M unity_MatrixPreviousMI;
 
-#include "../Include/Common.hlsl"
-#include "../Include/Lighting.hlsl"
-#include "../Include/GBufferPack.hlsl"
-#include "../Include/ShaderVariable.hlsl"
+#include "../Library/Common.hlsl"
+#include "../Library/Lighting.hlsl"
+#include "../Library/GBufferPack.hlsl"
+#include "../Library/ShaderVariable.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
