@@ -1,6 +1,6 @@
 ﻿//#include "UnityCG.cginc"
-#include "../../../../Shader/Library/BSDF.hlsl"
-#include "../../../../Shader/Library/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../../../Shaders/ShaderLibrary/BSDF.hlsl"
+#include "../../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 
 float4x4 Matrix_Proj, Matrix_InvProj, Matrix_ViewProj, Matrix_InvViewProj, Matrix_WorldToView;
 Texture2D SRV_PyramidColor, SRV_PyramidDepth, SRV_SceneDepth, SRV_GBufferNormal;

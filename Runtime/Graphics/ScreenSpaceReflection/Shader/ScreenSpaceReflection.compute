@@ -1,9 +1,9 @@
 #include "UnityCG.cginc"
-#include "../../../../Shader/Library/BSDF.hlsl"
-#include "../../../../Shader/Library/Random.hlsl"
-#include "../../../../Shader/Library/Common.hlsl"
-#include "../../../../Shader/Library/RayTracing/Variance/VarianceEstimator.hlsl"
-#include "../../../../Shader/Library/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../../../Shaders/ShaderLibrary/BSDF.hlsl"
+#include "../../../../Shaders/ShaderLibrary/Random.hlsl"
+#include "../../../../Shaders/ShaderLibrary/Common.hlsl"
+#include "../../../../Shaders/ShaderLibrary/RayTracing/Variance/VarianceEstimator.hlsl"
+#include "../../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 
 int SSR_NumRays, SSR_NumSteps, SSR_FrameIndex;
 float SSR_BRDFBias, SSR_Thickness, SSR_Fadeness, SSR_Roughness, SSR_SpatialRadius, SSR_TemporalScale, SSR_TemporalWeight, ColorPyramidNumLOD;

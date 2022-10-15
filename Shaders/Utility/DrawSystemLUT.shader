@@ -15,10 +15,10 @@
 	}
 
 	CGINCLUDE
-		#include "../Library/Random.hlsl"
+		#include "../ShaderLibrary/Random.hlsl"
 		#include "UnityCustomRenderTexture.cginc"
-		#include "../Library/SphericalHarmonic.hlsl"
-		#include "../Library/ImageBasedLighting.hlsl"
+		#include "../ShaderLibrary/SphericalHarmonic.hlsl"
+		#include "../ShaderLibrary/ImageBasedLighting.hlsl"
 
         float _ScatterScale, _ScatterRadiuMin, _ScatterRadiuMax;
         float4 _Albedo, _ScatterColor, _DistributeCorrect;

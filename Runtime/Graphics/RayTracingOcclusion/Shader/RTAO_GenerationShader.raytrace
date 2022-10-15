@@ -1,6 +1,6 @@
-﻿#include "../../../../Shader/Library/BSDF.hlsl"
-#include "../../../../Shader/Library/Random.hlsl"
-#include "../../../../Shader/Library/RayTracing/Common/RayTracingCommon.hlsl"
+﻿#include "../../../../Shaders/ShaderLibrary/BSDF.hlsl"
+#include "../../../../Shaders/ShaderLibrary/Random.hlsl"
+#include "../../../../Shaders/ShaderLibrary/RayTracing/Common/RayTracingCommon.hlsl"
 
 #pragma max_recursion_depth 1
 

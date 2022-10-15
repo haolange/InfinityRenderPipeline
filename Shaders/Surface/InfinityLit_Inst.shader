@@ -48,8 +48,8 @@
 			#pragma fragment frag
 			#pragma enable_d3d11_debug_symbols
 
-			#include "../Library/GPUScene.hlsl"
-			#include "../Library/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -100,11 +100,11 @@
 			#pragma fragment frag
 			#pragma enable_d3d11_debug_symbols
 
-			#include "../Library/Common.hlsl"
-			#include "../Library/GPUScene.hlsl"
-			#include "../Library/Lightmap.hlsl"
-			#include "../Library/GBufferPack.hlsl"
-			#include "../Library/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/Common.hlsl"
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/Lightmap.hlsl"
+			#include "../ShaderLibrary/GBufferPack.hlsl"
+			#include "../ShaderLibrary/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -178,12 +178,12 @@
 			#pragma fragment frag
 			#pragma enable_d3d11_debug_symbols
 
-			#include "../Library/Common.hlsl"
-			#include "../Library/GPUScene.hlsl"
-			#include "../Library/Lighting.hlsl"
-			#include "../Library/GBufferPack.hlsl"
-			#include "../Library/ShadingModel.hlsl"
-			#include "../Library/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/Common.hlsl"
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/Lighting.hlsl"
+			#include "../ShaderLibrary/GBufferPack.hlsl"
+			#include "../ShaderLibrary/ShadingModel.hlsl"
+			#include "../ShaderLibrary/ShaderVariable.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
