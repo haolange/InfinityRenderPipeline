@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public struct MeshPassFilterJob : IJob
     {
         [ReadOnly]
-        public FCullingData cullingData;
+        public CullingDatas cullingDatas;
 
         [ReadOnly]
         public NativeArray<MeshElement> meshElements;
@@ -61,9 +61,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshElement meshElement;
 
             //Gather PassMeshBatch
-            for (int i = 0; i < cullingData.viewMeshElements.Length; ++i)
+            for (int i = 0; i < cullingDatas.viewMeshElements.Length; ++i)
             {
-                if (cullingData.viewMeshElements[i] != 0)
+                if (cullingDatas.viewMeshElements[i] != 0)
                 {
                     meshElement = meshElements[i];
 
@@ -196,7 +196,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public struct MeshPassGenerateJob : IJob
     {
         [ReadOnly]
-        public FCullingData cullingData;
+        public CullingDatas cullingDatas;
 
         [WriteOnly]
         public NativeArray<int> meshBatchIndexs;
@@ -216,9 +216,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshElement meshElement;
 
             //Gather PassMeshBatch
-            for (int i = 0; i < cullingData.viewMeshElements.Length; ++i)
+            for (int i = 0; i < cullingDatas.viewMeshElements.Length; ++i)
             {
-                if (cullingData.viewMeshElements[i] != 0)
+                if (cullingDatas.viewMeshElements[i] != 0)
                 {
                     meshElement = meshElements[i];
 

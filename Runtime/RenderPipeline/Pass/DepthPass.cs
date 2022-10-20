@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
             public MeshPassProcessor meshPassProcessor;
         }
 
-        void RenderDepth(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
+        void RenderDepth(Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             TextureDescriptor depthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = DepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
 
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.meshPassProcessor = m_DepthMeshProcessor;
                 passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 
-                m_DepthMeshProcessor.DispatchSetup(cullingData, new MeshPassDescriptor(2450, 2999));
+                m_DepthMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in DepthPassData passData, in RDGContext graphContext) =>

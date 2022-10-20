@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             public MeshPassProcessor meshPassProcessor;
         }
 
-        void RenderGBuffer(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
+        void RenderGBuffer(Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             TextureDescriptor gbufferADsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = GBufferPassUtilityData.TextureAName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
             TextureDescriptor gbufferBDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = GBufferPassUtilityData.TextureBName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.gbufferTextureB = passRef.UseColorBuffer(gbufferTextureB, 1);
                 passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 
-                m_GBufferMeshProcessor.DispatchSetup(cullingData, new MeshPassDescriptor(0, 2999));
+                m_GBufferMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in GBufferPassData passData, in RDGContext graphContext) =>

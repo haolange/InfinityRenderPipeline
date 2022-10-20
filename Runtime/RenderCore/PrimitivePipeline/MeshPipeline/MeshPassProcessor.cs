@@ -53,17 +53,17 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshPassTaskRefs = meshPassTaskRefs;
         }
 
-        internal void DispatchSetup(in FCullingData cullingData, in MeshPassDescriptor meshPassDescriptor)
+        internal void DispatchSetup(in CullingDatas cullingDatas, in MeshPassDescriptor meshPassDescriptor)
         {
-            if (m_GPUScene.meshElements.IsCreated == false || cullingData.viewMeshElements.IsCreated == false || cullingData.isSceneView != true) { return; }
-            if (cullingData.viewMeshElements.Length == 0) { return; }
+            if (m_GPUScene.meshElements.IsCreated == false || cullingDatas.viewMeshElements.IsCreated == false || cullingDatas.isSceneView != true) { return; }
+            if (cullingDatas.viewMeshElements.Length == 0) { return; }
 
-            m_MeshBatchIndexs = new NativeArray<int>(cullingData.viewMeshElements.Length, Allocator.TempJob);
-            m_PassMeshSections = new NativeList<PassMeshSection>(cullingData.viewMeshElements.Length, Allocator.TempJob);
-            m_MeshDrawCommands = new NativeList<MeshDrawCommand>(cullingData.viewMeshElements.Length, Allocator.TempJob);
+            m_MeshBatchIndexs = new NativeArray<int>(cullingDatas.viewMeshElements.Length, Allocator.TempJob);
+            m_PassMeshSections = new NativeList<PassMeshSection>(cullingDatas.viewMeshElements.Length, Allocator.TempJob);
+            m_MeshDrawCommands = new NativeList<MeshDrawCommand>(cullingDatas.viewMeshElements.Length, Allocator.TempJob);
 
             MeshPassFilterJob meshPassFilterJob;
-            meshPassFilterJob.cullingData = cullingData;
+            meshPassFilterJob.cullingDatas = cullingDatas;
             meshPassFilterJob.meshElements = m_GPUScene.meshElements;
             meshPassFilterJob.passMeshSections = m_PassMeshSections;
             meshPassFilterJob.meshPassDescriptor = meshPassDescriptor;

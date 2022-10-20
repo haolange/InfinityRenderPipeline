@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
             public MeshPassProcessor meshPassProcessor;
         }
 
-        void RenderForward(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
+        void RenderForward(Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             TextureDescriptor textureDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = ForwardPassUtilityData.TextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
 
@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.lightingTexture = passRef.UseColorBuffer(lightingTexture, 0);
                 passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
                 
-                m_ForwardMeshProcessor.DispatchSetup(cullingData, new MeshPassDescriptor(0, 2999));
+                m_ForwardMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in ForwardPassData passData, in RDGContext graphContext) =>

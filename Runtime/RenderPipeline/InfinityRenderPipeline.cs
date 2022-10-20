@@ -222,10 +222,10 @@ namespace InfinityTech.Rendering.Pipeline
                     Camera camera = cameras[i];
                     CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
-                    FCullingData cullingData;
+                    CullingDatas cullingDatas;
                     HistoryCache historyCache;
                     CameraUniform cameraUniform;
-                    CullingResults cullingResult;
+                    CullingResults cullingResults;
 
                     int cameraId = GetCameraID(camera);
                     bool isEditView = camera.cameraType == CameraType.SceneView;
@@ -272,9 +272,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                             // ProcessVfx
                             VFXManager.PrepareCamera(camera);
-                            VFXManager.ProcessCameraCommand(camera, cmdBuffer);
-                            scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                            cmdBuffer.Clear();
 
                             // SceneCulling
                             using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
@@ -282,8 +279,8 @@ namespace InfinityTech.Rendering.Pipeline
                                 camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                                 cullingParameters.shadowDistance = 128;
                                 cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
-                                cullingResult = scriptableRenderContext.Cull(ref cullingParameters);
-                                cullingData = scriptableRenderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
+                                cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
+                                cullingDatas = scriptableRenderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
                             }
 
                             // ProcessLOD
@@ -306,7 +303,7 @@ namespace InfinityTech.Rendering.Pipeline
                             using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
                             {
                                 renderContext.lightContext.Clear();
-                                NativeArray<VisibleLight> visibleLights = cullingResult.visibleLights;
+                                NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
                                 Dictionary<int, LightComponent> lights = renderContext.GetWorldLight();
 
                                 for (int j = 0; j < visibleLights.Length; ++j)
@@ -338,14 +335,21 @@ namespace InfinityTech.Rendering.Pipeline
                                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                                 cmdBuffer.Clear();
                             }
+
+                            // ProcessVfx Command
+                            VFXCameraXRSettings cameraXRSettings;
+                            cameraXRSettings.viewTotal = 1;
+                            cameraXRSettings.viewCount = 1;
+                            cameraXRSettings.viewOffset = 0;
+                            VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
                         }
 
                         using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.RecordRDG)))
                         {
-                            RenderDepth(camera, cullingData, cullingResult);
-                            RenderGBuffer(camera, cullingData, cullingResult);
-                            RenderMotion(camera, cullingData, cullingResult);
-                            RenderForward(camera, cullingData, cullingResult);
+                            RenderDepth(camera, cullingDatas, cullingResults);
+                            RenderGBuffer(camera, cullingDatas, cullingResults);
+                            RenderMotion(camera, cullingDatas, cullingResults);
+                            RenderForward(camera, cullingDatas, cullingResults);
                             RenderSkyBox(camera);
                             RenderAntiAliasing(camera, historyCache);
                             #if UNITY_EDITOR
@@ -362,7 +366,7 @@ namespace InfinityTech.Rendering.Pipeline
                         EndCameraRendering(scriptableRenderContext, camera);
                     }
 
-                    cullingData.Release();
+                    cullingDatas.Release();
                     m_GraphScoper.Clear();
                     cameraUniform.UnpateUniformData(camera, true);
                 }

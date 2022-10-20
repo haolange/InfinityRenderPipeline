@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
 
-        void RenderMotion(Camera camera, in FCullingData cullingData, in CullingResults cullingResults)
+        void RenderMotion(Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
