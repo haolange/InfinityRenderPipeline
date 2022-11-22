@@ -46,10 +46,10 @@
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma enable_d3d11_debug_symbols
+			//#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/GPUScene.hlsl"
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -98,13 +98,13 @@
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma enable_d3d11_debug_symbols
+			//#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GPUScene.hlsl"
 			#include "../ShaderLibrary/Lightmap.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -176,14 +176,14 @@
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma enable_d3d11_debug_symbols
+			//#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GPUScene.hlsl"
 			#include "../ShaderLibrary/Lighting.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/ShadingModel.hlsl"
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 

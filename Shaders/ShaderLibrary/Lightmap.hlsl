@@ -1,7 +1,7 @@
 #ifndef _LightmapInclude
 #define _LightmapInclude
 
-#include "ShaderVariable.hlsl"
+#include "ShaderVariables.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 

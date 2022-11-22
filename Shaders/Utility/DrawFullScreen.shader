@@ -61,7 +61,7 @@
 			//#define SAMPLE_TEXTURE2D_X_LOD(textureName, samplerName, coord2, lod) SAMPLE_TEXTURE2D_ARRAY_LOD(textureName, samplerName, coord2, 0, lod)
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			
 			float4 _ScaleBais;
@@ -123,7 +123,7 @@
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			Texture2D _MainTex;

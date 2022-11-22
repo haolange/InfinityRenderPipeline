@@ -12,7 +12,7 @@ static const int2 SampleOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), i
 static const int2 NeighborOffsets[8] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(1, 1), int2(1, 0), int2(-1, 1), int2(0, -1) };
 
 #include "../../../../Shaders/ShaderLibrary/Common.hlsl"
-#include "../../../../Shaders/ShaderLibrary/ShaderVariable.hlsl"
+#include "../../../../Shaders/ShaderLibrary/ShaderVariables.hlsl"
 
 float4 ClipAABB(float4 color, float4 aabbMin, float4 aabbMax)
 {

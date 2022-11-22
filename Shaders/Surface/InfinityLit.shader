@@ -48,9 +48,9 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			#pragma enable_d3d11_debug_symbols
+			//#pragma enable_d3d11_debug_symbols
 
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -104,9 +104,9 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			#pragma enable_d3d11_debug_symbols
+			//#pragma enable_d3d11_debug_symbols
 
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -159,13 +159,13 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			#pragma enable_d3d11_debug_symbols
+			//#pragma enable_d3d11_debug_symbols
 			//#pragma multi_compile _ LIGHTMAP_ON
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/Lightmap.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -257,8 +257,8 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+			//#pragma enable_d3d11_debug_symbols
 			#pragma multi_compile _ LIGHTMAP_ON
-			#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/BSDF.hlsl"
@@ -266,7 +266,7 @@
 			#include "../ShaderLibrary/Lighting.hlsl"
 			#include "../ShaderLibrary/ShadingModel.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -374,9 +374,9 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
-			#pragma enable_d3d11_debug_symbols
+			//#pragma enable_d3d11_debug_symbols
 
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -441,7 +441,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 
-			#include "../ShaderLibrary/ShaderVariable.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
