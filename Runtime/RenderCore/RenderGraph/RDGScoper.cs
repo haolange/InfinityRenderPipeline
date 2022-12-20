@@ -4,7 +4,7 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.RDG
 {
-    internal class FRDGResourceMap<Type> where Type : struct
+    internal class FRDGResourceMap<Type> where Type : unmanaged
     {
         internal NativeParallelHashMap<int, Type> m_ResourceMap;
 
