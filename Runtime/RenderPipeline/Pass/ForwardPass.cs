@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
                     };
                     DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.ForwardPass, new SortingSettings(passData.camera) { criteria = SortingCriteria.OptimizeStateChanges })
                     {
-                        perObjectData = PerObjectData.Lightmaps | PerObjectData.LightProbe,
+                        perObjectData = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume,
                         enableInstancing = true,
                         enableDynamicBatching = false
                     };

@@ -111,56 +111,76 @@
 			CBUFFER_START(UnityPerMaterial)
 				float _Roughness;
 				float _Reflectance;
-				float _SpecularLevel;
+				float _NormalTile;
 				float _BaseColorTile;
+				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
-			
 			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
 
 			struct Attributes
 			{
 				uint InstanceId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
-				float3 normal : NORMAL;
-				float4 vertex : POSITION;
+				float2 uv1 : TEXCOORD1;
+				float3 normalOS : NORMAL;
+				float4 vertexOS : POSITION;
+				float4 tangentOS : TANGENT;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct Varyings
 			{
-				uint PrimitiveId  : SV_InstanceID;
+				uint PrimitiveId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
-				float3 normal : TEXCOORD1;
-				float4 vertex_WS : TEXCOORD2;
-				float4 vertex_CS : SV_POSITION;
+				float3 normalWS : TEXCOORD2;
+                float3 tangentWS : TEXCOORD3;
+                float3 bitangentWS : TEXCOORD4;
+				float4 vertexWS : TEXCOORD5;
+				float4 vertexCS : SV_POSITION;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 			
 			Varyings vert (Attributes In)
 			{
-				Varyings Out;
+				Varyings Out = (Varyings)0;
 				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
 				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
-				//Out.normal = In.normal;
-				Out.normal = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normal));
+				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
+				Out.vertexCS = mul(Matrix_ViewJitterProj, Out.vertexWS);
 				//Out.normal = normalize(mul(Out.normal, (float3x3)meshBatch.matrix_LocalToWorld));
-				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
-				Out.vertex_CS = mul(Matrix_ViewJitterProj, Out.vertex_WS);
+				Out.normalWS = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normalOS));
+				Out.tangentWS = normalize(mul(meshBatch.matrix_LocalToWorld, float4(In.tangentOS.xyz, 0)).xyz);
+				Out.bitangentWS = normalize(cross(Out.normalWS, Out.tangentWS) * In.tangentOS.w);
 				return Out;
 			}
 			
 			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)
 			{
-				float3 Albedo = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile).rgb * _BaseColor.rgb;
+				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
+				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
+
+				float3 vnormalWS = normalize(In.normalWS.xyz);
+				float3 positionWS = In.vertexWS.xyz;
+				float3 cameraDirWS = normalize(_WorldSpaceCameraPos - positionWS);
+				float3x3 tangentMatrix = float3x3(In.tangentWS, In.bitangentWS, vnormalWS);
+				float3 pnormalWS = normalize(mul(normalMap, tangentMatrix)); 
+
+				float3 surfaceAlbedo = albedoMap.rgb * _BaseColor.rgb;
+				float surfaceSpecular = _SpecularLevel;
+				float surfaceReflctance = _Reflectance;
+				float surfaceRoughness = _Roughness;
 
 				FGBufferData GBufferData;
-				GBufferData.Albedo = Albedo;
-				GBufferData.Roughness = Albedo.r;
-				GBufferData.Specular = _SpecularLevel * Albedo.g;
-				GBufferData.Reflactance = Albedo.b;
-				GBufferData.Normal = normalize(In.normal);
-				EncodeGBuffer(GBufferData, In.vertex_CS.xy, GBufferA, GBufferB);
+				GBufferData.Normal = pnormalWS;
+				GBufferData.Albedo = surfaceAlbedo;
+				GBufferData.Specular = surfaceSpecular;
+				GBufferData.Roughness = surfaceRoughness;
+				GBufferData.Reflactance = surfaceReflctance;
+				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB);
 			}
 			ENDHLSL
 		}
@@ -191,12 +211,14 @@
 			CBUFFER_START(UnityPerMaterial)
 				float _Roughness;
 				float _Reflectance;
-				float _SpecularLevel;
+				float _NormalTile;
 				float _BaseColorTile;
+				float _SpecularLevel;
 				float4 _BaseColor;
 			CBUFFER_END
 
 			Texture2D _MainTex; SamplerState sampler_MainTex;
+			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
 
 			struct Attributes
 			{
@@ -205,43 +227,54 @@
 				float2 uv1 : TEXCOORD1;
 				float3 normalOS : NORMAL;
 				float4 vertexOS : POSITION;
+				float4 tangentOS : TANGENT;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
 			struct Varyings
 			{
-				uint InstanceId : SV_InstanceID;
+				uint PrimitiveId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
-				float3 normalWS : TEXCOORD1;
-				float4 vertexWS : TEXCOORD2;
+				float3 normalWS : TEXCOORD2;
+                float3 tangentWS : TEXCOORD3;
+                float3 bitangentWS : TEXCOORD4;
+				float4 vertexWS : TEXCOORD5;
 				float4 vertexCS : SV_POSITION;
+				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
-
-			Varyings vert(Attributes In)
+			
+			Varyings vert (Attributes In)
 			{
-				Varyings Out;
-				Out.InstanceId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
-				FMeshBatch meshBatch = meshBatchBuffer[Out.InstanceId];
+				Varyings Out = (Varyings)0;
+				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
+				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
-				Out.normalWS = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normalOS));
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
 				Out.vertexCS = mul(Matrix_ViewJitterProj, Out.vertexWS);
+				//Out.normal = normalize(mul(Out.normal, (float3x3)meshBatch.matrix_LocalToWorld));
+				Out.normalWS = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normalOS));
+				Out.tangentWS = normalize(mul(meshBatch.matrix_LocalToWorld, float4(In.tangentOS.xyz, 0)).xyz);
+				Out.bitangentWS = normalize(cross(Out.normalWS, Out.tangentWS) * In.tangentOS.w);
 				return Out;
 			}
 
 			void frag(Varyings In, out float4 lightingBuffer : SV_Target0)
 			{
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
+				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
+
+				float3 vnormalWS = normalize(In.normalWS.xyz);
+				float3 positionWS = In.vertexWS.xyz;
+				float3 cameraDirWS = normalize(_WorldSpaceCameraPos - positionWS);
+				float3x3 tangentMatrix = float3x3(In.tangentWS, In.bitangentWS, vnormalWS);
+				float3 pnormalWS = normalize(mul(normalMap, tangentMatrix)); 
 
 				float3 surfaceAlbedo = albedoMap.rgb * _BaseColor.rgb;
 				float surfaceSpecular = _SpecularLevel;
 				float surfaceReflctance = _Reflectance;
 				float surfaceRoughness = _Roughness;
 				MicrofaceContext microfaceContext = InitMicrofaceContext(surfaceSpecular, surfaceRoughness, surfaceReflctance, surfaceAlbedo);
-
-				float3 normalWS = normalize(In.normalWS.xyz);
-				float3 positionWS = In.vertexWS.xyz;
-				float3 cameraDirWS = normalize(_WorldSpaceCameraPos - positionWS);
 
 				lightingBuffer = 0;
 				for(int i = 0; i < g_DirectionalLightCount; ++i)
@@ -250,7 +283,7 @@
 					float3 lightDirWS = g_DirectionalLightBuffer[i].directional.xyz;
 					float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
 
-					BSDFContext bsdfContext = InitBXDFContext(normalWS, cameraDirWS, lightDirWS, halfDirWS);
+					BSDFContext bsdfContext = InitBXDFContext(pnormalWS, cameraDirWS, lightDirWS, halfDirWS);
 					lightingBuffer.rgb += DefultLit(bsdfContext, microfaceContext);
 					lightingBuffer.rgb *= lightColor * bsdfContext.NoL;
 				}

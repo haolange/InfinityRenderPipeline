@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             if(m_MeshBatchCollector.cacheMatrixs.IsCreated)
             {
-                using (new ProfilingScope(null, m_ProfileSampler))
+                using (new ProfilingScope(m_ProfileSampler))
                 {
                     bufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
 

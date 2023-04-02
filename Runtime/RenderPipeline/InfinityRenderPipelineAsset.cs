@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -29,6 +30,8 @@ namespace InfinityTech.Rendering.Pipeline
         public Shader defaultShaderProxy;
         public override Shader defaultShader { get { return defaultShaderProxy; } }
         public override Material defaultMaterial { get { return defaultMaterialProxy; } }
+
+        protected override Type renderPipelineType => renderPipeline.GetType();
 
         protected override RenderPipeline CreatePipeline() 
         {

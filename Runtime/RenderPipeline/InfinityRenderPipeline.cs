@@ -206,7 +206,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext scriptableRenderContext, Camera[] cameras)
         {
             // Begin FrameContext
-            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
+            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
                 RTHandles.Initialize(Screen.width, Screen.height);
                 renderContext.scriptableRenderContext = scriptableRenderContext;
@@ -254,7 +254,7 @@ namespace InfinityTech.Rendering.Pipeline
                     using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
                     {
                         BeginCameraRendering(scriptableRenderContext, camera);
-                        using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
+                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
                         {
                             m_MeshPassJobRefs.Clear();
 
@@ -274,7 +274,7 @@ namespace InfinityTech.Rendering.Pipeline
                             VFXManager.PrepareCamera(camera);
 
                             // SceneCulling
-                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
+                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
                             {
                                 camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                                 cullingParameters.shadowDistance = 128;
@@ -284,7 +284,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
 
                             // ProcessLOD
-                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ProcessLOD)))
+                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLOD)))
                             {
                                 List<TerrainComponent> terrains = renderContext.GetWorldTerrains();
                                 float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
@@ -300,7 +300,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
 
                             // ProcessLight
-                            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
+                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
                             {
                                 renderContext.lightContext.Clear();
                                 NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
@@ -344,7 +344,7 @@ namespace InfinityTech.Rendering.Pipeline
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
                         }
 
-                        using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.RecordRDG)))
+                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRDG)))
                         {
                             RenderDepth(camera, cullingDatas, cullingResults);
                             RenderGBuffer(camera, cullingDatas, cullingResults);
@@ -358,9 +358,9 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderPresent(camera, camera.targetTexture);
                         }
 
-                        using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ExecuteRDG)))
+                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRDG)))
                         {
-                            JobHandle.CompleteAll(m_MeshPassJobRefs);
+                            JobHandle.CompleteAll(m_MeshPassJobRefs.AsArray());
                             m_GraphBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
                         }
                         EndCameraRendering(scriptableRenderContext, camera);
@@ -434,7 +434,7 @@ namespace InfinityTech.Rendering.Pipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void InvokeProxyUpdate()
         {
-            using (new ProfilingScope(null, ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
+            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
             {
                 FGraphics.ProcessGraphicsTasks(renderContext);
                 FGraphics.ClearGraphicsTasks();

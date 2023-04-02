@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
-using UnityEngine.Experimental.Rendering;
+
 
 namespace InfinityTech.Component
 {
@@ -41,7 +41,7 @@ namespace InfinityTech.Component
 
             if (m_AccelerationStructure == null && PipelineAsset.enableRayTrace == true)
             {
-                RayTracingAccelerationStructure.RASSettings TracingAccelerationStructureSetting = new RayTracingAccelerationStructure.RASSettings(RayTracingAccelerationStructure.ManagementMode.Automatic, RayTracingAccelerationStructure.RayTracingModeMask.Everything, -1 ^ (1 << 9));
+                RayTracingAccelerationStructure.Settings TracingAccelerationStructureSetting = new RayTracingAccelerationStructure.Settings(RayTracingAccelerationStructure.ManagementMode.Automatic, RayTracingAccelerationStructure.RayTracingModeMask.Everything, -1 ^ (1 << 9));
                 m_AccelerationStructure = new RayTracingAccelerationStructure(TracingAccelerationStructureSetting);
                 m_AccelerationStructure.Build();//
             }
