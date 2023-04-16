@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
         RenderForward,
         RenderSkyBox,
         RenderAtmosphere,
-        RenderAntiAliasing,
+        ComputeAntiAliasing,
         RenderGizmos,
         RenderPresent,
         Max,

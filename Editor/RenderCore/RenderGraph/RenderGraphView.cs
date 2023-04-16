@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.RDG.Editor
             AddElement(GenerateNode("RenderMotion", new string[] { "DepthBuffer" }, new string[] { "MotionBuffer" }, new Rect(800, 0, 100, 150)));
             AddElement(GenerateNode("RenderForward", new string[] { "DepthBuffer" }, new string[] { "LightingBuffer" }, new Rect(1200, 0, 100, 150)));
             AddElement(GenerateNode("RenderSky", new string[] { "ColorBuffer", "DepthBuffer" }, new string[] { "ColorBuffer" }, new Rect(1600, 0, 100, 150)));
-            AddElement(GenerateNode("RenderAntiAliasing", new string[] { "DepthBuffer", "MotionBuffer", "HistoryBuffer" }, new string[] { "AliasingBuffer" }, new Rect(2000, 0, 100, 150)));
+            AddElement(GenerateNode("ComputeAntiAliasing", new string[] { "DepthBuffer", "MotionBuffer", "HistoryBuffer" }, new string[] { "AliasingBuffer" }, new Rect(2000, 0, 100, 150)));
             AddElement(GenerateNode("RenderGizmos", new string[] { "ColorBuffer", "DepthBuffer"}, new string[] { "ColorBuffer" }, new Rect(2400, 0, 100, 150)));
             AddElement(GenerateNode("RenderPresent", new string[] { "ColorBuffer" }, new string[] { }, new Rect(2800, 0, 100, 150)));
         }

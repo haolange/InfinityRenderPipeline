@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef accmulateTexture;
         }
 
-        void RenderAntiAliasing(Camera camera, HistoryCache historyCache)
+        void ComputeAntiAliasing(Camera camera, HistoryCache historyCache)
         {
             TextureDescriptor historyDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
             TextureDescriptor accmulateDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
             RDGTextureRef hsitoryTexture = m_GraphBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryTextureID, historyDescriptor));
 
             //Add AntiAliasingPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AntiAliasingPassData>(AntiAliasingUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderAntiAliasing)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AntiAliasingPassData>(AntiAliasingUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
                 //Setup Phase
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
