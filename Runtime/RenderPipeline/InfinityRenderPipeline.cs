@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-            TemporalAntiAliasing.CaculateProjectionMatrix(camera, ref frameIndex, ref jitter, matrix_Proj, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
+            TemporalAntiAliasing.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, matrix_Proj, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;

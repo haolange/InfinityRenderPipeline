@@ -73,33 +73,80 @@ namespace InfinityTech.Rendering.Feature
             cmdBuffer.CopyTexture(outputData.accmulateTexture, inputData.hsitoryTexture);
         }
 
-        public static void CaculateProjectionMatrix(Camera view, ref int frameIndex, ref float2 tempJitter, in Matrix4x4 origProj, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
+        public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
+        {
+            float near = camera.nearClipPlane;
+            float far = camera.farClipPlane;
+
+            float vertical = Mathf.Tan(0.5f * Mathf.Deg2Rad * camera.fieldOfView) * near;
+            float horizontal = vertical * camera.aspect;
+
+            offset.x *= horizontal / (0.5f * camera.pixelWidth);
+            offset.y *= vertical / (0.5f * camera.pixelHeight);
+
+            proj = camera.projectionMatrix;
+
+            proj[0, 2] += offset.x / horizontal;
+            proj[1, 2] += offset.y / vertical;
+
+            proj = GL.GetGPUProjectionMatrix(proj, true);
+            projFlipY = GL.GetGPUProjectionMatrix(proj, false);
+        }
+
+        public static void GetJitteredOrthographicProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
+        {
+            float vertical = camera.orthographicSize;
+            float horizontal = vertical * camera.aspect;
+
+            offset.x *= horizontal / (0.5f * camera.pixelWidth);
+            offset.y *= vertical / (0.5f * camera.pixelHeight);
+
+            float left = offset.x - horizontal;
+            float right = offset.x + horizontal;
+            float top = offset.y + vertical;
+            float bottom = offset.y - vertical;
+
+            proj = Matrix4x4.Ortho(left, right, bottom, top, camera.nearClipPlane, camera.farClipPlane);
+            proj = GL.GetGPUProjectionMatrix(proj, true);
+            projFlipY = GL.GetGPUProjectionMatrix(proj, false);
+        }
+
+        public static void CaculateProjectionMatrix(Camera camera, in float jitterSpread, ref int frameIndex, ref float2 jitter, in Matrix4x4 origProj, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
         {
             float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
             float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
-            tempJitter = new float2(jitterX, jitterY);
-            tempJitter *= 0.75f;
+            jitter = new float2(jitterX, jitterY);
+            jitter *= jitterSpread;
 
             if (++frameIndex >= 8)
             {
                 frameIndex = 0;
             }
 
-            if (view.orthographic)
+            if (camera.orthographic)
             {
-                float vertical = view.orthographicSize;
-                float horizontal = vertical * view.aspect;
+                GetJitteredOrthographicProjectionMatrix(camera, jitter, ref proj, ref projFlipY);
+            } 
+            else
+            {
+                GetJitteredPerspectiveProjectionMatrix(camera, jitter, ref proj, ref projFlipY);
+            }
 
-                float2 offset = tempJitter;
-                offset.y *= vertical / (0.5f * view.pixelRect.size.y);
-                offset.x *= horizontal / (0.5f * view.pixelRect.size.x);
+            /*if (camera.orthographic)
+            {
+                float vertical = camera.orthographicSize;
+                float horizontal = vertical * camera.aspect;
+
+                float2 offset = jitter;
+                offset.y *= vertical / (0.5f * camera.pixelRect.size.y);
+                offset.x *= horizontal / (0.5f * camera.pixelRect.size.x);
 
                 float left = offset.x - horizontal;
                 float right = offset.x + horizontal;
                 float top = offset.y + vertical;
                 float bottom = offset.y - vertical;
 
-                proj = Matrix4x4.Ortho(left, right, bottom, top, view.nearClipPlane, view.farClipPlane);
+                proj = Matrix4x4.Ortho(left, right, bottom, top, camera.nearClipPlane, camera.farClipPlane);
                 proj = GL.GetGPUProjectionMatrix(proj, true);
                 projFlipY = GL.GetGPUProjectionMatrix(proj, false);
             } else {
@@ -108,7 +155,7 @@ namespace InfinityTech.Rendering.Feature
                 float vertFov = math.abs(planes.top) + math.abs(planes.bottom);
                 float horizFov = math.abs(planes.left) + math.abs(planes.right);
 
-                var planeJitter = new Vector2(tempJitter.x * horizFov / view.pixelRect.size.x, tempJitter.y * vertFov / view.pixelRect.size.y);
+                var planeJitter = new Vector2(jitter.x * horizFov / camera.pixelRect.size.x, jitter.y * vertFov / camera.pixelRect.size.y);
 
                 planes.left += planeJitter.x;
                 planes.right += planeJitter.x;
@@ -117,7 +164,7 @@ namespace InfinityTech.Rendering.Feature
 
                 proj = Matrix4x4.Frustum(planes);
                 projFlipY = proj;
-            }
+            }*/
         }
     }
 }
