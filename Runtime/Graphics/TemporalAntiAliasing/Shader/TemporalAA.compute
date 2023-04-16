@@ -88,7 +88,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     [unroll]
     for(uint i = 0; i < 9; ++i) 
     {
-        sampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV, 0, SampleOffsets[i]);
+        sampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, unJitterUV, 0, SampleOffsets[i]);
     }
 
     #if 0
@@ -126,7 +126,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     currColor += (currColor - (corners * 0.167)) * 2.718 * 0.25; //0.25 is sharpness
     currColor = clamp(currColor, 0, 65472);
 
-    float4 lastColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0);
+    float4 lastColor = SRV_HistoryTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV - velocity, 0);
     lastColor = ClipAABB(lastColor, minColor, maxColor);
 
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, velocityLength * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);

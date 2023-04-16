@@ -9,7 +9,7 @@ half3 DefultLit(BSDFContext bsdfContext, MicrofaceContext microfaceContext)
     //half3 Diffuse = Diffuse_RenormalizeBurley(bsdfContext.LoH, bsdfContext.NoL, bsdfContext.NoV, AlbedoColor, Roughness);
 
     half pbr_GGX = D_GGX(bsdfContext.NoH, microfaceContext.RoughnessPow4);     
-    half pbr_Vis = Vis_SmithJointApprox(bsdfContext.NoL, bsdfContext.NoV, microfaceContext.RoughnessPow4); 
+    half pbr_Vis = Vis_SmithJointApprox_NoPI(bsdfContext.NoL, bsdfContext.NoV, microfaceContext.RoughnessPow4);
     half3 pbr_Fresnel = F_Schlick(microfaceContext.SpecularColor, 1, bsdfContext.LoH);     
 
     half3 Specular = pbr_Vis * pbr_GGX * pbr_Fresnel;
@@ -24,7 +24,7 @@ half3 SkinLit(BSDFContext bsdfContext, half3 MultiScatterEnergy, half3 AlbedoCol
     //half3 Diffuse = Diffuse_RenormalizeBurley(bsdfContext.LoH, bsdfContext.NoL, bsdfContext.NoV, AlbedoColor, Roughness);
 
 	half pbr_GGX = lerp(D_Beckmann(bsdfContext.NoH, Roughness), D_Beckmann(bsdfContext.NoH, Roughness * 0.5), 0.85);
-	half pbr_Vis = Vis_SmithJointApprox(bsdfContext.NoL, bsdfContext.NoV, Roughness);
+	half pbr_Vis = Vis_SmithJointApprox_NoPI(bsdfContext.NoL, bsdfContext.NoV, Roughness);
 	half3 pbr_Fresnel = F_Schlick(SpecularColor, 1, bsdfContext.LoH);
 
 	half3 Specular = pbr_Vis * pbr_GGX * pbr_Fresnel;
@@ -47,7 +47,7 @@ half3 ClearCoatLit(BSDFContext bsdfContext, half3 MultiScatterEnergy, half3 Clea
 	clearCoat_Specular *= ClearCoat_MultiScatterEnergy;
 
     half pbr_GGX = D_GGX(bsdfContext.NoH, Roughness);     
-    half pbr_Vis = Vis_SmithJointApprox(bsdfContext.NoL, bsdfContext.NoV, Roughness);
+    half pbr_Vis = Vis_SmithJointApprox_NoPI(bsdfContext.NoL, bsdfContext.NoV, Roughness);
 	half3 pbr_Fresnel = saturate(50 * SpecularColor.g) * F0 + (1 - F0) * SpecularColor;
 	half3 baseSpecular = (pbr_Vis * pbr_GGX) * pbr_Fresnel;
 	baseSpecular *= MultiScatterEnergy;
