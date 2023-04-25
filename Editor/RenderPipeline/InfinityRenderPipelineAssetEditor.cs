@@ -26,6 +26,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
 
         private SerializedProperty m_DefaultShader;
 
+        private SerializedProperty m_BlitMaterial;
         private SerializedProperty m_DefaultMaterial;
 
         private SerializedProperty m_BestFitNormalTexture;
@@ -45,6 +46,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_SSAOShader = serializedObject.FindProperty("ssaoShader");
             m_SSGIShader = serializedObject.FindProperty("ssgiShader");
 
+            m_BlitMaterial = serializedObject.FindProperty("blitMaterial");
             m_DefaultMaterial = serializedObject.FindProperty("defaultMaterialProxy");
 
             m_BestFitNormalTexture = serializedObject.FindProperty("bestFitNormalTexture");
@@ -75,6 +77,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             showMaterial = EditorGUILayout.BeginFoldoutHeaderGroup(showMaterial, "Materials");
             if (showMaterial)
             {
+                EditorGUILayout.PropertyField(m_BlitMaterial, new GUIContent("Blit Material"), GUILayout.Height(18));
                 EditorGUILayout.PropertyField(m_DefaultMaterial, new GUIContent("Default Material"), GUILayout.Height(18));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();

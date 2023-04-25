@@ -1,8 +1,8 @@
 ﻿#include "UnityCG.cginc"
-#include "../../../../../Shaders/Private/BSDF.hlsl"
-#include "../../../../../Shaders/Private/Random.hlsl"
-#include "../../../../../Shaders/Private/Common.hlsl"
-#include "../../../../../Shaders/Private/RayTracing/Variance/VarianceEstimator.hlsl"
+#include "../../../../../Shaders/ShaderLibrary/BSDF.hlsl"
+#include "../../../../../Shaders/ShaderLibrary/Random.hlsl"
+#include "../../../../../Shaders/ShaderLibrary/Common.hlsl"
+#include "../../../../../Shaders/ShaderLibrary/RayTracing/Variance/VarianceEstimator.hlsl"
 
 float4x4 Matrix_InvProj, Matrix_PrevViewProj, Matrix_ViewProj, Matrix_InvViewProj, Matrix_WorldToView;
 Texture2D SRV_SceneDepth, SRV_GBufferNormal, SRV_GBufferRoughness, SRV_GBufferMotion;

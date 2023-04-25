@@ -118,6 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     graphContext.cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
+                    //graphContext.cmdBuffer.Blit(srcBuffer, dscBuffer);
                     graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(passData.camera), passData.srcTexture, new RenderTargetIdentifier(passData.dscTexture), 1);
                     //graphContext.cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(passData.camera), passData.srcTexture, new RenderTargetIdentifier(passData.dscTexture), passData.depthTexture, 1);
                 });

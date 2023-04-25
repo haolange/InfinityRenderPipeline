@@ -5,15 +5,15 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public static class GraphicsUtility
     {
-        private static Material m_BlitMaterial;
+        internal static Material m_BlitMaterial;
 
         internal static Material BlitMaterial
         {
             get
             {
-                if (m_BlitMaterial != null) { return m_BlitMaterial; }
+                //if (m_BlitMaterial != null) { return m_BlitMaterial; }
 
-                m_BlitMaterial = new Material(Shader.Find("InfinityPipeline/Utility/DrawFullScreen"));
+                //m_BlitMaterial = new Material(Shader.Find("InfinityPipeline/Utility/DrawFullScreen"));
                 return m_BlitMaterial;
             }
         }

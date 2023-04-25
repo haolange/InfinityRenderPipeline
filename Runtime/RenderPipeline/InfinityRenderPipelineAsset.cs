@@ -23,6 +23,7 @@ namespace InfinityTech.Rendering.Pipeline
         public ComputeShader taaShader;
         public ComputeShader ssaoShader;
         public ComputeShader ssgiShader;
+        public Material blitMaterial;
         public Material defaultMaterialProxy;
         public Texture2D bestFitNormalTexture;
         public InfinityRenderPipeline renderPipeline;

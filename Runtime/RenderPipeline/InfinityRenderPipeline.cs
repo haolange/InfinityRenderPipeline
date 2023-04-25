@@ -387,10 +387,11 @@ namespace InfinityTech.Rendering.Pipeline
         {
             Shader.globalRenderPipeline = "InfinityRenderPipeline";
 
+            GraphicsUtility.m_BlitMaterial = pipelineAsset.blitMaterial;
+
             GraphicsSettings.lightsUseLinearIntensity = true;
             GraphicsSettings.lightsUseColorTemperature = true;
-            InfinityRenderPipelineAsset PipelineAsset = (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
-            GraphicsSettings.useScriptableRenderPipelineBatching = PipelineAsset.enableSRPBatch;
+            GraphicsSettings.useScriptableRenderPipelineBatching = pipelineAsset.enableSRPBatch;
 
             SupportedRenderingFeatures.active = new SupportedRenderingFeatures()
             {
