@@ -1,11 +1,13 @@
 using UnityEngine;
 using UnityEditor;
 using InfinityTech.Rendering.Pipeline;
+using UnityEngine.Rendering;
 
 namespace InfinityTech.Component.Editor
 {
     [CanEditMultipleObjects]
-    [CustomEditorForRenderPipeline(typeof(Camera), typeof(InfinityRenderPipelineAsset))]
+    [CustomEditor(typeof(Camera))]
+    [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
     public class CameraOverrideEditor : CameraEditor
     {
         #region TargetObject

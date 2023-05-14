@@ -22,15 +22,15 @@ namespace InfinityTech.Rendering.Pipeline
         // Gizmos Graph
         struct GizmosPassData
         {
-            #if UNITY_EDITOR
-            public Camera camera;
+#if UNITY_EDITOR
+            public RendererList rendererList;
             public RDGTextureRef depthBuffer;
             public RDGTextureRef colorBuffer;
             #endif
         }
 
         #if UNITY_EDITOR
-        void RenderGizmos(Camera camera)
+        void RenderGizmos(RenderContext renderContext, Camera camera)
         {
             if (Handles.ShouldRenderGizmos())
             {
@@ -44,14 +44,14 @@ namespace InfinityTech.Rendering.Pipeline
                     passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
-                    passData.camera = camera;
+                    passData.rendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
                     passData.colorBuffer = passRef.UseColorBuffer(colorTexture, 0);
                     passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                     //Execute Phase
                     passRef.SetExecuteFunc((in GizmosPassData passData, in RDGContext graphContext) =>
                     {
-                        graphContext.renderContext.scriptableRenderContext.DrawGizmos(passData.camera, GizmoSubset.PostImageEffects);
+                        graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                     });
                 }
             }
@@ -61,22 +61,22 @@ namespace InfinityTech.Rendering.Pipeline
         // SkyBox Graph
         struct SkyBoxPassData
         {
-            public Camera camera;
+            public RendererList rendererList;
         }
 
-        void RenderSkyBox(Camera camera)
+        void RenderSkyBox(RenderContext renderContext, Camera camera)
         {
             // Add SkyBoxPass
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(UtilityPassUtilityData.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
-                passData.camera = camera;
+                passData.rendererList = renderContext.scriptableRenderContext.CreateSkyboxRendererList(camera);
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in SkyBoxPassData passData, in RDGContext graphContext) =>
                 {
-                    graphContext.renderContext.scriptableRenderContext.DrawSkybox(passData.camera);
+                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
         }
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef depthTexture;
         }
 
-        void RenderPresent(Camera camera, RenderTexture dscTexture)
+        void RenderPresent(RenderContext renderContext, Camera camera, RenderTexture dscTexture)
         {
             RDGTextureRef srcTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
             RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);

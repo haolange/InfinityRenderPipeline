@@ -4,11 +4,13 @@ using UnityEditor;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.LightPipeline;
 using Expression = System.Linq.Expressions.Expression;
+using UnityEngine.Rendering;
 
 namespace InfinityTech.Component.Editor
 {
     [CanEditMultipleObjects]
-    [CustomEditorForRenderPipeline(typeof(Light), typeof(InfinityRenderPipelineAsset))]
+    [CustomEditor(typeof(Light))]
+    [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
     public class LightOverrideEditor : LightEditor
     {
         #region TargetObject

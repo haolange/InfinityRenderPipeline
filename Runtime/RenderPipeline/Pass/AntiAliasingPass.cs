@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct AntiAliasingPassData
         {
-            public Camera camera;
+            public float4 resolution;
             public ComputeShader taaShader;
             public RDGTextureRef depthTexture;
             public RDGTextureRef motionTexture;
@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RDGTextureRef accmulateTexture;
         }
 
-        void ComputeAntiAliasing(Camera camera, HistoryCache historyCache)
+        void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache)
         {
             TextureDescriptor historyDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
             TextureDescriptor accmulateDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
-                passData.camera = camera;
+                passData.resolution = new float4(camera.pixelWidth, camera.pixelHeight, 1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
                 passData.taaShader = pipelineAsset.taaShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     TemporalAAInputData taaInputData;
                     {
-                        taaInputData.resolution = new float4(passData.camera.pixelWidth, passData.camera.pixelHeight, 1.0f / passData.camera.pixelWidth, 1.0f / passData.camera.pixelHeight);
+                        taaInputData.resolution = passData.resolution;
                         taaInputData.depthTexture = passData.depthTexture;
                         taaInputData.motionTexture = passData.motionTexture;
                         taaInputData.hsitoryTexture = passData.hsitoryTexture;

@@ -346,16 +346,16 @@ namespace InfinityTech.Rendering.Pipeline
 
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRDG)))
                         {
-                            RenderDepth(camera, cullingDatas, cullingResults);
-                            RenderGBuffer(camera, cullingDatas, cullingResults);
-                            RenderMotion(camera, cullingDatas, cullingResults);
-                            RenderForward(camera, cullingDatas, cullingResults);
-                            RenderSkyBox(camera);
-                            ComputeAntiAliasing(camera, historyCache);
+                            RenderDepth(renderContext, camera, cullingDatas, cullingResults);
+                            RenderGBuffer(renderContext, camera, cullingDatas, cullingResults);
+                            RenderMotion(renderContext, camera, cullingDatas, cullingResults);
+                            RenderForward(renderContext, camera, cullingDatas, cullingResults);
+                            RenderSkyBox(renderContext, camera);
+                            ComputeAntiAliasing(renderContext, camera, historyCache);
                             #if UNITY_EDITOR
-                            RenderGizmos(camera);
+                            RenderGizmos(renderContext, camera);
                             #endif
-                            RenderPresent(camera, camera.targetTexture);
+                            RenderPresent(renderContext, camera, camera.targetTexture);
                         }
 
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRDG)))

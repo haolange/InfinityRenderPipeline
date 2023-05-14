@@ -16,7 +16,7 @@ namespace InfinityTech.ActorAction.Editor
         [MenuItem("GameObject/Light/RayTraceMannager", false)]
         public static void CreateRayTraceMannagerEntity(MenuCommand menuCommand)
         {
-            RayTraceEnvironment RayTraceMannagerObject = FindObjectOfType<RayTraceEnvironment>();
+            RayTraceEnvironment RayTraceMannagerObject = FindAnyObjectByType<RayTraceEnvironment>();
 
             if(RayTraceMannagerObject == null) {
                 GameObject RayTraceMannagerEntity = new GameObject("RayTraceMannager");

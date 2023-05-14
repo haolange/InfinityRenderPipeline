@@ -4,6 +4,7 @@ using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -20,15 +21,14 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct MotionPassData
         {
-            public Camera camera;
+            public RendererList rendererList;
             public RDGTextureRef depthTexture;
             public RDGTextureRef motionTexture;
             public RDGTextureRef copyDepthTexture;
-            public CullingResults cullingResults;
         }
 
 
-        void RenderMotion(Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
+        void RenderMotion(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
@@ -45,29 +45,26 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare);
 
+                RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
+                {
+                    rendererListDesc.layerMask = camera.cullingMask;
+                    rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
+                    rendererListDesc.sortingCriteria = SortingCriteria.CommonOpaque;
+                    rendererListDesc.renderingLayerMask = 1 << 5;
+                    rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
+                    rendererListDesc.excludeObjectMotionVectors = false;
+                }
+
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
-                passData.camera = camera;
-                passData.cullingResults = cullingResults;
+                passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
                 passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0);
                 passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in MotionPassData passData, in RDGContext graphContext) =>
                 {
-                    FilteringSettings filteringSettings = new FilteringSettings
-                    {
-                        renderingLayerMask = 1 << 5,
-                        excludeMotionVectorObjects = false,
-                        layerMask = passData.camera.cullingMask,
-                        renderQueueRange = RenderQueueRange.opaque,
-                    };
-                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.MotionPass, new SortingSettings(passData.camera) { criteria = SortingCriteria.CommonOpaque })
-                    {
-                        perObjectData = PerObjectData.MotionVectors,
-                        enableInstancing = true,
-                        enableDynamicBatching = false
-                    };
-                    graphContext.renderContext.scriptableRenderContext.DrawRenderers(passData.cullingResults, ref drawingSettings, ref filteringSettings);
+                    //UnityDrawPipeline
+                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
 

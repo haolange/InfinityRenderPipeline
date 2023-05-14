@@ -15,7 +15,7 @@ namespace InfinityTech.ActorAction.Editor
 
         void OnWizardCreate()
         {
-            MeshFilter[] meshRenderers = GameObject.FindObjectsOfType<MeshFilter>();
+            MeshFilter[] meshRenderers = FindObjectsByType<MeshFilter>(FindObjectsSortMode.None);
             foreach (MeshFilter meshRenderer in meshRenderers)
             {
                 int meshIndex = Random.Range(0, meshs.Length);
@@ -66,7 +66,7 @@ namespace InfinityTech.ActorAction.Editor
                 }
             }*/
 
-            MeshRenderer[] meshRenderers = GameObject.FindObjectsOfType<MeshRenderer>();
+            MeshRenderer[] meshRenderers = FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None);
             foreach (MeshRenderer meshRenderer in meshRenderers)
             {
                 int materiaIndex = Random.Range(0, materials.Length);

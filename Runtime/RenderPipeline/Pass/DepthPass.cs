@@ -3,6 +3,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Rendering.RDG;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -16,13 +17,12 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DepthPassData
         {
-            public Camera camera;
+            public RendererList rendererList;
             public RDGTextureRef depthTexture;
-            public CullingResults cullingResults;
             public MeshPassProcessor meshPassProcessor;
         }
 
-        void RenderDepth(Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
+        void RenderDepth(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             TextureDescriptor depthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = DepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
 
@@ -34,9 +34,18 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passRef.SetOption(ClearFlag.All, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
 
+                RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
+                {
+                    rendererListDesc.layerMask = camera.cullingMask;
+                    rendererListDesc.renderQueueRange = new RenderQueueRange(2450, 2999);
+                    rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
+                    rendererListDesc.renderingLayerMask = 1;
+                    rendererListDesc.rendererConfiguration = PerObjectData.None;
+                    rendererListDesc.excludeObjectMotionVectors = false;
+                }
+
                 ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
-                passData.camera = camera;
-                passData.cullingResults = cullingResults;
+                passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
                 passData.meshPassProcessor = m_DepthMeshProcessor;
                 passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 
@@ -49,18 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 0);
 
                     //UnityDrawPipeline
-                    FilteringSettings filteringSettings = new FilteringSettings
-                    {
-                        renderingLayerMask = 1,
-                        layerMask = passData.camera.cullingMask,
-                        renderQueueRange = new RenderQueueRange(2450, 2999),
-                    };
-                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.DepthPass, new SortingSettings(passData.camera) { criteria = SortingCriteria.QuantizedFrontToBack })
-                    {
-                        enableInstancing = true,
-                        enableDynamicBatching = false
-                    };
-                    graphContext.renderContext.scriptableRenderContext.DrawRenderers(passData.cullingResults, ref drawingSettings, ref filteringSettings);
+                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
         }

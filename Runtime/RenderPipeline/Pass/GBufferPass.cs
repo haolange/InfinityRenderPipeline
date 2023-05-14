@@ -4,6 +4,7 @@ using InfinityTech.Rendering.RDG;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -18,16 +19,14 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct GBufferPassData
         {
-            public Camera camera;
-
+            public RendererList rendererList;
             public RDGTextureRef depthTexture;
             public RDGTextureRef gbufferTextureA;
             public RDGTextureRef gbufferTextureB;
-            public CullingResults cullingResults;
             public MeshPassProcessor meshPassProcessor;
         }
 
-        void RenderGBuffer(Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
+        void RenderGBuffer(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             TextureDescriptor gbufferADsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = GBufferPassUtilityData.TextureAName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
             TextureDescriptor gbufferBDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = GBufferPassUtilityData.TextureBName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
@@ -42,9 +41,18 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
+                RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.GBufferPass, cullingResults, camera);
+                {
+                    rendererListDesc.layerMask = camera.cullingMask;
+                    rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
+                    rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
+                    rendererListDesc.renderingLayerMask = 1;
+                    rendererListDesc.rendererConfiguration = PerObjectData.None;
+                    rendererListDesc.excludeObjectMotionVectors = false;
+                }
+
                 ref GBufferPassData passData = ref passRef.GetPassData<GBufferPassData>();
-                passData.camera = camera;
-                passData.cullingResults = cullingResults;
+                passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
                 passData.meshPassProcessor = m_GBufferMeshProcessor;
                 passData.gbufferTextureA = passRef.UseColorBuffer(gbufferTextureA, 0);
                 passData.gbufferTextureB = passRef.UseColorBuffer(gbufferTextureB, 1);
@@ -59,18 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 1);
 
                     //UnityDrawPipeline
-                    FilteringSettings filteringSettings = new FilteringSettings
-                    {
-                        renderingLayerMask = 1,
-                        layerMask = passData.camera.cullingMask,
-                        renderQueueRange = new RenderQueueRange(0, 2999),
-                    };
-                    DrawingSettings drawingSettings = new DrawingSettings(InfinityPassIDs.GBufferPass, new SortingSettings(passData.camera) { criteria = SortingCriteria.QuantizedFrontToBack })
-                    {
-                        enableInstancing = true,
-                        enableDynamicBatching = false
-                    };
-                    graphContext.renderContext.scriptableRenderContext.DrawRenderers(passData.cullingResults, ref drawingSettings, ref filteringSettings);
+                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
         }
