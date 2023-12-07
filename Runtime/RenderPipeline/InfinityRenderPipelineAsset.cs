@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
         public override Shader defaultShader { get { return defaultShaderProxy; } }
         public override Material defaultMaterial { get { return defaultMaterialProxy; } }
 
-        protected override Type renderPipelineType => renderPipeline.GetType();
+        public override Type pipelineType => renderPipeline.GetType();
 
         protected override RenderPipeline CreatePipeline() 
         {
