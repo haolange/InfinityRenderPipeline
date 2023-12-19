@@ -352,9 +352,10 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderForward(renderContext, camera, cullingDatas, cullingResults);
                             RenderSkyBox(renderContext, camera);
                             ComputeAntiAliasing(renderContext, camera, historyCache);
-                            #if UNITY_EDITOR
-                            RenderGizmos(renderContext, camera);
-                            #endif
+                        #if UNITY_EDITOR
+                            //RenderWireOverlay(renderContext, camera);
+                            //RenderGizmos(renderContext, camera);
+                        #endif
                             RenderPresent(renderContext, camera, camera.targetTexture);
                         }
 

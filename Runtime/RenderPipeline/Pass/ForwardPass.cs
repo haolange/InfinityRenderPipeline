@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<ForwardPassData>(ForwardPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare);
+                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.ForwardPass, cullingResults, camera);
                 {

@@ -12,24 +12,55 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class UtilityPassUtilityData
     {
-        internal static string SkyBoxPassName = "Gizmos";
-        internal static string GizmosPassName = "SkyBox";
-        internal static string PresentPassName = "Present";
+        internal static string SkyBoxPassName = "SkyBoxPass";
+        internal static string WireOverlayPassName = "WireOverlayPass";
+        internal static string GizmosPassName = "GizmosPass";
+        internal static string PresentPassName = "PresentPass";
     }
 
     public partial class InfinityRenderPipeline
     {
-        // Gizmos Graph
-        struct GizmosPassData
-        {
 #if UNITY_EDITOR
+        // WireOverlay Graph
+        struct WireOverlayPassData
+        {
             public RendererList rendererList;
             public RDGTextureRef depthBuffer;
             public RDGTextureRef colorBuffer;
-            #endif
+        }
+        
+        void RenderWireOverlay(RenderContext renderContext, Camera camera)
+        {
+            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RDGTextureRef colorTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+
+            // Add WireOverlayPass
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<WireOverlayPassData>(UtilityPassUtilityData.WireOverlayPassName, ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
+            {
+                //Setup Phase
+                passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+
+                ref WireOverlayPassData passData = ref passRef.GetPassData<WireOverlayPassData>();
+                passData.rendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
+                passData.colorBuffer = passRef.UseColorBuffer(colorTexture, 0);
+                passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
+
+                //Execute Phase
+                passRef.SetExecuteFunc((in WireOverlayPassData passData, in RDGContext graphContext) =>
+                {
+                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
+                });
+            }
+        }
+        
+        // Gizmos Graph
+        struct GizmosPassData
+        {
+            public RendererList rendererList;
+            public RDGTextureRef depthBuffer;
+            public RDGTextureRef colorBuffer;
         }
 
-        #if UNITY_EDITOR
         void RenderGizmos(RenderContext renderContext, Camera camera)
         {
             if (Handles.ShouldRenderGizmos())
@@ -56,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
             }
         }
-        #endif
+#endif
 
         // SkyBox Graph
         struct SkyBoxPassData

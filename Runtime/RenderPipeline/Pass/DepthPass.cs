@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class DepthPassUtilityData
     {
-        internal static string PassName = "Depth";
+        internal static string PassName = "DepthPass";
         internal static string TextureName = "DepthTexture";
     }
 
@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<DepthPassData>(DepthPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.All, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                passRef.SetOption(ClearFlag.All, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
                 {

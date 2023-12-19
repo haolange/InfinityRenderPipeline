@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyAtmosphere(Camera RenderCamera)
         {
             //Add SkyAtmospherePass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AtmospherePassData>("SkyAtmosphere", ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AtmospherePassData>("SkyAtmospherePass", ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
             {
                 //Setup Phase
                 ref AtmospherePassData passData = ref passRef.GetPassData<AtmospherePassData>();
