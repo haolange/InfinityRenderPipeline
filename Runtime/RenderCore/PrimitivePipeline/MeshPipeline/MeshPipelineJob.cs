@@ -26,14 +26,15 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void Execute(int index)
         {
             int visible = 1;
-            float2 distRadius = new float2(0, 0);
             ref MeshElement  meshElement = ref meshElements[index];
 
             for (int i = 0; i < 6; ++i)
             {
                 ref FPlane plane = ref viewFrustum[i];
-                distRadius.x = math.dot(plane.normalDist.xyz,  meshElement.boundBox.center) + plane.normalDist.w;
-                distRadius.y = math.dot(math.abs(plane.normalDist.xyz),  meshElement.boundBox.extents);
+
+                float2 distRadius;
+                distRadius.x = math.dot(math.abs(plane.normalDist.xyz),  meshElement.boundBox.extents);
+                distRadius.y = math.dot(plane.normalDist.xyz,  meshElement.boundBox.center) + plane.normalDist.w;
 
                 visible = math.select(visible, 0, distRadius.x + distRadius.y < 0);
             }
