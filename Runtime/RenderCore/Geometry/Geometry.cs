@@ -7,7 +7,12 @@ namespace InfinityTech.Core.Geometry
     [Serializable]
     public struct FPlane : IEquatable<FPlane>
     {
-        public float4 normalDist { get { return m_NormalDist; } set { m_NormalDist = value; } }
+        public float4 normalDist
+        {
+            get => m_NormalDist;
+            set => m_NormalDist = value;
+        }
+
         private float4 m_NormalDist;
 
         public FPlane(float3 inNormal, float3 inPoint)

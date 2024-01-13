@@ -101,6 +101,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(UtilityPassUtilityData.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
+                passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateSkyboxRendererList(camera);
 

@@ -1,3 +1,4 @@
+using UnityEngine;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -52,7 +53,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 using (new ProfilingScope(m_ProfileSampler))
                 {
                     bufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
-
+                    //Debug.Log(m_MeshBatchCollector.count);
                     if(m_IsUpdate)
                     {
                         m_IsUpdate = false;

@@ -8,6 +8,8 @@ using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
 using InfinityTech.Rendering.RDG;
+using UnityEngine.SceneManagement;
+using UnityEditor.SceneManagement;
 using InfinityTech.Rendering.Feature;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
@@ -188,6 +190,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         public InfinityRenderPipeline()
         {
+            //EditorSceneManager.sceneUnloaded += OnSceneUnloaded;
+
             m_UpdateInit = true;
             SetGraphicsSetting();
             renderContext = new RenderContext();
@@ -479,6 +483,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (disposing)
             {
+                //EditorSceneManager.sceneUnloaded -= OnSceneUnloaded;
                 renderContext.Dispose();
                 m_GraphScoper.Dispose();
                 m_GraphBuilder.Dispose();
@@ -490,6 +495,18 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 m_HistoryCaches.Clear();
             }
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void OnPlayMode()
+        {
+            FGraphics.ClearGraphicsTasks();
+        }
+
+        static void OnSceneUnloaded(Scene current)
+        {
+            Debug.Log("OnSceneCganged");
+            FGraphics.ClearGraphicsTasks();
         }
     }
 }

@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<MotionPassData>(MotionPassUtilityData.ObjectPassName, ProfilingSampler.Get(CustomSamplerId.RenderMotionObject)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare);
+                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
                 {
@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<MotionPassData>(MotionPassUtilityData.CameraPassName, ProfilingSampler.Get(CustomSamplerId.RenderMotionCamera)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare);
+                passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 //Setup Phase
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();

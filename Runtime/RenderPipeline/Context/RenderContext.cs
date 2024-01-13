@@ -1,4 +1,5 @@
 ﻿using System;
+using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
@@ -231,6 +232,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             lightContext.Dispose();
             m_MeshBatchCollector.Dispose();
+            FGraphics.ClearGraphicsTasks();
         }
     }
 }

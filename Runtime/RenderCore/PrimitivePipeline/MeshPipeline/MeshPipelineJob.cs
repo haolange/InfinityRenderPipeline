@@ -1,5 +1,4 @@
-﻿using System;
-using Unity.Jobs;
+﻿using Unity.Jobs;
 using Unity.Burst;
 using Unity.Mathematics;
 using Unity.Collections;
@@ -33,7 +32,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 ref FPlane plane = ref viewFrustum[i];
 
                 float2 distRadius;
-                distRadius.x = math.dot(math.abs(plane.normalDist.xyz),  meshElement.boundBox.extents);
+                distRadius.x = math.dot(math.abs(plane.normalDist.xyz), meshElement.boundBox.extents);
                 distRadius.y = math.dot(plane.normalDist.xyz,  meshElement.boundBox.center) + plane.normalDist.w;
 
                 visible = math.select(visible, 0, distRadius.x + distRadius.y < 0);
