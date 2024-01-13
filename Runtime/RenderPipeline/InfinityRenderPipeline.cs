@@ -500,6 +500,7 @@ namespace InfinityTech.Rendering.Pipeline
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void OnPlayMode()
         {
+            Debug.Log("OnPlayMode");
             FGraphics.ClearGraphicsTasks();
         }
 

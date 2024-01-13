@@ -226,6 +226,7 @@ namespace InfinityTech.Component
                 renderContext.AddWorldLight(unityLight.GetInstanceID(), this);
             });
         }
+        
         protected override void OnUpdate()
         {
             base.OnUpdate();

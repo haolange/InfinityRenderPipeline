@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static void ProcessGraphicsTasks(RenderContext renderContext)
         {
             if(GraphicsTasks.Count == 0) { return; }
-            
+            Debug.Log(GraphicsTasks.Count);
             for (int i = 0; i < GraphicsTasks.Count; ++i) 
             {
                 if (GraphicsTasks[i] != null) 
@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddWorldLight(in int id, LightComponent lightComponent)
         {
-            m_LightList.Add(id, lightComponent);
+            m_LightList.TryAdd(id, lightComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
