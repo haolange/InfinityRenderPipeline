@@ -16,21 +16,16 @@ static const int2 NeighborOffsets[8] = { int2(-1, -1), int2(0, -1), int2(1, -1),
 
 float4 ClipAABB(float4 color, float4 aabbMin, float4 aabbMax)
 {
-#if 0
+#if 1
     float4 p_clip = 0.5 * (aabbMax + aabbMin);
     float4 e_clip = 0.5 * (aabbMax - aabbMin);
 
     float4 v_clip = color - p_clip;
-    float4 v_unit = v_clip / e_clip;
-    float4 a_unit = abs(v_unit);
-    float ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
 
-    [branch]
-    if (ma_unit > 1) {
-        return p_clip + v_clip / ma_unit;
-    } else {
-        return color;
-    }
+    float4 a_unit = abs(v_clip / (e_clip + 0.0001));
+    float ma_unit = saturate(Min3(a_unit.x, a_unit.y, a_unit.z));
+
+    return ma_unit > 1 ? p_clip + v_clip / ma_unit : color;
 #else
     // Note: only clips towards aabb center (but fast!)
     float3 center = 0.5 * (aabbMax.rgb + aabbMin.rgb);
@@ -41,8 +36,8 @@ float4 ClipAABB(float4 color, float4 aabbMin, float4 aabbMax)
 
     float3 ts = abs(extents / (offset + 0.0001));
     float t = saturate(Min3(ts.x, ts.y, ts.z));
-    color.rgb = center + offset * t;
-    return color;
+
+    return center + offset * t;
 #endif
 }
 
@@ -79,27 +74,35 @@ void Main (uint3 id : SV_DispatchThreadID)
     float2 unJitterUV = screenUV - TAAJitter.xy;
 
     float2 velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, GetClosestFragment(screenUV), 0).xy;
-    float velocityLength = length(velocity);
+    float4 lastColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0);
 
-    float totalWeight = 0;
-    float sampleWeights[9];
     float4 sampleColors[9];
 
     [unroll]
     for(uint i = 0; i < 9; ++i) 
     {
-        sampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, unJitterUV, 0, SampleOffsets[i]);
+        sampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV, 0, SampleOffsets[i]);
     }
 
-    #if 0
+#if 1 //neighbor filter for flakers
+        float totalWeight = 0;
+
         [unroll]
         for(uint j = 0; j < 9; ++j) 
         {
-            sampleWeights[j] = HdrWeight4(sampleColors[j].rgb, 100);
-            totalWeight += sampleWeights[j];
+            sampleColors.a[j] = HdrWeight4(sampleColors[j].rgb, 100);
+            totalWeight += sampleColors.a[j];
         }
-        sampleColors[4] = (sampleColors[0] * sampleWeights[0] + sampleColors[1] * sampleWeights[1] + sampleColors[2] * sampleWeights[2] +  sampleColors[3] * sampleWeights[3] + sampleColors[4] * sampleWeights[4] + sampleColors[5] * sampleWeights[5] +  sampleColors[6] * sampleWeights[6] + sampleColors[7] * sampleWeights[7] + sampleColors[8] * sampleWeights[8]) / totalWeight;
-    #endif
+        sampleColors[4] = (sampleColors[0] * sampleColors.a[0] 
+                            + sampleColors[1] * sampleColors.a[1] 
+                            + sampleColors[2] * sampleColors.a[2] 
+                            + sampleColors[3] * sampleColors.a[3] 
+                            + sampleColors[4] * sampleColors.a[4] 
+                            + sampleColors[5] * sampleColors.a[5] 
+                            + sampleColors[6] * sampleColors.a[6] 
+                            + sampleColors[7] * sampleColors.a[7] 
+                            + sampleColors[8] * sampleColors.a[8]) / totalWeight;
+#endif
 
     float4 m1 = 0; 
     float4 m2 = 0;
@@ -114,7 +117,6 @@ void Main (uint3 id : SV_DispatchThreadID)
     float4 mean = m1 / 9;
     float4 stddev = sqrt((m2 / 9) - pow2(mean));
 
-    //float aabbScale = lerp(1, 0.75, saturate(velocityLength * 64)) * TAA_BlendParameter.w;
     float4 minColor = mean - TAA_BlendParameter.w * stddev;
     float4 maxColor = mean + TAA_BlendParameter.w * stddev;
 
@@ -125,12 +127,10 @@ void Main (uint3 id : SV_DispatchThreadID)
     float4 corners = ((sampleColors[0] + sampleColors[8] + sampleColors[2] + sampleColors[6]) - currColor) * 2;
     currColor += (currColor - (corners * 0.167)) * 2.718 * 0.25; //0.25 is sharpness
     currColor = clamp(currColor, 0, 65472);
-
-    float4 lastColor = SRV_HistoryTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV - velocity, 0);
     lastColor = ClipAABB(lastColor, minColor, maxColor);
 
-    float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, velocityLength * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
-    UAV_AccmulateTexture[id.xy] = clamp(lerp(currColor, lastColor, weight), 0, 65472);
+    float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, length(velocity) * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
+    UAV_AccmulateTexture[id.xy] = clamp(lerp(currColor, lastColor, weight), 0, 65536);
 }
 
 /*float2 GetClosestFragment(float2 uv)
