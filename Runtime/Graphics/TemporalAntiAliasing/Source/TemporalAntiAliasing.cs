@@ -38,13 +38,14 @@ namespace InfinityTech.Rendering.Feature
         public float4 resolution;
         public RenderTargetIdentifier depthTexture;
         public RenderTargetIdentifier motionTexture;
-        public RenderTargetIdentifier hsitoryTexture;
-        public RenderTargetIdentifier aliasingTexture;
+        public RenderTargetIdentifier historyDepthTexture;
+        public RenderTargetIdentifier historyColorTexture;
+        public RenderTargetIdentifier aliasingColorTexture;
     }
 
     public struct TemporalAAOutputData
     {
-        public RenderTargetIdentifier accmulateTexture;
+        public RenderTargetIdentifier accmulateColorTexture;
     }
 
     internal static class TemporalAAShaderID
@@ -53,9 +54,10 @@ namespace InfinityTech.Rendering.Feature
         public static int BlendParameter = Shader.PropertyToID("TAA_BlendParameter");
         public static int DepthTexture = Shader.PropertyToID("SRV_DepthTexture");
         public static int MotionTexture = Shader.PropertyToID("SRV_MotionTexture");
-        public static int HistoryTexture = Shader.PropertyToID("SRV_HistoryTexture");
-        public static int AliasingTexture = Shader.PropertyToID("SRV_AliasingTexture");
-        public static int AccmulateTexture = Shader.PropertyToID("UAV_AccmulateTexture");
+        public static int HistoryDepthTexture = Shader.PropertyToID("SRV_HistoryDepthTexture");
+        public static int HistoryColorTexture = Shader.PropertyToID("SRV_HistoryColorTexture");
+        public static int AliasingColorTexture = Shader.PropertyToID("SRV_AliasingColorTexture");
+        public static int AccmulateColorTexture = Shader.PropertyToID("UAV_AccmulateColorTexture");
     }
 
     public sealed class TemporalAntiAliasing
@@ -66,11 +68,13 @@ namespace InfinityTech.Rendering.Feature
             cmdBuffer.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
             cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.DepthTexture, inputData.depthTexture);
             cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.MotionTexture, inputData.motionTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AliasingTexture, inputData.aliasingTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryTexture, inputData.hsitoryTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateTexture, outputData.accmulateTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryColorTexture, inputData.historyColorTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AliasingColorTexture, inputData.aliasingColorTexture);
+            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
             cmdBuffer.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-            cmdBuffer.CopyTexture(outputData.accmulateTexture, inputData.hsitoryTexture);
+            cmdBuffer.CopyTexture(inputData.depthTexture, inputData.historyDepthTexture);
+            cmdBuffer.CopyTexture(outputData.accmulateColorTexture, inputData.historyColorTexture);
         }
 
         public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
