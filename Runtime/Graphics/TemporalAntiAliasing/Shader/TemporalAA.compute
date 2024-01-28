@@ -88,8 +88,6 @@ void Main (uint3 id : SV_DispatchThreadID)
 
     float currDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
     float2 velocity = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, GetClosestFragment(screenUV, currDepth), 0).xy;
-    //float lastDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
-    //float3 lastColor = SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV - velocity, 0).rgb;
     float3 lastColor = Texture2DSampleBicubic(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, screenUV - velocity, TAA_Resolution.xy, TAA_Resolution.zw).rgb;
     lastColor = RGB2YCoCg(Tonemap(lastColor));
 
