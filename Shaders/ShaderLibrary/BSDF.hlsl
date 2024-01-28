@@ -376,7 +376,7 @@ float3 Flim_Iridescence(float eta_1, float cosTheta1, float iridescenceThickness
 	float3 I = C0;
     float3 Cm = Rs - T121;
 	
-    [roll]
+    [unroll]
     for (int m = 1; m <= 2; m++) {
         Cm *= r123;
 		float3 Sm = 2 * EvalSensitivity(m * OPD, m * Pi);

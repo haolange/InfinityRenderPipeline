@@ -18,6 +18,11 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
     }
 
+    internal static class CopyHistoryUtilityData
+    {
+        internal static string PassName = "CopyHistoryPass";
+    }
+
     public partial class InfinityRenderPipeline
     {
         struct AntiAliasingPassData
@@ -34,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache)
         {
-            TextureDescriptor historyDepthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryDepthTextureName, depthBufferBits = EDepthBits.Depth32 };
+            TextureDescriptor historyDepthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryDepthTextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
             TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryColorTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
             TextureDescriptor accmulateDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
 
@@ -79,7 +84,39 @@ namespace InfinityTech.Rendering.Pipeline
 
                     TemporalAntiAliasing temporalAA = graphContext.objectPool.Get<TemporalAntiAliasing>();
                     temporalAA.Render(graphContext.cmdBuffer, passData.taaShader, taaParameter, taaInputData, taaOutputData);
+                    graphContext.objectPool.Release(temporalAA);
+                });
+            }
 
+            //Add CopyHistoryPass
+            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AntiAliasingPassData>(CopyHistoryUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.CopyHistoryBuffer)))
+            {
+                //Setup Phase
+                ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
+                passData.depthTexture = passRef.ReadTexture(depthTexture);
+                passData.historyDepthTexture = passRef.ReadTexture(hsitoryDepthTexture);
+                passData.hsitoryColorTexture = passRef.ReadTexture(hsitoryColorTexture);
+                passData.accmulateColorTexture = passRef.ReadTexture(accmulateColorTexture);
+
+                //Execute Phase
+                passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RDGContext graphContext) =>
+                {
+                    TemporalAAInputData taaInputData;
+                    {
+                        taaInputData.resolution = passData.resolution;
+                        taaInputData.depthTexture = passData.depthTexture;
+                        taaInputData.motionTexture = passData.motionTexture;
+                        taaInputData.historyDepthTexture = passData.historyDepthTexture;
+                        taaInputData.historyColorTexture = passData.hsitoryColorTexture;
+                        taaInputData.aliasingColorTexture = passData.aliasingColorTexture;
+                    }
+                    TemporalAAOutputData taaOutputData;
+                    {
+                        taaOutputData.accmulateColorTexture = passData.accmulateColorTexture;
+                    }
+
+                    TemporalAntiAliasing temporalAA = graphContext.objectPool.Get<TemporalAntiAliasing>();
+                    temporalAA.CopyToHistory(graphContext.cmdBuffer, taaInputData, taaOutputData);
                     graphContext.objectPool.Release(temporalAA);
                 });
             }

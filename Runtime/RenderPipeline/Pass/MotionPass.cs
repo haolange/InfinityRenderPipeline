@@ -72,6 +72,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RDGPassRef passRef = m_GraphBuilder.AddPass<MotionPassData>(MotionPassUtilityData.CopyPassName, ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
             {
                 //Setup Phase
+                passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.copyDepthTexture = passRef.WriteTexture(copyDepthTexture);
@@ -79,6 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Execute Phase
                 passRef.SetExecuteFunc((in MotionPassData passData, in RDGContext graphContext) =>
                 {
+                    //graphContext.cmdBuffer.Blit(passData.depthTexture, passData.copyDepthTexture);
                     graphContext.cmdBuffer.CopyTexture(passData.depthTexture, passData.copyDepthTexture);
                 });
             }

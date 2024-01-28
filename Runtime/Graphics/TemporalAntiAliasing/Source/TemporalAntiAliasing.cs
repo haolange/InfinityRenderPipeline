@@ -73,7 +73,11 @@ namespace InfinityTech.Rendering.Feature
             cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AliasingColorTexture, inputData.aliasingColorTexture);
             cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
             cmdBuffer.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-            cmdBuffer.CopyTexture(inputData.depthTexture, inputData.historyDepthTexture);
+        }
+
+        public void CopyToHistory(CommandBuffer cmdBuffer, in TemporalAAInputData inputData, in TemporalAAOutputData outputData)
+        {
+            //cmdBuffer.CopyTexture(inputData.depthTexture, inputData.historyDepthTexture);
             cmdBuffer.CopyTexture(outputData.accmulateColorTexture, inputData.historyColorTexture);
         }
 

@@ -107,7 +107,7 @@ uint2 SobolIndex(uint2 Base, int Index, int Bits = 10) {
 	};
 
 	uint2 Result = Base;
-	[roll] 
+	//[roll] 
     for (int b = 0; b < 10 && b < Bits; ++b) {
 		Result ^= (Index & (1 << b)) ? SobolNumbers[b] : 0;
 	}

@@ -9,6 +9,7 @@ Texture2D SRV_HistoryColorTexture;
 Texture2D SRV_AliasingColorTexture;
 RWTexture2D<float4> UAV_AccmulateColorTexture;
 
+static const half TONEMAP_EPSILON = 1.0f / 65530.0f;
 static const int2 SampleOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
 static const int2 NeighborOffsets[8] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(1, 1), int2(1, 0), int2(-1, 1), int2(0, -1) };
 
@@ -17,7 +18,7 @@ static const int2 NeighborOffsets[8] = { int2(-1, -1), int2(0, -1), int2(1, -1),
 
 float3 ClipAABB(float3 color, float3 aabbMin, float3 aabbMax)
 {
-#if 0
+#if 1
     // Note: only clips towards aabb center (but fast!)
     float3 center = 0.5 * (aabbMax + aabbMin);
     float3 extents = 0.5 * (aabbMax - aabbMin);
@@ -69,6 +70,16 @@ float2 GetClosestFragment(float2 uv, float currDepth)
     return (uv + result.xy * TAA_Resolution.zw);
 }
 
+float3 Tonemap(float3 fRgb)
+{
+    return fRgb / (max(max(0.f, fRgb.r), max(fRgb.g, fRgb.b)) + 1.f).xxx;
+}
+
+float3 InverseTonemap(float3 fRgb)
+{
+    return fRgb / max(TONEMAP_EPSILON, 1.f - max(fRgb.r, max(fRgb.g, fRgb.b))).xxx;
+}
+
 [numthreads(16, 16, 1)]
 void Main (uint3 id : SV_DispatchThreadID)
 {
@@ -77,15 +88,18 @@ void Main (uint3 id : SV_DispatchThreadID)
 
     float currDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
     float2 velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, GetClosestFragment(screenUV, currDepth), 0).xy;
-    float lastDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0).r;
-    float3 lastColor = SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV - velocity, 0).rgb;
+    //float lastDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
+    //float3 lastColor = SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV - velocity, 0).rgb;
+    float3 lastColor = Texture2DSampleBicubic(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, screenUV - velocity, TAA_Resolution.xy, TAA_Resolution.zw).rgb;
+    lastColor = RGB2YCoCg(Tonemap(lastColor));
 
     float3 sampleColors[9];
 
     [unroll]
     for(uint i = 0; i < 9; ++i) 
     {
-        sampleColors[i] = SRV_AliasingColorTexture.SampleLevel(Global_bilinear_clamp_sampler, unJitterUV, 0, SampleOffsets[i]).rgb;
+        sampleColors[i] = SRV_AliasingColorTexture.SampleLevel(Global_point_clamp_sampler, unJitterUV, 0, SampleOffsets[i]).rgb;
+        sampleColors[i] = RGB2YCoCg(Tonemap(sampleColors[i]));
     }
 
 #if 0
@@ -95,7 +109,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     [unroll]
     for(uint j = 0; j < 9; ++j) 
     {
-        sampleWeights[j] = HdrWeight4(sampleColors[j].rgb, 10);
+        sampleWeights[j] = HdrWeightY(Luma4(sampleColors[j].rgb), 10);
         totalWeight += sampleWeights[j];
     }
     sampleColors[4] = (sampleColors[0] * sampleWeights[0] + 
@@ -122,7 +136,7 @@ void Main (uint3 id : SV_DispatchThreadID)
     float3 mean = m1 / 9;
     float3 stddev = sqrt((m2 / 9) - pow2(mean));
 
-    TAA_BlendParameter.w -= saturate((currDepth - lastDepth) * 1000);
+    //TAA_BlendParameter.w *= (((currDepth - lastDepth) * 10) > 0.001) ? 0 : 1;
     float3 minColor = mean - TAA_BlendParameter.w * stddev;
     float3 maxColor = mean + TAA_BlendParameter.w * stddev;
 
@@ -130,14 +144,12 @@ void Main (uint3 id : SV_DispatchThreadID)
     minColor = min(minColor, currColor);
     maxColor = max(maxColor, currColor);
     
-    //float3 corners = ((sampleColors[0] + sampleColors[8] + sampleColors[2] + sampleColors[6]) - currColor) * 2;
-    //currColor += (currColor - (corners * 0.167)) * 2.718 * 0.75; //0.75 is sharpness
-    lastColor = ClipAABB(lastColor, minColor, maxColor);
+    float3 corners = ((sampleColors[0] + sampleColors[8] + sampleColors[2] + sampleColors[6]) - currColor) * 2;
+    currColor += (currColor - (corners * 0.167)) * 2.718 * 0.33; //0.33 is sharpness
+    lastColor = clamp(lastColor, minColor, maxColor);
 
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, length(velocity) * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
-    //UAV_AccmulateColorTexture[id.xy] = lastDepth;
-    UAV_AccmulateColorTexture[id.xy] = float4(lerp(currColor, lastColor, weight), 1.0);
-    //UAV_AccmulateColorTexture[id.xy] = 1 - saturate((currDepth - lastDepth) * 1000);
+    UAV_AccmulateColorTexture[id.xy] = float4(InverseTonemap(YCoCg2RGB(lerp(currColor, lastColor, weight))), 1.0);
 }
 
 /*float2 GetClosestFragment(float2 uv)

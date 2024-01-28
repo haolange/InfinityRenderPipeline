@@ -33,7 +33,7 @@ void RayGeneration()
 		uint2 Random = Rand3DPCG16( uint3( dispatchIdx, fmod(RTAO_FrameIndex, 8) ) ).xy;
 		float2 Hash = Hammersley16(i, (uint)RTAO_NumRays, Random);
 
-        float3 TraceDir = CosineSampleHemisphere(Hash);
+        float3 TraceDir = CosineSampleHemisphere(Hash).xyz;
 		float3 TraceDir_WS = mul(TraceDir, TangentToWorld);
 		if (dot(WorldNormal, TraceDir_WS) <= 0) { continue; }
 

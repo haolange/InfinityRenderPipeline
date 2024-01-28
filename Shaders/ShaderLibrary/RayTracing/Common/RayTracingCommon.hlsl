@@ -120,7 +120,7 @@ void BuildFragInputsFromIntersection(IntersectionVertex currentVertex, out FragI
 
 	float3 WorldNormal = normalize( mul(currentVertex.normalOS, worldToObject) );
 	float4 TangentNormal = float4(normalize( mul(currentVertex.tangentOS.xyz, worldToObject) ), sign);
-	float3 binormal = normalize ( cross(WorldNormal, TangentNormal) ) * sign;
+	float3 binormal = normalize ( cross(WorldNormal, TangentNormal.xyz) ) * sign;
 
 	outFragInputs.tangentToWorld = float3x3(TangentNormal.xyz * sign, binormal, WorldNormal);
 	outFragInputs.normal = normalize( mul(currentVertex.geomoralOS, worldToObject) );

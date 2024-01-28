@@ -385,6 +385,8 @@ float4 Texture2DSampleBicubic(Texture2D Tex, SamplerState Sampler, float2 UV, fl
 	FCatmullRomSamples Samples = GetBicubic2DCatmullRomSamples(UV, Size, InvSize);
 
 	float4 OutColor = 0;
+    
+    [unroll]
 	for (uint i = 0; i < Samples.Count; i++)
 	{
 		OutColor += Tex.SampleLevel(Sampler, Samples.UV[i], 0) * Samples.Weight[i];
@@ -462,7 +464,7 @@ float HdrWeightY(float Color, float Exposure)
     return rcp(Color * Exposure + 4);
 }
 
-/*float3 RGBToYCoCg(float3 RGB)
+float3 RGB2YCoCg(float3 RGB)
 {
     float Y = dot(RGB, float3(1, 2, 1));
     float Co = dot(RGB, float3(2, 0, -2));
@@ -472,7 +474,7 @@ float HdrWeightY(float Color, float Exposure)
     return YCoCg;
 }
 
-float3 YCoCgToRGB(float3 YCoCg)
+float3 YCoCg2RGB(float3 YCoCg)
 {
     float Y = YCoCg.x * 0.25;
     float Co = YCoCg.y * 0.25;
@@ -483,7 +485,7 @@ float3 YCoCgToRGB(float3 YCoCg)
     float B = Y - Co - Cg;
     
     return float3(R, G, B);
-}*/
+}
 
 float3 RGBToYCbCr(float3 RGB) {
     float Y = (0.299 * RGB.r) + (0.587 * RGB.g) + (0.114 * RGB.b);

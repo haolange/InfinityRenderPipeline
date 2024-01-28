@@ -234,7 +234,7 @@ uint2 ScrambleTEA(uint2 v, uint IterationCount = 3)
 	uint z = v[1];
 	uint sum = 0;
 	
-	[ROOL]
+	//[ROOL]
 	for(uint i = 0; i < IterationCount; ++i)
 	{
 		sum += 0x9e3779b9;
