@@ -388,6 +388,12 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected float GetMipmapBiasOffset(in int renderWidth, in int displayWidth)
+        {
+            return math.log2((float)renderWidth / displayWidth) - 1.0f;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void SetGraphicsSetting()
         {
             Shader.globalRenderPipeline = "InfinityRenderPipeline";
