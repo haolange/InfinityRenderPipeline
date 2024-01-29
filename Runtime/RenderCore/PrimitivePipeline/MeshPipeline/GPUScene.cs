@@ -53,12 +53,11 @@ namespace InfinityTech.Rendering.MeshPipeline
                 using (new ProfilingScope(m_ProfileSampler))
                 {
                     bufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(10000, Marshal.SizeOf(typeof(float4x4))));
-                    //Debug.Log(m_MeshBatchCollector.count);
+
                     if(m_IsUpdate)
                     {
                         m_IsUpdate = false;
                         bufferRef.buffer.SetData(m_MeshBatchCollector.cacheMatrixs, 0, 0, m_MeshBatchCollector.count);
-                        //cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchCollector.cacheMatrixs, 0, 0, m_MeshBatchCollector.count);
                     }
                 }
             }

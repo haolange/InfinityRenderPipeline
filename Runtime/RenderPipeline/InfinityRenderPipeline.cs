@@ -357,8 +357,8 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderSkyBox(renderContext, camera);
                             ComputeAntiAliasing(renderContext, camera, historyCache);
                         #if UNITY_EDITOR
-                            //RenderWireOverlay(renderContext, camera);
-                            //RenderGizmos(renderContext, camera);
+                            RenderWireOverlay(renderContext, camera);
+                            RenderGizmos(renderContext, camera);
                         #endif
                             RenderPresent(renderContext, camera, camera.targetTexture);
                         }
@@ -442,8 +442,8 @@ namespace InfinityTech.Rendering.Pipeline
         {
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
             {
-                FGraphics.ProcessGraphicsTasks(renderContext);
-                FGraphics.ClearGraphicsTasks();
+                FGraphics.ProcessTasks(renderContext);
+                FGraphics.ClearTasks();
 
                 #if UNITY_EDITOR
                     InvokeProxyUpdateEditor();
@@ -480,7 +480,6 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-
             if (disposing)
             {
                 //EditorSceneManager.sceneUnloaded -= OnSceneUnloaded;
@@ -497,17 +496,18 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
+#if UNITY_EDITOR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void OnPlayMode()
+        static void OnEntryPlayEditor()
         {
-            Debug.Log("OnPlayMode");
-            FGraphics.ClearGraphicsTasks();
+            FGraphics.ClearTasks();
         }
 
-        static void OnSceneUnloaded(Scene current)
+        static void OnSceneChangedEditor(Scene current)
         {
-            Debug.Log("OnSceneCganged");
-            FGraphics.ClearGraphicsTasks();
+            Debug.Log("OnSceneChangedEditor");
+            FGraphics.ClearTasks();
         }
+#endif
     }
 }

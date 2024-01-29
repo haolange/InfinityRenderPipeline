@@ -20,15 +20,15 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsTasks.Add(graphicsTask);
         }
 
-        internal static void ClearGraphicsTasks()
+        internal static void ClearTasks()
         {
             GraphicsTasks.Clear();
         }
 
-        internal static void ProcessGraphicsTasks(RenderContext renderContext)
+        internal static void ProcessTasks(RenderContext renderContext)
         {
             if(GraphicsTasks.Count == 0) { return; }
-            Debug.Log(GraphicsTasks.Count);
+
             for (int i = 0; i < GraphicsTasks.Count; ++i) 
             {
                 if (GraphicsTasks[i] != null) 
@@ -230,9 +230,10 @@ namespace InfinityTech.Rendering.Pipeline
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
 
+            FGraphics.ClearTasks();
+
             lightContext.Dispose();
             m_MeshBatchCollector.Dispose();
-            FGraphics.ClearGraphicsTasks();
         }
     }
 }
