@@ -2,13 +2,13 @@
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
 
-namespace InfinityTech.Rendering.RDG
+namespace InfinityTech.Rendering.RenderGraph
 {
-    internal class FRDGResourceMap<Type> where Type : unmanaged
+    internal class FRGResourceMap<Type> where Type : unmanaged
     {
         internal NativeParallelHashMap<int, Type> m_ResourceMap;
 
-        internal FRDGResourceMap()
+        internal FRGResourceMap()
         {
             m_ResourceMap = new NativeParallelHashMap<int, Type>(64, Allocator.Persistent);
         }
@@ -39,55 +39,55 @@ namespace InfinityTech.Rendering.RDG
     }
 
 
-    public class RDGScoper
+    public class RGScoper
     {
-        RDGBuilder m_GraphBuilder;
-        FRDGResourceMap<RDGBufferRef> m_BufferMap;
-        FRDGResourceMap<RDGTextureRef> m_TextureMap;
+        RGBuilder m_RGBuilder;
+        FRGResourceMap<RGBufferRef> m_BufferMap;
+        FRGResourceMap<RGTextureRef> m_TextureMap;
 
-        public RDGScoper(RDGBuilder graphBuilder)
+        public RGScoper(RGBuilder graphBuilder)
         {
-            m_GraphBuilder = graphBuilder;
-            m_BufferMap = new FRDGResourceMap<RDGBufferRef>();
-            m_TextureMap = new FRDGResourceMap<RDGTextureRef>();
+            m_RGBuilder = graphBuilder;
+            m_BufferMap = new FRGResourceMap<RGBufferRef>();
+            m_TextureMap = new FRGResourceMap<RGTextureRef>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGBufferRef QueryBuffer(in int handle)
+        public RGBufferRef QueryBuffer(in int handle)
         {
             return m_BufferMap.Get(handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RegisterBuffer(int handle, in RDGBufferRef bufferRef)
+        public void RegisterBuffer(int handle, in RGBufferRef bufferRef)
         {
             m_BufferMap.Set(handle, bufferRef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGBufferRef CreateBuffer(in int handle, in BufferDescriptor descriptor)
+        public RGBufferRef CreateBuffer(in int handle, in BufferDescriptor descriptor)
         {
-            RDGBufferRef bufferRef = m_GraphBuilder.CreateBuffer(descriptor);
+            RGBufferRef bufferRef = m_RGBuilder.CreateBuffer(descriptor);
             RegisterBuffer(handle, bufferRef);
             return bufferRef;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGTextureRef QueryTexture(in int handle)
+        public RGTextureRef QueryTexture(in int handle)
         {
             return m_TextureMap.Get(handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RegisterTexture(int handle, in RDGTextureRef textureRef)
+        public void RegisterTexture(int handle, in RGTextureRef textureRef)
         {
             m_TextureMap.Set(handle, textureRef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGTextureRef CreateAndRegisterTexture(in int handle, in TextureDescriptor descriptor)
+        public RGTextureRef CreateAndRegisterTexture(in int handle, in TextureDescriptor descriptor)
         {
-            RDGTextureRef textureRef = m_GraphBuilder.CreateTexture(descriptor, handle);
+            RGTextureRef textureRef = m_RGBuilder.CreateTexture(descriptor, handle);
             RegisterTexture(handle, textureRef);
             return textureRef;
         }

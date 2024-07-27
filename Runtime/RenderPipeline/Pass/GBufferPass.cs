@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
@@ -10,7 +10,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class GBufferPassUtilityData
     {
-        internal static string PassName = "GBufferPass";
         internal static string TextureAName = "GBufferTextureA";
         internal static string TextureBName = "GBufferTextureB";
     }
@@ -20,9 +19,9 @@ namespace InfinityTech.Rendering.Pipeline
         struct GBufferPassData
         {
             public RendererList rendererList;
-            public RDGTextureRef depthTexture;
-            public RDGTextureRef gbufferTextureA;
-            public RDGTextureRef gbufferTextureB;
+            public RGTextureRef depthTexture;
+            public RGTextureRef gbufferTextureA;
+            public RGTextureRef gbufferTextureB;
             public MeshPassProcessor meshPassProcessor;
         }
 
@@ -31,12 +30,12 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor gbufferADsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = GBufferPassUtilityData.TextureAName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
             TextureDescriptor gbufferBDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = GBufferPassUtilityData.TextureBName, colorFormat = GraphicsFormat.R8G8B8A8_UNorm, depthBufferBits = EDepthBits.None };
                     
-            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RDGTextureRef gbufferTextureA = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
-            RDGTextureRef gbufferTextureB = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
+            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureRef gbufferTextureA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
+            RGTextureRef gbufferTextureB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
             
             //Add GBufferPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<GBufferPassData>(GBufferPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
             {
                 //Setup Phase
                 passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -61,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_GBufferMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in GBufferPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in GBufferPassData passData, in RGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 1);

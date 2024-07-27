@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 
 #if UNITY_EDITOR
@@ -10,14 +10,6 @@ using UnityEditor;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    internal static class UtilityPassUtilityData
-    {
-        internal static string SkyBoxPassName = "SkyBoxPass";
-        internal static string WireOverlayPassName = "WireOverlayPass";
-        internal static string GizmosPassName = "GizmosPass";
-        internal static string PresentPassName = "PresentPass";
-    }
-
     public partial class InfinityRenderPipeline
     {
 #if UNITY_EDITOR
@@ -25,17 +17,17 @@ namespace InfinityTech.Rendering.Pipeline
         struct WireOverlayPassData
         {
             public RendererList rendererList;
-            public RDGTextureRef depthBuffer;
-            public RDGTextureRef colorBuffer;
+            public RGTextureRef depthBuffer;
+            public RGTextureRef colorBuffer;
         }
         
         void RenderWireOverlay(RenderContext renderContext, Camera camera)
         {
-            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RDGTextureRef colorTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
 
             // Add WireOverlayPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<WireOverlayPassData>(UtilityPassUtilityData.WireOverlayPassName, ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
             {
                 //Setup Phase
                 passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -46,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in WireOverlayPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in WireOverlayPassData passData, in RGContext graphContext) =>
                 {
                     graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                 });
@@ -57,19 +49,19 @@ namespace InfinityTech.Rendering.Pipeline
         struct GizmosPassData
         {
             public RendererList rendererList;
-            public RDGTextureRef depthBuffer;
-            public RDGTextureRef colorBuffer;
+            public RGTextureRef depthBuffer;
+            public RGTextureRef colorBuffer;
         }
 
         void RenderGizmos(RenderContext renderContext, Camera camera)
         {
             if (Handles.ShouldRenderGizmos())
             {
-                RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-                RDGTextureRef colorTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+                RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+                RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
 
                 // Add GizmosPass
-                using (RDGPassRef passRef = m_GraphBuilder.AddPass<GizmosPassData>(UtilityPassUtilityData.GizmosPassName, ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
+                using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
                     passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -80,7 +72,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.depthBuffer = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
 
                     //Execute Phase
-                    passRef.SetExecuteFunc((in GizmosPassData passData, in RDGContext graphContext) =>
+                    passRef.SetExecuteFunc((in GizmosPassData passData, in RGContext graphContext) =>
                     {
                         graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                     });
@@ -98,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyBox(RenderContext renderContext, Camera camera)
         {
             // Add SkyBoxPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<SkyBoxPassData>(UtilityPassUtilityData.SkyBoxPassName, ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<SkyBoxPassData>(ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
                 passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -107,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.rendererList = renderContext.scriptableRenderContext.CreateSkyboxRendererList(camera);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in SkyBoxPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in SkyBoxPassData passData, in RGContext graphContext) =>
                 {
                     graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
                 });
@@ -119,17 +111,17 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public Camera camera;
             public RenderTexture dscTexture;
-            public RDGTextureRef srcTexture;
-            public RDGTextureRef depthTexture;
+            public RGTextureRef srcTexture;
+            public RGTextureRef depthTexture;
         }
 
         void RenderPresent(RenderContext renderContext, Camera camera, RenderTexture dscTexture)
         {
-            RDGTextureRef srcTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
-            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureRef srcTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             
             // Add PresentPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<PresentPassData>(UtilityPassUtilityData.PresentPassName, ProfilingSampler.Get(CustomSamplerId.RenderPresent)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))
             {
                 //Setup Phase
                 ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
@@ -139,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in PresentPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in PresentPassData passData, in RGContext graphContext) =>
                 {
                     RenderTexture srcBuffer = passData.srcTexture;
                     RenderTexture dscBuffer = passData.dscTexture;

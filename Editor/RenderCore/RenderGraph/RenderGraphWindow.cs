@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace InfinityTech.Rendering.RDG.Editor
+namespace InfinityTech.Rendering.RenderGraph.Editor
 {
     public class RenderGraphWindow : EditorWindow
     {

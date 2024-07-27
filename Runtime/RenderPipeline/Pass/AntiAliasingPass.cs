@@ -1,7 +1,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.Feature;
 using InfinityTech.Rendering.GPUResource;
 using UnityEngine.Experimental.Rendering;
@@ -10,17 +10,11 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class AntiAliasingUtilityData
     {
-        internal static string PassName = "AntiAliasingPass";
         internal static string HistoryDepthTextureName = "HistoryDepthTexture";
         internal static string HistoryColorTextureName = "HistoryColorTexture";
         internal static string AccmulateTextureName = "AccmulateTexture";
         internal static int HistoryDepthTextureID = Shader.PropertyToID("HistoryDepthTexture");
         internal static int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
-    }
-
-    internal static class CopyHistoryUtilityData
-    {
-        internal static string PassName = "CopyHistoryPass";
     }
 
     public partial class InfinityRenderPipeline
@@ -29,12 +23,12 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public float4 resolution;
             public ComputeShader taaShader;
-            public RDGTextureRef depthTexture;
-            public RDGTextureRef motionTexture;
-            public RDGTextureRef historyDepthTexture;
-            public RDGTextureRef hsitoryColorTexture;
-            public RDGTextureRef aliasingColorTexture;
-            public RDGTextureRef accmulateColorTexture;
+            public RGTextureRef depthTexture;
+            public RGTextureRef motionTexture;
+            public RGTextureRef historyDepthTexture;
+            public RGTextureRef hsitoryColorTexture;
+            public RGTextureRef aliasingColorTexture;
+            public RGTextureRef accmulateColorTexture;
         }
 
         void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache)
@@ -43,15 +37,15 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryColorTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
             TextureDescriptor accmulateDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
 
-            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RDGTextureRef motionTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
-            RDGTextureRef hsitoryDepthTexture = m_GraphBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthDescriptor));
-            RDGTextureRef hsitoryColorTexture = m_GraphBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorDescriptor));
-            RDGTextureRef aliasingColorTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-            RDGTextureRef accmulateColorTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescriptor);
+            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureRef motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+            RGTextureRef hsitoryDepthTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthDescriptor));
+            RGTextureRef hsitoryColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorDescriptor));
+            RGTextureRef aliasingColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGTextureRef accmulateColorTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescriptor);
 
             //Add AntiAliasingPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AntiAliasingPassData>(AntiAliasingUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
                 //Setup Phase
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
@@ -65,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.accmulateColorTexture = passRef.WriteTexture(accmulateColorTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RGContext graphContext) =>
                 {
                     TemporalAAInputData taaInputData;
                     {
@@ -89,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add CopyHistoryPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AntiAliasingPassData>(CopyHistoryUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.CopyHistoryBuffer)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryBuffer)))
             {
                 //Setup Phase
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
@@ -99,7 +93,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.accmulateColorTexture = passRef.ReadTexture(accmulateColorTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RGContext graphContext) =>
                 {
                     TemporalAAInputData taaInputData;
                     {

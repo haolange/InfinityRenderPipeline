@@ -3,7 +3,7 @@ using UnityEngine.UIElements;
 using System.Collections.Generic;
 using UnityEditor.Experimental.GraphView;
 
-namespace InfinityTech.Rendering.RDG.Editor
+namespace InfinityTech.Rendering.RenderGraph.Editor
 {
     public class RenderGraphView : GraphView
     {

@@ -3,7 +3,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using Unity.Collections;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.Pipeline;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.MeshPipeline;
@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         }
 
-        internal void DispatchDraw(ref RDGContext graphContext, in int passIndex)
+        internal void DispatchDraw(ref RGContext graphContext, in int passIndex)
         {
             using (new ProfilingScope(graphContext.cmdBuffer, m_DrawProfiler))
             {

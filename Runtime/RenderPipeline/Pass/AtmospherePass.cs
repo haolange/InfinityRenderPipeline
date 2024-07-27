@@ -1,7 +1,7 @@
 using UnityEngine;
 using Unity.Collections;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.MeshPipeline;
 
@@ -11,22 +11,22 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct AtmospherePassData
         {
-            public RDGTextureRef skyTarget;
-            public RDGTextureRef volumeLUT;
-            public RDGTextureRef scatteringLUT;
-            public RDGTextureRef transmittionLUT;
+            public RGTextureRef skyTarget;
+            public RGTextureRef volumeLUT;
+            public RGTextureRef scatteringLUT;
+            public RGTextureRef transmittionLUT;
         }
 
         void RenderSkyAtmosphere(Camera RenderCamera)
         {
             //Add SkyAtmospherePass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<AtmospherePassData>("SkyAtmospherePass", ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<AtmospherePassData>(ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
             {
                 //Setup Phase
                 ref AtmospherePassData passData = ref passRef.GetPassData<AtmospherePassData>();
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in AtmospherePassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in AtmospherePassData passData, in RGContext graphContext) =>
                 {
 
                 });

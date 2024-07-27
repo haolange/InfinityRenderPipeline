@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         CopyHistoryBuffer,
         RenderWireOverlay,
         RenderGizmos,
-        RenderPresent,
+        Present,
         Max,
     }
 

@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
@@ -10,7 +10,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ForwardPassUtilityData
     {
-        internal static string PassName = "ForwardPass";
         internal static string TextureName = "LightingTexture";
     }
 
@@ -19,8 +18,8 @@ namespace InfinityTech.Rendering.Pipeline
         struct ForwardPassData
         {
             public RendererList rendererList;
-            public RDGTextureRef depthTexture;
-            public RDGTextureRef lightingTexture;
+            public RGTextureRef depthTexture;
+            public RGTextureRef lightingTexture;
             public MeshPassProcessor meshPassProcessor;
         }
 
@@ -28,11 +27,11 @@ namespace InfinityTech.Rendering.Pipeline
         {
             TextureDescriptor textureDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = ForwardPassUtilityData.TextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None };
 
-            RDGTextureRef depthTexture = m_GraphScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RDGTextureRef lightingTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, textureDescriptor);
+            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureRef lightingTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, textureDescriptor);
 
             //Add ForwardPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<ForwardPassData>(ForwardPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderForward)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
                 //Setup Phase
                 passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -56,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_ForwardMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in ForwardPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in ForwardPassData passData, in RGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 2);

@@ -7,9 +7,8 @@ using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.SceneManagement;
-using UnityEditor.SceneManagement;
 using InfinityTech.Rendering.Feature;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
@@ -33,8 +32,8 @@ namespace InfinityTech.Rendering.Pipeline
         EndFrameRendering,
         FrameRendering,
         ProxyUpdate,
-        RecordRDG,
-        ExecuteRDG,
+        RecordRG,
+        ExecuteRG,
         CameraRendering
     }
 
@@ -169,8 +168,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         private bool m_UpdateInit;
         private GPUScene m_GPUScene;
-        private RDGScoper m_GraphScoper;
-        private RDGBuilder m_GraphBuilder;
+        private RGScoper m_RGScoper;
+        private RGBuilder m_RGBuilder;
         private ResourcePool m_ResourcePool;
         private NativeList<JobHandle> m_MeshPassJobRefs;
         private MeshPassProcessor m_DepthMeshProcessor;
@@ -196,8 +195,8 @@ namespace InfinityTech.Rendering.Pipeline
             SetGraphicsSetting();
             renderContext = new RenderContext();
             m_ResourcePool = new ResourcePool();
-            m_GraphBuilder = new RDGBuilder("RenderGraph");
-            m_GraphScoper = new RDGScoper(m_GraphBuilder);
+            m_RGBuilder = new RGBuilder("RenderGraph");
+            m_RGScoper = new RGScoper(m_RGBuilder);
             m_HistoryCaches = new Dictionary<int, HistoryCache>();
             m_CameraUniforms = new Dictionary<int, CameraUniform>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
@@ -313,25 +312,26 @@ namespace InfinityTech.Rendering.Pipeline
                                 for (int j = 0; j < visibleLights.Length; ++j)
                                 {
                                     VisibleLight visibleLight = visibleLights[j];
-                                    if (!lights.TryGetValue(visibleLight.light.GetInstanceID(), out LightComponent light)) continue;
-
-                                    switch (light.lightType)
+                                    if (lights.TryGetValue(visibleLight.light.GetInstanceID(), out LightComponent additionLight))
                                     {
-                                        case ELightType.Directional:
-                                            renderContext.lightContext.AddDirectionalLight(j, light);
-                                            break;
+                                        switch (additionLight.lightType)
+                                        {
+                                            case ELightType.Directional:
+                                                renderContext.lightContext.AddDirectionalLight(j, additionLight);
+                                                break;
 
-                                        case ELightType.Point:
-                                            
-                                            break;
+                                            case ELightType.Point:
 
-                                        case ELightType.Spot:
-                                            
-                                            break;
+                                                break;
 
-                                        case ELightType.Rect:
-                                            
-                                            break;
+                                            case ELightType.Spot:
+
+                                                break;
+
+                                            case ELightType.Rect:
+
+                                                break;
+                                        }
                                     }
                                 }
 
@@ -342,13 +342,15 @@ namespace InfinityTech.Rendering.Pipeline
 
                             // ProcessVfx Command
                             VFXCameraXRSettings cameraXRSettings;
-                            cameraXRSettings.viewTotal = 1;
-                            cameraXRSettings.viewCount = 1;
-                            cameraXRSettings.viewOffset = 0;
+                            {
+                                cameraXRSettings.viewTotal = 1;
+                                cameraXRSettings.viewCount = 1;
+                                cameraXRSettings.viewOffset = 0;
+                            }
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
                         }
 
-                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRDG)))
+                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                         {
                             RenderDepth(renderContext, camera, cullingDatas, cullingResults);
                             RenderGBuffer(renderContext, camera, cullingDatas, cullingResults);
@@ -363,16 +365,16 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderPresent(renderContext, camera, camera.targetTexture);
                         }
 
-                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRDG)))
+                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
                         {
                             JobHandle.CompleteAll(m_MeshPassJobRefs.AsArray());
-                            m_GraphBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                            m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
                         }
                         EndCameraRendering(scriptableRenderContext, camera);
                     }
 
                     cullingDatas.Release();
-                    m_GraphScoper.Clear();
+                    m_RGScoper.Clear();
                     cameraUniform.UnpateUniformData(camera, true);
                 }
                 EndFrameRendering(scriptableRenderContext, cameras);
@@ -490,8 +492,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //EditorSceneManager.sceneUnloaded -= OnSceneUnloaded;
                 renderContext.Dispose();
-                m_GraphScoper.Dispose();
-                m_GraphBuilder.Dispose();
+                m_RGScoper.Dispose();
+                m_RGBuilder.Dispose();
                 m_ResourcePool.Dispose();
                 m_MeshPassJobRefs.Dispose();
                 foreach (var historyCache in m_HistoryCaches)

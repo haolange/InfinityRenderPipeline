@@ -6,7 +6,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     [ExecuteInEditMode]
     [CreateAssetMenu(menuName = "InfinityRenderPipeline/InfinityRenderPipelineAsset", order = 360)]
-    public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset
+    public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>
     {
         public bool showShader = false;
         public bool showTexture = false;
@@ -31,8 +31,6 @@ namespace InfinityTech.Rendering.Pipeline
         public Shader defaultShaderProxy;
         public override Shader defaultShader { get { return defaultShaderProxy; } }
         public override Material defaultMaterial { get { return defaultMaterialProxy; } }
-
-        public override Type pipelineType => renderPipeline.GetType();
 
         protected override RenderPipeline CreatePipeline() 
         {

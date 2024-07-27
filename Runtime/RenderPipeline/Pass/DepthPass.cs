@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using UnityEngine.Rendering.RendererUtils;
@@ -9,7 +9,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class DepthPassUtilityData
     {
-        internal static string PassName = "DepthPass";
         internal static string TextureName = "DepthTexture";
     }
 
@@ -18,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct DepthPassData
         {
             public RendererList rendererList;
-            public RDGTextureRef depthTexture;
+            public RGTextureRef depthTexture;
             public MeshPassProcessor meshPassProcessor;
         }
 
@@ -26,10 +25,10 @@ namespace InfinityTech.Rendering.Pipeline
         {
             TextureDescriptor depthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = DepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
 
-            RDGTextureRef depthTexture = m_GraphScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthDescriptor);
+            RGTextureRef depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthDescriptor);
 
             //Add DepthPass
-            using (RDGPassRef passRef = m_GraphBuilder.AddPass<DepthPassData>(DepthPassUtilityData.PassName, ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
                 passRef.SetOption(ClearFlag.All, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
@@ -52,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_DepthMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in DepthPassData passData, in RDGContext graphContext) =>
+                passRef.SetExecuteFunc((in DepthPassData passData, in RGContext graphContext) =>
                 {
                     //MeshDrawPipeline
                     passData.meshPassProcessor.DispatchDraw(graphContext, 0);

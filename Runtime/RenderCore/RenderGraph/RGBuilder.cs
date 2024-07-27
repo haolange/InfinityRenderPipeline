@@ -6,19 +6,19 @@ using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
 
-namespace InfinityTech.Rendering.RDG
+namespace InfinityTech.Rendering.RenderGraph
 {
-    public struct RDGContext
+    public struct RGContext
     {
         public CommandBuffer cmdBuffer;
-        public RDGObjectPool objectPool;
+        public RGObjectPool objectPool;
         public ResourcePool resourcePool;
         public RenderContext renderContext;
     }
 
-    internal struct RDGPassCompileInfo
+    internal struct RGPassCompileInfo
     {
-        public IRDGPass pass;
+        public IRGPass pass;
         public int refCount;
         public int syncToPassIndex; // Index of the pass that needs to be waited for.
         public int syncFromPassIndex; // Smaller pass index that waits for this pass.
@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.RDG
         public bool enablePassCulling { get { return pass.enablePassCulling; } }
         public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
 
-        public void Reset(IRDGPass pass)
+        public void Reset(IRGPass pass)
         {
             this.pass = pass;
 
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.RDG
         }
     }
 
-    internal struct RDGResourceCompileInfo
+    internal struct RGResourceCompileInfo
     {
         public int refCount;
         public bool resourceCreated;
@@ -82,94 +82,94 @@ namespace InfinityTech.Rendering.RDG
         }
     }
 
-    public class RDGBuilder 
+    public class RGBuilder 
     {
         public string name;
         bool m_ExecuteExceptionIsRaised;
-        RDGResourceFactory m_Resources;
+        RGResourceFactory m_Resources;
         Stack<int> m_CullingStack = new Stack<int>();
-        List<IRDGPass> m_PassList = new List<IRDGPass>(64);
-        RDGObjectPool m_ObjectPool = new RDGObjectPool();
-        DynamicArray<RDGPassCompileInfo> m_PassCompileInfos;
-        DynamicArray<RDGResourceCompileInfo>[] m_ResourcesCompileInfos;
+        List<IRGPass> m_PassList = new List<IRGPass>(64);
+        RGObjectPool m_ObjectPool = new RGObjectPool();
+        DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
+        DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
 
-        public RDGBuilder(string name)
+        public RGBuilder(string name)
         {
             this.name = name;
-            this.m_Resources = new RDGResourceFactory();
-            this.m_PassCompileInfos = new DynamicArray<RDGPassCompileInfo>();
-            this.m_ResourcesCompileInfos = new DynamicArray<RDGResourceCompileInfo>[2];
+            this.m_Resources = new RGResourceFactory();
+            this.m_PassCompileInfos = new DynamicArray<RGPassCompileInfo>();
+            this.m_ResourcesCompileInfos = new DynamicArray<RGResourceCompileInfo>[2];
 
             for (int i = 0; i < 2; ++i)
             {
-                this.m_ResourcesCompileInfos[i] = new DynamicArray<RDGResourceCompileInfo>();
+                this.m_ResourcesCompileInfos[i] = new DynamicArray<RGResourceCompileInfo>();
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGBufferRef ImportBuffer(ComputeBuffer buffer)
+        public RGBufferRef ImportBuffer(ComputeBuffer buffer)
         {
             return m_Resources.ImportBuffer(buffer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGBufferRef CreateBuffer(in BufferDescriptor descriptor)
+        public RGBufferRef CreateBuffer(in BufferDescriptor descriptor)
         {
             return m_Resources.CreateBuffer(descriptor);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGBufferRef CreateBuffer(in RDGBufferRef bufferRef)
+        public RGBufferRef CreateBuffer(in RGBufferRef bufferRef)
         {
             return m_Resources.CreateBuffer(m_Resources.GetBufferDescriptor(bufferRef.handle));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BufferDescriptor GetBufferDescriptor(in RDGBufferRef bufferRef)
+        public BufferDescriptor GetBufferDescriptor(in RGBufferRef bufferRef)
         {
             return m_Resources.GetBufferDescriptor(bufferRef.handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGTextureRef ImportTexture(RTHandle texture, in int shaderProperty = 0)
+        public RGTextureRef ImportTexture(RTHandle texture, in int shaderProperty = 0)
         {
             return m_Resources.ImportTexture(texture, shaderProperty);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGTextureRef CreateTexture(in RDGTextureRef textureRef, in int shaderProperty = 0)
+        public RGTextureRef CreateTexture(in RGTextureRef textureRef, in int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(m_Resources.GetTextureDescriptor(textureRef.handle), shaderProperty);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGTextureRef CreateTexture(in TextureDescriptor descriptor, in int shaderProperty = 0)
+        public RGTextureRef CreateTexture(in TextureDescriptor descriptor, in int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(descriptor, shaderProperty);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TextureDescriptor GetTextureDescriptor(in RDGTextureRef textureRef)
+        public TextureDescriptor GetTextureDescriptor(in RGTextureRef textureRef)
         {
             return m_Resources.GetTextureDescriptor(textureRef.handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RDGPassRef AddPass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
+        public RGRasterPassRef AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
-            var renderPass = m_ObjectPool.Get<RDGPass<T>>();
-            renderPass.Clear();
-            renderPass.name = passName;
-            renderPass.index = m_PassList.Count;
-            renderPass.customSampler = profilerSampler;
-            m_PassList.Add(renderPass);
-            return new RDGPassRef(renderPass, m_Resources);
+            RGRasterPass<T> rasterPass = m_ObjectPool.Get<RGRasterPass<T>>();
+            rasterPass.Clear();
+            rasterPass.name = profilerSampler.name;
+            rasterPass.index = m_PassList.Count;
+            rasterPass.customSampler = profilerSampler;
+            m_PassList.Add(rasterPass);
+            return new RGRasterPassRef(rasterPass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Execute(RenderContext renderContext, ResourcePool resourcePool, CommandBuffer cmdBuffer)
         {
-            RDGContext graphContext;
+            RGContext graphContext;
             graphContext.cmdBuffer = cmdBuffer;
             graphContext.objectPool = m_ObjectPool;
             graphContext.resourcePool = resourcePool;
@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void InitResourceInfoData(DynamicArray<RDGResourceCompileInfo> resourceInfos, in int count)
+        void InitResourceInfoData(DynamicArray<RGResourceCompileInfo> resourceInfos, in int count)
         {
             resourceInfos.Resize(count);
             for (int i = 0; i < resourceInfos.size; ++i)
@@ -223,8 +223,8 @@ namespace InfinityTech.Rendering.RDG
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void InitializeCompileData()
         {
-            InitResourceInfoData(m_ResourcesCompileInfos[(int)ERDGResourceType.Buffer], m_Resources.GetBufferCount());
-            InitResourceInfoData(m_ResourcesCompileInfos[(int)ERDGResourceType.Texture], m_Resources.GetTextureCount());
+            InitResourceInfoData(m_ResourcesCompileInfos[(int)ERGResourceType.Buffer], m_Resources.GetBufferCount());
+            InitResourceInfoData(m_ResourcesCompileInfos[(int)ERGResourceType.Texture], m_Resources.GetTextureCount());
 
             m_PassCompileInfos.Resize(m_PassList.Count);
             for (int i = 0; i < m_PassCompileInfos.size; ++i)
@@ -238,14 +238,14 @@ namespace InfinityTech.Rendering.RDG
         {
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
             {
-                ref RDGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
 
                 for (int type = 0; type < 2; ++type)
                 {
                     var resourceRead = passInfo.pass.resourceReadLists[type];
                     foreach (var resource in resourceRead)
                     {
-                        ref RDGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource];
+                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource];
                         info.consumers.Add(passIndex);
                         info.refCount++;
                     }
@@ -253,7 +253,7 @@ namespace InfinityTech.Rendering.RDG
                     var resourceWrite = passInfo.pass.resourceWriteLists[type];
                     foreach (var resource in resourceWrite)
                     {
-                        ref RDGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource];
+                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resource];
                         info.producers.Add(passIndex);
                         passInfo.refCount++;
 
@@ -265,7 +265,7 @@ namespace InfinityTech.Rendering.RDG
 
                     foreach (int resourceIndex in passInfo.pass.temporalResourceList[type])
                     {
-                        ref RDGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resourceIndex];
+                        ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[type][resourceIndex];
                         info.refCount++;
                         info.consumers.Add(passIndex);
                         info.producers.Add(passIndex);
@@ -280,7 +280,7 @@ namespace InfinityTech.Rendering.RDG
             for (int type = 0; type < 2; ++type)
             {
                 m_CullingStack.Clear();
-                DynamicArray<RDGResourceCompileInfo> resourceUsageList = m_ResourcesCompileInfos[type];
+                DynamicArray<RGResourceCompileInfo> resourceUsageList = m_ResourcesCompileInfos[type];
 
                 // Gather resources that are never read.
                 for (int i = 0; i < resourceUsageList.size; ++i)
@@ -303,7 +303,7 @@ namespace InfinityTech.Rendering.RDG
                             producerInfo.culled = true;
                             foreach (var resourceIndex in producerInfo.pass.resourceReadLists[type])
                             {
-                                ref RDGResourceCompileInfo resourceInfo = ref resourceUsageList[resourceIndex];
+                                ref RGResourceCompileInfo resourceInfo = ref resourceUsageList[resourceIndex];
                                 resourceInfo.refCount--;
                                 // If a resource is not used anymore, add it to the stack to be processed in subsequent iteration.
                                 if (resourceInfo.refCount == 0) {
@@ -317,7 +317,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void UpdatePassSynchronization(ref RDGPassCompileInfo currentPassInfo, ref RDGPassCompileInfo producerPassInfo, in int currentPassIndex, in int lastProducer, ref int intLastSyncIndex)
+        void UpdatePassSynchronization(ref RGPassCompileInfo currentPassInfo, ref RGPassCompileInfo producerPassInfo, in int currentPassIndex, in int lastProducer, ref int intLastSyncIndex)
         {
             // Update latest pass waiting for the other pipe.
             intLastSyncIndex = lastProducer;
@@ -334,12 +334,12 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void UpdateResourceSynchronization(ref int lastGraphicsPipeSync, ref int lastComputePipeSync, in int currentPassIndex, in RDGResourceCompileInfo resourceInfo)
+        void UpdateResourceSynchronization(ref int lastGraphicsPipeSync, ref int lastComputePipeSync, in int currentPassIndex, in RGResourceCompileInfo resourceInfo)
         {
             int lastProducer = GetLatestProducerIndex(currentPassIndex, resourceInfo);
             if (lastProducer != -1)
             {
-                ref RDGPassCompileInfo currentPassInfo = ref m_PassCompileInfos[currentPassIndex];
+                ref RGPassCompileInfo currentPassInfo = ref m_PassCompileInfos[currentPassIndex];
 
                 //If the passes are on different pipes, we need synchronization.
                 if (m_PassCompileInfos[lastProducer].enableAsyncCompute != currentPassInfo.enableAsyncCompute)
@@ -362,7 +362,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetLatestProducerIndex(in int passIndex, in RDGResourceCompileInfo resourceInfo)
+        int GetLatestProducerIndex(in int passIndex, in RGResourceCompileInfo resourceInfo)
         {
             // We want to know the highest pass index below the current pass that writes to the resource.
             int result = -1;
@@ -381,7 +381,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetLatestValidReadIndex(in RDGResourceCompileInfo resourceInfo)
+        int GetLatestValidReadIndex(in RGResourceCompileInfo resourceInfo)
         {
             if (resourceInfo.consumers.Count == 0) {
                 return -1;
@@ -399,7 +399,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetFirstValidWriteIndex(in RDGResourceCompileInfo resourceInfo)
+        int GetFirstValidWriteIndex(in RGResourceCompileInfo resourceInfo)
         {
             if (resourceInfo.producers.Count == 0) {
                 return -1;
@@ -417,7 +417,7 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetLatestValidWriteIndex(in RDGResourceCompileInfo resourceInfo)
+        int GetLatestValidWriteIndex(in RGResourceCompileInfo resourceInfo)
         {
             if (resourceInfo.producers.Count == 0) {
                 return -1;
@@ -442,7 +442,7 @@ namespace InfinityTech.Rendering.RDG
 
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
             {
-                ref RDGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
 
                 if (passInfo.culled) { continue; }
 
@@ -466,7 +466,7 @@ namespace InfinityTech.Rendering.RDG
                 var resourceInfos = m_ResourcesCompileInfos[type];
                 for (int i = 0; i < resourceInfos.size; ++i)
                 {
-                    RDGResourceCompileInfo resourceInfo = resourceInfos[i];
+                    RGResourceCompileInfo resourceInfo = resourceInfos[i];
 
                     int firstWriteIndex = GetFirstValidWriteIndex(resourceInfo);
                     if (firstWriteIndex != -1) {
@@ -488,15 +488,15 @@ namespace InfinityTech.Rendering.RDG
                                 }
                             }
 
-                            ref RDGPassCompileInfo passInfo = ref m_PassCompileInfos[Math.Max(0, firstWaitingPassIndex - 1)];
+                            ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[Math.Max(0, firstWaitingPassIndex - 1)];
                             passInfo.resourceReleaseList[type].Add(i);
 
                             if (currentPassIndex == m_PassCompileInfos.size) {
-                                IRDGPass invalidPass = m_PassList[lastReadPassIndex];
+                                IRGPass invalidPass = m_PassList[lastReadPassIndex];
                                 throw new InvalidOperationException($"Async pass {invalidPass.name} was never synchronized on the graphics pipeline.");
                             }
                         } else {
-                            ref RDGPassCompileInfo passInfo = ref m_PassCompileInfos[lastReadPassIndex];
+                            ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[lastReadPassIndex];
                             passInfo.resourceReleaseList[type].Add(i);
                         }
                     }
@@ -514,12 +514,12 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void SetRenderTarget(ref RDGContext graphContext, in RDGPassCompileInfo passCompileInfo)
+        void SetRenderTarget(ref RGContext graphContext, in RGPassCompileInfo passCompileInfo)
         {
             var pass = passCompileInfo.pass;
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
             {
-                ref RDGPassOption passOption = ref pass.GetPassOption();
+                ref RGPassOption passOption = ref pass.GetPassOption();
 
                 if (pass.colorBufferMaxIndex > 0)
                 {
@@ -555,71 +555,84 @@ namespace InfinityTech.Rendering.RDG
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void PrePassExecute(ref RDGContext graphContext, in RDGPassCompileInfo passCompileInfo)
+        void PrePassExecute(ref RGContext graphContext, in RGPassCompileInfo passCompileInfo)
         {
-            IRDGPass pass = passCompileInfo.pass;
+            IRGPass pass = passCompileInfo.pass;
 
-            foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Buffer]) {
+            foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERGResourceType.Buffer]) 
+            {
                 m_Resources.CreateBufferResource(bufferHandle);
             }
 
-            foreach (var textureHandle in passCompileInfo.resourceCreateList[(int)ERDGResourceType.Texture]) {
+            foreach (var textureHandle in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture]) 
+            {
                 m_Resources.CreateTextureResource(ref graphContext, textureHandle);
             }
 
-            SetRenderTarget(ref graphContext, passCompileInfo);
-            m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERDGResourceType.Texture]);
             graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
             graphContext.cmdBuffer.Clear();
 
-            if (pass.enableAsyncCompute) {
+            if (pass.enableAsyncCompute) 
+            {
                 CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
                 asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
                 graphContext.cmdBuffer = asyncCmdBuffer;
             }
 
-            if (passCompileInfo.syncToPassIndex != -1) {
+            if (passCompileInfo.syncToPassIndex != -1) 
+            {
                 graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(m_PassCompileInfos[passCompileInfo.syncToPassIndex].fence);
             }
+
+            SetRenderTarget(ref graphContext, passCompileInfo);
+            //m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERGResourceType.Texture]);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void PostPassExecute(CommandBuffer cmdBuffer, ref RDGContext graphContext, ref RDGPassCompileInfo passCompileInfo)
+        void PostPassExecute(CommandBuffer graphicsCmdBuffer, ref RGContext graphContext, ref RGPassCompileInfo passCompileInfo)
         {
-            IRDGPass pass = passCompileInfo.pass;
+            IRGPass pass = passCompileInfo.pass;
 
-            if (passCompileInfo.needGraphicsFence) {
+            if (passCompileInfo.needGraphicsFence) 
+            {
                 passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
             }
 
-            if (pass.enableAsyncCompute) {
+            if (pass.enableAsyncCompute) 
+            {
                 graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
                 CommandBufferPool.Release(graphContext.cmdBuffer);
-                graphContext.cmdBuffer = cmdBuffer;
+                graphContext.cmdBuffer = graphicsCmdBuffer;
             }
 
             m_ObjectPool.ReleaseAllTempAlloc();
 
-            foreach (var buffer in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Buffer]) {
+            foreach (var buffer in passCompileInfo.resourceReleaseList[(int)ERGResourceType.Buffer]) 
+            {
                 m_Resources.ReleaseBufferResource(buffer);
             }
 
-            foreach (var texture in passCompileInfo.resourceReleaseList[(int)ERDGResourceType.Texture]) {
+            foreach (var texture in passCompileInfo.resourceReleaseList[(int)ERGResourceType.Texture]) 
+            {
                 m_Resources.ReleaseTextureResource(texture);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ExecutePass(ref RDGContext graphContext)
+        void ExecutePass(ref RGContext graphContext)
         {
             CommandBuffer graphicsCmdBuffer = graphContext.cmdBuffer;
 
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
             {
-                ref var passInfo = ref m_PassCompileInfos[passIndex];
-                if (passInfo.culled) { continue; }
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                if (passInfo.culled) 
+                { 
+                    continue; 
+                }
 
-                if (!passInfo.pass.hasExecuteFunc) {
+                if (!passInfo.pass.hasExecuteAction) 
+                {
                     throw new InvalidOperationException(string.Format("RenderPass {0} was not provided with an execute function.", passInfo.pass.name));
                 }
 
@@ -631,7 +644,9 @@ namespace InfinityTech.Rendering.RDG
                         passInfo.pass.Execute(graphContext);
                         PostPassExecute(graphicsCmdBuffer, ref graphContext, ref passInfo);
                     }
-                } catch (Exception e) {
+                } 
+                catch (Exception e) 
+                {
                     m_ExecuteExceptionIsRaised = true;
                     Debug.LogError($"RenderGraph Execute error at pass {passInfo.pass.name} ({passIndex})");
                     Debug.LogException(e);

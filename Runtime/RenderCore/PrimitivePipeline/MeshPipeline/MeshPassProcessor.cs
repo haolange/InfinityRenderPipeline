@@ -3,7 +3,7 @@ using UnityEngine;
 using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Core.Native;
-using InfinityTech.Rendering.RDG;
+using InfinityTech.Rendering.RenderGraph;
 using System.Runtime.InteropServices;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshPassTaskRefs.Add(meshPassBuildJob.Schedule(sortHandle));
         }
 
-        internal void DispatchDraw(in RDGContext graphContext, in int passIndex)
+        internal void DispatchDraw(in RGContext graphContext, in int passIndex)
         {
             if (!m_MeshBatchIndexs.IsCreated && !m_PassMeshSections.IsCreated && !m_MeshDrawCommands.IsCreated) { return; }
 

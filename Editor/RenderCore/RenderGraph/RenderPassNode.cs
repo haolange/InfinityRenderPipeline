@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.Experimental.GraphView;
 
-namespace InfinityTech.Rendering.RDG.Editor
+namespace InfinityTech.Rendering.RenderGraph.Editor
 {
     public class RenderPassNode : Node
     {
