@@ -19,8 +19,12 @@ namespace InfinityTech.Rendering.Pipeline
         struct MotionPassData
         {
             public RendererList rendererList;
+            public RGTextureRef copyDepthTexture;
+        }
+
+        struct CopyMotionDepthPassData
+        {
             public RGTextureRef depthTexture;
-            public RGTextureRef motionTexture;
             public RGTextureRef copyDepthTexture;
         }
 
@@ -39,6 +43,9 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionObject)))
             {
                 //Setup Phase
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
+                passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
                 {
                     rendererListDesc.layerMask = camera.cullingMask;
@@ -51,8 +58,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
-                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
-                passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
@@ -63,15 +68,15 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add CopyMotionPass
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
+            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyMotionDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
             {
                 //Setup Phase
-                ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
+                ref CopyMotionDepthPassData passData = ref passRef.GetPassData<CopyMotionDepthPassData>();
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.copyDepthTexture = passRef.WriteTexture(copyDepthTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CopyMotionDepthPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     #if UNITY_EDITOR
                         cmdBuffer.DrawFullScreen(passData.depthTexture, passData.copyDepthTexture);
@@ -85,10 +90,11 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionCamera)))
             {
                 //Setup Phase
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Read);
+                passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
                 passData.copyDepthTexture = passRef.ReadTexture(copyDepthTexture);
-                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
-                passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
