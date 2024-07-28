@@ -194,16 +194,16 @@ namespace InfinityTech.Rendering.Pipeline
             m_UpdateInit = true;
             SetGraphicsSetting();
             renderContext = new RenderContext();
-            m_ResourcePool = new ResourcePool();
             m_RGBuilder = new RGBuilder("RenderGraph");
             m_RGScoper = new RGScoper(m_RGBuilder);
             m_HistoryCaches = new Dictionary<int, HistoryCache>();
             m_CameraUniforms = new Dictionary<int, CameraUniform>();
             m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
+            m_ResourcePool = new ResourcePool();
             m_GPUScene = new GPUScene(m_ResourcePool, renderContext.GetMeshBatchColloctor());
-            m_DepthMeshProcessor = new MeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
-            m_GBufferMeshProcessor = new MeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
-            m_ForwardMeshProcessor = new MeshPassProcessor(m_GPUScene, ref m_MeshPassJobRefs);
+            m_DepthMeshProcessor = new MeshPassProcessor(m_GPUScene, m_ResourcePool, ref m_MeshPassJobRefs);
+            m_GBufferMeshProcessor = new MeshPassProcessor(m_GPUScene, m_ResourcePool, ref m_MeshPassJobRefs);
+            m_ForwardMeshProcessor = new MeshPassProcessor(m_GPUScene, m_ResourcePool, ref m_MeshPassJobRefs);
         }
 
         protected override void Render(ScriptableRenderContext scriptableRenderContext, Camera[] cameras)
@@ -358,6 +358,7 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderForward(renderContext, camera, cullingDatas, cullingResults);
                             RenderSkyBox(renderContext, camera);
                             ComputeAntiAliasing(renderContext, camera, historyCache);
+                            CopyHistoryAntiAliasing(renderContext);
                         #if UNITY_EDITOR
                             RenderWireOverlay(renderContext, camera);
                             RenderGizmos(renderContext, camera);

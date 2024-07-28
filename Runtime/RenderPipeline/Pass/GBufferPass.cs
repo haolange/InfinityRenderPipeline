@@ -19,9 +19,6 @@ namespace InfinityTech.Rendering.Pipeline
         struct GBufferPassData
         {
             public RendererList rendererList;
-            public RGTextureRef depthTexture;
-            public RGTextureRef gbufferTextureA;
-            public RGTextureRef gbufferTextureB;
             public MeshPassProcessor meshPassProcessor;
         }
 
@@ -38,7 +35,9 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadWrite);
+                passRef.UseColorBuffer(gbufferTextureA, 0, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                passRef.UseColorBuffer(gbufferTextureB, 1, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.GBufferPass, cullingResults, camera);
                 {
@@ -53,20 +52,17 @@ namespace InfinityTech.Rendering.Pipeline
                 ref GBufferPassData passData = ref passRef.GetPassData<GBufferPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
                 passData.meshPassProcessor = m_GBufferMeshProcessor;
-                passData.gbufferTextureA = passRef.UseColorBuffer(gbufferTextureA, 0);
-                passData.gbufferTextureB = passRef.UseColorBuffer(gbufferTextureB, 1);
-                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 
                 m_GBufferMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in GBufferPassData passData, in RGContext graphContext) =>
+                passRef.SetExecuteFunc((in GBufferPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(graphContext, 1);
+                    passData.meshPassProcessor.DispatchDraw(cmdBuffer, 1);
 
                     //UnityDrawPipeline
-                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
+                    cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
         }

@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Feature
 
     public sealed class TemporalAntiAliasing
     {
-        public void Render(CommandBuffer cmdBuffer, ComputeShader shader, in TemporalAAParameter parameter, in TemporalAAInputData inputData, in TemporalAAOutputData outputData)
+        public void Dispatch(CommandBuffer cmdBuffer, ComputeShader shader, in TemporalAAParameter parameter, in TemporalAAInputData inputData, in TemporalAAOutputData outputData)
         {
             cmdBuffer.SetComputeVectorParam(shader, TemporalAAShaderID.Resolution, inputData.resolution);
             cmdBuffer.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
@@ -73,12 +73,6 @@ namespace InfinityTech.Rendering.Feature
             cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AliasingColorTexture, inputData.aliasingColorTexture);
             cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
             cmdBuffer.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-        }
-
-        public void CopyToHistory(CommandBuffer cmdBuffer, in TemporalAAInputData inputData, in TemporalAAOutputData outputData)
-        {
-            //cmdBuffer.CopyTexture(inputData.depthTexture, inputData.historyDepthTexture);
-            cmdBuffer.CopyTexture(outputData.accmulateColorTexture, inputData.historyColorTexture);
         }
 
         public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)

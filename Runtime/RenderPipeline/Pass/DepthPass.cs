@@ -17,7 +17,6 @@ namespace InfinityTech.Rendering.Pipeline
         struct DepthPassData
         {
             public RendererList rendererList;
-            public RGTextureRef depthTexture;
             public MeshPassProcessor meshPassProcessor;
         }
 
@@ -31,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.All, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, EDepthAccess.ReadWrite);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
                 {
@@ -46,18 +45,17 @@ namespace InfinityTech.Rendering.Pipeline
                 ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
                 passData.meshPassProcessor = m_DepthMeshProcessor;
-                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.ReadWrite);
                 
                 m_DepthMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in DepthPassData passData, in RGContext graphContext) =>
+                passRef.SetExecuteFunc((in DepthPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(graphContext, 0);
+                    passData.meshPassProcessor.DispatchDraw(cmdBuffer, 0);
 
                     //UnityDrawPipeline
-                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
+                    cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
         }

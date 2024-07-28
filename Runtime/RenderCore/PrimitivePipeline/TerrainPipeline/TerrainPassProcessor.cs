@@ -33,9 +33,9 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         }
 
-        internal void DispatchDraw(ref RGContext graphContext, in int passIndex)
+        internal void DispatchDraw(CommandBuffer cmdBuffer, in int passIndex)
         {
-            using (new ProfilingScope(graphContext.cmdBuffer, m_DrawProfiler))
+            using (new ProfilingScope(cmdBuffer, m_DrawProfiler))
             {
                 for (int i = 0; i < terrainDrawCommands.Length; ++i)
                 {
@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
                     for (int j = 0; j < countOffset.x; ++j)
                     {
-                        graphContext.cmdBuffer.DrawMeshInstancedProcedural(meshes[terrainDrawCommand.lod], 0, material, passIndex, countOffset.x);
+                        cmdBuffer.DrawMeshInstancedProcedural(meshes[terrainDrawCommand.lod], 0, material, passIndex, countOffset.x);
                     }
                 }
             }

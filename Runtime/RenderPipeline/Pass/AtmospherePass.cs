@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref AtmospherePassData passData = ref passRef.GetPassData<AtmospherePassData>();
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in AtmospherePassData passData, in RGContext graphContext) =>
+                passRef.SetExecuteFunc((in AtmospherePassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
 
                 });

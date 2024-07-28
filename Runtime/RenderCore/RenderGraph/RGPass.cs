@@ -27,10 +27,10 @@ namespace InfinityTech.Rendering.RenderGraph
         public RenderBufferStoreAction depthStoreAction;
     }
 
-    public delegate void RGTransferPassExecuteAction<T>(in T passData, in RGContext graphContext) where T : struct;
-    public delegate void RGComputePassExecuteAction<T>(in T passData, in RGContext graphContext) where T : struct;
-    public delegate void RGRayTracingPassExecuteAction<T>(in T passData, in RGContext graphContext) where T : struct;
-    public delegate void RGRasterPassExecuteAction<T>(in T passData, in RGContext graphContext) where T : struct;
+    public delegate void RGTransferPassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
+    public delegate void RGComputePassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
+    public delegate void RGRayTracingPassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
+    public delegate void RGRasterPassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
 
     internal abstract class IRGPass
     {
@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        public abstract void Execute(in RGContext graphContext);
+        public abstract void Execute(ref RGContext graphContext);
         public abstract void Release(RGObjectPool objectPool);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -168,9 +168,9 @@ namespace InfinityTech.Rendering.RenderGraph
             passType = EPassType.Transfer;
         }
 
-        public override void Execute(in RGContext graphContext)
+        public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, in graphContext);
+            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -192,9 +192,9 @@ namespace InfinityTech.Rendering.RenderGraph
             passType = EPassType.Compute;
         }
 
-        public override void Execute(in RGContext graphContext)
+        public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, in graphContext);
+            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -216,9 +216,9 @@ namespace InfinityTech.Rendering.RenderGraph
             passType = EPassType.RayTracing;
         }
 
-        public override void Execute(in RGContext graphContext)
+        public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, in graphContext);
+            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -240,9 +240,9 @@ namespace InfinityTech.Rendering.RenderGraph
             passType = EPassType.Raster;
         }
 
-        public override void Execute(in RGContext graphContext)
+        public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, in graphContext);
+            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -257,13 +257,13 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_TransferPass;
-        RGResourceFactory m_Resources;
+        RGResourceFactory m_ResourceFactory;
 
-        internal RGTransferPassRef(IRGPass transferPass, RGResourceFactory resources)
+        internal RGTransferPassRef(IRGPass transferPass, RGResourceFactory resourceFactory)
         {
             m_Disposed = false;
-            m_Resources = resources;
             m_TransferPass = transferPass;
+            m_ResourceFactory = resourceFactory;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -289,7 +289,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateTemporaryTexture(in TextureDescriptor descriptor)
         {
-            var result = m_Resources.CreateTexture(descriptor, 0, m_TransferPass.index);
+            var result = m_ResourceFactory.CreateTexture(descriptor, 0, m_TransferPass.index);
             m_TransferPass.AddTemporalResource(result.handle);
             return result;
         }
@@ -311,7 +311,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef CreateTemporaryBuffer(in BufferDescriptor descriptor)
         {
-            RGBufferRef bufferRef = m_Resources.CreateBuffer(descriptor, m_TransferPass.index);
+            RGBufferRef bufferRef = m_ResourceFactory.CreateBuffer(descriptor, m_TransferPass.index);
             m_TransferPass.AddTemporalResource(bufferRef.handle);
             return bufferRef;
         }
@@ -344,13 +344,13 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_ComputePass;
-        RGResourceFactory m_Resources;
+        RGResourceFactory m_ResourceFactory;
 
-        internal RGComputePassRef(IRGPass computePass, RGResourceFactory resources)
+        internal RGComputePassRef(IRGPass computePass, RGResourceFactory resourceFactory)
         {
             m_Disposed = false;
-            m_Resources = resources;
             m_ComputePass = computePass;
+            m_ResourceFactory = resourceFactory;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -382,7 +382,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateTemporaryTexture(in TextureDescriptor descriptor)
         {
-            var result = m_Resources.CreateTexture(descriptor, 0, m_ComputePass.index);
+            var result = m_ResourceFactory.CreateTexture(descriptor, 0, m_ComputePass.index);
             m_ComputePass.AddTemporalResource(result.handle);
             return result;
         }
@@ -404,7 +404,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef CreateTemporaryBuffer(in BufferDescriptor descriptor)
         {
-            RGBufferRef bufferRef = m_Resources.CreateBuffer(descriptor, m_ComputePass.index);
+            RGBufferRef bufferRef = m_ResourceFactory.CreateBuffer(descriptor, m_ComputePass.index);
             m_ComputePass.AddTemporalResource(bufferRef.handle);
             return bufferRef;
         }
@@ -437,13 +437,13 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_RayTracingPass;
-        RGResourceFactory m_Resources;
+        RGResourceFactory m_ResourceFactory;
 
-        internal RGRayTracingPassRef(IRGPass rayTracingPass, RGResourceFactory resources)
+        internal RGRayTracingPassRef(IRGPass rayTracingPass, RGResourceFactory resourceFactory)
         {
             m_Disposed = false;
-            m_Resources = resources;
             m_RayTracingPass = rayTracingPass;
+            m_ResourceFactory = resourceFactory;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -469,7 +469,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateTemporaryTexture(in TextureDescriptor descriptor)
         {
-            var result = m_Resources.CreateTexture(descriptor, 0, m_RayTracingPass.index);
+            var result = m_ResourceFactory.CreateTexture(descriptor, 0, m_RayTracingPass.index);
             m_RayTracingPass.AddTemporalResource(result.handle);
             return result;
         }
@@ -491,7 +491,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef CreateTemporaryBuffer(in BufferDescriptor descriptor)
         {
-            RGBufferRef bufferRef = m_Resources.CreateBuffer(descriptor, m_RayTracingPass.index);
+            RGBufferRef bufferRef = m_ResourceFactory.CreateBuffer(descriptor, m_RayTracingPass.index);
             m_RayTracingPass.AddTemporalResource(bufferRef.handle);
             return bufferRef;
         }
@@ -524,13 +524,13 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_RasterPass;
-        RGResourceFactory m_Resources;
+        RGResourceFactory m_ResourceFactory;
 
-        internal RGRasterPassRef(IRGPass rasterPass, RGResourceFactory resources)
+        internal RGRasterPassRef(IRGPass rasterPass, RGResourceFactory resourceFactory)
         {
             m_Disposed = false;
-            m_Resources = resources;
             m_RasterPass = rasterPass;
+            m_ResourceFactory = resourceFactory;
 
             ref RGPassOption passOption = ref m_RasterPass.GetPassOption();
             passOption.IsActive = false;
@@ -574,10 +574,10 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef UseColorBuffer(in RGTextureRef input, int index)
+        public RGTextureRef UseColorBuffer(in RGTextureRef renderTarget, int index)
         {
-            m_RasterPass.SetColorBuffer(input, index);
-            return input;
+            m_RasterPass.SetColorBuffer(renderTarget, index);
+            return renderTarget;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -588,9 +588,23 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef UseColorBuffer(in RGTextureRef renderTarget, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        {
+            m_RasterPass.SetColorBuffer(renderTarget, index);
+            return renderTarget;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef UseDepthBuffer(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
+        {
+            m_RasterPass.SetDepthBuffer(input, flags);
+            return input;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateTemporaryTexture(in TextureDescriptor descriptor)
         {
-            var result = m_Resources.CreateTexture(descriptor, 0, m_RasterPass.index);
+            var result = m_ResourceFactory.CreateTexture(descriptor, 0, m_RasterPass.index);
             m_RasterPass.AddTemporalResource(result.handle);
             return result;
         }
@@ -612,7 +626,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef CreateTemporaryBuffer(in BufferDescriptor descriptor)
         {
-            RGBufferRef bufferRef = m_Resources.CreateBuffer(descriptor, m_RasterPass.index);
+            RGBufferRef bufferRef = m_ResourceFactory.CreateBuffer(descriptor, m_RasterPass.index);
             m_RasterPass.AddTemporalResource(bufferRef.handle);
             return bufferRef;
         }

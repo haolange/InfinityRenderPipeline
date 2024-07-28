@@ -24,7 +24,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef copyDepthTexture;
         }
 
-
         void RenderMotion(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
@@ -40,8 +39,6 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionObject)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.Color, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
                 {
                     rendererListDesc.layerMask = camera.cullingMask;
@@ -54,31 +51,33 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
-                passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0);
-                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
+                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
+                passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in MotionPassData passData, in RGContext graphContext) =>
+                passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     //UnityDrawPipeline
-                    graphContext.cmdBuffer.DrawRendererList(passData.rendererList);
+                    cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
 
             //Add CopyMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
+            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.copyDepthTexture = passRef.WriteTexture(copyDepthTexture);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in MotionPassData passData, in RGContext graphContext) =>
+                passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
-                    //graphContext.cmdBuffer.Blit(passData.depthTexture, passData.copyDepthTexture);
-                    graphContext.cmdBuffer.CopyTexture(passData.depthTexture, passData.copyDepthTexture);
+                    #if UNITY_EDITOR
+                        cmdBuffer.DrawFullScreen(passData.depthTexture, passData.copyDepthTexture);
+                    #else
+                        cmdBuffer.CopyTexture(passData.depthTexture, passData.copyDepthTexture);
+                    #endif
                 });
             }
 
@@ -86,19 +85,16 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionCamera)))
             {
                 //Setup Phase
-                passRef.SetOption(ClearFlag.None, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-
-                //Setup Phase
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
                 passData.copyDepthTexture = passRef.ReadTexture(copyDepthTexture);
-                passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0);
-                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, EDepthAccess.Read);
+                passData.depthTexture = passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
+                passData.motionTexture = passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in MotionPassData passData, in RGContext graphContext) =>
+                passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
-                    graphContext.cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.copyDepthTexture);
-                    graphContext.cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);
+                    cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.copyDepthTexture);
+                    cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);
                 });
             }
         }

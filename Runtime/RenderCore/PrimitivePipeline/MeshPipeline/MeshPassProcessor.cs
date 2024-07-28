@@ -38,6 +38,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public class MeshPassProcessor
     {
         private GPUScene m_GPUScene;
+        private ResourcePool m_ResourcePool;
         private ProfilingSampler m_DrawProfiler;
         private NativeArray<int> m_MeshBatchIndexs;
         private MaterialPropertyBlock m_PropertyBlock;
@@ -45,9 +46,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         private NativeList<PassMeshSection> m_PassMeshSections;
         private NativeList<MeshDrawCommand> m_MeshDrawCommands;
 
-        public MeshPassProcessor(GPUScene gpuScene, ref NativeList<JobHandle> meshPassTaskRefs)
+        public MeshPassProcessor(GPUScene gpuScene, ResourcePool resourcePool, ref NativeList<JobHandle> meshPassTaskRefs)
         {
             m_GPUScene = gpuScene;
+            m_ResourcePool = resourcePool;
             m_DrawProfiler = new ProfilingSampler("RenderLoop.DrawMeshBatcher");
             m_PropertyBlock = new MaterialPropertyBlock();
             m_MeshPassTaskRefs = meshPassTaskRefs;
@@ -81,14 +83,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MeshPassTaskRefs.Add(meshPassBuildJob.Schedule(sortHandle));
         }
 
-        internal void DispatchDraw(in RGContext graphContext, in int passIndex)
+        internal void DispatchDraw(CommandBuffer cmdBuffer, in int passIndex)
         {
             if (!m_MeshBatchIndexs.IsCreated && !m_PassMeshSections.IsCreated && !m_MeshDrawCommands.IsCreated) { return; }
 
-            using (new ProfilingScope(graphContext.cmdBuffer, m_DrawProfiler))
+            using (new ProfilingScope(cmdBuffer, m_DrawProfiler))
             {
-                FBufferRef bufferRef = graphContext.resourcePool.GetBuffer(new BufferDescriptor(10000, Marshal.SizeOf(typeof(int))));
-                graphContext.cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs, 0, 0, m_MeshBatchIndexs.Length);
+                FBufferRef bufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(10000, Marshal.SizeOf(typeof(int))));
+                cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs, 0, 0, m_MeshBatchIndexs.Length);
 
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)
                 {
@@ -100,10 +102,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_PropertyBlock.SetInt(InfinityShaderIDs.MeshBatchOffset, meshDrawCommand.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchIndexs, bufferRef.buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchBuffer, m_GPUScene.bufferRef.buffer);
-                    graphContext.cmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
+                    cmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
                 }
 
-                graphContext.resourcePool.ReleaseBuffer(bufferRef);
+                m_ResourcePool.ReleaseBuffer(bufferRef);
             }
 
             m_MeshBatchIndexs.Dispose();

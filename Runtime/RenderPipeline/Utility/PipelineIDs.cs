@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline
         RenderSkyBox,
         RenderAtmosphere,
         ComputeAntiAliasing,
-        CopyHistoryBuffer,
+        CopyHistoryAntiAliasing,
         RenderWireOverlay,
         RenderGizmos,
         Present,

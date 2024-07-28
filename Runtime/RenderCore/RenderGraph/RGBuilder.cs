@@ -10,9 +10,8 @@ namespace InfinityTech.Rendering.RenderGraph
 {
     public struct RGContext
     {
-        public CommandBuffer cmdBuffer;
         public RGObjectPool objectPool;
-        public ResourcePool resourcePool;
+        public CommandBuffer cmdBuffer;
         public RenderContext renderContext;
     }
 
@@ -155,6 +154,42 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTransferPassRef AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
+            transferPass.Clear();
+            transferPass.name = profilerSampler.name;
+            transferPass.index = m_PassList.Count;
+            transferPass.customSampler = profilerSampler;
+            m_PassList.Add(transferPass);
+            return new RGTransferPassRef(transferPass, m_Resources);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGComputePassRef AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
+            computePass.Clear();
+            computePass.name = profilerSampler.name;
+            computePass.index = m_PassList.Count;
+            computePass.customSampler = profilerSampler;
+            m_PassList.Add(computePass);
+            return new RGComputePassRef(computePass, m_Resources);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGRayTracingPassRef AddRayTracingPass<T>(ProfilingSampler profilerSampler) where T : struct
+        {
+            RGRayTracingPass<T> rayTracingPass = m_ObjectPool.Get<RGRayTracingPass<T>>();
+            rayTracingPass.Clear();
+            rayTracingPass.name = profilerSampler.name;
+            rayTracingPass.index = m_PassList.Count;
+            rayTracingPass.customSampler = profilerSampler;
+            m_PassList.Add(rayTracingPass);
+            return new RGRayTracingPassRef(rayTracingPass, m_Resources);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGRasterPassRef AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGRasterPass<T> rasterPass = m_ObjectPool.Get<RGRasterPass<T>>();
@@ -170,10 +205,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void Execute(RenderContext renderContext, ResourcePool resourcePool, CommandBuffer cmdBuffer)
         {
             RGContext graphContext;
-            graphContext.cmdBuffer = cmdBuffer;
-            graphContext.objectPool = m_ObjectPool;
-            graphContext.resourcePool = resourcePool;
-            graphContext.renderContext = renderContext;
+            {
+                graphContext.cmdBuffer = cmdBuffer;
+                graphContext.objectPool = m_ObjectPool;
+                graphContext.renderContext = renderContext;
+            }
             m_ExecuteExceptionIsRaised = false;
 
             try
@@ -181,11 +217,19 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Resources.BeginRender();
                 CompilePass();
                 ExecutePass(ref graphContext);
-            } catch (Exception exception) {
-                Debug.LogError("RenderGraph Execute error");
-                if (!m_ExecuteExceptionIsRaised) { Debug.LogException(exception); }
+            } 
+            catch (Exception exception) 
+            {
+                if (!m_ExecuteExceptionIsRaised) 
+                { 
+                    Debug.LogException(exception); 
+                }
                 m_ExecuteExceptionIsRaised = true;
-            } finally {
+
+                Debug.LogError("RenderGraph Execute error");
+            } 
+            finally 
+            {
                 ClearPass();
                 m_Resources.EndRender();
             }
@@ -527,28 +571,35 @@ namespace InfinityTech.Rendering.RenderGraph
 
                     for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
                     {
-                        if (!pass.colorBuffers[i].IsValid()) {
+                        if (!pass.colorBuffers[i].IsValid()) 
+                        {
                             throw new InvalidOperationException("MRT setup is invalid. Some indices are not used.");
                         }
 
                         mrtArray[i] = m_Resources.GetTexture(pass.colorBuffers[i]);
                     }
 
-                    if (pass.depthBuffer.IsValid()) {
-                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer), passOption.clearFlag);
-                    } else {
+                    if (pass.depthBuffer.IsValid()) 
+                    {
+                        //RenderTargetBinding renderTargetBinding = new RenderTargetBinding();
+
+                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer));
+                    } 
+                    else 
+                    {
                         throw new InvalidOperationException("Setting MRTs without a depth buffer is not supported.");
                     }
                 } else {
                     if (pass.depthBuffer.IsValid())
                     {
-                        if (pass.colorBufferMaxIndex > -1) {
-                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), passOption.colorLoadAction, passOption.colorStoreAction, m_Resources.GetTexture(pass.depthBuffer), passOption.depthLoadAction, passOption.depthStoreAction, passOption.clearFlag);
+                        if (pass.colorBufferMaxIndex > -1) 
+                        {
+                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), m_Resources.GetTexture(pass.depthBuffer));
                         } else {
-                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer), passOption.depthLoadAction, passOption.depthStoreAction, passOption.clearFlag);
+                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer));
                         }
                     } else {
-                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), passOption.colorLoadAction, passOption.colorStoreAction, passOption.clearFlag);
+                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]));
                     }
                 }
             }
@@ -641,7 +692,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     using (new ProfilingScope(graphContext.cmdBuffer, passInfo.pass.customSampler))
                     {
                         PrePassExecute(ref graphContext, passInfo);
-                        passInfo.pass.Execute(graphContext);
+                        passInfo.pass.Execute(ref graphContext);
                         PostPassExecute(graphicsCmdBuffer, ref graphContext, ref passInfo);
                     }
                 } 
