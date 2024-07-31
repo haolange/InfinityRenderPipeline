@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Write);
-                passRef.UseColorBuffer(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.UseColorBuffer(lightingTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.ForwardPass, cullingResults, camera);
                 {

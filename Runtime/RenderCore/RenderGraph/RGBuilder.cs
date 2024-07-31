@@ -677,7 +677,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 attachmentDescriptor.graphicsFormat = renderBuffer.graphicsFormat;
                                 attachmentDescriptor.loadStoreTarget = renderBuffer;
                                 attachmentDescriptor.clearColor = Color.black;
-                                attachmentDescriptor.clearDepth = 0;
+                                attachmentDescriptor.clearDepth = 1;
                                 attachmentDescriptor.clearStencil = 0;
                             }
                             attachmentDescriptors[i] = attachmentDescriptor;
@@ -691,7 +691,7 @@ namespace InfinityTech.Rendering.RenderGraph
                             depthAttachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
                             depthAttachmentDescriptor.loadStoreTarget = depthBuffer;
                             depthAttachmentDescriptor.clearColor = Color.black;
-                            depthAttachmentDescriptor.clearDepth = 0;
+                            depthAttachmentDescriptor.clearDepth = 1;
                             depthAttachmentDescriptor.clearStencil = 0;
                         }
                         attachmentDescriptors[pass.colorBufferMaxIndex + 1] = depthAttachmentDescriptor;
@@ -734,7 +734,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 depthAttachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
                                 depthAttachmentDescriptor.loadStoreTarget = depthBuffer;
                                 depthAttachmentDescriptor.clearColor = Color.black;
-                                depthAttachmentDescriptor.clearDepth = 0;
+                                depthAttachmentDescriptor.clearDepth = 1;
                                 depthAttachmentDescriptor.clearStencil = 0;
                             }
                             AttachmentDescriptor colorAttachmentDescriptor = new AttachmentDescriptor();
@@ -744,7 +744,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 colorAttachmentDescriptor.graphicsFormat = colorBuffer.graphicsFormat;
                                 colorAttachmentDescriptor.loadStoreTarget = colorBuffer;
                                 colorAttachmentDescriptor.clearColor = Color.black;
-                                colorAttachmentDescriptor.clearDepth = 0;
+                                colorAttachmentDescriptor.clearDepth = 1;
                                 colorAttachmentDescriptor.clearStencil = 0;
                             }
 
@@ -778,7 +778,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 attachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
                                 attachmentDescriptor.loadStoreTarget = depthBuffer;
                                 attachmentDescriptor.clearColor = Color.black;
-                                attachmentDescriptor.clearDepth = 0;
+                                attachmentDescriptor.clearDepth = 1;
                                 attachmentDescriptor.clearStencil = 0;
                             }
                             NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(1, Allocator.Temp);

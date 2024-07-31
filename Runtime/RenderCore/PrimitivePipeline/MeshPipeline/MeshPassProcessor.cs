@@ -98,11 +98,11 @@ namespace InfinityTech.Rendering.MeshPipeline
                     Mesh mesh = (Mesh)Resources.InstanceIDToObject(meshDrawCommand.meshIndex);
                     Material material = (Material)Resources.InstanceIDToObject(meshDrawCommand.materialIndex);
 
-                    m_PropertyBlock.Clear();
+                    /*m_PropertyBlock.Clear();
                     m_PropertyBlock.SetInt(InfinityShaderIDs.MeshBatchOffset, meshDrawCommand.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchIndexs, bufferRef.buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.MeshBatchBuffer, m_GPUScene.bufferRef.buffer);
-                    cmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);
+                    cmdBuffer.DrawMeshInstancedProcedural(mesh, meshDrawCommand.sectionIndex, material, passIndex, meshDrawCommand.countOffset.x, m_PropertyBlock);*/
                 }
 
                 m_ResourcePool.ReleaseBuffer(bufferRef);

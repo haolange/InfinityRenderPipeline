@@ -8,9 +8,9 @@ namespace InfinityTech.Rendering.Pipeline
     {
         RenderDepth,
         RenderGBuffer,
-        RenderMotionObject,
+        RenderObjectMotion,
         CopyMotionDepth,
-        RenderMotionCamera,
+        RenderCameraMotion,
         RenderForward,
         RenderSkyBox,
         RenderAtmosphere,

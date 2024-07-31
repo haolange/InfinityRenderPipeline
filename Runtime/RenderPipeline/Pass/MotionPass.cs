@@ -40,10 +40,10 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef copyDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionDepthBuffer, depthDescriptor);
 
             //Add ObjectMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionObject)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderObjectMotion)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Write);
                 passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add ObjectMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionCamera)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCameraMotion)))
             {
                 //Setup Phase
                 passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
