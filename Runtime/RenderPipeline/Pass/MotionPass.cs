@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add CopyMotionPass
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyMotionDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
+            /*using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyMotionDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
             {
                 //Setup Phase
                 ref CopyMotionDepthPassData passData = ref passRef.GetPassData<CopyMotionDepthPassData>();
@@ -84,13 +84,13 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdBuffer.CopyTexture(passData.depthTexture, passData.copyDepthTexture);
                     #endif
                 });
-            }
+            }*/
 
             //Add ObjectMotionPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCameraMotion)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                 passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
