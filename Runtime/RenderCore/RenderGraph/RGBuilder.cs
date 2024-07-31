@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
+using Unity.Collections;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
@@ -395,7 +396,9 @@ namespace InfinityTech.Rendering.RenderGraph
                         {
                             UpdatePassSynchronization(ref currentPassInfo, ref m_PassCompileInfos[lastProducer], currentPassIndex, lastProducer, ref lastGraphicsPipeSync);
                         }
-                    } else {
+                    } 
+                    else 
+                    {
                         if (lastProducer > lastComputePipeSync)
                         {
                             UpdatePassSynchronization(ref currentPassInfo, ref m_PassCompileInfos[lastProducer], currentPassIndex, lastProducer, ref lastComputePipeSync);
@@ -563,11 +566,11 @@ namespace InfinityTech.Rendering.RenderGraph
             var pass = passCompileInfo.pass;
             if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
             {
-                ref RGPassOption passOption = ref pass.GetPassOption();
-
                 if (pass.colorBufferMaxIndex > 0)
                 {
-                    var mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(pass.colorBufferMaxIndex + 1);
+                    RenderTargetIdentifier[] mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(pass.colorBufferMaxIndex + 1);
+                    RenderBufferLoadAction[] loadOpArray = graphContext.objectPool.GetTempArray<RenderBufferLoadAction>(pass.colorBufferMaxIndex + 1);
+                    RenderBufferStoreAction[] storeOpArray = graphContext.objectPool.GetTempArray<RenderBufferStoreAction>(pass.colorBufferMaxIndex + 1);
 
                     for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
                     {
@@ -577,29 +580,263 @@ namespace InfinityTech.Rendering.RenderGraph
                         }
 
                         mrtArray[i] = m_Resources.GetTexture(pass.colorBuffers[i]);
+                        loadOpArray[i] = pass.colorBufferActions[i].loadAction;
+                        storeOpArray[i] = pass.colorBufferActions[i].storeAction;
                     }
 
                     if (pass.depthBuffer.IsValid()) 
                     {
-                        //RenderTargetBinding renderTargetBinding = new RenderTargetBinding();
+                        RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
+                        renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
+                        graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
 
-                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer));
+                        //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer));
                     } 
                     else 
                     {
                         throw new InvalidOperationException("Setting MRTs without a depth buffer is not supported.");
                     }
-                } else {
+                } 
+                else 
+                {
                     if (pass.depthBuffer.IsValid())
                     {
+                        RenderTargetIdentifier[] mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(1);
+                        RenderBufferLoadAction[] loadOpArray = graphContext.objectPool.GetTempArray<RenderBufferLoadAction>(1);
+                        RenderBufferStoreAction[] storeOpArray = graphContext.objectPool.GetTempArray<RenderBufferStoreAction>(1);
+
                         if (pass.colorBufferMaxIndex > -1) 
                         {
-                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), m_Resources.GetTexture(pass.depthBuffer));
-                        } else {
-                            CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer));
+                            mrtArray[0] = m_Resources.GetTexture(pass.colorBuffers[0]);
+                            loadOpArray[0] = pass.colorBufferActions[0].loadAction;
+                            storeOpArray[0] = pass.colorBufferActions[0].storeAction;
+
+                            RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
+                            renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
+                            graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
+
+                            //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), pass.colorBufferActions[0].loadAction, pass.colorBufferActions[0].storeAction, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
+                        } 
+                        else
+                        {
+                            mrtArray[0] = m_Resources.GetTexture(pass.depthBuffer);
+                            loadOpArray[0] = pass.depthBufferAction.loadAction;
+                            storeOpArray[0] = pass.depthBufferAction.storeAction;
+
+                            RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
+                            renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
+                            graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
+
+                            //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
                         }
-                    } else {
-                        CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]));
+                    } 
+                    else 
+                    {
+                        RenderTargetIdentifier[] mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(1);
+                        RenderBufferLoadAction[] loadOpArray = graphContext.objectPool.GetTempArray<RenderBufferLoadAction>(1);
+                        RenderBufferStoreAction[] storeOpArray = graphContext.objectPool.GetTempArray<RenderBufferStoreAction>(1);
+
+                        mrtArray[0] = m_Resources.GetTexture(pass.colorBuffers[0]);
+                        loadOpArray[0] = pass.colorBufferActions[0].loadAction;
+                        storeOpArray[0] = pass.colorBufferActions[0].storeAction;
+
+                        RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, new RenderTargetIdentifier(), RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
+                        renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
+                        graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
+
+                        //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), pass.colorBufferActions[0].loadAction, pass.colorBufferActions[0].storeAction);
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void BeginRasterPass(ref RGContext graphContext, in RGPassCompileInfo passCompileInfo)
+        {
+            IRGPass pass = passCompileInfo.pass;
+            if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
+            {
+                if (pass.colorBufferMaxIndex > 0)
+                {
+                    if (pass.depthBuffer.IsValid())
+                    {
+                        NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(pass.colorBufferMaxIndex + 2, Allocator.Temp);
+                        for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
+                        {
+                            if (!pass.colorBuffers[i].IsValid())
+                            {
+                                throw new InvalidOperationException("MRT setup is invalid. Some indices are not used.");
+                            }
+
+                            RenderTexture renderBuffer = m_Resources.GetTexture(pass.colorBuffers[i]);
+
+                            AttachmentDescriptor attachmentDescriptor = new AttachmentDescriptor();
+                            {
+                                attachmentDescriptor.loadAction = pass.colorBufferActions[i].loadAction;
+                                attachmentDescriptor.storeAction = pass.colorBufferActions[i].storeAction;
+                                attachmentDescriptor.graphicsFormat = renderBuffer.graphicsFormat;
+                                attachmentDescriptor.loadStoreTarget = renderBuffer;
+                                attachmentDescriptor.clearColor = Color.black;
+                                attachmentDescriptor.clearDepth = 0;
+                                attachmentDescriptor.clearStencil = 0;
+                            }
+                            attachmentDescriptors[i] = attachmentDescriptor;
+                        }
+
+                        RenderTexture depthBuffer = m_Resources.GetTexture(pass.depthBuffer);
+                        AttachmentDescriptor depthAttachmentDescriptor = new AttachmentDescriptor();
+                        {
+                            depthAttachmentDescriptor.loadAction = pass.depthBufferAction.loadAction;
+                            depthAttachmentDescriptor.storeAction = pass.depthBufferAction.storeAction;
+                            depthAttachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
+                            depthAttachmentDescriptor.loadStoreTarget = depthBuffer;
+                            depthAttachmentDescriptor.clearColor = Color.black;
+                            depthAttachmentDescriptor.clearDepth = 0;
+                            depthAttachmentDescriptor.clearStencil = 0;
+                        }
+                        attachmentDescriptors[pass.colorBufferMaxIndex + 1] = depthAttachmentDescriptor;
+
+                        SubPassDescriptor subPassDescriptor = new SubPassDescriptor();
+                        {
+                            subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
+                            subPassDescriptor.colorOutputs = new AttachmentIndexArray(pass.colorBufferMaxIndex + 1);
+                            for(int i = 0; i < pass.colorBufferMaxIndex + 1; ++i)
+                            {
+                                subPassDescriptor.colorOutputs[i] = i;
+                            }
+                            //subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                        }
+                        NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);
+                        {
+                            subPassDescriptors[0] = subPassDescriptor;
+                        }
+
+                        graphContext.cmdBuffer.BeginRenderPass(depthBuffer.width, depthBuffer.height, 1, attachmentDescriptors, pass.colorBufferMaxIndex + 1, subPassDescriptors);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Setting MRTs without a depth buffer is not supported.");
+                    }
+                }
+                else
+                {
+                    if (pass.depthBuffer.IsValid())
+                    {
+                        if (pass.colorBufferMaxIndex > -1)
+                        {
+                            RenderTexture depthBuffer = m_Resources.GetTexture(pass.depthBuffer);
+                            RenderTexture colorBuffer = m_Resources.GetTexture(pass.colorBuffers[0]);
+
+                            AttachmentDescriptor depthAttachmentDescriptor = new AttachmentDescriptor();
+                            {
+                                depthAttachmentDescriptor.loadAction = pass.depthBufferAction.loadAction;
+                                depthAttachmentDescriptor.storeAction = pass.depthBufferAction.storeAction;
+                                depthAttachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
+                                depthAttachmentDescriptor.loadStoreTarget = depthBuffer;
+                                depthAttachmentDescriptor.clearColor = Color.black;
+                                depthAttachmentDescriptor.clearDepth = 0;
+                                depthAttachmentDescriptor.clearStencil = 0;
+                            }
+                            AttachmentDescriptor colorAttachmentDescriptor = new AttachmentDescriptor();
+                            {
+                                colorAttachmentDescriptor.loadAction = pass.colorBufferActions[0].loadAction;
+                                colorAttachmentDescriptor.storeAction = pass.colorBufferActions[0].storeAction;
+                                colorAttachmentDescriptor.graphicsFormat = colorBuffer.graphicsFormat;
+                                colorAttachmentDescriptor.loadStoreTarget = colorBuffer;
+                                colorAttachmentDescriptor.clearColor = Color.black;
+                                colorAttachmentDescriptor.clearDepth = 0;
+                                colorAttachmentDescriptor.clearStencil = 0;
+                            }
+
+                            NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(2, Allocator.Temp);
+                            {
+                                attachmentDescriptors[0] = colorAttachmentDescriptor;
+                                attachmentDescriptors[1] = depthAttachmentDescriptor;
+                            }
+
+                            SubPassDescriptor subPassDescriptor = new SubPassDescriptor();
+                            {
+                                subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
+                                subPassDescriptor.colorOutputs = new AttachmentIndexArray(1);
+                                subPassDescriptor.colorOutputs[0] = 0;
+                                //subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                            }
+                            NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);
+                            {
+                                subPassDescriptors[0] = subPassDescriptor;
+                            }
+
+                            graphContext.cmdBuffer.BeginRenderPass(depthBuffer.width, depthBuffer.height, 1, attachmentDescriptors, 1, subPassDescriptors);
+                        }
+                        else
+                        {
+                            RenderTexture depthBuffer = m_Resources.GetTexture(pass.depthBuffer);
+                            AttachmentDescriptor attachmentDescriptor = new AttachmentDescriptor();
+                            {
+                                attachmentDescriptor.loadAction = pass.depthBufferAction.loadAction;
+                                attachmentDescriptor.storeAction = pass.depthBufferAction.storeAction;
+                                attachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
+                                attachmentDescriptor.loadStoreTarget = depthBuffer;
+                                attachmentDescriptor.clearColor = Color.black;
+                                attachmentDescriptor.clearDepth = 0;
+                                attachmentDescriptor.clearStencil = 0;
+                            }
+                            NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(1, Allocator.Temp);
+                            {
+                                attachmentDescriptors[0] = attachmentDescriptor;
+                            }
+
+                            SubPassDescriptor subPassDescriptor = new SubPassDescriptor();
+                            {
+                                subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
+                                subPassDescriptor.colorOutputs = AttachmentIndexArray.Emtpy;
+                                //subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                            }
+                            NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);
+                            {
+                                subPassDescriptors[0] = subPassDescriptor;
+                            }
+
+                            graphContext.cmdBuffer.BeginRenderPass(depthBuffer.width, depthBuffer.height, 1, attachmentDescriptors, 0, subPassDescriptors);
+                        }
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Depth Buffer is Invalid.");
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EndRasterPass(ref RGContext graphContext, in RGPassCompileInfo passCompileInfo)
+        {
+            IRGPass pass = passCompileInfo.pass;
+            if (pass.depthBuffer.IsValid() || pass.colorBufferMaxIndex != -1)
+            {
+                if (pass.colorBufferMaxIndex > 0)
+                {
+                    if (pass.depthBuffer.IsValid())
+                    {
+                        graphContext.cmdBuffer.EndRenderPass();
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Setting MRTs without a depth buffer is not supported.");
+                    }
+                }
+                else
+                {
+                    if (pass.depthBuffer.IsValid())
+                    {
+                        if (pass.colorBufferMaxIndex > -1)
+                        {
+                            graphContext.cmdBuffer.EndRenderPass();
+                        }
+                        else
+                        {
+                            graphContext.cmdBuffer.EndRenderPass();
+                        }
                     }
                 }
             }
@@ -623,20 +860,28 @@ namespace InfinityTech.Rendering.RenderGraph
             graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
             graphContext.cmdBuffer.Clear();
 
-            if (pass.enableAsyncCompute) 
+            switch (pass.passType)
             {
-                CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
-                asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
-                graphContext.cmdBuffer = asyncCmdBuffer;
-            }
+                case EPassType.Compute:
+                case EPassType.RayTracing:
+                    if (pass.enableAsyncCompute)
+                    {
+                        CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
+                        asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
+                        graphContext.cmdBuffer = asyncCmdBuffer;
+                    }
+                    break;
 
-            if (passCompileInfo.syncToPassIndex != -1) 
-            {
-                graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(m_PassCompileInfos[passCompileInfo.syncToPassIndex].fence);
-            }
+                case EPassType.Raster:
+                    if (passCompileInfo.syncToPassIndex != -1)
+                    {
+                        graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(m_PassCompileInfos[passCompileInfo.syncToPassIndex].fence);
+                    }
 
-            SetRenderTarget(ref graphContext, passCompileInfo);
-            //m_Resources.SetGlobalTextures(ref graphContext, pass.resourceReadLists[(int)ERGResourceType.Texture]);
+                    //SetRenderTarget(ref graphContext, passCompileInfo);
+                    BeginRasterPass(ref graphContext, passCompileInfo);
+                    break;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -644,16 +889,26 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             IRGPass pass = passCompileInfo.pass;
 
-            if (passCompileInfo.needGraphicsFence) 
+            switch (pass.passType)
             {
-                passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
-            }
+                case EPassType.Compute:
+                case EPassType.RayTracing:
+                    if (passCompileInfo.needGraphicsFence)
+                    {
+                        passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
+                    }
 
-            if (pass.enableAsyncCompute) 
-            {
-                graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
-                CommandBufferPool.Release(graphContext.cmdBuffer);
-                graphContext.cmdBuffer = graphicsCmdBuffer;
+                    if (pass.enableAsyncCompute)
+                    {
+                        graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
+                        CommandBufferPool.Release(graphContext.cmdBuffer);
+                        graphContext.cmdBuffer = graphicsCmdBuffer;
+                    }
+                    break;
+
+                case EPassType.Raster:
+                    EndRasterPass(ref graphContext, passCompileInfo);
+                    break;
             }
 
             m_ObjectPool.ReleaseAllTempAlloc();

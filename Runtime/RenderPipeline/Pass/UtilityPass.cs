@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                 passRef.UseColorBuffer(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 ref WireOverlayPassData passData = ref passRef.GetPassData<WireOverlayPassData>();
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     //Setup Phase
                     passRef.UseColorBuffer(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                    passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
+                    passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     passData.rendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<SkyBoxPassData>(ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                 passRef.UseColorBuffer(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();

@@ -15,16 +15,16 @@ namespace InfinityTech.Rendering.RenderGraph
         Raster = 3
     }
 
-    internal struct RGPassOption
+    internal struct RGAttachmentAction
     {
-        public bool IsActive;
-        public ClearFlag clearFlag;
+        public RenderBufferLoadAction loadAction;
+        public RenderBufferStoreAction storeAction;
 
-        public RenderBufferLoadAction colorLoadAction;
-        public RenderBufferStoreAction colorStoreAction;
-
-        public RenderBufferLoadAction depthLoadAction;
-        public RenderBufferStoreAction depthStoreAction;
+        public RGAttachmentAction(in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        {
+            this.loadAction = loadAction;
+            this.storeAction = storeAction;
+        }
     }
 
     public delegate void RGTransferPassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
@@ -36,7 +36,6 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         public int index;
         public string name;
-        public RGPassOption passOption;
         public ProfilingSampler customSampler;
 
         public int refCount { get; protected set; }
@@ -45,7 +44,10 @@ namespace InfinityTech.Rendering.RenderGraph
         public bool enablePassCulling { get; protected set; }
         public bool enableAsyncCompute { get; protected set; }
         public RGTextureRef depthBuffer { get; protected set; }
+        public EDepthAccess depthBufferAccess { get; protected set; }
+        public RGAttachmentAction depthBufferAction { get; protected set; }
         public RGTextureRef[] colorBuffers { get; protected set; }
+        public RGAttachmentAction[] colorBufferActions { get; protected set; }
 
         internal virtual bool hasExecuteAction => false;
 
@@ -57,6 +59,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             colorBufferMaxIndex = -1;
             colorBuffers = new RGTextureRef[8];
+            colorBufferActions = new RGAttachmentAction[8];
             resourceReadLists = new List<RGResourceHandle>[2];
             resourceWriteLists = new List<RGResourceHandle>[2];
             temporalResourceList = new List<RGResourceHandle>[2];
@@ -91,18 +94,21 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetColorBuffer(in RGTextureRef resource, in int index)
+        public void SetColorBuffer(in RGTextureRef resource, in int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
         {
             colorBufferMaxIndex = Math.Max(colorBufferMaxIndex, index);
             colorBuffers[index] = resource;
+            colorBufferActions[index] = new RGAttachmentAction(loadAction, storeAction);
             AddResourceWrite(resource.handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetDepthBuffer(in RGTextureRef resource, in EDepthAccess flags)
+        public void SetDepthBuffer(in RGTextureRef resource, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
             depthBuffer = resource;
-            if ((flags & EDepthAccess.Read) != 0) 
+            depthBufferAccess = flags;
+            depthBufferAction = new RGAttachmentAction(loadAction, storeAction);
+            if ((flags & EDepthAccess.ReadOnly) != 0) 
             {
                 AddResourceRead(resource.handle);
             }
@@ -125,12 +131,6 @@ namespace InfinityTech.Rendering.RenderGraph
             enableAsyncCompute = value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref RGPassOption GetPassOption()
-        {
-            return ref passOption;
-        }
-
         public void Clear()
         {
             name = "";
@@ -150,9 +150,12 @@ namespace InfinityTech.Rendering.RenderGraph
             // Invalidate everything
             colorBufferMaxIndex = -1;
             depthBuffer = new RGTextureRef();
+            depthBufferAccess = EDepthAccess.Write;
+            depthBufferAction = new RGAttachmentAction();
             for (int i = 0; i < 8; ++i)
             {
                 colorBuffers[i] = new RGTextureRef();
+                colorBufferActions[i] = new RGAttachmentAction();
             }
         }
     }
@@ -531,32 +534,12 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Disposed = false;
             m_RasterPass = rasterPass;
             m_ResourceFactory = resourceFactory;
-
-            ref RGPassOption passOption = ref m_RasterPass.GetPassOption();
-            passOption.IsActive = false;
-            passOption.clearFlag = ClearFlag.All;
-            passOption.colorLoadAction = RenderBufferLoadAction.DontCare;
-            passOption.depthLoadAction = RenderBufferLoadAction.DontCare;
-            passOption.colorStoreAction = RenderBufferStoreAction.Store;
-            passOption.depthStoreAction = RenderBufferStoreAction.Store;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnablePassCulling(in bool value)
         {
             m_RasterPass.EnablePassCulling(value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetOption(in ClearFlag clearFlag, in RenderBufferLoadAction colorLoadAction = RenderBufferLoadAction.DontCare, in RenderBufferStoreAction colorStoreAction = RenderBufferStoreAction.Store, in RenderBufferLoadAction depthLoadAction = RenderBufferLoadAction.DontCare, in RenderBufferStoreAction depthStoreAction = RenderBufferStoreAction.Store)
-        {
-            ref RGPassOption passOption = ref m_RasterPass.GetPassOption();
-            passOption.IsActive = true;
-            passOption.clearFlag = clearFlag;
-            passOption.colorLoadAction = colorLoadAction;
-            passOption.depthLoadAction = depthLoadAction;
-            passOption.colorStoreAction = colorStoreAction;
-            passOption.depthStoreAction = depthStoreAction;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -574,30 +557,16 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef UseColorBuffer(in RGTextureRef renderTarget, int index)
-        {
-            m_RasterPass.SetColorBuffer(renderTarget, index);
-            return renderTarget;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef UseDepthBuffer(in RGTextureRef input, in EDepthAccess flags)
-        {
-            m_RasterPass.SetDepthBuffer(input, flags);
-            return input;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef UseColorBuffer(in RGTextureRef renderTarget, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
         {
-            m_RasterPass.SetColorBuffer(renderTarget, index);
+            m_RasterPass.SetColorBuffer(renderTarget, index, loadAction, storeAction);
             return renderTarget;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef UseDepthBuffer(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
-            m_RasterPass.SetDepthBuffer(input, flags);
+            m_RasterPass.SetDepthBuffer(input, loadAction, storeAction, flags);
             return input;
         }
 

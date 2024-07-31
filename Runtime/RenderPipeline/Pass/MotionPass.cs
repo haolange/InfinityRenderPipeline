@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionObject)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Read);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
                 passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderMotionCamera)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Read);
+                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
                 passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();

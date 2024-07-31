@@ -8,14 +8,14 @@ using InfinityTech.Rendering.GPUResource;
 namespace InfinityTech.Rendering.RenderGraph
 {
     [Flags]
-    public enum EDepthAccess
+    public enum EDepthAccess : byte
     {
-        Read = 1 << 0,
-        Write = 1 << 1,
-        ReadWrite = Read | Write,
+        ReadOnly = 0x01,
+        Write = 0x02
     }
 
-    internal enum ERGResourceType
+    [Flags]
+    internal enum ERGResourceType : byte
     {
         Buffer,
         Texture

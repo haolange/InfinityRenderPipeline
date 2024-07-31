@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             using (new ProfilingScope(cmdBuffer, m_DrawProfiler))
             {
                 FBufferRef bufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(10000, Marshal.SizeOf(typeof(int))));
-                cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs, 0, 0, m_MeshBatchIndexs.Length);
+                //cmdBuffer.SetBufferData(bufferRef.buffer, m_MeshBatchIndexs, 0, 0, m_MeshBatchIndexs.Length);
 
                 for (int i = 0; i < m_MeshDrawCommands.Length; ++i)
                 {
