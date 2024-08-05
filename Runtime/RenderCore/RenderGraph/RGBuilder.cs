@@ -704,7 +704,10 @@ namespace InfinityTech.Rendering.RenderGraph
                             {
                                 subPassDescriptor.colorOutputs[i] = i;
                             }
-                            //subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                            if(pass.depthBufferAccess == EDepthAccess.ReadOnly)
+                            {
+                                subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                            }
                         }
                         NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);
                         {
@@ -759,7 +762,10 @@ namespace InfinityTech.Rendering.RenderGraph
                                 subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
                                 subPassDescriptor.colorOutputs = new AttachmentIndexArray(1);
                                 subPassDescriptor.colorOutputs[0] = 0;
-                                //subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                                if (pass.depthBufferAccess == EDepthAccess.ReadOnly)
+                                {
+                                    subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                                }
                             }
                             NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);
                             {
@@ -790,7 +796,10 @@ namespace InfinityTech.Rendering.RenderGraph
                             {
                                 subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
                                 subPassDescriptor.colorOutputs = AttachmentIndexArray.Emtpy;
-                                //subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                                if (pass.depthBufferAccess == EDepthAccess.ReadOnly)
+                                {
+                                    subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
+                                }
                             }
                             NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);
                             {

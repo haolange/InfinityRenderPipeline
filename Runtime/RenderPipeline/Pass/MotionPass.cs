@@ -43,8 +43,9 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderObjectMotion)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Write);
-                passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.EnablePassCulling(false);
+                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Write);
 
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
                 {
@@ -68,9 +69,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add CopyMotionPass
-            /*using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyMotionDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
+            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyMotionDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
             {
                 //Setup Phase
+                passRef.EnablePassCulling(false);
+
                 ref CopyMotionDepthPassData passData = ref passRef.GetPassData<CopyMotionDepthPassData>();
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.copyDepthTexture = passRef.WriteTexture(copyDepthTexture);
@@ -84,14 +87,15 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdBuffer.CopyTexture(passData.depthTexture, passData.copyDepthTexture);
                     #endif
                 });
-            }*/
+            }
 
             //Add ObjectMotionPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCameraMotion)))
             {
                 //Setup Phase
-                passRef.UseDepthBuffer(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
-                passRef.UseColorBuffer(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.EnablePassCulling(false);
+                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
                 passData.copyDepthTexture = passRef.ReadTexture(copyDepthTexture);
