@@ -16,37 +16,29 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        struct MotionPassData
+        struct ObjectMotionPassData
         {
             public RendererList rendererList;
-            public RGTextureRef copyDepthTexture;
         }
 
-        struct CopyMotionDepthPassData
+        struct CameraMotionPassData
         {
             public RGTextureRef depthTexture;
-            public RGTextureRef copyDepthTexture;
         }
 
         void RenderMotion(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
-            TextureDescriptor depthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = MotionPassUtilityData.DepthTextureName, depthBufferBits = EDepthBits.Depth32 };
             TextureDescriptor motionDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = MotionPassUtilityData.MotionTextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
 
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureRef motionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionDescriptor);
-            RGTextureRef copyDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionDepthBuffer, depthDescriptor);
 
             //Add ObjectMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderObjectMotion)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderObjectMotion)))
             {
                 //Setup Phase
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Write);
-
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
                 {
                     rendererListDesc.layerMask = camera.cullingMask;
@@ -57,53 +49,34 @@ namespace InfinityTech.Rendering.Pipeline
                     rendererListDesc.excludeObjectMotionVectors = false;
                 }
 
-                ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
+                ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.EnablePassCulling(false);
+                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Write);
+                passRef.SetExecuteFunc((in ObjectMotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     //UnityDrawPipeline
                     cmdBuffer.DrawRendererList(passData.rendererList);
                 });
             }
 
-            //Add CopyMotionPass
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyMotionDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyMotionDepth)))
+            //Add ObjectMotionPass
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCameraMotion)))
             {
                 //Setup Phase
-                passRef.EnablePassCulling(false);
-
-                ref CopyMotionDepthPassData passData = ref passRef.GetPassData<CopyMotionDepthPassData>();
-                passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.copyDepthTexture = passRef.WriteTexture(copyDepthTexture);
+                ref CameraMotionPassData passData = ref passRef.GetPassData<CameraMotionPassData>();
+                passData.depthTexture = depthTexture;
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in CopyMotionDepthPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
-                {
-                    #if UNITY_EDITOR
-                        cmdBuffer.DrawFullScreen(passData.depthTexture, passData.copyDepthTexture);
-                    #else
-                        cmdBuffer.CopyTexture(passData.depthTexture, passData.copyDepthTexture);
-                    #endif
-                });
-            }
-
-            //Add ObjectMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<MotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCameraMotion)))
-            {
-                //Setup Phase
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
-
-                ref MotionPassData passData = ref passRef.GetPassData<MotionPassData>();
-                passData.copyDepthTexture = passRef.ReadTexture(copyDepthTexture);
-
-                //Execute Phase
-                passRef.SetExecuteFunc((in MotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CameraMotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
-                    cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.copyDepthTexture);
+                    cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTexture);
                     cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);
                 });
             }

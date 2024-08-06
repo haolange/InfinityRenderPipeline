@@ -137,6 +137,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
+        {
+            return m_Resources.ImportBackbuffer(backBuffer, shaderProperty);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateTexture(in RGTextureRef textureRef, in int shaderProperty = 0)
         {
             return m_Resources.CreateTexture(m_Resources.GetTextureDescriptor(textureRef.handle), shaderProperty);
@@ -715,6 +721,9 @@ namespace InfinityTech.Rendering.RenderGraph
                         }
 
                         graphContext.cmdBuffer.BeginRenderPass(depthBuffer.width, depthBuffer.height, 1, attachmentDescriptors, pass.colorBufferMaxIndex + 1, subPassDescriptors);
+
+                        attachmentDescriptors.Dispose();
+                        subPassDescriptors.Dispose();
                     }
                     else
                     {
@@ -729,6 +738,11 @@ namespace InfinityTech.Rendering.RenderGraph
                         {
                             RenderTexture depthBuffer = m_Resources.GetTexture(pass.depthBuffer);
                             RenderTexture colorBuffer = m_Resources.GetTexture(pass.colorBuffers[0]);
+
+                            if (depthBuffer.width != colorBuffer.width || depthBuffer.height != colorBuffer.height)
+                            {
+                                Debug.LogError("ColorAttachment size not match DepthAttachment in RenderPass : {pass.name}");
+                            }
 
                             AttachmentDescriptor depthAttachmentDescriptor = new AttachmentDescriptor();
                             {
@@ -773,6 +787,9 @@ namespace InfinityTech.Rendering.RenderGraph
                             }
 
                             graphContext.cmdBuffer.BeginRenderPass(depthBuffer.width, depthBuffer.height, 1, attachmentDescriptors, 1, subPassDescriptors);
+
+                            attachmentDescriptors.Dispose();
+                            subPassDescriptors.Dispose();
                         }
                         else
                         {
@@ -807,11 +824,46 @@ namespace InfinityTech.Rendering.RenderGraph
                             }
 
                             graphContext.cmdBuffer.BeginRenderPass(depthBuffer.width, depthBuffer.height, 1, attachmentDescriptors, 0, subPassDescriptors);
+
+                            attachmentDescriptors.Dispose();
+                            subPassDescriptors.Dispose();
                         }
                     }
                     else
                     {
-                        throw new InvalidOperationException("Depth Buffer is Invalid.");
+                        RenderTexture colorBuffer = m_Resources.GetTexture(pass.colorBuffers[0]);
+
+                        AttachmentDescriptor colorAttachmentDescriptor = new AttachmentDescriptor();
+                        {
+                            colorAttachmentDescriptor.loadAction = pass.colorBufferActions[0].loadAction;
+                            colorAttachmentDescriptor.storeAction = pass.colorBufferActions[0].storeAction;
+                            colorAttachmentDescriptor.graphicsFormat = colorBuffer.graphicsFormat;
+                            colorAttachmentDescriptor.loadStoreTarget = colorBuffer;
+                            colorAttachmentDescriptor.clearColor = Color.black;
+                            colorAttachmentDescriptor.clearDepth = 1;
+                            colorAttachmentDescriptor.clearStencil = 0;
+                        }
+
+                        NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(1, Allocator.Temp);
+                        {
+                            attachmentDescriptors[0] = colorAttachmentDescriptor;
+                        }
+
+                        SubPassDescriptor subPassDescriptor = new SubPassDescriptor();
+                        {
+                            subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
+                            subPassDescriptor.colorOutputs = new AttachmentIndexArray(1);
+                            subPassDescriptor.colorOutputs[0] = 0;
+                        }
+                        NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);
+                        {
+                            subPassDescriptors[0] = subPassDescriptor;
+                        }
+
+                        graphContext.cmdBuffer.BeginRenderPass(colorBuffer.width, colorBuffer.height, 1, attachmentDescriptors, -1, subPassDescriptors);
+
+                        attachmentDescriptors.Dispose();
+                        subPassDescriptors.Dispose();
                     }
                 }
             }
@@ -846,6 +898,10 @@ namespace InfinityTech.Rendering.RenderGraph
                         {
                             graphContext.cmdBuffer.EndRenderPass();
                         }
+                    }
+                    else
+                    {
+                        graphContext.cmdBuffer.EndRenderPass();
                     }
                 }
             }

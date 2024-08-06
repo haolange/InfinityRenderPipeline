@@ -297,7 +297,10 @@ namespace InfinityTech.Rendering.Pipeline
                                     terrain.ProcessLOD(camera.transform.position, matrix_Proj);
                                     
                                     #if UNITY_EDITOR
-                                        if (Handles.ShouldRenderGizmos()) { terrain.DrawBounds(true); }
+                                    if (Handles.ShouldRenderGizmos()) 
+                                    { 
+                                        terrain.DrawBounds(true); 
+                                    }
                                     #endif
                                 }
                             }
@@ -363,7 +366,7 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderWireOverlay(renderContext, camera);
                             RenderGizmos(renderContext, camera);
                         #endif
-                            RenderPresent(renderContext, camera, camera.targetTexture);
+                            //RenderPresent(renderContext, camera, camera.activeTexture);
                         }
 
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))

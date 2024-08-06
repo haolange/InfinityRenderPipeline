@@ -28,13 +28,12 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
             {
                 //Setup Phase
-                passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
-
                 ref WireOverlayPassData passData = ref passRef.GetPassData<WireOverlayPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
 
                 //Execute Phase
+                passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                 passRef.SetExecuteFunc((in WireOverlayPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     cmdBuffer.DrawRendererList(passData.rendererList);
@@ -59,13 +58,12 @@ namespace InfinityTech.Rendering.Pipeline
                 using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
-                    passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                    passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
-
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     passData.rendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
 
                     //Execute Phase
+                    passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                    passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                     passRef.SetExecuteFunc((in GizmosPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                     {
                         cmdBuffer.DrawRendererList(passData.rendererList);
@@ -90,13 +88,12 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<SkyBoxPassData>(ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
-                passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
-
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateSkyboxRendererList(camera);
 
                 //Execute Phase
+                passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
                 passRef.SetExecuteFunc((in SkyBoxPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     cmdBuffer.DrawRendererList(passData.rendererList);
@@ -109,37 +106,30 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public Camera camera;
             public RGTextureRef srcTexture;
-            public RenderTexture dscTexture;
         }
 
-        void RenderPresent(RenderContext renderContext, Camera camera, RenderTexture dscTexture)
+        void RenderPresent(RenderContext renderContext, Camera camera, RenderTexture backBuffer)
         {
             RGTextureRef srcTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
-            
+            RGTextureRef dstTexture = m_RGBuilder.ImportBackbuffer(BuiltinRenderTextureType.CameraTarget);
+
             // Add PresentPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))
             {
                 //Setup Phase
+                passRef.EnablePassCulling(false);
+                passRef.SetColorAttachment(dstTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+
                 ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
                 passData.camera = camera;
                 passData.srcTexture = passRef.ReadTexture(srcTexture);
-                passData.dscTexture = dscTexture;
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in PresentPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
-                    RenderTexture srcBuffer = passData.srcTexture;
-                    RenderTexture dscBuffer = passData.dscTexture;
-                    
-                    float4 scaleBias = new float4((float)passData.camera.pixelWidth / (float)srcBuffer.width, (float)passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
-                    if (!passData.dscTexture) 
-                    { 
-                        scaleBias.w = scaleBias.y; 
-                        scaleBias.y *= -1; 
-                    }
-
-                    cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
-                    cmdBuffer.DrawFullScreen(GraphicsUtility.GetViewport(passData.camera), passData.srcTexture, new RenderTargetIdentifier(passData.dscTexture), 1);
+                    cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.srcTexture);
+                    cmdBuffer.SetViewport(GraphicsUtility.GetViewport(passData.camera));
+                    cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 0);
                 });
             }
         }

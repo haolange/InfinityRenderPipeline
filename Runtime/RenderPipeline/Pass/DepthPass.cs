@@ -30,8 +30,6 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
-
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
                 {
                     rendererListDesc.layerMask = camera.cullingMask;
@@ -49,6 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_DepthMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
                 passRef.SetExecuteFunc((in DepthPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline

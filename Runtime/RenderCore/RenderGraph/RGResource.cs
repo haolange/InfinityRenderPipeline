@@ -17,8 +17,10 @@ namespace InfinityTech.Rendering.RenderGraph
     [Flags]
     internal enum ERGResourceType : byte
     {
-        Buffer,
-        Texture
+        Buffer = 0,
+        Texture = 1,
+        AccelerationStructure = 2,
+        Max = 3
     }
 
     internal struct RGResourceHandle
@@ -142,9 +144,10 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
+        RTHandle m_Backbuffer;
         BufferCache m_BufferPool = new BufferCache();
         TextureCache m_TexturePool = new TextureCache();
-        DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[2];
+        DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
 
         public RGResourceFactory()
         {
@@ -161,7 +164,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal RenderTexture GetTexture(in RGTextureRef textureRef)
+        internal RTHandle GetTexture(in RGTextureRef textureRef)
         {
             return GetTextureResource(textureRef.handle).resource;
         }
@@ -257,6 +260,24 @@ namespace InfinityTech.Rendering.RenderGraph
             rdgTexture.imported = true;
             rdgTexture.shaderProperty = shaderProperty;
 
+            return new RGTextureRef(newHandle);
+        }
+
+        internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
+        {
+            if (m_Backbuffer != null)
+            {
+                m_Backbuffer.SetTexture(backBuffer);
+            }
+            else
+            {
+                m_Backbuffer = RTHandles.Alloc(backBuffer, "Backbuffer");
+            }
+
+            int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Texture], out RGTexture texResource);
+            texResource.resource = m_Backbuffer;
+            texResource.imported = true;
+            texResource.shaderProperty = shaderProperty;
             return new RGTextureRef(newHandle);
         }
 

@@ -35,11 +35,6 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
             {
                 //Setup Phase
-                passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(gbufferTextureA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(gbufferTextureB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
-
                 RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.GBufferPass, cullingResults, camera);
                 {
                     rendererListDesc.layerMask = camera.cullingMask;
@@ -53,10 +48,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref GBufferPassData passData = ref passRef.GetPassData<GBufferPassData>();
                 passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
                 passData.meshPassProcessor = m_GBufferMeshProcessor;
-                
+
                 m_GBufferMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
+                passRef.EnablePassCulling(false);
+                passRef.SetColorAttachment(gbufferTextureA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.SetColorAttachment(gbufferTextureB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
                 passRef.SetExecuteFunc((in GBufferPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline

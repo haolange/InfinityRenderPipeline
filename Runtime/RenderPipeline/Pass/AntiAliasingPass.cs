@@ -51,8 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
                 //Setup Phase
-                passRef.EnablePassCulling(false);
-
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
                 passData.resolution = new float4(camera.pixelWidth, camera.pixelHeight, 1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
                 passData.taaShader = pipelineAsset.taaShader;
@@ -64,6 +62,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.accmulateColorTexture = passRef.WriteTexture(accmulateColorTexture);
 
                 //Execute Phase
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in AntiAliasingPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     TemporalAAInputData taaInputData;
