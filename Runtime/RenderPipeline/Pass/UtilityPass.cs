@@ -108,17 +108,15 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef srcTexture;
         }
 
-        void RenderPresent(RenderContext renderContext, Camera camera, RenderTexture backBuffer)
+        void RenderPresent(RenderContext renderContext, Camera camera)
         {
             RGTextureRef srcTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
-            RGTextureRef dstTexture = m_RGBuilder.ImportBackbuffer(BuiltinRenderTextureType.CameraTarget);
 
             // Add PresentPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))
+            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(dstTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
 
                 ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
                 passData.camera = camera;
@@ -127,9 +125,24 @@ namespace InfinityTech.Rendering.Pipeline
                 //Execute Phase
                 passRef.SetExecuteFunc((in PresentPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
+                    bool bIsRenderToBackBufferTarget = passData.camera.cameraType != CameraType.SceneView;
+                    if (bIsRenderToBackBufferTarget)
+                    {
+                        cmdBuffer.SetViewport(GraphicsUtility.GetViewport(passData.camera));
+                    }
+
+                    RenderTexture srcBuffer = passData.srcTexture;
+                    float4 scaleBias = new float4((float)passData.camera.pixelWidth / (float)srcBuffer.width, (float)passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
+                    if (!passData.camera.targetTexture)
+                    {
+                        scaleBias.w = scaleBias.y;
+                        scaleBias.y *= -1;
+                    }
+                    cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
+
+                    cmdBuffer.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
                     cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.srcTexture);
-                    cmdBuffer.SetViewport(GraphicsUtility.GetViewport(passData.camera));
-                    cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 0);
+                    cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 1);
                 });
             }
         }

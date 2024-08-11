@@ -83,7 +83,7 @@
 			{
 				Varyings o;
 				o.vertex = float4(v.vertex.x, -v.vertex.y, 0, 1);
-				o.uv = ( (v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
+				o.uv = ((v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
 				return o;
 			}
 

@@ -366,7 +366,7 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderWireOverlay(renderContext, camera);
                             RenderGizmos(renderContext, camera);
                         #endif
-                            //RenderPresent(renderContext, camera, camera.activeTexture);
+                            RenderPresent(renderContext, camera);
                         }
 
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))

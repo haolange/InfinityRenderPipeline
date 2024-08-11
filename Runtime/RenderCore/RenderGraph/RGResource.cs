@@ -144,7 +144,6 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        RTHandle m_Backbuffer;
         BufferCache m_BufferPool = new BufferCache();
         TextureCache m_TexturePool = new TextureCache();
         DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
@@ -263,7 +262,7 @@ namespace InfinityTech.Rendering.RenderGraph
             return new RGTextureRef(newHandle);
         }
 
-        internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
+        /*internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
         {
             if (m_Backbuffer != null)
             {
@@ -279,7 +278,7 @@ namespace InfinityTech.Rendering.RenderGraph
             texResource.imported = true;
             texResource.shaderProperty = shaderProperty;
             return new RGTextureRef(newHandle);
-        }
+        }*/
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RGTextureRef CreateTexture(in TextureDescriptor descriptor, in int shaderProperty = 0, in int temporalPassIndex = -1)

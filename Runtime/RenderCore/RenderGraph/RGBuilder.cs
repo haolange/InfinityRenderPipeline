@@ -136,11 +136,11 @@ namespace InfinityTech.Rendering.RenderGraph
             return m_Resources.ImportTexture(texture, shaderProperty);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
         {
             return m_Resources.ImportBackbuffer(backBuffer, shaderProperty);
-        }
+        }*/
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateTexture(in RGTextureRef textureRef, in int shaderProperty = 0)
