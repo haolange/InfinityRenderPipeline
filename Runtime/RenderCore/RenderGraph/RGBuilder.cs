@@ -706,10 +706,12 @@ namespace InfinityTech.Rendering.RenderGraph
                         {
                             subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
                             subPassDescriptor.colorOutputs = new AttachmentIndexArray(pass.colorBufferMaxIndex + 1);
+
                             for(int i = 0; i < pass.colorBufferMaxIndex + 1; ++i)
                             {
                                 subPassDescriptor.colorOutputs[i] = i;
                             }
+
                             if(pass.depthBufferAccess == EDepthAccess.ReadOnly)
                             {
                                 subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
@@ -775,7 +777,9 @@ namespace InfinityTech.Rendering.RenderGraph
                             {
                                 subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
                                 subPassDescriptor.colorOutputs = new AttachmentIndexArray(1);
+
                                 subPassDescriptor.colorOutputs[0] = 0;
+
                                 if (pass.depthBufferAccess == EDepthAccess.ReadOnly)
                                 {
                                     subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
@@ -813,6 +817,7 @@ namespace InfinityTech.Rendering.RenderGraph
                             {
                                 subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
                                 subPassDescriptor.colorOutputs = AttachmentIndexArray.Emtpy;
+
                                 if (pass.depthBufferAccess == EDepthAccess.ReadOnly)
                                 {
                                     subPassDescriptor.flags = SubPassFlags.ReadOnlyDepthStencil;
@@ -853,6 +858,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         {
                             subPassDescriptor.inputs = AttachmentIndexArray.Emtpy;
                             subPassDescriptor.colorOutputs = new AttachmentIndexArray(1);
+
                             subPassDescriptor.colorOutputs[0] = 0;
                         }
                         NativeArray<SubPassDescriptor> subPassDescriptors = new NativeArray<SubPassDescriptor>(1, Allocator.Temp);

@@ -107,11 +107,18 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryAntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryAntiAliasing)))
             {
                 //Setup Phase
+                passRef.ReadTexture(depthTexture);
+                passRef.ReadTexture(accmulateColorTexture);
+                passRef.WriteTexture(hsitoryDepthTexture);
+                passRef.WriteTexture(hsitoryColorTexture);
+
                 ref CopyHistoryAntiAliasingPassData passData = ref passRef.GetPassData<CopyHistoryAntiAliasingPassData>();
-                passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.accmulateColorTexture = passRef.ReadTexture(accmulateColorTexture);
-                passData.historyDepthTexture = passRef.WriteTexture(hsitoryDepthTexture);
-                passData.historyColorTexture = passRef.WriteTexture(hsitoryColorTexture);
+                {
+                    passData.depthTexture = depthTexture;
+                    passData.accmulateColorTexture = accmulateColorTexture;
+                    passData.historyDepthTexture = hsitoryDepthTexture;
+                    passData.historyColorTexture = hsitoryColorTexture;
+                }
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in CopyHistoryAntiAliasingPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>

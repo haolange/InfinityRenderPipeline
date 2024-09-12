@@ -22,32 +22,39 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderDepth(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
         {
-            TextureDescriptor depthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = DepthPassUtilityData.TextureName, depthBufferBits = EDepthBits.Depth32 };
+            TextureDescriptor depthTextureDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
+            {
+                depthTextureDsc.name = DepthPassUtilityData.TextureName;
+                depthTextureDsc.dimension = TextureDimension.Tex2D;
+                depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
+            }
+            RGTextureRef depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
 
-            RGTextureRef depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthDescriptor);
+            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
+            {
+                rendererListDesc.layerMask = camera.cullingMask;
+                rendererListDesc.renderQueueRange = new RenderQueueRange(2450, 2999);
+                rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
+                rendererListDesc.renderingLayerMask = 1;
+                rendererListDesc.rendererConfiguration = PerObjectData.None;
+                rendererListDesc.excludeObjectMotionVectors = false;
+            }
+            RendererList depthRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
 
             //Add DepthPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
-                RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
-                {
-                    rendererListDesc.layerMask = camera.cullingMask;
-                    rendererListDesc.renderQueueRange = new RenderQueueRange(2450, 2999);
-                    rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
-                    rendererListDesc.renderingLayerMask = 1;
-                    rendererListDesc.rendererConfiguration = PerObjectData.None;
-                    rendererListDesc.excludeObjectMotionVectors = false;
-                }
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
-                passData.rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
-                passData.meshPassProcessor = m_DepthMeshProcessor;
-                
+                {
+                    passData.rendererList = depthRendererList;
+                    passData.meshPassProcessor = m_DepthMeshProcessor;
+                }
                 m_DepthMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
                 passRef.SetExecuteFunc((in DepthPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline
