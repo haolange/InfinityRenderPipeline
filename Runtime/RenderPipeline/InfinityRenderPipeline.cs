@@ -231,7 +231,7 @@ namespace InfinityTech.Rendering.Pipeline
             RTHandles.Initialize(Screen.width, Screen.height);
 
             //var defaultVolumeProfileSettings = GraphicsSettings.GetRenderPipelineSettings<InfinityRPDefaultVolumeProfileSettings>();
-            VolumeManager.instance.Initialize(asset.volumeProfile, asset.volumeProfile);
+            VolumeManager.instance.Initialize(null, asset.volumeProfile);
 
             m_UpdateInit = true;
             renderContext = new RenderContext();
