@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Execute Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in AntiAliasingPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     TemporalAAInputData taaInputData;
                     {
@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline
                     TemporalAAParameter taaParameter = new TemporalAAParameter(0.97f, 0.9f, 6000, 1); // x: static, y: dynamic, z: motion amplification, w: temporalScale
 
                     TemporalAntiAliasing temporalAA = objectPool.Get<TemporalAntiAliasing>();
-                    temporalAA.Dispatch(cmdBuffer, passData.taaShader, taaParameter, taaInputData, taaOutputData);
+                    temporalAA.Dispatch(cmdEncoder, passData.taaShader, taaParameter, taaInputData, taaOutputData);
                     objectPool.Release(temporalAA);
                 });
             }
@@ -121,14 +121,14 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in CopyHistoryAntiAliasingPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CopyHistoryAntiAliasingPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     #if UNITY_EDITOR
-                        //cmdBuffer.DrawFullScreen(passData.depthTexture, passData.historyDepthTexture);
-                        cmdBuffer.DrawFullScreen(passData.accmulateColorTexture, passData.historyColorTexture);
+                        //GraphicsUtility.DrawFullScreen(cmdEncoder, passData.depthTexture, passData.historyDepthTexture);
+                        GraphicsUtility.DrawFullScreen(cmdEncoder, passData.accmulateColorTexture, passData.historyColorTexture);
                     #else
-                        //cmdBuffer.CopyTexture(passData.depthTexture, passData.historyDepthTexture);
-                        cmdBuffer.CopyTexture(passData.accmulateColorTexture, passData.historyColorTexture);
+                        //cmdEncoder.CopyTexture(passData.depthTexture, passData.historyDepthTexture);
+                        cmdEncoder.CopyTexture(passData.accmulateColorTexture, passData.historyColorTexture);
                     #endif
                 });
             }

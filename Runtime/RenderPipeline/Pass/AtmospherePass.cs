@@ -20,13 +20,13 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderSkyAtmosphere(Camera RenderCamera)
         {
             //Add SkyAtmospherePass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<AtmospherePassData>(ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
+            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmospherePassData>(ProfilingSampler.Get(CustomSamplerId.RenderAtmosphere)))
             {
                 //Setup Phase
                 ref AtmospherePassData passData = ref passRef.GetPassData<AtmospherePassData>();
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in AtmospherePassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in AtmospherePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
 
                 });

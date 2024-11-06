@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
+using System.Net.Mime;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
@@ -27,10 +28,10 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    public delegate void RGTransferPassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
-    public delegate void RGComputePassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
-    public delegate void RGRayTracingPassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
-    public delegate void RGRasterPassExecuteAction<T>(in T passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) where T : struct;
+    public delegate void RGTransferPassExecuteAction<T>(in T passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) where T : struct;
+    public delegate void RGComputePassExecuteAction<T>(in T passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) where T : struct;
+    public delegate void RGRayTracingPassExecuteAction<T>(in T passData, in RGRaytracingEncoder cmdEncoder, RGObjectPool objectPool) where T : struct;
+    public delegate void RGRasterPassExecuteAction<T>(in T passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) where T : struct;
 
     internal abstract class IRGPass
     {
@@ -173,7 +174,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
+            ExcuteAction(in passData, new RGTransferEncoder(graphContext.cmdBuffer), graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -197,7 +198,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
+            ExcuteAction(in passData, new RGComputeEncoder(graphContext.cmdBuffer), graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -221,7 +222,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
+            ExcuteAction(in passData, new RGRaytracingEncoder(graphContext.cmdBuffer), graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -245,7 +246,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, graphContext.cmdBuffer, graphContext.objectPool);
+            ExcuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer), graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)

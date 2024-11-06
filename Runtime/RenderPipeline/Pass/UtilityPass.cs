@@ -41,9 +41,9 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in WireOverlayPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in WireOverlayPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    cmdBuffer.DrawRendererList(passData.rendererList);
+                    cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
         }
@@ -76,9 +76,9 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     //Execute Phase
-                    passRef.SetExecuteFunc((in GizmosPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                    passRef.SetExecuteFunc((in GizmosPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                     {
-                        cmdBuffer.DrawRendererList(passData.rendererList);
+                        cmdEncoder.DrawRendererList(passData.rendererList);
                     });
                 }
             }
@@ -111,9 +111,9 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in SkyBoxPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in SkyBoxPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    cmdBuffer.DrawRendererList(passData.rendererList);
+                    cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
         }
@@ -142,26 +142,16 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in PresentPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in PresentPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    bool bIsRenderToBackBufferTarget = passData.camera.cameraType != CameraType.SceneView;
-                    if (bIsRenderToBackBufferTarget)
-                    {
-                        cmdBuffer.SetViewport(GraphicsUtility.GetViewport(passData.camera));
-                    }
-
                     RenderTexture srcBuffer = passData.srcTexture;
-                    float4 scaleBias = new float4((float)passData.camera.pixelWidth / (float)srcBuffer.width, (float)passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
+                    float4 scaleBias = new float4(passData.camera.pixelWidth / (float)srcBuffer.width, passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
                     if (!passData.camera.targetTexture)
                     {
                         scaleBias.w = scaleBias.y;
                         scaleBias.y *= -1;
                     }
-                    cmdBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
-
-                    cmdBuffer.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
-                    cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.srcTexture);
-                    cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 1);
+                    cmdEncoder.Present(passData.camera.cameraType != CameraType.SceneView, GraphicsUtility.GetViewport(passData.camera), scaleBias, srcBuffer);
                 });
             }
         }

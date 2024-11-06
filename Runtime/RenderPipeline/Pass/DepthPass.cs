@@ -55,13 +55,13 @@ namespace InfinityTech.Rendering.Pipeline
                 m_DepthMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in DepthPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(cmdBuffer, 0);
+                    passData.meshPassProcessor.DispatchDraw(cmdEncoder, 0);
 
                     //UnityDrawPipeline
-                    cmdBuffer.DrawRendererList(passData.rendererList);
+                    cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
         }

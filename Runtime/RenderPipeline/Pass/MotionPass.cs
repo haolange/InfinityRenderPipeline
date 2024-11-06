@@ -66,10 +66,10 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in ObjectMotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     //UnityDrawPipeline
-                    cmdBuffer.DrawRendererList(passData.rendererList);
+                    cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
 
@@ -87,10 +87,10 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in CameraMotionPassData passData, CommandBuffer cmdBuffer, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CameraMotionPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    cmdBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTexture);
-                    cmdBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTexture);
+                    cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);
                 });
             }
         }

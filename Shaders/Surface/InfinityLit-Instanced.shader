@@ -1,4 +1,4 @@
-﻿Shader "InfinityPipeline/InfinityLit-Instance"
+﻿Shader "InfinityPipeline/InfinityLit-Instanced"
 {
 	Properties 
 	{
