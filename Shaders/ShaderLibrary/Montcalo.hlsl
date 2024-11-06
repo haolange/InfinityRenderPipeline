@@ -85,7 +85,8 @@ float RadicalInverseSpecialized(uint base, uint a)
     const float invBase = (float) 1 / (float) base;
     uint reversedDigits = 0;
     float invBaseN = 1;
-    while (a > 0) {
+    while (a > 0) 
+	{
         uint next = a / base;
         uint digit = a - next * base;
         reversedDigits = reversedDigits * base + digit;
@@ -100,15 +101,18 @@ float RadicalInverseSpecialized2(uint a)
     return (float) reversebits(a) / (float) 0xffffffffu;
 }
 
-uint2 SobolIndex(uint2 Base, int Index, int Bits = 10) {
-	uint2 SobolNumbers[10] = {
+uint2 SobolIndex(uint2 Base, int Index, int Bits = 10) 
+{
+	uint2 SobolNumbers[10] = 
+	{
 		uint2(0x8680u, 0x4c80u), uint2(0xf240u, 0x9240u), uint2(0x8220u, 0x0e20u), uint2(0x4110u, 0x1610u), uint2(0xa608u, 0x7608u),
 		uint2(0x8a02u, 0x280au), uint2(0xe204u, 0x9e04u), uint2(0xa400u, 0x4682u), uint2(0xe300u, 0xa74du), uint2(0xb700u, 0x9817u),
 	};
 
 	uint2 Result = Base;
-	//[roll] 
-    for (int b = 0; b < 10 && b < Bits; ++b) {
+	[unroll] 
+    for (int b = 0; b < 10 && b < Bits; ++b) 
+	{
 		Result ^= (Index & (1 << b)) ? SobolNumbers[b] : 0;
 	}
 	return Result;
@@ -121,7 +125,8 @@ uint Halton(uint Index, uint base = 3)
 	uint i = Index;
 	
 	[unroll(255)] 
-	while (i > 0) {
+	while (i > 0) 
+	{
 		result += (f / base) * (i % base);
 		i = floor(i / base);
 	}

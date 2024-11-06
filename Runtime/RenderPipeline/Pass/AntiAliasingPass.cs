@@ -80,9 +80,9 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                     TemporalAAParameter taaParameter = new TemporalAAParameter(0.97f, 0.9f, 6000, 1); // x: static, y: dynamic, z: motion amplification, w: temporalScale
 
-                    TemporalAntiAliasing temporalAA = objectPool.Get<TemporalAntiAliasing>();
-                    temporalAA.Dispatch(cmdEncoder, passData.taaShader, taaParameter, taaInputData, taaOutputData);
-                    objectPool.Release(temporalAA);
+                    TemporalAntiAliasingGenerator temporalAAGenerator = objectPool.Get<TemporalAntiAliasingGenerator>();
+                    temporalAAGenerator.Dispatch(cmdEncoder, passData.taaShader, taaParameter, taaInputData, taaOutputData);
+                    objectPool.Release(temporalAAGenerator);
                 });
             }
         }

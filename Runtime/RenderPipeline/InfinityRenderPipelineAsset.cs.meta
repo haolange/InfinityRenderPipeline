@@ -4,13 +4,15 @@ MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences:
-  - ssrShader: {instanceID: 0}
+  - m_VolumeProfile: {fileID: 11400000, guid: 6120dfbb55a89ad41877ce889bb04749, type: 2}
   - taaShader: {fileID: 7200000, guid: 900193e646897674283223eeea86da06, type: 3}
-  - ssaoShader: {instanceID: 0}
-  - ssgiShader: {instanceID: 0}
+  - ssrShader: {fileID: 7200000, guid: 7986610df4d5baf43a4fa304dbedf1e1, type: 3}
+  - ssaoShader: {fileID: 7200000, guid: eae0e70060e2d8e49b3507abcfe90059, type: 3}
+  - ssgiShader: {fileID: 7200000, guid: f803e4ea08709f646a37d6cfec4fa38f, type: 3}
+  - defaultShaderProxy: {fileID: 4800000, guid: 6420b6a33e6ddca4ea1932d4965fe051, type: 3}
+  - blitMaterial: {fileID: 2100000, guid: 29858db06e5a37c42b532a126b46baee, type: 2}
   - defaultMaterialProxy: {fileID: 2100000, guid: 38b1fbc959d6ae34796666ebc6459c57, type: 2}
   - bestFitNormalTexture: {fileID: 2800000, guid: 58f6c2c6e641ce94296e214b8cdb6573, type: 3}
-  - defaultShaderProxy: {fileID: 4800000, guid: 6420b6a33e6ddca4ea1932d4965fe051, type: 3}
   executionOrder: 0
   icon: {fileID: 2800000, guid: ef3ac5f95ef681149928371e680488a9, type: 3}
   userData: 

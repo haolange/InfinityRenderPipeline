@@ -7,18 +7,54 @@ using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
-using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.SceneManagement;
 using InfinityTech.Rendering.Feature;
 using System.Runtime.CompilerServices;
+using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
 
+
+
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
+
+/*[Serializable]
+[SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
+[UnityEngine.Categorization.CategoryInfo(Name = "Volume", Order = 0)]
+public class InfinityRPDefaultVolumeProfileSettings : IDefaultVolumeProfileSettings
+{
+    #region Version
+    internal enum Version : int
+    {
+        Initial = 0,
+    }
+
+    [SerializeField]
+    [HideInInspector]
+    Version m_Version;
+
+    /// <summary>Current version.</summary>
+    public int version => (int)m_Version;
+    #endregion
+
+    [SerializeField]
+    VolumeProfile m_VolumeProfile;
+
+    /// <summary>
+    /// The default volume profile asset.
+    /// </summary>
+    public VolumeProfile volumeProfile
+    {
+        get => m_VolumeProfile;
+        set => this.SetValueAndNotify(ref m_VolumeProfile, value);
+    }
+}*/
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -98,7 +134,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-            TemporalAntiAliasing.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, matrix_Proj, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
+            TemporalAntiAliasingGenerator.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, matrix_Proj, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
@@ -187,12 +223,17 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public InfinityRenderPipeline()
+        public InfinityRenderPipeline(InfinityRenderPipelineAsset asset)
         {
             //EditorSceneManager.sceneUnloaded += OnSceneUnloaded;
+            SetGraphicsSetting();
+            QualitySettings.antiAliasing = 0;
+            RTHandles.Initialize(Screen.width, Screen.height);
+
+            //var defaultVolumeProfileSettings = GraphicsSettings.GetRenderPipelineSettings<InfinityRPDefaultVolumeProfileSettings>();
+            VolumeManager.instance.Initialize(asset.volumeProfile, asset.volumeProfile);
 
             m_UpdateInit = true;
-            SetGraphicsSetting();
             renderContext = new RenderContext();
             m_RGBuilder = new RGBuilder("RenderGraph");
             m_RGScoper = new RGScoper(m_RGBuilder);
@@ -211,7 +252,6 @@ namespace InfinityTech.Rendering.Pipeline
             // Begin FrameContext
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
-                RTHandles.Initialize(Screen.width, Screen.height);
                 renderContext.scriptableRenderContext = scriptableRenderContext;
 
                 InvokeProxyUpdate();
