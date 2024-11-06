@@ -545,6 +545,7 @@ namespace InfinityTech.Rendering.Pipeline
                     historyCache.Value.Release();
                 }
                 m_HistoryCaches.Clear();
+                VolumeManager.instance.Deinitialize();
             }
         }
 
