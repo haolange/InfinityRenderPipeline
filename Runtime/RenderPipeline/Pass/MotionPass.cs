@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.Write);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();
                 {
@@ -73,13 +73,13 @@ namespace InfinityTech.Rendering.Pipeline
                 });
             }
 
-            //Add ObjectMotionPass
+            //Add CameraMotionPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCameraMotion)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
 
                 ref CameraMotionPassData passData = ref passRef.GetPassData<CameraMotionPassData>();
                 {

@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
 
                 ref WireOverlayPassData passData = ref passRef.GetPassData<WireOverlayPassData>();
                 {
@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     //Setup Phase
                     passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                    passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                    passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
 
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     {
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
 
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
                 {
