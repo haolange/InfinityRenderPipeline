@@ -7,7 +7,7 @@ namespace InfinityTech.Rendering.PostProcess
     [Serializable, VolumeComponentMenu("Color Grade/ColorGrading")]
     public class ColorGrading : VolumeComponent
     {
-        [Header("Temperature")]
+        [Header("White Balance")]
         public ClampedFloatParameter Temp = new ClampedFloatParameter(6500.0f, 1500.0f, 15000.0f);
         public ClampedFloatParameter Tint = new ClampedFloatParameter(0.0f, -1.0f, 1.0f);
 
