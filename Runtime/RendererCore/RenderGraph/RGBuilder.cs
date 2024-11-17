@@ -522,7 +522,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     RGResourceCompileInfo resourceInfo = resourceInfos[i];
 
                     int firstWriteIndex = GetFirstValidWriteIndex(resourceInfo);
-                    if (firstWriteIndex != -1) {
+                    if (firstWriteIndex != -1) 
+                    {
                         m_PassCompileInfos[firstWriteIndex].resourceCreateList[type].Add(i);
                     }
 
@@ -536,7 +537,8 @@ namespace InfinityTech.Rendering.RenderGraph
                             while (firstWaitingPassIndex == -1 && currentPassIndex < m_PassCompileInfos.size)
                             {
                                 currentPassIndex++;
-                                if (m_PassCompileInfos[currentPassIndex].enableAsyncCompute) {
+                                if (m_PassCompileInfos[currentPassIndex].enableAsyncCompute) 
+                                {
                                     firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
                                 }
                             }
@@ -544,11 +546,14 @@ namespace InfinityTech.Rendering.RenderGraph
                             ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[Math.Max(0, firstWaitingPassIndex - 1)];
                             passInfo.resourceReleaseList[type].Add(i);
 
-                            if (currentPassIndex == m_PassCompileInfos.size) {
+                            if (currentPassIndex == m_PassCompileInfos.size) 
+                            {
                                 IRGPass invalidPass = m_PassList[lastReadPassIndex];
                                 throw new InvalidOperationException($"Async pass {invalidPass.name} was never synchronized on the graphics pipeline.");
                             }
-                        } else {
+                        } 
+                        else 
+                        {
                             ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[lastReadPassIndex];
                             passInfo.resourceReleaseList[type].Add(i);
                         }

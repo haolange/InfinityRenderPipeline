@@ -107,6 +107,24 @@ namespace InfinityTech.Rendering.GPUResource
             wrapMode = TextureWrapMode.Repeat;
         }
 
+        public TextureDescriptor(int Width, int Height, int SliceOrDepth) : this()
+        {
+            width = Width;
+            height = Height;
+            slices = SliceOrDepth;
+
+            clearColor = Color.black;
+            enableMSAA = false;
+            bindTextureMS = false;
+            clearBuffer = false;
+            isShadowMap = false;
+            enableRandomWrite = false;
+
+            msaaSamples = EMSAASamples.None;
+            depthBufferBits = EDepthBits.None;
+            wrapMode = TextureWrapMode.Repeat;
+        }
+
         public bool Equals(TextureDescriptor target)
         {
             return this.GetHashCode().Equals(target.GetHashCode());

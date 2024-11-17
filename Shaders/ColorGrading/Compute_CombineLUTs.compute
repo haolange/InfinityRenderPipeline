@@ -465,7 +465,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 
 #if USE_VOLUME_LUT == 1
-RWTexture3D<float4> RWOutputLUTs;
+RWTexture3D<float4> CombineLookupTexture;
 
 [numthreads(8, 8, 8)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID) 
@@ -477,10 +477,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float4 OutColor = CombineLUTsCommon(UV, LayerIndex);
 
 	uint3 PixelPos = DispatchThreadId;
-	RWOutputLUTs[PixelPos] = OutColor;
+	CombineLookupTexture[PixelPos] = OutColor;
 }
 #else
-RWTexture2D<float4> RWOutputLUTs;
+RWTexture2D<float4> CombineLookupTexture;
 
 [numthreads(8, 8, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -492,6 +492,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	float4 OutColor = CombineLUTsCommon(UV, LayerIndex);
 
 	uint2 PixelPos = DispatchThreadId;
-	RWOutputLUTs[PixelPos] = OutColor;
+	CombineLookupTexture[PixelPos] = OutColor;
 }
 #endif

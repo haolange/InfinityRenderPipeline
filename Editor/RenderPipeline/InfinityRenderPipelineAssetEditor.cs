@@ -26,6 +26,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         private SerializedProperty m_SSRShader;
         private SerializedProperty m_SSAOShader;
         private SerializedProperty m_SSGIShader;
+        private SerializedProperty m_CombineLUTShader;
 
         private SerializedProperty m_DefaultShader;
 
@@ -50,6 +51,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_SSRShader = serializedObject.FindProperty("ssrShader");
             m_SSAOShader = serializedObject.FindProperty("ssaoShader");
             m_SSGIShader = serializedObject.FindProperty("ssgiShader");
+            m_CombineLUTShader = serializedObject.FindProperty("combineLUTShader");
 
             m_BlitMaterial = serializedObject.FindProperty("blitMaterial");
             m_DefaultMaterial = serializedObject.FindProperty("defaultMaterialProxy");
@@ -69,6 +71,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_SSRShader, new GUIContent("SSR Shader"), GUILayout.Height(18));
                 EditorGUILayout.PropertyField(m_SSGIShader, new GUIContent("SSGI Shader"), GUILayout.Height(18));
                 EditorGUILayout.PropertyField(m_SSAOShader, new GUIContent("SSAO Shader"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_CombineLUTShader, new GUIContent("CombineLUT Shader"), GUILayout.Height(18));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 

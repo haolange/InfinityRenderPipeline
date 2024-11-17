@@ -33,6 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
         public ComputeShader ssrShader;
         public ComputeShader ssaoShader;
         public ComputeShader ssgiShader;
+        public ComputeShader combineLUTShader;
 
         public Shader defaultShaderProxy;
 

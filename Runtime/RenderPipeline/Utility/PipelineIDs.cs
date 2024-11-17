@@ -6,6 +6,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public enum CustomSamplerId
     {
+        ComputeCombineLuts,
         RenderDepth,
         RenderGBuffer,
         RenderObjectMotion,

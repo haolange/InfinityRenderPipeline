@@ -205,9 +205,19 @@ namespace InfinityTech.Rendering.RenderGraph
         #endregion SetGlobalParameter
 
         #region SetLocalParameter
+        public void SetComputeFloatParam(ComputeShader computeShader, int nameID, float val)
+        {
+            m_CommandBuffer.SetComputeFloatParam(computeShader, nameID, val);
+        }
+
         public void SetComputeFloatParam(ComputeShader computeShader, string name, float val)
         {
             m_CommandBuffer.SetComputeFloatParam(computeShader, name, val);
+        }
+
+        public void SetComputeIntParam(ComputeShader computeShader, int nameID, int val)
+        {
+            m_CommandBuffer.SetComputeIntParam(computeShader, nameID, val);
         }
 
         public void SetComputeIntParam(ComputeShader computeShader, string name, int val)
@@ -215,9 +225,19 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetComputeIntParam(computeShader, name, val);
         }
 
+        public void SetComputeVectorParam(ComputeShader computeShader, int nameID, Vector4 val)
+        {
+            m_CommandBuffer.SetComputeVectorParam(computeShader, nameID, val);
+        }
+
         public void SetComputeVectorParam(ComputeShader computeShader, string name, Vector4 val)
         {
             m_CommandBuffer.SetComputeVectorParam(computeShader, name, val);
+        }
+
+        public void SetComputeVectorArrayParam(ComputeShader computeShader, int nameID, Vector4[] values)
+        {
+            m_CommandBuffer.SetComputeVectorArrayParam(computeShader, nameID, values);
         }
 
         public void SetComputeVectorArrayParam(ComputeShader computeShader, string name, Vector4[] values)
@@ -230,9 +250,19 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetComputeMatrixParam(computeShader, name, val);
         }
 
+        public void SetComputeMatrixParam(ComputeShader computeShader, int nameID, Matrix4x4 val)
+        {
+            m_CommandBuffer.SetComputeMatrixParam(computeShader, nameID, val);
+        }
+
         public void SetComputeMatrixArrayParam(ComputeShader computeShader, string name, Matrix4x4[] values)
         {
             m_CommandBuffer.SetComputeMatrixArrayParam(computeShader, name, values);
+        }
+
+        public void SetComputeMatrixArrayParam(ComputeShader computeShader, int nameID, Matrix4x4[] values)
+        {
+            m_CommandBuffer.SetComputeMatrixArrayParam(computeShader, nameID, values);
         }
 
         public void SetComputeFloatParams(ComputeShader computeShader, string name, params float[] values)
@@ -255,19 +285,14 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetComputeIntParams(computeShader, nameID, values);
         }
 
-        public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt)
-        {
-            m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, 0, RenderTextureSubElement.Default);
-        }
-
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt)
         {
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt, 0, RenderTextureSubElement.Default);
         }
 
-        public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt, int mipLevel)
+        public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt)
         {
-            m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, mipLevel, RenderTextureSubElement.Default);
+            m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, 0, RenderTextureSubElement.Default);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel)
@@ -275,14 +300,19 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt, mipLevel, RenderTextureSubElement.Default);
         }
 
-        public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt, int mipLevel, RenderTextureSubElement element)
+        public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt, int mipLevel)
         {
-            m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, mipLevel, element);
+            m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, mipLevel, RenderTextureSubElement.Default);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel, RenderTextureSubElement element)
         {
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt, mipLevel, element);
+        }
+
+        public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt, int mipLevel, RenderTextureSubElement element)
+        {
+            m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, mipLevel, element);
         }
 
         public void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, ComputeBuffer buffer)

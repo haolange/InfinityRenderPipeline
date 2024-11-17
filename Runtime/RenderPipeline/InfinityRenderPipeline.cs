@@ -11,11 +11,13 @@ using UnityEngine.SceneManagement;
 using InfinityTech.Rendering.Feature;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.PostProcess;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.TerrainPipeline;
+
 
 
 
@@ -279,7 +281,9 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         historyCache = new HistoryCache();
                         m_HistoryCaches.Add(cameraId, historyCache);
-                    } else {
+                    } 
+                    else 
+                    {
                         historyCache = m_HistoryCaches[cameraId];
                     }
 
@@ -288,7 +292,9 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cameraUniform = new CameraUniform();
                         m_CameraUniforms.Add(cameraId, cameraUniform);
-                    } else {
+                    } 
+                    else 
+                    {
                         cameraUniform = m_CameraUniforms[cameraId];
                     }
 
@@ -393,8 +399,86 @@ namespace InfinityTech.Rendering.Pipeline
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
                         }
 
+                        #region PostProcessVolume Parameter
+                        VolumeStack volumeStack = VolumeManager.instance.stack;
+
+                        FilmTonemap filmTonemapVolume = volumeStack.GetComponent<FilmTonemap>();
+                        ColorGrading colorGradingVolume = volumeStack.GetComponent<ColorGrading>();
+
+                        CombineLutParameterDescriptor combineLutParameterDescriptor;
+                        {
+                            combineLutParameterDescriptor.WhiteTemp = colorGradingVolume.Temp.value;
+                            combineLutParameterDescriptor.WhiteTint = colorGradingVolume.Tint.value;
+
+                            combineLutParameterDescriptor.FilmSlope = filmTonemapVolume.Slop.value;
+                            combineLutParameterDescriptor.FilmToe = filmTonemapVolume.Toe.value;
+                            combineLutParameterDescriptor.FilmShoulder = filmTonemapVolume.Shoulder.value;
+                            combineLutParameterDescriptor.FilmBlackClip = filmTonemapVolume.BlackClip.value;
+                            combineLutParameterDescriptor.FilmWhiteClip = filmTonemapVolume.WhiteClip.value;
+
+                            combineLutParameterDescriptor.ColorSaturation = colorGradingVolume.ColorSaturation.value;
+                            combineLutParameterDescriptor.ColorContrast = colorGradingVolume.ColorContrast.value;
+                            combineLutParameterDescriptor.ColorGamma = colorGradingVolume.ColorGamma.value;
+                            combineLutParameterDescriptor.ColorGain = colorGradingVolume.ColorGain.value;
+                            combineLutParameterDescriptor.ColorOffset = colorGradingVolume.ColorOffset.value;
+
+                            combineLutParameterDescriptor.ColorSaturationShadows = colorGradingVolume.ColorSaturationShadows.value;
+                            combineLutParameterDescriptor.ColorContrastShadows = colorGradingVolume.ColorContrastShadows.value;
+                            combineLutParameterDescriptor.ColorGammaShadows = colorGradingVolume.ColorGammaShadows.value;
+                            combineLutParameterDescriptor.ColorGainShadows = colorGradingVolume.ColorGainShadows.value;
+                            combineLutParameterDescriptor.ColorOffsetShadows = colorGradingVolume.ColorOffsetShadows.value;
+                            combineLutParameterDescriptor.ColorCorrectionShadowsMax = colorGradingVolume.ShadowsMax.value;
+
+                            combineLutParameterDescriptor.ColorSaturationMidtones = colorGradingVolume.ColorSaturationMidtones.value;
+                            combineLutParameterDescriptor.ColorContrastMidtones = colorGradingVolume.ColorContrastMidtones.value;
+                            combineLutParameterDescriptor.ColorGammaMidtones = colorGradingVolume.ColorGammaMidtones.value;
+                            combineLutParameterDescriptor.ColorGainMidtones = colorGradingVolume.ColorGainMidtones.value;
+                            combineLutParameterDescriptor.ColorOffsetMidtones = colorGradingVolume.ColorOffsetMidtones.value;
+
+                            combineLutParameterDescriptor.ColorSaturationHighlights = colorGradingVolume.ColorSaturationHighlights.value;
+                            combineLutParameterDescriptor.ColorContrastHighlights = colorGradingVolume.ColorContrastHighlights.value;
+                            combineLutParameterDescriptor.ColorGammaHighlights = colorGradingVolume.ColorGammaHighlights.value;
+                            combineLutParameterDescriptor.ColorGainHighlights = colorGradingVolume.ColorGainHighlights.value;
+                            combineLutParameterDescriptor.ColorOffsetHighlights = colorGradingVolume.ColorOffsetHighlights.value;
+                            combineLutParameterDescriptor.ColorCorrectionHighlightsMin = colorGradingVolume.HighlightsMin.value;
+                            combineLutParameterDescriptor.ColorCorrectionHighlightsMax = colorGradingVolume.HighlightsMax.value;
+
+                            combineLutParameterDescriptor.BlueCorrection = colorGradingVolume.BlueCorrection.value;
+                            combineLutParameterDescriptor.ExpandGamut = colorGradingVolume.ExpandGamut.value;
+
+                            combineLutParameterDescriptor.ColorScale = new float4(1.0f, 1.0f, 1.0f, 0.0f);
+                            combineLutParameterDescriptor.OverlayColor = new float4(0, 0, 0, 0);
+                        }
+                        float3 ColorTransform = new float3(0.0f, 0.5f, 1.0f);
+                        {
+                            // x is the input value, y the output value
+                            // RGB = a, b, c where y = a * x*x + b * x + c
+
+                            float c = ColorTransform.x;
+                            float b = 4 * ColorTransform.y - 3 * ColorTransform.x - ColorTransform.z;
+                            float a = ColorTransform.z - ColorTransform.x - b;
+
+                            combineLutParameterDescriptor.MappingPolynomial.x = a;
+                            combineLutParameterDescriptor.MappingPolynomial.y = b;
+                            combineLutParameterDescriptor.MappingPolynomial.z = c;
+                            combineLutParameterDescriptor.MappingPolynomial.w = 1;
+                        }
+
+                        combineLutParameterDescriptor.OutputGamut = 0;
+                        combineLutParameterDescriptor.OutputDevice = 0;
+
+                        float DisplayGamma = 2.2f;
+                        combineLutParameterDescriptor.InverseGamma.x = 1.0f / DisplayGamma;
+                        combineLutParameterDescriptor.InverseGamma.y = 2.2f / DisplayGamma;
+                        combineLutParameterDescriptor.InverseGamma.z = 1.0f / math.max(0, 1.0f);
+                        combineLutParameterDescriptor.InverseGamma.w = 0.0f;
+
+                        combineLutParameterDescriptor.ColorShadowTint2 = new float4(0, 0, 0, 1);
+                        #endregion PostProcessVolume Parameter
+
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                         {
+                            ComputeCombineLuts(renderContext, combineLutParameterDescriptor);
                             RenderDepth(renderContext, camera, cullingDatas, cullingResults);
                             RenderGBuffer(renderContext, camera, cullingDatas, cullingResults);
                             RenderMotion(renderContext, camera, cullingDatas, cullingResults);
@@ -417,8 +501,8 @@ namespace InfinityTech.Rendering.Pipeline
                         EndCameraRendering(scriptableRenderContext, camera);
                     }
 
-                    cullingDatas.Release();
                     m_RGScoper.Clear();
+                    cullingDatas.Release();
                     cameraUniform.UnpateUniformData(camera, true);
                 }
                 EndFrameRendering(scriptableRenderContext, cameras);
