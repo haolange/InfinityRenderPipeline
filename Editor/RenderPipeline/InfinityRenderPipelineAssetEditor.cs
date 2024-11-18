@@ -63,6 +63,13 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         {
             serializedObject.Update();
 
+            showProfile = EditorGUILayout.BeginFoldoutHeaderGroup(showProfile, "Profiles");
+            if (showProfile)
+            {
+                EditorGUILayout.PropertyField(m_VolumeProfile, new GUIContent("Default Volume Profile"), GUILayout.Height(18));
+            }
+            EditorGUILayout.EndFoldoutHeaderGroup();
+
             showShader = EditorGUILayout.BeginFoldoutHeaderGroup(showShader, "Shaders");
             if (showShader)
             {
@@ -90,21 +97,14 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
-            showProfile = EditorGUILayout.BeginFoldoutHeaderGroup(showProfile, "Profile");
-            if (showProfile)
-            {
-                EditorGUILayout.PropertyField(m_VolumeProfile, new GUIContent("Default Volume Profile"), GUILayout.Height(18));
-            }
-            EditorGUILayout.EndFoldoutHeaderGroup();
-
             showAdvanced = EditorGUILayout.BeginFoldoutHeaderGroup(showAdvanced, "Advanced");
             if (showAdvanced) 
             {
-                EditorGUILayout.PropertyField(m_UpdateProxy, new GUIContent("RefreshProxy"), GUILayout.Height(25));
                 EditorGUILayout.PropertyField(m_RayTrace, new GUIContent("Ray Trace"), GUILayout.Height(25));
                 EditorGUILayout.PropertyField(m_SRPBatch, new GUIContent("SRP Batch"), GUILayout.Height(25));
                 EditorGUILayout.PropertyField(m_GPUInstance, new GUIContent("GPU Instance"), GUILayout.Height(25));
                 EditorGUILayout.PropertyField(m_DynamicBatch, new GUIContent("Dynamic Batcher"), GUILayout.Height(25));
+                EditorGUILayout.PropertyField(m_UpdateProxy, new GUIContent("Refresh Renderer Proxy"), GUILayout.Height(25));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 

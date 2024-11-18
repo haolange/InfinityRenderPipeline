@@ -462,7 +462,7 @@
 				
 				float2 objectMotion = ndcPos - ndcPosOld;
 				//float2 objectMotion = (ndcPos - ndcPosOld) * 0.5;
-				return lerp(objectMotion, 0, unity_MotionVectorsParams.y == 0);
+				return unity_MotionVectorsParams.y == 0 ? 0 : objectMotion;
 			}
 			ENDHLSL
 		}

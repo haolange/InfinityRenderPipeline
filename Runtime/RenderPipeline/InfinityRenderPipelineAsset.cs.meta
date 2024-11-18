@@ -9,6 +9,7 @@ MonoImporter:
   - ssrShader: {fileID: 7200000, guid: 7986610df4d5baf43a4fa304dbedf1e1, type: 3}
   - ssaoShader: {fileID: 7200000, guid: eae0e70060e2d8e49b3507abcfe90059, type: 3}
   - ssgiShader: {fileID: 7200000, guid: f803e4ea08709f646a37d6cfec4fa38f, type: 3}
+  - combineLUTShader: {fileID: 7200000, guid: d8d4c0184bd952e4a8909308eba201a2, type: 3}
   - defaultShaderProxy: {fileID: 4800000, guid: 6420b6a33e6ddca4ea1932d4965fe051, type: 3}
   - blitMaterial: {fileID: 2100000, guid: 29858db06e5a37c42b532a126b46baee, type: 2}
   - defaultMaterialProxy: {fileID: 2100000, guid: 38b1fbc959d6ae34796666ebc6459c57, type: 2}
