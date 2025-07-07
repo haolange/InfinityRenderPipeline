@@ -51,8 +51,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                passRef.SetColorAttachment(lightingTexture, 0, EAttachmentAccess.Write | EAttachmentAccess.Clear);
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccess.ReadOnly);
 
                 ref ForwardPassData passData = ref passRef.GetPassData<ForwardPassData>();
                 {

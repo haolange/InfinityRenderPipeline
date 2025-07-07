@@ -15,6 +15,14 @@ namespace InfinityTech.Rendering.RenderGraph
     }
 
     [Flags]
+    public enum EAttachmentAccess : byte
+    {
+        Read = 0x01,
+        Write = 0x02,
+        Clear = 0x04  // Indicates that the attachment should be cleared
+    }
+
+    [Flags]
     internal enum ERGResourceType : byte
     {
         Buffer = 0,

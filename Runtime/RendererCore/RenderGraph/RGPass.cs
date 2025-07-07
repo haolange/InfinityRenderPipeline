@@ -18,11 +18,20 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal struct RGAttachmentAction
     {
+        public EAttachmentAccess access;
         public RenderBufferLoadAction loadAction;
         public RenderBufferStoreAction storeAction;
 
+        public RGAttachmentAction(in EAttachmentAccess access)
+        {
+            this.access = access;
+            this.loadAction = RenderBufferLoadAction.DontCare;
+            this.storeAction = RenderBufferStoreAction.DontCare;
+        }
+
         public RGAttachmentAction(in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
         {
+            this.access = EAttachmentAccess.Write;
             this.loadAction = loadAction;
             this.storeAction = storeAction;
         }
@@ -95,20 +104,30 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetColorAttachment(in RGTextureRef resource, in int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        public void SetColorAttachment(in RGTextureRef resource, in int index, in EAttachmentAccess access)
         {
             colorBufferMaxIndex = Math.Max(colorBufferMaxIndex, index);
             colorBuffers[index] = resource;
-            colorBufferActions[index] = new RGAttachmentAction(loadAction, storeAction);
-            AddResourceWrite(resource.handle);
+            colorBufferActions[index] = new RGAttachmentAction(access);
+            
+            if ((access & EAttachmentAccess.Read) != 0)
+            {
+                AddResourceRead(resource.handle);
+            }
+            
+            if ((access & EAttachmentAccess.Write) != 0)
+            {
+                AddResourceWrite(resource.handle);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetDepthStencilAttachment(in RGTextureRef resource, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
+        public void SetDepthStencilAttachment(in RGTextureRef resource, in EDepthAccess flags)
         {
             depthBuffer = resource;
             depthBufferAccess = flags;
-            depthBufferAction = new RGAttachmentAction(loadAction, storeAction);
+            depthBufferAction = new RGAttachmentAction((flags & EDepthAccess.Write) != 0 ? EAttachmentAccess.Write : EAttachmentAccess.Read);
+            
             if ((flags & EDepthAccess.ReadOnly) != 0) 
             {
                 AddResourceRead(resource.handle);
@@ -558,16 +577,16 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in EAttachmentAccess access)
         {
-            m_RasterPass.SetColorAttachment(renderTarget, index, loadAction, storeAction);
+            m_RasterPass.SetColorAttachment(renderTarget, index, access);
             return renderTarget;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
+        public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in EDepthAccess flags)
         {
-            m_RasterPass.SetDepthStencilAttachment(input, loadAction, storeAction, flags);
+            m_RasterPass.SetDepthStencilAttachment(input, flags);
             return input;
         }
 

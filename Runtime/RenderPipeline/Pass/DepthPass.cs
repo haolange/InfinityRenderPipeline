@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
                 //Setup Phase
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccess.Write);
 
                 ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
                 {

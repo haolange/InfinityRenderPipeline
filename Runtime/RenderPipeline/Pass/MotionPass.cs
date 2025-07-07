@@ -57,8 +57,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                passRef.SetColorAttachment(motionTexture, 0, EAttachmentAccess.Write | EAttachmentAccess.Clear);
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccess.Write);
 
                 ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();
                 {
@@ -78,8 +78,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                passRef.SetColorAttachment(motionTexture, 0, EAttachmentAccess.Read | EAttachmentAccess.Write);
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccess.ReadOnly);
 
                 ref CameraMotionPassData passData = ref passRef.GetPassData<CameraMotionPassData>();
                 {

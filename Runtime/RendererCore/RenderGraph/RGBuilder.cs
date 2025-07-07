@@ -563,12 +563,108 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void ResolveAttachmentActions()
+        {
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                if (passInfo.culled || passInfo.pass.passType != EPassType.Raster)
+                    continue;
+
+                IRGPass pass = passInfo.pass;
+
+                // Resolve color attachment actions
+                for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
+                {
+                    if (pass.colorBuffers[i].IsValid())
+                    {
+                        ref RGAttachmentAction action = ref pass.colorBufferActions[i];
+                        ResolveAttachmentAction(ref action, pass.colorBuffers[i].handle, passIndex);
+                    }
+                }
+
+                // Resolve depth attachment action
+                if (pass.depthBuffer.IsValid())
+                {
+                    ref RGAttachmentAction action = ref pass.depthBufferAction;
+                    ResolveAttachmentAction(ref action, pass.depthBuffer.handle, passIndex);
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void ResolveAttachmentAction(ref RGAttachmentAction action, in RGResourceHandle resourceHandle, int passIndex)
+        {
+            var resourceInfo = m_ResourcesCompileInfos[resourceHandle.iType][resourceHandle.index];
+            
+            // Determine load action
+            int firstWriteIndex = GetFirstValidWriteIndex(resourceInfo);
+            bool isFirstWrite = (firstWriteIndex == passIndex);
+            bool isImportedResource = m_Resources.IsResourceImported(resourceHandle);
+            
+            if ((action.access & EAttachmentAccess.Clear) != 0)
+            {
+                // Explicitly requested to clear
+                action.loadAction = RenderBufferLoadAction.Clear;
+            }
+            else if ((action.access & EAttachmentAccess.Write) != 0)
+            {
+                if (isFirstWrite && !isImportedResource)
+                {
+                    // First write to a non-imported resource - clear to ensure clean state
+                    action.loadAction = RenderBufferLoadAction.Clear;
+                }
+                else
+                {
+                    // Writing to imported resource or not the first write - preserve existing content
+                    action.loadAction = RenderBufferLoadAction.Load;
+                }
+            }
+            else if ((action.access & EAttachmentAccess.Read) != 0)
+            {
+                // Read-only access - always load
+                action.loadAction = RenderBufferLoadAction.Load;
+            }
+            else
+            {
+                // No access specified - don't care
+                action.loadAction = RenderBufferLoadAction.DontCare;
+            }
+
+            // Determine store action
+            int lastReadIndex = GetLatestValidReadIndex(resourceInfo);
+            int lastWriteIndex = GetLatestValidWriteIndex(resourceInfo);
+            int lastUseIndex = Math.Max(lastReadIndex, lastWriteIndex);
+            bool isLastUse = (lastUseIndex == passIndex);
+            
+            if ((action.access & EAttachmentAccess.Write) != 0)
+            {
+                if (isLastUse && !isImportedResource)
+                {
+                    // Last use of non-imported resource - no need to store
+                    action.storeAction = RenderBufferStoreAction.DontCare;
+                }
+                else
+                {
+                    // Not last use or imported resource - store for later use
+                    action.storeAction = RenderBufferStoreAction.Store;
+                }
+            }
+            else
+            {
+                // Read-only access - don't store
+                action.storeAction = RenderBufferStoreAction.DontCare;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void CompilePass()
         {
             InitializeCompileData();
             CountPassReference();
             CullingUnusedPass();
             UpdateResource();
+            ResolveAttachmentActions();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
