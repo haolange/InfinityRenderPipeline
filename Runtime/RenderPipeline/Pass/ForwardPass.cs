@@ -51,8 +51,12 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                
+                // 使用新的API：WriteAll表示完全重写颜色附件
+                passRef.SetColorAttachment(lightingTexture, 0, EColorAccessFlag.WriteAll);
+                
+                // ReadOnly表示只读深度，用于深度测试但不写入
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccessFlag.ReadOnly);
 
                 ref ForwardPassData passData = ref passRef.GetPassData<ForwardPassData>();
                 {

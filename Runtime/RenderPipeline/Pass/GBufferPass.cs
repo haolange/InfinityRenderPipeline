@@ -60,9 +60,14 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(gbufferTextureA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetColorAttachment(gbufferTextureB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                
+                // 使用新的API：通过访问标志自动推导Load/Store Action
+                // WriteAll表示完全重写整个附件，无需保留之前内容
+                passRef.SetColorAttachment(gbufferTextureA, 0, EColorAccessFlag.WriteAll);
+                passRef.SetColorAttachment(gbufferTextureB, 1, EColorAccessFlag.WriteAll);
+                
+                // ReadWrite表示需要读取和写入深度值
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccessFlag.ReadWrite);
 
                 ref GBufferPassData passData = ref passRef.GetPassData<GBufferPassData>();
                 {

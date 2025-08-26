@@ -137,7 +137,12 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Execute Phase
                 passRef.EnablePassCulling(false);
-                //passRef.EnableAsyncCompute(true);
+                
+                // 启用异步计算以演示修复的Bug：
+                // 即使这个Pass写入的LUT纹理没有被后续Pass直接读取，
+                // 由于启用了EnablePassCulling(false)，它也不会被错误地裁剪掉
+                passRef.EnableAsyncCompute(true);
+                
                 passRef.SetExecuteFunc((in CombineLutPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
 

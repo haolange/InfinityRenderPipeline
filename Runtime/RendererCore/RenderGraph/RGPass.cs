@@ -44,10 +44,13 @@ namespace InfinityTech.Rendering.RenderGraph
         public int colorBufferMaxIndex { get; protected set; }
         public bool enablePassCulling { get; protected set; }
         public bool enableAsyncCompute { get; protected set; }
+        public bool enablePassMerge { get; protected set; }
         public RGTextureRef depthBuffer { get; protected set; }
         public EDepthAccess depthBufferAccess { get; protected set; }
+        public EDepthAccessFlag depthBufferAccessFlag { get; protected set; }
         public RGAttachmentAction depthBufferAction { get; protected set; }
         public RGTextureRef[] colorBuffers { get; protected set; }
+        public EColorAccessFlag[] colorBufferAccessFlags { get; protected set; }
         public RGAttachmentAction[] colorBufferActions { get; protected set; }
 
         internal virtual bool hasExecuteAction => false;
@@ -60,6 +63,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             colorBufferMaxIndex = -1;
             colorBuffers = new RGTextureRef[8];
+            colorBufferAccessFlags = new EColorAccessFlag[8];
             colorBufferActions = new RGAttachmentAction[8];
             resourceReadLists = new List<RGResourceHandle>[2];
             resourceWriteLists = new List<RGResourceHandle>[2];
@@ -104,6 +108,16 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetColorAttachment(in RGTextureRef resource, in int index, in EColorAccessFlag accessFlag)
+        {
+            colorBufferMaxIndex = Math.Max(colorBufferMaxIndex, index);
+            colorBuffers[index] = resource;
+            colorBufferAccessFlags[index] = accessFlag;
+            // Load/Store actions will be determined during compilation
+            AddResourceWrite(resource.handle);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetDepthStencilAttachment(in RGTextureRef resource, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
             depthBuffer = resource;
@@ -121,6 +135,27 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetDepthStencilAttachment(in RGTextureRef resource, in EDepthAccessFlag accessFlag)
+        {
+            depthBuffer = resource;
+            depthBufferAccessFlag = accessFlag;
+            // Convert new access flag to old format for compatibility
+            switch (accessFlag)
+            {
+                case EDepthAccessFlag.ReadOnly:
+                    depthBufferAccess = EDepthAccess.ReadOnly;
+                    AddResourceRead(resource.handle);
+                    break;
+                case EDepthAccessFlag.ReadWrite:
+                    depthBufferAccess = EDepthAccess.ReadOnly | EDepthAccess.Write;
+                    AddResourceRead(resource.handle);
+                    AddResourceWrite(resource.handle);
+                    break;
+            }
+            // Load/Store actions will be determined during compilation
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnablePassCulling(in bool value)
         {
             enablePassCulling = value;
@@ -130,6 +165,12 @@ namespace InfinityTech.Rendering.RenderGraph
         public void EnableAsyncCompute(in bool value)
         {
             enableAsyncCompute = value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            enablePassMerge = value;
         }
 
         public void Clear()
@@ -147,15 +188,18 @@ namespace InfinityTech.Rendering.RenderGraph
             refCount = 0;
             enablePassCulling = true;
             enableAsyncCompute = false;
+            enablePassMerge = true; // 默认允许Pass合并
 
             // Invalidate everything
             colorBufferMaxIndex = -1;
             depthBuffer = new RGTextureRef();
             depthBufferAccess = EDepthAccess.Write;
+            depthBufferAccessFlag = EDepthAccessFlag.ReadWrite;
             depthBufferAction = new RGAttachmentAction();
             for (int i = 0; i < 8; ++i)
             {
                 colorBuffers[i] = new RGTextureRef();
+                colorBufferAccessFlags[i] = EColorAccessFlag.WriteAll;
                 colorBufferActions[i] = new RGAttachmentAction();
             }
         }
@@ -370,6 +414,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            m_ComputePass.EnablePassMerge(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
             m_ComputePass.AddResourceRead(input.handle);
@@ -565,10 +615,30 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in EColorAccessFlag accessFlag)
+        {
+            m_RasterPass.SetColorAttachment(renderTarget, index, accessFlag);
+            return renderTarget;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
             m_RasterPass.SetDepthStencilAttachment(input, loadAction, storeAction, flags);
             return input;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in EDepthAccessFlag accessFlag)
+        {
+            m_RasterPass.SetDepthStencilAttachment(input, accessFlag);
+            return input;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            m_RasterPass.EnablePassMerge(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
