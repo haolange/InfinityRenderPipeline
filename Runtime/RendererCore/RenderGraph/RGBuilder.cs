@@ -1194,12 +1194,176 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void OptimizePassMerging()
         {
-            // TODO: 实现Pass合并逻辑
-            // 由于这是一个复杂的优化，暂时留空，在后续版本中实现
-            // 这里可以添加：
-            // 1. 连续光栅Pass的合并条件检查
-            // 2. Subpass合并条件检查
-            // 3. 合并后的Pass重新组织
+            // 实现基础的Pass合并逻辑
+            for (int i = 0; i < m_PassCompileInfos.size - 1; ++i)
+            {
+                ref RGPassCompileInfo currentPassInfo = ref m_PassCompileInfos[i];
+                ref RGPassCompileInfo nextPassInfo = ref m_PassCompileInfos[i + 1];
+
+                // 检查Pass合并的基本条件
+                if (CanMergePasses(currentPassInfo, nextPassInfo))
+                {
+                    // 尝试Subpass合并（更优）
+                    if (CanMergeAsSubpasses(currentPassInfo, nextPassInfo))
+                    {
+                        MergeAsSubpasses(ref currentPassInfo, ref nextPassInfo);
+                    }
+                    // 否则尝试常规Pass合并
+                    else if (CanMergeAsRegularPasses(currentPassInfo, nextPassInfo))
+                    {
+                        MergeAsRegularPasses(ref currentPassInfo, ref nextPassInfo);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 检查两个Pass是否可以合并的基本条件
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool CanMergePasses(RGPassCompileInfo passA, RGPassCompileInfo nextPassB)
+        {
+            // 基本条件检查
+            if (passA.culled || nextPassB.culled) return false;
+            if (passA.pass.passType != EPassType.Raster || nextPassB.pass.passType != EPassType.Raster) return false;
+            if (!passA.pass.allowPassMerge || !nextPassB.pass.allowPassMerge) return false;
+            if (passA.enableAsyncCompute || nextPassB.enableAsyncCompute) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 检查两个Pass是否可以合并为Subpass
+        /// 条件：Pass B的输入附件正是Pass A的输出附件
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool CanMergeAsSubpasses(RGPassCompileInfo passA, RGPassCompileInfo passB)
+        {
+            IRGPass passAObj = passA.pass;
+            IRGPass passBObj = passB.pass;
+
+            // 检查Pass B是否有输入附件
+            if (passBObj.inputAttachments.Count == 0) return false;
+
+            // 检查输入附件是否与Pass A的输出匹配
+            foreach (var inputAttachment in passBObj.inputAttachments)
+            {
+                bool found = false;
+                
+                // 检查颜色附件
+                for (int i = 0; i <= passAObj.colorBufferMaxIndex; ++i)
+                {
+                    if (passAObj.colorBuffers[i].handle.index == inputAttachment.handle.index)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                // 检查深度附件
+                if (!found && passAObj.depthBuffer.IsValid() && 
+                    passAObj.depthBuffer.handle.index == inputAttachment.handle.index)
+                {
+                    found = true;
+                }
+
+                if (!found) return false;
+            }
+
+            // 检查Render Target配置是否兼容
+            return AreRenderTargetConfigurationsCompatible(passAObj, passBObj);
+        }
+
+        /// <summary>
+        /// 检查两个Pass是否可以作为常规Pass合并
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool CanMergeAsRegularPasses(RGPassCompileInfo passA, RGPassCompileInfo passB)
+        {
+            IRGPass passAObj = passA.pass;
+            IRGPass passBObj = passB.pass;
+
+            // 检查Render Target配置是否完全相同
+            if (!AreRenderTargetConfigurationsIdentical(passAObj, passBObj)) return false;
+
+            // 检查Pass A的storeAction是Store，Pass B的loadAction是Load的兼容性
+            // 这个检查会在Load/Store Action推导后更准确
+            return true;
+        }
+
+        /// <summary>
+        /// 检查两个Pass的Render Target配置是否兼容（用于Subpass）
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool AreRenderTargetConfigurationsCompatible(IRGPass passA, IRGPass passB)
+        {
+            // 检查深度附件尺寸
+            if (passA.depthBuffer.IsValid() && passB.depthBuffer.IsValid())
+            {
+                var depthDescA = m_Resources.GetTextureDescriptor(passA.depthBuffer.handle);
+                var depthDescB = m_Resources.GetTextureDescriptor(passB.depthBuffer.handle);
+                if (depthDescA.width != depthDescB.width || depthDescA.height != depthDescB.height)
+                    return false;
+            }
+
+            // 检查颜色附件尺寸（简化检查）
+            if (passA.colorBufferMaxIndex >= 0 && passB.colorBufferMaxIndex >= 0)
+            {
+                var colorDescA = m_Resources.GetTextureDescriptor(passA.colorBuffers[0].handle);
+                var colorDescB = m_Resources.GetTextureDescriptor(passB.colorBuffers[0].handle);
+                if (colorDescA.width != colorDescB.width || colorDescA.height != colorDescB.height)
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 检查两个Pass的Render Target配置是否完全相同
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool AreRenderTargetConfigurationsIdentical(IRGPass passA, IRGPass passB)
+        {
+            // 检查颜色附件数量
+            if (passA.colorBufferMaxIndex != passB.colorBufferMaxIndex) return false;
+
+            // 检查每个颜色附件
+            for (int i = 0; i <= passA.colorBufferMaxIndex; ++i)
+            {
+                if (passA.colorBuffers[i].handle.index != passB.colorBuffers[i].handle.index)
+                    return false;
+            }
+
+            // 检查深度附件
+            if (passA.depthBuffer.IsValid() != passB.depthBuffer.IsValid()) return false;
+            if (passA.depthBuffer.IsValid() && 
+                passA.depthBuffer.handle.index != passB.depthBuffer.handle.index)
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 将两个Pass合并为Subpass
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void MergeAsSubpasses(ref RGPassCompileInfo passA, ref RGPassCompileInfo passB)
+        {
+            // 为了简化实现，这里仅标记合并意图
+            // 实际的Subpass创建会在BeginRasterPass中处理
+            // TODO: 在后续版本中实现完整的Subpass合并逻辑
+            Debug.Log($"[RG优化] 检测到Subpass合并机会: {passA.pass.name} -> {passB.pass.name}");
+        }
+
+        /// <summary>
+        /// 将两个Pass作为常规Pass合并
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void MergeAsRegularPasses(ref RGPassCompileInfo passA, ref RGPassCompileInfo passB)
+        {
+            // 为了简化实现，这里仅标记合并意图
+            // TODO: 在后续版本中实现完整的Pass合并逻辑
+            Debug.Log($"[RG优化] 检测到Pass合并机会: {passA.pass.name} -> {passB.pass.name}");
         }
 
         public void Dispose()
