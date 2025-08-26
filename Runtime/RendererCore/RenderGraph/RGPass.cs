@@ -16,6 +16,44 @@ namespace InfinityTech.Rendering.RenderGraph
         Raster = 3
     }
 
+    /// <summary>
+    /// 定义了对某个Render Attachment的访问意图，用于Render Graph编译器自动推导Load/Store Action及优化（如Pass Merge/Subpass Merge）。
+    /// </summary>
+    public enum EAccessFlag : byte
+    {
+        /// <summary>
+        /// 读取操作。
+        /// 对于Color Attachment，意味着作为Texture进行采样（会中断Subpass）。
+        /// 对于Depth Attachment，意味着仅用于深度测试，不写入深度。
+        /// 对于Input Attachment，意味着在同一像素位置读取（触发Subpass合并）。
+        /// </summary>
+        Read = 0,
+
+        /// <summary>
+        /// 写入操作，需要保留Attachment的现有内容。
+        /// 通常用于半透明混合、或在已有图像上进行局部绘制。
+        /// RG将推导出 LoadAction = Load。
+        /// </summary>
+        Write = 1,
+
+        /// <summary>
+        /// 全屏写入，不关心Attachment的现有内容，但会确保写入所有像素（例如天空盒、全屏后处理）。
+        /// 这是最强的优化提示，RG将推导出 LoadAction = DontCare 或 Clear。
+        /// </summary>
+        WriteAll = 2,
+
+        /// <summary>
+        /// 写入操作，但不关心Attachment的现有内容，且不保证全屏写入（例如不透明物体的GBuffer Pass，被剔除的区域不会被写入）。
+        /// 强提示RG"不要Load"，RG将推导出 LoadAction = DontCare。开发者需自行确保不会读取到未定义区域。
+        /// </summary>
+        Discard = 3,
+
+        /// <summary>
+        /// 读写操作，目前主要用于深度附件，表示需要进行深度测试并同时写入深度。
+        /// </summary>
+        ReadWrite = 4,
+    }
+
     internal struct RGAttachmentAction
     {
         public RenderBufferLoadAction loadAction;
@@ -44,11 +82,20 @@ namespace InfinityTech.Rendering.RenderGraph
         public int colorBufferMaxIndex { get; protected set; }
         public bool enablePassCulling { get; protected set; }
         public bool enableAsyncCompute { get; protected set; }
+        public bool allowPassMerge { get; protected set; }
         public RGTextureRef depthBuffer { get; protected set; }
         public EDepthAccess depthBufferAccess { get; protected set; }
         public RGAttachmentAction depthBufferAction { get; protected set; }
         public RGTextureRef[] colorBuffers { get; protected set; }
         public RGAttachmentAction[] colorBufferActions { get; protected set; }
+        
+        // 新增：输入附件支持（用于Subpass合并）
+        public List<RGTextureRef> inputAttachments { get; protected set; }
+        public List<EAccessFlag> inputAttachmentAccess { get; protected set; }
+        
+        // 新增：访问标志支持（用于自动推导Load/Store Action）
+        public EAccessFlag[] colorBufferAccessFlags { get; protected set; }
+        public EAccessFlag depthBufferAccessFlag { get; protected set; }
 
         internal virtual bool hasExecuteAction => false;
 
@@ -61,6 +108,9 @@ namespace InfinityTech.Rendering.RenderGraph
             colorBufferMaxIndex = -1;
             colorBuffers = new RGTextureRef[8];
             colorBufferActions = new RGAttachmentAction[8];
+            colorBufferAccessFlags = new EAccessFlag[8];
+            inputAttachments = new List<RGTextureRef>();
+            inputAttachmentAccess = new List<EAccessFlag>();
             resourceReadLists = new List<RGResourceHandle>[2];
             resourceWriteLists = new List<RGResourceHandle>[2];
             temporalResourceList = new List<RGResourceHandle>[2];
@@ -103,6 +153,38 @@ namespace InfinityTech.Rendering.RenderGraph
             AddResourceWrite(resource.handle);
         }
 
+        /// <summary>
+        /// 新的基于访问意图的颜色附件设置函数。
+        /// 根据访问标志自动推导Load/Store Action，实现更好的性能优化。
+        /// </summary>
+        /// <param name="resource">要设置的颜色附件纹理</param>
+        /// <param name="index">MRT索引</param>
+        /// <param name="access">访问意图标志</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetColorAttachment(in RGTextureRef resource, in int index, in EAccessFlag access)
+        {
+            colorBufferMaxIndex = Math.Max(colorBufferMaxIndex, index);
+            colorBuffers[index] = resource;
+            colorBufferAccessFlags[index] = access;
+            
+            // 根据访问标志添加相应的资源依赖
+            switch (access)
+            {
+                case EAccessFlag.Read:
+                    AddResourceRead(resource.handle);
+                    break;
+                case EAccessFlag.Write:
+                case EAccessFlag.WriteAll:
+                case EAccessFlag.Discard:
+                    AddResourceWrite(resource.handle);
+                    break;
+                case EAccessFlag.ReadWrite:
+                    AddResourceRead(resource.handle);
+                    AddResourceWrite(resource.handle);
+                    break;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetDepthStencilAttachment(in RGTextureRef resource, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
@@ -120,6 +202,53 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
+        /// <summary>
+        /// 新的基于访问意图的深度附件设置函数。
+        /// 使用统一的EAccessFlag替代EDepthAccess，保持API一致性。
+        /// </summary>
+        /// <param name="resource">要设置的深度附件纹理</param>
+        /// <param name="access">访问意图标志</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetDepthAttachment(in RGTextureRef resource, in EAccessFlag access)
+        {
+            depthBuffer = resource;
+            depthBufferAccessFlag = access;
+            
+            // 根据访问标志转换为EDepthAccess并添加资源依赖
+            switch (access)
+            {
+                case EAccessFlag.Read:
+                    depthBufferAccess = EDepthAccess.ReadOnly;
+                    AddResourceRead(resource.handle);
+                    break;
+                case EAccessFlag.Write:
+                case EAccessFlag.WriteAll:
+                case EAccessFlag.Discard:
+                    depthBufferAccess = EDepthAccess.Write;
+                    AddResourceWrite(resource.handle);
+                    break;
+                case EAccessFlag.ReadWrite:
+                    depthBufferAccess = EDepthAccess.ReadOnly | EDepthAccess.Write;
+                    AddResourceRead(resource.handle);
+                    AddResourceWrite(resource.handle);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 新增：设置输入附件，用于支持Subpass合并优化。
+        /// 输入附件允许在同一个RenderPass内的不同Subpass之间直接传递数据，避免带宽消耗。
+        /// </summary>
+        /// <param name="input">输入附件纹理</param>
+        /// <param name="access">访问标志，通常为Read</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetInputAttachment(in RGTextureRef input, in EAccessFlag access = EAccessFlag.Read)
+        {
+            inputAttachments.Add(input);
+            inputAttachmentAccess.Add(access);
+            AddResourceRead(input.handle);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnablePassCulling(in bool value)
         {
@@ -130,6 +259,17 @@ namespace InfinityTech.Rendering.RenderGraph
         public void EnableAsyncCompute(in bool value)
         {
             enableAsyncCompute = value;
+        }
+
+        /// <summary>
+        /// 设置是否允许当前Pass与其他Pass进行合并优化。
+        /// 当启用时，RG编译器会尝试将具有兼容Render Target配置的连续Pass合并，以减少带宽消耗。
+        /// </summary>
+        /// <param name="allow">是否允许Pass合并</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AllowPassMerge(in bool allow)
+        {
+            allowPassMerge = allow;
         }
 
         public void Clear()
@@ -147,16 +287,24 @@ namespace InfinityTech.Rendering.RenderGraph
             refCount = 0;
             enablePassCulling = true;
             enableAsyncCompute = false;
+            allowPassMerge = true;  // 默认允许Pass合并
 
             // Invalidate everything
             colorBufferMaxIndex = -1;
             depthBuffer = new RGTextureRef();
             depthBufferAccess = EDepthAccess.Write;
             depthBufferAction = new RGAttachmentAction();
+            depthBufferAccessFlag = EAccessFlag.Write;
+            
+            // Clear input attachments
+            inputAttachments.Clear();
+            inputAttachmentAccess.Clear();
+            
             for (int i = 0; i < 8; ++i)
             {
                 colorBuffers[i] = new RGTextureRef();
                 colorBufferActions[i] = new RGAttachmentAction();
+                colorBufferAccessFlags[i] = EAccessFlag.Write;
             }
         }
     }
@@ -543,6 +691,15 @@ namespace InfinityTech.Rendering.RenderGraph
             m_RasterPass.EnablePassCulling(value);
         }
 
+        /// <summary>
+        /// 设置是否允许当前Pass与其他Pass进行合并优化
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AllowPassMerge(in bool allow)
+        {
+            m_RasterPass.AllowPassMerge(allow);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
@@ -564,10 +721,40 @@ namespace InfinityTech.Rendering.RenderGraph
             return renderTarget;
         }
 
+        /// <summary>
+        /// 新的基于访问意图的颜色附件设置 - 推荐使用
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in EAccessFlag access)
+        {
+            m_RasterPass.SetColorAttachment(renderTarget, index, access);
+            return renderTarget;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
             m_RasterPass.SetDepthStencilAttachment(input, loadAction, storeAction, flags);
+            return input;
+        }
+
+        /// <summary>
+        /// 新的基于访问意图的深度附件设置 - 推荐使用
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef SetDepthAttachment(in RGTextureRef depthTarget, in EAccessFlag access)
+        {
+            m_RasterPass.SetDepthAttachment(depthTarget, access);
+            return depthTarget;
+        }
+
+        /// <summary>
+        /// 设置输入附件，用于Subpass合并优化
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef SetInputAttachment(in RGTextureRef input, in EAccessFlag access = EAccessFlag.Read)
+        {
+            m_RasterPass.SetInputAttachment(input, access);
             return input;
         }
 

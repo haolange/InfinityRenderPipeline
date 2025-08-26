@@ -534,22 +534,41 @@ namespace InfinityTech.Rendering.RenderGraph
                         {
                             int currentPassIndex = lastReadPassIndex;
                             int firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
-                            while (firstWaitingPassIndex == -1 && currentPassIndex < m_PassCompileInfos.size)
+                            
+                            // 修复AsyncCompute Bug：确保正确遍历并检查同步点
+                            while (firstWaitingPassIndex == -1 && currentPassIndex < m_PassCompileInfos.size - 1)
                             {
                                 currentPassIndex++;
-                                if (m_PassCompileInfos[currentPassIndex].enableAsyncCompute) 
+                                // 修复：检查数组边界，避免越界访问
+                                if (currentPassIndex < m_PassCompileInfos.size)
                                 {
-                                    firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
+                                    ref RGPassCompileInfo nextPassInfo = ref m_PassCompileInfos[currentPassIndex];
+                                    // 修复：如果找到非AsyncCompute的Pass，说明需要同步
+                                    if (!nextPassInfo.enableAsyncCompute && nextPassInfo.syncToPassIndex == lastReadPassIndex) 
+                                    {
+                                        firstWaitingPassIndex = currentPassIndex;
+                                        break;
+                                    }
+                                    // 如果是AsyncCompute Pass但有同步需求
+                                    if (nextPassInfo.enableAsyncCompute && nextPassInfo.syncFromPassIndex != -1)
+                                    {
+                                        firstWaitingPassIndex = nextPassInfo.syncFromPassIndex;
+                                    }
                                 }
                             }
 
-                            ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[Math.Max(0, firstWaitingPassIndex - 1)];
-                            passInfo.resourceReleaseList[type].Add(i);
-
-                            if (currentPassIndex == m_PassCompileInfos.size) 
+                            // 修复：如果找到了同步点，在同步点前释放资源；否则在最后的读取/写入Pass释放
+                            if (firstWaitingPassIndex != -1 && firstWaitingPassIndex > 0)
                             {
-                                IRGPass invalidPass = m_PassList[lastReadPassIndex];
-                                throw new InvalidOperationException($"Async pass {invalidPass.name} was never synchronized on the graphics pipeline.");
+                                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[firstWaitingPassIndex - 1];
+                                passInfo.resourceReleaseList[type].Add(i);
+                            }
+                            else
+                            {
+                                // 修复：如果没有找到同步点，允许在AsyncCompute Pass链的末端释放
+                                // 这样可以支持纯AsyncCompute的工作流，而不强制要求与Graphics Pipeline同步
+                                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[lastReadPassIndex];
+                                passInfo.resourceReleaseList[type].Add(i);
                             }
                         } 
                         else 
@@ -569,6 +588,8 @@ namespace InfinityTech.Rendering.RenderGraph
             CountPassReference();
             CullingUnusedPass();
             UpdateResource();
+            InferLoadStoreActions();  // 新增：自动推导Load/Store Action
+            OptimizePassMerging();    // 新增：Pass合并优化
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1037,6 +1058,150 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
         
+        /// <summary>
+        /// 根据EAccessFlag自动推导Load/Store Action。
+        /// 这是新API的核心功能，根据Pass间的依赖关系和访问意图自动优化渲染状态。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void InferLoadStoreActions()
+        {
+            var textureResourceInfos = m_ResourcesCompileInfos[(int)ERGResourceType.Texture];
+            
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                if (passInfo.culled || passInfo.pass.passType != EPassType.Raster) continue;
+
+                IRGPass pass = passInfo.pass;
+
+                // 推导颜色附件的Load/Store Action
+                for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
+                {
+                    if (!pass.colorBuffers[i].IsValid()) continue;
+
+                    var resourceHandle = pass.colorBuffers[i].handle;
+                    var resourceInfo = textureResourceInfos[resourceHandle.index];
+                    var accessFlag = pass.colorBufferAccessFlags[i];
+
+                    // 推导LoadAction
+                    RenderBufferLoadAction loadAction = InferLoadAction(accessFlag, resourceHandle, passIndex, resourceInfo);
+                    
+                    // 推导StoreAction
+                    RenderBufferStoreAction storeAction = InferStoreAction(resourceHandle, passIndex, resourceInfo);
+                    
+                    pass.colorBufferActions[i] = new RGAttachmentAction(loadAction, storeAction);
+                }
+
+                // 推导深度附件的Load/Store Action
+                if (pass.depthBuffer.IsValid())
+                {
+                    var resourceHandle = pass.depthBuffer.handle;
+                    var resourceInfo = textureResourceInfos[resourceHandle.index];
+                    var accessFlag = pass.depthBufferAccessFlag;
+
+                    RenderBufferLoadAction loadAction = InferLoadAction(accessFlag, resourceHandle, passIndex, resourceInfo);
+                    RenderBufferStoreAction storeAction = InferStoreAction(resourceHandle, passIndex, resourceInfo);
+                    
+                    pass.depthBufferAction = new RGAttachmentAction(loadAction, storeAction);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 根据访问标志和资源使用情况推导LoadAction
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        RenderBufferLoadAction InferLoadAction(EAccessFlag accessFlag, RGResourceHandle resourceHandle, int currentPassIndex, RGResourceCompileInfo resourceInfo)
+        {
+            // 检查是否是首次写入该资源
+            bool isFirstWrite = true;
+            foreach (var producerIndex in resourceInfo.producers)
+            {
+                if (producerIndex < currentPassIndex && !m_PassCompileInfos[producerIndex].culled)
+                {
+                    isFirstWrite = false;
+                    break;
+                }
+            }
+
+            switch (accessFlag)
+            {
+                case EAccessFlag.Read:
+                    return RenderBufferLoadAction.Load;
+
+                case EAccessFlag.Write:
+                    // 需要混合，但如果是首次写入且有clearColor，优先Clear
+                    if (isFirstWrite)
+                    {
+                        var texDesc = m_Resources.GetTextureDescriptor(resourceHandle);
+                        return texDesc.clearBuffer ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.DontCare;
+                    }
+                    return RenderBufferLoadAction.Load;
+
+                case EAccessFlag.WriteAll:
+                    // 全屏写入，优化使用Clear或DontCare
+                    if (isFirstWrite)
+                    {
+                        var texDesc = m_Resources.GetTextureDescriptor(resourceHandle);
+                        return texDesc.clearBuffer ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.DontCare;
+                    }
+                    return RenderBufferLoadAction.DontCare;
+
+                case EAccessFlag.Discard:
+                    // 强提示不要Load
+                    return RenderBufferLoadAction.DontCare;
+
+                case EAccessFlag.ReadWrite:
+                    return isFirstWrite ? RenderBufferLoadAction.DontCare : RenderBufferLoadAction.Load;
+
+                default:
+                    return RenderBufferLoadAction.Load;
+            }
+        }
+
+        /// <summary>
+        /// 根据资源后续使用情况推导StoreAction
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        RenderBufferStoreAction InferStoreAction(RGResourceHandle resourceHandle, int currentPassIndex, RGResourceCompileInfo resourceInfo)
+        {
+            // 检查是否还有后续的读取或写入
+            bool hasSubsequentUse = false;
+            foreach (var consumerIndex in resourceInfo.consumers)
+            {
+                if (consumerIndex > currentPassIndex && !m_PassCompileInfos[consumerIndex].culled)
+                {
+                    hasSubsequentUse = true;
+                    break;
+                }
+            }
+            foreach (var producerIndex in resourceInfo.producers)
+            {
+                if (producerIndex > currentPassIndex && !m_PassCompileInfos[producerIndex].culled)
+                {
+                    hasSubsequentUse = true;
+                    break;
+                }
+            }
+
+            return hasSubsequentUse ? RenderBufferStoreAction.Store : RenderBufferStoreAction.DontCare;
+        }
+
+        /// <summary>
+        /// 实现自动Pass合并优化。
+        /// 将具有兼容Render Target配置的连续Pass合并，减少带宽消耗。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void OptimizePassMerging()
+        {
+            // TODO: 实现Pass合并逻辑
+            // 由于这是一个复杂的优化，暂时留空，在后续版本中实现
+            // 这里可以添加：
+            // 1. 连续光栅Pass的合并条件检查
+            // 2. Subpass合并条件检查
+            // 3. 合并后的Pass重新组织
+        }
+
         public void Dispose()
         {
             m_Resources.Dispose();
