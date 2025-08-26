@@ -349,6 +349,10 @@ namespace InfinityTech.Rendering.RenderGraph
                     {
                         ref var producerInfo = ref m_PassCompileInfos[producerIndex];
                         producerInfo.refCount--;
+                        
+                        // 修复异步计算Pass裁剪Bug：对于强制保留的Pass（enablePassCulling=false），
+                        // 即使其输出资源未被后续Pass消费，也不应被裁剪。
+                        // 这样的Pass会被视为依赖图中的"根节点"或有效终点。
                         if (producerInfo.refCount == 0 && !producerInfo.hasSideEffect && producerInfo.enablePassCulling)
                         {
                             producerInfo.culled = true;
@@ -487,6 +491,197 @@ namespace InfinityTech.Rendering.RenderGraph
             return -1;
         }
 
+        /// <summary>
+        /// 自动推导附件的Load/Store Action。
+        /// 根据Pass间的拓扑依赖关系和访问标志，自动计算最优的LoadAction和StoreAction。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void DeduceAttachmentLoadStoreActions()
+        {
+            // 遍历所有未被裁剪的光栅Pass
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                if (passInfo.culled || passInfo.pass.passType != EPassType.Raster)
+                    continue;
+
+                IRGPass pass = passInfo.pass;
+
+                // 推导颜色附件的Load/Store Action
+                for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
+                {
+                    if (!pass.colorBuffers[i].IsValid())
+                        continue;
+
+                    var colorAccessFlag = pass.colorBufferAccessFlags[i];
+                    var textureHandle = pass.colorBuffers[i].handle;
+                    
+                    // 推导LoadAction
+                    RenderBufferLoadAction loadAction = DeduceColorLoadAction(passIndex, textureHandle, colorAccessFlag);
+                    
+                    // 推导StoreAction
+                    RenderBufferStoreAction storeAction = DeduceColorStoreAction(passIndex, textureHandle, colorAccessFlag);
+                    
+                    // 设置推导出的Load/Store Action
+                    pass.colorBufferActions[i] = new RGAttachmentAction(loadAction, storeAction);
+                }
+
+                // 推导深度附件的Load/Store Action
+                if (pass.depthBuffer.IsValid())
+                {
+                    var depthAccessFlag = pass.depthBufferAccessFlag;
+                    var depthHandle = pass.depthBuffer.handle;
+                    
+                    // 推导LoadAction
+                    RenderBufferLoadAction loadAction = DeduceDepthLoadAction(passIndex, depthHandle, depthAccessFlag);
+                    
+                    // 推导StoreAction  
+                    RenderBufferStoreAction storeAction = DeduceDepthStoreAction(passIndex, depthHandle, depthAccessFlag);
+                    
+                    // 设置推导出的Load/Store Action
+                    pass.depthBufferAction = new RGAttachmentAction(loadAction, storeAction);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 推导颜色附件的LoadAction。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        RenderBufferLoadAction DeduceColorLoadAction(int passIndex, RGResourceHandle textureHandle, EColorAccessFlag accessFlag)
+        {
+            // 根据访问标志决定LoadAction
+            switch (accessFlag)
+            {
+                case EColorAccessFlag.WriteAll:
+                case EColorAccessFlag.Discard:
+                    // 全屏写入或显式丢弃，无需加载之前的内容
+                    var textureDesc = m_Resources.GetTextureDescriptor(textureHandle);
+                    return textureDesc.clearBuffer ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.DontCare;
+
+                case EColorAccessFlag.Write:
+                    // 需要保留现有像素值的写入操作
+                    return IsFirstWriteToTexture(passIndex, textureHandle) ? 
+                        RenderBufferLoadAction.DontCare : RenderBufferLoadAction.Load;
+
+                case EColorAccessFlag.Read:
+                    // 读取操作必须加载之前的内容
+                    return RenderBufferLoadAction.Load;
+
+                default:
+                    return RenderBufferLoadAction.Load;
+            }
+        }
+
+        /// <summary>
+        /// 推导颜色附件的StoreAction。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        RenderBufferStoreAction DeduceColorStoreAction(int passIndex, RGResourceHandle textureHandle, EColorAccessFlag accessFlag)
+        {
+            // 检查是否有后续Pass读取此资源
+            bool hasSubsequentRead = HasSubsequentRead(passIndex, textureHandle);
+            
+            // 检查是否为导入的纹理（可能需要在RG外部使用）
+            bool isImported = m_Resources.IsResourceImported(textureHandle);
+            
+            // 如果后续有读取或者是导入的纹理，必须存储
+            if (hasSubsequentRead || isImported)
+            {
+                return RenderBufferStoreAction.Store;
+            }
+            
+            // 否则可以丢弃以节省带宽
+            return RenderBufferStoreAction.DontCare;
+        }
+
+        /// <summary>
+        /// 推导深度附件的LoadAction。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        RenderBufferLoadAction DeduceDepthLoadAction(int passIndex, RGResourceHandle depthHandle, EDepthAccessFlag accessFlag)
+        {
+            if (accessFlag == EDepthAccessFlag.ReadOnly)
+            {
+                // 只读深度测试，必须加载之前的深度值
+                return RenderBufferLoadAction.Load;
+            }
+            else // EDepthAccessFlag.ReadWrite
+            {
+                // 检查是否为首次写入
+                bool isFirstWrite = IsFirstWriteToTexture(passIndex, depthHandle);
+                if (isFirstWrite)
+                {
+                    var depthDesc = m_Resources.GetTextureDescriptor(depthHandle);
+                    return depthDesc.clearBuffer ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.DontCare;
+                }
+                else
+                {
+                    return RenderBufferLoadAction.Load;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 推导深度附件的StoreAction。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        RenderBufferStoreAction DeduceDepthStoreAction(int passIndex, RGResourceHandle depthHandle, EDepthAccessFlag accessFlag)
+        {
+            // 检查是否有后续Pass读取此深度缓冲
+            bool hasSubsequentRead = HasSubsequentRead(passIndex, depthHandle);
+            
+            // 检查是否为导入的纹理
+            bool isImported = m_Resources.IsResourceImported(depthHandle);
+            
+            // 如果后续有读取或者是导入的纹理，必须存储
+            if (hasSubsequentRead || isImported)
+            {
+                return RenderBufferStoreAction.Store;
+            }
+            
+            // 否则可以丢弃
+            return RenderBufferStoreAction.DontCare;
+        }
+
+        /// <summary>
+        /// 检查指定Pass是否为纹理的首次写入。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IsFirstWriteToTexture(int passIndex, RGResourceHandle textureHandle)
+        {
+            var resourceInfo = m_ResourcesCompileInfos[textureHandle.iType][textureHandle.index];
+            
+            foreach (var producerIndex in resourceInfo.producers)
+            {
+                if (!m_PassCompileInfos[producerIndex].culled && producerIndex < passIndex)
+                {
+                    return false; // 找到了之前的写入者
+                }
+            }
+            
+            return true; // 没有找到之前的写入者，这是首次写入
+        }
+
+        /// <summary>
+        /// 检查是否有后续Pass读取指定资源。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool HasSubsequentRead(int passIndex, RGResourceHandle resourceHandle)
+        {
+            var resourceInfo = m_ResourcesCompileInfos[resourceHandle.iType][resourceHandle.index];
+            
+            foreach (var consumerIndex in resourceInfo.consumers)
+            {
+                if (!m_PassCompileInfos[consumerIndex].culled && consumerIndex > passIndex)
+                {
+                    return true; // 找到了后续的读取者
+                }
+            }
+            
+            return false; // 没有找到后续的读取者
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void UpdateResource()
         {
@@ -568,6 +763,7 @@ namespace InfinityTech.Rendering.RenderGraph
             InitializeCompileData();
             CountPassReference();
             CullingUnusedPass();
+            DeduceAttachmentLoadStoreActions(); // 新增：推导附件的Load/Store Action
             UpdateResource();
         }
 
