@@ -30,6 +30,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public List<int>[] resourceReleaseList;
         public bool enablePassCulling { get { return pass.enablePassCulling; } }
         public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
+        public bool enablePassMerge { get { return pass.enablePassMerge; } }
+        
+        // Pass合并相关字段
+        public int mergeGroupIndex; // 所属的合并组索引，-1表示不参与合并
+        public bool isGroupLeader; // 是否是合并组的主导Pass
 
         public void Reset(IRGPass pass)
         {
@@ -58,6 +63,8 @@ namespace InfinityTech.Rendering.RenderGraph
             syncToPassIndex = -1;
             syncFromPassIndex = -1;
             needGraphicsFence = false;
+            mergeGroupIndex = -1;
+            isGroupLeader = false;
         }
     }
 
@@ -82,6 +89,23 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
+    /// <summary>
+    /// Pass合并组的数据结构，包含一个连续的光栅Pass序列
+    /// </summary>
+    internal struct RGPassMergeGroup
+    {
+        public int startPassIndex;  // 组内第一个Pass的索引
+        public int endPassIndex;    // 组内最后一个Pass的索引
+        public int passCount;       // 组内Pass的数量
+        
+        public RGPassMergeGroup(int startIndex, int endIndex)
+        {
+            startPassIndex = startIndex;
+            endPassIndex = endIndex;
+            passCount = endIndex - startIndex + 1;
+        }
+    }
+
     public class RGBuilder 
     {
         public string name;
@@ -92,6 +116,7 @@ namespace InfinityTech.Rendering.RenderGraph
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
+        List<RGPassMergeGroup> m_PassMergeGroups = new List<RGPassMergeGroup>();
 
         public RGBuilder(string name)
         {
@@ -252,6 +277,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
             m_PassList.Clear();
             m_Resources.Clear();
+            m_PassMergeGroups.Clear();
 
             for (int i = 0; i < 2; ++i)
             {
@@ -583,6 +609,7 @@ namespace InfinityTech.Rendering.RenderGraph
             CountPassReference();
             CullingUnusedPass();
             InferLoadStoreActions();
+            AnalyzePassMerging();
             UpdateResource();
         }
 
@@ -1035,11 +1062,25 @@ namespace InfinityTech.Rendering.RenderGraph
 
                 try
                 {
-                    using (new ProfilingScope(graphContext.cmdBuffer, passInfo.pass.customSampler))
+                    // 检查是否是合并组的成员
+                    if (passInfo.mergeGroupIndex != -1)
                     {
-                        PrePassExecute(ref graphContext, passInfo);
-                        passInfo.pass.Execute(ref graphContext);
-                        PostPassExecute(graphicsCmdBuffer, ref graphContext, ref passInfo);
+                        // 只有组长负责执行整个合并组
+                        if (passInfo.isGroupLeader)
+                        {
+                            ExecuteMergedPassGroup(ref graphContext, graphicsCmdBuffer, passInfo.mergeGroupIndex);
+                        }
+                        // 非组长的Pass跳过执行（已在组长执行时处理）
+                    }
+                    else
+                    {
+                        // 普通单独执行的Pass
+                        using (new ProfilingScope(graphContext.cmdBuffer, passInfo.pass.customSampler))
+                        {
+                            PrePassExecute(ref graphContext, passInfo);
+                            passInfo.pass.Execute(ref graphContext);
+                            PostPassExecute(graphicsCmdBuffer, ref graphContext, ref passInfo);
+                        }
                     }
                 } 
                 catch (Exception e) 
@@ -1049,6 +1090,40 @@ namespace InfinityTech.Rendering.RenderGraph
                     Debug.LogException(e);
                     throw;
                 }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void ExecuteMergedPassGroup(ref RGContext graphContext, CommandBuffer graphicsCmdBuffer, int groupIndex)
+        {
+            // 执行一个合并的Pass组
+            var group = m_PassMergeGroups[groupIndex];
+            
+            // 使用组长Pass的profiler sampler作为整个组的名称
+            var leaderPass = m_PassCompileInfos[group.startPassIndex].pass;
+            using (new ProfilingScope(graphContext.cmdBuffer, leaderPass.customSampler))
+            {
+                // 执行组长的PrePassExecute（这会开始RenderPass）
+                ref var leaderPassInfo = ref m_PassCompileInfos[group.startPassIndex];
+                PrePassExecute(ref graphContext, leaderPassInfo);
+                
+                // 执行组内所有Pass的Execute回调
+                for (int passIndex = group.startPassIndex; passIndex <= group.endPassIndex; ++passIndex)
+                {
+                    ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                    
+                    if (passInfo.culled || passInfo.pass.passType != EPassType.Raster)
+                        continue;
+                        
+                    // 为每个Pass创建独立的Profiler调试组
+                    using (new ProfilingScope(graphContext.cmdBuffer, passInfo.pass.customSampler))
+                    {
+                        passInfo.pass.Execute(ref graphContext);
+                    }
+                }
+                
+                // 执行组长的PostPassExecute（这会结束RenderPass）
+                PostPassExecute(graphicsCmdBuffer, ref graphContext, ref leaderPassInfo);
             }
         }
         
@@ -1279,6 +1354,176 @@ namespace InfinityTech.Rendering.RenderGraph
                 return pass.depthBufferAccessFlag == EDepthAccessFlag.Discard;
             }
             return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void AnalyzePassMerging()
+        {
+            // 分析并识别可以合并的连续光栅Pass序列
+            m_PassMergeGroups.Clear();
+            
+            int currentGroupStart = -1;
+            IRGPass previousPass = null;
+            
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                
+                // 跳过被裁剪的Pass
+                if (passInfo.culled)
+                    continue;
+                    
+                IRGPass currentPass = passInfo.pass;
+                
+                // 只处理光栅Pass
+                if (currentPass.passType != EPassType.Raster)
+                {
+                    // 非光栅Pass打断序列，结束当前组
+                    if (currentGroupStart != -1)
+                    {
+                        FinalizeMergeGroup(currentGroupStart, passIndex - 1);
+                        currentGroupStart = -1;
+                    }
+                    previousPass = null;
+                    continue;
+                }
+                
+                // 检查是否可以与前一个Pass合并
+                bool canMergeWithPrevious = false;
+                if (previousPass != null && currentGroupStart != -1)
+                {
+                    canMergeWithPrevious = CanMergePasses(previousPass, currentPass);
+                }
+                
+                if (canMergeWithPrevious)
+                {
+                    // 继续当前组
+                    // 无需特殊处理，组的起始点保持不变
+                }
+                else
+                {
+                    // 不能合并，结束当前组(如果存在)
+                    if (currentGroupStart != -1)
+                    {
+                        FinalizeMergeGroup(currentGroupStart, passIndex - 1);
+                    }
+                    
+                    // 开始新组，但前提是当前Pass允许合并
+                    if (currentPass.enablePassMerge)
+                    {
+                        currentGroupStart = passIndex;
+                    }
+                    else
+                    {
+                        currentGroupStart = -1;
+                    }
+                }
+                
+                previousPass = currentPass;
+            }
+            
+            // 处理最后一个可能的组
+            if (currentGroupStart != -1)
+            {
+                FinalizeMergeGroup(currentGroupStart, m_PassCompileInfos.size - 1);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool CanMergePasses(IRGPass pass1, IRGPass pass2)
+        {
+            // 检查两个光栅Pass是否可以合并
+            
+            // 1. 两个Pass都必须允许合并
+            if (!pass1.enablePassMerge || !pass2.enablePassMerge)
+                return false;
+            
+            // 2. 渲染目标必须完全一致 (颜色附件和深度附件)
+            
+            // 检查颜色附件数量
+            if (pass1.colorBufferMaxIndex != pass2.colorBufferMaxIndex)
+                return false;
+                
+            // 检查每个颜色附件
+            for (int i = 0; i <= pass1.colorBufferMaxIndex; ++i)
+            {
+                // 句柄必须相同
+                if (pass1.colorBuffers[i].handle.index != pass2.colorBuffers[i].handle.index)
+                    return false;
+                    
+                // 验证纹理描述符是否匹配
+                if (pass1.colorBuffers[i].IsValid() && pass2.colorBuffers[i].IsValid())
+                {
+                    var desc1 = m_Resources.GetTextureDescriptor(pass1.colorBuffers[i].handle);
+                    var desc2 = m_Resources.GetTextureDescriptor(pass2.colorBuffers[i].handle);
+                    
+                    if (desc1.width != desc2.width || desc1.height != desc2.height || 
+                        desc1.colorFormat != desc2.colorFormat)
+                        return false;
+                }
+            }
+            
+            // 检查深度附件
+            bool pass1HasDepth = pass1.depthBuffer.IsValid();
+            bool pass2HasDepth = pass2.depthBuffer.IsValid();
+            
+            if (pass1HasDepth != pass2HasDepth)
+                return false;
+                
+            if (pass1HasDepth && pass2HasDepth)
+            {
+                // 句柄必须相同
+                if (pass1.depthBuffer.handle.index != pass2.depthBuffer.handle.index)
+                    return false;
+                    
+                // 验证纹理描述符是否匹配
+                var desc1 = m_Resources.GetTextureDescriptor(pass1.depthBuffer.handle);
+                var desc2 = m_Resources.GetTextureDescriptor(pass2.depthBuffer.handle);
+                
+                if (desc1.width != desc2.width || desc1.height != desc2.height || 
+                    desc1.depthBufferBits != desc2.depthBufferBits)
+                    return false;
+            }
+            
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void FinalizeMergeGroup(int startIndex, int endIndex)
+        {
+            // 只有包含2个或更多Pass的组才需要合并
+            if (endIndex > startIndex)
+            {
+                // 跳过被裁剪的Pass来找到实际的开始和结束索引
+                int actualStart = startIndex;
+                int actualEnd = endIndex;
+                
+                // 找到第一个未被裁剪的Pass
+                while (actualStart <= endIndex && m_PassCompileInfos[actualStart].culled)
+                    actualStart++;
+                    
+                // 找到最后一个未被裁剪的Pass
+                while (actualEnd >= actualStart && m_PassCompileInfos[actualEnd].culled)
+                    actualEnd--;
+                
+                // 如果仍然有多个有效Pass，则创建合并组
+                if (actualEnd > actualStart)
+                {
+                    int groupIndex = m_PassMergeGroups.Count;
+                    m_PassMergeGroups.Add(new RGPassMergeGroup(actualStart, actualEnd));
+                    
+                    // 标记组内的Pass
+                    for (int i = actualStart; i <= actualEnd; ++i)
+                    {
+                        if (!m_PassCompileInfos[i].culled && m_PassCompileInfos[i].pass.passType == EPassType.Raster)
+                        {
+                            ref var passInfo = ref m_PassCompileInfos[i];
+                            passInfo.mergeGroupIndex = groupIndex;
+                            passInfo.isGroupLeader = (i == actualStart); // 第一个Pass是组长
+                        }
+                    }
+                }
+            }
         }
     }
 }
