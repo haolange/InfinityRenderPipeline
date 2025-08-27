@@ -44,10 +44,13 @@ namespace InfinityTech.Rendering.RenderGraph
         public int colorBufferMaxIndex { get; protected set; }
         public bool enablePassCulling { get; protected set; }
         public bool enableAsyncCompute { get; protected set; }
+        public bool enablePassMerge { get; protected set; }
         public RGTextureRef depthBuffer { get; protected set; }
         public EDepthAccess depthBufferAccess { get; protected set; }
+        public EDepthAccessFlag depthBufferAccessFlag { get; protected set; }
         public RGAttachmentAction depthBufferAction { get; protected set; }
         public RGTextureRef[] colorBuffers { get; protected set; }
+        public EColorAccessFlag[] colorBufferAccessFlags { get; protected set; }
         public RGAttachmentAction[] colorBufferActions { get; protected set; }
 
         internal virtual bool hasExecuteAction => false;
@@ -61,6 +64,7 @@ namespace InfinityTech.Rendering.RenderGraph
             colorBufferMaxIndex = -1;
             colorBuffers = new RGTextureRef[8];
             colorBufferActions = new RGAttachmentAction[8];
+            colorBufferAccessFlags = new EColorAccessFlag[8];
             resourceReadLists = new List<RGResourceHandle>[2];
             resourceWriteLists = new List<RGResourceHandle>[2];
             temporalResourceList = new List<RGResourceHandle>[2];
@@ -95,29 +99,42 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetColorAttachment(in RGTextureRef resource, in int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        public void SetColorAttachment(in RGTextureRef resource, in int index, in EColorAccessFlag accessFlag)
         {
             colorBufferMaxIndex = Math.Max(colorBufferMaxIndex, index);
             colorBuffers[index] = resource;
-            colorBufferActions[index] = new RGAttachmentAction(loadAction, storeAction);
+            colorBufferAccessFlags[index] = accessFlag;
+            // Load/Store actions will be auto-inferred during compilation
+            colorBufferActions[index] = new RGAttachmentAction(RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
             AddResourceWrite(resource.handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetDepthStencilAttachment(in RGTextureRef resource, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
+        public void SetDepthStencilAttachment(in RGTextureRef resource, in EDepthAccessFlag accessFlag)
         {
             depthBuffer = resource;
-            depthBufferAccess = flags;
-            depthBufferAction = new RGAttachmentAction(loadAction, storeAction);
-            if ((flags & EDepthAccess.ReadOnly) != 0) 
+            depthBufferAccessFlag = accessFlag;
+            
+            // Convert new access flag to legacy EDepthAccess for backward compatibility
+            switch (accessFlag)
             {
-                AddResourceRead(resource.handle);
+                case EDepthAccessFlag.ReadOnly:
+                    depthBufferAccess = EDepthAccess.ReadOnly;
+                    AddResourceRead(resource.handle);
+                    break;
+                case EDepthAccessFlag.ReadWrite:
+                    depthBufferAccess = EDepthAccess.ReadOnly | EDepthAccess.Write;
+                    AddResourceRead(resource.handle);
+                    AddResourceWrite(resource.handle);
+                    break;
+                case EDepthAccessFlag.Discard:
+                    depthBufferAccess = EDepthAccess.Write;
+                    AddResourceWrite(resource.handle);
+                    break;
             }
-                
-            if ((flags & EDepthAccess.Write) != 0) 
-            {
-                AddResourceWrite(resource.handle);
-            }
+            
+            // Load/Store actions will be auto-inferred during compilation
+            depthBufferAction = new RGAttachmentAction(RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -130,6 +147,12 @@ namespace InfinityTech.Rendering.RenderGraph
         public void EnableAsyncCompute(in bool value)
         {
             enableAsyncCompute = value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            enablePassMerge = value;
         }
 
         public void Clear()
@@ -147,16 +170,19 @@ namespace InfinityTech.Rendering.RenderGraph
             refCount = 0;
             enablePassCulling = true;
             enableAsyncCompute = false;
+            enablePassMerge = true;
 
             // Invalidate everything
             colorBufferMaxIndex = -1;
             depthBuffer = new RGTextureRef();
             depthBufferAccess = EDepthAccess.Write;
+            depthBufferAccessFlag = EDepthAccessFlag.ReadWrite;
             depthBufferAction = new RGAttachmentAction();
             for (int i = 0; i < 8; ++i)
             {
                 colorBuffers[i] = new RGTextureRef();
                 colorBufferActions[i] = new RGAttachmentAction();
+                colorBufferAccessFlags[i] = EColorAccessFlag.WriteAll;
             }
         }
     }
@@ -277,6 +303,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            m_TransferPass.EnablePassMerge(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
             m_TransferPass.AddResourceRead(input.handle);
@@ -361,6 +393,12 @@ namespace InfinityTech.Rendering.RenderGraph
         public void EnablePassCulling(in bool value)
         {
             m_ComputePass.EnablePassCulling(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            m_ComputePass.EnablePassMerge(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -457,6 +495,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            m_RayTracingPass.EnablePassMerge(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
             m_RayTracingPass.AddResourceRead(input.handle);
@@ -544,6 +588,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnablePassMerge(in bool value)
+        {
+            m_RasterPass.EnablePassMerge(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
             m_RasterPass.AddResourceRead(input.handle);
@@ -558,16 +608,16 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in EColorAccessFlag accessFlag)
         {
-            m_RasterPass.SetColorAttachment(renderTarget, index, loadAction, storeAction);
+            m_RasterPass.SetColorAttachment(renderTarget, index, accessFlag);
             return renderTarget;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
+        public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in EDepthAccessFlag accessFlag)
         {
-            m_RasterPass.SetDepthStencilAttachment(input, loadAction, storeAction, flags);
+            m_RasterPass.SetDepthStencilAttachment(input, accessFlag);
             return input;
         }
 
