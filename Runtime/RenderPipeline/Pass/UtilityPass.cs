@@ -32,8 +32,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
             {
                 //Setup Phase
-                passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                passRef.SetColorAttachment(colorTexture, 0, EColorAccessFlag.Write);
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccessFlag.ReadOnly);
 
                 ref WireOverlayPassData passData = ref passRef.GetPassData<WireOverlayPassData>();
                 {
@@ -67,8 +67,8 @@ namespace InfinityTech.Rendering.Pipeline
                 using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
                     //Setup Phase
-                    passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                    passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                    passRef.SetColorAttachment(colorTexture, 0, EColorAccessFlag.Write);
+                    passRef.SetDepthStencilAttachment(depthTexture, EDepthAccessFlag.ReadOnly);
 
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     {
@@ -102,8 +102,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<SkyBoxPassData>(ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
             {
                 //Setup Phase
-                passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                passRef.SetColorAttachment(colorTexture, 0, EColorAccessFlag.Write);
+                passRef.SetDepthStencilAttachment(depthTexture, EDepthAccessFlag.ReadOnly);
 
                 ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
                 {
