@@ -1,0 +1,115 @@
+#pragma kernel ContactShadowCS
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Lighting.hlsl"
+#include "../../ShaderLibrary/Random.hlsl"
+
+int ContactShadow_NumSteps;
+float ContactShadow_MaxDistance;
+float ContactShadow_Thickness;
+float ContactShadow_Intensity;
+float ContactShadow_FadeDistance;
+float4 ContactShadow_Resolution;
+
+float4x4 Matrix_ViewProj;
+float4x4 Matrix_InvViewProj;
+float3 _WorldSpaceCameraPos;
+
+Texture2D<float> SRV_DepthTexture;
+RWTexture2D<float> UAV_ContactShadowTexture;
+
+// Screen-space ray march for contact shadows
+// Returns 1.0 = fully lit, 0.0 = fully shadowed
+float RayMarchContactShadow(float3 worldPos, float3 lightDir, float2 screenUV, float screenDepth)
+{
+    // Project ray end to screen space
+    float3 rayEnd = worldPos + lightDir * ContactShadow_MaxDistance;
+    float4 rayEndClip = mul(Matrix_ViewProj, float4(rayEnd, 1.0));
+    float2 rayEndUV = rayEndClip.xy / rayEndClip.w * 0.5 + 0.5;
+    #if UNITY_UV_STARTS_AT_TOP
+        rayEndUV.y = 1.0 - rayEndUV.y;
+    #endif
+    float rayEndDepth = rayEndClip.z / rayEndClip.w;
+
+    // Screen-space ray direction
+    float2 rayDirUV = rayEndUV - screenUV;
+    float rayDirDepth = rayEndDepth - screenDepth;
+
+    float stepSize = 1.0 / max(ContactShadow_NumSteps, 1);
+    float occlusion = 0;
+
+    [loop]
+    for (int i = 1; i <= ContactShadow_NumSteps; ++i)
+    {
+        float t = (float)i * stepSize;
+
+        float2 sampleUV = screenUV + rayDirUV * t;
+        float expectedDepth = screenDepth + rayDirDepth * t;
+
+        // Out-of-bounds check
+        if (any(sampleUV < 0) || any(sampleUV > 1))
+            break;
+
+        float sampledDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, sampleUV, 0);
+
+        // In reversed-Z, closer = larger depth value
+        float depthDiff = sampledDepth - expectedDepth;
+
+        // Hit: sampled depth is closer than expected (depthDiff > 0) and within thickness
+        if (depthDiff > 0 && depthDiff < ContactShadow_Thickness)
+        {
+            // Fade shadow based on distance along ray
+            float fadeFactor = 1.0 - saturate(t);
+            occlusion = max(occlusion, fadeFactor);
+            break;
+        }
+    }
+
+    return 1.0 - occlusion * ContactShadow_Intensity;
+}
+
+[numthreads(8, 8, 1)]
+void ContactShadowCS(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)ContactShadow_Resolution.xy))
+        return;
+
+    float2 screenUV = (id.xy + 0.5) * ContactShadow_Resolution.zw;
+    float rawDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+
+    // Sky pixels
+    if (rawDepth <= 1e-7)
+    {
+        UAV_ContactShadowTexture[id.xy] = 1.0;
+        return;
+    }
+
+    // Reconstruct world position
+    float3 ndcPos = GetNDCPos(screenUV, rawDepth);
+    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
+
+    // Distance fade
+    float viewDist = length(worldPos - _WorldSpaceCameraPos);
+    float distanceFade = 1.0 - saturate((viewDist - ContactShadow_FadeDistance * 0.8) / (ContactShadow_FadeDistance * 0.2));
+
+    if (distanceFade <= 0)
+    {
+        UAV_ContactShadowTexture[id.xy] = 1.0;
+        return;
+    }
+
+    // Sample directional light direction
+    float shadow = 1.0;
+    if (g_DirectionalLightCount > 0)
+    {
+        FDirectionalLightElement dirLight = g_DirectionalLightBuffer[0];
+        if (dirLight.enableContactShadow > 0)
+        {
+            float3 lightDir = dirLight.directional.xyz;
+            shadow = RayMarchContactShadow(worldPos, lightDir, screenUV, rawDepth);
+        }
+    }
+
+    shadow = lerp(1.0, shadow, distanceFade);
+    UAV_ContactShadowTexture[id.xy] = shadow;
+}

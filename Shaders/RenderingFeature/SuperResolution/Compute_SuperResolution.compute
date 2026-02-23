@@ -1,0 +1,162 @@
+#pragma kernel SuperResolutionCS
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Random.hlsl"
+
+float4 SR_Resolution;
+float4 SR_Jitter;
+int SR_FrameIndex;
+float SR_Sharpness;
+
+Texture2D<float4> SRV_SceneColorTexture;
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float2> SRV_MotionTexture;
+Texture2D<float4> SRV_HistoryColorTexture;
+RWTexture2D<float4> UAV_SuperResolutionTexture;
+
+static const int2 SampleOffset[9] = {
+    int2(-1, -1), int2(0, -1), int2(1, -1),
+    int2(-1,  0), int2(0,  0), int2(1,  0),
+    int2(-1,  1), int2(0,  1), int2(1,  1)
+};
+
+// Catmull-Rom bicubic filter for history sampling
+float4 SampleHistoryBicubic(float2 uv, float2 texSize, float2 invTexSize)
+{
+    float2 position = uv * texSize;
+    float2 center = floor(position - 0.5) + 0.5;
+    float2 f = position - center;
+    float2 f2 = f * f;
+    float2 f3 = f2 * f;
+
+    // Catmull-Rom weights
+    float2 w0 = -0.5 * f3 + f2 - 0.5 * f;
+    float2 w1 = 1.5 * f3 - 2.5 * f2 + 1.0;
+    float2 w2 = -1.5 * f3 + 2.0 * f2 + 0.5 * f;
+    float2 w3 = 0.5 * f3 - 0.5 * f2;
+
+    float2 w12 = w1 + w2;
+    float2 tc12 = (center + w2 / w12) * invTexSize;
+    float2 tc0 = (center - 1.0) * invTexSize;
+    float2 tc3 = (center + 2.0) * invTexSize;
+
+    float4 result =
+        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc12.x, tc0.y), 0) * (w12.x * w0.y) +
+        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc0.x, tc12.y), 0) * (w0.x * w12.y) +
+        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc12.x, tc12.y), 0) * (w12.x * w12.y) +
+        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc3.x, tc12.y), 0) * (w3.x * w12.y) +
+        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc12.x, tc3.y), 0) * (w12.x * w3.y);
+
+    return max(0, result);
+}
+
+// Tonemap / inverse tonemap for working in perceptual space
+float3 Tonemap(float3 color)
+{
+    return color * rcp(1.0 + Luminance(color));
+}
+
+float3 InverseTonemap(float3 color)
+{
+    return color * rcp(1.0 - Luminance(color));
+}
+
+// Find closest depth in 3x3 neighborhood for motion vector dilation
+float2 GetClosestMotionVector(uint2 pixelCoord, float2 screenUV)
+{
+    float closestDepth = 0;
+    float2 closestMotion = 0;
+
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        int2 coord = (int2)pixelCoord + SampleOffset[i];
+        float depth = SRV_DepthTexture[coord];
+
+        if (depth > closestDepth)
+        {
+            closestDepth = depth;
+            closestMotion = SRV_MotionTexture[coord];
+        }
+    }
+
+    return closestMotion;
+}
+
+[numthreads(8, 8, 1)]
+void SuperResolutionCS(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)SR_Resolution.xy))
+        return;
+
+    float2 screenUV = (id.xy + 0.5) * SR_Resolution.zw;
+    uint2 pixelCoord = id.xy;
+
+    // Get dilated motion vector from closest depth neighbor
+    float2 motionVector = GetClosestMotionVector(pixelCoord, screenUV);
+
+    // Sample current frame with jitter offset
+    float3 currentColor = SRV_SceneColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb;
+
+    // Gather 3x3 neighborhood in tonemapped space for clipping
+    float3 sampleColors[9];
+    float3 m1 = 0, m2 = 0;
+
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        float2 offset = SampleOffset[i] * SR_Resolution.zw;
+        sampleColors[i] = Tonemap(SRV_SceneColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV + offset, 0).rgb);
+        m1 += sampleColors[i];
+        m2 += sampleColors[i] * sampleColors[i];
+    }
+
+    float3 mean = m1 / 9.0;
+    float3 stddev = sqrt(abs(m2 / 9.0 - mean * mean));
+
+    // Variance clipping bounds
+    float3 colorMin = mean - 1.25 * stddev;
+    float3 colorMax = mean + 1.25 * stddev;
+
+    // Cross (+) shaped tighter bounds
+    float3 crossMin = min(min(sampleColors[1], sampleColors[3]), min(sampleColors[5], sampleColors[7]));
+    float3 crossMax = max(max(sampleColors[1], sampleColors[3]), max(sampleColors[5], sampleColors[7]));
+    crossMin = min(crossMin, sampleColors[4]);
+    crossMax = max(crossMax, sampleColors[4]);
+
+    colorMin = (colorMin + crossMin) * 0.5;
+    colorMax = (colorMax + crossMax) * 0.5;
+
+    // Sample history with bicubic filter
+    float2 historyUV = screenUV - motionVector;
+    float4 historyColor = SampleHistoryBicubic(historyUV, SR_Resolution.xy, SR_Resolution.zw);
+
+    // Clip history to neighborhood bounds
+    float3 historyTonemapped = Tonemap(historyColor.rgb);
+    historyTonemapped = clamp(historyTonemapped, colorMin, colorMax);
+
+    // Blend weight based on motion
+    float motionLength = length(motionVector * SR_Resolution.xy);
+    float blendWeight = saturate(0.95 - motionLength * 0.1);
+
+    // Reject history for out-of-screen samples
+    if (any(historyUV < 0) || any(historyUV > 1))
+        blendWeight = 0;
+
+    // Blend in tonemapped space
+    float3 currentTonemapped = Tonemap(currentColor);
+    float3 resultTonemapped = lerp(currentTonemapped, historyTonemapped, blendWeight);
+
+    // Inverse tonemap back to HDR
+    float3 result = InverseTonemap(resultTonemapped);
+
+    // Optional sharpening via negative mip bias / unsharp mask
+    if (SR_Sharpness > 0)
+    {
+        float3 blur = Tonemap(mean);
+        float3 sharp = currentTonemapped + (currentTonemapped - blur) * SR_Sharpness;
+        result = InverseTonemap(lerp(resultTonemapped, sharp, 0.15));
+    }
+
+    UAV_SuperResolutionTexture[id.xy] = float4(max(0, result), 1);
+}

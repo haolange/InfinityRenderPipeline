@@ -1,0 +1,58 @@
+#pragma kernel HalfResDownsample
+
+#include "../../ShaderLibrary/Common.hlsl"
+
+float4 HalfRes_FullResolution;
+float4 HalfRes_HalfResolution;
+Texture2D<float> SRV_FullResDepthTexture;
+RWTexture2D<float> UAV_HalfResDepthTexture;
+RWTexture2D<float4> UAV_HalfResNormalTexture;
+
+// Reconstruct view-space normal from depth using cross-product of finite differences
+float3 ReconstructNormalFromDepth(float2 uv, float centerDepth)
+{
+    float2 texelSize = HalfRes_FullResolution.zw;
+
+    float depthRight = SRV_FullResDepthTexture.SampleLevel(Global_point_clamp_sampler, uv + float2(texelSize.x, 0), 0);
+    float depthUp    = SRV_FullResDepthTexture.SampleLevel(Global_point_clamp_sampler, uv + float2(0, texelSize.y), 0);
+    float depthLeft  = SRV_FullResDepthTexture.SampleLevel(Global_point_clamp_sampler, uv - float2(texelSize.x, 0), 0);
+    float depthDown  = SRV_FullResDepthTexture.SampleLevel(Global_point_clamp_sampler, uv - float2(0, texelSize.y), 0);
+
+    // Use the pair with smallest depth difference (more robust at edges)
+    float3 ddx_pos = float3(texelSize.x, 0, depthRight - centerDepth);
+    float3 ddx_neg = float3(-texelSize.x, 0, centerDepth - depthLeft);
+    float3 ddy_pos = float3(0, texelSize.y, depthUp - centerDepth);
+    float3 ddy_neg = float3(0, -texelSize.y, centerDepth - depthDown);
+
+    float3 ddx = abs(ddx_pos.z) < abs(ddx_neg.z) ? ddx_pos : ddx_neg;
+    float3 ddy = abs(ddy_pos.z) < abs(ddy_neg.z) ? ddy_pos : ddy_neg;
+
+    float3 normal = normalize(cross(ddy, ddx));
+    return normal;
+}
+
+[numthreads(8, 8, 1)]
+void HalfResDownsample(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)HalfRes_HalfResolution.xy))
+        return;
+
+    // Map half-res pixel to full-res 2x2 block
+    uint2 fullResBase = id.xy * 2;
+    float2 uv = (float2(fullResBase) + 1.0) * HalfRes_FullResolution.zw;
+
+    // Gather 2x2 depth samples - use checkerboard min for conservative depth
+    float d00 = SRV_FullResDepthTexture[fullResBase + uint2(0, 0)];
+    float d10 = SRV_FullResDepthTexture[fullResBase + uint2(1, 0)];
+    float d01 = SRV_FullResDepthTexture[fullResBase + uint2(0, 1)];
+    float d11 = SRV_FullResDepthTexture[fullResBase + uint2(1, 1)];
+
+    // Use closest depth (max in reversed-Z) for conservative occlusion testing
+    float closestDepth = max(max(d00, d10), max(d01, d11));
+
+    // Reconstruct normal from full-res depth at the center of the 2x2 block
+    float3 normal = ReconstructNormalFromDepth(uv, closestDepth);
+
+    UAV_HalfResDepthTexture[id.xy] = closestDepth;
+    UAV_HalfResNormalTexture[id.xy] = float4(normal * 0.5 + 0.5, 1);
+}

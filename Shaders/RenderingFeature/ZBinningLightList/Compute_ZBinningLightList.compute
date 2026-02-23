@@ -1,0 +1,175 @@
+#pragma kernel ZBinning
+#pragma kernel TileLighting
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Lighting.hlsl"
+
+float4 ZBin_ScreenSize;
+int ZBin_TileSize;
+float4 ZBin_NumTiles;
+float4 ZBin_NearFar;
+int ZBin_NumBins;
+int ZBin_LightCount;
+
+Texture2D<float> SRV_DepthTexture;
+
+// Light bounds buffer: each light has (minZ, maxZ, sphereCenter.xyz, radius)
+StructuredBuffer<float4> SRV_LightBoundsBuffer;
+
+// Output: ZBin buffer stores (minLightIndex, maxLightIndex) per bin
+RWStructuredBuffer<uint> UAV_ZBinBuffer;
+// Output: per-tile light list
+RWStructuredBuffer<uint> UAV_TileLightList;
+
+#define MAX_LIGHTS_PER_TILE 64
+#define ZBINS_COUNT 256
+
+// Convert linear depth to bin index
+uint DepthToBin(float linearDepth, float near, float far)
+{
+    float t = saturate((linearDepth - near) / (far - near));
+    return min((uint)(t * ZBINS_COUNT), ZBINS_COUNT - 1);
+}
+
+// Linearize reversed-Z depth
+float LinearizeDepth(float rawDepth, float near, float far)
+{
+    // Unity reversed-Z: z=1 at near, z=0 at far
+    return near * far / (far + rawDepth * (near - far));
+}
+
+//--------------------------------------------------------------
+// Kernel 0: Z-Binning
+// One thread per bin. Scans all lights and marks min/max light index overlapping each bin.
+//--------------------------------------------------------------
+groupshared uint gs_binMin[ZBINS_COUNT];
+groupshared uint gs_binMax[ZBINS_COUNT];
+
+[numthreads(64, 1, 1)]
+void ZBinning(uint3 id : SV_DispatchThreadID)
+{
+    uint binIdx = id.x;
+    if (binIdx >= (uint)ZBin_NumBins)
+        return;
+
+    float near = ZBin_NearFar.x;
+    float far = ZBin_NearFar.y;
+
+    // Bin depth range
+    float binNear = near + (far - near) * ((float)binIdx / ZBin_NumBins);
+    float binFar  = near + (far - near) * ((float)(binIdx + 1) / ZBin_NumBins);
+
+    uint minLight = ZBin_LightCount;
+    uint maxLight = 0;
+
+    // Iterate over all lights, check depth overlap with this bin
+    for (int i = 0; i < ZBin_LightCount; ++i)
+    {
+        float4 bounds = SRV_LightBoundsBuffer[i];
+        float lightMinZ = bounds.x;
+        float lightMaxZ = bounds.y;
+
+        if (lightMinZ <= binFar && lightMaxZ >= binNear)
+        {
+            minLight = min(minLight, (uint)i);
+            maxLight = max(maxLight, (uint)i);
+        }
+    }
+
+    // Pack min/max light index into buffer: [2*bin+0]=min, [2*bin+1]=max
+    UAV_ZBinBuffer[binIdx * 2 + 0] = minLight;
+    UAV_ZBinBuffer[binIdx * 2 + 1] = maxLight;
+}
+
+//--------------------------------------------------------------
+// Kernel 1: Tile Light List
+// One thread group per tile (TileSize x TileSize).
+// Each thread processes one pixel; group collectively builds tile light list using wave/LDS ops.
+//--------------------------------------------------------------
+groupshared uint gs_tileMinDepthBin;
+groupshared uint gs_tileMaxDepthBin;
+groupshared uint gs_tileLightCount;
+groupshared uint gs_tileLightList[MAX_LIGHTS_PER_TILE];
+
+[numthreads(16, 16, 1)]
+void TileLighting(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
+{
+    uint2 tileCoord = groupId.xy;
+    uint2 pixelCoord = tileCoord * ZBin_TileSize + groupThreadId.xy;
+
+    float near = ZBin_NearFar.x;
+    float far = ZBin_NearFar.y;
+
+    // Initialize shared memory
+    if (groupIndex == 0)
+    {
+        gs_tileMinDepthBin = ZBINS_COUNT;
+        gs_tileMaxDepthBin = 0;
+        gs_tileLightCount = 0;
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // Each thread reads its pixel depth and computes bin
+    uint depthBin = 0;
+    if (all(pixelCoord < (uint2)ZBin_ScreenSize.xy))
+    {
+        float rawDepth = SRV_DepthTexture[pixelCoord];
+        if (rawDepth > 0)
+        {
+            float linearDepth = LinearizeDepth(rawDepth, near, far);
+            depthBin = DepthToBin(linearDepth, near, far);
+
+            // Atomically find tile min/max depth bin using wave intrinsics where available
+            InterlockedMin(gs_tileMinDepthBin, depthBin);
+            InterlockedMax(gs_tileMaxDepthBin, depthBin);
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    uint tileMinBin = gs_tileMinDepthBin;
+    uint tileMaxBin = gs_tileMaxDepthBin;
+
+    // First N threads each test one light against the tile's depth range
+    uint numTilesX = (uint)ZBin_NumTiles.x;
+    uint tileIndex = tileCoord.y * numTilesX + tileCoord.x;
+
+    // Each thread tests lights in a strided fashion
+    uint threadCount = 16 * 16;
+    for (uint lightIdx = groupIndex; lightIdx < (uint)ZBin_LightCount; lightIdx += threadCount)
+    {
+        float4 bounds = SRV_LightBoundsBuffer[lightIdx];
+        float lightMinZ = bounds.x;
+        float lightMaxZ = bounds.y;
+
+        float binNear = near + (far - near) * ((float)tileMinBin / ZBin_NumBins);
+        float binFar  = near + (far - near) * ((float)(tileMaxBin + 1) / ZBin_NumBins);
+
+        // Sphere-frustum test approximation: check depth overlap
+        if (lightMinZ <= binFar && lightMaxZ >= binNear)
+        {
+            uint slot;
+            InterlockedAdd(gs_tileLightCount, 1, slot);
+            if (slot < MAX_LIGHTS_PER_TILE)
+            {
+                gs_tileLightList[slot] = lightIdx;
+            }
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // Write tile light list to global memory
+    uint count = min(gs_tileLightCount, MAX_LIGHTS_PER_TILE);
+    uint baseOffset = tileIndex * MAX_LIGHTS_PER_TILE;
+
+    // First thread writes count
+    if (groupIndex == 0)
+    {
+        UAV_TileLightList[baseOffset] = count;
+    }
+
+    // All threads cooperatively write light indices
+    if (groupIndex < count)
+    {
+        UAV_TileLightList[baseOffset + 1 + groupIndex] = gs_tileLightList[groupIndex];
+    }
+}

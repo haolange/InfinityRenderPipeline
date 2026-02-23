@@ -1,0 +1,141 @@
+#pragma kernel DeferredShadingCS
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/BSDF.hlsl"
+#include "../../ShaderLibrary/ShadingModel.hlsl"
+#include "../../ShaderLibrary/Lighting.hlsl"
+#include "../../ShaderLibrary/ImageBasedLighting.hlsl"
+
+float4 DeferredShading_Resolution;
+int DeferredShading_TileSize;
+float4x4 Matrix_InvProj;
+float4x4 Matrix_InvViewProj;
+float3 _WorldSpaceCameraPos;
+
+Texture2D SRV_GBufferTextureA;
+Texture2D SRV_GBufferTextureB;
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float> SRV_OcclusionTexture;
+Texture2D<float> SRV_ContactShadowTexture;
+Texture2D<float4> SRV_SSRTexture;
+Texture2D<float4> SRV_SSGITexture;
+Texture2D<float> SRV_CascadeShadowMap;
+RWTexture2D<float4> UAV_LightingTexture;
+
+// Cascade shadow map sampling
+float4 _CascadeShadowMapSize;
+int _CascadeCount;
+float4x4 _CascadeMatrices[4];
+float4 _CascadeSplitDistances;
+
+// Sample cascade shadow map with simple PCF
+float SampleCascadeShadow(float3 worldPos, float viewDepth)
+{
+    // Select cascade
+    int cascadeIdx = 3;
+    [unroll]
+    for (int i = 0; i < 4; ++i)
+    {
+        if (viewDepth < _CascadeSplitDistances[i])
+        {
+            cascadeIdx = i;
+            break;
+        }
+    }
+
+    float4 shadowCoord = mul(_CascadeMatrices[cascadeIdx], float4(worldPos, 1.0));
+    shadowCoord.xyz /= shadowCoord.w;
+    float2 shadowUV = shadowCoord.xy * 0.5 + 0.5;
+
+    // Offset UV to the correct cascade tile in the atlas
+    int col = cascadeIdx % 2;
+    int row = cascadeIdx / 2;
+    shadowUV = shadowUV * 0.5 + float2(col * 0.5, row * 0.5);
+
+    float shadowMapDepth = SRV_CascadeShadowMap.SampleLevel(Global_bilinear_clamp_sampler, shadowUV, 0);
+    return shadowCoord.z <= shadowMapDepth ? 1.0 : 0.0;
+}
+
+[numthreads(16, 16, 1)]
+void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DeferredShading_Resolution.xy))
+        return;
+
+    float2 screenUV = (id.xy + 0.5) * DeferredShading_Resolution.zw;
+    uint2 pixelCoord = id.xy;
+
+    float rawDepth = SRV_DepthTexture[pixelCoord];
+    if (rawDepth <= 1e-7)
+    {
+        UAV_LightingTexture[pixelCoord] = 0;
+        return;
+    }
+
+    // Read GBuffer
+    float4 gBufferA = SRV_GBufferTextureA[pixelCoord];
+    float4 gBufferB = SRV_GBufferTextureB[pixelCoord];
+
+    // Reconstruct GBuffer data using Normal24 encoding
+    FGBufferData gbufferData;
+    DecodeGBuffer_Normal24(gBufferA, gBufferB, gbufferData);
+
+    float3 albedo = gbufferData.Albedo;
+    float3 normal = gbufferData.Normal;
+    float roughness = gbufferData.Roughness;
+    float reflectance = gbufferData.Reflactance;
+    float specular = gbufferData.Specular;
+
+    // Reconstruct world position
+    float3 ndcPos = GetNDCPos(screenUV, rawDepth);
+    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
+    float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+
+    // Initialize BSDF and microface contexts
+    MicrofaceContext microfaceCtx = InitMicrofaceContext(specular, roughness, reflectance, albedo);
+
+    // Read screen-space effects
+    float ao = SRV_OcclusionTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float contactShadow = SRV_ContactShadowTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float4 ssrColor = SRV_SSRTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float4 ssgiColor = SRV_SSGITexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+
+    float3 lighting = 0;
+
+    // ---- Directional Lights ----
+    for (int d = 0; d < g_DirectionalLightCount; ++d)
+    {
+        FDirectionalLightElement dirLight = g_DirectionalLightBuffer[d];
+        float3 L = dirLight.directional.xyz;
+        float3 H = normalize(viewDir + L);
+
+        BSDFContext bsdfCtx = InitBXDFContext(normal, viewDir, L, H);
+
+        float NoL = saturate(bsdfCtx.NoL);
+        if (NoL <= 0)
+            continue;
+
+        // Shadow
+        float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvProj);
+        float shadow = SampleCascadeShadow(worldPos, -viewPos.z);
+        shadow *= contactShadow;
+
+        // Evaluate shading model
+        float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
+        float3 lightColor = dirLight.color.rgb * dirLight.color.a;
+
+        lighting += brdf * lightColor * NoL * shadow;
+    }
+
+    // ---- Indirect Diffuse (SSGI + ambient) ----
+    float3 indirectDiffuse = ssgiColor.rgb;
+    lighting += microfaceCtx.AlbedoColor * indirectDiffuse * ao;
+
+    // ---- Indirect Specular (SSR) ----
+    float2 envBRDF = IBL_Defualt_SpecularIntegrated_Approx(roughness, saturate(dot(normal, viewDir)));
+    float3 indirectSpecular = ssrColor.rgb * ssrColor.a;
+    lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular * ao;
+
+    UAV_LightingTexture[pixelCoord] = float4(max(0, lighting), 1);
+}

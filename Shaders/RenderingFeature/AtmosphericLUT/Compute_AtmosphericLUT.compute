@@ -1,0 +1,260 @@
+#pragma kernel TransmittanceLUT
+#pragma kernel MultiScatteringLUT
+
+#include "../../ShaderLibrary/Common.hlsl"
+
+// Atmospheric parameters
+float Atmo_PlanetRadius;
+float Atmo_AtmosphereHeight;
+float4 Atmo_RayleighScattering;
+float Atmo_RayleighHeight;
+float Atmo_MieScattering;
+float Atmo_MieAbsorption;
+float Atmo_MieHeight;
+float Atmo_MieAnisotropy;
+float4 Atmo_OzoneAbsorption;
+float Atmo_OzoneLayerCenter;
+float Atmo_OzoneLayerWidth;
+float4 Atmo_GroundAlbedo;
+
+Texture2D<float4> SRV_TransmittanceLUT;
+RWTexture2D<float4> UAV_TransmittanceLUT;
+RWTexture2D<float4> UAV_MultiScatteringLUT;
+
+#define TRANSMITTANCE_STEPS 40
+#define MULTI_SCATTERING_STEPS 20
+#define MULTI_SCATTERING_SQRTSAMPLE_COUNT 8
+
+float GetAtmosphereRadius() { return Atmo_PlanetRadius + Atmo_AtmosphereHeight; }
+
+// Compute altitude-dependent density for each scattering component
+float3 GetRayleighDensity(float h) { return Atmo_RayleighScattering.rgb * exp(-h / Atmo_RayleighHeight); }
+float GetMieDensity(float h) { return (Atmo_MieScattering + Atmo_MieAbsorption) * exp(-h / Atmo_MieHeight); }
+float3 GetOzoneDensity(float h)
+{
+    float ozoneDensity = max(0, 1.0 - abs(h - Atmo_OzoneLayerCenter) / Atmo_OzoneLayerWidth);
+    return Atmo_OzoneAbsorption.rgb * ozoneDensity;
+}
+
+// Total extinction coefficient at altitude h
+float3 GetExtinction(float h)
+{
+    return GetRayleighDensity(h) + GetMieDensity(h) + GetOzoneDensity(h);
+}
+
+// Total scattering coefficient at altitude h
+float3 GetScattering(float h)
+{
+    return GetRayleighDensity(h) + Atmo_MieScattering * exp(-h / Atmo_MieHeight);
+}
+
+// Ray-sphere intersection (closest positive t)
+// Returns distance to intersection, -1 if no intersection
+float RaySphereIntersect(float3 origin, float3 dir, float radius)
+{
+    float b = dot(origin, dir);
+    float c = dot(origin, origin) - radius * radius;
+    float discriminant = b * b - c;
+    if (discriminant < 0) return -1;
+    float t = -b + sqrt(discriminant);
+    return t > 0 ? t : -1;
+}
+
+// Mapping from UV to (altitude, cosViewZenith) for transmittance LUT
+void TransmittanceLUTParamsFromUV(float2 uv, out float altitude, out float cosAngle)
+{
+    float x_mu = uv.x;
+    float x_r = uv.y;
+
+    float H = sqrt(max(0, GetAtmosphereRadius() * GetAtmosphereRadius() - Atmo_PlanetRadius * Atmo_PlanetRadius));
+    float rho = H * x_r;
+    float r = sqrt(rho * rho + Atmo_PlanetRadius * Atmo_PlanetRadius);
+
+    altitude = r - Atmo_PlanetRadius;
+
+    float d_min = GetAtmosphereRadius() - r;
+    float d_max = rho + H;
+    float d = d_min + x_mu * (d_max - d_min);
+
+    cosAngle = d == 0 ? 1.0 : (H * H - rho * rho - d * d) / (2.0 * r * d);
+    cosAngle = clamp(cosAngle, -1, 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 0: Transmittance LUT
+// UV.x = view zenith angle, UV.y = altitude
+// Output: optical depth transmittance from point to atmosphere boundary
+//--------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void TransmittanceLUT(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    UAV_TransmittanceLUT.GetDimensions(width, height);
+    if (any(id.xy >= uint2(width, height))) return;
+
+    float2 uv = (id.xy + 0.5) / float2(width, height);
+
+    float altitude, cosAngle;
+    TransmittanceLUTParamsFromUV(uv, altitude, cosAngle);
+
+    float r = Atmo_PlanetRadius + altitude;
+    float3 origin = float3(0, r, 0);
+    float3 dir = float3(sqrt(max(0, 1.0 - cosAngle * cosAngle)), cosAngle, 0);
+
+    float tMax = RaySphereIntersect(origin, dir, GetAtmosphereRadius());
+    if (tMax < 0) tMax = 0;
+
+    // Numerical integration of optical depth
+    float3 opticalDepth = 0;
+    float dt = tMax / TRANSMITTANCE_STEPS;
+
+    for (int i = 0; i < TRANSMITTANCE_STEPS; ++i)
+    {
+        float t = (i + 0.5) * dt;
+        float3 pos = origin + dir * t;
+        float h = length(pos) - Atmo_PlanetRadius;
+        h = max(h, 0);
+
+        opticalDepth += GetExtinction(h) * dt;
+    }
+
+    float3 transmittance = exp(-opticalDepth);
+    UAV_TransmittanceLUT[id.xy] = float4(transmittance, 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 1: Multi-Scattering LUT
+// Approximates 2nd+ order scattering using the technique from
+// Hillaire "A Scalable and Production Ready Sky and Atmosphere Rendering Technique"
+//--------------------------------------------------------------
+float3 SampleTransmittanceLUT(float altitude, float cosAngle)
+{
+    float H = sqrt(max(0, GetAtmosphereRadius() * GetAtmosphereRadius() - Atmo_PlanetRadius * Atmo_PlanetRadius));
+    float r = Atmo_PlanetRadius + altitude;
+    float rho = sqrt(max(0, r * r - Atmo_PlanetRadius * Atmo_PlanetRadius));
+
+    float x_r = rho / H;
+
+    float d_min = GetAtmosphereRadius() - r;
+    float d_max = rho + H;
+
+    float d;
+    {
+        float discriminant = r * r * (cosAngle * cosAngle - 1.0) + GetAtmosphereRadius() * GetAtmosphereRadius();
+        d = max(0, -r * cosAngle + sqrt(max(0, discriminant)));
+    }
+
+    float x_mu = (d - d_min) / max(d_max - d_min, 1e-6);
+
+    float2 uv = float2(x_mu, x_r);
+    uv = saturate(uv);
+
+    return SRV_TransmittanceLUT.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb;
+}
+
+// Henyey-Greenstein phase function
+float HenyeyGreensteinPhase(float g, float cosTheta)
+{
+    float g2 = g * g;
+    float denom = 1.0 + g2 - 2.0 * g * cosTheta;
+    return (1.0 - g2) / (4.0 * Pi * pow(abs(denom), 1.5));
+}
+
+// Rayleigh phase function
+float RayleighPhase(float cosTheta)
+{
+    return 3.0 / (16.0 * Pi) * (1.0 + cosTheta * cosTheta);
+}
+
+[numthreads(8, 8, 1)]
+void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    UAV_MultiScatteringLUT.GetDimensions(width, height);
+    if (any(id.xy >= uint2(width, height))) return;
+
+    float2 uv = (id.xy + 0.5) / float2(width, height);
+
+    // UV.x = sun zenith cosine, UV.y = altitude (0..1)
+    float cosSunZenith = uv.x * 2.0 - 1.0;
+    float altitude = uv.y * Atmo_AtmosphereHeight;
+
+    float r = Atmo_PlanetRadius + altitude;
+    float3 origin = float3(0, r, 0);
+    float3 sunDir = float3(sqrt(max(0, 1.0 - cosSunZenith * cosSunZenith)), cosSunZenith, 0);
+
+    // Integrate scattered luminance over all directions
+    float3 lumTotal = 0;
+    float3 fms = 0;
+
+    float isotropicPhase = 1.0 / (4.0 * Pi);
+
+    for (int si = 0; si < MULTI_SCATTERING_SQRTSAMPLE_COUNT; ++si)
+    {
+        for (int sj = 0; sj < MULTI_SCATTERING_SQRTSAMPLE_COUNT; ++sj)
+        {
+            float theta = Pi * (si + 0.5) / MULTI_SCATTERING_SQRTSAMPLE_COUNT;
+            float phi = Two_Pi * (sj + 0.5) / MULTI_SCATTERING_SQRTSAMPLE_COUNT;
+
+            float3 rayDir = float3(sin(theta) * cos(phi), cos(theta), sin(theta) * sin(phi));
+
+            float tMax = RaySphereIntersect(origin, rayDir, GetAtmosphereRadius());
+            float tGround = RaySphereIntersect(origin, rayDir, Atmo_PlanetRadius);
+            bool hitGround = tGround > 0 && tGround < tMax;
+            if (hitGround) tMax = tGround;
+
+            float dt = tMax / MULTI_SCATTERING_STEPS;
+            float3 scatterLum = 0;
+            float3 scatterWeight = 0;
+            float3 transmittance = 1;
+
+            for (int step = 0; step < MULTI_SCATTERING_STEPS; ++step)
+            {
+                float t = (step + 0.5) * dt;
+                float3 pos = origin + rayDir * t;
+                float h = length(pos) - Atmo_PlanetRadius;
+                h = max(h, 0);
+
+                float3 extinction = GetExtinction(h);
+                float3 scattering = GetScattering(h);
+                float3 stepTransmittance = exp(-extinction * dt);
+
+                // Sun transmittance from this point
+                float cosAngle = dot(normalize(pos), sunDir);
+                float3 sunTransmittance = SampleTransmittanceLUT(h, cosAngle);
+
+                float3 S = scattering * sunTransmittance * isotropicPhase;
+                float3 Sint = (S - S * stepTransmittance) / max(extinction, 1e-6);
+
+                scatterLum += transmittance * Sint;
+
+                // Accumulate isotropic multi-scattering contribution
+                float3 MS = scattering;
+                float3 MSint = (MS - MS * stepTransmittance) / max(extinction, 1e-6);
+                scatterWeight += transmittance * MSint;
+
+                transmittance *= stepTransmittance;
+            }
+
+            // Ground contribution
+            if (hitGround)
+            {
+                float3 groundPos = origin + rayDir * tMax;
+                float cosAngleGround = dot(normalize(groundPos), sunDir);
+                float3 groundTransmittance = SampleTransmittanceLUT(0, cosAngleGround);
+                scatterLum += transmittance * groundTransmittance * Atmo_GroundAlbedo.rgb * isotropicPhase * saturate(cosAngleGround);
+            }
+
+            // Solid angle weight (uniform sphere sampling)
+            float solidAngleWeight = sin(theta) * Pi * Two_Pi / (MULTI_SCATTERING_SQRTSAMPLE_COUNT * MULTI_SCATTERING_SQRTSAMPLE_COUNT);
+
+            lumTotal += scatterLum * solidAngleWeight;
+            fms += scatterWeight * solidAngleWeight;
+        }
+    }
+
+    // Apply the multi-scattering factor: L_ms = L_2nd / (1 - f_ms)
+    float3 multiScatter = lumTotal / (1.0 - fms);
+
+    UAV_MultiScatteringLUT[id.xy] = float4(multiScatter, 1);
+}

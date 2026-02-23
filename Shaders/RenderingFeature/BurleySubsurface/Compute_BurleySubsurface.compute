@@ -1,0 +1,159 @@
+#pragma kernel BurleySubsurfaceCS
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/Random.hlsl"
+
+float4 SSS_Resolution;
+float SSS_ScatteringDistance;
+float4 SSS_SurfaceAlbedo;
+int SSS_NumSamples;
+float SSS_MaxRadius;
+
+Texture2D<float4> SRV_LightingTexture;
+Texture2D<float> SRV_DepthTexture;
+Texture2D SRV_GBufferTextureA;
+Texture2D SRV_GBufferTextureB;
+RWTexture2D<float4> UAV_SubsurfaceTexture;
+
+float4x4 Matrix_InvProj;
+float4x4 Matrix_Proj;
+
+// Burley normalized diffusion profile
+// R(r) = A * s / (8 * pi) * (exp(-s*r) + exp(-s*r/3)) / r
+// where s = 1.9 - 3.4 * A^2 + A * (3.4 * A^2 - 1.9)
+// Simplified: using the separable fit from HDRP
+float3 EvaluateBurleyDiffusionProfile(float r, float3 scatteringDistance)
+{
+    float3 s = 1.0 / max(scatteringDistance, 0.0001);
+    float3 exp1 = exp(-s * r);
+    float3 exp2 = exp(-s * r / 3.0);
+    return s * (exp1 + exp2) / (8.0 * Pi * max(r, 0.0001));
+}
+
+// CDF-based importance sampling for Burley profile
+float SampleBurleyRadius(float u, float scatterDist)
+{
+    // Inverse CDF approximation for the combined exponential
+    float s = 1.0 / max(scatterDist, 0.0001);
+    // Mix of two exponentials: use the heavier tail (1/3 rate) for importance sampling
+    return -log(max(1.0 - u, 1e-6)) * 3.0 / s;
+}
+
+// Convert screen-space radius to world-space using depth
+float ScreenToWorldRadius(float screenRadius, float linearDepth, float2 projParams)
+{
+    return screenRadius * linearDepth / projParams.x;
+}
+
+float LinearizeDepthReverseZ(float rawDepth)
+{
+    float4 clipPos = float4(0, 0, rawDepth, 1);
+    float4 viewPos = mul(Matrix_InvProj, clipPos);
+    return -viewPos.z / viewPos.w;
+}
+
+[numthreads(8, 8, 1)]
+void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)SSS_Resolution.xy))
+        return;
+
+    float2 screenUV = (id.xy + 0.5) * SSS_Resolution.zw;
+    uint2 pixelCoord = id.xy;
+
+    float rawDepth = SRV_DepthTexture[pixelCoord];
+    if (rawDepth <= 1e-7)
+    {
+        UAV_SubsurfaceTexture[pixelCoord] = SRV_LightingTexture[pixelCoord];
+        return;
+    }
+
+    // Read GBuffer to detect subsurface materials
+    float4 gBufferA = SRV_GBufferTextureA[pixelCoord];
+    float4 gBufferB = SRV_GBufferTextureB[pixelCoord];
+
+    FGBufferData gbufferData;
+    DecodeGBuffer_Normal24(gBufferA, gBufferB, gbufferData);
+
+    // Use reflectance < 0.04 as SSS material marker (could be any stencil-based check)
+    float sssStrength = saturate(1.0 - gbufferData.Reflactance / 0.1);
+
+    if (sssStrength < 0.01)
+    {
+        UAV_SubsurfaceTexture[pixelCoord] = SRV_LightingTexture[pixelCoord];
+        return;
+    }
+
+    float3 centerColor = SRV_LightingTexture[pixelCoord].rgb;
+    float3 centerNormal = gbufferData.Normal;
+    float centerLinearDepth = LinearizeDepthReverseZ(rawDepth);
+
+    // Project sampling radius from world-space to screen-space
+    float worldRadius = SSS_MaxRadius * SSS_ScatteringDistance;
+    float screenRadius = worldRadius * Matrix_Proj[0][0] / centerLinearDepth;
+    float maxScreenRadius = screenRadius * SSS_Resolution.x; // In pixels
+
+    if (maxScreenRadius < 1.0)
+    {
+        UAV_SubsurfaceTexture[pixelCoord] = float4(centerColor, 1);
+        return;
+    }
+
+    // Jitter for temporal stability
+    uint2 random = Rand3DPCG16(int3(pixelCoord, 0)).xy;
+
+    float3 totalColor = 0;
+    float3 totalWeight = 0;
+
+    [loop]
+    for (int i = 0; i < SSS_NumSamples; ++i)
+    {
+        float2 hash = Hammersley16(i, SSS_NumSamples, random);
+
+        // Sample radius using Burley profile inverse CDF
+        float r = SampleBurleyRadius(hash.x, SSS_ScatteringDistance);
+        float angle = hash.y * Two_Pi;
+
+        float2 offset = float2(cos(angle), sin(angle)) * r;
+        float2 sampleUV = screenUV + offset * SSS_Resolution.zw * maxScreenRadius;
+
+        // Bounds check
+        if (any(sampleUV < 0) || any(sampleUV > 1))
+            continue;
+
+        float sampleDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, sampleUV, 0);
+        if (sampleDepth <= 1e-7)
+            continue;
+
+        float sampleLinearDepth = LinearizeDepthReverseZ(sampleDepth);
+
+        // Depth-based rejection: world-space depth difference
+        float depthDiff = abs(centerLinearDepth - sampleLinearDepth);
+        if (depthDiff > worldRadius * 2.0)
+            continue;
+
+        // Normal-based rejection
+        float4 sampleGB = SRV_GBufferTextureB.SampleLevel(Global_point_clamp_sampler, sampleUV, 0);
+        float3 sampleNormal = normalize(sampleGB.xyz * 2 - 1);
+        float normalWeight = saturate(dot(centerNormal, sampleNormal));
+
+        if (normalWeight < 0.3)
+            continue;
+
+        // Evaluate diffusion profile
+        float worldR = r * worldRadius;
+        float3 profile = EvaluateBurleyDiffusionProfile(worldR, SSS_ScatteringDistance * SSS_SurfaceAlbedo.rgb);
+
+        float3 sampleColor = SRV_LightingTexture.SampleLevel(Global_point_clamp_sampler, sampleUV, 0).rgb;
+
+        float3 w = profile * normalWeight;
+        totalColor += sampleColor * w;
+        totalWeight += w;
+    }
+
+    float3 result = totalWeight.x > 0 ? totalColor / totalWeight : centerColor;
+    result = lerp(centerColor, result, sssStrength);
+
+    UAV_SubsurfaceTexture[pixelCoord] = float4(result, 1);
+}

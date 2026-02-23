@@ -1,0 +1,254 @@
+#pragma kernel VolumetricCloudCS
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Lighting.hlsl"
+#include "../../ShaderLibrary/Random.hlsl"
+
+float4 VolCloud_Resolution;
+float VolCloud_CloudLayerBottom;
+float VolCloud_CloudLayerThickness;
+float VolCloud_DensityMultiplier;
+float VolCloud_ShapeFactor;
+float VolCloud_ErosionFactor;
+float VolCloud_Anisotropy;
+float VolCloud_SilverIntensity;
+float VolCloud_SilverSpread;
+float VolCloud_AmbientIntensity;
+int VolCloud_NumPrimarySteps;
+int VolCloud_NumLightSteps;
+float VolCloud_TemporalWeight;
+int VolCloud_FrameIndex;
+float4 VolCloud_SunDirection;
+float4 VolCloud_SunColor;
+
+float4x4 Matrix_InvViewProj;
+float3 _WorldSpaceCameraPos;
+
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float4> SRV_TransmittanceLUT;
+RWTexture2D<float4> UAV_VolumetricCloudTexture;
+
+// Cloud layer bounds
+float GetCloudLayerBottom() { return VolCloud_CloudLayerBottom; }
+float GetCloudLayerTop() { return VolCloud_CloudLayerBottom + VolCloud_CloudLayerThickness; }
+
+// Ray-sphere intersection for cloud shell
+float2 RayCloudLayerIntersect(float3 origin, float3 dir, float shellRadius)
+{
+    float b = dot(origin, dir);
+    float c = dot(origin, origin) - shellRadius * shellRadius;
+    float d = b * b - c;
+    if (d < 0) return float2(-1, -1);
+    float sqrtD = sqrt(d);
+    return float2(-b - sqrtD, -b + sqrtD);
+}
+
+// Normalized height within cloud layer [0,1]
+float GetNormalizedHeight(float3 worldPos)
+{
+    float h = length(worldPos) - (6371000.0 + GetCloudLayerBottom());
+    return saturate(h / VolCloud_CloudLayerThickness);
+}
+
+// Simple hash-based noise for cloud shape (placeholder for proper 3D noise textures)
+float Hash31(float3 p)
+{
+    p = frac(p * 0.1031);
+    p += dot(p, p.yzx + 33.33);
+    return frac((p.x + p.y) * p.z);
+}
+
+float ValueNoise3D(float3 p)
+{
+    float3 i = floor(p);
+    float3 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f); // Smoothstep
+
+    float n000 = Hash31(i);
+    float n100 = Hash31(i + float3(1, 0, 0));
+    float n010 = Hash31(i + float3(0, 1, 0));
+    float n110 = Hash31(i + float3(1, 1, 0));
+    float n001 = Hash31(i + float3(0, 0, 1));
+    float n101 = Hash31(i + float3(1, 0, 1));
+    float n011 = Hash31(i + float3(0, 1, 1));
+    float n111 = Hash31(i + float3(1, 1, 1));
+
+    return lerp(
+        lerp(lerp(n000, n100, f.x), lerp(n010, n110, f.x), f.y),
+        lerp(lerp(n001, n101, f.x), lerp(n011, n111, f.x), f.y),
+        f.z
+    );
+}
+
+float FBM(float3 p, int octaves)
+{
+    float value = 0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+
+    for (int i = 0; i < octaves; ++i)
+    {
+        value += amplitude * ValueNoise3D(p * frequency);
+        amplitude *= 0.5;
+        frequency *= 2.0;
+    }
+    return value;
+}
+
+// Cloud density at world position
+float SampleCloudDensity(float3 worldPos, float normalizedHeight, bool erode)
+{
+    // Base shape noise
+    float3 shapeCoord = worldPos * 0.0001 * VolCloud_ShapeFactor;
+    float baseShape = FBM(shapeCoord, 4);
+
+    // Height gradient: rounded bottom, sharp top
+    float heightGradient = saturate(smoothstep(0.0, 0.1, normalizedHeight) * smoothstep(1.0, 0.6, normalizedHeight));
+
+    float density = saturate(baseShape * heightGradient - (1.0 - VolCloud_DensityMultiplier));
+
+    // Erosion detail
+    if (erode && density > 0)
+    {
+        float3 erosionCoord = worldPos * 0.0003;
+        float erosion = FBM(erosionCoord, 3);
+        density = saturate(density - erosion * VolCloud_ErosionFactor * (1.0 - normalizedHeight));
+    }
+
+    return density * VolCloud_DensityMultiplier;
+}
+
+// Dual-lobe Henyey-Greenstein phase function for silver lining
+float CloudPhase(float cosTheta)
+{
+    float g = VolCloud_Anisotropy;
+    float g2 = g * g;
+
+    // Forward scattering lobe
+    float forward = (1.0 - g2) / (4.0 * Pi * pow(abs(1.0 + g2 - 2.0 * g * cosTheta), 1.5));
+
+    // Silver lining (back-scattering peak)
+    float silver = VolCloud_SilverIntensity * pow(saturate(cosTheta), VolCloud_SilverSpread);
+
+    return max(forward + silver, Inv_Pi * 0.25);
+}
+
+// Light ray march through cloud to sun
+float LightMarch(float3 startPos)
+{
+    float3 lightDir = VolCloud_SunDirection.xyz;
+    float3 earthCenter = float3(0, -(6371000.0), 0);
+    float3 relPos = startPos - earthCenter;
+
+    float rayLen = max(0, GetCloudLayerTop() - (length(relPos) - 6371000.0));
+    float stepSize = rayLen / max(VolCloud_NumLightSteps, 1);
+
+    float totalDensity = 0;
+
+    [loop]
+    for (int i = 0; i < VolCloud_NumLightSteps; ++i)
+    {
+        float3 samplePos = startPos + lightDir * (i + 0.5) * stepSize;
+        float h = GetNormalizedHeight(samplePos);
+
+        if (h >= 0 && h <= 1)
+        {
+            float density = SampleCloudDensity(samplePos, h, false);
+            totalDensity += density * stepSize;
+        }
+    }
+
+    // Beer-Lambert with powder effect
+    float beer = exp(-totalDensity * 0.04);
+    float powder = 1.0 - exp(-totalDensity * 0.08);
+
+    return beer * lerp(1.0, powder, 0.5);
+}
+
+[numthreads(8, 8, 1)]
+void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)VolCloud_Resolution.xy))
+        return;
+
+    float2 screenUV = (id.xy + 0.5) * VolCloud_Resolution.zw;
+
+    // Temporal jitter
+    uint frameJitter = VolCloud_FrameIndex & 15;
+    float jitter = InterleavedGradientNoise(float2(id.xy) + 0.5, frameJitter);
+
+    // Reconstruct ray direction from full resolution UV
+    float3 ndcPos = GetNDCPos(screenUV, 0.5);
+    float4 worldPosH = mul(Matrix_InvViewProj, float4(ndcPos, 1.0));
+    float3 worldPos = worldPosH.xyz / worldPosH.w;
+    float3 rayDir = normalize(worldPos - _WorldSpaceCameraPos);
+
+    // Earth center for spherical cloud layer
+    float earthRadius = 6371000.0;
+    float3 earthCenter = float3(0, -earthRadius, 0);
+    float3 rayOrigin = _WorldSpaceCameraPos - earthCenter;
+
+    // Intersect with cloud layer shell
+    float2 tBottom = RayCloudLayerIntersect(rayOrigin, rayDir, earthRadius + GetCloudLayerBottom());
+    float2 tTop = RayCloudLayerIntersect(rayOrigin, rayDir, earthRadius + GetCloudLayerTop());
+
+    float tStart = max(0, min(tBottom.x > 0 ? tBottom.x : tTop.x, tTop.x > 0 ? tTop.x : 1e20));
+    float tEnd = max(tBottom.y, tTop.y);
+
+    if (tStart >= tEnd || tStart < 0)
+    {
+        UAV_VolumetricCloudTexture[id.xy] = float4(0, 0, 0, 1); // Fully transparent
+        return;
+    }
+
+    // Check scene depth for early exit
+    float sceneDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    // Only render clouds behind scene geometry (simplified check)
+
+    float totalLength = tEnd - tStart;
+    float stepSize = totalLength / max(VolCloud_NumPrimarySteps, 1);
+
+    float3 accumulatedLight = 0;
+    float transmittance = 1.0;
+
+    float cosAngle = dot(rayDir, VolCloud_SunDirection.xyz);
+    float phase = CloudPhase(cosAngle);
+
+    [loop]
+    for (int i = 0; i < VolCloud_NumPrimarySteps; ++i)
+    {
+        if (transmittance < 0.01)
+            break;
+
+        float t = tStart + (i + jitter) * stepSize;
+        float3 samplePos = (rayOrigin + rayDir * t) + earthCenter;
+        float normalizedHeight = GetNormalizedHeight(samplePos);
+
+        if (normalizedHeight < 0 || normalizedHeight > 1)
+            continue;
+
+        float density = SampleCloudDensity(samplePos, normalizedHeight, true);
+
+        if (density > 0)
+        {
+            // Light contribution
+            float lightEnergy = LightMarch(samplePos);
+
+            float3 sunLight = VolCloud_SunColor.rgb * lightEnergy * phase;
+            float3 ambientLight = VolCloud_SunColor.rgb * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
+
+            float3 luminance = (sunLight + ambientLight) * density;
+
+            float sampleExtinction = density * 0.04;
+            float sampleTransmittance = exp(-sampleExtinction * stepSize);
+
+            // Energy-conserving integration
+            float3 scatter = luminance * (1.0 - sampleTransmittance) / max(sampleExtinction, 1e-6);
+            accumulatedLight += transmittance * scatter;
+            transmittance *= sampleTransmittance;
+        }
+    }
+
+    // Output: rgb = accumulated scattered light, a = transmittance
+    UAV_VolumetricCloudTexture[id.xy] = float4(accumulatedLight, transmittance);
+}

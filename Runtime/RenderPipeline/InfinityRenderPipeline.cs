@@ -478,14 +478,62 @@ namespace InfinityTech.Rendering.Pipeline
 
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                         {
-                            ComputeCombineLuts(renderContext, combineLutParameterDescriptor);
-                            RenderDepth(renderContext, camera, cullingDatas, cullingResults);
-                            RenderGBuffer(renderContext, camera, cullingDatas, cullingResults);
-                            RenderMotion(renderContext, camera, cullingDatas, cullingResults);
-                            RenderForward(renderContext, camera, cullingDatas, cullingResults);
-                            RenderSkyBox(renderContext, camera);
-                            ComputeAntiAliasing(renderContext, camera, historyCache);
+                            // ═══════════════════════════════════════════════════════════
+                            // PHASE 1: BASE GEOMETRY (Raster-heavy → async overlap window)
+                            // ═══════════════════════════════════════════════════════════
+                            RenderDepth(renderContext, camera, cullingDatas, cullingResults);         // [Graphics] Depth Prepass
+                            ComputeCombineLuts(renderContext, combineLutParameterDescriptor);         // [Async] Color LUT (ALU-bound, overlaps depth raster)
+                            RenderDBuffer(renderContext, camera, cullingResults);                     // [Graphics] Decal DBuffer
+                            RenderGBuffer(renderContext, camera, cullingDatas, cullingResults);       // [Graphics] G-Buffer Fill
+                            RenderMotion(renderContext, camera, cullingDatas, cullingResults);        // [Graphics] Object + Camera Motion
+
+                            // ═══════════════════════════════════════════════════════════
+                            // PHASE 2: SHADOWS (Vertex/raster-bound → best async window)
+                            // ═══════════════════════════════════════════════════════════
+                            RenderCascadeShadow(renderContext, camera, cullingResults);               // [Graphics] Cascade Shadow Maps
+                            RenderLocalShadow(renderContext, camera, cullingResults);                 // [Graphics] Local Shadow Maps
+                            ComputeHiZ(renderContext, camera);                                       // [Async] HiZ Min/Max Pyramid
+                            ComputeHalfResDownsample(renderContext, camera);                         // [Async] Half-Res Depth + Normal
+                            ComputeAtmosphericLUT(renderContext, camera);                            // [Async] Atmospheric Scattering LUTs
+
+                            // ═══════════════════════════════════════════════════════════
+                            // PHASE 3: SCREEN-SPACE EFFECTS (Compute-dominated after sync)
+                            // ═══════════════════════════════════════════════════════════
+                            ComputeZBinningLightList(renderContext, camera);                          // Z-Bin + Tile Light Lists
+                            ComputeGroundTruthOcclusion(renderContext, camera);                       // GTAO (4-kernel: trace→spatialXY→temporal)
+                            ComputeContactShadow(renderContext, camera);                              // Screen-Space Contact Shadows
+                            ComputeScreenSpaceReflection(renderContext, camera);                      // HiZ Ray-Traced SSR
+                            ComputeScreenSpaceIndirect(renderContext, camera);                        // HiZ Ray-Traced SSGI
+
+                            // ═══════════════════════════════════════════════════════════
+                            // PHASE 4: LIGHTING RESOLVE + OPAQUE
+                            // ═══════════════════════════════════════════════════════════
+                            ComputeDeferredShading(renderContext, camera);                            // Tiled Deferred Resolve
+                            RenderForward(renderContext, camera, cullingDatas, cullingResults);       // [Graphics] Forward Opaque
+                            ComputeBurleySubsurface(renderContext, camera);                           // [Async] SSS Diffusion (overlaps forward raster)
+
+                            // ═══════════════════════════════════════════════════════════
+                            // PHASE 5: ATMOSPHERE + VOLUMETRICS
+                            // ═══════════════════════════════════════════════════════════
+                            RenderAtmosphericSkyAndFog(renderContext, camera);                        // [Graphics] Sky + Aerial Perspective
+                            ComputeVolumetricFog(renderContext, camera);                              // Froxel Volumetric Fog
+                            ComputeVolumetricCloud(renderContext, camera);                            // Ray-Marched Clouds
+
+                            // ═══════════════════════════════════════════════════════════
+                            // PHASE 6: TRANSLUCENT
+                            // ═══════════════════════════════════════════════════════════
+                            RenderTranslucentDepth(renderContext, camera, cullingResults);            // Translucent Depth Prepass
+                            ComputeColorPyramid(renderContext, camera);                              // Color Mip Chain (refraction)
+                            RenderForwardTranslucent(renderContext, camera, cullingResults);          // Forward Translucent Rendering
+
+                            // ═══════════════════════════════════════════════════════════
+                            // PHASE 7: POST-PROCESSING
+                            // ═══════════════════════════════════════════════════════════
+                            ComputeSuperResolution(renderContext, camera, cameraUniform.jitter);      // Temporal Upscaling
+                            ComputeAntiAliasing(renderContext, camera, historyCache);                 // TAA (fallback if no SR)
                             CopyHistoryAntiAliasing(renderContext);
+                            ComputePostProcessing(renderContext, camera);                             // Bloom + Color Grading + Tonemapping
+
                         #if UNITY_EDITOR
                             RenderWireOverlay(renderContext, camera);
                             RenderGizmos(renderContext, camera);
