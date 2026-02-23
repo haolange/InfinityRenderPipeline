@@ -1,0 +1,179 @@
+#pragma kernel ScatterDensity
+#pragma kernel Integrate
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Lighting.hlsl"
+#include "../../ShaderLibrary/Random.hlsl"
+
+float4 VolFog_ScreenSize;
+float4 VolFog_Resolution; // froxel resolution (x, y, z, 0)
+float VolFog_Density;
+float VolFog_Height;
+float VolFog_HeightFalloff;
+float4 VolFog_Albedo;
+float VolFog_Anisotropy;
+float VolFog_AmbientIntensity;
+int VolFog_DepthSlices;
+float VolFog_MaxDistance;
+float VolFog_TemporalWeight;
+int VolFog_FrameIndex;
+
+float4x4 Matrix_InvViewProj;
+float3 _WorldSpaceCameraPos;
+
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float> SRV_CascadeShadowMap;
+RWTexture3D<float4> UAV_VolumetricFogTexture;
+
+// Exponential distribution of depth slices
+float SliceToDepth(float slice, float maxDistance, int numSlices)
+{
+    float t = slice / max(numSlices, 1);
+    // Exponential distribution: more slices near camera
+    return maxDistance * t * t;
+}
+
+float DepthToSlice(float depth, float maxDistance, int numSlices)
+{
+    float t = sqrt(depth / maxDistance);
+    return t * numSlices;
+}
+
+// Height-based fog density
+float GetFogDensity(float3 worldPos)
+{
+    float heightAboveFog = worldPos.y - VolFog_Height;
+    float density = VolFog_Density;
+
+    if (VolFog_HeightFalloff > 0)
+    {
+        density *= exp(-max(0, heightAboveFog) * VolFog_HeightFalloff);
+    }
+
+    return max(0, density);
+}
+
+// Henyey-Greenstein phase function
+float HGPhase(float g, float cosTheta)
+{
+    float g2 = g * g;
+    float denom = 1.0 + g2 - 2.0 * g * cosTheta;
+    return (1.0 - g2) / (4.0 * Pi * pow(abs(denom), 1.5));
+}
+
+// Froxel to world position
+float3 FroxelToWorld(uint3 froxelCoord)
+{
+    float2 screenUV = (froxelCoord.xy + 0.5) / VolFog_Resolution.xy;
+    float depth = SliceToDepth(froxelCoord.z + 0.5, VolFog_MaxDistance, VolFog_DepthSlices);
+
+    // Approximate: use screen UV and depth to reconstruct world position
+    float2 ndc = screenUV * 2.0 - 1.0;
+    float4 clipPos = float4(ndc, 0.5, 1.0); // Approximate z
+    float4 worldPos = mul(Matrix_InvViewProj, clipPos);
+    worldPos /= worldPos.w;
+
+    float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
+    return _WorldSpaceCameraPos + viewDir * depth;
+}
+
+//--------------------------------------------------------------
+// Kernel 0: Scatter + Density
+// Each thread computes in-scatter and extinction for one froxel voxel
+//--------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void ScatterDensity(uint3 id : SV_DispatchThreadID)
+{
+    uint3 froxelRes = uint3(VolFog_Resolution.xyz);
+    if (any(id.xy >= froxelRes.xy))
+        return;
+
+    // Temporal jitter for noise reduction
+    uint frameJitter = VolFog_FrameIndex & 7;
+    float jitter = InterleavedGradientNoise(float2(id.xy) + 0.5, frameJitter);
+
+    [loop]
+    for (uint z = 0; z < (uint)VolFog_DepthSlices; ++z)
+    {
+        float3 worldPos = FroxelToWorld(uint3(id.xy, z));
+
+        float density = GetFogDensity(worldPos);
+        if (density < 1e-6)
+        {
+            UAV_VolumetricFogTexture[uint3(id.xy, z)] = 0;
+            continue;
+        }
+
+        float3 extinction = density;
+        float3 scattering = density * VolFog_Albedo.rgb;
+
+        // In-scattering from directional light
+        float3 inScatter = 0;
+
+        if (g_DirectionalLightCount > 0)
+        {
+            FDirectionalLightElement dirLight = g_DirectionalLightBuffer[0];
+            float3 lightDir = dirLight.directional.xyz;
+            float3 lightColor = dirLight.color.rgb * dirLight.color.a;
+
+            // Phase function
+            float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+            float cosTheta = dot(viewDir, lightDir);
+            float phase = HGPhase(VolFog_Anisotropy, cosTheta);
+
+            // Shadow (simplified - could sample cascade shadow map here)
+            float shadow = 1.0;
+            if (dirLight.enableVolumetric > 0)
+            {
+                shadow *= dirLight.volumetricIntensity;
+            }
+
+            inScatter += scattering * lightColor * phase * shadow;
+        }
+
+        // Ambient contribution
+        inScatter += scattering * VolFog_AmbientIntensity;
+
+        // Store: rgb = in-scattering * transmittance, a = extinction
+        UAV_VolumetricFogTexture[uint3(id.xy, z)] = float4(inScatter, extinction.x);
+    }
+}
+
+//--------------------------------------------------------------
+// Kernel 1: Ray-march integration along Z-axis
+// Accumulates in-scattering and transmittance front-to-back
+//--------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void Integrate(uint3 id : SV_DispatchThreadID)
+{
+    uint3 froxelRes = uint3(VolFog_Resolution.xyz);
+    if (any(id.xy >= froxelRes.xy))
+        return;
+
+    float4 accumulatedScatterTransmittance = float4(0, 0, 0, 1); // rgb=scatter, a=transmittance
+
+    [loop]
+    for (uint z = 0; z < (uint)VolFog_DepthSlices; ++z)
+    {
+        float4 voxelData = UAV_VolumetricFogTexture[uint3(id.xy, z)];
+        float3 inScatter = voxelData.rgb;
+        float extinction = voxelData.a;
+
+        // Depth of this slice
+        float sliceNear = SliceToDepth((float)z, VolFog_MaxDistance, VolFog_DepthSlices);
+        float sliceFar = SliceToDepth((float)(z + 1), VolFog_MaxDistance, VolFog_DepthSlices);
+        float sliceThickness = sliceFar - sliceNear;
+
+        float sliceTransmittance = exp(-extinction * sliceThickness);
+
+        // Integrate analytically within the slice (constant medium approximation)
+        float3 sliceScatter = extinction > 0 ? inScatter * (1.0 - sliceTransmittance) / extinction : inScatter * sliceThickness;
+
+        // Accumulate front-to-back
+        accumulatedScatterTransmittance.rgb += accumulatedScatterTransmittance.a * sliceScatter;
+        accumulatedScatterTransmittance.a *= sliceTransmittance;
+
+        // Write accumulated result for each slice (for volume texture sampling)
+        UAV_VolumetricFogTexture[uint3(id.xy, z)] = accumulatedScatterTransmittance;
+    }
+}

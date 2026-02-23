@@ -1,0 +1,206 @@
+#pragma kernel BloomDownsample
+#pragma kernel BloomUpsample
+#pragma kernel FinalCombine
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Random.hlsl"
+
+float4 PP_Resolution;
+float PP_BloomIntensity;
+float PP_BloomThreshold;
+float PP_VignetteIntensity;
+float PP_ChromaticAberration;
+float PP_FilmGrainIntensity;
+int PP_FrameIndex;
+
+Texture2D<float4> SRV_SceneColorTexture;
+Texture2D<float4> SRV_CombineLUTTexture;
+Texture2D<float4> SRV_VolumetricFogTexture;
+Texture2D<float> SRV_DepthTexture;
+RWTexture2D<float4> UAV_PostProcessTexture;
+
+// Bloom source texture (for downsample/upsample chain)
+Texture2D<float4> SRV_BloomSource;
+RWTexture2D<float4> UAV_BloomTarget;
+float4 BloomMipSize; // (width, height, 1/width, 1/height)
+
+//--------------------------------------------------------------
+// Kernel 0: Bloom Downsample (13-tap)
+// Uses Karis average for first pass to reduce fireflies
+//--------------------------------------------------------------
+float3 KarisAverage(float3 c)
+{
+    return c / (1.0 + Luminance(c));
+}
+
+[numthreads(8, 8, 1)]
+void BloomDownsample(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)BloomMipSize.xy))
+        return;
+
+    float2 uv = (id.xy + 0.5) * BloomMipSize.zw;
+    float2 texelSize = BloomMipSize.zw;
+
+    // 13-tap downsample filter (from Call of Duty: Advanced Warfare)
+    float3 a = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-2, -2) * texelSize, 0).rgb;
+    float3 b = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0, -2) * texelSize, 0).rgb;
+    float3 c = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 2, -2) * texelSize, 0).rgb;
+    float3 d = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1, -1) * texelSize, 0).rgb;
+    float3 e = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1, -1) * texelSize, 0).rgb;
+    float3 f = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-2,  0) * texelSize, 0).rgb;
+    float3 g = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb;
+    float3 h = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 2,  0) * texelSize, 0).rgb;
+    float3 i = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1,  1) * texelSize, 0).rgb;
+    float3 j = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  1) * texelSize, 0).rgb;
+    float3 k = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-2,  2) * texelSize, 0).rgb;
+    float3 l = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0,  2) * texelSize, 0).rgb;
+    float3 m = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 2,  2) * texelSize, 0).rgb;
+
+    float3 result = 0;
+    result += (d + e + i + j) * 0.5 * 0.25;
+    result += (a + b + f + g) * 0.125 * 0.25;
+    result += (b + c + g + h) * 0.125 * 0.25;
+    result += (f + g + k + l) * 0.125 * 0.25;
+    result += (g + h + l + m) * 0.125 * 0.25;
+
+    // Apply threshold on first pass
+    float brightness = Luminance(result);
+    float soft = clamp(brightness - PP_BloomThreshold + 0.5, 0, 1);
+    soft = soft * soft * (1.0 / (1.0 + 1e-4));
+    float contribution = max(soft, brightness - PP_BloomThreshold) / max(brightness, 1e-4);
+    result *= contribution;
+
+    UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 1: Bloom Upsample (9-tap tent filter)
+//--------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void BloomUpsample(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)BloomMipSize.xy))
+        return;
+
+    float2 uv = (id.xy + 0.5) * BloomMipSize.zw;
+    float2 texelSize = BloomMipSize.zw;
+
+    // 9-tap tent filter for smooth upsampling
+    float3 result = 0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1, -1) * texelSize, 0).rgb * 1.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0, -1) * texelSize, 0).rgb * 2.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1, -1) * texelSize, 0).rgb * 1.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1,  0) * texelSize, 0).rgb * 2.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv                             , 0).rgb * 4.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  0) * texelSize, 0).rgb * 2.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1,  1) * texelSize, 0).rgb * 1.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0,  1) * texelSize, 0).rgb * 2.0;
+    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  1) * texelSize, 0).rgb * 1.0;
+    result /= 16.0;
+
+    UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 2: Final Combine
+// Apply color grading LUT, volumetric fog, vignette, film grain
+//--------------------------------------------------------------
+
+// Sample 3D color grading LUT packed as 2D (32x32x32)
+float3 ApplyColorGradingLUT(float3 color, float lutSize)
+{
+    float scale = (lutSize - 1.0) / lutSize;
+    float offset = 0.5 / lutSize;
+    color = saturate(color) * scale + offset;
+
+    // The LUT is packed as horizontal strips
+    float slice = color.b * (lutSize - 1.0);
+    float sliceFloor = floor(slice);
+    float sliceFrac = slice - sliceFloor;
+
+    float2 uv0 = float2((sliceFloor + color.r) / lutSize, color.g);
+    float2 uv1 = float2((sliceFloor + 1.0 + color.r) / lutSize, color.g);
+
+    float3 lut0 = SRV_CombineLUTTexture.SampleLevel(Global_bilinear_clamp_sampler, uv0, 0).rgb;
+    float3 lut1 = SRV_CombineLUTTexture.SampleLevel(Global_bilinear_clamp_sampler, uv1, 0).rgb;
+
+    return lerp(lut0, lut1, sliceFrac);
+}
+
+// ACES Filmic Tone Mapping (simplified)
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51;
+    float b = 0.03;
+    float c = 2.43;
+    float d = 0.59;
+    float e = 0.14;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+// Vignette effect
+float ComputeVignette(float2 uv)
+{
+    float2 d = abs(uv - 0.5) * 2.0;
+    float vignette = saturate(1.0 - dot(d, d) * PP_VignetteIntensity);
+    return vignette * vignette;
+}
+
+// Film grain
+float3 ApplyFilmGrain(float3 color, float2 uv, int frameIndex)
+{
+    if (PP_FilmGrainIntensity <= 0)
+        return color;
+
+    float noise = InterleavedGradientNoise(uv * PP_Resolution.xy, frameIndex);
+    noise = (noise - 0.5) * 2.0 * PP_FilmGrainIntensity;
+
+    // Luminance-based grain strength (more grain in shadows)
+    float lum = Luminance(color);
+    float grainStrength = 1.0 - saturate(lum);
+
+    return color + noise * grainStrength;
+}
+
+// Linear to sRGB conversion
+float3 LinearToSRGB(float3 color)
+{
+    float3 lo = color * 12.92;
+    float3 hi = pow(max(abs(color), 1e-6), 1.0 / 2.4) * 1.055 - 0.055;
+    return color <= 0.0031308 ? lo : hi;
+}
+
+[numthreads(8, 8, 1)]
+void FinalCombine(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)PP_Resolution.xy))
+        return;
+
+    float2 screenUV = (id.xy + 0.5) * PP_Resolution.zw;
+
+    // Sample scene color
+    float3 sceneColor = SRV_SceneColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb;
+
+    // Apply volumetric fog (if available)
+    float4 fogData = SRV_VolumetricFogTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0);
+    sceneColor = sceneColor * fogData.a + fogData.rgb;
+
+    // Tone mapping
+    float3 tonemapped = ACESFilm(sceneColor);
+
+    // Color grading LUT (if available)
+    // tonemapped = ApplyColorGradingLUT(tonemapped, 32.0);
+
+    // Vignette
+    float vignette = ComputeVignette(screenUV);
+    tonemapped *= vignette;
+
+    // Film grain
+    tonemapped = ApplyFilmGrain(tonemapped, screenUV, PP_FrameIndex);
+
+    // Linear to sRGB
+    float3 finalColor = LinearToSRGB(tonemapped);
+
+    UAV_PostProcessTexture[id.xy] = float4(max(0, finalColor), 1);
+}

@@ -29,18 +29,39 @@ namespace InfinityTech.Rendering.Pipeline
         [SerializeField] 
         private VolumeProfile m_VolumeProfile;
 
+        [Header("Compute Shaders")]
         public ComputeShader taaShader;
         public ComputeShader ssrShader;
         public ComputeShader ssaoShader;
         public ComputeShader ssgiShader;
         public ComputeShader combineLUTShader;
+        public ComputeShader hiZShader;
+        public ComputeShader halfResDownsampleShader;
+        public ComputeShader zBinningShader;
+        public ComputeShader contactShadowShader;
+        public ComputeShader deferredShadingShader;
+        public ComputeShader subsurfaceShader;
+        public ComputeShader atmosphericLUTShader;
+        public ComputeShader volumetricFogShader;
+        public ComputeShader volumetricCloudShader;
+        public ComputeShader colorPyramidShader;
+        public ComputeShader superResolutionShader;
+        public ComputeShader postProcessingShader;
 
+        [Header("Shaders")]
         public Shader defaultShaderProxy;
 
+        [Header("Materials")]
         public Material blitMaterial;
         public Material defaultMaterialProxy;
 
+        [Header("Textures")]
         public Texture2D bestFitNormalTexture;
+
+        [Header("Shadow Settings")]
+        public int cascadeShadowMapResolution = 2048;
+        public int localShadowMapResolution = 2048;
+        public float shadowDistance = 128;
 
         public InfinityRenderPipeline renderPipeline;
         public override Shader defaultShader { get { return defaultShaderProxy; } }
