@@ -30,6 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
         private VolumeProfile m_VolumeProfile;
 
         [Header("Compute Shaders")]
+        public ComputeShader meshDrawPipelineCS;
         public ComputeShader taaShader;
         public ComputeShader ssrShader;
         public ComputeShader ssaoShader;

@@ -5,7 +5,6 @@ using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using UnityEngine.Rendering.RendererUtils;
-using System.Xml.Linq;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -19,10 +18,10 @@ namespace InfinityTech.Rendering.Pipeline
         struct ForwardPassData
         {
             public RendererList rendererList;
-            public MeshPassProcessor meshPassProcessor;
+            public RGDrawListRef draws;
         }
 
-        void RenderForward(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
+        void RenderForward(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
@@ -46,6 +45,21 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RendererList forwardRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
 
+            MeshFilterProgram forwardFilter = BuiltinMeshesPasses.Forward.defaultFilter;
+            forwardFilter.layerMask = camera.cullingMask;
+            forwardFilter.renderingLayerMask = (uint)ERenderingLayer.Everything;
+            var forwardRequest = new MeshDrawRequest
+            {
+                filter = forwardFilter,
+                sort = BuiltinMeshesPasses.Forward.defaultSort,
+                backendPolicy = EMeshBackendPolicy.Auto,
+                shaderPassIndex = BuiltinMeshesPasses.Forward.shaderPassIndex,
+                viewPosition = camera.transform.position,
+                renderingLayerMask = forwardFilter.renderingLayerMask,
+                viewKey = (ulong)(uint)camera.GetInstanceID()
+            };
+            RGDrawListRef forwardDraws = m_RGBuilder.DeclareDrawList(m_ForwardMeshProcessor, forwardRequest, visibility, m_VisibilityShare);
+
             //Add ForwardPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RenderForward)))
             {
@@ -57,15 +71,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref ForwardPassData passData = ref passRef.GetPassData<ForwardPassData>();
                 {
                     passData.rendererList = forwardRendererList;
-                    passData.meshPassProcessor = m_ForwardMeshProcessor;
+                    passData.draws = passRef.UseDrawList(forwardDraws);
                 }
-                m_ForwardMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in ForwardPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(cmdEncoder, 2);
+                    cmdEncoder.Draw(passData.draws);
 
                     //UnityDrawPipeline
                     cmdEncoder.DrawRendererList(passData.rendererList);

@@ -19,6 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct ObjectMotionPassData
         {
             public RendererList rendererList;
+            public RGDrawListRef draws;
         }
 
         struct CameraMotionPassData
@@ -26,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
         }
 
-        void RenderMotion(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
+        void RenderMotion(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
@@ -52,6 +53,21 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RendererList motionRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
 
+            MeshFilterProgram motionFilter = BuiltinMeshesPasses.Motion.defaultFilter;
+            motionFilter.layerMask = camera.cullingMask;
+            motionFilter.renderingLayerMask = (uint)ERenderingLayer.Everything;
+            var motionRequest = new MeshDrawRequest
+            {
+                filter = motionFilter,
+                sort = BuiltinMeshesPasses.Motion.defaultSort,
+                backendPolicy = EMeshBackendPolicy.Auto,
+                shaderPassIndex = BuiltinMeshesPasses.Motion.shaderPassIndex,
+                viewPosition = camera.transform.position,
+                renderingLayerMask = motionFilter.renderingLayerMask,
+                viewKey = (ulong)(uint)camera.GetInstanceID()
+            };
+            RGDrawListRef motionDraws = m_RGBuilder.DeclareDrawList(m_MotionMeshProcessor, motionRequest, visibility, m_VisibilityShare);
+
             //Add ObjectMotionPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderObjectMotion)))
             {
@@ -63,11 +79,15 @@ namespace InfinityTech.Rendering.Pipeline
                 ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();
                 {
                     passData.rendererList = motionRendererList;
+                    passData.draws = passRef.UseDrawList(motionDraws);
                 }
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
+                    //MeshDrawPipeline
+                    cmdEncoder.Draw(passData.draws);
+
                     //UnityDrawPipeline
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });

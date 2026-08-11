@@ -42,6 +42,8 @@ namespace InfinityTech.Rendering.Pipeline
 
     public class RenderContext : IDisposable
     {
+        private static readonly List<MeshComponent> s_DirtyMeshList = new List<MeshComponent>(256);
+
         private List<CameraComponent> m_ViewList;
         private List<TerrainComponent> m_TerrainList;
         private List<MeshComponent> m_StaticMeshList;
@@ -49,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, LightComponent> m_LightList;
 
         internal LightContext lightContext;
-        private MeshBatchCollector m_MeshBatchCollector;
+        private MeshScene m_MeshScene;
         internal ScriptableRenderContext scriptableRenderContext;
 
         public RenderContext()
@@ -61,7 +63,38 @@ namespace InfinityTech.Rendering.Pipeline
             m_DynamicMeshList = new List<MeshComponent>(8192);
 
             lightContext = new LightContext();
-            m_MeshBatchCollector = new MeshBatchCollector();
+            m_MeshScene = new MeshScene();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void EnqueueDirtyMesh(MeshComponent meshComponent)
+        {
+            if (ReferenceEquals(meshComponent, null))
+            {
+                return;
+            }
+
+            s_DirtyMeshList.Add(meshComponent);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DrainDirtyMeshes()
+        {
+            if (s_DirtyMeshList.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < s_DirtyMeshList.Count; ++i)
+            {
+                MeshComponent meshComponent = s_DirtyMeshList[i];
+                if (meshComponent)
+                {
+                    meshComponent.SyncFromSnapshot(this);
+                }
+            }
+
+            s_DirtyMeshList.Clear();
         }
 
         #region WorldView
@@ -214,13 +247,13 @@ namespace InfinityTech.Rendering.Pipeline
         }
         #endregion //WorldPrimitive
 
-        #region MeshBatchCollector
+        #region MeshScene
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public MeshBatchCollector GetMeshBatchColloctor()
+        public MeshScene GetMeshScene()
         {
-            return m_MeshBatchCollector;
+            return m_MeshScene;
         }
-        #endregion //MeshBatchCollector
+        #endregion //MeshScene
 
         public void Dispose()
         {
@@ -229,11 +262,12 @@ namespace InfinityTech.Rendering.Pipeline
             ClearWorldTerrains();
             ClearWorldStaticMesh();
             ClearWorldDynamicMesh();
+            s_DirtyMeshList.Clear();
 
             FGraphics.ClearTasks();
 
             lightContext.Dispose();
-            m_MeshBatchCollector.Dispose();
+            m_MeshScene.Dispose();
         }
     }
 }

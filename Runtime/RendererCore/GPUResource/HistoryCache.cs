@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.GPUResource
 
         public FBufferRef GetBuffer(in int id, in BufferDescriptor descriptor)
         {
-            FBufferRef bufferRef = new FBufferRef(-1, null);
+            FBufferRef bufferRef = new FBufferRef(-1, default, null);
             if (m_CacheBuffers.ContainsKey(id))
             {
                 bufferRef = m_CacheBuffers[id];
@@ -77,6 +77,7 @@ namespace InfinityTech.Rendering.GPUResource
                     bufferRef.buffer.Release();
                 }
                 bufferRef.buffer = new ComputeBuffer(descriptor.count, descriptor.stride);
+                bufferRef.descriptor = descriptor;
                 m_CacheBuffers[id] = bufferRef;
             }
 
@@ -84,7 +85,8 @@ namespace InfinityTech.Rendering.GPUResource
             if (!descriptor.Equals(bufferDescriptor))
             {
                 bufferRef.buffer.Release();
-                bufferRef.buffer = new ComputeBuffer(descriptor.count, descriptor.stride); 
+                bufferRef.buffer = new ComputeBuffer(descriptor.count, descriptor.stride);
+                bufferRef.descriptor = descriptor;
                 m_CacheBuffers[id] = bufferRef;
             }
             return bufferRef;
@@ -92,7 +94,7 @@ namespace InfinityTech.Rendering.GPUResource
 
         public FTextureRef GetTexture(in int id, in TextureDescriptor descriptor)
         {
-            FTextureRef textureRef = new FTextureRef(-1, null);
+            FTextureRef textureRef = new FTextureRef(-1, default, null);
             if (m_CacheTextures.ContainsKey(id))
             {
                 textureRef = m_CacheTextures[id];
@@ -106,6 +108,7 @@ namespace InfinityTech.Rendering.GPUResource
                 }
                 textureRef.texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
                                                              descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, descriptor.name);
+                textureRef.descriptor = descriptor;
                 m_CacheTextures[id] = textureRef;
             }
 
@@ -115,6 +118,7 @@ namespace InfinityTech.Rendering.GPUResource
                 RTHandles.Release(textureRef.texture);
                 textureRef.texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
                                                              descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false,RenderTextureMemoryless.None, VRTextureUsage.None, descriptor.name);
+                textureRef.descriptor = descriptor;
                 m_CacheTextures[id] = textureRef;
             }
             return textureRef;

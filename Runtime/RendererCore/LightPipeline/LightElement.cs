@@ -32,20 +32,6 @@ namespace InfinityTech.Rendering.LightPipeline
         Ev100,      // ISO 100 Exposure Value (https://en.wikipedia.org/wiki/Exposure_value)
     }
 
-    public enum ELightLayer
-    {
-        Nothing = 0,   // Custom name for "Nothing" option
-        LightLayerDefault = 1 << 0,
-        LightLayer1 = 1 << 1,
-        LightLayer2 = 1 << 2,
-        LightLayer3 = 1 << 3,
-        LightLayer4 = 1 << 4,
-        LightLayer5 = 1 << 5,
-        LightLayer6 = 1 << 6,
-        LightLayer7 = 1 << 7,
-        Everything = 0xFF, // Custom name for "Everything" option
-    }
-
     public enum EShadowResolution
     {
         X512 = 0,
@@ -74,7 +60,7 @@ namespace InfinityTech.Rendering.LightPipeline
     {
         public ELightState state;
         public ELightType lightType;
-        public ELightLayer lightLayer;
+        public ERenderingLayer lightLayer;
 
         // Emission Property
         public Color color;
@@ -101,7 +87,7 @@ namespace InfinityTech.Rendering.LightPipeline
         // Shadow Property
         public int enableShadow;
         public EShadowType shadowType;
-        public ELightLayer shadowLayer;
+        public ERenderingLayer shadowLayer;
         public EShadowResolution resolution;
         public float nearPlane;
         public float minSoftness;

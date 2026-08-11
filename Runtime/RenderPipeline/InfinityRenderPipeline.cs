@@ -1,9 +1,7 @@
 using System;
-using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.VFX;
 using Unity.Mathematics;
-using Unity.Collections;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
 using System.Collections.Generic;
@@ -205,14 +203,16 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private bool m_UpdateInit;
-        private GPUScene m_GPUScene;
+        private MeshSceneResidency m_MeshSceneResidency;
+        private MeshVisibilityShare m_VisibilityShare;
         private RGScoper m_RGScoper;
         private RGBuilder m_RGBuilder;
         private ResourcePool m_ResourcePool;
-        private NativeList<JobHandle> m_MeshPassJobRefs;
-        private MeshPassProcessor m_DepthMeshProcessor;
-        private MeshPassProcessor m_GBufferMeshProcessor;
-        private MeshPassProcessor m_ForwardMeshProcessor;
+        private MeshDrawPipeline m_DepthMeshProcessor;
+        private MeshDrawPipeline m_GBufferMeshProcessor;
+        private MeshDrawPipeline m_ForwardMeshProcessor;
+        private MeshDrawPipeline m_MotionMeshProcessor;
+        private MeshDrawPipeline m_ShadowMeshProcessor;
         private Dictionary<int, HistoryCache> m_HistoryCaches;
         private Dictionary<int, CameraUniform> m_CameraUniforms;
 
@@ -241,12 +241,15 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGScoper = new RGScoper(m_RGBuilder);
             m_HistoryCaches = new Dictionary<int, HistoryCache>();
             m_CameraUniforms = new Dictionary<int, CameraUniform>();
-            m_MeshPassJobRefs = new NativeList<JobHandle>(32, Allocator.Persistent);
             m_ResourcePool = new ResourcePool();
-            m_GPUScene = new GPUScene(m_ResourcePool, renderContext.GetMeshBatchColloctor());
-            m_DepthMeshProcessor = new MeshPassProcessor(m_GPUScene, m_ResourcePool, ref m_MeshPassJobRefs);
-            m_GBufferMeshProcessor = new MeshPassProcessor(m_GPUScene, m_ResourcePool, ref m_MeshPassJobRefs);
-            m_ForwardMeshProcessor = new MeshPassProcessor(m_GPUScene, m_ResourcePool, ref m_MeshPassJobRefs);
+            m_MeshSceneResidency = new MeshSceneResidency(m_ResourcePool, renderContext.GetMeshScene());
+            m_VisibilityShare = new MeshVisibilityShare();
+            MeshDrawGPUBackend.SetShader(asset.meshDrawPipelineCS);
+            m_DepthMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+            m_GBufferMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+            m_ForwardMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+            m_MotionMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+            m_ShadowMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
         }
 
         protected override void Render(ScriptableRenderContext scriptableRenderContext, Camera[] cameras)
@@ -257,7 +260,7 @@ namespace InfinityTech.Rendering.Pipeline
                 renderContext.scriptableRenderContext = scriptableRenderContext;
 
                 InvokeProxyUpdate();
-                m_GPUScene.Update();
+                m_MeshSceneResidency.Update();
                 CommandBuffer cmdBuffer = CommandBufferPool.Get("");
                 cmdBuffer.Clear();
                 
@@ -267,7 +270,7 @@ namespace InfinityTech.Rendering.Pipeline
                     Camera camera = cameras[i];
                     CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
-                    CullingDatas cullingDatas;
+                    MeshVisibilityHandle sharedVisibility = MeshVisibilityHandle.Invalid;
                     HistoryCache historyCache;
                     CameraUniform cameraUniform;
                     CullingResults cullingResults;
@@ -303,10 +306,10 @@ namespace InfinityTech.Rendering.Pipeline
                     using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
                     {
                         BeginCameraRendering(scriptableRenderContext, camera);
+                        try
+                        {
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
                         {
-                            m_MeshPassJobRefs.Clear();
-
                             #if UNITY_EDITOR
                             if (isEditView) 
                             { 
@@ -329,7 +332,17 @@ namespace InfinityTech.Rendering.Pipeline
                                 cullingParameters.shadowDistance = 128;
                                 cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
                                 cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
-                                cullingDatas = scriptableRenderContext.DispatchCull(m_GPUScene, isSceneView, ref cullingParameters);
+
+                                MeshScene meshScene = renderContext.GetMeshScene();
+                                m_VisibilityShare.BeginFrame(meshScene.VisibilityRevision);
+                                ulong viewKey = MeshVisibilityShare.MakeCameraViewKey(camera);
+                                // Main camera frustum: Depth/GBuffer/Forward/Motion share one Cull.
+                                sharedVisibility = m_VisibilityShare.Acquire(
+                                    meshScene,
+                                    viewKey,
+                                    ref cullingParameters,
+                                    MeshVisibilityShare.PolicyMainFrustum,
+                                    isSceneView);
                             }
 
                             // ProcessLOD
@@ -476,81 +489,88 @@ namespace InfinityTech.Rendering.Pipeline
                         combineLutParameterDescriptor.ColorShadowTint2 = new float4(0, 0, 0, 1);
                         #endregion PostProcessVolume Parameter
 
-                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
-                        {
-                            // ═══════════════════════════════════════════════════════════
-                            // PHASE 1: BASE GEOMETRY (Raster-heavy → async overlap window)
-                            // ═══════════════════════════════════════════════════════════
-                            RenderDepth(renderContext, camera, cullingDatas, cullingResults);         // [Graphics] Depth Prepass
-                            ComputeCombineLuts(renderContext, combineLutParameterDescriptor);         // [Async] Color LUT (ALU-bound, overlaps depth raster)
-                            RenderDBuffer(renderContext, camera, cullingResults);                     // [Graphics] Decal DBuffer
-                            RenderGBuffer(renderContext, camera, cullingDatas, cullingResults);       // [Graphics] G-Buffer Fill
-                            RenderMotion(renderContext, camera, cullingDatas, cullingResults);        // [Graphics] Object + Camera Motion
+                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
+                            {
+                                // ═══════════════════════════════════════════════════════════
+                                // PHASE 1: BASE GEOMETRY (Raster-heavy → async overlap window)
+                                // ═══════════════════════════════════════════════════════════
+                                RenderDepth(renderContext, camera, sharedVisibility, cullingResults);         // [Graphics] Depth Prepass
+                                ComputeCombineLuts(renderContext, combineLutParameterDescriptor);         // [Async] Color LUT (ALU-bound, overlaps depth raster)
+                                RenderDBuffer(renderContext, camera, cullingResults);                     // [Graphics] Decal DBuffer
+                                RenderGBuffer(renderContext, camera, sharedVisibility, cullingResults);       // [Graphics] G-Buffer Fill
+                                RenderMotion(renderContext, camera, sharedVisibility, cullingResults);        // [Graphics] Object + Camera Motion
 
-                            // ═══════════════════════════════════════════════════════════
-                            // PHASE 2: SHADOWS (Vertex/raster-bound → best async window)
-                            // ═══════════════════════════════════════════════════════════
-                            RenderCascadeShadow(renderContext, camera, cullingResults);               // [Graphics] Cascade Shadow Maps
-                            RenderLocalShadow(renderContext, camera, cullingResults);                 // [Graphics] Local Shadow Maps
-                            ComputeHiZ(renderContext, camera);                                       // [Async] HiZ Min/Max Pyramid
-                            ComputeHalfResDownsample(renderContext, camera);                         // [Async] Half-Res Depth + Normal
-                            ComputeAtmosphericLUT(renderContext, camera);                            // [Async] Atmospheric Scattering LUTs
+                                // ═══════════════════════════════════════════════════════════
+                                // PHASE 2: SHADOWS (Vertex/raster-bound → best async window)
+                                // ═══════════════════════════════════════════════════════════
+                                RenderCascadeShadow(renderContext, camera, cullingResults);               // [Graphics] Cascade Shadow Maps
+                                RenderLocalShadow(renderContext, camera, cullingResults);                 // [Graphics] Local Shadow Maps
+                                ComputeHiZ(renderContext, camera);                                       // [Async] HiZ Min/Max Pyramid
+                                ComputeHalfResDownsample(renderContext, camera);                         // [Async] Half-Res Depth + Normal
+                                ComputeAtmosphericLUT(renderContext, camera);                            // [Async] Atmospheric Scattering LUTs
 
-                            // ═══════════════════════════════════════════════════════════
-                            // PHASE 3: SCREEN-SPACE EFFECTS (Compute-dominated after sync)
-                            // ═══════════════════════════════════════════════════════════
-                            ComputeZBinningLightList(renderContext, camera);                          // Z-Bin + Tile Light Lists
-                            ComputeGroundTruthOcclusion(renderContext, camera);                       // GTAO (4-kernel: trace→spatialXY→temporal)
-                            ComputeContactShadow(renderContext, camera);                              // Screen-Space Contact Shadows
-                            ComputeScreenSpaceReflection(renderContext, camera);                      // HiZ Ray-Traced SSR
-                            ComputeScreenSpaceIndirect(renderContext, camera);                        // HiZ Ray-Traced SSGI
+                                // ═══════════════════════════════════════════════════════════
+                                // PHASE 3: SCREEN-SPACE EFFECTS (Compute-dominated after sync)
+                                // ═══════════════════════════════════════════════════════════
+                                ComputeZBinningLightList(renderContext, camera);                          // Z-Bin + Tile Light Lists
+                                ComputeGroundTruthOcclusion(renderContext, camera);                       // GTAO (4-kernel: trace→spatialXY→temporal)
+                                ComputeContactShadow(renderContext, camera);                              // Screen-Space Contact Shadows
+                                ComputeScreenSpaceReflection(renderContext, camera);                      // HiZ Ray-Traced SSR
+                                ComputeScreenSpaceIndirect(renderContext, camera);                        // HiZ Ray-Traced SSGI
 
-                            // ═══════════════════════════════════════════════════════════
-                            // PHASE 4: LIGHTING RESOLVE + OPAQUE
-                            // ═══════════════════════════════════════════════════════════
-                            ComputeDeferredShading(renderContext, camera);                            // Tiled Deferred Resolve
-                            RenderForward(renderContext, camera, cullingDatas, cullingResults);       // [Graphics] Forward Opaque
-                            ComputeBurleySubsurface(renderContext, camera);                           // [Async] SSS Diffusion (overlaps forward raster)
+                                // ═══════════════════════════════════════════════════════════
+                                // PHASE 4: LIGHTING RESOLVE + OPAQUE
+                                // ═══════════════════════════════════════════════════════════
+                                ComputeDeferredShading(renderContext, camera);                            // Tiled Deferred Resolve
+                                RenderForward(renderContext, camera, sharedVisibility, cullingResults);       // [Graphics] Forward Opaque
+                                ComputeBurleySubsurface(renderContext, camera);                           // [Async] SSS Diffusion (overlaps forward raster)
 
-                            // ═══════════════════════════════════════════════════════════
-                            // PHASE 5: ATMOSPHERE + VOLUMETRICS
-                            // ═══════════════════════════════════════════════════════════
-                            RenderAtmosphericSkyAndFog(renderContext, camera);                        // [Graphics] Sky + Aerial Perspective
-                            ComputeVolumetricFog(renderContext, camera);                              // Froxel Volumetric Fog
-                            ComputeVolumetricCloud(renderContext, camera);                            // Ray-Marched Clouds
+                                // ═══════════════════════════════════════════════════════════
+                                // PHASE 5: ATMOSPHERE + VOLUMETRICS
+                                // ═══════════════════════════════════════════════════════════
+                                RenderAtmosphericSkyAndFog(renderContext, camera);                        // [Graphics] Sky + Aerial Perspective
+                                ComputeVolumetricFog(renderContext, camera);                              // Froxel Volumetric Fog
+                                ComputeVolumetricCloud(renderContext, camera);                            // Ray-Marched Clouds
 
-                            // ═══════════════════════════════════════════════════════════
-                            // PHASE 6: TRANSLUCENT
-                            // ═══════════════════════════════════════════════════════════
-                            RenderTranslucentDepth(renderContext, camera, cullingResults);            // Translucent Depth Prepass
-                            ComputeColorPyramid(renderContext, camera);                              // Color Mip Chain (refraction)
-                            RenderForwardTranslucent(renderContext, camera, cullingResults);          // Forward Translucent Rendering
+                                // ═══════════════════════════════════════════════════════════
+                                // PHASE 6: TRANSLUCENT
+                                // ═══════════════════════════════════════════════════════════
+                                RenderTranslucentDepth(renderContext, camera, cullingResults);            // Translucent Depth Prepass
+                                ComputeColorPyramid(renderContext, camera);                              // Color Mip Chain (refraction)
+                                RenderForwardTranslucent(renderContext, camera, cullingResults);          // Forward Translucent Rendering
 
-                            // ═══════════════════════════════════════════════════════════
-                            // PHASE 7: POST-PROCESSING
-                            // ═══════════════════════════════════════════════════════════
-                            ComputeSuperResolution(renderContext, camera, cameraUniform.jitter);      // Temporal Upscaling
-                            ComputeAntiAliasing(renderContext, camera, historyCache);                 // TAA (fallback if no SR)
-                            CopyHistoryAntiAliasing(renderContext);
-                            ComputePostProcessing(renderContext, camera);                             // Bloom + Color Grading + Tonemapping
+                                // ═══════════════════════════════════════════════════════════
+                                // PHASE 7: POST-PROCESSING
+                                // ═══════════════════════════════════════════════════════════
+                                ComputeSuperResolution(renderContext, camera, cameraUniform.jitter);      // Temporal Upscaling
+                                ComputeAntiAliasing(renderContext, camera, historyCache);                 // TAA (fallback if no SR)
+                                CopyHistoryAntiAliasing(renderContext);
+                                ComputePostProcessing(renderContext, camera);                             // Bloom + Color Grading + Tonemapping
 
-                        #if UNITY_EDITOR
-                            RenderWireOverlay(renderContext, camera);
-                            RenderGizmos(renderContext, camera);
-                        #endif
-                            RenderPresent(renderContext, camera);
+                            #if UNITY_EDITOR
+                                RenderWireOverlay(renderContext, camera);
+                                RenderGizmos(renderContext, camera);
+                            #endif
+                                RenderPresent(renderContext, camera);
+                            }
+
+                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
+                            {
+                                // ReleaseAllDrawLists releases per-Declare visibility refs (exception-safe).
+                                m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                            }
                         }
-
-                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
+                        finally
                         {
-                            JobHandle.CompleteAll(m_MeshPassJobRefs.AsArray());
-                            m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                            // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
+                            m_RGBuilder.ClearRecordedGraph();
+                            m_VisibilityShare.Release(sharedVisibility);
+                            sharedVisibility = MeshVisibilityHandle.Invalid;
                         }
                         EndCameraRendering(scriptableRenderContext, camera);
                     }
 
                     m_RGScoper.Clear();
-                    cullingDatas.Release();
                     cameraUniform.UnpateUniformData(camera, true);
                 }
                 EndFrameRendering(scriptableRenderContext, cameras);
@@ -558,9 +578,17 @@ namespace InfinityTech.Rendering.Pipeline
                 // Execute FrameContext
                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                 scriptableRenderContext.Submit();
-                
+
+                // Physical GPU/CPU resource retirement after Submit (logical Retire happened in ReleaseAll).
+                MeshDrawGPUBackend.FlushRetiredPayloads();
+                m_DepthMeshProcessor?.FlushRetiredBuffers();
+                m_GBufferMeshProcessor?.FlushRetiredBuffers();
+                m_ForwardMeshProcessor?.FlushRetiredBuffers();
+                m_MotionMeshProcessor?.FlushRetiredBuffers();
+                m_ShadowMeshProcessor?.FlushRetiredBuffers();
+
                 // End FrameContext
-                m_GPUScene.Clear();
+                m_MeshSceneResidency.Clear();
                 CommandBufferPool.Release(cmdBuffer);
             }
         }
@@ -634,6 +662,9 @@ namespace InfinityTech.Rendering.Pipeline
                 #else
                     InvokeProxyUpdateRuntime();
                 #endif
+
+                // After proxy EventUpdate (Dynamic may MarkDirty); drain applies SyncFromSnapshot same frame.
+                renderContext.DrainDirtyMeshes();
             }
         }
 
@@ -668,10 +699,17 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //EditorSceneManager.sceneUnloaded -= OnSceneUnloaded;
                 renderContext.Dispose();
+                m_DepthMeshProcessor?.Dispose();
+                m_GBufferMeshProcessor?.Dispose();
+                m_ForwardMeshProcessor?.Dispose();
+                m_MotionMeshProcessor?.Dispose();
+                m_ShadowMeshProcessor?.Dispose();
+                MeshDrawGPUBackend.Dispose();
+                m_VisibilityShare?.Dispose();
+                m_MeshSceneResidency.Dispose();
                 m_RGScoper.Dispose();
                 m_RGBuilder.Dispose();
                 m_ResourcePool.Dispose();
-                m_MeshPassJobRefs.Dispose();
                 foreach (var historyCache in m_HistoryCaches)
                 {
                     historyCache.Value.Release();

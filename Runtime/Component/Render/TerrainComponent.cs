@@ -85,10 +85,16 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            terrainSector?.Dispose();
+            if (terrainSector != null)
+            {
+                terrainSector.Dispose();
+                terrainSector = null;
+            }
+
+            TerrainComponent self = this;
             FGraphics.AddTask((RenderContext renderContext) =>
             {
-                renderContext.RemoveWorldTerrain(this);
+                renderContext.RemoveWorldTerrain(self);
             });
             //RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         }

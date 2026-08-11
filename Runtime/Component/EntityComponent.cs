@@ -50,6 +50,11 @@ namespace InfinityTech.Component
             UnRegister();
         }
 
+        void OnDestroy()
+        {
+            UnRegister();
+        }
+
         private bool TransfromStateDirty()
         {
             m_CurrTransform.position = transform.position;

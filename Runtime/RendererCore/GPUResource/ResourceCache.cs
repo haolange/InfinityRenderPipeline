@@ -47,12 +47,14 @@ namespace InfinityTech.Rendering.GPUResource
 
         public bool Equals(BufferDescriptor target)
         {
-            return this.GetHashCode().Equals(target.GetHashCode());
+            return count == target.count
+                && stride == target.stride
+                && type == target.type;
         }
 
         public override bool Equals(object target)
         {
-            return Equals((BufferDescriptor)target);
+            return target is BufferDescriptor other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -127,12 +129,26 @@ namespace InfinityTech.Rendering.GPUResource
 
         public bool Equals(TextureDescriptor target)
         {
-            return this.GetHashCode().Equals(target.GetHashCode());
+            return width == target.width
+                && height == target.height
+                && slices == target.slices
+                && mipMapBias.Equals(target.mipMapBias)
+                && depthBufferBits == target.depthBufferBits
+                && colorFormat == target.colorFormat
+                && filterMode == target.filterMode
+                && wrapMode == target.wrapMode
+                && dimension == target.dimension
+                && anisoLevel == target.anisoLevel
+                && enableRandomWrite == target.enableRandomWrite
+                && useMipMap == target.useMipMap
+                && autoGenerateMips == target.autoGenerateMips
+                && isShadowMap == target.isShadowMap
+                && bindTextureMS == target.bindTextureMS;
         }
 
         public override bool Equals(object target)
         {
-            return Equals((TextureDescriptor)target);
+            return target is TextureDescriptor other && Equals(other);
         }
 
         public override int GetHashCode()
@@ -179,12 +195,14 @@ namespace InfinityTech.Rendering.GPUResource
     public struct FBufferRef
     {
         internal int handle;
+        internal BufferDescriptor descriptor;
         public ComputeBuffer buffer;
 
-        public FBufferRef(in int handle, ComputeBuffer buffer) 
-        { 
+        public FBufferRef(in int handle, in BufferDescriptor descriptor, ComputeBuffer buffer)
+        {
             this.handle = handle;
-            this.buffer = buffer; 
+            this.descriptor = descriptor;
+            this.buffer = buffer;
         }
 
         public static implicit operator ComputeBuffer(in FBufferRef bufferRef) => bufferRef.buffer;
@@ -193,64 +211,81 @@ namespace InfinityTech.Rendering.GPUResource
     public struct FTextureRef
     {
         internal int handle;
+        internal TextureDescriptor descriptor;
         public RTHandle texture;
 
-        internal FTextureRef(in int handle, RTHandle texture) 
+        internal FTextureRef(in int handle, in TextureDescriptor descriptor, RTHandle texture)
         {
             this.handle = handle;
-            this.texture = texture; 
+            this.descriptor = descriptor;
+            this.texture = texture;
         }
 
         public static implicit operator RTHandle(in FTextureRef textureRef) => textureRef.texture;
     }
 
-    public abstract class FGPUResourceCache<Type> where Type : class
+    public abstract class FGPUResourceCache<TResource, TDescriptor>
+        where TResource : class
+        where TDescriptor : struct, IEquatable<TDescriptor>
     {
-        protected Dictionary<int, List<Type>> m_ResourcePool = new Dictionary<int, List<Type>>(64);
+        private struct Entry
+        {
+            public TDescriptor descriptor;
+            public TResource resource;
+        }
 
-        abstract protected void ReleaseInternalResource(Type res);
-        abstract protected string GetResourceName(Type res);
+        protected Dictionary<int, List<Entry>> m_ResourcePool = new Dictionary<int, List<Entry>>(64);
+
+        abstract protected void ReleaseInternalResource(TResource res);
+        abstract protected string GetResourceName(TResource res);
         abstract protected string GetResourceTypeName();
 
-        public bool Pull(in int hashCode, out Type resource)
+        public bool Pull(in int hashCode, in TDescriptor descriptor, out TResource resource)
         {
             if (m_ResourcePool.TryGetValue(hashCode, out var list) && list.Count > 0)
             {
-                //resource = list[0];
-                //list.RemoveAt(0);
-                resource = list[list.Count - 1];
-                list.RemoveAt(list.Count - 1);
-                return true;
+                for (int i = list.Count - 1; i >= 0; --i)
+                {
+                    Entry entry = list[i];
+                    if (!entry.descriptor.Equals(descriptor))
+                    {
+                        continue;
+                    }
+
+                    resource = entry.resource;
+                    list.RemoveAt(i);
+                    return true;
+                }
             }
 
             resource = null;
             return false;
         }
 
-        public void Push(in int hash, Type resource)
+        public void Push(in int hash, in TDescriptor descriptor, TResource resource)
         {
             if (!m_ResourcePool.TryGetValue(hash, out var list))
             {
-                list = new List<Type>();
+                list = new List<Entry>();
                 m_ResourcePool.Add(hash, list);
             }
 
-            list.Add(resource);
+            list.Add(new Entry { descriptor = descriptor, resource = resource });
         }
 
         public void Dispose()
         {
             foreach (var kvp in m_ResourcePool)
             {
-                foreach (Type resource in kvp.Value)
+                foreach (Entry entry in kvp.Value)
                 {
-                    ReleaseInternalResource(resource);
+                    ReleaseInternalResource(entry.resource);
                 }
             }
         }
     }
 
-    public class BufferCache : FGPUResourceCache<ComputeBuffer>
+    public class BufferCache : FGPUResourceCache<ComputeBuffer, BufferDescriptor>
     {
         protected override void ReleaseInternalResource(ComputeBuffer res)
         {
@@ -268,7 +303,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public class TextureCache : FGPUResourceCache<RTHandle>
+    public class TextureCache : FGPUResourceCache<RTHandle, TextureDescriptor>
     {
         protected override void ReleaseInternalResource(RTHandle res)
         {

@@ -19,18 +19,18 @@ namespace InfinityTech.Rendering.GPUResource
             ComputeBuffer buffer;
             int handle = descriptor.GetHashCode();
 
-            if (!m_BufferPool.Pull(handle, out buffer))
+            if (!m_BufferPool.Pull(handle, descriptor, out buffer))
             {
                 buffer = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
                 buffer.name = descriptor.name;
             }
 
-            return new FBufferRef(handle, buffer);
+            return new FBufferRef(handle, descriptor, buffer);
         }
 
         public void ReleaseBuffer(in FBufferRef bufferRef)
         {
-            m_BufferPool.Push(bufferRef.handle, bufferRef.buffer);
+            m_BufferPool.Push(bufferRef.handle, bufferRef.descriptor, bufferRef.buffer);
         }
 
         public FTextureRef GetTexture(in TextureDescriptor descriptor)
@@ -38,18 +38,18 @@ namespace InfinityTech.Rendering.GPUResource
             RTHandle texture;
             int handle = descriptor.GetHashCode();
 
-            if (!m_TexturePool.Pull(handle, out texture))
+            if (!m_TexturePool.Pull(handle, descriptor, out texture))
             {
                 texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
                                           descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, descriptor.name);
             }
 
-            return new FTextureRef(handle, texture);
+            return new FTextureRef(handle, descriptor, texture);
         }
 
         public void ReleaseTexture(in FTextureRef textureRef)
         {
-            m_TexturePool.Push(textureRef.handle, textureRef.texture);
+            m_TexturePool.Push(textureRef.handle, textureRef.descriptor, textureRef.texture);
         }
 
         public void Dispose()

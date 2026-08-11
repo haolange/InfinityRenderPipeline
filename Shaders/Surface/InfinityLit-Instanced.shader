@@ -1,4 +1,4 @@
-﻿Shader "InfinityPipeline/InfinityLit-Instanced"
+Shader "InfinityPipeline/InfinityLit-Instanced"
 {
 	Properties 
 	{
@@ -71,8 +71,8 @@
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
-				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
+				Out.PrimitiveId  = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
@@ -145,8 +145,8 @@
 			Varyings vert (Attributes In)
 			{
 				Varyings Out = (Varyings)0;
-				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
-				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
+				Out.PrimitiveId  = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
@@ -185,7 +185,7 @@
 			ENDHLSL
 		}
 
-		//Forward Pass
+			//Forward Pass
 		Pass
 		{
 			Name "ForwardPass"
@@ -246,8 +246,8 @@
 			Varyings vert (Attributes In)
 			{
 				Varyings Out = (Varyings)0;
-				Out.PrimitiveId  = meshBatchIndexs[In.InstanceId + meshBatchOffset];
-				FMeshBatch meshBatch = meshBatchBuffer[Out.PrimitiveId];
+				Out.PrimitiveId  = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
@@ -289,6 +289,131 @@
 				}
 
 				//lightingBuffer += float4(albedoMap * indirectLight, 1);
+			}
+			ENDHLSL
+		}
+
+		//Motion Pass
+		Pass
+		{
+			Name "MotionPass"
+			Tags { "LightMode" = "MotionPass" }
+			ZTest Equal ZWrite Off Cull Back
+			Stencil
+			{
+				Ref 5
+				comp always
+				pass replace
+			}
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+			//#pragma enable_d3d11_debug_symbols
+
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+
+			struct Attributes
+			{
+				uint InstanceId : SV_InstanceID;
+				float4 vertex : POSITION;
+			};
+
+			struct Varyings
+			{
+				uint PrimitiveId : SV_InstanceID;
+				float4 clipPos : TEXCOORD0;
+				float4 clipPosOld : TEXCOORD1;
+				float4 vertex : SV_POSITION;
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out;
+				Out.PrimitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData currBatch = transformBuffer[Out.PrimitiveId];
+				FTransformData prevBatch = previousTransformBuffer[Out.PrimitiveId];
+
+				float4 worldPos = mul(currBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				float4 worldPosOld = mul(prevBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+
+				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
+				Out.clipPos = mul(Matrix_ViewProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewProj, worldPosOld);
+				return Out;
+			}
+
+			float2 frag(Varyings In) : SV_Target
+			{
+				float2 hPos = (In.clipPos.xy / In.clipPos.w);
+				float2 hPosOld = (In.clipPosOld.xy / In.clipPosOld.w);
+
+				float2 ndcPos = (hPos.xy + 1.0f) / 2.0f;
+				float2 ndcPosOld = (hPosOld.xy + 1.0f) / 2.0f;
+
+				#if UNITY_UV_STARTS_AT_TOP
+					ndcPos.y = 1 - ndcPos.y;
+					ndcPosOld.y = 1 - ndcPosOld.y;
+				#endif
+
+				return ndcPos - ndcPosOld;
+			}
+			ENDHLSL
+		}
+
+		//Shadow Pass
+		Pass
+		{
+			Name "ShadowPass"
+			Tags { "LightMode" = "ShadowPass" }
+			ZTest LEqual ZWrite On Cull Back
+			ColorMask 0
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+			//#pragma enable_d3d11_debug_symbols
+
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+
+			struct Attributes
+			{
+				uint InstanceId : SV_InstanceID;
+				float2 uv0 : TEXCOORD0;
+				float4 vertex : POSITION;
+			};
+
+			struct Varyings
+			{
+				uint PrimitiveId : SV_InstanceID;
+				float2 uv0 : TEXCOORD0;
+				float4 vertex_CS : SV_POSITION;
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out;
+				Out.PrimitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
+
+				Out.uv0 = In.uv0;
+				float4 vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				// CascadeShadowPass sets Matrix_ViewProj to the cascade shadow VP before draw.
+				Out.vertex_CS = mul(Matrix_ViewProj, vertex_WS);
+				return Out;
+			}
+
+			float4 frag(Varyings In) : SV_Target
+			{
+				return 0;
 			}
 			ENDHLSL
 		}

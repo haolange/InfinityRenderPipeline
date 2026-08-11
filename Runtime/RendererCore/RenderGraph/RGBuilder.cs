@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.MeshPipeline;
 using Unity.Collections;
 
 namespace InfinityTech.Rendering.RenderGraph
@@ -14,6 +15,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGObjectPool objectPool;
         public CommandBuffer cmdBuffer;
         public RenderContext renderContext;
+        internal RGDrawListContext drawLists;
     }
 
     internal struct RGPassCompileInfo
@@ -35,18 +37,19 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             this.pass = pass;
 
-            if (resourceCreateList == null)
+            int resourceTypeCount = (int)ERGResourceType.Max;
+            if (resourceCreateList == null || resourceCreateList.Length != resourceTypeCount)
             {
-                resourceCreateList = new List<int>[2];
-                resourceReleaseList = new List<int>[2];
-                for (int i = 0; i < 2; ++i)
+                resourceCreateList = new List<int>[resourceTypeCount];
+                resourceReleaseList = new List<int>[resourceTypeCount];
+                for (int i = 0; i < resourceTypeCount; ++i)
                 {
                     resourceCreateList[i] = new List<int>();
                     resourceReleaseList[i] = new List<int>();
                 }
             }
 
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < resourceTypeCount; ++i)
             {
                 resourceCreateList[i].Clear();
                 resourceReleaseList[i].Clear();
@@ -92,18 +95,41 @@ namespace InfinityTech.Rendering.RenderGraph
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
+        RGDrawListContext m_DrawListRecords = new RGDrawListContext();
 
         public RGBuilder(string name)
         {
             this.name = name;
             this.m_Resources = new RGResourceFactory();
             this.m_PassCompileInfos = new DynamicArray<RGPassCompileInfo>();
-            this.m_ResourcesCompileInfos = new DynamicArray<RGResourceCompileInfo>[2];
+            this.m_ResourcesCompileInfos = new DynamicArray<RGResourceCompileInfo>[(int)ERGResourceType.Max];
 
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 this.m_ResourcesCompileInfos[i] = new DynamicArray<RGResourceCompileInfo>();
             }
+        }
+
+        /// <summary>
+        /// Declare an immutable DrawList request. Does not Schedule or allocate TempJob memory.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGDrawListRef DeclareDrawList(MeshDrawPipeline pipeline, in MeshDrawRequest request, in MeshViewCullingResult culling)
+        {
+            return m_DrawListRecords.Declare(pipeline, request, culling);
+        }
+
+        /// <summary>
+        /// Declare a DrawList that shares ref-counted visibility from <see cref="MeshVisibilityShare"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGDrawListRef DeclareDrawList(
+            MeshDrawPipeline pipeline,
+            in MeshDrawRequest request,
+            MeshVisibilityHandle visibilityHandle,
+            MeshVisibilityShare visibilityShare)
+        {
+            return m_DrawListRecords.Declare(pipeline, request, visibilityHandle, visibilityShare);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -205,7 +231,17 @@ namespace InfinityTech.Rendering.RenderGraph
             rasterPass.index = m_PassList.Count;
             rasterPass.customSampler = profilerSampler;
             m_PassList.Add(rasterPass);
-            return new RGRasterPassRef(rasterPass, m_Resources);
+            return new RGRasterPassRef(rasterPass, m_Resources, m_DrawListRecords);
+        }
+
+        /// <summary>
+        /// Drop recorded passes / DrawLists without executing. Safe to call after Execute (no-op on empty).
+        /// Ensures visibility refs and GPU payloads are released if recording aborts early.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ClearRecordedGraph()
+        {
+            ClearPass();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -216,6 +252,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 graphContext.cmdBuffer = cmdBuffer;
                 graphContext.objectPool = m_ObjectPool;
                 graphContext.renderContext = renderContext;
+                graphContext.drawLists = m_DrawListRecords;
             }
             m_ExecuteExceptionIsRaised = false;
 
@@ -245,6 +282,8 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ClearPass()
         {
+            ReleaseAllDrawLists();
+
             foreach (var pass in m_PassList)
             {
                 pass.Release(m_ObjectPool);
@@ -253,7 +292,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_PassList.Clear();
             m_Resources.Clear();
 
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 m_ResourcesCompileInfos[i].Clear();
             }
@@ -276,6 +315,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             InitResourceInfoData(m_ResourcesCompileInfos[(int)ERGResourceType.Buffer], m_Resources.GetBufferCount());
             InitResourceInfoData(m_ResourcesCompileInfos[(int)ERGResourceType.Texture], m_Resources.GetTextureCount());
+            InitResourceInfoData(m_ResourcesCompileInfos[(int)ERGResourceType.AccelerationStructure], 0);
 
             m_PassCompileInfos.Resize(m_PassList.Count);
             for (int i = 0; i < m_PassCompileInfos.size; ++i)
@@ -291,7 +331,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
 
-                for (int type = 0; type < 2; ++type)
+                for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                 {
                     var resourceRead = passInfo.pass.resourceReadLists[type];
                     foreach (var resource in resourceRead)
@@ -328,7 +368,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void CullingUnusedPass()
         {
-            for (int type = 0; type < 2; ++type)
+            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
             {
                 m_CullingStack.Clear();
                 DynamicArray<RGResourceCompileInfo> resourceUsageList = m_ResourcesCompileInfos[type];
@@ -499,7 +539,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
                 if (passInfo.culled) { continue; }
 
-                for (int type = 0; type < 2; ++type)
+                for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                 {
                     var resourcesInfo = m_ResourcesCompileInfos[type];
                     foreach (int resource in passInfo.pass.resourceReadLists[type])
@@ -514,7 +554,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
 
-            for (int type = 0; type < 2; ++type)
+            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
             {
                 var resourceInfos = m_ResourcesCompileInfos[type];
                 for (int i = 0; i < resourceInfos.size; ++i)
@@ -563,11 +603,54 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void CompileDrawLists()
+        {
+            // Structural liveness: only DrawLists consumed by non-culled passes are scheduled.
+            m_DrawListRecords.ClearConsumers();
+
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                if (passInfo.culled)
+                {
+                    continue;
+                }
+
+                List<RGDrawListRef> used = passInfo.pass.usedDrawLists;
+                for (int i = 0; i < used.Count; ++i)
+                {
+                    RGDrawListRef draws = used[i];
+                    if (!m_DrawListRecords.IsLiveRef(draws))
+                    {
+                        continue;
+                    }
+
+                    m_DrawListRecords.MarkLiveConsumer(draws.index, passIndex);
+                }
+            }
+
+            m_DrawListRecords.ScheduleLive();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void EnsureDrawListResolved(in RGDrawListRef draws)
+        {
+            m_DrawListRecords.EnsureResolved(draws);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void ReleaseAllDrawLists()
+        {
+            m_DrawListRecords.ReleaseAll();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void CompilePass()
         {
             InitializeCompileData();
             CountPassReference();
             CullingUnusedPass();
+            CompileDrawLists();
             UpdateResource();
         }
 
@@ -1022,6 +1105,12 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     using (new ProfilingScope(graphContext.cmdBuffer, passInfo.pass.customSampler))
                     {
+                        List<RGDrawListRef> usedDrawLists = passInfo.pass.usedDrawLists;
+                        for (int i = 0; i < usedDrawLists.Count; ++i)
+                        {
+                            EnsureDrawListResolved(usedDrawLists[i]);
+                        }
+
                         PrePassExecute(ref graphContext, passInfo);
                         passInfo.pass.Execute(ref graphContext);
                         PostPassExecute(graphicsCmdBuffer, ref graphContext, ref passInfo);

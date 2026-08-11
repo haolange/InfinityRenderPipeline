@@ -150,7 +150,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public RGResourceFactory()
         {
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 m_Resources[i] = new DynamicArray<IRGResource>();
             }
@@ -322,7 +322,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
                 resource.resource = null;
-                if (!m_BufferPool.Pull(hashCode, out resource.resource))
+                if (!m_BufferPool.Pull(hashCode, desc, out resource.resource))
                 {
                     resource.resource = new ComputeBuffer(resource.descriptor.count, resource.descriptor.stride, resource.descriptor.type);
                 }
@@ -340,7 +340,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource == null)
                     throw new InvalidOperationException($"Tried to release a compute buffer ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
-                m_BufferPool.Push(resource.cachedHash, resource.resource);
+                m_BufferPool.Push(resource.cachedHash, resource.descriptor, resource.resource);
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
@@ -361,7 +361,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
                 resource.resource = null;
-                if (!m_TexturePool.Pull(hashCode, out resource.resource))
+                if (!m_TexturePool.Pull(hashCode, desc, out resource.resource))
                 {
                     resource.resource = RTHandles.Alloc(desc.width, desc.height, desc.slices, (DepthBits)desc.depthBufferBits, desc.colorFormat, desc.filterMode, desc.wrapMode, desc.dimension, desc.enableRandomWrite,
                     desc.useMipMap, desc.autoGenerateMips, desc.isShadowMap, desc.anisoLevel, desc.mipMapBias, (MSAASamples)desc.msaaSamples, desc.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, desc.name);
@@ -394,7 +394,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     CoreUtils.SetRenderTarget(rgContext.CmdBuffer, GetTexture(new RGTextureHandle(index)), clearFlag, Color.magenta);
                 }*/
 
-                m_TexturePool.Push(resource.cachedHash, resource.resource);
+                m_TexturePool.Push(resource.cachedHash, resource.descriptor, resource.resource);
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
@@ -420,7 +420,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 m_Resources[i].Clear();
             }

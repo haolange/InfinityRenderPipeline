@@ -105,9 +105,10 @@ namespace InfinityTech.Rendering.Pipeline
         public static int BloomBuffer = Shader.PropertyToID("_BloomTexture");
         public static int MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");
-        public static int MeshBatchOffset = Shader.PropertyToID("meshBatchOffset");
-        public static int MeshBatchIndexs = Shader.PropertyToID("meshBatchIndexs");
-        public static int MeshBatchBuffer = Shader.PropertyToID("meshBatchBuffer");
+        public static int InstanceIndexOffset = Shader.PropertyToID("instanceIndexOffset");
+        public static int InstanceIndexBuffer = Shader.PropertyToID("instanceIndexBuffer");
+        public static int TransformBuffer = Shader.PropertyToID("transformBuffer");
+        public static int PreviousTransformBuffer = Shader.PropertyToID("previousTransformBuffer");
     }
 
     public static class InfinityPassIDs

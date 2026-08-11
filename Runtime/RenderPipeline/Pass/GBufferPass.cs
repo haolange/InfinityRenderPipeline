@@ -19,10 +19,10 @@ namespace InfinityTech.Rendering.Pipeline
         struct GBufferPassData
         {
             public RendererList rendererList;
-            public MeshPassProcessor meshPassProcessor;
+            public RGDrawListRef draws;
         }
 
-        void RenderGBuffer(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
+        void RenderGBuffer(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
@@ -55,6 +55,21 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RendererList gbufferRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
 
+            MeshFilterProgram gbufferFilter = BuiltinMeshesPasses.GBuffer.defaultFilter;
+            gbufferFilter.layerMask = camera.cullingMask;
+            gbufferFilter.renderingLayerMask = (uint)ERenderingLayer.Everything;
+            var gbufferRequest = new MeshDrawRequest
+            {
+                filter = gbufferFilter,
+                sort = BuiltinMeshesPasses.GBuffer.defaultSort,
+                backendPolicy = EMeshBackendPolicy.Auto,
+                shaderPassIndex = BuiltinMeshesPasses.GBuffer.shaderPassIndex,
+                viewPosition = camera.transform.position,
+                renderingLayerMask = gbufferFilter.renderingLayerMask,
+                viewKey = (ulong)(uint)camera.GetInstanceID()
+            };
+            RGDrawListRef gbufferDraws = m_RGBuilder.DeclareDrawList(m_GBufferMeshProcessor, gbufferRequest, visibility, m_VisibilityShare);
+
             //Add GBufferPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
             {
@@ -67,15 +82,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref GBufferPassData passData = ref passRef.GetPassData<GBufferPassData>();
                 {
                     passData.rendererList = gbufferRendererList;
-                    passData.meshPassProcessor = m_GBufferMeshProcessor;
+                    passData.draws = passRef.UseDrawList(gbufferDraws);
                 }
-                m_GBufferMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(0, 2999));
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(cmdEncoder, 1);
+                    cmdEncoder.Draw(passData.draws);
 
                     //UnityDrawPipeline
                     cmdEncoder.DrawRendererList(passData.rendererList);

@@ -588,12 +588,20 @@ namespace InfinityTech.Rendering.RenderGraph
     public struct RGRasterEncoder
     {
         internal CommandBuffer m_CommandBuffer;
+        internal RGDrawListContext m_DrawLists;
 
         public static implicit operator CommandBuffer(in RGRasterEncoder cmdEncoder) => cmdEncoder.m_CommandBuffer;
 
-        internal RGRasterEncoder(CommandBuffer commandBuffer)
+        internal RGRasterEncoder(CommandBuffer commandBuffer, RGDrawListContext drawLists = null)
         {
             m_CommandBuffer = commandBuffer;
+            m_DrawLists = drawLists;
+        }
+
+        public void Draw(in RGDrawListRef draws)
+        {
+            // Submit rejects stale generation / out-of-range refs without throwing.
+            m_DrawLists?.Submit(m_CommandBuffer, draws);
         }
 
         #region SetGlobalParameter
@@ -602,9 +610,19 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetGlobalFloat(name, value);
         }
 
+        public void SetGlobalFloat(int nameID, float value)
+        {
+            m_CommandBuffer.SetGlobalFloat(nameID, value);
+        }
+
         public void SetGlobalInt(string name, int value)
         {
             m_CommandBuffer.SetGlobalInt(name, value);
+        }
+
+        public void SetGlobalInt(int nameID, int value)
+        {
+            m_CommandBuffer.SetGlobalInt(nameID, value);
         }
 
         public void SetGlobalInteger(string name, int value)
@@ -612,9 +630,19 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetGlobalInteger(name, value);
         }
 
+        public void SetGlobalInteger(int nameID, int value)
+        {
+            m_CommandBuffer.SetGlobalInteger(nameID, value);
+        }
+
         public void SetGlobalVector(string name, Vector4 value)
         {
             m_CommandBuffer.SetGlobalVector(name, value);
+        }
+
+        public void SetGlobalVector(int nameID, Vector4 value)
+        {
+            m_CommandBuffer.SetGlobalVector(nameID, value);
         }
 
         public void SetGlobalColor(string name, Color value)
@@ -625,6 +653,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetGlobalMatrix(string name, Matrix4x4 value)
         {
             m_CommandBuffer.SetGlobalMatrix(name, value);
+        }
+
+        public void SetGlobalMatrix(int nameID, Matrix4x4 value)
+        {
+            m_CommandBuffer.SetGlobalMatrix(nameID, value);
         }
 
         public void SetGlobalFloatArray(string propertyName, List<float> values)

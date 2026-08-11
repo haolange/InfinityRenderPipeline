@@ -55,17 +55,20 @@ namespace InfinityTech.Rendering.RenderGraph
         public List<RGResourceHandle>[] resourceReadLists;
         public List<RGResourceHandle>[] resourceWriteLists;
         public List<RGResourceHandle>[] temporalResourceList;
+        public List<RGDrawListRef> usedDrawLists;
 
         public IRGPass()
         {
+            int resourceTypeCount = (int)ERGResourceType.Max;
             colorBufferMaxIndex = -1;
             colorBuffers = new RGTextureRef[8];
             colorBufferActions = new RGAttachmentAction[8];
-            resourceReadLists = new List<RGResourceHandle>[2];
-            resourceWriteLists = new List<RGResourceHandle>[2];
-            temporalResourceList = new List<RGResourceHandle>[2];
+            resourceReadLists = new List<RGResourceHandle>[resourceTypeCount];
+            resourceWriteLists = new List<RGResourceHandle>[resourceTypeCount];
+            temporalResourceList = new List<RGResourceHandle>[resourceTypeCount];
+            usedDrawLists = new List<RGDrawListRef>(4);
 
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < resourceTypeCount; ++i)
             {
                 resourceReadLists[i] = new List<RGResourceHandle>();
                 resourceWriteLists[i] = new List<RGResourceHandle>();
@@ -137,12 +140,13 @@ namespace InfinityTech.Rendering.RenderGraph
             name = "";
             index = -1;
             customSampler = null;
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 resourceReadLists[i].Clear();
                 resourceWriteLists[i].Clear();
                 temporalResourceList[i].Clear();
             }
+            usedDrawLists.Clear();
 
             refCount = 0;
             enablePassCulling = true;
@@ -246,7 +250,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public override void Execute(ref RGContext graphContext)
         {
-            ExcuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer), graphContext.objectPool);
+            ExcuteAction(in passData, new RGRasterEncoder(graphContext.cmdBuffer, graphContext.drawLists), graphContext.objectPool);
         }
 
         public override void Release(RGObjectPool objectPool)
@@ -529,12 +533,14 @@ namespace InfinityTech.Rendering.RenderGraph
         bool m_Disposed;
         IRGPass m_RasterPass;
         RGResourceFactory m_ResourceFactory;
+        RGDrawListContext m_DrawLists;
 
-        internal RGRasterPassRef(IRGPass rasterPass, RGResourceFactory resourceFactory)
+        internal RGRasterPassRef(IRGPass rasterPass, RGResourceFactory resourceFactory, RGDrawListContext drawLists)
         {
             m_Disposed = false;
             m_RasterPass = rasterPass;
             m_ResourceFactory = resourceFactory;
+            m_DrawLists = drawLists;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -599,6 +605,19 @@ namespace InfinityTech.Rendering.RenderGraph
             RGBufferRef bufferRef = m_ResourceFactory.CreateBuffer(descriptor, m_RasterPass.index);
             m_RasterPass.AddTemporalResource(bufferRef.handle);
             return bufferRef;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGDrawListRef UseDrawList(in RGDrawListRef draws)
+        {
+            // Stale refs from a prior graph generation are treated as Invalid (no crash / no alias).
+            if (m_DrawLists != null && m_DrawLists.IsLiveRef(draws))
+            {
+                m_RasterPass.usedDrawLists.Add(draws);
+                return draws;
+            }
+
+            return RGDrawListRef.Invalid;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

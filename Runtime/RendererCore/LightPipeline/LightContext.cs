@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public float diffuse;
         public float specular;
         public float radius;
-        public ELightLayer lightLayer;
+        public ERenderingLayer lightLayer;
 
         public int enableIndirect;
         public float indirectIntensity;

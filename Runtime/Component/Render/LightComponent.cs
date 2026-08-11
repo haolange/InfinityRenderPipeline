@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.LightPipeline;
 
@@ -169,7 +170,7 @@ namespace InfinityTech.Component
         public Light unityLight;
         public ELightState state = ELightState.Dynamic;
         public ELightType lightType = ELightType.Directional;
-        public ELightLayer lightLayer = ELightLayer.LightLayerDefault;
+        public ERenderingLayer lightLayer = ERenderingLayer.LightLayerDefault;
 
         // Emission Property
         public Color color = Color.white;
@@ -201,7 +202,7 @@ namespace InfinityTech.Component
         public float minSoftness = 0.1f;
         public float maxSoftness = 1;
         public EShadowType shadowType = EShadowType.PCF;
-        public ELightLayer shadowLayer = ELightLayer.LightLayerDefault;
+        public ERenderingLayer shadowLayer = ERenderingLayer.LightLayerDefault;
         public EShadowResolution resolution = EShadowResolution.X1024;
 
         // Contact Shadow Property

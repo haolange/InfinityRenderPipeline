@@ -17,10 +17,10 @@ namespace InfinityTech.Rendering.Pipeline
         struct DepthPassData
         {
             public RendererList rendererList;
-            public MeshPassProcessor meshPassProcessor;
+            public RGDrawListRef draws;
         }
 
-        void RenderDepth(RenderContext renderContext, Camera camera, in CullingDatas cullingDatas, in CullingResults cullingResults)
+        void RenderDepth(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
             TextureDescriptor depthTextureDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
             {
@@ -41,6 +41,21 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RendererList depthRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
 
+            MeshFilterProgram depthFilter = BuiltinMeshesPasses.Depth.defaultFilter;
+            depthFilter.layerMask = camera.cullingMask;
+            depthFilter.renderingLayerMask = (uint)ERenderingLayer.Everything;
+            var depthRequest = new MeshDrawRequest
+            {
+                filter = depthFilter,
+                sort = BuiltinMeshesPasses.Depth.defaultSort,
+                backendPolicy = EMeshBackendPolicy.Auto,
+                shaderPassIndex = BuiltinMeshesPasses.Depth.shaderPassIndex,
+                viewPosition = camera.transform.position,
+                renderingLayerMask = depthFilter.renderingLayerMask,
+                viewKey = (ulong)(uint)camera.GetInstanceID()
+            };
+            RGDrawListRef depthDraws = m_RGBuilder.DeclareDrawList(m_DepthMeshProcessor, depthRequest, visibility, m_VisibilityShare);
+
             //Add DepthPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
             {
@@ -50,15 +65,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref DepthPassData passData = ref passRef.GetPassData<DepthPassData>();
                 {
                     passData.rendererList = depthRendererList;
-                    passData.meshPassProcessor = m_DepthMeshProcessor;
+                    passData.draws = passRef.UseDrawList(depthDraws);
                 }
-                m_DepthMeshProcessor.DispatchSetup(cullingDatas, new MeshPassDescriptor(2450, 2999));
 
                 //Execute Phase
                 passRef.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     //MeshDrawPipeline
-                    passData.meshPassProcessor.DispatchDraw(cmdEncoder, 0);
+                    cmdEncoder.Draw(passData.draws);
 
                     //UnityDrawPipeline
                     cmdEncoder.DrawRendererList(passData.rendererList);
