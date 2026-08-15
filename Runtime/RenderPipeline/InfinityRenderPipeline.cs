@@ -263,7 +263,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 InvokeProxyUpdate();
                 m_MeshSceneResidency.Update();
-                CommandBuffer cmdBuffer = CommandBufferPool.Get("InfinityRP.Frame");
+                CommandBuffer cmdBuffer = CommandBufferPool.Get("InfinityRP.Setup");
                 cmdBuffer.Clear();
                 
                 BeginContextRendering(scriptableRenderContext, cameras);
@@ -305,7 +305,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     // CameraRendering
                     cameraUniform.UnpateUniformData(camera, false);
-                    using (new ProfilingScope(cmdBuffer, cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
+                    using (new ProfilingScope(cameraComponent ? cameraComponent.viewProfiler : ProfilingSampler.Get(EPipelineProfileId.CameraRendering)))
                     {
                         BeginCameraRendering(scriptableRenderContext, camera);
                         try
@@ -412,6 +412,8 @@ namespace InfinityTech.Rendering.Pipeline
                                 cameraXRSettings.viewOffset = 0;
                             }
                             VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
+                            scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
+                            cmdBuffer.Clear();
                         }
 
                         #region PostProcessVolume Parameter

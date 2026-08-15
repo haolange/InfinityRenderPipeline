@@ -1024,16 +1024,6 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Resources.CreateTextureResource(ref graphContext, textureHandle);
             }
 
-            graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
-            graphContext.cmdBuffer.Clear();
-
-            if (pass.enableAsyncCompute)
-            {
-                CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
-                asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
-                graphContext.cmdBuffer = asyncCmdBuffer;
-            }
-
             if (passCompileInfo.syncToPassIndex != -1)
             {
                 ref RGPassCompileInfo producerInfo = ref m_PassCompileInfos[passCompileInfo.syncToPassIndex];
@@ -1057,7 +1047,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void PostPassExecute(CommandBuffer graphicsCmdBuffer, ref RGContext graphContext, ref RGPassCompileInfo passCompileInfo)
+        void PostPassExecute(ref RGContext graphContext, ref RGPassCompileInfo passCompileInfo)
         {
             IRGPass pass = passCompileInfo.pass;
 
@@ -1074,19 +1064,6 @@ namespace InfinityTech.Rendering.RenderGraph
             if (passCompileInfo.needGraphicsFence)
             {
                 passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
-            }
-
-            switch (pass.passType)
-            {
-                case EPassType.Compute:
-                case EPassType.RayTracing:
-                    if (pass.enableAsyncCompute)
-                    {
-                        graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
-                        CommandBufferPool.Release(graphContext.cmdBuffer);
-                        graphContext.cmdBuffer = graphicsCmdBuffer;
-                    }
-                    break;
             }
 
             m_ObjectPool.ReleaseAllTempAlloc();
@@ -1122,9 +1099,20 @@ namespace InfinityTech.Rendering.RenderGraph
 
                 try
                 {
-                    using (new ProfilingScope(graphContext.cmdBuffer, passInfo.pass.customSampler))
+                    IRGPass pass = passInfo.pass;
+                    graphicsCmdBuffer.name = pass.name;
+                    graphContext.cmdBuffer = graphicsCmdBuffer;
+
+                    if (pass.enableAsyncCompute)
                     {
-                        List<RGDrawListRef> usedDrawLists = passInfo.pass.usedDrawLists;
+                        CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
+                        asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
+                        graphContext.cmdBuffer = asyncCmdBuffer;
+                    }
+
+                    using (new ProfilingScope(graphContext.cmdBuffer, pass.customSampler))
+                    {
+                        List<RGDrawListRef> usedDrawLists = pass.usedDrawLists;
                         for (int i = 0; i < usedDrawLists.Count; ++i)
                         {
                             EnsureDrawListResolved(usedDrawLists[i]);
@@ -1137,8 +1125,20 @@ namespace InfinityTech.Rendering.RenderGraph
                         }
 
                         PrePassExecute(ref graphContext, passInfo);
-                        passInfo.pass.Execute(ref graphContext);
-                        PostPassExecute(graphicsCmdBuffer, ref graphContext, ref passInfo);
+                        pass.Execute(ref graphContext);
+                        PostPassExecute(ref graphContext, ref passInfo);
+                    }
+
+                    if (pass.enableAsyncCompute)
+                    {
+                        graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
+                        CommandBufferPool.Release(graphContext.cmdBuffer);
+                        graphContext.cmdBuffer = graphicsCmdBuffer;
+                    }
+                    else
+                    {
+                        graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+                        graphContext.cmdBuffer.Clear();
                     }
                 } 
                 catch (Exception e) 
