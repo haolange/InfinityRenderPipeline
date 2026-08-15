@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
                 rendererListDesc.sortingCriteria = SortingCriteria.CommonOpaque;
-                rendererListDesc.renderingLayerMask = 1 << 5;
+                rendererListDesc.renderingLayerMask = (uint)ERenderingLayer.Everything;
                 rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
@@ -75,6 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                // Write marks the depth-stencil resource (stencil 5). Shader ZWrite Off keeps depth values.
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();

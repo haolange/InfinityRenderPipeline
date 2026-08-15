@@ -2,6 +2,7 @@
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
+#include "../../ShaderLibrary/ColorUtility.hlsl"
 
 float4 SR_Resolution;
 float4 SR_Jitter;

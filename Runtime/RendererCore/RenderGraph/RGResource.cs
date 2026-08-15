@@ -167,6 +167,8 @@ namespace InfinityTech.Rendering.RenderGraph
 
         BufferCache m_BufferPool = new BufferCache();
         TextureCache m_TexturePool = new TextureCache();
+        RTHandle m_Backbuffer;
+        RenderTargetIdentifier m_BackbufferIdentifier;
         DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
 
         public RGResourceFactory()
@@ -283,15 +285,21 @@ namespace InfinityTech.Rendering.RenderGraph
             return new RGTextureRef(newHandle);
         }
 
-        /*internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
+        // The backbuffer has no owning RenderTexture, so it can only be bound as a RenderTargetIdentifier.
+        // Imported resources skip Create/Release, which keeps the single RTHandle wrapper valid across frames.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
         {
-            if (m_Backbuffer != null)
+            // RTHandle.SetTexture is internal to CoreRP, so rebinding is done by reallocating on identifier change.
+            if (m_Backbuffer == null || !m_BackbufferIdentifier.Equals(backBuffer))
             {
-                m_Backbuffer.SetTexture(backBuffer);
-            }
-            else
-            {
+                if (m_Backbuffer != null)
+                {
+                    RTHandles.Release(m_Backbuffer);
+                }
+
                 m_Backbuffer = RTHandles.Alloc(backBuffer, "Backbuffer");
+                m_BackbufferIdentifier = backBuffer;
             }
 
             int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Texture], out RGTexture texResource);
@@ -299,7 +307,7 @@ namespace InfinityTech.Rendering.RenderGraph
             texResource.imported = true;
             texResource.shaderProperty = shaderProperty;
             return new RGTextureRef(newHandle);
-        }*/
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RGTextureRef CreateTexture(in TextureDescriptor descriptor, in int shaderProperty = 0, in int temporalPassIndex = -1)
@@ -449,6 +457,12 @@ namespace InfinityTech.Rendering.RenderGraph
 
         internal void Dispose()
         {
+            if (m_Backbuffer != null)
+            {
+                RTHandles.Release(m_Backbuffer);
+                m_Backbuffer = null;
+            }
+
             m_BufferPool.Dispose();
             m_TexturePool.Dispose();
         }

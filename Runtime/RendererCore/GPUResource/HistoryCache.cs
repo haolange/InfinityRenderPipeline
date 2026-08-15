@@ -94,6 +94,12 @@ namespace InfinityTech.Rendering.GPUResource
 
         public FTextureRef GetTexture(in int id, in TextureDescriptor descriptor)
         {
+            return GetTexture(id, descriptor, out _);
+        }
+
+        public FTextureRef GetTexture(in int id, in TextureDescriptor descriptor, out bool created)
+        {
+            created = false;
             FTextureRef textureRef = new FTextureRef(-1, default, null);
             if (m_CacheTextures.ContainsKey(id))
             {
@@ -102,14 +108,12 @@ namespace InfinityTech.Rendering.GPUResource
 
             if (textureRef.texture == null)
             {
-                if (textureRef.texture != null)
-                {
-                    RTHandles.Release(textureRef.texture);
-                }
                 textureRef.texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
                                                              descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, descriptor.name);
                 textureRef.descriptor = descriptor;
                 m_CacheTextures[id] = textureRef;
+                created = true;
+                return textureRef;
             }
 
             RenderTextureDescriptor rtDescriptor = descriptor;
@@ -120,6 +124,7 @@ namespace InfinityTech.Rendering.GPUResource
                                                              descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false,RenderTextureMemoryless.None, VRTextureUsage.None, descriptor.name);
                 textureRef.descriptor = descriptor;
                 m_CacheTextures[id] = textureRef;
+                created = true;
             }
             return textureRef;
         }

@@ -4,6 +4,7 @@
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
+#include "../../ShaderLibrary/ColorUtility.hlsl"
 
 float4 PP_Resolution;
 float PP_BloomIntensity;

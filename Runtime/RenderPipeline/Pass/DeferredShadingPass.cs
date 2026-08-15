@@ -21,6 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_SSGITextureID = Shader.PropertyToID("SRV_SSGITexture");
         internal static int SRV_CascadeShadowMapID = Shader.PropertyToID("SRV_CascadeShadowMap");
         internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
+        internal static int DeferredShading_FarDepthID = Shader.PropertyToID("DeferredShading_FarDepth");
     }
 
     public partial class InfinityRenderPipeline
@@ -46,6 +47,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeDeferredShading(RenderContext renderContext, Camera camera)
         {
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.deferredShadingShader, "DeferredShadingCS"))
+            {
+                throw new System.InvalidOperationException("InfinityRP: Deferred shading is the LightingBuffer producer but deferredShadingShader is missing or kernel DeferredShadingCS is invalid.");
+            }
+
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
             int tileSize = 16;
@@ -95,10 +101,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.deferredShadingShader == null) return;
-
                     cmdEncoder.SetComputeVectorParam(passData.deferredShadingShader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeIntParam(passData.deferredShadingShader, DeferredShadingPassUtilityData.DeferredShading_TileSizeID, passData.tileSize);
+                    cmdEncoder.SetComputeFloatParam(passData.deferredShadingShader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsUtility.SampledFarDepth);
                     cmdEncoder.SetComputeMatrixParam(passData.deferredShadingShader, Shader.PropertyToID("Matrix_InvProj"), passData.matrix_InvProj);
                     cmdEncoder.SetComputeMatrixParam(passData.deferredShadingShader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(passData.deferredShadingShader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);

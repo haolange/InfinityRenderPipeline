@@ -75,16 +75,18 @@ namespace InfinityTech.Rendering.LightPipeline
         internal void SetDirectionalLightData(CommandBuffer cmdBuffer)
         {
             cmdBuffer.SetGlobalInt(LightShaderIDs.DirectionalLightCount, m_DirectionalLightElements.Length);
-            if (m_DirectionalLightElements.Length == 0) return;
-
-            if(m_DirectionalLightCount < m_DirectionalLightElements.Length)
+            if (m_DirectionalLightElements.Length > 0)
             {
-                m_DirectionalLightBuffer.Release();
-                m_DirectionalLightCount = m_DirectionalLightElements.Length;
-                m_DirectionalLightBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_DirectionalLightCount, m_DirectionalLightByteSize);
+                if (m_DirectionalLightCount < m_DirectionalLightElements.Length)
+                {
+                    m_DirectionalLightBuffer.Release();
+                    m_DirectionalLightCount = m_DirectionalLightElements.Length;
+                    m_DirectionalLightBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_DirectionalLightCount, m_DirectionalLightByteSize);
+                }
+
+                cmdBuffer.SetBufferData(m_DirectionalLightBuffer, m_DirectionalLightElements.AsArray());
             }
 
-            cmdBuffer.SetBufferData(m_DirectionalLightBuffer, m_DirectionalLightElements.AsArray());
             cmdBuffer.SetGlobalBuffer(LightShaderIDs.DirectionalLightBuffer, m_DirectionalLightBuffer);
         }
 

@@ -25,15 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderForward(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-
-            TextureDescriptor lightingTextureDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
-            {
-                lightingTextureDsc.name = ForwardPassUtilityData.TextureName;
-                lightingTextureDsc.dimension = TextureDimension.Tex2D;
-                lightingTextureDsc.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-                lightingTextureDsc.depthBufferBits = EDepthBits.None;
-            }
-            RGTextureRef lightingTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingTextureDsc);
+            RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
 
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.ForwardPass, cullingResults, camera);
             {
@@ -66,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
 
                 ref ForwardPassData passData = ref passRef.GetPassData<ForwardPassData>();

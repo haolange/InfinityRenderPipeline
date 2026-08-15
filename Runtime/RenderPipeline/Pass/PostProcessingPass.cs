@@ -55,9 +55,23 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef postProcessTexture;
         }
 
+        static readonly bool s_PostProcessingDisplayContractReady = false;
+
         void ComputePostProcessing(RenderContext renderContext, Camera camera, in RGTextureRef sceneColorTexture)
         {
-            if (pipelineAsset.postProcessingShader == null)
+            // VolumetricFogBuffer is Tex3D; this compute still samples it as Texture2D.
+            // Do not steal DisplayColorBuffer until that contract is implemented.
+            if (!s_PostProcessingDisplayContractReady)
+            {
+                return;
+            }
+
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine"))
+            {
+                return;
+            }
+
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out _))
             {
                 return;
             }

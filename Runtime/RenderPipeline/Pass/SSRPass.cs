@@ -68,6 +68,10 @@ namespace InfinityTech.Rendering.Pipeline
             var stack = VolumeManager.instance.stack;
             var ssr = stack.GetComponent<ScreenSpaceReflection>();
             if (ssr == null) return;
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssrShader, "Raytracing"))
+            {
+                return;
+            }
 
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
@@ -95,8 +99,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef hitPdfTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitPDFBuffer, hitPdfTextureDsc);
 
             RGTextureRef hiZTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HiZBuffer);
-            // ColorPyramid is produced after translucent; Phase 3 SSR cannot own that input yet.
-            m_RGScoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out RGTextureRef colorPyramidTexture);
+            RGTextureRef colorPyramidTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HistoryColorPyramidBuffer);
             RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
             RGTextureRef gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -120,7 +123,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_WorldToView = camera.worldToCameraMatrix;
                 passData.ssrShader = pipelineAsset.ssrShader;
                 passData.hiZTexture = passRef.ReadTexture(hiZTexture);
-                passData.colorPyramidTexture = colorPyramidTexture.IsValid() ? passRef.ReadTexture(colorPyramidTexture) : default;
+                passData.colorPyramidTexture = passRef.ReadTexture(colorPyramidTexture);
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
@@ -131,8 +134,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.ssrShader == null) return;
-
                     // Set uniforms matching HLSL declarations
                     cmdEncoder.SetComputeVectorParam(passData.ssrShader, SSRPassUtilityData.SSR_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeIntParam(passData.ssrShader, SSRPassUtilityData.SSR_NumRaysID, passData.numRays);
@@ -151,10 +152,7 @@ namespace InfinityTech.Rendering.Pipeline
                     // Kernel 0: Raytracing - outputs UAV_HitPDFTexture + UAV_ColorMaskTexture
                     int kernel = SSRPassUtilityData.RaytracingKernel;
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_HiZTextureID, passData.hiZTexture);
-                    if (passData.colorPyramidTexture.IsValid())
-                    {
-                        cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_HiCTextureID, passData.colorPyramidTexture);
-                    }
+                    cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_HiCTextureID, passData.colorPyramidTexture);
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_NormalTextureID, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_RoughnessTextureID, passData.gBufferB);
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_DepthTextureID, passData.depthTexture);

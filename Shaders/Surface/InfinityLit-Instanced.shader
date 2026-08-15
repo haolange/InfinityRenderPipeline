@@ -342,8 +342,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float4 worldPosOld = mul(prevBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
-				Out.clipPos = mul(Matrix_ViewProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewProj, worldPosOld);
+				Out.clipPos = mul(Matrix_ViewJitterProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewJitterProj, worldPosOld);
 				return Out;
 			}
 
@@ -354,12 +354,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 				float2 ndcPos = (hPos.xy + 1.0f) / 2.0f;
 				float2 ndcPosOld = (hPosOld.xy + 1.0f) / 2.0f;
-
-				#if UNITY_UV_STARTS_AT_TOP
-					ndcPos.y = 1 - ndcPos.y;
-					ndcPosOld.y = 1 - ndcPosOld.y;
-				#endif
-
 				return ndcPos - ndcPosOld;
 			}
 			ENDHLSL

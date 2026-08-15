@@ -1,5 +1,6 @@
 ﻿//#include "UnityCG.cginc"
 #include "../../ShaderLibrary/BSDF.hlsl"
+#include "../../ShaderLibrary/ColorUtility.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 
 float4x4 Matrix_Proj, Matrix_InvProj, Matrix_ViewProj, Matrix_InvViewProj, Matrix_WorldToView;

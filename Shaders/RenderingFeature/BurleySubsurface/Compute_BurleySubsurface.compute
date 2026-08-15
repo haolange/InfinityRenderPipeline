@@ -3,6 +3,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
+#include "../../ShaderLibrary/Montcalo.hlsl"
 
 float4 SSS_Resolution;
 float SSS_ScatteringDistance;

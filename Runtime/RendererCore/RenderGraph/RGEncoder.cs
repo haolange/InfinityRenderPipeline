@@ -17,19 +17,6 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer = commandBuffer;
         }
 
-        public void Present(in bool bIsRenderToBackBufferTarget, in Rect viewPort, in float4 scaleBias, RenderTexture srcBuffer)
-        {
-            if (bIsRenderToBackBufferTarget)
-            {
-                m_CommandBuffer.SetViewport(viewPort);
-            }
-
-            m_CommandBuffer.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
-            m_CommandBuffer.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
-            m_CommandBuffer.SetGlobalTexture(InfinityShaderIDs.MainTexture, srcBuffer);
-            m_CommandBuffer.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 1);
-        }
-
         public void CopyBuffer(GraphicsBuffer src, GraphicsBuffer dst)
         {
             m_CommandBuffer.CopyBuffer(src, dst);

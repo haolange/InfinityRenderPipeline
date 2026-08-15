@@ -129,9 +129,27 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_LastViewFlipYProj;
         public Matrix4x4 matrix_LastViewJitterProj;
         public Matrix4x4 matrix_LastViewFlipYJitterProj;
+        public bool historyReset;
+
+        private bool m_HasLastView;
+        private Vector3 m_LastCameraPosition;
+        private Quaternion m_LastCameraRotation;
+        private const float HistoryCutPosition = 2.0f;
+        private const float HistoryCutAngle = 20.0f;
 
         private void UpdateCurrFrameData(Camera camera)
         {
+            if (!m_HasLastView)
+            {
+                historyReset = true;
+            }
+            else
+            {
+                float positionDelta = Vector3.Distance(camera.transform.position, m_LastCameraPosition);
+                float angleDelta = Quaternion.Angle(camera.transform.rotation, m_LastCameraRotation);
+                historyReset = positionDelta > HistoryCutPosition || angleDelta > HistoryCutAngle;
+            }
+
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
@@ -151,7 +169,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
         }
 
-        private void UpdateLastFrameData()
+        private void UpdateLastFrameData(Camera camera)
         {
             lastJitter = jitter;
             lastFrameIndex = frameIndex;
@@ -159,6 +177,9 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
             matrix_LastViewJitterProj = matrix_ViewJitterProj;
             matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
+            m_LastCameraPosition = camera.transform.position;
+            m_LastCameraRotation = camera.transform.rotation;
+            m_HasLastView = true;
         }
 
         public void UnpateUniformData(Camera camera, in bool bLastFrame = false)
@@ -167,7 +188,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 UpdateCurrFrameData(camera);
             } else {
-                UpdateLastFrameData();
+                UpdateLastFrameData(camera);
             }
         }
 
@@ -520,6 +541,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 ComputeZBinningLightList(renderContext, camera);                          // Z-Bin + Tile Light Lists
                                 ComputeGroundTruthOcclusion(renderContext, camera);                       // GTAO (4-kernel: trace→spatialXY→temporal)
                                 ComputeContactShadow(renderContext, camera);                              // Screen-Space Contact Shadows
+                                ImportHistoryColorPyramid(camera, historyCache);
                                 ComputeScreenSpaceReflection(renderContext, camera);                      // HiZ Ray-Traced SSR
                                 ComputeScreenSpaceIndirect(renderContext, camera);                        // HiZ Ray-Traced SSGI
 
@@ -542,6 +564,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 // ═══════════════════════════════════════════════════════════
                                 RenderTranslucentDepth(renderContext, camera, cullingResults);            // Translucent Depth Prepass
                                 ComputeColorPyramid(renderContext, camera);                              // Color Mip Chain (refraction)
+                                CopyHistoryColorPyramid(renderContext, camera);
                                 RenderForwardTranslucent(renderContext, camera, cullingResults);          // Forward Translucent Rendering
 
                                 // ═══════════════════════════════════════════════════════════
@@ -555,7 +578,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 }
                                 else
                                 {
-                                    ComputeAntiAliasing(renderContext, camera, historyCache);
+                                    ComputeAntiAliasing(renderContext, camera, historyCache, cameraUniform);
                                     CopyHistoryAntiAliasing(renderContext);
                                     m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer));
                                 }

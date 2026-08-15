@@ -5,6 +5,36 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public static class GraphicsUtility
     {
+        // Unity normalizes the depth argument of ClearRenderTarget / AttachmentDescriptor.clearDepth:
+        // 1.0 always means far plane and the backend flips it on reversed-Z platforms.
+        internal const float ClearDepthFar = 1.0f;
+
+        // Value the depth buffer actually holds at the far plane when sampled from a shader.
+        internal static float SampledFarDepth => SystemInfo.usesReversedZBuffer ? 0.0f : 1.0f;
+
+        internal static bool HasRequiredKernels(ComputeShader shader, params string[] kernelNames)
+        {
+            if (shader == null)
+            {
+                return false;
+            }
+
+            if (kernelNames == null || kernelNames.Length == 0)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < kernelNames.Length; ++i)
+            {
+                if (!shader.HasKernel(kernelNames[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         internal static Material m_BlitMaterial;
 
         internal static Material BlitMaterial

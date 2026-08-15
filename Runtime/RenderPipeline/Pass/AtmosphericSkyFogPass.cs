@@ -3,6 +3,7 @@ using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -21,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public Vector4 sunDirection;
             public Vector4 sunColor;
-            public Material skyFogMaterial;
+            public RendererList skyRendererList;
             public RGTextureRef lightingTexture;
             public RGTextureRef depthTexture;
             public RGTextureRef transmittanceLUT;
@@ -45,10 +46,10 @@ namespace InfinityTech.Rendering.Pipeline
                 sunColor = (Vector4)(sunLight.color * sunLight.intensity);
             }
 
-            //Add AtmosphericSkyFogPass
+            RendererList skyRendererList = renderContext.scriptableRenderContext.CreateSkyboxRendererList(camera);
+
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.RenderAtmosphericSkyAndFog)))
             {
-                //Setup Phase
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
@@ -56,31 +57,22 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.ReadTexture(multiScatteringLUT);
 
                 ref AtmosphericSkyFogPassData passData = ref passRef.GetPassData<AtmosphericSkyFogPassData>();
-                {
-                    passData.sunDirection = sunDirection;
-                    passData.sunColor = sunColor;
-                    passData.skyFogMaterial = GraphicsUtility.BlitMaterial;
-                    passData.lightingTexture = lightingTexture;
-                    passData.depthTexture = depthTexture;
-                    passData.transmittanceLUT = transmittanceLUT;
-                    passData.multiScatteringLUT = multiScatteringLUT;
-                }
+                passData.sunDirection = sunDirection;
+                passData.sunColor = sunColor;
+                passData.skyRendererList = skyRendererList;
+                passData.lightingTexture = lightingTexture;
+                passData.depthTexture = depthTexture;
+                passData.transmittanceLUT = transmittanceLUT;
+                passData.multiScatteringLUT = multiScatteringLUT;
 
-                //Execute Phase
                 passRef.SetExecuteFunc((in AtmosphericSkyFogPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    // Set atmosphere sky parameters for the sky rendering shader
                     cmdEncoder.SetGlobalVector(AtmosphericSkyFogPassUtilityData.AtmoSky_SunDirectionID, passData.sunDirection);
                     cmdEncoder.SetGlobalVector(AtmosphericSkyFogPassUtilityData.AtmoSky_SunColorID, passData.sunColor);
                     cmdEncoder.SetGlobalTexture(AtmosphericSkyFogPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
                     cmdEncoder.SetGlobalTexture(AtmosphericSkyFogPassUtilityData.SRV_MultiScatteringLUTID, passData.multiScatteringLUT);
                     cmdEncoder.SetGlobalTexture(AtmosphericSkyFogPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-
-                    // Draw skybox - the shader will sample atmosphere LUTs
-                    if (passData.skyFogMaterial != null)
-                    {
-                        cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, passData.skyFogMaterial, 0, 2);
-                    }
+                    cmdEncoder.DrawRendererList(passData.skyRendererList);
                 });
             }
         }

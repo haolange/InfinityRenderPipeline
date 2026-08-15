@@ -124,12 +124,16 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderPresent(RenderContext renderContext, Camera camera)
         {
             RGTextureRef srcTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer);
+            RGTextureRef backbufferTexture = m_RGBuilder.ImportBackbuffer(BuiltinRenderTextureType.CameraTarget);
 
             // Add PresentPass
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
+                // The backbuffer has no owning RenderTexture, so it cannot be a native render pass attachment.
+                passRef.EnableNativeRenderPass(false);
+                passRef.SetColorAttachment(backbufferTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
                 ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
                 {
@@ -138,7 +142,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in PresentPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in PresentPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     RenderTexture srcBuffer = passData.srcTexture;
                     float4 scaleBias = new float4(passData.camera.pixelWidth / (float)srcBuffer.width, passData.camera.pixelHeight / (float)srcBuffer.height, 0.0f, 0.0f);
@@ -147,7 +151,15 @@ namespace InfinityTech.Rendering.Pipeline
                         scaleBias.w = scaleBias.y;
                         scaleBias.y *= -1;
                     }
-                    cmdEncoder.Present(passData.camera.cameraType != CameraType.SceneView, GraphicsUtility.GetViewport(passData.camera), scaleBias, srcBuffer);
+
+                    if (passData.camera.cameraType != CameraType.SceneView)
+                    {
+                        cmdEncoder.SetViewport(GraphicsUtility.GetViewport(passData.camera));
+                    }
+
+                    cmdEncoder.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, srcBuffer);
+                    cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 1);
                 });
             }
         }

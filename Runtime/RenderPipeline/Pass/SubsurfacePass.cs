@@ -45,6 +45,10 @@ namespace InfinityTech.Rendering.Pipeline
             var stack = VolumeManager.instance.stack;
             var sss = stack.GetComponent<SubsurfaceScattering>();
             if (sss == null) return;
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.subsurfaceShader, "BurleySubsurfaceCS"))
+            {
+                return;
+            }
 
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
@@ -86,8 +90,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in SubsurfacePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.subsurfaceShader == null) return;
-
                     cmdEncoder.SetComputeVectorParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_ScatteringDistanceID, passData.scatteringDistance);
                     cmdEncoder.SetComputeVectorParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_SurfaceAlbedoID, (Vector4)passData.surfaceAlbedo);

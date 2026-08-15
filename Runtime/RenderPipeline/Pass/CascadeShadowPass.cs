@@ -73,6 +73,11 @@ namespace InfinityTech.Rendering.Pipeline
             RGDrawListRef[] cascadeDraws = new RGDrawListRef[cascadeCount];
             Plane[] cascadePlanes = new Plane[6];
 
+            if (lightIndex >= 0 && !cullingResults.GetShadowCasterBounds(lightIndex, out _))
+            {
+                lightIndex = -1;
+            }
+
             if (lightIndex >= 0)
             {
                 float[] cascadeRatios = new float[] { 0.067f, 0.2f, 0.467f, 1.0f };
@@ -86,27 +91,24 @@ namespace InfinityTech.Rendering.Pipeline
 
                 for (int cascade = 0; cascade < cascadeCount; ++cascade)
                 {
-                    if (cullingResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(
+                    if (!cullingResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(
                         lightIndex, cascade, cascadeCount, new Vector3(cascadeRatios[0], cascadeRatios[1], cascadeRatios[2]),
                         shadowMapResolution, cullingResults.visibleLights[lightIndex].light.shadowNearPlane,
                         out Matrix4x4 viewMatrix, out Matrix4x4 projMatrix, out ShadowSplitData splitData))
                     {
-                        shadowMatrices[cascade] = projMatrix * viewMatrix;
-                        cascadeSplits[cascade] = new Vector4(splitData.cullingSphere.x, splitData.cullingSphere.y, splitData.cullingSphere.z, splitData.cullingSphere.w);
-
-                        ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
-                        shadowDrawingSettings.splitIndex = cascade;
-                        RecordShadowCasterSplit(lightIndex, cascade, splitData, BatchCullingProjectionType.Orthographic);
-                        rendererLists[cascade] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
-                    }
-                    else
-                    {
                         shadowMatrices[cascade] = Matrix4x4.identity;
                         cascadeSplits[cascade] = Vector4.zero;
-                        ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
-                        shadowDrawingSettings.splitIndex = cascade;
-                        rendererLists[cascade] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
+                        cascadeDraws[cascade] = RGDrawListRef.Invalid;
+                        continue;
                     }
+
+                    shadowMatrices[cascade] = projMatrix * viewMatrix;
+                    cascadeSplits[cascade] = new Vector4(splitData.cullingSphere.x, splitData.cullingSphere.y, splitData.cullingSphere.z, splitData.cullingSphere.w);
+
+                    ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
+                    shadowDrawingSettings.splitIndex = cascade;
+                    RecordShadowCasterSplit(lightIndex, cascade, splitData, BatchCullingProjectionType.Orthographic);
+                    rendererLists[cascade] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
 
                     ulong cascadeKey = MeshVisibilityShare.MakeCascadeViewKey(lightInstanceId, cascade);
                     GeometryUtility.CalculateFrustumPlanes(shadowMatrices[cascade], cascadePlanes);
@@ -131,7 +133,6 @@ namespace InfinityTech.Rendering.Pipeline
                         viewKey = cascadeKey
                     };
                     cascadeDraws[cascade] = m_RGBuilder.DeclareDrawList(m_ShadowMeshProcessor, shadowRequest, cascadeVis, m_VisibilityShare);
-                    // DrawList AddRef owns the shared result; release the Acquire ref from this scope.
                     m_VisibilityShare.Release(cascadeVis);
                 }
             }
@@ -200,7 +201,7 @@ namespace InfinityTech.Rendering.Pipeline
                             cmdEncoder.Draw(passData.draws[cascade]);
                         }
 
-                        if (passData.rendererLists != null && cascade < passData.rendererLists.Length)
+                        if (passData.rendererLists != null && cascade < passData.rendererLists.Length && passData.rendererLists[cascade].isValid)
                         {
                             cmdEncoder.DrawRendererList(passData.rendererLists[cascade]);
                         }

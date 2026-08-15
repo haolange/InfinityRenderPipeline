@@ -9,6 +9,7 @@
 
 float4 DeferredShading_Resolution;
 int DeferredShading_TileSize;
+float DeferredShading_FarDepth;
 float4x4 Matrix_InvProj;
 float4x4 Matrix_InvViewProj;
 float3 _WorldSpaceCameraPos;
@@ -67,7 +68,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     uint2 pixelCoord = id.xy;
 
     float rawDepth = SRV_DepthTexture[pixelCoord];
-    if (rawDepth <= 1e-7)
+    if (abs(rawDepth - DeferredShading_FarDepth) <= 1e-5)
     {
         UAV_LightingTexture[pixelCoord] = 0;
         return;

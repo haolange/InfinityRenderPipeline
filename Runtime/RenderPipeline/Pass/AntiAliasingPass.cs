@@ -23,6 +23,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct AntiAliasingPassData
         {
             public float4 resolution;
+            public bool resetHistory;
             public ComputeShader taaShader;
             public RGTextureRef depthTexture;
             public RGTextureRef motionTexture;
@@ -32,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef accmulateColorTexture;
         }
 
-        void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache, CameraUniform cameraUniform)
         {
             if (pipelineAsset.taaShader == null)
             {
@@ -43,8 +44,8 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryColorTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
             TextureDescriptor accmulateDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
 
-            RGTextureRef historyDepthTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthDescriptor));
-            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorDescriptor));
+            RGTextureRef historyDepthTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthDescriptor, out bool historyDepthCreated));
+            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyColorCreated));
 
             m_RGScoper.RegisterTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthTexture);
             m_RGScoper.RegisterTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorTexture);
@@ -59,6 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
                 passData.resolution = new float4(camera.pixelWidth, camera.pixelHeight, 1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
+                passData.resetHistory = cameraUniform.historyReset || historyColorCreated || historyDepthCreated;
                 passData.taaShader = pipelineAsset.taaShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
@@ -84,7 +86,9 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         taaOutputData.accmulateColorTexture = passData.accmulateColorTexture;
                     }
-                    TemporalAAParameter taaParameter = new TemporalAAParameter(0.97f, 0.9f, 6000, 1); // x: static, y: dynamic, z: motion amplification, w: temporalScale
+                    TemporalAAParameter taaParameter = passData.resetHistory
+                        ? new TemporalAAParameter(0.0f, 0.0f, 6000, 1)
+                        : new TemporalAAParameter(0.97f, 0.9f, 6000, 1);
 
                     TemporalAntiAliasingGenerator temporalAAGenerator = objectPool.Get<TemporalAntiAliasingGenerator>();
                     temporalAAGenerator.Dispatch(cmdEncoder, passData.taaShader, taaParameter, taaInputData, taaOutputData);

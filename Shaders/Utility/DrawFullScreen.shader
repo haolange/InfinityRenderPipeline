@@ -152,16 +152,12 @@
 				float2 uv = i.uv.xy;
 				float sceneDepth = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).r;
 
-				float4 worldPos = mul(Matrix_InvViewFlipYProj, float4(uv * 2 - 1, sceneDepth, 1));
+				float4 worldPos = mul(Matrix_InvViewJitterProj, float4(uv * 2 - 1, sceneDepth, 1));
 				worldPos.xyz /= worldPos.w;
 
-				float4 lastClip = mul(Matrix_LastViewFlipYProj, float4(worldPos.xyz, 1));
+				float4 lastClip = mul(Matrix_LastViewJitterProj, float4(worldPos.xyz, 1));
 				float2 lastUV = (lastClip.xy / lastClip.w) * 0.5 + 0.5;
 
-#if UNITY_UV_STARTS_AT_TOP
-				//uv.y = 1.0 - uv.y;
-				//lastUV.y = 1.0 - lastUV.y;
-#endif
 				return float4(uv - lastUV, 0, 1);		
 			}
 			ENDHLSL

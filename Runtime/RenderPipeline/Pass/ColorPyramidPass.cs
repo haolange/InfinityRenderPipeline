@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
     internal static class ColorPyramidPassUtilityData
     {
         internal static string TextureName = "ColorPyramidTexture";
+        internal static string HistoryTextureName = "HistoryColorPyramidTexture";
         internal static int SRV_ColorTextureID = Shader.PropertyToID("_Source");
         internal static int UAV_ColorPyramidID = Shader.PropertyToID("_Result");
         internal static int ColorPyramid_SizeID = Shader.PropertyToID("_Size");
@@ -26,22 +27,33 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef colorPyramidTexture;
         }
 
+        static TextureDescriptor CreateColorPyramidDescriptor(int width, int height, string name)
+        {
+            TextureDescriptor descriptor = new TextureDescriptor(width, height);
+            descriptor.name = name;
+            descriptor.dimension = TextureDimension.Tex2D;
+            descriptor.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
+            descriptor.depthBufferBits = EDepthBits.None;
+            descriptor.enableRandomWrite = true;
+            descriptor.useMipMap = true;
+            descriptor.autoGenerateMips = false;
+            return descriptor;
+        }
+
+        void ImportHistoryColorPyramid(Camera camera, HistoryCache historyCache)
+        {
+            TextureDescriptor historyDsc = CreateColorPyramidDescriptor(camera.pixelWidth, camera.pixelHeight, ColorPyramidPassUtilityData.HistoryTextureName);
+            RGTextureRef historyColorPyramid = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryColorPyramidBuffer, historyDsc));
+            m_RGScoper.RegisterTexture(InfinityShaderIDs.HistoryColorPyramidBuffer, historyColorPyramid);
+        }
+
         void ComputeColorPyramid(RenderContext renderContext, Camera camera)
         {
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
             int maxMipLevel = (int)math.floor(math.log2(math.max(width, height)));
 
-            TextureDescriptor colorPyramidDsc = new TextureDescriptor(width, height);
-            {
-                colorPyramidDsc.name = ColorPyramidPassUtilityData.TextureName;
-                colorPyramidDsc.dimension = TextureDimension.Tex2D;
-                colorPyramidDsc.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-                colorPyramidDsc.depthBufferBits = EDepthBits.None;
-                colorPyramidDsc.enableRandomWrite = true;
-                colorPyramidDsc.useMipMap = true;
-                colorPyramidDsc.autoGenerateMips = false;
-            }
+            TextureDescriptor colorPyramidDsc = CreateColorPyramidDescriptor(width, height, ColorPyramidPassUtilityData.TextureName);
             RGTextureRef colorPyramidTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ColorPyramidBuffer, colorPyramidDsc);
 
             RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
@@ -85,6 +97,40 @@ namespace InfinityTech.Rendering.Pipeline
 
                         prevWidth = currWidth;
                         prevHeight = currHeight;
+                    }
+                });
+            }
+        }
+
+        struct CopyHistoryColorPyramidPassData
+        {
+            public int mipCount;
+            public RGTextureRef colorPyramidTexture;
+            public RGTextureRef historyColorPyramidTexture;
+        }
+
+        void CopyHistoryColorPyramid(RenderContext renderContext, Camera camera)
+        {
+            RGTextureRef colorPyramidTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ColorPyramidBuffer);
+            RGTextureRef historyColorPyramidTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HistoryColorPyramidBuffer);
+
+            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryColorPyramid)))
+            {
+                passRef.ReadTexture(colorPyramidTexture);
+                passRef.WriteTexture(historyColorPyramidTexture);
+
+                ref CopyHistoryColorPyramidPassData passData = ref passRef.GetPassData<CopyHistoryColorPyramidPassData>();
+                passData.colorPyramidTexture = colorPyramidTexture;
+                passData.historyColorPyramidTexture = historyColorPyramidTexture;
+                int maxMipLevel = (int)math.floor(math.log2(math.max(camera.pixelWidth, camera.pixelHeight)));
+                passData.mipCount = 1 + math.min(maxMipLevel, 8);
+
+                passRef.SetExecuteFunc((in CopyHistoryColorPyramidPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
+                {
+                    int mipCount = math.max(1, passData.mipCount);
+                    for (int mip = 0; mip < mipCount; ++mip)
+                    {
+                        cmdEncoder.CopyTexture(passData.colorPyramidTexture, 0, mip, passData.historyColorPyramidTexture, 0, mip);
                     }
                 });
             }

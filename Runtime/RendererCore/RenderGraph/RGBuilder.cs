@@ -163,11 +163,11 @@ namespace InfinityTech.Rendering.RenderGraph
             return m_Resources.ImportTexture(texture, shaderProperty);
         }
 
-        /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
         {
             return m_Resources.ImportBackbuffer(backBuffer, shaderProperty);
-        }*/
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateTexture(in RGTextureRef textureRef, in int shaderProperty = 0)
@@ -663,6 +663,34 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void ApplyAttachmentClearValues(ref AttachmentDescriptor attachment)
+        {
+            attachment.clearColor = Color.black;
+            attachment.clearDepth = GraphicsUtility.ClearDepthFar;
+            attachment.clearStencil = 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void ClearFallbackAttachments(CommandBuffer cmdBuffer, IRGPass pass)
+        {
+            bool clearDepth = pass.depthBuffer.IsValid() && pass.depthBufferAction.loadAction == RenderBufferLoadAction.Clear;
+            bool clearColor = false;
+            for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
+            {
+                if (pass.colorBuffers[i].IsValid() && pass.colorBufferActions[i].loadAction == RenderBufferLoadAction.Clear)
+                {
+                    clearColor = true;
+                    break;
+                }
+            }
+
+            if (clearDepth || clearColor)
+            {
+                cmdBuffer.ClearRenderTarget(clearDepth, clearColor, Color.black, GraphicsUtility.ClearDepthFar);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void SetRenderTarget(ref RGContext graphContext, in RGPassCompileInfo passCompileInfo)
         {
             var pass = passCompileInfo.pass;
@@ -734,21 +762,13 @@ namespace InfinityTech.Rendering.RenderGraph
                     } 
                     else 
                     {
-                        RenderTargetIdentifier[] mrtArray = graphContext.objectPool.GetTempArray<RenderTargetIdentifier>(1);
-                        RenderBufferLoadAction[] loadOpArray = graphContext.objectPool.GetTempArray<RenderBufferLoadAction>(1);
-                        RenderBufferStoreAction[] storeOpArray = graphContext.objectPool.GetTempArray<RenderBufferStoreAction>(1);
-
-                        mrtArray[0] = m_Resources.GetTexture(pass.colorBuffers[0]);
-                        loadOpArray[0] = pass.colorBufferActions[0].loadAction;
-                        storeOpArray[0] = pass.colorBufferActions[0].storeAction;
-
-                        RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, new RenderTargetIdentifier(), RenderBufferLoadAction.DontCare, RenderBufferStoreAction.DontCare);
-                        renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
-                        graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
-
-                        //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), pass.colorBufferActions[0].loadAction, pass.colorBufferActions[0].storeAction);
+                        // Color only. Binding an empty depth identifier through RenderTargetBinding makes Unity
+                        // report the target as a missing temporary render texture.
+                        graphContext.cmdBuffer.SetRenderTarget(m_Resources.GetTexture(pass.colorBuffers[0]), pass.colorBufferActions[0].loadAction, pass.colorBufferActions[0].storeAction);
                     }
                 }
+
+                ClearFallbackAttachments(graphContext.cmdBuffer, pass);
             }
         }
 
@@ -778,9 +798,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 attachmentDescriptor.storeAction = pass.colorBufferActions[i].storeAction;
                                 attachmentDescriptor.graphicsFormat = renderBuffer.graphicsFormat;
                                 attachmentDescriptor.loadStoreTarget = renderBuffer;
-                                attachmentDescriptor.clearColor = Color.black;
-                                attachmentDescriptor.clearDepth = 1;
-                                attachmentDescriptor.clearStencil = 0;
+                                ApplyAttachmentClearValues(ref attachmentDescriptor);
                             }
                             attachmentDescriptors[i] = attachmentDescriptor;
                         }
@@ -792,9 +810,7 @@ namespace InfinityTech.Rendering.RenderGraph
                             depthAttachmentDescriptor.storeAction = pass.depthBufferAction.storeAction;
                             depthAttachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
                             depthAttachmentDescriptor.loadStoreTarget = depthBuffer;
-                            depthAttachmentDescriptor.clearColor = Color.black;
-                            depthAttachmentDescriptor.clearDepth = 1;
-                            depthAttachmentDescriptor.clearStencil = 0;
+                            ApplyAttachmentClearValues(ref depthAttachmentDescriptor);
                         }
                         attachmentDescriptors[pass.colorBufferMaxIndex + 1] = depthAttachmentDescriptor;
 
@@ -848,9 +864,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 depthAttachmentDescriptor.storeAction = pass.depthBufferAction.storeAction;
                                 depthAttachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
                                 depthAttachmentDescriptor.loadStoreTarget = depthBuffer;
-                                depthAttachmentDescriptor.clearColor = Color.black;
-                                depthAttachmentDescriptor.clearDepth = 1;
-                                depthAttachmentDescriptor.clearStencil = 0;
+                                ApplyAttachmentClearValues(ref depthAttachmentDescriptor);
                             }
                             AttachmentDescriptor colorAttachmentDescriptor = new AttachmentDescriptor();
                             {
@@ -858,9 +872,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 colorAttachmentDescriptor.storeAction = pass.colorBufferActions[0].storeAction;
                                 colorAttachmentDescriptor.graphicsFormat = colorBuffer.graphicsFormat;
                                 colorAttachmentDescriptor.loadStoreTarget = colorBuffer;
-                                colorAttachmentDescriptor.clearColor = Color.black;
-                                colorAttachmentDescriptor.clearDepth = 1;
-                                colorAttachmentDescriptor.clearStencil = 0;
+                                ApplyAttachmentClearValues(ref colorAttachmentDescriptor);
                             }
 
                             NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(2, Allocator.Temp);
@@ -900,9 +912,7 @@ namespace InfinityTech.Rendering.RenderGraph
                                 attachmentDescriptor.storeAction = pass.depthBufferAction.storeAction;
                                 attachmentDescriptor.graphicsFormat = depthBuffer.depthStencilFormat;
                                 attachmentDescriptor.loadStoreTarget = depthBuffer;
-                                attachmentDescriptor.clearColor = Color.black;
-                                attachmentDescriptor.clearDepth = 1;
-                                attachmentDescriptor.clearStencil = 0;
+                                ApplyAttachmentClearValues(ref attachmentDescriptor);
                             }
                             NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(1, Allocator.Temp);
                             {
@@ -940,9 +950,7 @@ namespace InfinityTech.Rendering.RenderGraph
                             colorAttachmentDescriptor.storeAction = pass.colorBufferActions[0].storeAction;
                             colorAttachmentDescriptor.graphicsFormat = colorBuffer.graphicsFormat;
                             colorAttachmentDescriptor.loadStoreTarget = colorBuffer;
-                            colorAttachmentDescriptor.clearColor = Color.black;
-                            colorAttachmentDescriptor.clearDepth = 1;
-                            colorAttachmentDescriptor.clearStencil = 0;
+                            ApplyAttachmentClearValues(ref colorAttachmentDescriptor);
                         }
 
                         NativeArray<AttachmentDescriptor> attachmentDescriptors = new NativeArray<AttachmentDescriptor>(1, Allocator.Temp);

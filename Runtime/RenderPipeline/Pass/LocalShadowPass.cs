@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
             for (int i = 0; i < cullingResults.visibleLights.Length; ++i)
             {
                 VisibleLight visibleLight = cullingResults.visibleLights[i];
-                if (visibleLight.light == null || visibleLight.light.shadows == LightShadows.None)
+                if (visibleLight.light == null || visibleLight.light.shadows == LightShadows.None || !cullingResults.GetShadowCasterBounds(i, out _))
                 {
                     continue;
                 }
@@ -211,21 +211,18 @@ namespace InfinityTech.Rendering.Pipeline
                             out viewMatrix, out projMatrix, out splitData);
                     }
 
-                    if (valid)
-                    {
-                        shadowMatrices[slice] = projMatrix * viewMatrix;
-                    }
-                    else
+                    if (!valid)
                     {
                         shadowMatrices[slice] = Matrix4x4.identity;
+                        sliceDraws[slice] = RGDrawListRef.Invalid;
+                        continue;
                     }
+
+                    shadowMatrices[slice] = projMatrix * viewMatrix;
 
                     ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
                     shadowDrawingSettings.splitIndex = face;
-                    if (valid)
-                    {
-                        RecordShadowCasterSplit(lightIdx, face, splitData, BatchCullingProjectionType.Perspective);
-                    }
+                    RecordShadowCasterSplit(lightIdx, face, splitData, BatchCullingProjectionType.Perspective);
                     rendererLists[slice] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
 
                     ulong viewKey = MeshVisibilityShare.MakeLocalShadowViewKey(lightInstanceId, face);
@@ -316,7 +313,7 @@ namespace InfinityTech.Rendering.Pipeline
                             cmdEncoder.Draw(passData.draws[slice]);
                         }
 
-                        if (passData.rendererLists != null && slice < passData.rendererLists.Length)
+                        if (passData.rendererLists != null && slice < passData.rendererLists.Length && passData.rendererLists[slice].isValid)
                         {
                             cmdEncoder.DrawRendererList(passData.rendererLists[slice]);
                         }

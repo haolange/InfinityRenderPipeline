@@ -33,6 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeVolumetricCloud,
         RenderTranslucentDepth,
         ComputeColorPyramid,
+        CopyHistoryColorPyramid,
         RenderForwardTranslucent,
         ComputeSuperResolution,
         ComputeAntiAliasing,
@@ -99,6 +100,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int VolumetricCloudBuffer = Shader.PropertyToID("_VolumetricCloudTexture");
         public static int TranslucentDepthBuffer = Shader.PropertyToID("_TranslucentDepthTexture");
         public static int ColorPyramidBuffer = Shader.PropertyToID("_ColorPyramidTexture");
+        public static int HistoryColorPyramidBuffer = Shader.PropertyToID("_HistoryColorPyramidTexture");
         public static int TranslucentLightingBuffer = Shader.PropertyToID("_TranslucentLightingTexture");
         public static int SuperResolutionBuffer = Shader.PropertyToID("_SuperResolutionTexture");
         public static int AntiAliasingBuffer = Shader.PropertyToID("_AntiAliasingBuffer");

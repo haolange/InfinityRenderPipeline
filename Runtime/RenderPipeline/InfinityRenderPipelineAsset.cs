@@ -1,6 +1,9 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -71,6 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         protected override RenderPipeline CreatePipeline() 
         {
+            EnsureAssignedComputeShaders();
             renderPipeline = new InfinityRenderPipeline(this);
             Shader.SetGlobalTexture("g_BestFitNormal_LUT", bestFitNormalTexture);
             return renderPipeline;
@@ -79,7 +83,58 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void OnValidate() 
         {
             base.OnValidate();
+            EnsureAssignedComputeShaders();
         }
+
+        const string PackageRoot = "Packages/com.infinity.render-pipeline/";
+
+        internal void EnsureAssignedComputeShaders()
+        {
+#if UNITY_EDITOR
+            meshDrawPipelineCS = CoalesceCompute(meshDrawPipelineCS, "Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute", "CullInstances", "ClearCommandCounts", "CompactCommandInstances", "PrefixSumCommands", "ScatterVisibleInstances", "BuildIndirectArgs");
+            taaShader = CoalesceCompute(taaShader, "Shaders/RenderingFeature/TemporalAntiAliasing/Compute_TemporalAntiAliasing.compute", "Main");
+            ssrShader = CoalesceCompute(ssrShader, "Shaders/RenderingFeature/ScreenSpaceReflection/Compute_ScreenSpaceReflection.compute", "Raytracing");
+            ssaoShader = CoalesceCompute(ssaoShader, "Shaders/RenderingFeature/ScreenSpaceAmbientOcclusion/Compute_GroundTruthOcclusion.compute", "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
+            ssgiShader = CoalesceCompute(ssgiShader, "Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute", "Raytracing");
+            combineLUTShader = CoalesceCompute(combineLUTShader, "Shaders/ColorGrading/Compute_CombineLUTs.compute", "MainCS");
+            hiZShader = CoalesceCompute(hiZShader, "Shaders/RenderingFeature/PyramidDepth/Compute_PyramidDepth.compute", "HiZ_Generation");
+            halfResDownsampleShader = CoalesceCompute(halfResDownsampleShader, "Shaders/RenderingFeature/HalfResDownsample/Compute_HalfResDownsample.compute", "HalfResDownsample");
+            zBinningShader = CoalesceCompute(zBinningShader, "Shaders/RenderingFeature/ZBinningLightList/Compute_ZBinningLightList.compute", "ZBinning", "TileLighting");
+            contactShadowShader = CoalesceCompute(contactShadowShader, "Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute", "ContactShadowCS");
+            deferredShadingShader = CoalesceCompute(deferredShadingShader, "Shaders/RenderingFeature/DeferredShading/Compute_DeferredShading.compute", "DeferredShadingCS");
+            atmosphericLUTShader = CoalesceCompute(atmosphericLUTShader, "Shaders/RenderingFeature/AtmosphericLUT/Compute_AtmosphericLUT.compute", "TransmittanceLUT", "MultiScatteringLUT");
+            volumetricFogShader = CoalesceCompute(volumetricFogShader, "Shaders/RenderingFeature/VolumetricFog/Compute_VolumetricFog.compute", "ScatterDensity", "Integrate");
+            volumetricCloudShader = CoalesceCompute(volumetricCloudShader, "Shaders/RenderingFeature/VolumetricCloud/Compute_VolumetricCloud.compute", "VolumetricCloudCS");
+            colorPyramidShader = CoalesceCompute(colorPyramidShader, "Shaders/RenderingFeature/PyramidColor/Compute_PyramidColor.compute", "KMain");
+            superResolutionShader = CoalesceCompute(superResolutionShader, "Shaders/RenderingFeature/SuperResolution/Compute_SuperResolution.compute", "SuperResolutionCS");
+            // Post samples fog as Texture2D while VolumetricFogBuffer is Tex3D — do not auto-bind.
+            postProcessingShader = KeepIfKernels(postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine");
+            subsurfaceShader = KeepIfKernels(subsurfaceShader, "BurleySubsurfaceCS");
+#endif
+        }
+
+#if UNITY_EDITOR
+        static ComputeShader CoalesceCompute(ComputeShader current, string relativePath, params string[] requiredKernels)
+        {
+            if (current != null)
+            {
+                return current;
+            }
+
+            ComputeShader loaded = AssetDatabase.LoadAssetAtPath<ComputeShader>(PackageRoot + relativePath);
+            return KeepIfKernels(loaded, requiredKernels);
+        }
+
+        static ComputeShader KeepIfKernels(ComputeShader shader, params string[] requiredKernels)
+        {
+            if (!GraphicsUtility.HasRequiredKernels(shader, requiredKernels))
+            {
+                return null;
+            }
+
+            return shader;
+        }
+#endif
 
         protected override void OnDisable() 
         {
