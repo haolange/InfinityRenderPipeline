@@ -14,7 +14,8 @@ namespace InfinityTech.Tool.Editor
 
         public override bool IsShaderVFXCompatible(Shader shader)
         {
-            throw new NotImplementedException();
+            // InfinityRP does not implement a VFX Graph binder. This is not a compatibility test.
+            return false;
         }
     }
 }

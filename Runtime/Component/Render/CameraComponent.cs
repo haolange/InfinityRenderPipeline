@@ -10,7 +10,7 @@ namespace InfinityTech.Component
     public class CameraComponent : BaseComponent
     {
         public Camera unityCamera;
-        public ProfilingSampler viewProfiler;
+        [System.NonSerialized] public ProfilingSampler viewProfiler;
 
         protected override void OnRegister()
         {

@@ -8,7 +8,7 @@ namespace InfinityTech.Component
     [ExecuteAlways]
     public class RayTraceEnvironment : MonoBehaviour
     {
-        public RayTracingAccelerationStructure m_AccelerationStructure;
+        [System.NonSerialized] public RayTracingAccelerationStructure m_AccelerationStructure;
 
         public void Awake() 
         {

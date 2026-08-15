@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using InfinityTech.Core;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.LightPipeline;
@@ -224,7 +225,7 @@ namespace InfinityTech.Component
             FLightUtility.InitLightType(this, unityLight);
             FGraphics.AddTask((RenderContext renderContext) =>
             {
-                renderContext.AddWorldLight(unityLight.GetInstanceID(), this);
+                renderContext.AddWorldLight(UnityEntityId.ToInt32(unityLight), this);
             });
         }
         
@@ -242,7 +243,7 @@ namespace InfinityTech.Component
         {
             FGraphics.AddTask((RenderContext renderContext) =>
             {
-                renderContext.RemoveWorldLight(unityLight.GetInstanceID());
+                renderContext.RemoveWorldLight(UnityEntityId.ToInt32(unityLight));
             });
         }
 

@@ -7,11 +7,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
     public class MeshAssetAction
     {
         #region MeshAsset
-        internal class CreateMeshAsset : EndNameEditAction
+        internal class CreateMeshAsset : AssetCreationEndAction
         {
             public MeshAsset meshAsset;
 
-            public override void Action(int instanceId, string pathName, string resourceFile)
+            public override void Action(EntityId entityId, string pathName, string resourceFile)
             {
                 AssetDatabase.CreateAsset(meshAsset, pathName);
             }
@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
                 CreateMeshAsset meshAssetFactory = ScriptableObject.CreateInstance<CreateMeshAsset>();
                 meshAssetFactory.meshAsset = meshAsset;
 
-                ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, meshAssetFactory, "SM_" + prefab.name + ".asset", null, null);
+                ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, meshAssetFactory, "SM_" + prefab.name + ".asset", null, null);
             } else {
                 Debug.LogWarning("select prefab doesn't have LODGroup or MeshRenderer");
             }

@@ -42,8 +42,19 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferRef tileLightListBuffer;
         }
 
+        static bool HasZBinningLightList(RenderContext renderContext)
+        {
+            // LightContext only stores directional lights and has no local bounds / VisibleLightCount.
+            return false;
+        }
+
         void ComputeZBinningLightList(RenderContext renderContext, Camera camera)
         {
+            if (!HasZBinningLightList(renderContext))
+            {
+                return;
+            }
+
             int tileSize = 16;
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
@@ -81,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.screenSize = new int2(width, height);
                 passData.numTiles = new int2(numTilesX, numTilesY);
                 passData.numBins = numBins;
-                passData.lightCount = m_LightContext != null ? 0 : 0; // Will be set from LightContext
+                passData.lightCount = 0; // TODO: wire from renderContext.lightContext once LightContext exposes a count.
                 passData.nearPlane = camera.nearClipPlane;
                 passData.farPlane = camera.farClipPlane;
                 passData.zBinningShader = pipelineAsset.zBinningShader;

@@ -137,7 +137,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Execute Phase
                 passRef.EnablePassCulling(false);
-                //passRef.EnableAsyncCompute(true);
+                passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in CombineLutPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
 

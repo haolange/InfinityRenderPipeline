@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Component;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
@@ -164,7 +165,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int lightIdx = candidate.lightIndex;
                 VisibleLight visibleLight = cullingResults.visibleLights[lightIdx];
                 Light shadowLight = visibleLight.light;
-                int lightInstanceId = shadowLight.GetInstanceID();
+                int lightInstanceId = UnityEntityId.ToInt32(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
 
                 uint shadowRenderingLayerMask = (uint)ERenderingLayer.Everything;
@@ -220,7 +221,11 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
-                    shadowDrawingSettings.splitData = splitData;
+                    shadowDrawingSettings.splitIndex = face;
+                    if (valid)
+                    {
+                        RecordShadowCasterSplit(lightIdx, face, splitData, BatchCullingProjectionType.Perspective);
+                    }
                     rendererLists[slice] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
 
                     ulong viewKey = MeshVisibilityShare.MakeLocalShadowViewKey(lightInstanceId, face);

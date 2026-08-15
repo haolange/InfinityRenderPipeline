@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
+using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
@@ -380,7 +381,7 @@ namespace InfinityTech.Component
 
                 int subMeshCount = meshAsset.subMeshCount;
                 m_DrawIds = new MeshDrawId[subMeshCount];
-                int meshUnityId = meshAsset.GetInstanceID();
+                int meshUnityId = UnityEntityId.ToInt32(meshAsset);
                 m_GeometryRevision = ComputeGeometryRevision(meshAsset);
 
                 for (int i = 0; i < subMeshCount; ++i)
@@ -401,7 +402,7 @@ namespace InfinityTech.Component
                         m_InstanceId,
                         meshUnityId,
                         i,
-                        material.GetInstanceID(),
+                        UnityEntityId.ToInt32(material),
                         eligibility,
                         renderQueue,
                         priority,
@@ -484,7 +485,7 @@ namespace InfinityTech.Component
                         {
                             renderQueue = material.renderQueue;
                             // Updates draw.renderQueue and MaterialData revision (same id, new queue).
-                            update.SetMaterial(drawId, material.GetInstanceID(), renderQueue);
+                            update.SetMaterial(drawId, UnityEntityId.ToInt32(material), renderQueue);
                         }
 
                         update.SetDrawPriority(drawId, renderPriority + renderQueue);
@@ -539,7 +540,7 @@ namespace InfinityTech.Component
 
         private bool HasStructuralDiff()
         {
-            int meshId = meshAsset != null ? meshAsset.GetInstanceID() : 0;
+            int meshId = UnityEntityId.ToInt32(meshAsset);
             int subMeshCount = meshAsset != null ? meshAsset.subMeshCount : 0;
             uint geometryRevision = ComputeGeometryRevision(meshAsset);
             if (!m_Snapshot.valid
@@ -560,7 +561,7 @@ namespace InfinityTech.Component
 
             for (int i = 0; i < materialCount; ++i)
             {
-                int materialId = materials[i] != null ? materials[i].GetInstanceID() : 0;
+                int materialId = UnityEntityId.ToInt32(materials[i]);
                 if (m_Snapshot.materialInstanceIds[i] != materialId)
                 {
                     return true;
@@ -612,7 +613,7 @@ namespace InfinityTech.Component
             {
                 if (materials[i] != null)
                 {
-                    materialIds[i] = materials[i].GetInstanceID();
+                    materialIds[i] = UnityEntityId.ToInt32(materials[i]);
                     materialQueues[i] = materials[i].renderQueue;
                 }
                 else
@@ -628,7 +629,7 @@ namespace InfinityTech.Component
                 valid = m_InstanceId.IsValid,
                 visible = visible,
                 movebility = movebility,
-                meshAssetId = meshAsset != null ? meshAsset.GetInstanceID() : 0,
+                meshAssetId = UnityEntityId.ToInt32(meshAsset),
                 subMeshCount = meshAsset != null ? meshAsset.subMeshCount : 0,
                 geometryRevision = m_GeometryRevision,
                 materialInstanceIds = materialIds,

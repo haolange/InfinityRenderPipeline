@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -33,6 +34,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache)
         {
+            if (pipelineAsset.taaShader == null)
+            {
+                throw new InvalidOperationException("InfinityRP: TAA path is active but taaShader is not assigned.");
+            }
+
             TextureDescriptor historyDepthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryDepthTextureName, colorFormat = GraphicsFormat.R16G16_SFloat, depthBufferBits = EDepthBits.None };
             TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryColorTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
             TextureDescriptor accmulateDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
@@ -89,47 +95,27 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CopyHistoryAntiAliasingPassData
         {
-            public RGTextureRef depthTexture;
-            public RGTextureRef historyDepthTexture;
             public RGTextureRef historyColorTexture;
             public RGTextureRef accmulateColorTexture;
         }
 
         void CopyHistoryAntiAliasing(RenderContext renderContext)
         {
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
-            RGTextureRef hsitoryDepthTexture = m_RGScoper.QueryTexture(AntiAliasingUtilityData.HistoryDepthTextureID);
-            RGTextureRef hsitoryColorTexture = m_RGScoper.QueryTexture(AntiAliasingUtilityData.HistoryColorTextureID);
+            RGTextureRef historyColorTexture = m_RGScoper.QueryTexture(AntiAliasingUtilityData.HistoryColorTextureID);
             RGTextureRef accmulateColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
 
-            //Add CopyHistoryPass
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryAntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryAntiAliasing)))
             {
-                //Setup Phase
-                passRef.ReadTexture(depthTexture);
                 passRef.ReadTexture(accmulateColorTexture);
-                passRef.WriteTexture(hsitoryDepthTexture);
-                passRef.WriteTexture(hsitoryColorTexture);
+                passRef.WriteTexture(historyColorTexture);
 
                 ref CopyHistoryAntiAliasingPassData passData = ref passRef.GetPassData<CopyHistoryAntiAliasingPassData>();
-                {
-                    passData.depthTexture = depthTexture;
-                    passData.accmulateColorTexture = accmulateColorTexture;
-                    passData.historyDepthTexture = hsitoryDepthTexture;
-                    passData.historyColorTexture = hsitoryColorTexture;
-                }
+                passData.accmulateColorTexture = accmulateColorTexture;
+                passData.historyColorTexture = historyColorTexture;
 
-                //Execute Phase
                 passRef.SetExecuteFunc((in CopyHistoryAntiAliasingPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    #if UNITY_EDITOR
-                        //GraphicsUtility.DrawFullScreen(cmdEncoder, passData.depthTexture, passData.historyDepthTexture);
-                        GraphicsUtility.DrawFullScreen(cmdEncoder, passData.accmulateColorTexture, passData.historyColorTexture);
-                    #else
-                        //cmdEncoder.CopyTexture(passData.depthTexture, passData.historyDepthTexture);
-                        cmdEncoder.CopyTexture(passData.accmulateColorTexture, passData.historyColorTexture);
-                    #endif
+                    cmdEncoder.CopyTexture(passData.accmulateColorTexture, passData.historyColorTexture);
                 });
             }
         }

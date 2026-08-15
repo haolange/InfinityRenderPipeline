@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
@@ -66,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shaderPassIndex = BuiltinMeshesPasses.GBuffer.shaderPassIndex,
                 viewPosition = camera.transform.position,
                 renderingLayerMask = gbufferFilter.renderingLayerMask,
-                viewKey = (ulong)(uint)camera.GetInstanceID()
+                viewKey = UnityEntityId.ToUInt64(camera)
             };
             RGDrawListRef gbufferDraws = m_RGBuilder.DeclareDrawList(m_GBufferMeshProcessor, gbufferRequest, visibility, m_VisibilityShare);
 

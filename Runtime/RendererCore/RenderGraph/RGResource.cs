@@ -68,9 +68,30 @@ namespace InfinityTech.Rendering.RenderGraph
             this.handle = new RGResourceHandle(handle, ERGResourceType.Texture); 
         }
 
-        public static implicit operator RenderTexture(RGTextureRef textureRef) => textureRef.IsValid() ? RGResourceFactory.current.GetTexture(textureRef) : null;
-        public static implicit operator RenderTargetIdentifier(RGTextureRef textureRef) => textureRef.IsValid() ? RGResourceFactory.current.GetTexture(textureRef) : null;
+        public static implicit operator RenderTexture(RGTextureRef textureRef) => ResolveRenderTexture(textureRef);
+        public static implicit operator RenderTargetIdentifier(RGTextureRef textureRef) => ResolveRenderTarget(textureRef);
         public bool IsValid() => handle.IsValid();
+
+        internal static RenderTexture ResolveRenderTexture(in RGTextureRef textureRef)
+        {
+            if (!textureRef.IsValid() || RGResourceFactory.current == null)
+            {
+                throw new InvalidOperationException("RGTextureRef is invalid or RGResourceFactory is not active.");
+            }
+
+            RTHandle handle = RGResourceFactory.current.GetTexture(textureRef);
+            if (handle == null || handle.rt == null)
+            {
+                throw new InvalidOperationException("RGTextureRef resolved to a null texture.");
+            }
+
+            return handle.rt;
+        }
+
+        internal static RenderTargetIdentifier ResolveRenderTarget(in RGTextureRef textureRef)
+        {
+            return ResolveRenderTexture(textureRef);
+        }
     }
 
     internal class IRGResource

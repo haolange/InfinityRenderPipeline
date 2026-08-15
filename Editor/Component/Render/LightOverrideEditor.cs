@@ -19,60 +19,60 @@ namespace InfinityTech.Component.Editor
         #endregion //TargetObject
 
         #region General
-        public SerializedProperty state;
-        public SerializedProperty lightType;
-        public SerializedProperty lightLayer;
+        [System.NonSerialized] SerializedProperty state;
+        [System.NonSerialized] SerializedProperty lightType;
+        [System.NonSerialized] SerializedProperty lightLayer;
         #endregion //General
 
         #region Emission
-        public SerializedProperty intensity;
-        public SerializedProperty color;
-        public SerializedProperty temperature;
-        public SerializedProperty range;
-        public SerializedProperty diffuse;
-        public SerializedProperty specular;
-        public SerializedProperty radius;
-        public SerializedProperty length;
-        public SerializedProperty innerAngle;
-        public SerializedProperty outerAngle;
-        public SerializedProperty width;
-        public SerializedProperty height;
+        [System.NonSerialized] SerializedProperty intensity;
+        [System.NonSerialized] SerializedProperty color;
+        [System.NonSerialized] SerializedProperty temperature;
+        [System.NonSerialized] SerializedProperty range;
+        [System.NonSerialized] SerializedProperty diffuse;
+        [System.NonSerialized] SerializedProperty specular;
+        [System.NonSerialized] SerializedProperty radius;
+        [System.NonSerialized] SerializedProperty length;
+        [System.NonSerialized] SerializedProperty innerAngle;
+        [System.NonSerialized] SerializedProperty outerAngle;
+        [System.NonSerialized] SerializedProperty width;
+        [System.NonSerialized] SerializedProperty height;
         #endregion //Emission
 
         #region IndirectLighting
-        public SerializedProperty enableIndirect;
-        public SerializedProperty indirectIntensity;
+        [System.NonSerialized] SerializedProperty enableIndirect;
+        [System.NonSerialized] SerializedProperty indirectIntensity;
         #endregion //IndirectLighting
 
         #region IESCookie
-        public SerializedProperty IESTexture;
-        public SerializedProperty cookieTexture;
+        [System.NonSerialized] SerializedProperty IESTexture;
+        [System.NonSerialized] SerializedProperty cookieTexture;
         #endregion //IESCookie
 
         #region Shadow
-        public SerializedProperty enableShadow;
-        public SerializedProperty shadowLayer;
-        public SerializedProperty shadowType;
-        public SerializedProperty resolution;
-        public SerializedProperty nearPlane;
-        public SerializedProperty minSoftness;
-        public SerializedProperty maxSoftness;
+        [System.NonSerialized] SerializedProperty enableShadow;
+        [System.NonSerialized] SerializedProperty shadowLayer;
+        [System.NonSerialized] SerializedProperty shadowType;
+        [System.NonSerialized] SerializedProperty resolution;
+        [System.NonSerialized] SerializedProperty nearPlane;
+        [System.NonSerialized] SerializedProperty minSoftness;
+        [System.NonSerialized] SerializedProperty maxSoftness;
         #endregion //Shadow
 
         #region ContactShadow
-        public SerializedProperty enableContactShadow;
-        public SerializedProperty contactShadowLength;
+        [System.NonSerialized] SerializedProperty enableContactShadow;
+        [System.NonSerialized] SerializedProperty contactShadowLength;
         #endregion //ContactShadow
 
         #region VolumetricFog
-        public SerializedProperty enableVolumetric;
-        public SerializedProperty volumetricIntensity;
-        public SerializedProperty volumetricOcclusion;
+        [System.NonSerialized] SerializedProperty enableVolumetric;
+        [System.NonSerialized] SerializedProperty volumetricIntensity;
+        [System.NonSerialized] SerializedProperty volumetricOcclusion;
         #endregion //VolumetricFog
 
         #region Performance
-        public SerializedProperty maxDrawDistance;
-        public SerializedProperty maxDrawDistanceFade;
+        [System.NonSerialized] SerializedProperty maxDrawDistance;
+        [System.NonSerialized] SerializedProperty maxDrawDistanceFade;
         #endregion //Performance
 
         #region ShowPannalProperty

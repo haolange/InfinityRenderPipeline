@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 
@@ -54,8 +55,13 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef postProcessTexture;
         }
 
-        void ComputePostProcessing(RenderContext renderContext, Camera camera)
+        void ComputePostProcessing(RenderContext renderContext, Camera camera, in RGTextureRef sceneColorTexture)
         {
+            if (pipelineAsset.postProcessingShader == null)
+            {
+                return;
+            }
+
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
 
@@ -68,6 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
                 postProcessDsc.enableRandomWrite = true;
             }
             RGTextureRef postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, postProcessDsc);
+            m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, postProcessTexture);
 
             // Bloom texture with mip chain for downsample/upsample
             int bloomWidth = Mathf.Max(1, width >> 1);
@@ -84,8 +91,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef bloomTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BloomBuffer, bloomDsc);
 
-            // Use SuperResolution output if available, otherwise use lighting buffer
-            RGTextureRef sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.SuperResolutionBuffer);
             RGTextureRef volumetricFogTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
@@ -112,8 +117,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in PostProcessingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.postProcessingShader == null) return;
-
                     // Set common uniforms
                     cmdEncoder.SetComputeVectorParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomIntensityID, passData.bloomIntensity);

@@ -44,6 +44,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public int colorBufferMaxIndex { get; protected set; }
         public bool enablePassCulling { get; protected set; }
         public bool enableAsyncCompute { get; protected set; }
+        public bool enableNativeRenderPass { get; protected set; }
         public RGTextureRef depthBuffer { get; protected set; }
         public EDepthAccess depthBufferAccess { get; protected set; }
         public RGAttachmentAction depthBufferAction { get; protected set; }
@@ -61,6 +62,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             int resourceTypeCount = (int)ERGResourceType.Max;
             colorBufferMaxIndex = -1;
+            enableNativeRenderPass = true;
             colorBuffers = new RGTextureRef[8];
             colorBufferActions = new RGAttachmentAction[8];
             resourceReadLists = new List<RGResourceHandle>[resourceTypeCount];
@@ -135,6 +137,12 @@ namespace InfinityTech.Rendering.RenderGraph
             enableAsyncCompute = value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnableNativeRenderPass(in bool value)
+        {
+            enableNativeRenderPass = value;
+        }
+
         public void Clear()
         {
             name = "";
@@ -151,6 +159,7 @@ namespace InfinityTech.Rendering.RenderGraph
             refCount = 0;
             enablePassCulling = true;
             enableAsyncCompute = false;
+            enableNativeRenderPass = true;
 
             // Invalidate everything
             colorBufferMaxIndex = -1;
@@ -261,6 +270,25 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
+    static class RGPassGuard
+    {
+        public static void RequireTexture(in RGTextureRef textureRef, string api)
+        {
+            if (!textureRef.IsValid())
+            {
+                throw new InvalidOperationException($"RGPass.{api} received an invalid RGTextureRef.");
+            }
+        }
+
+        public static void RequireBuffer(in RGBufferRef bufferRef, string api)
+        {
+            if (!bufferRef.IsValid())
+            {
+                throw new InvalidOperationException($"RGPass.{api} received an invalid RGBufferRef.");
+            }
+        }
+    }
+
     public struct RGTransferPassRef : IDisposable
     {
         bool m_Disposed;
@@ -283,6 +311,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(ReadTexture));
             m_TransferPass.AddResourceRead(input.handle);
             return input;
         }
@@ -290,6 +319,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef WriteTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(WriteTexture));
             m_TransferPass.AddResourceWrite(input.handle);
             return input;
         }
@@ -305,6 +335,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef ReadBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(ReadBuffer));
             m_TransferPass.AddResourceRead(bufferRef.handle);
             return bufferRef;
         }
@@ -312,6 +343,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef WriteBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(WriteBuffer));
             m_TransferPass.AddResourceWrite(bufferRef.handle);
             return bufferRef;
         }
@@ -376,6 +408,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(ReadTexture));
             m_ComputePass.AddResourceRead(input.handle);
             return input;
         }
@@ -383,6 +416,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef WriteTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(WriteTexture));
             m_ComputePass.AddResourceWrite(input.handle);
             return input;
         }
@@ -398,6 +432,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef ReadBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(ReadBuffer));
             m_ComputePass.AddResourceRead(bufferRef.handle);
             return bufferRef;
         }
@@ -405,6 +440,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef WriteBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(WriteBuffer));
             m_ComputePass.AddResourceWrite(bufferRef.handle);
             return bufferRef;
         }
@@ -463,6 +499,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(ReadTexture));
             m_RayTracingPass.AddResourceRead(input.handle);
             return input;
         }
@@ -470,6 +507,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef WriteTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(WriteTexture));
             m_RayTracingPass.AddResourceWrite(input.handle);
             return input;
         }
@@ -485,6 +523,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef ReadBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(ReadBuffer));
             m_RayTracingPass.AddResourceRead(bufferRef.handle);
             return bufferRef;
         }
@@ -492,6 +531,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef WriteBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(WriteBuffer));
             m_RayTracingPass.AddResourceWrite(bufferRef.handle);
             return bufferRef;
         }
@@ -550,8 +590,15 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnableNativeRenderPass(in bool value)
+        {
+            m_RasterPass.EnableNativeRenderPass(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ReadTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(ReadTexture));
             m_RasterPass.AddResourceRead(input.handle);
             return input;
         }
@@ -559,6 +606,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef WriteTexture(in RGTextureRef input)
         {
+            RGPassGuard.RequireTexture(input, nameof(WriteTexture));
             m_RasterPass.AddResourceWrite(input.handle);
             return input;
         }
@@ -566,6 +614,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
         {
+            RGPassGuard.RequireTexture(renderTarget, nameof(SetColorAttachment));
             m_RasterPass.SetColorAttachment(renderTarget, index, loadAction, storeAction);
             return renderTarget;
         }
@@ -573,6 +622,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
+            RGPassGuard.RequireTexture(input, nameof(SetDepthStencilAttachment));
             m_RasterPass.SetDepthStencilAttachment(input, loadAction, storeAction, flags);
             return input;
         }
@@ -588,6 +638,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef ReadBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(ReadBuffer));
             m_RasterPass.AddResourceRead(bufferRef.handle);
             return bufferRef;
         }
@@ -595,6 +646,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef WriteBuffer(in RGBufferRef bufferRef)
         {
+            RGPassGuard.RequireBuffer(bufferRef, nameof(WriteBuffer));
             m_RasterPass.AddResourceWrite(bufferRef.handle);
             return bufferRef;
         }

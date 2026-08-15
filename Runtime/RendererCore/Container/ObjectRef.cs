@@ -31,7 +31,7 @@ namespace InfinityTech.Core
     public struct UObjectRef<T> where T : Object
     {
         public int Id;
-        public T light => (T)Resources.InstanceIDToObject(Id);
+        public T light => UnityEntityId.ToObject<T>(Id);
 
         public UObjectRef(int id)
         {

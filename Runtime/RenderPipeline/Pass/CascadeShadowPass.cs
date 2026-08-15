@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Component;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
@@ -76,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 float[] cascadeRatios = new float[] { 0.067f, 0.2f, 0.467f, 1.0f };
                 Light shadowLight = cullingResults.visibleLights[lightIndex].light;
-                int lightInstanceId = shadowLight.GetInstanceID();
+                int lightInstanceId = UnityEntityId.ToInt32(shadowLight);
                 uint shadowRenderingLayerMask = (uint)ERenderingLayer.Everything;
                 if (shadowLight != null && shadowLight.TryGetComponent(out LightComponent lightComponent))
                 {
@@ -94,7 +95,8 @@ namespace InfinityTech.Rendering.Pipeline
                         cascadeSplits[cascade] = new Vector4(splitData.cullingSphere.x, splitData.cullingSphere.y, splitData.cullingSphere.z, splitData.cullingSphere.w);
 
                         ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
-                        shadowDrawingSettings.splitData = splitData;
+                        shadowDrawingSettings.splitIndex = cascade;
+                        RecordShadowCasterSplit(lightIndex, cascade, splitData, BatchCullingProjectionType.Orthographic);
                         rendererLists[cascade] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
                     }
                     else
@@ -102,6 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
                         shadowMatrices[cascade] = Matrix4x4.identity;
                         cascadeSplits[cascade] = Vector4.zero;
                         ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
+                        shadowDrawingSettings.splitIndex = cascade;
                         rendererLists[cascade] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
                     }
 

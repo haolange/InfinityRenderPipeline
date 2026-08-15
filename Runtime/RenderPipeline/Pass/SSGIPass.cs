@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.PostProcess;
@@ -74,7 +75,8 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef ssgiTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIBuffer, ssgiTextureDsc);
 
             RGTextureRef hiZTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HiZBuffer);
-            RGTextureRef colorPyramidTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ColorPyramidBuffer);
+            // ColorPyramid is produced after translucent; Phase 3 SSGI cannot own that input yet.
+            m_RGScoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out RGTextureRef colorPyramidTexture);
             RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
@@ -95,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_WorldToView = camera.worldToCameraMatrix;
                 passData.ssgiShader = pipelineAsset.ssgiShader;
                 passData.hiZTexture = passRef.ReadTexture(hiZTexture);
-                passData.colorPyramidTexture = passRef.ReadTexture(colorPyramidTexture);
+                passData.colorPyramidTexture = colorPyramidTexture.IsValid() ? passRef.ReadTexture(colorPyramidTexture) : default;
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.ssgiTexture = passRef.WriteTexture(ssgiTexture);
@@ -122,7 +124,10 @@ namespace InfinityTech.Rendering.Pipeline
                     // Kernel 0: Raytracing
                     int kernel = SSGIPassUtilityData.RaytracingKernel;
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_PyramidDepthID, passData.hiZTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_PyramidColorID, passData.colorPyramidTexture);
+                    if (passData.colorPyramidTexture.IsValid())
+                    {
+                        cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_PyramidColorID, passData.colorPyramidTexture);
+                    }
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_SceneDepthID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_GBufferNormalID, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.UAV_ScreenIrradianceID, passData.ssgiTexture);

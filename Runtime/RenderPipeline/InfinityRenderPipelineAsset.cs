@@ -22,6 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public bool updateProxy = true;
         public bool enableRayTrace = false;
+        public bool enableSuperResolution = false;
         public bool enableSRPBatch = true;
         public bool enableDynamicBatch = true;
         public bool enableInstanceBatch = true;
@@ -64,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
         public int localShadowMapResolution = 2048;
         public float shadowDistance = 128;
 
-        public InfinityRenderPipeline renderPipeline;
+        [System.NonSerialized] public InfinityRenderPipeline renderPipeline;
         public override Shader defaultShader { get { return defaultShaderProxy; } }
         public override Material defaultMaterial { get { return defaultMaterialProxy; } }
 

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
@@ -52,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shaderPassIndex = BuiltinMeshesPasses.Depth.shaderPassIndex,
                 viewPosition = camera.transform.position,
                 renderingLayerMask = depthFilter.renderingLayerMask,
-                viewKey = (ulong)(uint)camera.GetInstanceID()
+                viewKey = UnityEntityId.ToUInt64(camera)
             };
             RGDrawListRef depthDraws = m_RGBuilder.DeclareDrawList(m_DepthMeshProcessor, depthRequest, visibility, m_VisibilityShare);
 

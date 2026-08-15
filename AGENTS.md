@@ -78,6 +78,19 @@ data.draws = pass.UseDrawList(draws);
 cmdEncoder.Draw(data.draws);
 ```
 
+## Integrity / no paper-over
+
+These rules exist because Console-clean patches have already hidden real ownership, ordering, and lifetime bugs. A silent fallback is not a fix.
+
+1. **Do not disable a designed path to silence Console.** Forbidden patterns include `EnableAsyncCompute(false)` as a correctness switch, replacing `throw` with `return false`, dispatching with `count = 0` to look wired, and `if (shader == null) return` inside execute. If a feature is unimplemented, do not record the pass.
+2. **Do not swallow invalid resources.** An invalid `RGTextureRef` / `RGBufferRef`, a `Query*` miss, or a failed Resolve must fail at record/setup. Forbidden: `Texture2D.blackTexture` fallbacks, lighting-as-history, binding an empty `RenderTargetIdentifier` to compute.
+3. **Pass type is not a workaround knob.** Transfer = copy/present. Raster = draw. Compute = dispatch. Gizmo/WireOverlay stay Raster. The only allowed native-RP exception is `EnableNativeRenderPass(false)` because Unity forbids drawing gizmos inside `BeginRenderPass`. Never move Draw into Transfer to dodge that API.
+4. **History lives only in `HistoryCache`.** Cross-frame color/depth is `ImportTexture` plus a frame-end CopyHistory transfer. Never Query a same-frame scoper ID that has not been written yet and call it history.
+5. **One semantic buffer, one owner.** Downstream reads the ID the last producer registered (`DisplayColorBuffer` for the frame's present source). Do not guess a sibling ID (`SuperResolutionBuffer` vs `AntiAliasingBuffer` vs `LightingBuffer`).
+6. **Console wording is not the root cause.** Unity's `temporary render texture` message is the empty-identifier diagnostic. It does not mean RDG used `GetTemporaryRT`. Check handle validity, pass order, and who should `Register*` first.
+7. **Ownership, order, and lifetime first; API migration second.** A workaround must be `// TODO: <root cause>` and cannot be the final design.
+8. **RDG textures go through Create / Import / ResourcePool only.** No `GetTemporaryRT` on hot paths.
+
 ## Unity / Shader
 
 - Components: prefer `[ExecuteAlways]` + `AddComponentMenu("InfinityRenderer/...")`.

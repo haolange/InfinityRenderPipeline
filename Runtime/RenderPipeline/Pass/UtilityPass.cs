@@ -24,14 +24,13 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderWireOverlay(RenderContext renderContext, Camera camera)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer);
 
             RendererList wireOverlayRendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
 
-            // Add WireOverlayPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
             {
-                //Setup Phase
+                passRef.EnableNativeRenderPass(false);
                 passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
 
@@ -40,7 +39,6 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.rendererList = wireOverlayRendererList;
                 }
 
-                //Execute Phase
                 passRef.SetExecuteFunc((in WireOverlayPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     cmdEncoder.DrawRendererList(passData.rendererList);
@@ -59,14 +57,13 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-                RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+                RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer);
 
                 RendererList gizmosRendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
 
-                // Add GizmosPass
                 using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
-                    //Setup Phase
+                    passRef.EnableNativeRenderPass(false);
                     passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                     passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
 
@@ -75,7 +72,6 @@ namespace InfinityTech.Rendering.Pipeline
                         passData.rendererList = gizmosRendererList;
                     }
 
-                    //Execute Phase
                     passRef.SetExecuteFunc((in GizmosPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                     {
                         cmdEncoder.DrawRendererList(passData.rendererList);
@@ -127,7 +123,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderPresent(RenderContext renderContext, Camera camera)
         {
-            RGTextureRef srcTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            RGTextureRef srcTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer);
 
             // Add PresentPass
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))

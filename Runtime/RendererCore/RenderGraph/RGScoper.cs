@@ -1,4 +1,5 @@
-﻿using Unity.Collections;
+﻿using System;
+using Unity.Collections;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
 
@@ -16,15 +17,13 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Set(in int key, in Type value)
         {
-            m_ResourceMap.TryAdd(key, value);
+            m_ResourceMap[key] = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Type Get(in int key)
+        internal bool TryGet(in int key, out Type value)
         {
-            Type output;
-            m_ResourceMap.TryGetValue(key, out output);
-            return output;
+            return m_ResourceMap.TryGetValue(key, out value);
         }
 
         internal void Clear()
@@ -53,9 +52,26 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryQueryBuffer(in int handle, out RGBufferRef bufferRef)
+        {
+            if (m_BufferMap.TryGet(handle, out bufferRef) && bufferRef.IsValid())
+            {
+                return true;
+            }
+
+            bufferRef = default;
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGBufferRef QueryBuffer(in int handle)
         {
-            return m_BufferMap.Get(handle);
+            if (!TryQueryBuffer(handle, out RGBufferRef bufferRef))
+            {
+                throw new InvalidOperationException($"RGScoper.QueryBuffer: handle {handle} is not registered.");
+            }
+
+            return bufferRef;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -73,9 +89,26 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryQueryTexture(in int handle, out RGTextureRef textureRef)
+        {
+            if (m_TextureMap.TryGet(handle, out textureRef) && textureRef.IsValid())
+            {
+                return true;
+            }
+
+            textureRef = default;
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef QueryTexture(in int handle)
         {
-            return m_TextureMap.Get(handle);
+            if (!TryQueryTexture(handle, out RGTextureRef textureRef))
+            {
+                throw new InvalidOperationException($"RGScoper.QueryTexture: handle {handle} is not registered.");
+            }
+
+            return textureRef;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -16,7 +16,7 @@ namespace InfinityTech.ActorAction.Editor
 
         void OnWizardCreate()
         {
-            MeshComponent[] meshComponents = FindObjectsByType<MeshComponent>(FindObjectsSortMode.None);
+            MeshComponent[] meshComponents = FindObjectsByType<MeshComponent>();
             foreach (MeshComponent meshComponent in meshComponents)
             {
                 int meshIndex = Random.Range(0, meshs.Length);
@@ -49,7 +49,7 @@ namespace InfinityTech.ActorAction.Editor
 
         void OnWizardCreate()
         {
-            MeshComponent[] meshComponents = FindObjectsByType<MeshComponent>(FindObjectsSortMode.None);
+            MeshComponent[] meshComponents = FindObjectsByType<MeshComponent>();
             foreach (MeshComponent meshComponent in meshComponents)
             {
                 int materiaIndex = Random.Range(0, materials.Length);

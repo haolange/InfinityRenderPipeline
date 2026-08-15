@@ -1,8 +1,10 @@
 using System;
 using UnityEngine;
 using UnityEngine.VFX;
+using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Component;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
@@ -252,7 +254,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_ShadowMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
         }
 
-        protected override void Render(ScriptableRenderContext scriptableRenderContext, Camera[] cameras)
+        protected override void Render(ScriptableRenderContext scriptableRenderContext, List<Camera> cameras)
         {
             // Begin FrameContext
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
@@ -261,11 +263,11 @@ namespace InfinityTech.Rendering.Pipeline
 
                 InvokeProxyUpdate();
                 m_MeshSceneResidency.Update();
-                CommandBuffer cmdBuffer = CommandBufferPool.Get("");
+                CommandBuffer cmdBuffer = CommandBufferPool.Get("InfinityRP.Frame");
                 cmdBuffer.Clear();
                 
-                BeginFrameRendering(scriptableRenderContext, cameras);
-                for (int i = 0; i < cameras.Length; ++i)
+                BeginContextRendering(scriptableRenderContext, cameras);
+                for (int i = 0; i < cameras.Count; ++i)
                 {
                     Camera camera = cameras[i];
                     CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
@@ -374,7 +376,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 for (int j = 0; j < visibleLights.Length; ++j)
                                 {
                                     VisibleLight visibleLight = visibleLights[j];
-                                    if (lights.TryGetValue(visibleLight.light.GetInstanceID(), out LightComponent additionLight))
+                                    if (lights.TryGetValue(UnityEntityId.ToInt32(visibleLight.light), out LightComponent additionLight))
                                     {
                                         switch (additionLight.lightType)
                                         {
@@ -505,6 +507,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 // ═══════════════════════════════════════════════════════════
                                 RenderCascadeShadow(renderContext, camera, cullingResults);               // [Graphics] Cascade Shadow Maps
                                 RenderLocalShadow(renderContext, camera, cullingResults);                 // [Graphics] Local Shadow Maps
+                                FlushShadowCasterCulling(scriptableRenderContext, cullingResults);
                                 ComputeHiZ(renderContext, camera);                                       // [Async] HiZ Min/Max Pyramid
                                 ComputeHalfResDownsample(renderContext, camera);                         // [Async] Half-Res Depth + Normal
                                 ComputeAtmosphericLUT(renderContext, camera);                            // [Async] Atmospheric Scattering LUTs
@@ -542,10 +545,19 @@ namespace InfinityTech.Rendering.Pipeline
                                 // ═══════════════════════════════════════════════════════════
                                 // PHASE 7: POST-PROCESSING
                                 // ═══════════════════════════════════════════════════════════
-                                ComputeSuperResolution(renderContext, camera, cameraUniform.jitter);      // Temporal Upscaling
-                                ComputeAntiAliasing(renderContext, camera, historyCache);                 // TAA (fallback if no SR)
-                                CopyHistoryAntiAliasing(renderContext);
-                                ComputePostProcessing(renderContext, camera);                             // Bloom + Color Grading + Tonemapping
+                                if (pipelineAsset.enableSuperResolution)
+                                {
+                                    ComputeSuperResolution(renderContext, camera, historyCache, cameraUniform.jitter);
+                                    CopyHistorySuperResolution(renderContext);
+                                    m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.SuperResolutionBuffer));
+                                }
+                                else
+                                {
+                                    ComputeAntiAliasing(renderContext, camera, historyCache);
+                                    CopyHistoryAntiAliasing(renderContext);
+                                    m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer));
+                                }
+                                ComputePostProcessing(renderContext, camera, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer));
 
                             #if UNITY_EDITOR
                                 RenderWireOverlay(renderContext, camera);
@@ -564,6 +576,7 @@ namespace InfinityTech.Rendering.Pipeline
                         {
                             // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
                             m_RGBuilder.ClearRecordedGraph();
+                            m_ShadowCasterSplits.Clear();
                             m_VisibilityShare.Release(sharedVisibility);
                             sharedVisibility = MeshVisibilityHandle.Invalid;
                         }
@@ -573,11 +586,10 @@ namespace InfinityTech.Rendering.Pipeline
                     m_RGScoper.Clear();
                     cameraUniform.UnpateUniformData(camera, true);
                 }
-                EndFrameRendering(scriptableRenderContext, cameras);
-                
-                // Execute FrameContext
+
                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                 scriptableRenderContext.Submit();
+                EndContextRendering(scriptableRenderContext, cameras);
 
                 // Physical GPU/CPU resource retirement after Submit (logical Retire happened in ReleaseAll).
                 MeshDrawGPUBackend.FlushRetiredPayloads();

@@ -128,6 +128,11 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetGlobalVectorArray(propertyName, values);
         }
 
+        public void SetGlobalVectorArray(int nameID, Vector4[] values)
+        {
+            m_CommandBuffer.SetGlobalVectorArray(nameID, values);
+        }
+
         public void SetGlobalMatrixArray(string propertyName, List<Matrix4x4> values)
         {
             m_CommandBuffer.SetGlobalMatrixArray(propertyName, values);
@@ -141,6 +146,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetGlobalMatrixArray(string propertyName, Matrix4x4[] values)
         {
             m_CommandBuffer.SetGlobalMatrixArray(propertyName, values);
+        }
+
+        public void SetGlobalMatrixArray(int nameID, Matrix4x4[] values)
+        {
+            m_CommandBuffer.SetGlobalMatrixArray(nameID, values);
         }
 
         public void SetGlobalTexture(string name, RenderTargetIdentifier value)
@@ -690,6 +700,11 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetGlobalVectorArray(propertyName, values);
         }
 
+        public void SetGlobalVectorArray(int nameID, Vector4[] values)
+        {
+            m_CommandBuffer.SetGlobalVectorArray(nameID, values);
+        }
+
         public void SetGlobalMatrixArray(string propertyName, List<Matrix4x4> values)
         {
             m_CommandBuffer.SetGlobalMatrixArray(propertyName, values);
@@ -703,6 +718,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetGlobalMatrixArray(string propertyName, Matrix4x4[] values)
         {
             m_CommandBuffer.SetGlobalMatrixArray(propertyName, values);
+        }
+
+        public void SetGlobalMatrixArray(int nameID, Matrix4x4[] values)
+        {
+            m_CommandBuffer.SetGlobalMatrixArray(nameID, values);
         }
 
         public void SetGlobalTexture(string name, RenderTargetIdentifier value)

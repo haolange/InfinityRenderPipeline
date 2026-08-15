@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.RenderGraph
@@ -54,6 +55,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public MeshDrawList resolvedList;
         public MeshDrawGpuStaging gpuStaging;
         public MeshDrawGpuPayload gpuPayload;
+        public FBufferRef cpuIndexBuffer;
         public bool hasSideEffect;
     }
 
@@ -282,6 +284,33 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Records[index] = record;
         }
 
+        public void PrepareSubmit(CommandBuffer cmdBuffer, in RGDrawListRef draws)
+        {
+            if (cmdBuffer == null || !IsLiveRef(draws))
+            {
+                return;
+            }
+
+            RGDrawListRecord record = m_Records[draws.index];
+            if (record.state != ERGDrawListCompileState.Resolved || record.pipeline == null)
+            {
+                return;
+            }
+
+            if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect
+                && record.gpuPayload != null
+                && record.gpuStaging != null
+                && record.pipeline.PrepareGpu(cmdBuffer, record.resolvedList, record.gpuPayload, record.gpuStaging))
+            {
+                m_Records[draws.index] = record;
+                return;
+            }
+
+            record.selectedBackend = EMeshBackendPolicy.CpuDirect;
+            record.cpuIndexBuffer = record.pipeline.PrepareCpuDirect(cmdBuffer, record.resolvedList);
+            m_Records[draws.index] = record;
+        }
+
         public void Submit(CommandBuffer cmdBuffer, in RGDrawListRef draws)
         {
             if (cmdBuffer == null || !IsLiveRef(draws))
@@ -308,7 +337,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 return;
             }
 
-            record.pipeline.Submit(cmdBuffer, record.resolvedList, record.request.shaderPassIndex);
+            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.request.shaderPassIndex, record.cpuIndexBuffer);
         }
 
         /// <summary>

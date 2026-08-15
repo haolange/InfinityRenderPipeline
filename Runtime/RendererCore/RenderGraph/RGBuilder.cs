@@ -61,6 +61,7 @@ namespace InfinityTech.Rendering.RenderGraph
             syncToPassIndex = -1;
             syncFromPassIndex = -1;
             needGraphicsFence = false;
+            fence = default;
         }
     }
 
@@ -570,33 +571,40 @@ namespace InfinityTech.Rendering.RenderGraph
                     int lastReadPassIndex = Math.Max(GetLatestValidReadIndex(resourceInfo), GetLatestValidWriteIndex(resourceInfo));
                     if (lastReadPassIndex != -1)
                     {
+                        int releasePassIndex = lastReadPassIndex;
                         if (m_PassCompileInfos[lastReadPassIndex].enableAsyncCompute)
                         {
                             int currentPassIndex = lastReadPassIndex;
                             int firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
-                            while (firstWaitingPassIndex == -1 && currentPassIndex < m_PassCompileInfos.size)
+                            while (firstWaitingPassIndex == -1 && currentPassIndex + 1 < m_PassCompileInfos.size)
                             {
                                 currentPassIndex++;
-                                if (m_PassCompileInfos[currentPassIndex].enableAsyncCompute) 
+                                if (m_PassCompileInfos[currentPassIndex].enableAsyncCompute)
                                 {
                                     firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
                                 }
                             }
 
-                            ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[Math.Max(0, firstWaitingPassIndex - 1)];
-                            passInfo.resourceReleaseList[type].Add(i);
-
-                            if (currentPassIndex == m_PassCompileInfos.size) 
+                            if (firstWaitingPassIndex != -1)
                             {
-                                IRGPass invalidPass = m_PassList[lastReadPassIndex];
-                                throw new InvalidOperationException($"Async pass {invalidPass.name} was never synchronized on the graphics pipeline.");
+                                releasePassIndex = Math.Max(0, firstWaitingPassIndex - 1);
                             }
-                        } 
-                        else 
-                        {
-                            ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[lastReadPassIndex];
-                            passInfo.resourceReleaseList[type].Add(i);
+                            else
+                            {
+                                // No graphics fence was recorded. Keep the resource until the last
+                                // live pass so the pool cannot reuse it while async work is in flight.
+                                for (int pass = m_PassCompileInfos.size - 1; pass >= 0; --pass)
+                                {
+                                    if (!m_PassCompileInfos[pass].culled)
+                                    {
+                                        releasePassIndex = pass;
+                                        break;
+                                    }
+                                }
+                            }
                         }
+
+                        m_PassCompileInfos[releasePassIndex].resourceReleaseList[type].Add(i);
                     }
                 }
             }
@@ -1019,27 +1027,32 @@ namespace InfinityTech.Rendering.RenderGraph
             graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
             graphContext.cmdBuffer.Clear();
 
-            switch (pass.passType)
+            if (pass.enableAsyncCompute)
             {
-                case EPassType.Compute:
-                case EPassType.RayTracing:
-                    if (pass.enableAsyncCompute)
-                    {
-                        CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
-                        asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
-                        graphContext.cmdBuffer = asyncCmdBuffer;
-                    }
-                    break;
+                CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
+                asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
+                graphContext.cmdBuffer = asyncCmdBuffer;
+            }
 
-                case EPassType.Raster:
-                    if (passCompileInfo.syncToPassIndex != -1)
-                    {
-                        graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(m_PassCompileInfos[passCompileInfo.syncToPassIndex].fence);
-                    }
+            if (passCompileInfo.syncToPassIndex != -1)
+            {
+                ref RGPassCompileInfo producerInfo = ref m_PassCompileInfos[passCompileInfo.syncToPassIndex];
+                if (producerInfo.needGraphicsFence)
+                {
+                    graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(producerInfo.fence);
+                }
+            }
 
-                    //SetRenderTarget(ref graphContext, passCompileInfo);
+            if (pass.passType == EPassType.Raster)
+            {
+                if (pass.enableNativeRenderPass)
+                {
                     BeginRasterPass(ref graphContext, passCompileInfo);
-                    break;
+                }
+                else
+                {
+                    SetRenderTarget(ref graphContext, passCompileInfo);
+                }
             }
         }
 
@@ -1050,23 +1063,29 @@ namespace InfinityTech.Rendering.RenderGraph
 
             switch (pass.passType)
             {
+                case EPassType.Raster:
+                    if (pass.enableNativeRenderPass)
+                    {
+                        EndRasterPass(ref graphContext, passCompileInfo);
+                    }
+                    break;
+            }
+
+            if (passCompileInfo.needGraphicsFence)
+            {
+                passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
+            }
+
+            switch (pass.passType)
+            {
                 case EPassType.Compute:
                 case EPassType.RayTracing:
-                    if (passCompileInfo.needGraphicsFence)
-                    {
-                        passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
-                    }
-
                     if (pass.enableAsyncCompute)
                     {
                         graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
                         CommandBufferPool.Release(graphContext.cmdBuffer);
                         graphContext.cmdBuffer = graphicsCmdBuffer;
                     }
-                    break;
-
-                case EPassType.Raster:
-                    EndRasterPass(ref graphContext, passCompileInfo);
                     break;
             }
 
@@ -1111,6 +1130,12 @@ namespace InfinityTech.Rendering.RenderGraph
                             EnsureDrawListResolved(usedDrawLists[i]);
                         }
 
+                        // D3D12: SetBufferData / DispatchCompute cannot run inside BeginRenderPass.
+                        for (int i = 0; i < usedDrawLists.Count; ++i)
+                        {
+                            m_DrawListRecords.PrepareSubmit(graphContext.cmdBuffer, usedDrawLists[i]);
+                        }
+
                         PrePassExecute(ref graphContext, passInfo);
                         passInfo.pass.Execute(ref graphContext);
                         PostPassExecute(graphicsCmdBuffer, ref graphContext, ref passInfo);
@@ -1124,6 +1149,9 @@ namespace InfinityTech.Rendering.RenderGraph
                     throw;
                 }
             }
+
+            graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
+            graphContext.cmdBuffer.Clear();
         }
         
         public void Dispose()

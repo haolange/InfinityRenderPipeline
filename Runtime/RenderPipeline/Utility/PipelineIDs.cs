@@ -37,6 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeSuperResolution,
         ComputeAntiAliasing,
         CopyHistoryAntiAliasing,
+        CopyHistorySuperResolution,
         ComputePostProcessing,
         RenderWireOverlay,
         RenderGizmos,
@@ -102,6 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int SuperResolutionBuffer = Shader.PropertyToID("_SuperResolutionTexture");
         public static int AntiAliasingBuffer = Shader.PropertyToID("_AntiAliasingBuffer");
         public static int PostProcessBuffer = Shader.PropertyToID("_PostProcessTexture");
+        public static int DisplayColorBuffer = Shader.PropertyToID("_DisplayColorTexture");
         public static int BloomBuffer = Shader.PropertyToID("_BloomTexture");
         public static int MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");

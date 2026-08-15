@@ -8,10 +8,10 @@ namespace InfinityTech.Component.Editor
     internal class TerrainComponentEditor : UnityEditor.Editor
     {
         public bool showGeneral = true;
-        public SerializedProperty lOD0ScreenSize;
-        public SerializedProperty lOD0Distribution;
-        public SerializedProperty lODXDistribution;
-        public SerializedObject serializedTerrain;
+        [System.NonSerialized] SerializedProperty lOD0ScreenSize;
+        [System.NonSerialized] SerializedProperty lOD0Distribution;
+        [System.NonSerialized] SerializedProperty lODXDistribution;
+        [System.NonSerialized] SerializedObject serializedTerrain;
 
         TerrainComponent m_Terrain { get { return target as TerrainComponent; } }
 

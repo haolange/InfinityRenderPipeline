@@ -5,6 +5,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Core;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.Pipeline;
 
@@ -136,7 +137,39 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// </summary>
         public void Submit(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex)
         {
-            SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex);
+            FBufferRef indexBuffer = PrepareCpuDirect(cmdBuffer, drawList);
+            SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex, indexBuffer);
+        }
+
+        internal FBufferRef PrepareCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList)
+        {
+            if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
+                || m_Residency.TransformBuffer.buffer == null
+                || m_Residency.PreviousTransformBuffer.buffer == null)
+            {
+                return default;
+            }
+
+            int indexCount = math.max(1, drawList.instanceCount);
+            FBufferRef indexBufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(math.max(indexCount, 16), Marshal.SizeOf<int>()));
+            m_FrameRentedBuffers.Add(indexBufferRef);
+            cmdBuffer.SetBufferData(indexBufferRef.buffer, drawList.instanceIndices, 0, 0, drawList.instanceCount);
+            return indexBufferRef;
+        }
+
+        internal bool PrepareGpu(
+            CommandBuffer cmdBuffer,
+            in MeshDrawList drawList,
+            MeshDrawGpuPayload payload,
+            MeshDrawGpuStaging staging)
+        {
+            if (!MeshDrawGPUBackend.SupportsIndirect || payload == null || staging == null)
+            {
+                MeshPipelineDiagnostics.GpuOverflowCount++;
+                return false;
+            }
+
+            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, m_DrawProfiler, payload, staging);
         }
 
         internal void SubmitGpu(
@@ -146,14 +179,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging)
         {
-            if (!MeshDrawGPUBackend.SupportsIndirect || payload == null || staging == null)
-            {
-                MeshPipelineDiagnostics.GpuOverflowCount++;
-                SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex);
-                return;
-            }
-
-            bool submitted = MeshDrawGPUBackend.SubmitIndirect(
+            MeshDrawGPUBackend.DrawIndirect(
                 cmdBuffer,
                 drawList,
                 shaderPassIndex,
@@ -162,10 +188,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_DrawProfiler,
                 payload,
                 staging);
-            if (!submitted)
-            {
-                SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex);
-            }
         }
 
         internal int GetBoundsCullCount()
@@ -214,9 +236,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassDrawCache.Dispose();
         }
 
-        private void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex)
+        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, FBufferRef indexBufferRef)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
+                || indexBufferRef.buffer == null
                 || m_Residency.TransformBuffer.buffer == null
                 || m_Residency.PreviousTransformBuffer.buffer == null)
             {
@@ -225,16 +248,11 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             using (new ProfilingScope(cmdBuffer, m_DrawProfiler))
             {
-                int indexCount = math.max(1, drawList.instanceCount);
-                FBufferRef indexBufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(math.max(indexCount, 16), Marshal.SizeOf<int>()));
-                m_FrameRentedBuffers.Add(indexBufferRef);
-                cmdBuffer.SetBufferData(indexBufferRef.buffer, drawList.instanceIndices, 0, 0, drawList.instanceCount);
-
                 for (int i = 0; i < drawList.commandCount; ++i)
                 {
                     MeshDrawCommand command = drawList.commands[i];
-                    Mesh mesh = Resources.InstanceIDToObject(command.meshUnityId) as Mesh;
-                    Material material = Resources.InstanceIDToObject(command.materialUnityId) as Material;
+                    Mesh mesh = UnityEntityId.ToObject<Mesh>(command.meshUnityId);
+                    Material material = UnityEntityId.ToObject<Material>(command.materialUnityId);
                     if (mesh == null || material == null || command.countOffset.x <= 0)
                     {
                         continue;

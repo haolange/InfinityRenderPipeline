@@ -228,7 +228,7 @@ namespace InfinityTech.Rendering.GPUResource
         where TResource : class
         where TDescriptor : struct, IEquatable<TDescriptor>
     {
-        private struct Entry
+        protected struct Entry
         {
             public TDescriptor descriptor;
             public TResource resource;
