@@ -6,11 +6,9 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
-    public struct RGTransferEncoder
+    public struct RGTransferEncoder : ITransferCommands
     {
         internal CommandBuffer m_CommandBuffer;
-
-        public static implicit operator CommandBuffer(in RGTransferEncoder cmdEncoder) => cmdEncoder.m_CommandBuffer;
 
         internal RGTransferEncoder(CommandBuffer commandBuffer)
         {
@@ -43,11 +41,9 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    public struct RGComputeEncoder
+    public struct RGComputeEncoder : IComputeCommands
     {
         internal CommandBuffer m_CommandBuffer;
-
-        public static implicit operator CommandBuffer(in RGComputeEncoder cmdEncoder) => cmdEncoder.m_CommandBuffer;
 
         internal RGComputeEncoder(CommandBuffer commandBuffer)
         {
@@ -393,17 +389,35 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             m_CommandBuffer.DispatchCompute(computeShader, kernelIndex, indirectBuffer, argsOffset);
         }
+
+        public void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst)
+        {
+            m_CommandBuffer.CopyTexture(src, dst);
+        }
+
+        public void BeginSample(string name)
+        {
+            m_CommandBuffer.BeginSample(name);
+        }
+
+        public void EndSample(string name)
+        {
+            m_CommandBuffer.EndSample(name);
+        }
     }
 
-    public struct RGRaytracingEncoder
+    public struct RGRaytracingEncoder : IRaytracingCommands
     {
         internal CommandBuffer m_CommandBuffer;
-
-        public static implicit operator CommandBuffer(in RGRaytracingEncoder cmdEncoder) => cmdEncoder.m_CommandBuffer;
 
         internal RGRaytracingEncoder(CommandBuffer commandBuffer)
         {
             m_CommandBuffer = commandBuffer;
+        }
+
+        public void SetRayTracingShaderPass(RayTracingShader rayTracingShader, string passName)
+        {
+            m_CommandBuffer.SetRayTracingShaderPass(rayTracingShader, passName);
         }
 
         public void SetRayTracingAccelerationStructure(RayTracingShader rayTracingShader, string name, RayTracingAccelerationStructure rayTracingAccelerationStructure)
@@ -582,12 +596,10 @@ namespace InfinityTech.Rendering.RenderGraph
         }
     }
 
-    public struct RGRasterEncoder
+    public struct RGRasterEncoder : IRasterCommands
     {
         internal CommandBuffer m_CommandBuffer;
         internal RGDrawListContext m_DrawLists;
-
-        public static implicit operator CommandBuffer(in RGRasterEncoder cmdEncoder) => cmdEncoder.m_CommandBuffer;
 
         internal RGRasterEncoder(CommandBuffer commandBuffer, RGDrawListContext drawLists = null)
         {

@@ -65,6 +65,9 @@ namespace InfinityTech.Rendering.LightPipeline
             m_DirectionalLightElements = new NativeList<FDirectionalLightElement>(2, Allocator.Persistent);
         }
 
+        internal int DirectionalLightCount => m_DirectionalLightElements.Length;
+        internal GraphicsBuffer DirectionalLightBuffer => m_DirectionalLightBuffer;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {

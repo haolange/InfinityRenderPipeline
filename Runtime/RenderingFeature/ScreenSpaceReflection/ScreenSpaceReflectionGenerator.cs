@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.GraphicsFeature
 {
@@ -89,69 +90,69 @@ namespace InfinityTech.Rendering.GraphicsFeature
             m_Shader = shader;
         }
 
-        public void Render(CommandBuffer cmdBuffer, in SSRParameterDescriptor parameters, in SSRInputDescriptor inputData, in SSROutputDescriptor outputData) 
+        public void Render<T>(T cmd, in SSRParameterDescriptor parameters, in SSRInputDescriptor inputData, in SSROutputDescriptor outputData) where T : IComputeCommands
         {
-            cmdBuffer.SetComputeIntParam(m_Shader, SSRShaderIDs.NumRays, parameters.numRays);
-            cmdBuffer.SetComputeIntParam(m_Shader, SSRShaderIDs.NumSteps, parameters.numSteps);
-            cmdBuffer.SetComputeIntParam(m_Shader, SSRShaderIDs.FrameIndex, inputData.frameIndex);
-            cmdBuffer.SetComputeFloatParam(m_Shader, SSRShaderIDs.BRDFBias, parameters.brdfBias);
-            cmdBuffer.SetComputeFloatParam(m_Shader, SSRShaderIDs.Fadeness, parameters.fadeness);
-            cmdBuffer.SetComputeFloatParam(m_Shader, SSRShaderIDs.Roughness, parameters.roughness);
-            cmdBuffer.SetComputeFloatParam(m_Shader, SSRShaderIDs.SpatialRadius, parameters.spatialRadius);
-            cmdBuffer.SetComputeFloatParam(m_Shader, SSRShaderIDs.TemporalScale, parameters.temporalScale);
-            cmdBuffer.SetComputeFloatParam(m_Shader, SSRShaderIDs.TemporalWeight, parameters.temporalWeight);
-            cmdBuffer.SetComputeVectorParam(m_Shader, SSRShaderIDs.Resolution, inputData.resolution);
-            cmdBuffer.SetComputeVectorParam(m_Shader, SSRShaderIDs.FilterResolution, inputData.filterResolution);
-            cmdBuffer.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_Proj, inputData.matrix_Proj);
-            cmdBuffer.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_InvProj, inputData.matrix_InvProj);
-            cmdBuffer.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_ViewProj, inputData.matrix_ViewProj);
-            cmdBuffer.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_InvViewProj, inputData.matrix_InvViewProj);
-            cmdBuffer.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_LastViewProj, inputData.matrix_LastViewProj);
-            cmdBuffer.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_WorldToView, inputData.matrix_WorldToView);
+            cmd.SetComputeIntParam(m_Shader, SSRShaderIDs.NumRays, parameters.numRays);
+            cmd.SetComputeIntParam(m_Shader, SSRShaderIDs.NumSteps, parameters.numSteps);
+            cmd.SetComputeIntParam(m_Shader, SSRShaderIDs.FrameIndex, inputData.frameIndex);
+            cmd.SetComputeFloatParam(m_Shader, SSRShaderIDs.BRDFBias, parameters.brdfBias);
+            cmd.SetComputeFloatParam(m_Shader, SSRShaderIDs.Fadeness, parameters.fadeness);
+            cmd.SetComputeFloatParam(m_Shader, SSRShaderIDs.Roughness, parameters.roughness);
+            cmd.SetComputeFloatParam(m_Shader, SSRShaderIDs.SpatialRadius, parameters.spatialRadius);
+            cmd.SetComputeFloatParam(m_Shader, SSRShaderIDs.TemporalScale, parameters.temporalScale);
+            cmd.SetComputeFloatParam(m_Shader, SSRShaderIDs.TemporalWeight, parameters.temporalWeight);
+            cmd.SetComputeVectorParam(m_Shader, SSRShaderIDs.Resolution, inputData.resolution);
+            cmd.SetComputeVectorParam(m_Shader, SSRShaderIDs.FilterResolution, inputData.filterResolution);
+            cmd.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_Proj, inputData.matrix_Proj);
+            cmd.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_InvProj, inputData.matrix_InvProj);
+            cmd.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_ViewProj, inputData.matrix_ViewProj);
+            cmd.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_InvViewProj, inputData.matrix_InvViewProj);
+            cmd.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_LastViewProj, inputData.matrix_LastViewProj);
+            cmd.SetComputeMatrixParam(m_Shader, SSRShaderIDs.Matrix_WorldToView, inputData.matrix_WorldToView);
 
-            cmdBuffer.BeginSample("RayTracing");
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.DepthTexture, inputData.depthTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.NormalTexture, inputData.normalTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.RoughnessTexture, inputData.roughnessTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.HiCTexture, inputData.hiCTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.HiZTexture, inputData.hiZTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.HitPDFTexture, outputData.reflectionUWVPDF);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.ColorMaskTexture, outputData.reflectionColorMask);
-            cmdBuffer.DispatchCompute(m_Shader, 0,  Mathf.CeilToInt(inputData.resolution.x / 16),  Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-            cmdBuffer.EndSample("RayTracing");
+            cmd.BeginSample("RayTracing");
+            cmd.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.DepthTexture, inputData.depthTexture);
+            cmd.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.NormalTexture, inputData.normalTexture);
+            cmd.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.RoughnessTexture, inputData.roughnessTexture);
+            cmd.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.HiCTexture, inputData.hiCTexture);
+            cmd.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.HiZTexture, inputData.hiZTexture);
+            cmd.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.HitPDFTexture, outputData.reflectionUWVPDF);
+            cmd.SetComputeTextureParam(m_Shader, 0, SSRShaderIDs.ColorMaskTexture, outputData.reflectionColorMask);
+            cmd.DispatchCompute(m_Shader, 0,  Mathf.CeilToInt(inputData.resolution.x / 16),  Mathf.CeilToInt(inputData.resolution.y / 16), 1);
+            cmd.EndSample("RayTracing");
 
-            cmdBuffer.BeginSample("SpatialFilter");
-            cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.DepthTexture, inputData.depthTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.NormalTexture, inputData.normalTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.RoughnessTexture, inputData.roughnessTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.HitPDFTextureRead, outputData.reflectionUWVPDF);
+            cmd.BeginSample("SpatialFilter");
+            cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.DepthTexture, inputData.depthTexture);
+            cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.NormalTexture, inputData.normalTexture);
+            cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.RoughnessTexture, inputData.roughnessTexture);
+            cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.HitPDFTextureRead, outputData.reflectionUWVPDF);
             for (int i = 0; i < parameters.numSpatial; ++i)
             {
                 if ((i & 1) == 0)
                 {
-                    cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.ColorMaskTextureRead, outputData.reflectionColorMask);
-                    cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.SpatialTexture, outputData.reflectionSpatial);
-                    cmdBuffer.DispatchCompute(m_Shader, 1, Mathf.CeilToInt(inputData.filterResolution.x / 16), Mathf.CeilToInt(inputData.filterResolution.y / 16), 1);
+                    cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.ColorMaskTextureRead, outputData.reflectionColorMask);
+                    cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.SpatialTexture, outputData.reflectionSpatial);
+                    cmd.DispatchCompute(m_Shader, 1, Mathf.CeilToInt(inputData.filterResolution.x / 16), Mathf.CeilToInt(inputData.filterResolution.y / 16), 1);
                 }
                 else
                 {
-                    cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.ColorMaskTextureRead, outputData.reflectionSpatial);
-                    cmdBuffer.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.SpatialTexture, outputData.reflectionColorMask);
-                    cmdBuffer.DispatchCompute(m_Shader, 1, Mathf.CeilToInt(inputData.filterResolution.x / 16), Mathf.CeilToInt(inputData.filterResolution.y / 16), 1);
-                    cmdBuffer.CopyTexture(outputData.reflectionColorMask, outputData.reflectionSpatial);
+                    cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.ColorMaskTextureRead, outputData.reflectionSpatial);
+                    cmd.SetComputeTextureParam(m_Shader, 1, SSRShaderIDs.SpatialTexture, outputData.reflectionColorMask);
+                    cmd.DispatchCompute(m_Shader, 1, Mathf.CeilToInt(inputData.filterResolution.x / 16), Mathf.CeilToInt(inputData.filterResolution.y / 16), 1);
+                    cmd.CopyTexture(outputData.reflectionColorMask, outputData.reflectionSpatial);
                 }
             }
-            cmdBuffer.EndSample("SpatialFilter");
+            cmd.EndSample("SpatialFilter");
 
-            cmdBuffer.BeginSample("TemporalFilter");
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.MotionTexture, inputData.motionTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.HitPDFTextureRead, outputData.reflectionUWVPDF);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.HistoryTexture, outputData.reflectionHistory);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.AliasingTexture, outputData.reflectionSpatial);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.AccmulateTexture, outputData.reflectionAccmulation);
-            cmdBuffer.DispatchCompute(m_Shader, 2, Mathf.CeilToInt(inputData.filterResolution.x / 16), Mathf.CeilToInt(inputData.filterResolution.y / 16), 1);
-            cmdBuffer.CopyTexture(outputData.reflectionAccmulation, outputData.reflectionHistory);
-            cmdBuffer.EndSample("TemporalFilter");
+            cmd.BeginSample("TemporalFilter");
+            cmd.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.MotionTexture, inputData.motionTexture);
+            cmd.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.HitPDFTextureRead, outputData.reflectionUWVPDF);
+            cmd.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.HistoryTexture, outputData.reflectionHistory);
+            cmd.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.AliasingTexture, outputData.reflectionSpatial);
+            cmd.SetComputeTextureParam(m_Shader, 2, SSRShaderIDs.AccmulateTexture, outputData.reflectionAccmulation);
+            cmd.DispatchCompute(m_Shader, 2, Mathf.CeilToInt(inputData.filterResolution.x / 16), Mathf.CeilToInt(inputData.filterResolution.y / 16), 1);
+            cmd.CopyTexture(outputData.reflectionAccmulation, outputData.reflectionHistory);
+            cmd.EndSample("TemporalFilter");
         }
     }
 }

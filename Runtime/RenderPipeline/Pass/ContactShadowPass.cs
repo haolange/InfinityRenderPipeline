@@ -5,6 +5,7 @@ using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -33,6 +34,9 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 resolution;
             public Matrix4x4 matrix_ViewProj;
             public Matrix4x4 matrix_InvViewProj;
+            public Vector4 worldSpaceCameraPos;
+            public int directionalLightCount;
+            public GraphicsBuffer directionalLightBuffer;
             public ComputeShader contactShadowShader;
             public RGTextureRef depthTexture;
             public RGTextureRef contactShadowTexture;
@@ -43,6 +47,10 @@ namespace InfinityTech.Rendering.Pipeline
             var stack = VolumeManager.instance.stack;
             var contactShadowSettings = stack.GetComponent<ContactShadow>();
             if (contactShadowSettings == null) return;
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.contactShadowShader, "ContactShadowCS"))
+            {
+                return;
+            }
 
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
@@ -70,8 +78,11 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.intensity = contactShadowSettings.Intensity.value;
                 passData.fadeDistance = contactShadowSettings.FadeDistance.value;
                 passData.resolution = new int2(width, height);
-                passData.matrix_ViewProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) * camera.worldToCameraMatrix;
-                passData.matrix_InvViewProj = passData.matrix_ViewProj.inverse;
+                passData.matrix_ViewProj = GraphicsUtility.GetComputeViewProj(camera);
+                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
+                passData.worldSpaceCameraPos = camera.transform.position;
+                passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
+                passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;
                 passData.contactShadowShader = pipelineAsset.contactShadowShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.contactShadowTexture = passRef.WriteTexture(contactShadowTexture);
@@ -80,14 +91,17 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ContactShadowPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.contactShadowShader == null) return;
-
                     cmdEncoder.SetComputeIntParam(passData.contactShadowShader, ContactShadowPassUtilityData.ContactShadow_NumStepsID, passData.numSteps);
                     cmdEncoder.SetComputeFloatParam(passData.contactShadowShader, ContactShadowPassUtilityData.ContactShadow_MaxDistanceID, passData.maxDistance);
                     cmdEncoder.SetComputeFloatParam(passData.contactShadowShader, ContactShadowPassUtilityData.ContactShadow_ThicknessID, passData.thickness);
                     cmdEncoder.SetComputeFloatParam(passData.contactShadowShader, ContactShadowPassUtilityData.ContactShadow_IntensityID, passData.intensity);
                     cmdEncoder.SetComputeFloatParam(passData.contactShadowShader, ContactShadowPassUtilityData.ContactShadow_FadeDistanceID, passData.fadeDistance);
                     cmdEncoder.SetComputeVectorParam(passData.contactShadowShader, ContactShadowPassUtilityData.ContactShadow_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
+                    cmdEncoder.SetComputeMatrixParam(passData.contactShadowShader, Shader.PropertyToID("Matrix_ViewProj"), passData.matrix_ViewProj);
+                    cmdEncoder.SetComputeMatrixParam(passData.contactShadowShader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
+                    cmdEncoder.SetComputeVectorParam(passData.contactShadowShader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
+                    cmdEncoder.SetComputeIntParam(passData.contactShadowShader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
+                    cmdEncoder.SetComputeBufferParam(passData.contactShadowShader, 0, LightShaderIDs.DirectionalLightBuffer, passData.directionalLightBuffer);
                     cmdEncoder.SetComputeTextureParam(passData.contactShadowShader, 0, ContactShadowPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.contactShadowShader, 0, ContactShadowPassUtilityData.UAV_ContactShadowTextureID, passData.contactShadowTexture);
                     cmdEncoder.DispatchCompute(passData.contactShadowShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);

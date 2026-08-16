@@ -49,6 +49,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeColorPyramid(RenderContext renderContext, Camera camera)
         {
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.colorPyramidShader, "KMain"))
+            {
+                return;
+            }
+
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
             int maxMipLevel = (int)math.floor(math.log2(math.max(width, height)));
@@ -73,8 +78,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ColorPyramidPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.colorPyramidShader == null) return;
-
                     int prevWidth = passData.resolution.x;
                     int prevHeight = passData.resolution.y;
 
@@ -111,8 +114,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistoryColorPyramid(RenderContext renderContext, Camera camera)
         {
-            RGTextureRef colorPyramidTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ColorPyramidBuffer);
-            RGTextureRef historyColorPyramidTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HistoryColorPyramidBuffer);
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out RGTextureRef colorPyramidTexture) ||
+                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.HistoryColorPyramidBuffer, out RGTextureRef historyColorPyramidTexture))
+            {
+                return;
+            }
 
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryColorPyramid)))
             {

@@ -1,5 +1,10 @@
 #pragma kernel TransmittanceLUT
 #pragma kernel MultiScatteringLUT
+#pragma kernel SkyViewLUT
+#pragma kernel AerialPerspectiveLUT
+#pragma kernel AtmosphereCubemap
+#pragma kernel SunBuffer
+#pragma kernel AtmosphereComposite
 
 #include "../../ShaderLibrary/Common.hlsl"
 
@@ -17,15 +22,139 @@ float Atmo_OzoneLayerCenter;
 float Atmo_OzoneLayerWidth;
 float4 Atmo_GroundAlbedo;
 
+float Atmo_Brightness;
+float Atmo_MultiScatterStrength;
+float Atmo_DrawGround;
+float Atmo_FarDepth;
+float Atmo_AerialPerspectiveDistance;
+float Atmo_SunAngle;
+float4 Atmo_SunDirection;
+float4 Atmo_SunIlluminance;
+float3 _WorldSpaceCameraPos;
+float4x4 Matrix_InvViewProj;
+
 Texture2D<float4> SRV_TransmittanceLUT;
+Texture2D<float4> SRV_MultiScatteringLUT;
+Texture2D<float4> SRV_SkyViewLUT;
+Texture3D<float4> SRV_AerialPerspectiveLUT;
+Texture2D<float> SRV_DepthTexture;
+StructuredBuffer<float4> SRV_SunBuffer;
 RWTexture2D<float4> UAV_TransmittanceLUT;
 RWTexture2D<float4> UAV_MultiScatteringLUT;
+RWTexture2D<float4> UAV_SkyViewLUT;
+RWTexture3D<float4> UAV_AerialPerspectiveLUT;
+RWTexture2DArray<float4> UAV_AtmosphereCubemap;
+RWStructuredBuffer<float4> UAV_SunBuffer;
+RWTexture2D<float4> UAV_LightingTexture;
 
 #define TRANSMITTANCE_STEPS 40
 #define MULTI_SCATTERING_STEPS 20
 #define MULTI_SCATTERING_SQRTSAMPLE_COUNT 8
 
-float GetAtmosphereRadius() { return Atmo_PlanetRadius + Atmo_AtmosphereHeight; }
+// Keeps the ray origin off the exact surface so a grazing ray cannot degenerate to a zero-length march.
+#define MIN_ALTITUDE 10.0
+
+//--------------------------------------------------------------
+// Planetary-scale geometry, cancellation free.
+//
+// Everything is parameterized by altitude h instead of radius r. At meter scale r*r is around
+// 4.05e13, where the fp32 spacing is about 4.2e6, so r*r - R*R destroys a true value of only
+// h*(2R+h) (about 2.5e7 for a 2 m camera). Expanding the difference of squares keeps every
+// intermediate at the magnitude of the answer.
+//--------------------------------------------------------------
+float PlanetDiameter() { return 2.0 * Atmo_PlanetRadius; }
+
+// r^2 - (R + hSphere)^2 for a point at altitude h.
+float SphereQuadraticC(float h, float hSphere)
+{
+    return (h - hSphere) * (PlanetDiameter() + h + hSphere);
+}
+
+// Inverts q = r^2 - R^2 back to an altitude. The sqrt only feeds a denominator of about 2R, so its
+// planetary-scale rounding contributes a relative error instead of cancelling against R.
+float AltitudeFromQ(float q)
+{
+    float radius = Atmo_PlanetRadius;
+    return q * rcp(radius + sqrt(max(radius * radius + q, 0.0)));
+}
+
+// Roots of t^2 + 2bt + c = 0 for a unit-length direction.
+bool RaySphereRoots(float b, float c, out float tNear, out float tFar)
+{
+    float discriminant = b * b - c;
+    if (discriminant < 0.0)
+    {
+        tNear = -1.0;
+        tFar = -1.0;
+        return false;
+    }
+
+    float root = sqrt(discriminant);
+    // Evaluate the root whose two terms share a sign, then recover the other from t0 * t1 = c.
+    // Taking -b + sqrt() unconditionally cancels whenever |c| << b*b.
+    float wellConditioned = (b >= 0.0) ? (-b - root) : (-b + root);
+    float other = abs(wellConditioned) > 1e-9 ? (c * rcp(wellConditioned)) : wellConditioned;
+
+    tNear = min(wellConditioned, other);
+    tFar = max(wellConditioned, other);
+    return true;
+}
+
+float RayZenithB(float h, float cosZenith)
+{
+    return (Atmo_PlanetRadius + h) * cosZenith;
+}
+
+// Distance from a point inside the atmosphere to the top boundary.
+float RayAtmosphereExit(float h, float cosZenith)
+{
+    float tNear, tFar;
+    if (!RaySphereRoots(RayZenithB(h, cosZenith), SphereQuadraticC(h, Atmo_AtmosphereHeight), tNear, tFar))
+    {
+        return 0.0;
+    }
+
+    return max(tFar, 0.0);
+}
+
+// Distance to the planet surface, or -1 when the ray misses it. The near root is the visible one;
+// the far root is the exit point on the other side of the planet.
+float RayGroundHit(float h, float cosZenith)
+{
+    float tNear, tFar;
+    if (!RaySphereRoots(RayZenithB(h, cosZenith), SphereQuadraticC(h, 0.0), tNear, tFar))
+    {
+        return -1.0;
+    }
+
+    return tNear > 0.0 ? tNear : -1.0;
+}
+
+// Altitude at distance t along a ray that starts at altitude h0 with b = RayZenithB(h0, cosZenith).
+float RayAltitudeAt(float h0, float b, float t)
+{
+    return max(AltitudeFromQ(SphereQuadraticC(h0, 0.0) + (2.0 * b + t) * t), 0.0);
+}
+
+// Cosine between the local up at distance t and the sun, without ever forming a planetary-scale position.
+float RayCosSunAt(float h0, float cosSun0, float cosViewSun, float t, float hAt)
+{
+    float numerator = (Atmo_PlanetRadius + h0) * cosSun0 + t * cosViewSun;
+    return clamp(numerator * rcp(Atmo_PlanetRadius + hAt), -1.0, 1.0);
+}
+
+float CameraAltitude()
+{
+    return max(_WorldSpaceCameraPos.y, MIN_ALTITUDE);
+}
+
+// The camera sits on a planet whose center is straight below the world origin, so its local up tilts
+// by cameraXZ / R. That is under a micro-radian for any playable world extent, so +Y is exact enough
+// and avoids reconstructing a 6.36e6 m position.
+float3 PlanetUp()
+{
+    return float3(0.0, 1.0, 0.0);
+}
 
 // Compute altitude-dependent density for each scattering component
 float3 GetRayleighDensity(float h) { return Atmo_RayleighScattering.rgb * exp(-h / Atmo_RayleighHeight); }
@@ -48,36 +177,24 @@ float3 GetScattering(float h)
     return GetRayleighDensity(h) + Atmo_MieScattering * exp(-h / Atmo_MieHeight);
 }
 
-// Ray-sphere intersection (closest positive t)
-// Returns distance to intersection, -1 if no intersection
-float RaySphereIntersect(float3 origin, float3 dir, float radius)
-{
-    float b = dot(origin, dir);
-    float c = dot(origin, origin) - radius * radius;
-    float discriminant = b * b - c;
-    if (discriminant < 0) return -1;
-    float t = -b + sqrt(discriminant);
-    return t > 0 ? t : -1;
-}
-
 // Mapping from UV to (altitude, cosViewZenith) for transmittance LUT
 void TransmittanceLUTParamsFromUV(float2 uv, out float altitude, out float cosAngle)
 {
     float x_mu = uv.x;
     float x_r = uv.y;
 
-    float H = sqrt(max(0, GetAtmosphereRadius() * GetAtmosphereRadius() - Atmo_PlanetRadius * Atmo_PlanetRadius));
+    float thickness = Atmo_AtmosphereHeight;
+    float H = sqrt(max(thickness * (PlanetDiameter() + thickness), 0.0));
     float rho = H * x_r;
-    float r = sqrt(rho * rho + Atmo_PlanetRadius * Atmo_PlanetRadius);
 
-    altitude = r - Atmo_PlanetRadius;
+    altitude = clamp(AltitudeFromQ(rho * rho), 0.0, thickness);
 
-    float d_min = GetAtmosphereRadius() - r;
+    float r = Atmo_PlanetRadius + altitude;
+    float d_min = thickness - altitude;
     float d_max = rho + H;
     float d = d_min + x_mu * (d_max - d_min);
 
-    cosAngle = d == 0 ? 1.0 : (H * H - rho * rho - d * d) / (2.0 * r * d);
-    cosAngle = clamp(cosAngle, -1, 1);
+    cosAngle = d <= 0.0 ? 1.0 : clamp((H * H - rho * rho - d * d) / (2.0 * r * d), -1.0, 1.0);
 }
 
 //--------------------------------------------------------------
@@ -97,12 +214,8 @@ void TransmittanceLUT(uint3 id : SV_DispatchThreadID)
     float altitude, cosAngle;
     TransmittanceLUTParamsFromUV(uv, altitude, cosAngle);
 
-    float r = Atmo_PlanetRadius + altitude;
-    float3 origin = float3(0, r, 0);
-    float3 dir = float3(sqrt(max(0, 1.0 - cosAngle * cosAngle)), cosAngle, 0);
-
-    float tMax = RaySphereIntersect(origin, dir, GetAtmosphereRadius());
-    if (tMax < 0) tMax = 0;
+    float tMax = RayAtmosphereExit(altitude, cosAngle);
+    float b = RayZenithB(altitude, cosAngle);
 
     // Numerical integration of optical depth
     float3 opticalDepth = 0;
@@ -111,9 +224,7 @@ void TransmittanceLUT(uint3 id : SV_DispatchThreadID)
     for (int i = 0; i < TRANSMITTANCE_STEPS; ++i)
     {
         float t = (i + 0.5) * dt;
-        float3 pos = origin + dir * t;
-        float h = length(pos) - Atmo_PlanetRadius;
-        h = max(h, 0);
+        float h = RayAltitudeAt(altitude, b, t);
 
         opticalDepth += GetExtinction(h) * dt;
     }
@@ -129,26 +240,20 @@ void TransmittanceLUT(uint3 id : SV_DispatchThreadID)
 //--------------------------------------------------------------
 float3 SampleTransmittanceLUT(float altitude, float cosAngle)
 {
-    float H = sqrt(max(0, GetAtmosphereRadius() * GetAtmosphereRadius() - Atmo_PlanetRadius * Atmo_PlanetRadius));
-    float r = Atmo_PlanetRadius + altitude;
-    float rho = sqrt(max(0, r * r - Atmo_PlanetRadius * Atmo_PlanetRadius));
+    float thickness = Atmo_AtmosphereHeight;
+    float H = sqrt(max(thickness * (PlanetDiameter() + thickness), 0.0));
+    float h = clamp(altitude, 0.0, thickness);
+    float rho = sqrt(max(h * (PlanetDiameter() + h), 0.0));
 
-    float x_r = rho / H;
+    float x_r = H > 0.0 ? rho / H : 0.0;
 
-    float d_min = GetAtmosphereRadius() - r;
+    float d_min = thickness - h;
     float d_max = rho + H;
+    float d = RayAtmosphereExit(h, cosAngle);
 
-    float d;
-    {
-        float discriminant = r * r * (cosAngle * cosAngle - 1.0) + GetAtmosphereRadius() * GetAtmosphereRadius();
-        d = max(0, -r * cosAngle + sqrt(max(0, discriminant)));
-    }
+    float x_mu = (d - d_min) * rcp(max(d_max - d_min, 1e-6));
 
-    float x_mu = (d - d_min) / max(d_max - d_min, 1e-6);
-
-    float2 uv = float2(x_mu, x_r);
-    uv = saturate(uv);
-
+    float2 uv = saturate(float2(x_mu, x_r));
     return SRV_TransmittanceLUT.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb;
 }
 
@@ -177,10 +282,8 @@ void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
 
     // UV.x = sun zenith cosine, UV.y = altitude (0..1)
     float cosSunZenith = uv.x * 2.0 - 1.0;
-    float altitude = uv.y * Atmo_AtmosphereHeight;
+    float altitude = max(uv.y * Atmo_AtmosphereHeight, MIN_ALTITUDE);
 
-    float r = Atmo_PlanetRadius + altitude;
-    float3 origin = float3(0, r, 0);
     float3 sunDir = float3(sqrt(max(0, 1.0 - cosSunZenith * cosSunZenith)), cosSunZenith, 0);
 
     // Integrate scattered luminance over all directions
@@ -198,11 +301,15 @@ void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
 
             float3 rayDir = float3(sin(theta) * cos(phi), cos(theta), sin(theta) * sin(phi));
 
-            float tMax = RaySphereIntersect(origin, rayDir, GetAtmosphereRadius());
-            float tGround = RaySphereIntersect(origin, rayDir, Atmo_PlanetRadius);
+            float cosZenith = rayDir.y;
+            float cosViewSun = dot(rayDir, sunDir);
+
+            float tMax = RayAtmosphereExit(altitude, cosZenith);
+            float tGround = RayGroundHit(altitude, cosZenith);
             bool hitGround = tGround > 0 && tGround < tMax;
             if (hitGround) tMax = tGround;
 
+            float b = RayZenithB(altitude, cosZenith);
             float dt = tMax / MULTI_SCATTERING_STEPS;
             float3 scatterLum = 0;
             float3 scatterWeight = 0;
@@ -211,26 +318,24 @@ void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
             for (int step = 0; step < MULTI_SCATTERING_STEPS; ++step)
             {
                 float t = (step + 0.5) * dt;
-                float3 pos = origin + rayDir * t;
-                float h = length(pos) - Atmo_PlanetRadius;
-                h = max(h, 0);
+                float h = RayAltitudeAt(altitude, b, t);
 
                 float3 extinction = GetExtinction(h);
                 float3 scattering = GetScattering(h);
                 float3 stepTransmittance = exp(-extinction * dt);
 
                 // Sun transmittance from this point
-                float cosAngle = dot(normalize(pos), sunDir);
+                float cosAngle = RayCosSunAt(altitude, cosSunZenith, cosViewSun, t, h);
                 float3 sunTransmittance = SampleTransmittanceLUT(h, cosAngle);
 
                 float3 S = scattering * sunTransmittance * isotropicPhase;
-                float3 Sint = (S - S * stepTransmittance) / max(extinction, 1e-6);
+                float3 Sint = (S - S * stepTransmittance) / max(extinction, 1e-9);
 
                 scatterLum += transmittance * Sint;
 
                 // Accumulate isotropic multi-scattering contribution
                 float3 MS = scattering;
-                float3 MSint = (MS - MS * stepTransmittance) / max(extinction, 1e-6);
+                float3 MSint = (MS - MS * stepTransmittance) / max(extinction, 1e-9);
                 scatterWeight += transmittance * MSint;
 
                 transmittance *= stepTransmittance;
@@ -239,22 +344,297 @@ void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
             // Ground contribution
             if (hitGround)
             {
-                float3 groundPos = origin + rayDir * tMax;
-                float cosAngleGround = dot(normalize(groundPos), sunDir);
+                float cosAngleGround = RayCosSunAt(altitude, cosSunZenith, cosViewSun, tMax, 0.0);
                 float3 groundTransmittance = SampleTransmittanceLUT(0, cosAngleGround);
                 scatterLum += transmittance * groundTransmittance * Atmo_GroundAlbedo.rgb * isotropicPhase * saturate(cosAngleGround);
             }
 
-            // Solid angle weight (uniform sphere sampling)
-            float solidAngleWeight = sin(theta) * Pi * Two_Pi / (MULTI_SCATTERING_SQRTSAMPLE_COUNT * MULTI_SCATTERING_SQRTSAMPLE_COUNT);
+            // Isotropic-phase weighted average over the sphere: sin(theta) dTheta dPhi / 4Pi. The weights
+            // must sum to 1, otherwise f_ms is scaled by 4Pi, leaves [0,1), and 1/(1-f_ms) flips sign.
+            float solidAngleWeight = sin(theta) * (Pi / MULTI_SCATTERING_SQRTSAMPLE_COUNT) * (Two_Pi / MULTI_SCATTERING_SQRTSAMPLE_COUNT) * (0.25 * Inv_Pi);
 
             lumTotal += scatterLum * solidAngleWeight;
             fms += scatterWeight * solidAngleWeight;
         }
     }
 
-    // Apply the multi-scattering factor: L_ms = L_2nd / (1 - f_ms)
-    float3 multiScatter = lumTotal / (1.0 - fms);
+    // Apply the multi-scattering factor: L_ms = L_2nd / (1 - f_ms).
+    // f_ms is bounded by scattering / extinction <= 1, so the clamp only guards degenerate parameters.
+    float3 multiScatter = lumTotal / max(1.0 - fms, 1e-3);
 
     UAV_MultiScatteringLUT[id.xy] = float4(multiScatter, 1);
+}
+
+#define SKY_STEPS 32
+
+float3 SampleMultiScattering(float altitude, float cosSunZenith)
+{
+    float2 uv = float2(saturate(cosSunZenith * 0.5 + 0.5), saturate(altitude / max(Atmo_AtmosphereHeight, 1.0)));
+    return SRV_MultiScatteringLUT.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb * Atmo_MultiScatterStrength;
+}
+
+//--------------------------------------------------------------
+// SkyView LUT parameterization.
+//
+// Latitude is stored as sign(l) * sqrt(|l|) so texel density grows towards the horizon, where the
+// optical depth gradient is steepest. Longitude is a plain equirectangular wrap, so the LUT must be
+// sampled with a repeating sampler in u; a clamping one leaves a one-texel seam behind the camera.
+//--------------------------------------------------------------
+float3 SkyViewUvToRay(float2 uv)
+{
+    float azimuth = (uv.x - 0.5) * Two_Pi;
+
+    float latitudeCoord = uv.y * 2.0 - 1.0;
+    float elevation = sign(latitudeCoord) * latitudeCoord * latitudeCoord * Half_Pi;
+
+    float cosEl = cos(elevation);
+    return normalize(float3(cosEl * sin(azimuth), sin(elevation), cosEl * cos(azimuth)));
+}
+
+float2 RayToSkyViewUv(float3 rayDir)
+{
+    // atan2(0,0) is undefined at the zenith / nadir; a stable azimuth keeps the
+    // last SkyView row sampleable instead of scattering into wrap-around black texels.
+    float2 horiz = rayDir.xz;
+    float azimuth = dot(horiz, horiz) > 1e-10 ? atan2(rayDir.x, rayDir.z) : 0.0;
+    float elevation = asin(clamp(rayDir.y, -1.0, 1.0));
+
+    float normalizedElevation = elevation / Half_Pi;
+    float latitudeCoord = sign(normalizedElevation) * sqrt(abs(normalizedElevation));
+
+    return float2(azimuth * Inv_Two_Pi + 0.5, latitudeCoord * 0.5 + 0.5);
+}
+
+float3 SampleSkyViewLUT(float3 rayDir)
+{
+    uint width, height;
+    SRV_SkyViewLUT.GetDimensions(width, height);
+
+    float2 uv = RayToSkyViewUv(rayDir);
+    // u wraps through the repeating sampler; v must stay inside the first tile or it wraps as well.
+    uv.y = clamp(uv.y, 0.5 / height, 1.0 - 0.5 / height);
+
+    return SRV_SkyViewLUT.SampleLevel(Global_bilinear_repeat_sampler, uv, 0).rgb;
+}
+
+float3 CubemapFaceDirection(uint face, float2 uv)
+{
+    float2 st = uv * 2.0 - 1.0;
+    float3 dir;
+    if (face == 0) dir = float3(1.0, -st.y, -st.x);
+    else if (face == 1) dir = float3(-1.0, -st.y, st.x);
+    else if (face == 2) dir = float3(st.x, 1.0, st.y);
+    else if (face == 3) dir = float3(st.x, -1.0, -st.y);
+    else if (face == 4) dir = float3(st.x, -st.y, 1.0);
+    else dir = float3(-st.x, -st.y, -1.0);
+    return normalize(dir);
+}
+
+// applyGroundTerm belongs to the sky only. Aerial perspective must keep its transmittance, because
+// scene geometry is what terminates those rays; zeroing it there erases the shaded pixel underneath.
+void IntegrateAtmosphereRay(float altitude, float3 rayDir, float tMax, bool applyGroundTerm, out float3 luminance, out float3 transmittance)
+{
+    luminance = 0;
+    transmittance = 1;
+
+    float3 sunDir = normalize(Atmo_SunDirection.xyz);
+    float3 up = PlanetUp();
+
+    float cosZenith = dot(up, rayDir);
+    float cosSunZenith = dot(up, sunDir);
+    float cosViewSun = dot(rayDir, sunDir);
+
+    float tGround = RayGroundHit(altitude, cosZenith);
+    bool hitGround = tGround > 0 && tGround < tMax;
+    if (hitGround)
+    {
+        tMax = tGround;
+    }
+
+    if (tMax <= 0)
+    {
+        return;
+    }
+
+    float b = RayZenithB(altitude, cosZenith);
+
+    float rayleighPhase = RayleighPhase(cosViewSun);
+    float miePhase = HenyeyGreensteinPhase(Atmo_MieAnisotropy, cosViewSun);
+
+    // A near-horizontal slant path is close to 900 km long, so uniform steps land 27 km apart and skip
+    // straight over the dense air near the camera, where the Rayleigh scale height is only 8 km.
+    // Distributing t quadratically puts the first step tens of meters out and keeps the tail cheap.
+    float previousT = 0.0;
+
+    for (int i = 0; i < SKY_STEPS; ++i)
+    {
+        float nextU = (i + 1.0) / SKY_STEPS;
+        float nextT = tMax * nextU * nextU;
+        float dt = nextT - previousT;
+        float t = 0.5 * (previousT + nextT);
+        previousT = nextT;
+
+        float h = RayAltitudeAt(altitude, b, t);
+
+        float3 extinction = GetExtinction(h);
+        float3 stepTransmittance = exp(-extinction * dt);
+
+        float cosSun = RayCosSunAt(altitude, cosSunZenith, cosViewSun, t, h);
+        float3 sunTransmittance = SampleTransmittanceLUT(h, cosSun);
+        float3 multiScatter = SampleMultiScattering(h, cosSun);
+
+        float3 rayleigh = GetRayleighDensity(h) * rayleighPhase;
+        float3 mie = Atmo_MieScattering * exp(-h / Atmo_MieHeight) * miePhase;
+        float3 scattering = GetScattering(h);
+
+        float3 S = (rayleigh + mie) * sunTransmittance * Atmo_SunIlluminance.rgb + scattering * multiScatter;
+        float3 Sint = (S - S * stepTransmittance) / max(extinction, 1e-9);
+        luminance += transmittance * Sint;
+        transmittance *= stepTransmittance;
+    }
+
+    if (hitGround && applyGroundTerm && Atmo_DrawGround > 0.5)
+    {
+        float cosSun = saturate(RayCosSunAt(altitude, cosSunZenith, cosViewSun, tMax, 0.0));
+        float3 groundTransmittance = SampleTransmittanceLUT(0, cosSun);
+        luminance += transmittance * groundTransmittance * Atmo_GroundAlbedo.rgb * Atmo_SunIlluminance.rgb * Inv_Pi * cosSun;
+        transmittance = 0;
+    }
+
+    luminance *= Atmo_Brightness;
+}
+
+//--------------------------------------------------------------
+// Kernel 2: SkyView LUT
+//--------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void SkyViewLUT(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    UAV_SkyViewLUT.GetDimensions(width, height);
+    if (any(id.xy >= uint2(width, height))) return;
+
+    float2 uv = (id.xy + 0.5) / float2(width, height);
+    float3 rayDir = SkyViewUvToRay(uv);
+    float altitude = CameraAltitude();
+
+    float tMax = RayAtmosphereExit(altitude, dot(PlanetUp(), rayDir));
+
+    float3 luminance, transmittance;
+    IntegrateAtmosphereRay(altitude, rayDir, tMax, true, luminance, transmittance);
+    UAV_SkyViewLUT[id.xy] = float4(luminance, 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 3: Aerial Perspective froxel
+//--------------------------------------------------------------
+[numthreads(4, 4, 4)]
+void AerialPerspectiveLUT(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height, depth;
+    UAV_AerialPerspectiveLUT.GetDimensions(width, height, depth);
+    if (any(id >= uint3(width, height, depth))) return;
+
+    float2 uv = (id.xy + 0.5) / float2(width, height);
+    float sliceT = (id.z + 0.5) / depth;
+    float distance = Atmo_AerialPerspectiveDistance * sliceT * sliceT;
+
+    float2 ndc = uv * 2.0 - 1.0;
+    float4 world = mul(Matrix_InvViewProj, float4(ndc, 0.5, 1.0));
+    world.xyz /= max(world.w, 1e-6);
+    float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
+
+    float altitude = CameraAltitude();
+    float tAtmosphere = RayAtmosphereExit(altitude, dot(PlanetUp(), viewDir));
+    float tMax = min(distance, max(tAtmosphere, 0));
+
+    float3 luminance, transmittance;
+    IntegrateAtmosphereRay(altitude, viewDir, tMax, false, luminance, transmittance);
+    UAV_AerialPerspectiveLUT[id] = float4(luminance, (transmittance.x + transmittance.y + transmittance.z) * (1.0 / 3.0));
+}
+
+//--------------------------------------------------------------
+// Kernel 4: Atmosphere cubemap
+//--------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void AtmosphereCubemap(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height, elements;
+    UAV_AtmosphereCubemap.GetDimensions(width, height, elements);
+    if (id.x >= width || id.y >= height || id.z >= 6) return;
+
+    float2 uv = (id.xy + 0.5) / float2(width, height);
+    float3 rayDir = CubemapFaceDirection(id.z, uv);
+    float altitude = CameraAltitude();
+    float tMax = RayAtmosphereExit(altitude, dot(PlanetUp(), rayDir));
+
+    float3 luminance, transmittance;
+    IntegrateAtmosphereRay(altitude, rayDir, tMax, true, luminance, transmittance);
+    UAV_AtmosphereCubemap[uint3(id.xy, id.z)] = float4(luminance, 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 5: Sun buffer
+//--------------------------------------------------------------
+[numthreads(1, 1, 1)]
+void SunBuffer(uint3 id : SV_DispatchThreadID)
+{
+    float altitude = CameraAltitude();
+    float3 sunDir = normalize(Atmo_SunDirection.xyz);
+    float cosSun = dot(PlanetUp(), sunDir);
+    float3 transmittance = SampleTransmittanceLUT(altitude, cosSun);
+    UAV_SunBuffer[0] = float4(Atmo_SunIlluminance.rgb * transmittance, 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 6: Sky + aerial composite over lighting
+//--------------------------------------------------------------
+
+// Atmo_SunAngle is the angular radius of the disk. Spreading the illuminance over the disk solid
+// angle keeps the total energy equal to what the scattering integral already receives.
+float3 SunDiskRadiance(float cosViewSun)
+{
+    float cosRadius = cos(Atmo_SunAngle);
+    if (cosViewSun < cosRadius)
+    {
+        return 0;
+    }
+
+    float solidAngle = Two_Pi * (1.0 - cosRadius);
+    // One pixel of softness at the limb, expressed in cosine space.
+    float edge = max((1.0 - cosRadius) * 0.1, 1e-7);
+    float limb = smoothstep(cosRadius, cosRadius + edge, cosViewSun);
+
+    return SRV_SunBuffer[0].rgb * rcp(max(solidAngle, 1e-6)) * limb;
+}
+
+[numthreads(8, 8, 1)]
+void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    UAV_LightingTexture.GetDimensions(width, height);
+    if (any(id.xy >= uint2(width, height))) return;
+
+    float2 uv = (id.xy + 0.5) / float2(width, height);
+    float depth = SRV_DepthTexture[id.xy];
+    bool isSky = abs(depth - Atmo_FarDepth) <= 1e-4;
+
+    float2 ndc = uv * 2.0 - 1.0;
+    float4 world = mul(Matrix_InvViewProj, float4(ndc, depth, 1.0));
+    world.xyz /= max(world.w, 1e-6);
+    float3 viewDir = normalize(world.xyz - _WorldSpaceCameraPos);
+
+    if (isSky)
+    {
+        float3 sky = SampleSkyViewLUT(viewDir);
+        sky += SunDiskRadiance(dot(viewDir, normalize(Atmo_SunDirection.xyz)));
+        UAV_LightingTexture[id.xy] = float4(sky, 1);
+        return;
+    }
+
+    float linearDepth = length(world.xyz - _WorldSpaceCameraPos);
+    float sliceT = saturate(sqrt(linearDepth / max(Atmo_AerialPerspectiveDistance, 1.0)));
+    float4 aerial = SRV_AerialPerspectiveLUT.SampleLevel(Global_trilinear_clamp_sampler, float3(uv, sliceT), 0);
+    float3 scene = UAV_LightingTexture[id.xy].rgb;
+    UAV_LightingTexture[id.xy] = float4(scene * aerial.a + aerial.rgb, 1);
 }

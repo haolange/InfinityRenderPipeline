@@ -202,7 +202,7 @@ void Raytracing(uint3 id : SV_DispatchThreadID)
         if (bHit) 
         {
             float3 SampleColor = SRV_HiCTexture.SampleLevel(Global_bilinear_clamp_sampler, HitUVz.xy, 0).rgb;
-            SampleColor.rgb *= rcp(1 + Luminance(SampleColor.rgb));
+            SampleColor.rgb *= rcp(1 + Rec709Luminance(SampleColor.rgb));
             Out_ColorMask += float4(SampleColor.rgb, GetScreenFadeBord(HitUVz.xy, SSR_Fadeness));
         }
     }
@@ -212,7 +212,7 @@ void Raytracing(uint3 id : SV_DispatchThreadID)
 
     Out_ColorMask *= rcp(SSR_NumRays);
     Out_ColorMask.a = saturate(Out_ColorMask.a * Out_ColorMask.a);
-    Out_ColorMask.rgb *= rcp(1 - Luminance(Out_ColorMask.rgb));
+    Out_ColorMask.rgb *= rcp(1 - Rec709Luminance(Out_ColorMask.rgb));
 
     UAV_HitPDFTexture[id.xy] = float4(Out_UVWPDF.xyz, max(1e-5, (Out_UVWPDF.w != 0) ? rcp(Out_UVWPDF.w) : 0));
     UAV_ColorMaskTexture[id.xy] = Out_ColorMask /* Out_ColorMask.a*/;
@@ -354,8 +354,8 @@ static const int2 TemportalOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1)
 float ComputeTemporalVariance(float3 History_Radiance, float3 Radiance)
 {
     // Check temporal variance. 
-    float history_luminance = Luminance(History_Radiance);
-    float luminance = Luminance(Radiance);
+    float history_luminance = Rec709Luminance(History_Radiance);
+    float luminance = Rec709Luminance(Radiance);
     return abs(history_luminance - luminance) / max(max(history_luminance, luminance), 0.00001);
 }
 
@@ -401,11 +401,11 @@ void TemporalFilter (uint3 id : SV_DispatchThreadID)
 
         float4 RayProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, RayPrevUV, 0);
         float4 RayProject_Dist = ( RayProject_PrevColor - Mean ) / Stddev;
-        float RayProject_Weight = exp2(-10 * Luminance(RayProject_Dist));
+        float RayProject_Weight = exp2(-10 * Rec709Luminance(RayProject_Dist));
 
         float4 DepthProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
         float4 DepthProject_Dist = (DepthProject_PrevColor - Mean) / Stddev;
-        float DepthProject_Weight = exp2(-10 * Luminance(DepthProject_Dist));
+        float DepthProject_Weight = exp2(-10 * Rec709Luminance(DepthProject_Dist));
 
         PrevColor = (RayProject_PrevColor * RayProject_Weight + DepthProject_PrevColor * DepthProject_Weight) / (RayProject_Weight + DepthProject_Weight);
         PrevColor = clamp(PrevColor, MinColor, MaxColor);
@@ -451,7 +451,7 @@ void BilateralFilter (uint3 id : SV_DispatchThreadID)
 		float Distance2 = max( dot(Distance, Distance) / (SVGF_BilateralRadius * SVGF_BilateralRadius), 0);
 		float WeightNormal = min( exp(-Distance2 / SVGF_NormalWeight), 1 );
 	    float WeightDepth = (SVGF_DepthWeight == 0) ? 0 : abs(Depth - OffsetDepth) / SVGF_DepthWeight;
-	    float WeightColor = abs( Luminance(Color.rgb) - Luminance(OffsetColor.rgb) ) / SVGF_ColorWeight;
+	    float WeightColor = abs( Rec709Luminance(Color.rgb) - Rec709Luminance(OffsetColor.rgb) ) / SVGF_ColorWeight;
         float Weight = exp(0 - max(WeightColor, 0) - max(WeightDepth, 0)) * WeightNormal;
 
 		ColorSum += OffsetColor * Weight * Bilateralkernel[i];

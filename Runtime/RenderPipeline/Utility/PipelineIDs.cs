@@ -28,7 +28,6 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeBurleySubsurface,
         RenderAtmosphericSkyAndFog,
         RenderSkyBox,
-        RenderAtmosphere,
         ComputeVolumetricFog,
         ComputeVolumetricCloud,
         RenderTranslucentDepth,
@@ -86,6 +85,10 @@ namespace InfinityTech.Rendering.Pipeline
         public static int AtmosphereTransmittanceLUT = Shader.PropertyToID("_AtmosphereTransmittanceLUT");
         public static int AtmosphereScatteringLUT = Shader.PropertyToID("_AtmosphereScatteringLUT");
         public static int AtmosphereMultiScatteringLUT = Shader.PropertyToID("_AtmosphereMultiScatteringLUT");
+        public static int AtmosphereSkyViewLUT = Shader.PropertyToID("_AtmosphereSkyViewLUT");
+        public static int AtmosphereAerialPerspectiveLUT = Shader.PropertyToID("_AtmosphereAerialPerspectiveLUT");
+        public static int AtmosphereCubemap = Shader.PropertyToID("_AtmosphereCubemap");
+        public static int AtmosphereSunBuffer = Shader.PropertyToID("_AtmosphereSunBuffer");
         public static int ZBinLightListBuffer = Shader.PropertyToID("_ZBinLightListBuffer");
         public static int TileLightListBuffer = Shader.PropertyToID("_TileLightListBuffer");
         public static int OcclusionBuffer = Shader.PropertyToID("_OcclusionTexture");

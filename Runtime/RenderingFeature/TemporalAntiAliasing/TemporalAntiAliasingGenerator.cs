@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Feature
 {
@@ -62,17 +63,17 @@ namespace InfinityTech.Rendering.Feature
 
     public sealed class TemporalAntiAliasingGenerator
     {
-        public void Dispatch(CommandBuffer cmdBuffer, ComputeShader shader, in TemporalAAParameter parameter, in TemporalAAInputData inputData, in TemporalAAOutputData outputData)
+        public void Dispatch<T>(T cmd, ComputeShader shader, in TemporalAAParameter parameter, in TemporalAAInputData inputData, in TemporalAAOutputData outputData) where T : IComputeCommands
         {
-            cmdBuffer.SetComputeVectorParam(shader, TemporalAAShaderID.Resolution, inputData.resolution);
-            cmdBuffer.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.DepthTexture, inputData.depthTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.MotionTexture, inputData.motionTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryColorTexture, inputData.historyColorTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AliasingColorTexture, inputData.aliasingColorTexture);
-            cmdBuffer.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
-            cmdBuffer.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
+            cmd.SetComputeVectorParam(shader, TemporalAAShaderID.Resolution, inputData.resolution);
+            cmd.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
+            cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.DepthTexture, inputData.depthTexture);
+            cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.MotionTexture, inputData.motionTexture);
+            cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
+            cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryColorTexture, inputData.historyColorTexture);
+            cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AliasingColorTexture, inputData.aliasingColorTexture);
+            cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
+            cmd.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
         }
 
         public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
@@ -113,7 +114,7 @@ namespace InfinityTech.Rendering.Feature
             projFlipY = GL.GetGPUProjectionMatrix(proj, false);
         }
 
-        public static void CaculateProjectionMatrix(Camera camera, in float jitterSpread, ref int frameIndex, ref float2 jitter, in Matrix4x4 origProj, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
+        public static void CaculateProjectionMatrix(Camera camera, in float jitterSpread, ref int frameIndex, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
         {
             float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
             float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
@@ -133,40 +134,6 @@ namespace InfinityTech.Rendering.Feature
             {
                 GetJitteredPerspectiveProjectionMatrix(camera, jitter, ref proj, ref projFlipY);
             }
-
-            /*if (camera.orthographic)
-            {
-                float vertical = camera.orthographicSize;
-                float horizontal = vertical * camera.aspect;
-
-                float2 offset = jitter;
-                offset.y *= vertical / (0.5f * camera.pixelRect.size.y);
-                offset.x *= horizontal / (0.5f * camera.pixelRect.size.x);
-
-                float left = offset.x - horizontal;
-                float right = offset.x + horizontal;
-                float top = offset.y + vertical;
-                float bottom = offset.y - vertical;
-
-                proj = Matrix4x4.Ortho(left, right, bottom, top, camera.nearClipPlane, camera.farClipPlane);
-                proj = GL.GetGPUProjectionMatrix(proj, true);
-                projFlipY = GL.GetGPUProjectionMatrix(proj, false);
-            } else {
-                var planes = origProj.decomposeProjection;
-
-                float vertFov = math.abs(planes.top) + math.abs(planes.bottom);
-                float horizFov = math.abs(planes.left) + math.abs(planes.right);
-
-                var planeJitter = new Vector2(jitter.x * horizFov / camera.pixelRect.size.x, jitter.y * vertFov / camera.pixelRect.size.y);
-
-                planes.left += planeJitter.x;
-                planes.right += planeJitter.x;
-                planes.top += planeJitter.y;
-                planes.bottom += planeJitter.y;
-
-                proj = Matrix4x4.Frustum(planes);
-                projFlipY = proj;
-            }*/
         }
     }
 }

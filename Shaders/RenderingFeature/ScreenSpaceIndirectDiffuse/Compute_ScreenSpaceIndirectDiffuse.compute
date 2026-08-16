@@ -1,4 +1,4 @@
-﻿//#include "UnityCG.cginc"
+//#include "UnityCG.cginc"
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/ColorUtility.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
@@ -62,14 +62,14 @@ void Raytracing (uint3 id : SV_DispatchThreadID)
 		Out_AmbientOcclusion += smoothstep( 0, 5, distance(ViewSpace_RayOrigin, ViewSpace_RayHitData) );
 		
 		SampleColor *= CosineWeight;
-		SampleColor *= rcp( 1 + Luminance(SampleColor) );
+		SampleColor *= rcp( 1 + Rec709Luminance(SampleColor) );
         
 		Out_IrradianceColor.rgb += SampleColor;
 		Out_IrradianceColor.a += RayHitData.a;
 	}
 	Out_AmbientOcclusion /= SSGi_NumRays;
 	Out_IrradianceColor /= SSGi_NumRays;
-	Out_IrradianceColor.rgb *= rcp( 1 - Luminance(Out_IrradianceColor.rgb) );
+	Out_IrradianceColor.rgb *= rcp( 1 - Rec709Luminance(Out_IrradianceColor.rgb) );
     Out_IrradianceColor.a = saturate( sqrt(Out_IrradianceColor.a) );
 
 	[branch]
@@ -157,7 +157,7 @@ void Raytracing (uint3 id : SV_DispatchThreadID)
 			Out_Occlusion += CosineWeight;
 
 			float3 SampleColor = SRV_PyramidColor.SampleLevel(Global_point_clamp_sampler, HitUVz.xy, 0).rgb;
-			SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
+			SampleColor.rgb *= rcp( 1 + Rec709Luminance(SampleColor.rgb) );
 			Out_ColorMask += float4(SampleColor.rgb, GetScreenFadeBord(HitUVz.xy, 0.1));
 
 			//BentNormal += LightDir_WS;

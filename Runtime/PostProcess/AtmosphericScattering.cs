@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.PostProcess
         public FloatParameter PlanetRadius = new FloatParameter(6360000.0f);
         public FloatParameter AtmosphereHeight = new FloatParameter(60000.0f);
 
-        [Header("Rayleigh")]
+        [Header("Rayleigh (km^-1)")]
         public ColorParameter RayleighScattering = new ColorParameter(new Color(0.00580f, 0.01356f, 0.03310f, 1.0f));
         public FloatParameter RayleighHeight = new FloatParameter(8000.0f);
 

@@ -1,6 +1,7 @@
 #ifndef _CommonInclude
 #define _CommonInclude
 
+#include "ColorUtility.hlsl"
 
 //#define float half
 //#define float2 half2

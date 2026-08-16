@@ -5,6 +5,7 @@ using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -48,6 +49,8 @@ namespace InfinityTech.Rendering.Pipeline
             public int3 froxelResolution;
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
+            public int directionalLightCount;
+            public GraphicsBuffer directionalLightBuffer;
             public ComputeShader volumetricFogShader;
             public RGTextureRef depthTexture;
             public RGTextureRef cascadeShadowMap;
@@ -58,7 +61,11 @@ namespace InfinityTech.Rendering.Pipeline
         {
             var stack = VolumeManager.instance.stack;
             var volFog = stack.GetComponent<VolumetricFog>();
-            if (volFog == null) return;
+            if (!GraphicsUtility.VolumeHasOverrides(volFog)) return;
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricFogShader, "ScatterDensity", "Integrate"))
+            {
+                return;
+            }
 
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
@@ -97,9 +104,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.frameIndex = Time.frameCount;
                 passData.screenSize = new int2(width, height);
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
-                Matrix4x4 gpuProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
-                passData.matrix_InvViewProj = (gpuProj * camera.worldToCameraMatrix).inverse;
+                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
                 passData.worldSpaceCameraPos = camera.transform.position;
+                passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
+                passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;
                 passData.volumetricFogShader = pipelineAsset.volumetricFogShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);
@@ -109,8 +117,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.volumetricFogShader == null) return;
-
                     cmdEncoder.SetComputeVectorParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.VolFog_ScreenSizeID, new Vector4(passData.screenSize.x, passData.screenSize.y, 1.0f / passData.screenSize.x, 1.0f / passData.screenSize.y));
                     cmdEncoder.SetComputeVectorParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.VolFog_ResolutionID, new Vector4(passData.froxelResolution.x, passData.froxelResolution.y, passData.froxelResolution.z, 0));
                     cmdEncoder.SetComputeFloatParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.VolFog_DensityID, passData.density);
@@ -125,6 +131,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.VolFog_FrameIndexID, passData.frameIndex);
                     cmdEncoder.SetComputeMatrixParam(passData.volumetricFogShader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(passData.volumetricFogShader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
+                    cmdEncoder.SetComputeIntParam(passData.volumetricFogShader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
+                    cmdEncoder.SetComputeBufferParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.KernelScatterDensity, LightShaderIDs.DirectionalLightBuffer, passData.directionalLightBuffer);
 
                     // Kernel 0: Scatter + Density
                     cmdEncoder.SetComputeTextureParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.KernelScatterDensity, VolumetricFogPassUtilityData.SRV_DepthTextureID, passData.depthTexture);

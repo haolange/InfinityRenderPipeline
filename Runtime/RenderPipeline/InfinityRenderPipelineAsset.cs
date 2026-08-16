@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.Feature;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -32,6 +33,9 @@ namespace InfinityTech.Rendering.Pipeline
 
         [SerializeField] 
         private VolumeProfile m_VolumeProfile;
+
+        [Header("Atmosphere")]
+        public AtmosphericalProfile atmosphericalProfile;
 
         [Header("Compute Shaders")]
         public ComputeShader meshDrawPipelineCS;
@@ -102,13 +106,12 @@ namespace InfinityTech.Rendering.Pipeline
             zBinningShader = CoalesceCompute(zBinningShader, "Shaders/RenderingFeature/ZBinningLightList/Compute_ZBinningLightList.compute", "ZBinning", "TileLighting");
             contactShadowShader = CoalesceCompute(contactShadowShader, "Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute", "ContactShadowCS");
             deferredShadingShader = CoalesceCompute(deferredShadingShader, "Shaders/RenderingFeature/DeferredShading/Compute_DeferredShading.compute", "DeferredShadingCS");
-            atmosphericLUTShader = CoalesceCompute(atmosphericLUTShader, "Shaders/RenderingFeature/AtmosphericLUT/Compute_AtmosphericLUT.compute", "TransmittanceLUT", "MultiScatteringLUT");
+            atmosphericLUTShader = CoalesceCompute(atmosphericLUTShader, "Shaders/RenderingFeature/AtmosphericLUT/Compute_AtmosphericLUT.compute", "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT", "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite");
             volumetricFogShader = CoalesceCompute(volumetricFogShader, "Shaders/RenderingFeature/VolumetricFog/Compute_VolumetricFog.compute", "ScatterDensity", "Integrate");
             volumetricCloudShader = CoalesceCompute(volumetricCloudShader, "Shaders/RenderingFeature/VolumetricCloud/Compute_VolumetricCloud.compute", "VolumetricCloudCS");
             colorPyramidShader = CoalesceCompute(colorPyramidShader, "Shaders/RenderingFeature/PyramidColor/Compute_PyramidColor.compute", "KMain");
             superResolutionShader = CoalesceCompute(superResolutionShader, "Shaders/RenderingFeature/SuperResolution/Compute_SuperResolution.compute", "SuperResolutionCS");
-            // Post samples fog as Texture2D while VolumetricFogBuffer is Tex3D — do not auto-bind.
-            postProcessingShader = KeepIfKernels(postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine");
+            postProcessingShader = CoalesceCompute(postProcessingShader, "Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute", "BloomDownsample", "BloomUpsample", "FinalCombine");
             subsurfaceShader = KeepIfKernels(subsurfaceShader, "BurleySubsurfaceCS");
 #endif
         }
@@ -116,12 +119,21 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR
         static ComputeShader CoalesceCompute(ComputeShader current, string relativePath, params string[] requiredKernels)
         {
-            if (current != null)
+            // A serialized reference is no proof of a successful compile, so it takes the same kernel
+            // check as a freshly loaded one. Otherwise a broken shader reaches the passes and every
+            // record-time gate waves it through.
+            ComputeShader validated = KeepIfKernels(current, requiredKernels);
+            if (validated != null)
             {
-                return current;
+                return validated;
             }
 
             ComputeShader loaded = AssetDatabase.LoadAssetAtPath<ComputeShader>(PackageRoot + relativePath);
+            if (loaded == current)
+            {
+                return null;
+            }
+
             return KeepIfKernels(loaded, requiredKernels);
         }
 

@@ -64,7 +64,11 @@ namespace InfinityTech.Rendering.Pipeline
         {
             var stack = VolumeManager.instance.stack;
             var volCloud = stack.GetComponent<VolumetricCloud>();
-            if (volCloud == null) return;
+            if (!GraphicsUtility.VolumeHasOverrides(volCloud)) return;
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricCloudShader, "VolumetricCloudCS"))
+            {
+                return;
+            }
 
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
@@ -127,8 +131,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in VolumetricCloudPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.volumetricCloudShader == null) return;
-
                     cmdEncoder.SetComputeVectorParam(passData.volumetricCloudShader, VolumetricCloudPassUtilityData.VolCloud_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(passData.volumetricCloudShader, VolumetricCloudPassUtilityData.VolCloud_CloudLayerBottomID, passData.cloudLayerBottom);
                     cmdEncoder.SetComputeFloatParam(passData.volumetricCloudShader, VolumetricCloudPassUtilityData.VolCloud_CloudLayerThicknessID, passData.cloudLayerThickness);

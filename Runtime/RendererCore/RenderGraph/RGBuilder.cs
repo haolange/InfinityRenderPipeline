@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.RenderGraph
     public struct RGContext
     {
         public RGObjectPool objectPool;
-        public CommandBuffer cmdBuffer;
+        internal CommandBuffer cmdBuffer;
         public RenderContext renderContext;
         internal RGDrawListContext drawLists;
     }
@@ -717,10 +717,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     if (pass.depthBuffer.IsValid()) 
                     {
                         RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
-                        renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
+                        renderTargetBinding.flags = GetFallbackDepthFlags(pass.depthBufferAccess);
                         graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
-
-                        //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, mrtArray, m_Resources.GetTexture(pass.depthBuffer));
                     } 
                     else 
                     {
@@ -742,10 +740,8 @@ namespace InfinityTech.Rendering.RenderGraph
                             storeOpArray[0] = pass.colorBufferActions[0].storeAction;
 
                             RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
-                            renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
+                            renderTargetBinding.flags = GetFallbackDepthFlags(pass.depthBufferAccess);
                             graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
-
-                            //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.colorBuffers[0]), pass.colorBufferActions[0].loadAction, pass.colorBufferActions[0].storeAction, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
                         } 
                         else
                         {
@@ -754,10 +750,8 @@ namespace InfinityTech.Rendering.RenderGraph
                             storeOpArray[0] = pass.depthBufferAction.storeAction;
 
                             RenderTargetBinding renderTargetBinding = new RenderTargetBinding(mrtArray, loadOpArray, storeOpArray, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
-                            renderTargetBinding.flags = RenderTargetFlags.ReadOnlyDepthStencil;
+                            renderTargetBinding.flags = GetFallbackDepthFlags(pass.depthBufferAccess);
                             graphContext.cmdBuffer.SetRenderTarget(renderTargetBinding);
-
-                            //CoreUtils.SetRenderTarget(graphContext.cmdBuffer, m_Resources.GetTexture(pass.depthBuffer), pass.depthBufferAction.loadAction, pass.depthBufferAction.storeAction);
                         }
                     } 
                     else 
@@ -770,6 +764,14 @@ namespace InfinityTech.Rendering.RenderGraph
 
                 ClearFallbackAttachments(graphContext.cmdBuffer, pass);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static RenderTargetFlags GetFallbackDepthFlags(EDepthAccess access)
+        {
+            bool readOnly = (access & EDepthAccess.ReadOnly) != 0;
+            bool write = (access & EDepthAccess.Write) != 0;
+            return readOnly && !write ? RenderTargetFlags.ReadOnlyDepthStencil : RenderTargetFlags.None;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

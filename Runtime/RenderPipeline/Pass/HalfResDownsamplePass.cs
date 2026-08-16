@@ -32,6 +32,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeHalfResDownsample(RenderContext renderContext, Camera camera)
         {
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.halfResDownsampleShader, "HalfResDownsample"))
+            {
+                return;
+            }
+
             int fullWidth = camera.pixelWidth;
             int fullHeight = camera.pixelHeight;
             int halfWidth = Mathf.Max(1, fullWidth >> 1);
@@ -76,8 +81,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in HalfResDownsamplePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.halfResShader == null) return;
-
                     cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.SRV_FullResDepthID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.UAV_HalfResDepthID, passData.halfResDepthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.halfResShader, 0, HalfResDownsamplePassUtilityData.UAV_HalfResNormalID, passData.halfResNormalTexture);

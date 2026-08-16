@@ -90,6 +90,28 @@ These rules exist because Console-clean patches have already hidden real ownersh
 6. **Console wording is not the root cause.** Unity's `temporary render texture` message is the empty-identifier diagnostic. It does not mean RDG used `GetTemporaryRT`. Check handle validity, pass order, and who should `Register*` first.
 7. **Ownership, order, and lifetime first; API migration second.** A workaround must be `// TODO: <root cause>` and cannot be the final design.
 8. **RDG textures go through Create / Import / ResourcePool only.** No `GetTemporaryRT` on hot paths.
+9. **Record-time gate vs execute-time silence.** Volume-missing or optional-feature-off may skip recording. Shader/kernel missing for an optional feature also skips recording. A required producer (Lighting, active TAA, Display) throws at record. Execute must not contain `if (shader == null) return`.
+10. **Feature classes talk to command capability interfaces, never `CommandBuffer`.** `IComputeCommands` / `IRasterCommands` / `IRaytracingCommands` / `ITransferCommands` are the only command surfaces. RG encoders implement them. Outside RG, wrap a `CommandBuffer` with `CommandBufferCommands`. Do not add `implicit operator CommandBuffer` on encoders.
+11. **One physical quantity, one authority.** Atmosphere defaults live on `AtmosphericalProfile`. `AtmosphericScattering` Volume parameters are overrides (`overrideState`) only. Do not keep a second independent default set. Geometric sizes are meters. Hillaire scatter/absorption coefficients are stored per kilometer and converted to per-meter at bind (`AtmosphereParameter.ScatterPerKmToPerMeter`). Do not mix the two units in the compute shader.
+12. **`VolumeManager.GetComponent<T>()` is never a null check.** Unity always returns a default component. Optional Volume features (volumetric fog/cloud) record only when `active` and at least one parameter has `overrideState`.
+13. **Dead code is deletable only when zero-referenced and already replaced by an equivalent RG path.** "Not wired yet" is not "obsolete".
+
+## RenderGraph resource and pass shape
+
+1. **Mip chains stay in one compute pass.** HiZ / ColorPyramid / bloom downsample are the same resource reading mip N-1 and writing mip N. RG tracks resources, not subresources; splitting per-mip into multiple passes creates false hazards and no extra parallelism. Loop dispatches inside one execute.
+2. **LUT / froxel / cubemap generation is compute.** Do not introduce `Blit` / `SetRenderTarget` / `BuiltinRenderTextureType` to generate atmosphere tables. Cubemap faces are a `RWTexture2DArray`.
+3. **Fallback raster depth flags follow `EDepthAccess`.** `ReadOnlyDepthStencil` is set only when the pass declared read-only depth without write.
+
+## Known gaps (do not paper over)
+
+- `SSRPass` records only the raytracing kernel. Spatial and temporal filter live in `ScreenSpaceReflectionGenerator` and are not yet an RG pass.
+- `GTAOPass` does not dispatch the temporal kernel (`OcclusionTemporal`).
+- RTAO has a Volume component and `.raytrace` shader but no RG pass.
+- `ZBinningPass.HasZBinningLightList` returns a hardcoded `false`, so `ComputeZBinningLightList` never records. `LightContext` only uploads directional lights and exposes neither local light bounds nor a visible-light count, which is what the binning kernel needs.
+- The `AtmosphereCubemap` kernel in `Compute_AtmosphericLUT.compute` has no consumer (there is no sky IBL / ambient probe path), so `AtmosphericLUTPass` deliberately does not create the cubemap texture or dispatch kernel 4. Kernel index 5 (`SunBuffer`) still assumes kernel 4 exists in the file.
+- Directional light intensity has two conflicting consumers. `LightContext` packs `light.color * light.intensity` into `color`, so `color.rgb` already carries intensity and `color.a` ends up holding intensity as well. `Compute_DeferredShading` and `Compute_VolumetricFog` then compute `color.rgb * color.a` and apply intensity twice, while `InfinityLit.shader` / `InfinityLit-Instanced.shader` use `color.rgb` alone and `AtmosphericLUTPass` / `VolumetricCloudPass` recompute `sunLight.color * sunLight.intensity` on the CPU. Converging these changes scene exposure, so it must be its own change with its own frame capture.
+- `Compute_CombineLUTs.compute` and `InfinityRenderPipelineAsset.combineLUTShader` exist but no RG pass produces a grading LUT, so `Compute_PostProcessing.compute` has no color grading stage.
+- `PostProcessingPass` hardcodes bloom intensity / threshold, vignette, and film grain instead of reading a Volume component. There is also no exposure stage anywhere in the pipeline, so `PP_BloomThreshold` is compared against raw linear luminance; with the current light intensities a sunlit surface peaks near 0.3, which is why a conventional "above white" threshold of 1.0 produces no bloom at all.
 
 ## Render target and depth conventions
 

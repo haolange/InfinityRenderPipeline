@@ -54,6 +54,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.zBinningShader, "ZBinning", "TileLighting"))
+            {
+                return;
+            }
 
             int tileSize = 16;
             int width = camera.pixelWidth;
@@ -105,8 +109,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(false);
                 passRef.SetExecuteFunc((in ZBinningPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.zBinningShader == null) return;
-
                     // Z-Binning pass: assign light ranges to depth bins
                     cmdEncoder.SetComputeVectorParam(passData.zBinningShader, ZBinningPassUtilityData.ZBin_ScreenSizeID, new Vector4(passData.screenSize.x, passData.screenSize.y, 1.0f / passData.screenSize.x, 1.0f / passData.screenSize.y));
                     cmdEncoder.SetComputeIntParam(passData.zBinningShader, ZBinningPassUtilityData.ZBin_TileSizeID, passData.tileSize);

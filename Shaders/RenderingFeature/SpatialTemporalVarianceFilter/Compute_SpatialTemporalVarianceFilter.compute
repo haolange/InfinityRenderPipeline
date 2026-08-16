@@ -1,4 +1,4 @@
-﻿#include "UnityCG.cginc"
+#include "UnityCG.cginc"
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 #include "../../ShaderLibrary/Common.hlsl"
@@ -240,8 +240,8 @@ void SpatialFilter (uint3 id : SV_DispatchThreadID)
 float ComputeTemporalVariance(float3 History_Radiance, float3 Radiance)
 {
     // Check temporal variance. 
-    float history_luminance = Luminance(History_Radiance);
-    float luminance = Luminance(Radiance);
+    float history_luminance = Rec709Luminance(History_Radiance);
+    float luminance = Rec709Luminance(Radiance);
     return abs(history_luminance - luminance) / max(max(history_luminance, luminance), 0.00001);
 }
 
@@ -322,11 +322,11 @@ void TemporalFilter (uint3 id : SV_DispatchThreadID)
 
         float4 RayProject_PrevColor = SRV_PrevColor.SampleLevel(Global_bilinear_repeat_sampler, RayPrevUV, 0);
         float4 RayProject_Dist = ( RayProject_PrevColor - Mean ) / Stddev;
-        float RayProject_Weight = exp2( -10 * Luminance(RayProject_Dist) );
+        float RayProject_Weight = exp2( -10 * Rec709Luminance(RayProject_Dist) );
 
         float4 DepthProject_PrevColor = SRV_PrevColor.SampleLevel(Global_bilinear_repeat_sampler, PrevUV, 0);
         float4 DepthProject_Dist = (DepthProject_PrevColor - Mean) / Stddev;
-        float DepthProject_Weight = exp2( -10 * Luminance(DepthProject_Dist) );
+        float DepthProject_Weight = exp2( -10 * Rec709Luminance(DepthProject_Dist) );
 
         PrevColor = (RayProject_PrevColor * RayProject_Weight + DepthProject_PrevColor * DepthProject_Weight) / (RayProject_Weight + DepthProject_Weight);
         PrevColor = clamp(PrevColor, MinColor, MaxColor);
@@ -372,7 +372,7 @@ void BilateralFilter (uint3 id : SV_DispatchThreadID)
 		float Distance2 = max( dot(Distance, Distance) / (SVGF_BilateralRadius * SVGF_BilateralRadius), 0);
 		float WeightNormal = min( exp(-Distance2 / SVGF_NormalWeight), 1 );
 	    float WeightDepth = (SVGF_DepthWeight == 0) ? 0 : abs(Depth - OffsetDepth) / SVGF_DepthWeight;
-	    float WeightColor = abs( Luminance(Color.rgb) - Luminance(OffsetColor.rgb) ) / SVGF_ColorWeight;
+	    float WeightColor = abs( Rec709Luminance(Color.rgb) - Rec709Luminance(OffsetColor.rgb) ) / SVGF_ColorWeight;
         float Weight = exp(0 - max(WeightColor, 0) - max(WeightDepth, 0)) * WeightNormal;
 
 		ColorSum += OffsetColor * Weight * Bilateralkernel[i];

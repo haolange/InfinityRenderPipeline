@@ -80,6 +80,10 @@ namespace InfinityTech.Rendering.Pipeline
             var stack = VolumeManager.instance.stack;
             var ssao = stack.GetComponent<ScreenSpaceAmbientOcclusion>();
             if (ssao == null) return;
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY"))
+            {
+                return;
+            }
 
             int fullWidth = camera.pixelWidth;
             int fullHeight = camera.pixelHeight;
@@ -151,8 +155,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.ssaoShader == null) return;
-
                     int halfWidth = passData.halfResolution.x;
                     int halfHeight = passData.halfResolution.y;
 

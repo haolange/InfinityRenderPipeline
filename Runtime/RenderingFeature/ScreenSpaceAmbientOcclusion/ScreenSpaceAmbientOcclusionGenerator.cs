@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using System.Runtime.InteropServices;
+using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Feature
 {
@@ -137,40 +138,40 @@ namespace InfinityTech.Rendering.Feature
             m_OcclusionUnifrom.SetData(m_UnifromData);
         }
 
-        public void Render(CommandBuffer cmdBuffer, in GrountTruthAmbientOcclusionParameter parameter, in GrountTruthAmbientOcclusionInputData inputData, in GrountTruthAmbientOcclusionOutputData outoutData) 
+        public void Render<T>(T cmd, in GrountTruthAmbientOcclusionParameter parameter, in GrountTruthAmbientOcclusionInputData inputData, in GrountTruthAmbientOcclusionOutputData outoutData) where T : IComputeCommands
         {
             SetUnifrom(parameter, inputData);
-            cmdBuffer.SetComputeConstantBufferParam(m_Shader, GrountTruthAmbientOcclusionShaderID.UnifromData, m_OcclusionUnifrom, 0, m_UnifromStride);
+            cmd.SetComputeConstantBufferParam(m_Shader, GrountTruthAmbientOcclusionShaderID.UnifromData, m_OcclusionUnifrom, 0, m_UnifromStride);
 
-            cmdBuffer.BeginSample("RayMarch");
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, GrountTruthAmbientOcclusionShaderID.DepthTexture, inputData.depthTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, GrountTruthAmbientOcclusionShaderID.NormalTexture, inputData.normalTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 0, GrountTruthAmbientOcclusionShaderID.OcclusionTexture, outoutData.occlusionTexture);
-            cmdBuffer.DispatchCompute(m_Shader, 0,  Mathf.CeilToInt(inputData.resolution.x / 16),  Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-            cmdBuffer.EndSample("RayMarch");
+            cmd.BeginSample("RayMarch");
+            cmd.SetComputeTextureParam(m_Shader, 0, GrountTruthAmbientOcclusionShaderID.DepthTexture, inputData.depthTexture);
+            cmd.SetComputeTextureParam(m_Shader, 0, GrountTruthAmbientOcclusionShaderID.NormalTexture, inputData.normalTexture);
+            cmd.SetComputeTextureParam(m_Shader, 0, GrountTruthAmbientOcclusionShaderID.OcclusionTexture, outoutData.occlusionTexture);
+            cmd.DispatchCompute(m_Shader, 0,  Mathf.CeilToInt(inputData.resolution.x / 16),  Mathf.CeilToInt(inputData.resolution.y / 16), 1);
+            cmd.EndSample("RayMarch");
 
-            cmdBuffer.BeginSample("SpatialX");
-            cmdBuffer.SetComputeTextureParam(m_Shader, 1, GrountTruthAmbientOcclusionShaderID.DepthTexture, inputData.depthTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 1, GrountTruthAmbientOcclusionShaderID.SpatialTexture, outoutData.spatialTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 1, GrountTruthAmbientOcclusionShaderID.OcclusionTextureRead, outoutData.occlusionTexture);
-            cmdBuffer.DispatchCompute(m_Shader, 1, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-            cmdBuffer.EndSample("SpatialX");
+            cmd.BeginSample("SpatialX");
+            cmd.SetComputeTextureParam(m_Shader, 1, GrountTruthAmbientOcclusionShaderID.DepthTexture, inputData.depthTexture);
+            cmd.SetComputeTextureParam(m_Shader, 1, GrountTruthAmbientOcclusionShaderID.SpatialTexture, outoutData.spatialTexture);
+            cmd.SetComputeTextureParam(m_Shader, 1, GrountTruthAmbientOcclusionShaderID.OcclusionTextureRead, outoutData.occlusionTexture);
+            cmd.DispatchCompute(m_Shader, 1, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
+            cmd.EndSample("SpatialX");
 
-            cmdBuffer.BeginSample("SpatialY");
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, GrountTruthAmbientOcclusionShaderID.DepthTexture, inputData.depthTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, GrountTruthAmbientOcclusionShaderID.SpatialTexture, outoutData.occlusionTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 2, GrountTruthAmbientOcclusionShaderID.OcclusionTextureRead, outoutData.spatialTexture);
-            cmdBuffer.DispatchCompute(m_Shader, 2, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
-            cmdBuffer.EndSample("SpatialY");
+            cmd.BeginSample("SpatialY");
+            cmd.SetComputeTextureParam(m_Shader, 2, GrountTruthAmbientOcclusionShaderID.DepthTexture, inputData.depthTexture);
+            cmd.SetComputeTextureParam(m_Shader, 2, GrountTruthAmbientOcclusionShaderID.SpatialTexture, outoutData.occlusionTexture);
+            cmd.SetComputeTextureParam(m_Shader, 2, GrountTruthAmbientOcclusionShaderID.OcclusionTextureRead, outoutData.spatialTexture);
+            cmd.DispatchCompute(m_Shader, 2, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
+            cmd.EndSample("SpatialY");
 
-            cmdBuffer.BeginSample("Temporal");
-            cmdBuffer.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.MotionTexture, inputData.motionTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.AccmulateTexture, outoutData.accmulateTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.OcclusionTextureRead, outoutData.occlusionTexture);
-            cmdBuffer.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.HistoryTexture, outoutData.historyTexture);
-            cmdBuffer.DispatchCompute(m_Shader, 3, Mathf.CeilToInt(inputData.upsampleSize.x / 16), Mathf.CeilToInt(inputData.upsampleSize.y / 16), 1);
-            cmdBuffer.CopyTexture(outoutData.accmulateTexture, outoutData.historyTexture);
-            cmdBuffer.EndSample("Temporal");
+            cmd.BeginSample("Temporal");
+            cmd.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.MotionTexture, inputData.motionTexture);
+            cmd.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.AccmulateTexture, outoutData.accmulateTexture);
+            cmd.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.OcclusionTextureRead, outoutData.occlusionTexture);
+            cmd.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.HistoryTexture, outoutData.historyTexture);
+            cmd.DispatchCompute(m_Shader, 3, Mathf.CeilToInt(inputData.upsampleSize.x / 16), Mathf.CeilToInt(inputData.upsampleSize.y / 16), 1);
+            cmd.CopyTexture(outoutData.accmulateTexture, outoutData.historyTexture);
+            cmd.EndSample("Temporal");
 
             /*cmdBuffer.BeginSample("Upsample");
             cmdBuffer.SetComputeTextureParam(m_Shader, 3, GrountTruthAmbientOcclusionShaderID.DepthTexture, inputData.depthTexture);

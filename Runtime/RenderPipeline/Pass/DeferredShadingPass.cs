@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -33,6 +34,11 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvProj;
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
+            public int directionalLightCount;
+            public GraphicsBuffer directionalLightBuffer;
+            public int cascadeCount;
+            public Matrix4x4[] cascadeMatrices;
+            public Vector4 cascadeSplitDistances;
             public ComputeShader deferredShadingShader;
             public RGTextureRef gBufferA;
             public RGTextureRef gBufferB;
@@ -82,10 +88,14 @@ namespace InfinityTech.Rendering.Pipeline
                 ref DeferredShadingPassData passData = ref passRef.GetPassData<DeferredShadingPassData>();
                 passData.tileSize = tileSize;
                 passData.resolution = new int2(width, height);
-                Matrix4x4 gpuProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
-                passData.matrix_InvProj = gpuProj.inverse;
-                passData.matrix_InvViewProj = (gpuProj * camera.worldToCameraMatrix).inverse;
+                passData.matrix_InvProj = GraphicsUtility.GetComputeInvProj(camera);
+                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
                 passData.worldSpaceCameraPos = camera.transform.position;
+                passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
+                passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;
+                passData.cascadeCount = m_ActiveCascadeCount;
+                passData.cascadeMatrices = m_ActiveCascadeMatrices;
+                passData.cascadeSplitDistances = m_ActiveCascadeSplitDistances;
                 passData.deferredShadingShader = pipelineAsset.deferredShadingShader;
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
@@ -107,6 +117,11 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(passData.deferredShadingShader, Shader.PropertyToID("Matrix_InvProj"), passData.matrix_InvProj);
                     cmdEncoder.SetComputeMatrixParam(passData.deferredShadingShader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(passData.deferredShadingShader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
+                    cmdEncoder.SetComputeIntParam(passData.deferredShadingShader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
+                    cmdEncoder.SetComputeBufferParam(passData.deferredShadingShader, 0, LightShaderIDs.DirectionalLightBuffer, passData.directionalLightBuffer);
+                    cmdEncoder.SetComputeIntParam(passData.deferredShadingShader, CascadeShadowPassUtilityData.CascadeCountID, passData.cascadeCount);
+                    cmdEncoder.SetComputeMatrixArrayParam(passData.deferredShadingShader, CascadeShadowPassUtilityData.CascadeMatricesID, passData.cascadeMatrices);
+                    cmdEncoder.SetComputeVectorParam(passData.deferredShadingShader, CascadeShadowPassUtilityData.CascadeSplitDistancesID, passData.cascadeSplitDistances);
 
                     cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);

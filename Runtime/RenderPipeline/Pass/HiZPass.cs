@@ -28,6 +28,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeHiZ(RenderContext renderContext, Camera camera)
         {
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.hiZShader, "HiZ_Generation"))
+            {
+                return;
+            }
+
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
             int mipWidth = Mathf.Max(1, width >> 1);
@@ -63,8 +68,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in HiZPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.hiZShader == null) return;
-
                     int prevWidth = passData.depthSize.x;
                     int prevHeight = passData.depthSize.y;
 

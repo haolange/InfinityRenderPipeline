@@ -77,7 +77,7 @@ uint SwapEndian32(in uint x)
 		(x >> 24);
 }
 
-float Luminance(float3 LinearColor)
+float EtcBlockLuma(float3 LinearColor)
 {
     return dot(LinearColor, float3(0.3, 0.59, 0.11));
 }
@@ -123,14 +123,14 @@ void FindPixelWeights(in float3 Block[16], in float3 BaseColor, in uint TableIdx
     SubBlockWeights = 0;
 	
     float TableRangeMax = rgb_distance_tables[TableIdx].w / 255.f;
-    float BaseLum = Luminance(BaseColor);
+    float BaseLum = EtcBlockLuma(BaseColor);
 
     for (int Y = StartY; Y < EndY; ++Y)
     {
         for (int X = StartX; X < EndX; ++X)
         {
             float3 OrigColor = Block[4 * Y + X];
-            float Diff = Luminance(OrigColor) - BaseLum;
+            float Diff = EtcBlockLuma(OrigColor) - BaseLum;
             int EncIndex = 0;
             if (Diff < 0.f)
             {
@@ -183,17 +183,17 @@ uint2 CompressBlock_ETC2_RGB(in float3 Block[16])
         BaseColor2_Quant = ExpandColor444(BaseColor2);
     }
 
-    float l00 = Luminance(Block[0]);
-    float l08 = Luminance(Block[8]);
-    float l13 = Luminance(Block[13]);
+    float l00 = EtcBlockLuma(Block[0]);
+    float l08 = EtcBlockLuma(Block[8]);
+    float l13 = EtcBlockLuma(Block[13]);
     float LuminanceR1 = (max3(l00, l08, l13) - min3(l00, l08, l13)) * 0.5;
     uint SubBlock1TableIdx = SelectRGBTableIndex(LuminanceR1);
     uint SubBlock1Weights = 0;
     FindPixelWeights(Block, BaseColor1_Quant, SubBlock1TableIdx, 0, 2, 0, 4, SubBlock1Weights);
 
-    float l02 = Luminance(Block[2]);
-    float l10 = Luminance(Block[10]);
-    float l15 = Luminance(Block[15]);
+    float l02 = EtcBlockLuma(Block[2]);
+    float l10 = EtcBlockLuma(Block[10]);
+    float l15 = EtcBlockLuma(Block[15]);
     float LuminanceR2 = (max3(l02, l10, l15) - min3(l02, l10, l15)) * 0.5;
     uint SubBlock2TableIdx = SelectRGBTableIndex(LuminanceR2);
     uint SubBlock2Weights = 0;

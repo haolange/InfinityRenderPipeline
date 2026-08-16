@@ -119,7 +119,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 
         // Shadow
         float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvProj);
-        float shadow = SampleCascadeShadow(worldPos, -viewPos.z);
+        float shadow = _CascadeCount > 0 ? SampleCascadeShadow(worldPos, -viewPos.z) : 1.0;
         shadow *= contactShadow;
 
         // Evaluate shading model

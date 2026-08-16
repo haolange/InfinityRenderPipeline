@@ -12,6 +12,31 @@ namespace InfinityTech.Rendering.Pipeline
         // Value the depth buffer actually holds at the far plane when sampled from a shader.
         internal static float SampledFarDepth => SystemInfo.usesReversedZBuffer ? 0.0f : 1.0f;
 
+        internal static bool VolumeHasOverrides(VolumeComponent component)
+        {
+            if (component == null || !component.active)
+            {
+                return false;
+            }
+
+            var parameters = component.parameters;
+            if (parameters == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < parameters.Count; ++i)
+            {
+                VolumeParameter parameter = parameters[i];
+                if (parameter != null && parameter.overrideState)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         internal static bool HasRequiredKernels(ComputeShader shader, params string[] kernelNames)
         {
             if (shader == null)
@@ -156,6 +181,36 @@ namespace InfinityTech.Rendering.Pipeline
         public static Rect GetViewport(Camera camera)
         {
             return new Rect(camera.pixelRect.x, camera.pixelRect.y, camera.pixelWidth, camera.pixelHeight);
+        }
+
+        // Compute UAV / sampled RT y=0 is the top of the image. Reconstructing with
+        // GetGPUProjectionMatrix(..., renderIntoTexture: true) maps that row to NDC y = -1,
+        // which this GPU projection treats as the bottom of the view. High-elevation sky
+        // then samples below-horizon SkyView texels (black). Scene and Game both write
+        // depth in the unflipped convention the raster attachments actually store.
+        internal static bool ComputeUsesRenderIntoTextureProjection(Camera camera)
+        {
+            return false;
+        }
+
+        internal static Matrix4x4 GetComputeGpuProjection(Camera camera)
+        {
+            return GL.GetGPUProjectionMatrix(camera.projectionMatrix, ComputeUsesRenderIntoTextureProjection(camera));
+        }
+
+        internal static Matrix4x4 GetComputeViewProj(Camera camera)
+        {
+            return GetComputeGpuProjection(camera) * camera.worldToCameraMatrix;
+        }
+
+        internal static Matrix4x4 GetComputeInvViewProj(Camera camera)
+        {
+            return GetComputeViewProj(camera).inverse;
+        }
+
+        internal static Matrix4x4 GetComputeInvProj(Camera camera)
+        {
+            return GetComputeGpuProjection(camera).inverse;
         }
     }
 }

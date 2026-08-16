@@ -154,7 +154,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-            TemporalAntiAliasingGenerator.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, matrix_Proj, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
+            TemporalAntiAliasingGenerator.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
@@ -238,6 +238,9 @@ namespace InfinityTech.Rendering.Pipeline
         private MeshDrawPipeline m_ShadowMeshProcessor;
         private Dictionary<int, HistoryCache> m_HistoryCaches;
         private Dictionary<int, CameraUniform> m_CameraUniforms;
+        private int m_ActiveCascadeCount;
+        private readonly Matrix4x4[] m_ActiveCascadeMatrices = new Matrix4x4[4];
+        private Vector4 m_ActiveCascadeSplitDistances;
 
         internal RenderContext renderContext;
         internal InfinityRenderPipelineAsset pipelineAsset 
@@ -391,32 +394,23 @@ namespace InfinityTech.Rendering.Pipeline
                             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
                             {
                                 renderContext.lightContext.Clear();
-                                NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
                                 Dictionary<int, LightComponent> lights = renderContext.GetWorldLight();
-
-                                for (int j = 0; j < visibleLights.Length; ++j)
+                                foreach (KeyValuePair<int, LightComponent> pair in lights)
                                 {
-                                    VisibleLight visibleLight = visibleLights[j];
-                                    if (lights.TryGetValue(UnityEntityId.ToInt32(visibleLight.light), out LightComponent additionLight))
+                                    LightComponent additionLight = pair.Value;
+                                    if (additionLight == null || !additionLight.isActiveAndEnabled)
                                     {
-                                        switch (additionLight.lightType)
-                                        {
-                                            case ELightType.Directional:
-                                                renderContext.lightContext.AddDirectionalLight(j, additionLight);
-                                                break;
+                                        continue;
+                                    }
 
-                                            case ELightType.Point:
+                                    if (additionLight.unityLight != null && !additionLight.unityLight.enabled)
+                                    {
+                                        continue;
+                                    }
 
-                                                break;
-
-                                            case ELightType.Spot:
-
-                                                break;
-
-                                            case ELightType.Rect:
-
-                                                break;
-                                        }
+                                    if (additionLight.lightType == ELightType.Directional)
+                                    {
+                                        renderContext.lightContext.AddDirectionalLight(0, additionLight);
                                     }
                                 }
 

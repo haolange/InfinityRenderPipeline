@@ -2,6 +2,7 @@
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
+using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Feature
 {
@@ -57,26 +58,26 @@ namespace InfinityTech.Rendering.Feature
             this.m_Shader = shader;
         }
 
-        public void BindSceneStruct(CommandBuffer cmdBuffer, RayTracingAccelerationStructure rayTraceScene) 
+        public void BindSceneStruct<T>(T cmd, RayTracingAccelerationStructure rayTraceScene) where T : IRaytracingCommands
         {
-            cmdBuffer.SetRayTracingShaderPass(m_Shader, RayTraceAOPassID);
-            cmdBuffer.SetRayTracingAccelerationStructure(m_Shader, RayTraceSceneID, rayTraceScene);
+            cmd.SetRayTracingShaderPass(m_Shader, RayTraceAOPassID);
+            cmd.SetRayTracingAccelerationStructure(m_Shader, RayTraceSceneID, rayTraceScene);
         }
 
-        public void Render(Camera camera, CommandBuffer cmdBuffer, in RayTracingOcclusionParameter parameter, in RayTracingOcclusionInputData inputData, in RayTracingOcclusionOuputData outputData) 
+        public void Render<T>(Camera camera, T cmd, in RayTracingOcclusionParameter parameter, in RayTracingOcclusionInputData inputData, in RayTracingOcclusionOuputData outputData) where T : IRaytracingCommands
         {
-            cmdBuffer.SetRayTracingIntParam(m_Shader, RayTracingOcclusionShaderID.NumRays, parameter.numRays);
-            cmdBuffer.SetRayTracingIntParam(m_Shader, RayTracingOcclusionShaderID.FrameIndex, inputData.frameIndex);
-            cmdBuffer.SetRayTracingFloatParam(m_Shader, RayTracingOcclusionShaderID.Radius, parameter.radius);
-            cmdBuffer.SetRayTracingVectorParam(m_Shader, RayTracingOcclusionShaderID.Resolution, inputData.resolution);
-            cmdBuffer.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_Proj, inputData.matrix_Proj);
-            cmdBuffer.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_InvProj, inputData.matrix_InvProj);
-            cmdBuffer.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_InvViewProj, inputData.matrix_InvViewProj);
-            cmdBuffer.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_WorldToView, inputData.matrix_WorldToView);
-            cmdBuffer.SetRayTracingTextureParam(m_Shader, RayTracingOcclusionShaderID.SceneDepth, inputData.sceneDepth);
-            cmdBuffer.SetRayTracingTextureParam(m_Shader, RayTracingOcclusionShaderID.GBufferNormal, inputData.gBufferNormal);
-            cmdBuffer.SetRayTracingTextureParam(m_Shader, RayTracingOcclusionShaderID.ScreenOcclusion, outputData.screenOcclusion);
-            cmdBuffer.DispatchRays(m_Shader, KernelID, (uint)inputData.resolution.x,  (uint)inputData.resolution.y, 1, camera);
+            cmd.SetRayTracingIntParam(m_Shader, RayTracingOcclusionShaderID.NumRays, parameter.numRays);
+            cmd.SetRayTracingIntParam(m_Shader, RayTracingOcclusionShaderID.FrameIndex, inputData.frameIndex);
+            cmd.SetRayTracingFloatParam(m_Shader, RayTracingOcclusionShaderID.Radius, parameter.radius);
+            cmd.SetRayTracingVectorParam(m_Shader, RayTracingOcclusionShaderID.Resolution, inputData.resolution);
+            cmd.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_Proj, inputData.matrix_Proj);
+            cmd.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_InvProj, inputData.matrix_InvProj);
+            cmd.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_InvViewProj, inputData.matrix_InvViewProj);
+            cmd.SetRayTracingMatrixParam(m_Shader, RayTracingOcclusionShaderID.Matrix_WorldToView, inputData.matrix_WorldToView);
+            cmd.SetRayTracingTextureParam(m_Shader, RayTracingOcclusionShaderID.SceneDepth, inputData.sceneDepth);
+            cmd.SetRayTracingTextureParam(m_Shader, RayTracingOcclusionShaderID.GBufferNormal, inputData.gBufferNormal);
+            cmd.SetRayTracingTextureParam(m_Shader, RayTracingOcclusionShaderID.ScreenOcclusion, outputData.screenOcclusion);
+            cmd.DispatchRays(m_Shader, KernelID, (uint)inputData.resolution.x,  (uint)inputData.resolution.y, 1, camera);
         }       
     }
 }

@@ -15,19 +15,23 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int PP_BloomIntensityID = Shader.PropertyToID("PP_BloomIntensity");
         internal static int PP_BloomThresholdID = Shader.PropertyToID("PP_BloomThreshold");
         internal static int PP_VignetteIntensityID = Shader.PropertyToID("PP_VignetteIntensity");
-        internal static int PP_ChromaticAberrationID = Shader.PropertyToID("PP_ChromaticAberration");
         internal static int PP_FilmGrainIntensityID = Shader.PropertyToID("PP_FilmGrainIntensity");
         internal static int PP_FrameIndexID = Shader.PropertyToID("PP_FrameIndex");
         internal static int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
-        internal static int SRV_CombineLUTTextureID = Shader.PropertyToID("SRV_CombineLUTTexture");
         internal static int SRV_VolumetricFogTextureID = Shader.PropertyToID("SRV_VolumetricFogTexture");
+        internal static int SRV_VolumetricCloudTextureID = Shader.PropertyToID("SRV_VolumetricCloudTexture");
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int UAV_PostProcessTextureID = Shader.PropertyToID("UAV_PostProcessTexture");
+        internal static int PP_VolFog_MaxDistanceID = Shader.PropertyToID("PP_VolFog_MaxDistance");
+        internal static string FogKeyword = "PP_VOLUMETRIC_FOG";
+        internal static string CloudKeyword = "PP_VOLUMETRIC_CLOUD";
 
         // Bloom pipeline textures and parameters
         internal static int SRV_BloomSourceID = Shader.PropertyToID("SRV_BloomSource");
+        internal static int SRV_BloomTextureID = Shader.PropertyToID("SRV_BloomTexture");
         internal static int UAV_BloomTargetID = Shader.PropertyToID("UAV_BloomTarget");
         internal static int BloomMipSizeID = Shader.PropertyToID("BloomMipSize");
+        internal static int PP_BloomPrefilterID = Shader.PropertyToID("PP_BloomPrefilter");
 
         internal static int KernelBloomDownsample = 0;
         internal static int KernelBloomUpsample = 1;
@@ -44,34 +48,25 @@ namespace InfinityTech.Rendering.Pipeline
             public float bloomIntensity;
             public float bloomThreshold;
             public float vignetteIntensity;
-            public float chromaticAberration;
             public float filmGrainIntensity;
             public int frameIndex;
+            public bool hasVolumetricFog;
+            public bool hasVolumetricCloud;
+            public float volumetricFogMaxDistance;
+            public Matrix4x4 matrix_InvViewProj;
+            public Vector4 worldSpaceCameraPos;
             public ComputeShader postProcessingShader;
             public RGTextureRef sceneColorTexture;
             public RGTextureRef volumetricFogTexture;
+            public RGTextureRef volumetricCloudTexture;
             public RGTextureRef depthTexture;
             public RGTextureRef bloomTexture;
             public RGTextureRef postProcessTexture;
         }
 
-        static readonly bool s_PostProcessingDisplayContractReady = false;
-
         void ComputePostProcessing(RenderContext renderContext, Camera camera, in RGTextureRef sceneColorTexture)
         {
-            // VolumetricFogBuffer is Tex3D; this compute still samples it as Texture2D.
-            // Do not steal DisplayColorBuffer until that contract is implemented.
-            if (!s_PostProcessingDisplayContractReady)
-            {
-                return;
-            }
-
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine"))
-            {
-                return;
-            }
-
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out _))
             {
                 return;
             }
@@ -105,8 +100,15 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef bloomTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BloomBuffer, bloomDsc);
 
-            RGTextureRef volumetricFogTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.VolumetricFogBuffer);
+            bool hasVolumetricFog = m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureRef volumetricFogTexture);
+            bool hasVolumetricCloud = m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureRef volumetricCloudTexture);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            float volumetricFogMaxDistance = 64.0f;
+            var volFog = VolumeManager.instance.stack.GetComponent<InfinityTech.Rendering.PostProcess.VolumetricFog>();
+            if (volFog != null)
+            {
+                volumetricFogMaxDistance = volFog.MaxDistance.value;
+            }
 
             //Add PostProcessingPass
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<PostProcessingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputePostProcessing)))
@@ -114,15 +116,28 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 ref PostProcessingPassData passData = ref passRef.GetPassData<PostProcessingPassData>();
                 passData.resolution = new int2(width, height);
+                // Provisional constants: there is no exposure stage, so the threshold is a raw linear
+                // luminance and only makes sense relative to this project's light intensities.
                 passData.bloomIntensity = 0.5f;
-                passData.bloomThreshold = 1.0f;
+                passData.bloomThreshold = 0.5f;
                 passData.vignetteIntensity = 0.3f;
-                passData.chromaticAberration = 0.0f;
                 passData.filmGrainIntensity = 0.0f;
                 passData.frameIndex = Time.frameCount;
+                passData.hasVolumetricFog = hasVolumetricFog;
+                passData.hasVolumetricCloud = hasVolumetricCloud;
+                passData.volumetricFogMaxDistance = volumetricFogMaxDistance;
+                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
+                passData.worldSpaceCameraPos = camera.transform.position;
                 passData.postProcessingShader = pipelineAsset.postProcessingShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
-                passData.volumetricFogTexture = passRef.ReadTexture(volumetricFogTexture);
+                if (hasVolumetricFog)
+                {
+                    passData.volumetricFogTexture = passRef.ReadTexture(volumetricFogTexture);
+                }
+                if (hasVolumetricCloud)
+                {
+                    passData.volumetricCloudTexture = passRef.ReadTexture(volumetricCloudTexture);
+                }
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.bloomTexture = passRef.WriteTexture(bloomTexture);
                 passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);
@@ -136,9 +151,13 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomIntensityID, passData.bloomIntensity);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomThresholdID, passData.bloomThreshold);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_VignetteIntensityID, passData.vignetteIntensity);
-                    cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_ChromaticAberrationID, passData.chromaticAberration);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_FilmGrainIntensityID, passData.filmGrainIntensity);
                     cmdEncoder.SetComputeIntParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_FrameIndexID, passData.frameIndex);
+                    cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_VolFog_MaxDistanceID, passData.volumetricFogMaxDistance);
+                    cmdEncoder.SetComputeMatrixParam(passData.postProcessingShader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
+                    cmdEncoder.SetComputeVectorParam(passData.postProcessingShader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
+                    passData.postProcessingShader.SetKeyword(new LocalKeyword(passData.postProcessingShader, PostProcessingPassUtilityData.FogKeyword), passData.hasVolumetricFog);
+                    passData.postProcessingShader.SetKeyword(new LocalKeyword(passData.postProcessingShader, PostProcessingPassUtilityData.CloudKeyword), passData.hasVolumetricCloud);
 
                     int bloomWidth = Mathf.Max(1, passData.resolution.x >> 1);
                     int bloomHeight = Mathf.Max(1, passData.resolution.y >> 1);
@@ -147,11 +166,13 @@ namespace InfinityTech.Rendering.Pipeline
                     // === Bloom Downsample Chain ===
                     // Mip 0: downsample from scene color to bloom mip 0 (with threshold)
                     cmdEncoder.SetComputeVectorParam(passData.postProcessingShader, PostProcessingPassUtilityData.BloomMipSizeID, new Vector4(bloomWidth, bloomHeight, 1.0f / bloomWidth, 1.0f / bloomHeight));
+                    cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomPrefilterID, 1.0f);
                     cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.sceneColorTexture);
                     cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, 0);
                     cmdEncoder.DispatchCompute(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, Mathf.CeilToInt(bloomWidth / 8.0f), Mathf.CeilToInt(bloomHeight / 8.0f), 1);
 
                     // Subsequent downsample mips
+                    cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomPrefilterID, 0.0f);
                     int prevWidth = bloomWidth;
                     int prevHeight = bloomHeight;
                     for (int mip = 1; mip < numBloomMips; ++mip)
@@ -184,8 +205,16 @@ namespace InfinityTech.Rendering.Pipeline
                     // === Final Combine ===
                     // Apply bloom + volumetric fog + tone mapping + vignette + film grain + sRGB
                     cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_VolumetricFogTextureID, passData.volumetricFogTexture);
+                    if (passData.hasVolumetricFog)
+                    {
+                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_VolumetricFogTextureID, passData.volumetricFogTexture);
+                    }
+                    if (passData.hasVolumetricCloud)
+                    {
+                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
+                    }
                     cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_BloomTextureID, passData.bloomTexture);
                     cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);
                     cmdEncoder.DispatchCompute(passData.postProcessingShader, PostProcessingPassUtilityData.KernelCombine, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });

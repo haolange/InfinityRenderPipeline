@@ -396,14 +396,6 @@ namespace InfinityTech.Rendering.RenderGraph
                     desc.useMipMap, desc.autoGenerateMips, desc.isShadowMap, desc.anisoLevel, desc.mipMapBias, (MSAASamples)desc.msaaSamples, desc.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, desc.name);
                 }
                 resource.cachedHash = hashCode;
-
-                if (resource.descriptor.clearBuffer)
-                {
-                    bool debugClear = !resource.descriptor.clearBuffer;
-                    var clearFlag = resource.descriptor.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
-                    var clearColor = debugClear ? Color.magenta : resource.descriptor.clearColor;
-                    CoreUtils.SetRenderTarget(graphContext.cmdBuffer, resource.resource, clearFlag, clearColor);
-                }
             }
         }
 
@@ -416,12 +408,6 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 if (resource.resource == null)
                     throw new InvalidOperationException($"Tried to release a texture ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
-
-                /*using (new ProfilingScope(rgContext.CmdBuffer, ProfilingSampler.Get(ERGProfileId.RenderGraphClearDebug)))
-                {
-                    var clearFlag = resource.desc.depthBufferBits != EDepthBits.None ? ClearFlag.Depth : ClearFlag.Color;
-                    CoreUtils.SetRenderTarget(rgContext.CmdBuffer, GetTexture(new RGTextureHandle(index)), clearFlag, Color.magenta);
-                }*/
 
                 m_TexturePool.Push(resource.cachedHash, resource.descriptor, resource.resource);
                 resource.cachedHash = -1;

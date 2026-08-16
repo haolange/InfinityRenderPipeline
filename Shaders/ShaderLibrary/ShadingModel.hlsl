@@ -163,7 +163,7 @@ float3 HairLit(float3 L, float3 V, half3 N, float3 SpecularColor, float Specular
 		float Wrap = 1;
 		float NoL = saturate((dot(N, L) + Wrap) / Square(1 + Wrap));
 		float DiffuseScatter = Inv_Pi * lerp(NoL, KajiyaDiffuse, 0.33) * Scatter;
-		float Luma = Luminance(SpecularColor);
+		float Luma = Rec709Luminance(SpecularColor);
 		float3 ScatterTint = pow(SpecularColor / Luma, 1 - Shadow);
 		S += sqrt(SpecularColor) * DiffuseScatter * ScatterTint;
 	}

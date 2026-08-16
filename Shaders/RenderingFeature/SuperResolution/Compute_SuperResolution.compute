@@ -54,12 +54,12 @@ float4 SampleHistoryBicubic(float2 uv, float2 texSize, float2 invTexSize)
 // Tonemap / inverse tonemap for working in perceptual space
 float3 Tonemap(float3 color)
 {
-    return color * rcp(1.0 + Luminance(color));
+    return color * rcp(1.0 + Rec709Luminance(color));
 }
 
 float3 InverseTonemap(float3 color)
 {
-    return color * rcp(1.0 - Luminance(color));
+    return color * rcp(1.0 - Rec709Luminance(color));
 }
 
 // Find closest depth in 3x3 neighborhood for motion vector dilation

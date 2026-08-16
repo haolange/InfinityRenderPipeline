@@ -21,6 +21,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         private SerializedProperty m_DynamicBatch;
 
         private SerializedProperty m_VolumeProfile;
+        private SerializedProperty m_AtmosphericalProfile;
 
         private SerializedProperty m_TAAShader;
         private SerializedProperty m_SSRShader;
@@ -46,6 +47,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_DefaultShader = serializedObject.FindProperty("defaultShaderProxy");
 
             m_VolumeProfile = serializedObject.FindProperty("m_VolumeProfile");
+            m_AtmosphericalProfile = serializedObject.FindProperty("atmosphericalProfile");
 
             m_TAAShader = serializedObject.FindProperty("taaShader");
             m_SSRShader = serializedObject.FindProperty("ssrShader");
@@ -67,6 +69,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             if (showProfile)
             {
                 EditorGUILayout.PropertyField(m_VolumeProfile, new GUIContent("Default Volume Profile"), GUILayout.Height(18));
+                EditorGUILayout.PropertyField(m_AtmosphericalProfile, new GUIContent("Atmospherical Profile"), GUILayout.Height(18));
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 
