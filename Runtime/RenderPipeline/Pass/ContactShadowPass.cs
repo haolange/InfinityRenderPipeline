@@ -78,8 +78,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.intensity = contactShadowSettings.Intensity.value;
                 passData.fadeDistance = contactShadowSettings.FadeDistance.value;
                 passData.resolution = new int2(width, height);
-                passData.matrix_ViewProj = GraphicsUtility.GetComputeViewProj(camera);
-                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
+                passData.matrix_ViewProj = m_CameraUniform.matrix_ViewFlipYJitterProj;
+                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
                 passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;

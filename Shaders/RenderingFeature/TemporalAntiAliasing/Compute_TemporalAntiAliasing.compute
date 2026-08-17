@@ -2,6 +2,7 @@
 
 float4 TAA_Resolution;
 float4 TAA_BlendParameter; // x: static, y: dynamic, z: motion amplification, w: temporalScale
+float TAA_Sharpness;
 Texture2D SRV_DepthTexture;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryDepthTexture;
@@ -11,37 +12,19 @@ RWTexture2D<float4> UAV_AccmulateColorTexture;
 
 static const half TONEMAP_EPSILON = 1.0f / 65530.0f;
 static const int2 SampleOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
-static const int2 NeighborOffsets[8] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(1, 1), int2(1, 0), int2(-1, 1), int2(0, -1) };
+static const int2 NeighborOffsets[8] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(1, 1), int2(1, 0), int2(-1, 1), int2(0, 1) };
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/ShaderVariables.hlsl"
 
 float3 ClipAABB(float3 color, float3 aabbMin, float3 aabbMax)
 {
-#if 0
-    // Note: only clips towards aabb center (but fast!)
     float3 center = 0.5 * (aabbMax + aabbMin);
-    float3 extents = 0.5 * (aabbMax - aabbMin);
-
-    // This is actually `distance`, however the keyword is reserved
+    float3 extents = 0.5 * (aabbMax - aabbMin) + 1e-5;
     float3 offset = color - center;
-
     float3 ts = abs(offset / extents);
     float t = max3(ts.x, ts.y, ts.z);
-
-    return t > 1 ? center + offset / t : color;
-#else
-    // Note: only clips towards aabb center (but fast!)
-    float3 center = 0.5 * (aabbMax + aabbMin);
-    float3 extents = 0.5 * (aabbMax - aabbMin);
-
-    // This is actually `distance`, however the keyword is reserved
-    float3 offset = color - center;
-
-    float3 ts = abs(extents / (offset + 0.0001));
-    float t = saturate(min3(ts.x, ts.y, ts.z));
-    return center + offset * t;
-#endif
+    return t > 1.0 ? center + offset / t : color;
 }
 
 #if 1 //defined(UNITY_REVERSED_Z)
@@ -62,14 +45,14 @@ float3 InverseTonemap(float3 fRgb)
 
 float2 GetClosestFragment(float2 uv, float currDepth)
 {
-    float neighborhood[9];
+    float neighborhood[8];
     [unroll]
     for(uint i = 0; i < 8; ++i) 
     {
         neighborhood[i] = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0, NeighborOffsets[i]).r;
     }
 
-    float3 result = currDepth;
+    float3 result = float3(0, 0, currDepth);
 
     [unroll]
     for(uint j = 0; j < 8; ++j) 
@@ -87,35 +70,28 @@ void Main (uint3 id : SV_DispatchThreadID)
 
     float currDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
     float2 velocity = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, GetClosestFragment(screenUV, currDepth), 0).xy;
-    //float lastDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV - velocity, 0).r;
-    float3 lastColor = Texture2DSampleBicubic(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, screenUV - velocity, TAA_Resolution.xy, TAA_Resolution.zw).rgb;
+    float2 reprojUV = screenUV - velocity;
+    float3 lastColor = Texture2DSampleBicubic(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, reprojUV, TAA_Resolution.xy, TAA_Resolution.zw).rgb;
     lastColor = RGB2YCoCg(Tonemap(lastColor));
+
+    float lastDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, reprojUV, 0).r;
+    float currLinear = LinearEyeDepth(currDepth, _ZBufferParams);
+    float histLinear = LinearEyeDepth(lastDepth, _ZBufferParams);
+    float depthDelta = abs(currLinear - histLinear) / max(currLinear, 1e-4);
+
+    float confidence = (any(reprojUV < 0.0) || any(reprojUV > 1.0)) ? 0.0 : 1.0;
+    confidence *= 1.0 - smoothstep(0.02, 0.1, depthDelta);
 
     float3 sampleColors[9];
 
     [unroll]
     for(uint i = 0; i < 9; ++i) 
     {
-        sampleColors[i] = SRV_AliasingColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV - TAAJitter.xy, 0, SampleOffsets[i]).rgb;
+        sampleColors[i] = SRV_AliasingColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0, SampleOffsets[i]).rgb;
         sampleColors[i] = RGB2YCoCg(Tonemap(sampleColors[i]));
     }
 
-#if 1
-    float totalWeight = 0;
-    float3 totalColor = 0;
-    
-    [unroll]
-    for(uint j = 0; j < 9; ++j) 
-    {
-        float weight = HdrWeightY(sampleColors[j].r, 10);
-        totalWeight += weight;
-        totalColor += sampleColors[j] * weight;
-
-    }
-    totalColor /= totalWeight;
-#else
-    float3 totalColor = sampleColors[4];
-#endif
+    float3 currColor = sampleColors[4];
 
     float3 m1 = 0; 
     float3 m2 = 0;
@@ -130,23 +106,24 @@ void Main (uint3 id : SV_DispatchThreadID)
     float3 mean = m1 / 9;
     float3 stddev = sqrt((m2 / 9) - pow2(mean));
 
-    //TAA_BlendParameter.w *= (((currDepth - lastDepth) * 10) > 0.001) ? 0 : 1;
     float3 minColor = mean - TAA_BlendParameter.w * stddev;
     float3 maxColor = mean + TAA_BlendParameter.w * stddev;
 
-    minColor = min(minColor, totalColor);
-    maxColor = max(maxColor, totalColor);
-    
-    float3 corners = ((sampleColors[0] + sampleColors[8] + sampleColors[2] + sampleColors[6]) - totalColor) * 2;
-    
-    // Sharpen output
-    totalColor += (totalColor - (corners * 0.167)) * 2.718 * 0.5; //0.5 is sharpness
-    totalColor = clamp(totalColor, 0.0, 65472);
-    
+    minColor = min(minColor, currColor);
+    maxColor = max(maxColor, currColor);
+
     lastColor = ClipAABB(lastColor, minColor, maxColor);
 
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, length(velocity) * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
-    UAV_AccmulateColorTexture[id.xy] = float4(clamp(InverseTonemap(YCoCg2RGB(lerp(totalColor, lastColor, weight))), 0.0, 65472), 1.0);
+    weight *= confidence;
+
+    float3 blended = lerp(currColor, lastColor, weight);
+
+    float crossLuma = (sampleColors[1].x + sampleColors[3].x + sampleColors[5].x + sampleColors[7].x) * 0.25;
+    blended.x += (blended.x - crossLuma) * TAA_Sharpness;
+    blended.x = clamp(blended.x, minColor.x, maxColor.x);
+
+    UAV_AccmulateColorTexture[id.xy] = float4(clamp(InverseTonemap(YCoCg2RGB(blended)), 0.0, 65472), 1.0);
 }
 
 /*float2 GetClosestFragment(float2 uv)

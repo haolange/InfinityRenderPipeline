@@ -404,6 +404,16 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             m_CommandBuffer.EndSample(name);
         }
+
+        public void BeginSample(ProfilingSampler sampler)
+        {
+            sampler?.Begin(m_CommandBuffer);
+        }
+
+        public void EndSample(ProfilingSampler sampler)
+        {
+            sampler?.End(m_CommandBuffer);
+        }
     }
 
     public struct RGRaytracingEncoder : IRaytracingCommands

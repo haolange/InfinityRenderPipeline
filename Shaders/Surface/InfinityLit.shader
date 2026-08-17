@@ -441,8 +441,8 @@
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1));
 				Out.vertex = mul(UNITY_MATRIX_VP, WorldPos);
 				
-				Out.clipPos = mul(Matrix_ViewJitterProj, WorldPos);
-				Out.clipPosOld = mul(Matrix_LastViewJitterProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
+				Out.clipPos = mul(Matrix_ViewProj, WorldPos);
+				Out.clipPosOld = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
 				return Out;
 			}
 

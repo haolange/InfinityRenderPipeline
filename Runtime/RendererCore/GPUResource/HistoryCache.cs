@@ -4,53 +4,6 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Rendering.GPUResource
 {
-    internal static class TextureExtension
-    {
-        internal static bool Equal(this RenderTextureDescriptor a, in RenderTextureDescriptor b)
-        {
-            bool dif = false;
-            dif |= a.autoGenerateMips != b.autoGenerateMips;
-            dif |= a.bindMS != b.bindMS;
-            dif |= a.colorFormat != b.colorFormat;
-            dif |= a.depthBufferBits != b.depthBufferBits;
-            dif |= a.dimension != b.dimension;
-            dif |= a.enableRandomWrite != b.enableRandomWrite;
-            dif |= a.graphicsFormat != b.graphicsFormat;
-            dif |= a.height != b.height;
-            dif |= a.memoryless != b.memoryless;
-            dif |= a.mipCount != b.mipCount;
-            dif |= a.msaaSamples != b.msaaSamples;
-            dif |= a.shadowSamplingMode != b.shadowSamplingMode;
-            dif |= a.sRGB != b.sRGB;
-            dif |= a.stencilFormat != b.stencilFormat;
-            dif |= a.useDynamicScale != b.useDynamicScale;
-            dif |= a.useMipMap != b.useMipMap;
-            dif |= a.volumeDepth != b.volumeDepth;
-            dif |= a.vrUsage != b.vrUsage;
-            dif |= a.width != b.width;
-            return !dif;
-        }
-
-        /*internal static RenderTextureDescriptor GetRTDescriptor(this TextureDescriptor descriptor)
-        {
-            RenderTextureDescriptor rtDescriptor = new RenderTextureDescriptor(descriptor.width, descriptor.height, descriptor.colorFormat, (int)descriptor.depthBufferBits, -1);
-            rtDescriptor.vrUsage = VRTextureUsage.None;
-            rtDescriptor.volumeDepth = descriptor.slices;
-            rtDescriptor.useMipMap = descriptor.useMipMap;
-            rtDescriptor.dimension = descriptor.dimension;
-            rtDescriptor.stencilFormat = GraphicsFormat.None;
-            rtDescriptor.bindMS = descriptor.bindTextureMS;
-            rtDescriptor.depthStencilFormat = GraphicsFormat.None;
-            rtDescriptor.memoryless = RenderTextureMemoryless.None;
-            rtDescriptor.msaaSamples = (int)descriptor.msaaSamples;
-            rtDescriptor.shadowSamplingMode = ShadowSamplingMode.None;
-            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
-            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
-            rtDescriptor.enableRandomWrite = descriptor.enableRandomWrite;
-            return rtDescriptor;
-        }*/
-    }
-
     public class HistoryCache
     {
         Dictionary<int, FBufferRef> m_CacheBuffers;
@@ -116,8 +69,7 @@ namespace InfinityTech.Rendering.GPUResource
                 return textureRef;
             }
 
-            RenderTextureDescriptor rtDescriptor = descriptor;
-            if (!rtDescriptor.Equal(textureRef.texture.rt.descriptor))
+            if (!descriptor.Equals(textureRef.descriptor))
             {
                 RTHandles.Release(textureRef.texture);
                 textureRef.texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,

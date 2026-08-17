@@ -129,6 +129,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Execute Phase
                 passRef.EnablePassCulling(false);
+                passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in VolumetricCloudPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     cmdEncoder.SetComputeVectorParam(passData.volumetricCloudShader, VolumetricCloudPassUtilityData.VolCloud_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));

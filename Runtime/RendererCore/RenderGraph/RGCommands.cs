@@ -25,6 +25,8 @@ namespace InfinityTech.Rendering.RenderGraph
         void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst);
         void BeginSample(string name);
         void EndSample(string name);
+        void BeginSample(ProfilingSampler sampler);
+        void EndSample(ProfilingSampler sampler);
     }
 
     public interface IRaytracingCommands
@@ -131,6 +133,16 @@ namespace InfinityTech.Rendering.RenderGraph
         public void EndSample(string name)
         {
             m_CommandBuffer.EndSample(name);
+        }
+
+        public void BeginSample(ProfilingSampler sampler)
+        {
+            sampler?.Begin(m_CommandBuffer);
+        }
+
+        public void EndSample(ProfilingSampler sampler)
+        {
+            sampler?.End(m_CommandBuffer);
         }
 
         public void SetRayTracingShaderPass(RayTracingShader rayTracingShader, string passName)

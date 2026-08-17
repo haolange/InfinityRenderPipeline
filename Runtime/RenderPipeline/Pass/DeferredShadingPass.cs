@@ -88,8 +88,8 @@ namespace InfinityTech.Rendering.Pipeline
                 ref DeferredShadingPassData passData = ref passRef.GetPassData<DeferredShadingPassData>();
                 passData.tileSize = tileSize;
                 passData.resolution = new int2(width, height);
-                passData.matrix_InvProj = GraphicsUtility.GetComputeInvProj(camera);
-                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
+                passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
+                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
                 passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;

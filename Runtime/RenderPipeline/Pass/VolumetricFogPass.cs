@@ -104,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.frameIndex = Time.frameCount;
                 passData.screenSize = new int2(width, height);
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
-                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
+                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
                 passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;
@@ -115,6 +115,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Execute Phase
                 passRef.EnablePassCulling(false);
+                passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     cmdEncoder.SetComputeVectorParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.VolFog_ScreenSizeID, new Vector4(passData.screenSize.x, passData.screenSize.y, 1.0f / passData.screenSize.x, 1.0f / passData.screenSize.y));

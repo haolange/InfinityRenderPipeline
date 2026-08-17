@@ -27,10 +27,12 @@ namespace InfinityTech.Rendering.Feature
     public struct TemporalAAParameter
     {
         public float4 blendParameter;
+        public float sharpness;
 
-        public TemporalAAParameter(in float staticFactor, in float dynamicFactor, in float motionFactor, in float temporalScale)
+        public TemporalAAParameter(in float staticFactor, in float dynamicFactor, in float motionFactor, in float temporalScale, in float sharpness)
         {
             blendParameter = new float4(staticFactor, dynamicFactor, motionFactor, temporalScale);
+            this.sharpness = sharpness;
         }
     }
 
@@ -53,6 +55,7 @@ namespace InfinityTech.Rendering.Feature
     {
         public static int Resolution = Shader.PropertyToID("TAA_Resolution");
         public static int BlendParameter = Shader.PropertyToID("TAA_BlendParameter");
+        public static int Sharpness = Shader.PropertyToID("TAA_Sharpness");
         public static int DepthTexture = Shader.PropertyToID("SRV_DepthTexture");
         public static int MotionTexture = Shader.PropertyToID("SRV_MotionTexture");
         public static int HistoryDepthTexture = Shader.PropertyToID("SRV_HistoryDepthTexture");
@@ -67,6 +70,7 @@ namespace InfinityTech.Rendering.Feature
         {
             cmd.SetComputeVectorParam(shader, TemporalAAShaderID.Resolution, inputData.resolution);
             cmd.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
+            cmd.SetComputeFloatParam(shader, TemporalAAShaderID.Sharpness, parameter.sharpness);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.DepthTexture, inputData.depthTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.MotionTexture, inputData.motionTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
@@ -92,8 +96,9 @@ namespace InfinityTech.Rendering.Feature
             proj[0, 2] += offset.x / horizontal;
             proj[1, 2] += offset.y / vertical;
 
-            proj = GL.GetGPUProjectionMatrix(proj, true);
-            projFlipY = GL.GetGPUProjectionMatrix(proj, false);
+            Matrix4x4 jitteredProj = proj;
+            proj = GL.GetGPUProjectionMatrix(jitteredProj, true);
+            projFlipY = GL.GetGPUProjectionMatrix(jitteredProj, false);
         }
 
         public static void GetJitteredOrthographicProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
@@ -109,9 +114,9 @@ namespace InfinityTech.Rendering.Feature
             float top = offset.y + vertical;
             float bottom = offset.y - vertical;
 
-            proj = Matrix4x4.Ortho(left, right, bottom, top, camera.nearClipPlane, camera.farClipPlane);
-            proj = GL.GetGPUProjectionMatrix(proj, true);
-            projFlipY = GL.GetGPUProjectionMatrix(proj, false);
+            Matrix4x4 jitteredProj = Matrix4x4.Ortho(left, right, bottom, top, camera.nearClipPlane, camera.farClipPlane);
+            proj = GL.GetGPUProjectionMatrix(jitteredProj, true);
+            projFlipY = GL.GetGPUProjectionMatrix(jitteredProj, false);
         }
 
         public static void CaculateProjectionMatrix(Camera camera, in float jitterSpread, ref int frameIndex, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)

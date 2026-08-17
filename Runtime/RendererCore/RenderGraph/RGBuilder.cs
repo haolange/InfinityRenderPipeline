@@ -202,13 +202,59 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGComputePassRef AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
+            return AddComputePass<T>(profilerSampler.name, profilerSampler);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGComputePassRef AddComputePass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
+        {
             RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
             computePass.Clear();
-            computePass.name = profilerSampler.name;
+            computePass.name = passName;
             computePass.index = m_PassList.Count;
             computePass.customSampler = profilerSampler;
             m_PassList.Add(computePass);
             return new RGComputePassRef(computePass, m_Resources);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void BeginProfilingSampler(ProfilingSampler sampler)
+        {
+            if (sampler == null)
+            {
+                return;
+            }
+
+            using (RGComputePassRef passRef = AddComputePass<RGProfilingScopePassData>("BeginProfilingSampler", null))
+            {
+                ref RGProfilingScopePassData passData = ref passRef.GetPassData<RGProfilingScopePassData>();
+                passData.sampler = sampler;
+                passRef.EnablePassCulling(false);
+                passRef.SetExecuteFunc((in RGProfilingScopePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                {
+                    cmdEncoder.BeginSample(passData.sampler);
+                });
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EndProfilingSampler(ProfilingSampler sampler)
+        {
+            if (sampler == null)
+            {
+                return;
+            }
+
+            using (RGComputePassRef passRef = AddComputePass<RGProfilingScopePassData>("EndProfilingSampler", null))
+            {
+                ref RGProfilingScopePassData passData = ref passRef.GetPassData<RGProfilingScopePassData>();
+                passData.sampler = sampler;
+                passRef.EnablePassCulling(false);
+                passRef.SetExecuteFunc((in RGProfilingScopePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                {
+                    cmdEncoder.EndSample(passData.sampler);
+                });
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1110,17 +1156,21 @@ namespace InfinityTech.Rendering.RenderGraph
                 try
                 {
                     IRGPass pass = passInfo.pass;
-                    graphicsCmdBuffer.name = pass.name;
                     graphContext.cmdBuffer = graphicsCmdBuffer;
 
                     if (pass.enableAsyncCompute)
                     {
-                        CommandBuffer asyncCmdBuffer = CommandBufferPool.Get(pass.name);
+                        CommandBuffer asyncCmdBuffer = CommandBufferPool.Get();
                         asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
                         graphContext.cmdBuffer = asyncCmdBuffer;
                     }
 
-                    using (new ProfilingScope(graphContext.cmdBuffer, pass.customSampler))
+                    ProfilingScope profilingScope = default;
+                    if (pass.customSampler != null)
+                    {
+                        profilingScope = new ProfilingScope(graphContext.cmdBuffer, pass.customSampler);
+                    }
+                    try
                     {
                         List<RGDrawListRef> usedDrawLists = pass.usedDrawLists;
                         for (int i = 0; i < usedDrawLists.Count; ++i)
@@ -1137,6 +1187,10 @@ namespace InfinityTech.Rendering.RenderGraph
                         PrePassExecute(ref graphContext, passInfo);
                         pass.Execute(ref graphContext);
                         PostPassExecute(ref graphContext, ref passInfo);
+                    }
+                    finally
+                    {
+                        profilingScope.Dispose();
                     }
 
                     if (pass.enableAsyncCompute)
@@ -1167,6 +1221,37 @@ namespace InfinityTech.Rendering.RenderGraph
         public void Dispose()
         {
             m_Resources.Dispose();
+        }
+    }
+
+    struct RGProfilingScopePassData
+    {
+        public ProfilingSampler sampler;
+    }
+
+    public struct RGProfilingScope : IDisposable
+    {
+        RGBuilder m_Builder;
+        ProfilingSampler m_Sampler;
+        bool m_Disposed;
+
+        public RGProfilingScope(RGBuilder builder, ProfilingSampler sampler)
+        {
+            m_Builder = builder;
+            m_Sampler = sampler;
+            m_Disposed = false;
+            m_Builder.BeginProfilingSampler(sampler);
+        }
+
+        public void Dispose()
+        {
+            if (m_Disposed)
+            {
+                return;
+            }
+
+            m_Disposed = true;
+            m_Builder.EndProfilingSampler(m_Sampler);
         }
     }
 }

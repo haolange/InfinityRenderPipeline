@@ -150,15 +150,17 @@
 			float4 frag(Varyings i) : SV_Target
 			{
 				float2 uv = i.uv.xy;
-				float sceneDepth = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).r;
+				float sceneDepth = _MainTex.SampleLevel(Global_point_clamp_sampler, uv, 0).r;
 
 				float4 worldPos = mul(Matrix_InvViewJitterProj, float4(uv * 2 - 1, sceneDepth, 1));
 				worldPos.xyz /= worldPos.w;
 
-				float4 lastClip = mul(Matrix_LastViewJitterProj, float4(worldPos.xyz, 1));
+				float4 currClip = mul(Matrix_ViewProj, float4(worldPos.xyz, 1));
+				float2 currUV = (currClip.xy / currClip.w) * 0.5 + 0.5;
+				float4 lastClip = mul(Matrix_LastViewProj, float4(worldPos.xyz, 1));
 				float2 lastUV = (lastClip.xy / lastClip.w) * 0.5 + 0.5;
 
-				return float4(uv - lastUV, 0, 1);		
+				return float4(currUV - lastUV, 0, 1);		
 			}
 			ENDHLSL
 		}

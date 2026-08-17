@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.sunDirection = sunDirection;
                 passData.sunIlluminance = sunIlluminance;
                 passData.worldSpaceCameraPos = camera.transform.position;
-                passData.matrix_InvViewProj = GraphicsUtility.GetComputeInvViewProj(camera);
+                passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.farDepth = GraphicsUtility.SampledFarDepth;
                 passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
                 passData.atmosphericLUTShader = pipelineAsset.atmosphericLUTShader;

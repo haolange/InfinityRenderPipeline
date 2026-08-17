@@ -106,7 +106,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 //Execute Phase
                 passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(false);
+                passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in ZBinningPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     // Z-Binning pass: assign light ranges to depth bins

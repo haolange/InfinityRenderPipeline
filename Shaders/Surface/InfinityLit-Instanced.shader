@@ -342,8 +342,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float4 worldPosOld = mul(prevBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
-				Out.clipPos = mul(Matrix_ViewJitterProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewJitterProj, worldPosOld);
+				Out.clipPos = mul(Matrix_ViewProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewProj, worldPosOld);
 				return Out;
 			}
 

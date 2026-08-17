@@ -171,25 +171,6 @@ namespace InfinityTech.Rendering.GPUResource
             hashCode = hashCode * 23 + (bindTextureMS ? 1 : 0);
             return hashCode;
         }
-
-        public static implicit operator RenderTextureDescriptor(in TextureDescriptor descriptor)
-        {
-            RenderTextureDescriptor rtDescriptor = new RenderTextureDescriptor(descriptor.width, descriptor.height, descriptor.colorFormat, (int)descriptor.depthBufferBits, -1);
-            rtDescriptor.vrUsage = VRTextureUsage.None;
-            rtDescriptor.volumeDepth = descriptor.slices;
-            rtDescriptor.useMipMap = descriptor.useMipMap;
-            rtDescriptor.dimension = descriptor.dimension;
-            rtDescriptor.stencilFormat = GraphicsFormat.None;
-            rtDescriptor.bindMS = descriptor.bindTextureMS;
-            rtDescriptor.depthStencilFormat = GraphicsFormat.None;
-            rtDescriptor.memoryless = RenderTextureMemoryless.None;
-            rtDescriptor.msaaSamples = (int)descriptor.msaaSamples;
-            rtDescriptor.shadowSamplingMode = ShadowSamplingMode.None;
-            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
-            rtDescriptor.autoGenerateMips = descriptor.autoGenerateMips;
-            rtDescriptor.enableRandomWrite = descriptor.enableRandomWrite;
-            return rtDescriptor;
-        }
     }
 
     public struct FBufferRef
