@@ -42,6 +42,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeSuperResolution(RenderContext renderContext, Camera camera, HistoryCache historyCache, in float2 jitter)
         {
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
+
             if (pipelineAsset.superResolutionShader == null)
             {
                 throw new InvalidOperationException("InfinityRP: enableSuperResolution is true but superResolutionShader is not assigned.");
@@ -105,6 +107,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.superResolutionShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.SuperResolution);
         }
 
         struct CopyHistorySuperResolutionPassData
@@ -113,10 +117,19 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef superResolutionTexture;
         }
 
-        void CopyHistorySuperResolution(RenderContext renderContext)
+        void CopyHistorySuperResolution(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
-            RGTextureRef historyColorTexture = m_RGScoper.QueryTexture(SuperResolutionPassUtilityData.HistoryColorTextureID);
+            TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
+            {
+                dimension = TextureDimension.Tex2D,
+                name = SuperResolutionPassUtilityData.HistoryColorTextureName,
+                colorFormat = GraphicsFormat.B10G11R11_UFloatPack32,
+                depthBufferBits = EDepthBits.None,
+                enableRandomWrite = false
+            };
+            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
             RGTextureRef superResolutionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.SuperResolutionBuffer);
+            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
 
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistorySuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySuperResolution)))
             {

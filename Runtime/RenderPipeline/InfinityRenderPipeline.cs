@@ -235,10 +235,11 @@ namespace InfinityTech.Rendering.Pipeline
         private MeshDrawPipeline m_ForwardMeshProcessor;
         private MeshDrawPipeline m_MotionMeshProcessor;
         private MeshDrawPipeline m_ShadowMeshProcessor;
-        private Dictionary<int, HistoryCache> m_HistoryCaches;
-        private Dictionary<int, CameraUniform> m_CameraUniforms;
+        private Dictionary<int, CameraFrameState> m_CameraStates;
+        private readonly List<int> m_CameraStateRecycleIds = new List<int>(8);
         private Dictionary<int, ProfilingSampler> m_CameraSamplers;
         private CameraUniform m_CameraUniform;
+        private CameraFrameState m_ActiveFrameState;
         private int m_ActiveCascadeCount;
         private readonly Matrix4x4[] m_ActiveCascadeMatrices = new Matrix4x4[4];
         private Vector4 m_ActiveCascadeSplitDistances;
@@ -266,8 +267,7 @@ namespace InfinityTech.Rendering.Pipeline
             renderContext = new RenderContext();
             m_RGBuilder = new RGBuilder("RenderGraph");
             m_RGScoper = new RGScoper(m_RGBuilder);
-            m_HistoryCaches = new Dictionary<int, HistoryCache>();
-            m_CameraUniforms = new Dictionary<int, CameraUniform>();
+            m_CameraStates = new Dictionary<int, CameraFrameState>();
             m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
             m_ResourcePool = new ResourcePool();
             m_MeshSceneResidency = new MeshSceneResidency(m_ResourcePool, renderContext.GetMeshScene());
@@ -293,50 +293,49 @@ namespace InfinityTech.Rendering.Pipeline
                 cmdBuffer.Clear();
                 
                 BeginContextRendering(scriptableRenderContext, cameras);
+                Exception firstCameraException = null;
                 for (int i = 0; i < cameras.Count; ++i)
                 {
                     Camera camera = cameras[i];
                     CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
                     MeshVisibilityHandle sharedVisibility = MeshVisibilityHandle.Invalid;
-                    HistoryCache historyCache;
-                    CameraUniform cameraUniform;
                     CullingResults cullingResults;
 
                     int cameraId = GetCameraID(camera);
                     bool isEditView = camera.cameraType == CameraType.SceneView;
                     bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
-                    // Get PerCamera HistoryCache
-                    if (!m_HistoryCaches.ContainsKey(cameraId))
+                    CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId);
+                    frameState.lastSeenFrame = Time.frameCount;
+                    frameState.executeSucceeded = false;
+                    if (frameState.pixelWidth != camera.pixelWidth || frameState.pixelHeight != camera.pixelHeight)
                     {
-                        historyCache = new HistoryCache();
-                        m_HistoryCaches.Add(cameraId, historyCache);
-                    } 
-                    else 
-                    {
-                        historyCache = m_HistoryCaches[cameraId];
+                        frameState.descriptorGeneration++;
+                        frameState.pixelWidth = camera.pixelWidth;
+                        frameState.pixelHeight = camera.pixelHeight;
                     }
 
-                    // Get PerCamera Data
-                    if (!m_CameraUniforms.ContainsKey(cameraId))
-                    {
-                        cameraUniform = new CameraUniform();
-                        m_CameraUniforms.Add(cameraId, cameraUniform);
-                    } 
-                    else 
-                    {
-                        cameraUniform = m_CameraUniforms[cameraId];
-                    }
+                    CameraUniform cameraUniform = frameState.cameraUniform;
+                    HistoryCache historyCache = frameState.historyCache;
+                    historyCache.BeginFrame();
+
+                    Transform volumeTrigger = (cameraComponent != null && cameraComponent.volumeTrigger != null)
+                        ? cameraComponent.volumeTrigger
+                        : camera.transform;
+                    LayerMask volumeLayerMask = cameraComponent != null ? cameraComponent.volumeLayerMask : ~0;
+                    VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
 
                     // CameraRendering
                     cameraUniform.UnpateUniformData(camera, false);
                     m_CameraUniform = cameraUniform;
+                    m_ActiveFrameState = frameState;
                     using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
                     {
                         BeginCameraRendering(scriptableRenderContext, camera);
                         try
                         {
+                        ConfigureFrameFeatures(frameState);
                         using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
                         {
                             #if UNITY_EDITOR
@@ -435,7 +434,7 @@ namespace InfinityTech.Rendering.Pipeline
                         }
 
                         #region PostProcessVolume Parameter
-                        VolumeStack volumeStack = VolumeManager.instance.stack;
+                        VolumeStack volumeStack = frameState.volumeStack;
 
                         FilmTonemap filmTonemapVolume = volumeStack.GetComponent<FilmTonemap>();
                         ColorGrading colorGradingVolume = volumeStack.GetComponent<ColorGrading>();
@@ -556,7 +555,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 // T0 pre-fog: glass / surfaces that should receive aerial + volumetric fog.
                                 RenderTranslucentDepth(renderContext, camera, cullingResults);
                                 ComputeColorPyramid(renderContext, camera);
-                                CopyHistoryColorPyramid(renderContext, camera);
+                                CopyHistoryColorPyramid(renderContext, camera, historyCache);
                                 // T1 refractive: current ForwardTranslucent (no shader yet).
                                 RenderForwardTranslucent(renderContext, camera, cullingResults);
                                 // T2 post-fog: particles that must not be froxel-multiplied again.
@@ -565,17 +564,16 @@ namespace InfinityTech.Rendering.Pipeline
                                 if (pipelineAsset.enableSuperResolution)
                                 {
                                     ComputeSuperResolution(renderContext, camera, historyCache, cameraUniform.jitter);
-                                    CopyHistorySuperResolution(renderContext);
-                                    m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.SuperResolutionBuffer));
+                                    CopyHistorySuperResolution(renderContext, historyCache, camera);
                                 }
                                 else
                                 {
                                     ComputeAntiAliasing(renderContext, camera, historyCache, cameraUniform);
-                                    CopyHistoryAntiAliasing(renderContext);
-                                    CopyHistoryDepth(renderContext);
-                                    m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer));
+                                    CopyHistoryAntiAliasing(renderContext, historyCache, camera);
+                                    CopyHistoryDepth(renderContext, historyCache, camera);
                                 }
-                                ComputePostProcessing(renderContext, camera, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer));
+                                ComputePostProcessing(renderContext, camera);
+                                frameState.features.EnsureRequiredProducers(pipelineAsset.enableSuperResolution);
 
                             #if UNITY_EDITOR
                                 RenderWireOverlay(renderContext, camera);
@@ -587,7 +585,15 @@ namespace InfinityTech.Rendering.Pipeline
                             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
                             {
                                 // ReleaseAllDrawLists releases per-Declare visibility refs (exception-safe).
-                                m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                                frameState.executeSucceeded = m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                            }
+                        }
+                        catch (Exception exception)
+                        {
+                            historyCache.RollbackPending();
+                            if (firstCameraException == null)
+                            {
+                                firstCameraException = exception;
                             }
                         }
                         finally
@@ -597,6 +603,7 @@ namespace InfinityTech.Rendering.Pipeline
                             m_ShadowCasterSplits.Clear();
                             m_VisibilityShare.Release(sharedVisibility);
                             sharedVisibility = MeshVisibilityHandle.Invalid;
+                            m_ActiveFrameState = null;
                         }
                         EndCameraRendering(scriptableRenderContext, camera);
                     }
@@ -607,6 +614,19 @@ namespace InfinityTech.Rendering.Pipeline
 
                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                 scriptableRenderContext.Submit();
+
+                foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
+                {
+                    CameraFrameState state = pair.Value;
+                    if (state.executeSucceeded)
+                    {
+                        state.historyCache.CommitFrame();
+                    }
+                    state.historyCache.FlushRetired();
+                    state.executeSucceeded = false;
+                }
+
+                RecycleUnseenCameraStates(Time.frameCount);
                 EndContextRendering(scriptableRenderContext, cameras);
 
                 // Physical GPU/CPU resource retirement after Submit (logical Retire happened in ReleaseAll).
@@ -620,6 +640,11 @@ namespace InfinityTech.Rendering.Pipeline
                 // End FrameContext
                 m_MeshSceneResidency.Clear();
                 CommandBufferPool.Release(cmdBuffer);
+
+                if (firstCameraException != null)
+                {
+                    throw firstCameraException;
+                }
             }
         }
 
@@ -758,13 +783,165 @@ namespace InfinityTech.Rendering.Pipeline
                 m_RGScoper.Dispose();
                 m_RGBuilder.Dispose();
                 m_ResourcePool.Dispose();
-                foreach (var historyCache in m_HistoryCaches)
+                foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
                 {
-                    historyCache.Value.Release();
+                    pair.Value.Dispose();
                 }
-                m_HistoryCaches.Clear();
+                m_CameraStates.Clear();
                 m_CameraSamplers.Clear();
                 VolumeManager.instance.Deinitialize();
+            }
+        }
+
+        VolumeStack ActiveVolumeStack => m_ActiveFrameState.volumeStack;
+
+        FrameFeatureSet ActiveFeatures => m_ActiveFrameState.features;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool ShouldRecordFeature(EFrameFeature feature)
+        {
+            return m_ActiveFrameState.features.ShouldRecord(feature);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void MarkFeatureProduced(EFrameFeature feature)
+        {
+            m_ActiveFrameState.features.MarkProduced(feature);
+        }
+
+        CameraFrameState GetOrCreateCameraFrameState(int cameraId)
+        {
+            if (!m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState))
+            {
+                frameState = new CameraFrameState(cameraId);
+                m_CameraStates.Add(cameraId, frameState);
+            }
+
+            return frameState;
+        }
+
+        void RecycleUnseenCameraStates(int frameCount)
+        {
+            const int UnseenFramesToRecycle = 8;
+            m_CameraStateRecycleIds.Clear();
+            foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
+            {
+                if (frameCount - pair.Value.lastSeenFrame > UnseenFramesToRecycle)
+                {
+                    m_CameraStateRecycleIds.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < m_CameraStateRecycleIds.Count; ++i)
+            {
+                int cameraId = m_CameraStateRecycleIds[i];
+                if (m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState))
+                {
+                    frameState.Dispose();
+                    m_CameraStates.Remove(cameraId);
+                }
+            }
+        }
+
+        void ConfigureFrameFeatures(CameraFrameState frameState)
+        {
+            FrameFeatureSet features = frameState.features;
+            features.Reset();
+            VolumeStack stack = frameState.volumeStack;
+
+            features.Request(EFrameFeature.Depth);
+            features.MarkSupported(EFrameFeature.Depth);
+            features.Request(EFrameFeature.GBuffer);
+            features.MarkSupported(EFrameFeature.GBuffer);
+            features.Request(EFrameFeature.Motion);
+            features.MarkSupported(EFrameFeature.Motion);
+            features.Request(EFrameFeature.DeferredShading);
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.deferredShadingShader, "DeferredShadingCS"))
+            {
+                features.MarkSupported(EFrameFeature.DeferredShading);
+            }
+
+            features.Request(EFrameFeature.HiZ);
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.hiZShader, "HiZ_Generation"))
+            {
+                features.MarkSupported(EFrameFeature.HiZ);
+            }
+
+            features.Request(EFrameFeature.ColorPyramid);
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.colorPyramidShader, "KMain"))
+            {
+                features.MarkSupported(EFrameFeature.ColorPyramid);
+            }
+
+            features.Request(EFrameFeature.PostProcess);
+            features.Request(EFrameFeature.Display);
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine"))
+            {
+                features.MarkSupported(EFrameFeature.PostProcess);
+                features.MarkSupported(EFrameFeature.Display);
+            }
+
+            if (pipelineAsset.enableSuperResolution)
+            {
+                features.Request(EFrameFeature.SuperResolution);
+                if (pipelineAsset.superResolutionShader != null)
+                {
+                    features.MarkSupported(EFrameFeature.SuperResolution);
+                }
+            }
+            else
+            {
+                features.Request(EFrameFeature.TAA);
+                if (pipelineAsset.taaShader != null)
+                {
+                    features.MarkSupported(EFrameFeature.TAA);
+                }
+            }
+
+            // DeferredShading still hard-queries these optional SRVs, so request them when supported.
+            // TODO: gate with VolumeHasOverrides after DeferredShading TryQuery optional inputs.
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY"))
+            {
+                features.Request(EFrameFeature.GTAO);
+                features.MarkSupported(EFrameFeature.GTAO);
+            }
+
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.contactShadowShader, "ContactShadowCS"))
+            {
+                features.Request(EFrameFeature.ContactShadow);
+                features.MarkSupported(EFrameFeature.ContactShadow);
+            }
+
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.ssrShader, "Raytracing"))
+            {
+                features.Request(EFrameFeature.SSR);
+                features.MarkSupported(EFrameFeature.SSR);
+            }
+
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.ssgiShader, "Raytracing"))
+            {
+                features.Request(EFrameFeature.SSGI);
+                features.MarkSupported(EFrameFeature.SSGI);
+            }
+
+            var volFog = stack.GetComponent<VolumetricFog>();
+            if (GraphicsUtility.VolumeHasOverrides(volFog))
+            {
+                features.Request(EFrameFeature.VolumetricFog);
+            }
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricFogShader, "ScatterDensity", "Integrate"))
+            {
+                features.MarkSupported(EFrameFeature.VolumetricFog);
+            }
+
+            var volCloud = stack.GetComponent<VolumetricCloud>();
+            if (GraphicsUtility.VolumeHasOverrides(volCloud))
+            {
+                features.Request(EFrameFeature.VolumetricCloud);
+            }
+            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricCloudShader, "VolumetricCloudCS"))
+            {
+                features.MarkSupported(EFrameFeature.VolumetricCloud);
             }
         }
 

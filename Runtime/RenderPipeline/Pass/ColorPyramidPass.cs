@@ -49,6 +49,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeColorPyramid(RenderContext renderContext, Camera camera)
         {
+            if (!ShouldRecordFeature(EFrameFeature.ColorPyramid))
+            {
+                return;
+            }
+
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.colorPyramidShader, "KMain"))
             {
                 return;
@@ -103,6 +108,8 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.ColorPyramid);
         }
 
         struct CopyHistoryColorPyramidPassData
@@ -112,13 +119,16 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef historyColorPyramidTexture;
         }
 
-        void CopyHistoryColorPyramid(RenderContext renderContext, Camera camera)
+        void CopyHistoryColorPyramid(RenderContext renderContext, Camera camera, HistoryCache historyCache)
         {
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out RGTextureRef colorPyramidTexture) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.HistoryColorPyramidBuffer, out RGTextureRef historyColorPyramidTexture))
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out RGTextureRef colorPyramidTexture))
             {
                 return;
             }
+
+            TextureDescriptor historyDsc = CreateColorPyramidDescriptor(camera.pixelWidth, camera.pixelHeight, ColorPyramidPassUtilityData.HistoryTextureName);
+            RGTextureRef historyColorPyramidTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryColorPyramidBuffer, historyDsc));
+            historyCache.MarkProduced(InfinityShaderIDs.HistoryColorPyramidBuffer);
 
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryColorPyramid)))
             {

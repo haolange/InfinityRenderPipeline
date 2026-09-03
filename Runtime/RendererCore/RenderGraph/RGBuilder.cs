@@ -292,7 +292,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Execute(RenderContext renderContext, ResourcePool resourcePool, CommandBuffer cmdBuffer)
+        public bool Execute(RenderContext renderContext, ResourcePool resourcePool, CommandBuffer cmdBuffer)
         {
             RGContext graphContext;
             {
@@ -308,6 +308,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Resources.BeginRender();
                 CompilePass();
                 ExecutePass(ref graphContext);
+                return true;
             } 
             catch (Exception exception) 
             {
@@ -318,13 +319,14 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_ExecuteExceptionIsRaised = true;
 
                 Debug.LogError("RenderGraph Execute error");
+                return false;
             } 
             finally 
             {
                 ClearPass();
                 m_Resources.EndRender();
             }
-    }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ClearPass()

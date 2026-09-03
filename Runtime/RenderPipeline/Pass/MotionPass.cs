@@ -30,6 +30,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderMotion(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
+            if (!ShouldRecordFeature(EFrameFeature.Motion))
+            {
+                return;
+            }
+
             camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
 
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -115,6 +120,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.Motion);
         }
 
     }

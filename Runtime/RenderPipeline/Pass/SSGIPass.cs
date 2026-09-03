@@ -57,9 +57,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeScreenSpaceIndirect(RenderContext renderContext, Camera camera)
         {
-            var stack = VolumeManager.instance.stack;
-            var ssgi = stack.GetComponent<ScreenSpaceIndirectDiffuse>();
-            if (ssgi == null) return;
+            if (!ShouldRecordFeature(EFrameFeature.SSGI))
+            {
+                return;
+            }
+
+            var ssgi = ActiveVolumeStack.GetComponent<ScreenSpaceIndirectDiffuse>();
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssgiShader, "Raytracing"))
             {
                 return;
@@ -134,6 +137,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.ssgiShader, kernel, Mathf.CeilToInt(passData.resolution.x / 16.0f), Mathf.CeilToInt(passData.resolution.y / 16.0f), 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.SSGI);
         }
     }
 }

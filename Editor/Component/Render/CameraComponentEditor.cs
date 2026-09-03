@@ -23,9 +23,9 @@ namespace InfinityTech.Component.Editor
 
         public override void OnInspectorGUI()
         {
-            /*serializedObject.Update();
-
-            serializedObject.ApplyModifiedProperties();*/
+            serializedObject.Update();
+            DrawDefaultInspector();
+            serializedObject.ApplyModifiedProperties();
         }
     }
 }

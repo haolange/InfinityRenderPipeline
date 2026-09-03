@@ -7,11 +7,11 @@ alwaysApply: true
 
 After any InfinityRP code/shader change, do not wait for the user to compile.
 
-1. Confirm the open editor via `D:\Projects\Unity\InfinityExample\Library\EditorInstance.json`. Do not launch a second Unity or `-batchmode` while that editor is open.
-2. Foreground that Unity window and trigger `Assets > Refresh` (Ctrl+R) using `Tools/RefreshUnityEditor.ps1`.
-3. Wait until `D:\Projects\Unity\InfinityExample\Logs\Editor.log` grows past the pre-refresh mark and then stays stable.
+1. Confirm the open editor via `<InfinityExample>/Library/EditorInstance.json`. Do not launch a second Unity or `-batchmode` while that editor is open.
+2. Foreground that Unity window and trigger `Assets > Refresh` using `Tools/RefreshUnityEditor.sh` on macOS or `Tools/RefreshUnityEditor.ps1` on Windows.
+3. Wait until `<InfinityExample>/Logs/Editor.log` grows past the pre-refresh mark and then stays stable.
 4. Diagnose only **new** log after the mark. Fix the first real owner/order/lifetime/shader-contract defect.
-5. Capture the frame with `Tools/CaptureUnityWindow.ps1` and inspect the image. Console-clean is not render-correct: a depth-clear regression once held the Console at 0 errors while the Game view rendered nothing. Always capture after touching clears, depth, attachments, pass order, or present.
+5. Capture the frame with `Tools/CaptureUnityWindow.sh` (macOS) or `Tools/CaptureUnityWindow.ps1` (Windows) and inspect the image. Console-clean is not render-correct: a depth-clear regression once held the Console at 0 errors while the Game view rendered nothing. Always capture after touching clears, depth, attachments, pass order, or present.
 6. Forbidden as a "fix": `if (shader == null) return` in execute, dummy textures, disabling a designed path to silence Console, fake history, or `count = 0` dispatches.
 7. Unimplemented features must not be recorded. Required producers (Lighting, TAA when that path is active, Display) must fail at record/setup if their contract is broken.
 8. Repeat refresh → log → frame → first-principles fix until the new log window has no InfinityRP flood **and** the captured frame is correct. Keep `TODO(UNVERIFIED)` on any result that was checked by log only.

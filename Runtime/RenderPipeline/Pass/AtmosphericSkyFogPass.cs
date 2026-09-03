@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            AtmosphereParameter parameter = AtmosphereParameter.Resolve(pipelineAsset);
+            AtmosphereParameter parameter = AtmosphereParameter.Resolve(pipelineAsset, ActiveVolumeStack);
             Vector4 sunDirection = new Vector4(0, 1, 0, 0);
             Vector4 sunIlluminance = new Vector4(1, 1, 1, 1);
             Light sunLight = RenderSettings.sun;

@@ -23,6 +23,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderDepth(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Depth);
             TextureDescriptor depthTextureDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
             {
                 depthTextureDsc.name = DepthPassUtilityData.TextureName;
@@ -79,6 +80,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.Depth);
         }
     }
 }

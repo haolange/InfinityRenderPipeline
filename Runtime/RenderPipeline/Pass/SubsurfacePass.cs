@@ -42,9 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeBurleySubsurface(RenderContext renderContext, Camera camera)
         {
-            var stack = VolumeManager.instance.stack;
-            var sss = stack.GetComponent<SubsurfaceScattering>();
-            if (sss == null) return;
+            var sss = ActiveVolumeStack.GetComponent<SubsurfaceScattering>();
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.subsurfaceShader, "BurleySubsurfaceCS"))
             {
                 return;

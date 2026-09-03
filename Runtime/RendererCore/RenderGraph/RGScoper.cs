@@ -26,6 +26,11 @@ namespace InfinityTech.Rendering.RenderGraph
             return m_ResourceMap.TryGetValue(key, out value);
         }
 
+        internal bool Remove(in int key)
+        {
+            return m_ResourceMap.Remove(key);
+        }
+
         internal void Clear()
         {
             m_ResourceMap.Clear();
@@ -77,6 +82,11 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RegisterBuffer(int handle, in RGBufferRef bufferRef)
         {
+            if (m_BufferMap.TryGet(handle, out RGBufferRef existing) && existing.IsValid() && !SameBufferRef(existing, bufferRef))
+            {
+                throw new InvalidOperationException($"RGScoper.RegisterBuffer: handle {handle} already has a different owner this frame.");
+            }
+
             m_BufferMap.Set(handle, bufferRef);
         }
 
@@ -114,7 +124,24 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RegisterTexture(int handle, in RGTextureRef textureRef)
         {
+            if (m_TextureMap.TryGet(handle, out RGTextureRef existing) && existing.IsValid() && !SameTextureRef(existing, textureRef))
+            {
+                throw new InvalidOperationException($"RGScoper.RegisterTexture: handle {handle} already has a different owner this frame.");
+            }
+
             m_TextureMap.Set(handle, textureRef);
+        }
+
+        public void MoveTexture(int from, int to)
+        {
+            if (from == to)
+            {
+                return;
+            }
+
+            RGTextureRef textureRef = QueryTexture(from);
+            RegisterTexture(to, textureRef);
+            m_TextureMap.Remove(from);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,6 +163,16 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             m_BufferMap.Dispose();
             m_TextureMap.Dispose();
+        }
+
+        static bool SameTextureRef(in RGTextureRef a, in RGTextureRef b)
+        {
+            return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.type == b.handle.type;
+        }
+
+        static bool SameBufferRef(in RGBufferRef a, in RGBufferRef b)
+        {
+            return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.type == b.handle.type;
         }
     }
 }

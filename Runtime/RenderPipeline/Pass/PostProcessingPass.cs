@@ -71,11 +71,21 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef postProcessTexture;
         }
 
-        void ComputePostProcessing(RenderContext renderContext, Camera camera, in RGTextureRef sceneColorTexture)
+        void ComputePostProcessing(RenderContext renderContext, Camera camera)
         {
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Display);
+
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine"))
             {
-                return;
+                throw new System.InvalidOperationException("InfinityRP: Display/PostProcess is required but postProcessingShader kernels are missing.");
+            }
+
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.AntiAliasingBuffer, out RGTextureRef sceneColorTexture) &&
+                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.SuperResolutionBuffer, out sceneColorTexture) &&
+                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightingBuffer, out sceneColorTexture))
+            {
+                throw new System.InvalidOperationException("InfinityRP: PostProcess has no scene color input (AntiAliasing/SuperResolution/Lighting).");
             }
 
             int width = camera.pixelWidth;
@@ -89,8 +99,8 @@ namespace InfinityTech.Rendering.Pipeline
                 postProcessDsc.depthBufferBits = EDepthBits.None;
                 postProcessDsc.enableRandomWrite = true;
             }
-            RGTextureRef postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, postProcessDsc);
-            m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, postProcessTexture);
+            // DisplayColorBuffer is the unique present-source producer for S1.
+            RGTextureRef postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DisplayColorBuffer, postProcessDsc);
 
             int bloomWidth = Mathf.Max(1, width >> 1);
             int bloomHeight = Mathf.Max(1, height >> 1);
@@ -111,6 +121,9 @@ namespace InfinityTech.Rendering.Pipeline
                 ComputeBloom(camera, sceneColorTexture, bloomTexture);
                 ComputePostCombine(camera, sceneColorTexture, bloomTexture, postProcessTexture);
             }
+
+            MarkFeatureProduced(EFrameFeature.PostProcess);
+            MarkFeatureProduced(EFrameFeature.Display);
         }
 
         void ComputeBloom(Camera camera, in RGTextureRef sceneColorTexture, in RGTextureRef bloomTexture)
@@ -181,11 +194,8 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasVolumetricCloud = m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureRef volumetricCloudTexture);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float volumetricFogMaxDistance = 64.0f;
-            var volFog = VolumeManager.instance.stack.GetComponent<InfinityTech.Rendering.PostProcess.VolumetricFog>();
-            if (volFog != null)
-            {
-                volumetricFogMaxDistance = volFog.MaxDistance.value;
-            }
+            var volFog = ActiveVolumeStack.GetComponent<InfinityTech.Rendering.PostProcess.VolumetricFog>();
+            volumetricFogMaxDistance = volFog.MaxDistance.value;
 
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<PostCombinePassData>(ProfilingSampler.Get(CustomSamplerId.ComputePostCombine)))
             {

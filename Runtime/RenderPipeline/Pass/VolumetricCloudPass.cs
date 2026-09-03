@@ -62,9 +62,16 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeVolumetricCloud(RenderContext renderContext, Camera camera)
         {
-            var stack = VolumeManager.instance.stack;
-            var volCloud = stack.GetComponent<VolumetricCloud>();
-            if (!GraphicsUtility.VolumeHasOverrides(volCloud)) return;
+            if (!ShouldRecordFeature(EFrameFeature.VolumetricCloud))
+            {
+                return;
+            }
+
+            var volCloud = ActiveVolumeStack.GetComponent<VolumetricCloud>();
+            if (!GraphicsUtility.VolumeHasOverrides(volCloud))
+            {
+                return;
+            }
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricCloudShader, "VolumetricCloudCS"))
             {
                 return;
@@ -157,6 +164,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.volumetricCloudShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.VolumetricCloud);
         }
     }
 }

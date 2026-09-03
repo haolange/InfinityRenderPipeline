@@ -53,6 +53,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeDeferredShading(RenderContext renderContext, Camera camera)
         {
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.DeferredShading);
+
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.deferredShadingShader, "DeferredShadingCS"))
             {
                 throw new System.InvalidOperationException("InfinityRP: Deferred shading is the LightingBuffer producer but deferredShadingShader is missing or kernel DeferredShadingCS is invalid.");
@@ -135,6 +137,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.deferredShadingShader, 0, Mathf.CeilToInt(passData.resolution.x / (float)passData.tileSize), Mathf.CeilToInt(passData.resolution.y / (float)passData.tileSize), 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.DeferredShading);
         }
     }
 }

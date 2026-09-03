@@ -25,6 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderGBuffer(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.GBuffer);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescriptor gbufferADsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
@@ -96,6 +97,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.GBuffer);
         }
     }
 }

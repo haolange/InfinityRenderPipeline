@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            AtmosphereParameter parameter = AtmosphereParameter.Resolve(pipelineAsset);
+            AtmosphereParameter parameter = AtmosphereParameter.Resolve(pipelineAsset, ActiveVolumeStack);
 
             RGTextureRef transmittanceLUT = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, CreateAtmosphereLUTDescriptor(parameter.transmittanceLUTWidth, parameter.transmittanceLUTHeight, AtmosphericLUTPassUtilityData.TransmittanceName));
             RGTextureRef multiScatteringLUT = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, CreateAtmosphereLUTDescriptor(parameter.multiScatteringLUTSize, parameter.multiScatteringLUTSize, AtmosphericLUTPassUtilityData.MultiScatteringName));

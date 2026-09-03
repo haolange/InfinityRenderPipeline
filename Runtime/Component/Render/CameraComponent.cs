@@ -10,6 +10,8 @@ namespace InfinityTech.Component
     public class CameraComponent : BaseComponent
     {
         public Camera unityCamera;
+        public LayerMask volumeLayerMask = ~0;
+        public Transform volumeTrigger;
         [System.NonSerialized] public ProfilingSampler viewProfiler;
 
         protected override void OnRegister()

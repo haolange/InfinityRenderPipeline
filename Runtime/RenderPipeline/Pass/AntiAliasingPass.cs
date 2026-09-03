@@ -35,6 +35,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache, CameraUniform cameraUniform)
         {
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.TAA);
+
             if (pipelineAsset.taaShader == null)
             {
                 throw new InvalidOperationException("InfinityRP: TAA path is active but taaShader is not assigned.");
@@ -92,6 +94,8 @@ namespace InfinityTech.Rendering.Pipeline
                     objectPool.Release(temporalAAGenerator);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.TAA);
         }
 
         struct CopyHistoryAntiAliasingPassData
@@ -100,10 +104,19 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef accmulateColorTexture;
         }
 
-        void CopyHistoryAntiAliasing(RenderContext renderContext)
+        void CopyHistoryAntiAliasing(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
-            RGTextureRef historyColorTexture = m_RGScoper.QueryTexture(AntiAliasingUtilityData.HistoryColorTextureID);
+            TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
+            {
+                dimension = TextureDimension.Tex2D,
+                name = AntiAliasingUtilityData.HistoryColorTextureName,
+                colorFormat = GraphicsFormat.B10G11R11_UFloatPack32,
+                depthBufferBits = EDepthBits.None,
+                enableRandomWrite = false
+            };
+            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorDescriptor));
             RGTextureRef accmulateColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
+            historyCache.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
 
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryAntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryAntiAliasing)))
             {
@@ -127,10 +140,18 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef historyDepthTexture;
         }
 
-        void CopyHistoryDepth(RenderContext renderContext)
+        void CopyHistoryDepth(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
+            TextureDescriptor historyDepthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
+            {
+                dimension = TextureDimension.Tex2D,
+                name = AntiAliasingUtilityData.HistoryDepthTextureName,
+                depthBufferBits = EDepthBits.Depth32,
+                enableRandomWrite = false
+            };
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef historyDepthTexture = m_RGScoper.QueryTexture(AntiAliasingUtilityData.HistoryDepthTextureID);
+            RGTextureRef historyDepthTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthDescriptor));
+            historyCache.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
 
             using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryDepth)))
             {

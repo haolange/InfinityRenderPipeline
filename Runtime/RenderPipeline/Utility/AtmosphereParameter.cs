@@ -106,13 +106,16 @@ namespace InfinityTech.Rendering.Pipeline
             };
         }
 
-        public static AtmosphereParameter Resolve(InfinityRenderPipelineAsset pipelineAsset)
+        public static AtmosphereParameter Resolve(InfinityRenderPipelineAsset pipelineAsset, VolumeStack stack)
         {
             AtmosphereParameter parameter = FromProfile(pipelineAsset != null ? pipelineAsset.atmosphericalProfile : null);
+            if (stack == null)
+            {
+                return parameter;
+            }
 
-            VolumeStack stack = VolumeManager.instance.stack;
-            AtmosphericScattering volume = stack != null ? stack.GetComponent<AtmosphericScattering>() : null;
-            if (volume == null || !volume.active)
+            AtmosphericScattering volume = stack.GetComponent<AtmosphericScattering>();
+            if (!volume.active)
             {
                 return parameter;
             }

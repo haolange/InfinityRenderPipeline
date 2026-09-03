@@ -59,9 +59,16 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeVolumetricFog(RenderContext renderContext, Camera camera)
         {
-            var stack = VolumeManager.instance.stack;
-            var volFog = stack.GetComponent<VolumetricFog>();
-            if (!GraphicsUtility.VolumeHasOverrides(volFog)) return;
+            if (!ShouldRecordFeature(EFrameFeature.VolumetricFog))
+            {
+                return;
+            }
+
+            var volFog = ActiveVolumeStack.GetComponent<VolumetricFog>();
+            if (!GraphicsUtility.VolumeHasOverrides(volFog))
+            {
+                return;
+            }
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricFogShader, "ScatterDensity", "Integrate"))
             {
                 return;
@@ -146,6 +153,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.volumetricFogShader, VolumetricFogPassUtilityData.KernelIntegrate, Mathf.CeilToInt(passData.froxelResolution.x / 8.0f), Mathf.CeilToInt(passData.froxelResolution.y / 8.0f), 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.VolumetricFog);
         }
     }
 }

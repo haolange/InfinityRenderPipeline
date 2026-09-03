@@ -77,9 +77,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeGroundTruthOcclusion(RenderContext renderContext, Camera camera)
         {
-            var stack = VolumeManager.instance.stack;
-            var ssao = stack.GetComponent<ScreenSpaceAmbientOcclusion>();
-            if (ssao == null) return;
+            if (!ShouldRecordFeature(EFrameFeature.GTAO))
+            {
+                return;
+            }
+
+            var ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>();
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY"))
             {
                 return;
@@ -200,6 +203,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.ssaoShader, GTAOPassUtilityData.OcclusionSpatialYKernel, groupsX, groupsY, 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.GTAO);
         }
     }
 }

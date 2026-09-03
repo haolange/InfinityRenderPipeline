@@ -28,6 +28,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeHiZ(RenderContext renderContext, Camera camera)
         {
+            if (!ShouldRecordFeature(EFrameFeature.HiZ))
+            {
+                return;
+            }
+
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.hiZShader, "HiZ_Generation"))
             {
                 return;
@@ -93,6 +98,8 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.HiZ);
         }
     }
 }

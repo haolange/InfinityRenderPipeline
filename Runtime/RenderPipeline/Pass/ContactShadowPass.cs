@@ -44,9 +44,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeContactShadow(RenderContext renderContext, Camera camera)
         {
-            var stack = VolumeManager.instance.stack;
-            var contactShadowSettings = stack.GetComponent<ContactShadow>();
-            if (contactShadowSettings == null) return;
+            if (!ShouldRecordFeature(EFrameFeature.ContactShadow))
+            {
+                return;
+            }
+
+            var contactShadowSettings = ActiveVolumeStack.GetComponent<ContactShadow>();
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.contactShadowShader, "ContactShadowCS"))
             {
                 return;
@@ -107,6 +110,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.contactShadowShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.ContactShadow);
         }
     }
 }

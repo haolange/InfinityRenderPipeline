@@ -65,9 +65,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeScreenSpaceReflection(RenderContext renderContext, Camera camera)
         {
-            var stack = VolumeManager.instance.stack;
-            var ssr = stack.GetComponent<ScreenSpaceReflection>();
-            if (ssr == null) return;
+            if (!ShouldRecordFeature(EFrameFeature.SSR))
+            {
+                return;
+            }
+
+            var ssr = ActiveVolumeStack.GetComponent<ScreenSpaceReflection>();
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssrShader, "Raytracing"))
             {
                 return;
@@ -163,6 +166,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.ssrShader, kernel, Mathf.CeilToInt(passData.resolution.x / 16.0f), Mathf.CeilToInt(passData.resolution.y / 16.0f), 1);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.SSR);
         }
     }
 }
