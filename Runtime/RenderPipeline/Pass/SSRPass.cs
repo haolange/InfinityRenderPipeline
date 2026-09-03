@@ -156,8 +156,8 @@ namespace InfinityTech.Rendering.Pipeline
                     int kernel = SSRPassUtilityData.RaytracingKernel;
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_HiZTextureID, passData.hiZTexture);
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_HiCTextureID, passData.colorPyramidTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_NormalTextureID, passData.gBufferA);
-                    cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_RoughnessTextureID, passData.gBufferB);
+                    cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_NormalTextureID, passData.gBufferB);
+                    cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_RoughnessTextureID, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.UAV_HitPDFTextureID, passData.hitPdfTexture);
                     cmdEncoder.SetComputeTextureParam(passData.ssrShader, kernel, SSRPassUtilityData.UAV_ColorMaskTextureID, passData.ssrTexture);

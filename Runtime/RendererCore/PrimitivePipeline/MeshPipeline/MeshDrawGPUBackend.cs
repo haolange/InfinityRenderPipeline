@@ -531,7 +531,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             MaterialPropertyBlock propertyBlock,
             ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
-            MeshDrawGpuStaging staging)
+            MeshDrawGpuStaging staging,
+            string lightModeTag = null)
         {
             if (cmdBuffer == null || !drawList.isValid || payload == null || staging == null || !staging.isValid)
             {
@@ -548,7 +549,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 for (int i = 0; i < s_BatchPlan.Count; ++i)
                 {
                     (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
-                    DrawBatch(cmdBuffer, drawList, shaderPassIndex, residency, propertyBlock, payload, staging, batch.commandBegin, batch.batchCommands);
+                    DrawBatch(cmdBuffer, drawList, shaderPassIndex, residency, propertyBlock, payload, staging, batch.commandBegin, batch.batchCommands, lightModeTag);
                 }
             }
         }
@@ -777,7 +778,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             int commandBegin,
-            int batchCommandCount)
+            int batchCommandCount,
+            string lightModeTag = null)
         {
             int candidateBegin = (int)staging.candidateOffsets[commandBegin];
             for (int i = 0; i < batchCommandCount; ++i)
@@ -797,8 +799,14 @@ namespace InfinityTech.Rendering.MeshPipeline
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.TransformBuffer, residency.TransformBuffer.buffer);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousTransformBuffer, residency.PreviousTransformBuffer.buffer);
 
+                int passIndex = MeshPassShaderUtility.ResolvePassIndex(material, lightModeTag, shaderPassIndex);
+                if (passIndex < 0)
+                {
+                    continue;
+                }
+
                 int argsOffset = i * 5 * sizeof(uint);
-                cmdBuffer.DrawMeshInstancedIndirect(mesh, command.sectionIndex, material, shaderPassIndex, payload.argsBuffer, argsOffset, propertyBlock);
+                cmdBuffer.DrawMeshInstancedIndirect(mesh, command.sectionIndex, material, passIndex, payload.argsBuffer, argsOffset, propertyBlock);
             }
         }
 

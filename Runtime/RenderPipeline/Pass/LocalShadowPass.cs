@@ -243,6 +243,7 @@ namespace InfinityTech.Rendering.Pipeline
                         sort = BuiltinMeshesPasses.Shadow.defaultSort,
                         backendPolicy = EMeshBackendPolicy.Auto,
                         shaderPassIndex = BuiltinMeshesPasses.Shadow.shaderPassIndex,
+                        lightModeTag = BuiltinMeshesPasses.Shadow.lightModeTag,
                         viewPosition = lightPosition,
                         renderingLayerMask = shadowFilter.renderingLayerMask,
                         viewKey = viewKey

@@ -15,6 +15,7 @@ Texture2D<float4> SRV_LightingTexture;
 Texture2D<float> SRV_DepthTexture;
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
+Texture2D SRV_GBufferTextureC;
 RWTexture2D<float4> UAV_SubsurfaceTexture;
 
 float4x4 Matrix_InvProj;
@@ -70,15 +71,14 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    // Read GBuffer to detect subsurface materials
-    float4 gBufferA = SRV_GBufferTextureA[pixelCoord];
-    float4 gBufferB = SRV_GBufferTextureB[pixelCoord];
-
     FGBufferData gbufferData;
-    DecodeGBuffer_Normal24(gBufferA, gBufferB, gbufferData);
+    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbufferData);
 
-    // Use reflectance < 0.04 as SSS material marker (could be any stencil-based check)
-    float sssStrength = saturate(1.0 - gbufferData.Reflactance / 0.1);
+    float sssStrength = 0;
+    if (gbufferData.ShadingModel == GBUFFER_SHADING_MODEL_SUBSURFACE || (gbufferData.Flags & GBUFFER_FLAG_SUBSURFACE) != 0)
+    {
+        sssStrength = saturate(gbufferData.Thickness);
+    }
 
     if (sssStrength < 0.01)
     {

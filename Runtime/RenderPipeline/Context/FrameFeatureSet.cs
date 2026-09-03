@@ -19,7 +19,8 @@ namespace InfinityTech.Rendering.Pipeline
         VolumetricFog,
         VolumetricCloud,
         PostProcess,
-        Display
+        Display,
+        DBuffer
     }
 
     public class FrameFeatureSet

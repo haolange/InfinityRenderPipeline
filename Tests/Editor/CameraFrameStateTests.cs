@@ -26,6 +26,30 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void FrameFeatureSet_DBufferIsOptional()
+        {
+            var features = new FrameFeatureSet();
+            features.Request(EFrameFeature.Depth);
+            features.MarkSupported(EFrameFeature.Depth);
+            features.MarkProduced(EFrameFeature.Depth);
+            features.Request(EFrameFeature.GBuffer);
+            features.MarkSupported(EFrameFeature.GBuffer);
+            features.MarkProduced(EFrameFeature.GBuffer);
+            features.Request(EFrameFeature.DeferredShading);
+            features.MarkSupported(EFrameFeature.DeferredShading);
+            features.MarkProduced(EFrameFeature.DeferredShading);
+            features.Request(EFrameFeature.TAA);
+            features.MarkSupported(EFrameFeature.TAA);
+            features.MarkProduced(EFrameFeature.TAA);
+            features.Request(EFrameFeature.Display);
+            features.MarkSupported(EFrameFeature.Display);
+            features.MarkProduced(EFrameFeature.Display);
+
+            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(superResolutionEnabled: false));
+            Assert.IsFalse(features.ShouldRecord(EFrameFeature.DBuffer));
+        }
+
+        [Test]
         public void FrameFeatureSet_EnsureRequiredProducers_ThrowsWhenMissing()
         {
             var features = new FrameFeatureSet();

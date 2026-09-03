@@ -7,6 +7,7 @@
 #include "../ShaderLibrary/Common.hlsl"
 #include "../ShaderLibrary/Lighting.hlsl"
 #include "../ShaderLibrary/GBufferPack.hlsl"
+#include "../ShaderLibrary/DBuffer.hlsl"
 #include "../ShaderLibrary/ShaderVariables.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
@@ -44,6 +45,7 @@ UNITY_INSTANCING_BUFFER_END(Terrain)
 CBUFFER_START(UnityPerMaterial)
     float4 _MainTex_ST;
     half4 _AlbedoColor;
+    half4 _EmissionColor;
     half _Cutoff;
 CBUFFER_END
 
@@ -514,9 +516,12 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
         LightingBuffer.rgb += lighting;
     }
     LightingBuffer *= weight;
+    #if !defined(TERRAIN_SPLAT_ADDPASS)
+    LightingBuffer.rgb += _EmissionColor.rgb;
+    #endif
 }
 
-void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)
+void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3)
 {
     #ifdef _ALPHATEST_ON
         ClipHoles(IN.uvMainAndLM.xy);
@@ -556,15 +561,32 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     InitializeInputData(IN, normalTS, inputData);
     //inputData.normalWS  IN.normal.xyz  mixedDiffuse.rgb * weight
 
+    float3 surfaceAlbedo = mixedDiffuse.rgb * weight;
+    float surfaceRoughness = mixedDiffuse.r;
+    float surfaceReflactance = mixedDiffuse.b;
+    float3 surfaceNormal = normalize(inputData.normalWS);
+
+    #if defined(_DBUFFER)
+    float2 screenUV = IN.clipPos.xy * rcp(_ScreenParams.xy);
+    ApplyDBuffer(screenUV, surfaceAlbedo, surfaceNormal, surfaceRoughness, surfaceReflactance);
+    #endif
+
     FGBufferData GBufferData;
-    GBufferData.Albedo = mixedDiffuse.rgb;
+    GBufferData.Albedo = surfaceAlbedo;
     GBufferData.Specular = mixedDiffuse.g;
-    GBufferData.Roughness = mixedDiffuse.r;
-    GBufferData.Reflactance = mixedDiffuse.b;
-    GBufferData.Normal = normalize(inputData.normalWS);
-    EncodeGBuffer(GBufferData, IN.clipPos.xy, GBufferA, GBufferB);
-    GBufferA *= weight;
-    GBufferB *= weight;
+    GBufferData.Roughness = surfaceRoughness;
+    GBufferData.Reflactance = surfaceReflactance;
+    GBufferData.Normal = surfaceNormal;
+    GBufferData.ShadingModel = GBUFFER_SHADING_MODEL_DEFAULT_LIT;
+    GBufferData.Flags = 0;
+    GBufferData.SSSProfileIndex = 0;
+    GBufferData.Thickness = 0;
+    EncodeGBuffer(GBufferData, IN.clipPos.xy, GBufferA, GBufferB, GBufferC);
+    #if defined(TERRAIN_SPLAT_ADDPASS)
+    LightingBuffer = 0;
+    #else
+    LightingBuffer = float4(_EmissionColor.rgb, 0);
+    #endif
 }
 
 // Shadow pass

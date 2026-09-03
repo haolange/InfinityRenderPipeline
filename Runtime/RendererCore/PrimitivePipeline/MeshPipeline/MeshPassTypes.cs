@@ -139,6 +139,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public string name;
         public int shaderPassIndex;
+        public string lightModeTag;
         public MeshFilterProgram defaultFilter;
         public MeshSortPlan defaultSort;
         public EPassEligibility eligibility;
@@ -149,9 +150,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static readonly MeshPassDefinition Depth = new MeshPassDefinition
         {
             name = "Depth",
-            shaderPassIndex = 0,
+            shaderPassIndex = 1,
+            lightModeTag = "DepthPass",
             eligibility = EPassEligibility.Depth,
-            defaultFilter = new MeshFilterProgram(2450, 2999, EPassEligibility.Depth),
+            defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Depth),
             // Distance: decimeter scale (10) — camera-range resolution without early 16-bit saturation.
             defaultSort = MeshSortPlan.Create(
                 new MeshSortField(EMeshSortSemantic.Distance, ESortDirection.Ascending, quantizeScale: 10f),
@@ -163,7 +165,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static readonly MeshPassDefinition GBuffer = new MeshPassDefinition
         {
             name = "GBuffer",
-            shaderPassIndex = 1,
+            shaderPassIndex = 2,
+            lightModeTag = "GBufferPass",
             eligibility = EPassEligibility.GBuffer,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.GBuffer),
             defaultSort = MeshSortPlan.Create(
@@ -176,7 +179,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static readonly MeshPassDefinition Forward = new MeshPassDefinition
         {
             name = "Forward",
-            shaderPassIndex = 2,
+            shaderPassIndex = 3,
+            lightModeTag = "ForwardPass",
             eligibility = EPassEligibility.Forward,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Forward),
             defaultSort = MeshSortPlan.Create(
@@ -189,7 +193,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static readonly MeshPassDefinition Motion = new MeshPassDefinition
         {
             name = "Motion",
-            shaderPassIndex = 3,
+            shaderPassIndex = 4,
+            lightModeTag = "MotionPass",
             eligibility = EPassEligibility.Motion,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Motion, ~0, excludeCameraMotionOnly: true),
             // Distance: decimeter scale (10) — matches Depth camera-range quantization.
@@ -203,7 +208,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static readonly MeshPassDefinition Shadow = new MeshPassDefinition
         {
             name = "Shadow",
-            shaderPassIndex = 4,
+            shaderPassIndex = 0,
+            lightModeTag = "ShadowPass",
             eligibility = EPassEligibility.Shadow,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Shadow),
             // Distance: meter scale (1) — coarser bins for cascade / large-world ranges.

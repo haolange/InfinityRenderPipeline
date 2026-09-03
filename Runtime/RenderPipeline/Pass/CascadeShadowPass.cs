@@ -62,6 +62,11 @@ namespace InfinityTech.Rendering.Pipeline
                 VisibleLight visibleLight = cullingResults.visibleLights[i];
                 if (visibleLight.lightType == LightType.Directional && visibleLight.light.shadows != LightShadows.None)
                 {
+                    if (visibleLight.light != null && visibleLight.light.TryGetComponent(out LightComponent shadowOwner) && !shadowOwner.enableShadow)
+                    {
+                        continue;
+                    }
+
                     lightIndex = i;
                     break;
                 }
@@ -127,6 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
                         sort = BuiltinMeshesPasses.Shadow.defaultSort,
                         backendPolicy = EMeshBackendPolicy.Auto,
                         shaderPassIndex = BuiltinMeshesPasses.Shadow.shaderPassIndex,
+                        lightModeTag = BuiltinMeshesPasses.Shadow.lightModeTag,
                         viewPosition = camera.transform.position,
                         renderingLayerMask = shadowFilter.renderingLayerMask,
                         viewKey = cascadeKey

@@ -36,3 +36,7 @@ sysinfo.txt
 *.unitypackage
 Runtime.meta
 Runtime/Scripting.meta
+
+# AppleDouble / resource fork junk
+._*
+**/._*

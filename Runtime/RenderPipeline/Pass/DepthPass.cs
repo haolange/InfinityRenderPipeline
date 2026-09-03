@@ -35,9 +35,9 @@ namespace InfinityTech.Rendering.Pipeline
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
-                rendererListDesc.renderQueueRange = new RenderQueueRange(2450, 2999);
+                rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
                 rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
-                rendererListDesc.renderingLayerMask = 1;
+                rendererListDesc.renderingLayerMask = uint.MaxValue;
                 rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
@@ -52,6 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
                 sort = BuiltinMeshesPasses.Depth.defaultSort,
                 backendPolicy = EMeshBackendPolicy.Auto,
                 shaderPassIndex = BuiltinMeshesPasses.Depth.shaderPassIndex,
+                lightModeTag = BuiltinMeshesPasses.Depth.lightModeTag,
                 viewPosition = camera.transform.position,
                 renderingLayerMask = depthFilter.renderingLayerMask,
                 viewKey = UnityEntityId.ToUInt64(camera)

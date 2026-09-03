@@ -135,10 +135,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// Temporary instance-index buffers are retired by <see cref="ReleaseFrameBuffers"/> and physically
         /// returned by <see cref="FlushRetiredBuffers"/> after <c>ScriptableRenderContext.Submit</c>.
         /// </summary>
-        public void Submit(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex)
+        public void Submit(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, string lightModeTag = null)
         {
             FBufferRef indexBuffer = PrepareCpuDirect(cmdBuffer, drawList);
-            SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex, indexBuffer);
+            SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex, indexBuffer, lightModeTag);
         }
 
         internal FBufferRef PrepareCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList)
@@ -177,7 +177,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             in MeshDrawList drawList,
             int shaderPassIndex,
             MeshDrawGpuPayload payload,
-            MeshDrawGpuStaging staging)
+            MeshDrawGpuStaging staging,
+            string lightModeTag = null)
         {
             MeshDrawGPUBackend.DrawIndirect(
                 cmdBuffer,
@@ -187,7 +188,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_PropertyBlock,
                 m_DrawProfiler,
                 payload,
-                staging);
+                staging,
+                lightModeTag);
         }
 
         internal int GetBoundsCullCount()
@@ -236,7 +238,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassDrawCache.Dispose();
         }
 
-        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, FBufferRef indexBufferRef)
+        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, FBufferRef indexBufferRef, string lightModeTag = null)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
                 || indexBufferRef.buffer == null
@@ -258,13 +260,19 @@ namespace InfinityTech.Rendering.MeshPipeline
                         continue;
                     }
 
+                    int passIndex = MeshPassShaderUtility.ResolvePassIndex(material, lightModeTag, shaderPassIndex);
+                    if (passIndex < 0)
+                    {
+                        continue;
+                    }
+
                     m_PropertyBlock.Clear();
                     // Shader bindings: transformBuffer / previousTransformBuffer are MeshScene TransformTable matrices.
                     m_PropertyBlock.SetInt(InfinityShaderIDs.InstanceIndexOffset, command.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.InstanceIndexBuffer, indexBufferRef.buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.TransformBuffer, m_Residency.TransformBuffer.buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.PreviousTransformBuffer, m_Residency.PreviousTransformBuffer.buffer);
-                    cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, shaderPassIndex, command.countOffset.x, m_PropertyBlock);
+                    cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, passIndex, command.countOffset.x, m_PropertyBlock);
                 }
             }
         }

@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             public ComputeShader ssgiShader;
             public RGTextureRef hiZTexture;
             public RGTextureRef colorPyramidTexture;
-            public RGTextureRef gBufferA;
+            public RGTextureRef gBufferB;
             public RGTextureRef depthTexture;
             public RGTextureRef ssgiTexture;
         }
@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureRef hiZTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HiZBuffer);
             RGTextureRef colorPyramidTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.HistoryColorPyramidBuffer);
-            RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
+            RGTextureRef gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             //Add SSGIPass
@@ -104,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ssgiShader = pipelineAsset.ssgiShader;
                 passData.hiZTexture = passRef.ReadTexture(hiZTexture);
                 passData.colorPyramidTexture = passRef.ReadTexture(colorPyramidTexture);
-                passData.gBufferA = passRef.ReadTexture(gBufferA);
+                passData.gBufferB = passRef.ReadTexture(gBufferB);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.ssgiTexture = passRef.WriteTexture(ssgiTexture);
 
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_PyramidDepthID, passData.hiZTexture);
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_PyramidColorID, passData.colorPyramidTexture);
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_SceneDepthID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_GBufferNormalID, passData.gBufferA);
+                    cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.SRV_GBufferNormalID, passData.gBufferB);
                     cmdEncoder.SetComputeTextureParam(passData.ssgiShader, kernel, SSGIPassUtilityData.UAV_ScreenIrradianceID, passData.ssgiTexture);
 
                     // Shader uses [numthreads(16, 16, 1)]

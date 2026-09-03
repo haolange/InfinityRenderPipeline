@@ -151,7 +151,7 @@ void Raytracing(uint3 id : SV_DispatchThreadID)
         UAV_ColorMaskTexture[id.xy] = 0;
         return;
     }
-    float Roughness = 1 - SRV_RoughnessTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).a;
+    float Roughness = SRV_RoughnessTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).b;
     Roughness = clamp(Roughness, 0.02, 1);
     if (Roughness > SSR_Roughness) 
     {

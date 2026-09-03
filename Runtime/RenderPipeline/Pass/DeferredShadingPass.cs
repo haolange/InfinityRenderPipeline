@@ -15,6 +15,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int DeferredShading_TileSizeID = Shader.PropertyToID("DeferredShading_TileSize");
         internal static int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
         internal static int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
+        internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int SRV_OcclusionTextureID = Shader.PropertyToID("SRV_OcclusionTexture");
         internal static int SRV_ContactShadowTextureID = Shader.PropertyToID("SRV_ContactShadowTexture");
@@ -42,6 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             public ComputeShader deferredShadingShader;
             public RGTextureRef gBufferA;
             public RGTextureRef gBufferB;
+            public RGTextureRef gBufferC;
             public RGTextureRef depthTexture;
             public RGTextureRef occlusionTexture;
             public RGTextureRef contactShadowTexture;
@@ -64,19 +66,13 @@ namespace InfinityTech.Rendering.Pipeline
             int height = camera.pixelHeight;
             int tileSize = 16;
 
-            TextureDescriptor lightingTextureDsc = new TextureDescriptor(width, height);
-            {
-                lightingTextureDsc.name = DeferredShadingPassUtilityData.TextureName;
-                lightingTextureDsc.dimension = TextureDimension.Tex2D;
-                lightingTextureDsc.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-                lightingTextureDsc.depthBufferBits = EDepthBits.None;
-                lightingTextureDsc.enableRandomWrite = true;
-            }
-            RGTextureRef lightingTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingTextureDsc);
-
+            RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
             RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
             RGTextureRef gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
+            RGTextureRef gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            // TODO: TryQuery optional AO/SSR/SSGI when FeatureSet says they were not produced.
+            // Lighting still samples these SRVs unconditionally, so keep Query while those paths always record.
             RGTextureRef occlusionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer);
             RGTextureRef contactShadowTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer);
             RGTextureRef ssrTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.SSRBuffer);
@@ -101,6 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.deferredShadingShader = pipelineAsset.deferredShadingShader;
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
+                passData.gBufferC = passRef.ReadTexture(gBufferC);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.occlusionTexture = passRef.ReadTexture(occlusionTexture);
                 passData.contactShadowTexture = passRef.ReadTexture(contactShadowTexture);
@@ -127,6 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
+                    cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
                     cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_OcclusionTextureID, passData.occlusionTexture);
                     cmdEncoder.SetComputeTextureParam(passData.deferredShadingShader, 0, DeferredShadingPassUtilityData.SRV_ContactShadowTextureID, passData.contactShadowTexture);

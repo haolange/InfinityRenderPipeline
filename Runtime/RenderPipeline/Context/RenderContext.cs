@@ -48,6 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
         private List<TerrainComponent> m_TerrainList;
         private List<MeshComponent> m_StaticMeshList;
         private List<MeshComponent> m_DynamicMeshList;
+        private int m_WorldDecalCount;
         private Dictionary<int, LightComponent> m_LightList;
 
         internal LightContext lightContext;
@@ -246,6 +247,22 @@ namespace InfinityTech.Rendering.Pipeline
             m_DynamicMeshList.Clear();
         }
         #endregion //WorldPrimitive
+
+        #region WorldDecal
+        public int WorldDecalCount => m_WorldDecalCount;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddWorldDecal()
+        {
+            m_WorldDecalCount++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RemoveWorldDecal()
+        {
+            m_WorldDecalCount = m_WorldDecalCount > 0 ? m_WorldDecalCount - 1 : 0;
+        }
+        #endregion //WorldDecal
 
         #region MeshScene
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

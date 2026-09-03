@@ -7,6 +7,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
         [NoScaleOffset]_MainTex ("BaseColorTexture", 2D) = "white" {}
         _BaseColor ("BaseColor", Color) = (1, 1, 1, 1)
         _BaseColorTile ("BaseColorTile", Range(0, 1024)) = 1
+        _EmissionColor ("Emission", Color) = (0, 0, 0, 1)
 
 		[Header (Microface)]
         _Roughness ("Roughness", Range(0, 1)) = 0
@@ -24,6 +25,10 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 		[Header(PixelDepthOffset)]
         _PixelDepthOffsetVaule ("PixelDepthOffsetVaule", Range(-1, 1)) = 0
 
+		[Header(Surface Route)]
+		[Enum(Deferred, 0, Forward, 1)] _SurfaceRoute ("Surface Route", Float) = 0
+		[Enum(None, 0, T0, 1, T1, 2, T2, 3)] _TranslucentStage ("Translucent Stage", Float) = 0
+
 		[Header(RenderState)]
 		//[HideInInspector] 
 		_ZTest("ZTest", Int) = 4
@@ -33,6 +38,57 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 	SubShader
 	{
 		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
+
+		//Shadow Pass
+		Pass
+		{
+			Name "ShadowPass"
+			Tags { "LightMode" = "ShadowPass" }
+			ZTest LEqual ZWrite On Cull Back
+			ColorMask 0
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+
+			struct Attributes
+			{
+				uint InstanceId : SV_InstanceID;
+				float2 uv0 : TEXCOORD0;
+				float4 vertex : POSITION;
+			};
+
+			struct Varyings
+			{
+				uint PrimitiveId : SV_InstanceID;
+				float2 uv0 : TEXCOORD0;
+				float4 vertex_CS : SV_POSITION;
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out;
+				Out.PrimitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
+
+				Out.uv0 = In.uv0;
+				float4 vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				Out.vertex_CS = mul(Matrix_ViewProj, vertex_WS);
+				return Out;
+			}
+
+			float4 frag(Varyings In) : SV_Target
+			{
+				return 0;
+			}
+			ENDHLSL
+		}
 
 		//Depth Pass
 		Pass
@@ -100,10 +156,13 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#pragma fragment frag
 			//#pragma enable_d3d11_debug_symbols
 
+			#pragma multi_compile _ _DBUFFER
+
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GPUScene.hlsl"
 			#include "../ShaderLibrary/Lightmap.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
+			#include "../ShaderLibrary/DBuffer.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
@@ -115,6 +174,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _BaseColorTile;
 				float _SpecularLevel;
 				float4 _BaseColor;
+				float4 _EmissionColor;
 			CBUFFER_END
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
@@ -158,7 +218,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				return Out;
 			}
 			
-			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1)
+			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3)
 			{
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
 				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
@@ -174,13 +234,23 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float surfaceReflctance = _Reflectance;
 				float surfaceRoughness = _Roughness;
 
+				#if defined(_DBUFFER)
+				float2 screenUV = In.vertexCS.xy * rcp(_ScreenParams.xy);
+				ApplyDBuffer(screenUV, surfaceAlbedo, pnormalWS, surfaceRoughness, surfaceReflctance);
+				#endif
+
 				FGBufferData GBufferData;
 				GBufferData.Normal = pnormalWS;
 				GBufferData.Albedo = surfaceAlbedo;
 				GBufferData.Specular = surfaceSpecular;
 				GBufferData.Roughness = surfaceRoughness;
 				GBufferData.Reflactance = surfaceReflctance;
-				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB);
+				GBufferData.ShadingModel = GBUFFER_SHADING_MODEL_DEFAULT_LIT;
+				GBufferData.Flags = 0;
+				GBufferData.SSSProfileIndex = 0;
+				GBufferData.Thickness = 0;
+				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
+				LightingBuffer = float4(_EmissionColor.rgb, 0);
 			}
 			ENDHLSL
 		}
@@ -215,6 +285,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _BaseColorTile;
 				float _SpecularLevel;
 				float4 _BaseColor;
+				float4 _EmissionColor;
 			CBUFFER_END
 
 			Texture2D _MainTex; SamplerState sampler_MainTex;
@@ -288,7 +359,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 					lightingBuffer.rgb *= lightColor * bsdfContext.NoL;
 				}
 
-				//lightingBuffer += float4(albedoMap * indirectLight, 1);
+				lightingBuffer.rgb += _EmissionColor.rgb;
 			}
 			ENDHLSL
 		}
@@ -359,11 +430,10 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			ENDHLSL
 		}
 
-		//Shadow Pass
 		Pass
 		{
-			Name "ShadowPass"
-			Tags { "LightMode" = "ShadowPass" }
+			Name "TranslucentDepthPass"
+			Tags { "LightMode" = "TranslucentDepthPass" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0
 
@@ -371,12 +441,59 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-			//#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/GPUScene.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+
+			struct Attributes
+			{
+				uint InstanceId : SV_InstanceID;
+				float4 vertex : POSITION;
+			};
+
+			struct Varyings
+			{
+				float4 vertex : SV_POSITION;
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out;
+				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[primitiveId];
+				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
+				return Out;
+			}
+
+			float4 frag(Varyings In) : SV_Target
+			{
+				return 0;
+			}
+			ENDHLSL
+		}
+
+		Pass
+		{
+			Name "TranslucentT0Pass"
+			Tags { "LightMode" = "TranslucentT0Pass" }
+			ZTest LEqual ZWrite Off Cull Back
+			Blend SrcAlpha OneMinusSrcAlpha
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+			CBUFFER_START(UnityPerMaterial)
+				float4 _BaseColor;
+			CBUFFER_END
+			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -387,29 +504,131 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				uint PrimitiveId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
-				float4 vertex_CS : SV_POSITION;
+				float4 vertex : SV_POSITION;
 			};
 
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
-
+				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[primitiveId];
 				Out.uv0 = In.uv0;
-				float4 vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
-				// CascadeShadowPass sets Matrix_ViewProj to the cascade shadow VP before draw.
-				Out.vertex_CS = mul(Matrix_ViewProj, vertex_WS);
+				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				return Out;
 			}
 
 			float4 frag(Varyings In) : SV_Target
 			{
-				return 0;
+				return float4(_MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb, _BaseColor.a);
+			}
+			ENDHLSL
+		}
+
+		Pass
+		{
+			Name "TranslucentT1Pass"
+			Tags { "LightMode" = "TranslucentT1Pass" }
+			ZTest LEqual ZWrite Off Cull Back
+			Blend SrcAlpha OneMinusSrcAlpha
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+			CBUFFER_START(UnityPerMaterial)
+				float4 _BaseColor;
+			CBUFFER_END
+			Texture2D _MainTex; SamplerState sampler_MainTex;
+
+			struct Attributes
+			{
+				uint InstanceId : SV_InstanceID;
+				float2 uv0 : TEXCOORD0;
+				float4 vertex : POSITION;
+			};
+
+			struct Varyings
+			{
+				float2 uv0 : TEXCOORD0;
+				float4 vertex : SV_POSITION;
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out;
+				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[primitiveId];
+				Out.uv0 = In.uv0;
+				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
+				return Out;
+			}
+
+			float4 frag(Varyings In) : SV_Target
+			{
+				return float4(_MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb, _BaseColor.a);
+			}
+			ENDHLSL
+		}
+
+		Pass
+		{
+			Name "TranslucentT2Pass"
+			Tags { "LightMode" = "TranslucentT2Pass" }
+			ZTest LEqual ZWrite Off Cull Back
+			Blend SrcAlpha OneMinusSrcAlpha
+
+			HLSLPROGRAM
+			#pragma target 4.5
+			#pragma vertex vert
+			#pragma fragment frag
+
+			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/ShaderVariables.hlsl"
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+			CBUFFER_START(UnityPerMaterial)
+				float4 _BaseColor;
+			CBUFFER_END
+			Texture2D _MainTex; SamplerState sampler_MainTex;
+
+			struct Attributes
+			{
+				uint InstanceId : SV_InstanceID;
+				float2 uv0 : TEXCOORD0;
+				float4 vertex : POSITION;
+			};
+
+			struct Varyings
+			{
+				float2 uv0 : TEXCOORD0;
+				float4 vertex : SV_POSITION;
+			};
+
+			Varyings vert(Attributes In)
+			{
+				Varyings Out;
+				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
+				FTransformData meshBatch = transformBuffer[primitiveId];
+				Out.uv0 = In.uv0;
+				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
+				return Out;
+			}
+
+			float4 frag(Varyings In) : SV_Target
+			{
+				return float4(_MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb, _BaseColor.a);
 			}
 			ENDHLSL
 		}
 	}
+	CustomEditor "InfinityTech.Rendering.Editor.InfinityLitGUI"
 }

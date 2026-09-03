@@ -1,11 +1,9 @@
 using UnityEngine;
-using Unity.Mathematics;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using UnityEngine.Rendering.RendererUtils;
-using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -21,14 +19,20 @@ namespace InfinityTech.Rendering.Pipeline
         struct DBufferPassData
         {
             public RendererList rendererList;
+            public RGTextureRef depthTexture;
         }
 
         void RenderDBuffer(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
         {
+            if (renderContext.WorldDecalCount == 0 || !ShouldRecordFeature(EFrameFeature.DBuffer))
+            {
+                Shader.SetKeyword(GBufferPassUtilityData.DBufferKeyword, false);
+                return;
+            }
+
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
 
-            // DBufferA: Albedo (RGB) + Mask (A)
             TextureDescriptor dBufferADsc = new TextureDescriptor(width, height);
             {
                 dBufferADsc.name = DBufferPassUtilityData.DBufferAName;
@@ -38,7 +42,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef dBufferA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
 
-            // DBufferB: Normal (RGB) + Mask (A)
             TextureDescriptor dBufferBDsc = new TextureDescriptor(width, height);
             {
                 dBufferBDsc.name = DBufferPassUtilityData.DBufferBName;
@@ -48,7 +51,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef dBufferB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
 
-            // DBufferC: Roughness (R) + Metallic (G) + AO (B) + Mask (A)
             TextureDescriptor dBufferCDsc = new TextureDescriptor(width, height);
             {
                 dBufferCDsc.name = DBufferPassUtilityData.DBufferCName;
@@ -64,17 +66,15 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = new RenderQueueRange(2000, 2449);
-                rendererListDesc.sortingCriteria = SortingCriteria.CommonOpaque;
-                rendererListDesc.renderingLayerMask = 1;
+                rendererListDesc.sortingCriteria = SortingCriteria.RendererPriority | SortingCriteria.CommonOpaque;
+                rendererListDesc.renderingLayerMask = uint.MaxValue;
                 rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RendererList dBufferRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
 
-            //Add DBufferPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDBuffer)))
             {
-                //Setup Phase
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(dBufferA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(dBufferB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
@@ -84,14 +84,17 @@ namespace InfinityTech.Rendering.Pipeline
                 ref DBufferPassData passData = ref passRef.GetPassData<DBufferPassData>();
                 {
                     passData.rendererList = dBufferRendererList;
+                    passData.depthTexture = depthTexture;
                 }
 
-                //Execute Phase
                 passRef.SetExecuteFunc((in DBufferPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
+                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTexture);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
+
+            MarkFeatureProduced(EFrameFeature.DBuffer);
         }
     }
 }

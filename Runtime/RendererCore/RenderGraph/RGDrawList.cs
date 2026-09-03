@@ -333,11 +333,12 @@ namespace InfinityTech.Rendering.RenderGraph
                     record.resolvedList,
                     record.request.shaderPassIndex,
                     record.gpuPayload,
-                    record.gpuStaging);
+                    record.gpuStaging,
+                    record.request.lightModeTag);
                 return;
             }
 
-            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.request.shaderPassIndex, record.cpuIndexBuffer);
+            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.request.shaderPassIndex, record.cpuIndexBuffer, record.request.lightModeTag);
         }
 
         /// <summary>

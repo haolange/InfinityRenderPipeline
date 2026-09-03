@@ -16,6 +16,7 @@ float3 _WorldSpaceCameraPos;
 
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
+Texture2D SRV_GBufferTextureC;
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_OcclusionTexture;
 Texture2D<float> SRV_ContactShadowTexture;
@@ -74,13 +75,8 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    // Read GBuffer
-    float4 gBufferA = SRV_GBufferTextureA[pixelCoord];
-    float4 gBufferB = SRV_GBufferTextureB[pixelCoord];
-
-    // Reconstruct GBuffer data using Normal24 encoding
     FGBufferData gbufferData;
-    DecodeGBuffer_Normal24(gBufferA, gBufferB, gbufferData);
+    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbufferData);
 
     float3 albedo = gbufferData.Albedo;
     float3 normal = gbufferData.Normal;
@@ -138,5 +134,6 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float3 indirectSpecular = ssrColor.rgb * ssrColor.a;
     lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular * ao;
 
-    UAV_LightingTexture[pixelCoord] = float4(max(0, lighting), 1);
+    float3 emissive = UAV_LightingTexture[pixelCoord].rgb;
+    UAV_LightingTexture[pixelCoord] = float4(max(0, lighting) + emissive, 1);
 }

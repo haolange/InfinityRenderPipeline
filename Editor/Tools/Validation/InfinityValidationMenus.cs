@@ -8,6 +8,8 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
+using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.PostProcess;
 
 namespace InfinityTech.Rendering.Editor.Validation
@@ -37,6 +39,12 @@ namespace InfinityTech.Rendering.Editor.Validation
         public static void OpenSpazon()
         {
             OpenSceneWhenEditMode("Assets/Scene/Spazon/Scene_Spazon.unity", "Scene_Spazon.unity missing.");
+        }
+
+        [MenuItem(MenuRoot + "Open Decal Fixture", false, 53)]
+        public static void OpenDecalFixture()
+        {
+            OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_Decal.unity", "Validation_Decal.unity missing. Run Create Decal Fixture first.");
         }
 
         [MenuItem(MenuRoot + "Dump Active Volume Stacks", false, 52)]
@@ -182,6 +190,32 @@ namespace InfinityTech.Rendering.Editor.Validation
             Debug.Log($"[InfinityRP][Validation] Play={(EditorApplication.isPlaying ? "on" : "off")}");
         }
 
+        [MenuItem(MenuRoot + "Enter Play", false, 21)]
+        public static void EnterPlay()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                Debug.Log("[InfinityRP][Validation] Play=on");
+                return;
+            }
+
+            EditorApplication.isPlaying = true;
+            Debug.Log("[InfinityRP][Validation] Play=on");
+        }
+
+        [MenuItem(MenuRoot + "Exit Play", false, 22)]
+        public static void ExitPlay()
+        {
+            if (!EditorApplication.isPlaying && !EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                Debug.Log("[InfinityRP][Validation] Play=off");
+                return;
+            }
+
+            EditorApplication.isPlaying = false;
+            Debug.Log("[InfinityRP][Validation] Play=off");
+        }
+
         [MenuItem(MenuRoot + "Capture Game View", false, 30)]
         public static void CaptureGameView()
         {
@@ -227,6 +261,73 @@ namespace InfinityTech.Rendering.Editor.Validation
             File.WriteAllBytes(path, texture.EncodeToPNG());
             UnityEngine.Object.DestroyImmediate(texture);
             Debug.Log($"[InfinityRP][Validation] Game view captured: {path}");
+        }
+
+        [MenuItem(MenuRoot + "Dump Decal State", false, 54)]
+        public static void DumpDecalState()
+        {
+            string logs = EnsureLogsDirectory();
+            string path = Path.Combine(logs, "decal-state-dump.txt");
+            StringBuilder builder = new StringBuilder();
+            builder.Append("DECAL_STATE_DUMP").AppendLine();
+            builder.Append("time=").Append(DateTime.UtcNow.ToString("O")).AppendLine();
+            builder.Append("playing=").Append(EditorApplication.isPlaying).AppendLine();
+
+            InfinityRenderPipeline pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            if (pipeline == null || pipeline.renderContext == null)
+            {
+                builder.Append("pipeline=null").AppendLine();
+                File.WriteAllText(path, builder.ToString());
+                Debug.Log($"[InfinityRP][Validation] Decal state dump: {path}");
+                return;
+            }
+
+            RenderContext renderContext = pipeline.renderContext;
+            MeshScene scene = renderContext.GetMeshScene();
+            builder.Append("worldDecalCount=").Append(renderContext.WorldDecalCount).AppendLine();
+            builder.Append("worldLights=").Append(renderContext.GetWorldLight().Count).AppendLine();
+            builder.Append("directionalLights=").Append(renderContext.lightContext.DirectionalLightCount).AppendLine();
+            builder.Append("meshInstances=").Append(scene.LogicalInstanceCount).AppendLine();
+            builder.Append("meshDraws=").Append(scene.DrawCount).AppendLine();
+            builder.Append("staticMeshes=").Append(renderContext.GetWorldStaticMesh().Count).AppendLine();
+
+            MeshComponent[] meshes = UnityEngine.Object.FindObjectsByType<MeshComponent>();
+            builder.Append("meshComponents=").Append(meshes.Length).AppendLine();
+            for (int i = 0; i < meshes.Length; ++i)
+            {
+                MeshComponent mesh = meshes[i];
+                builder.Append("  mesh=").Append(mesh.name);
+                builder.Append(" asset=").Append(mesh.meshAsset != null ? mesh.meshAsset.name : "null");
+                builder.Append(" materials=").Append(mesh.materials != null ? mesh.materials.Length : 0);
+                if (mesh.materials != null && mesh.materials.Length > 0 && mesh.materials[0] != null)
+                {
+                    Material material = mesh.materials[0];
+                    builder.Append(" shader=").Append(material.shader != null ? material.shader.name : "null");
+                    builder.Append(" depthPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "DepthPass"));
+                    builder.Append(" gbufferPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "GBufferPass"));
+                    builder.Append(" gbufferEnabled=").Append(material.GetShaderPassEnabled("GBufferPass"));
+                }
+                builder.AppendLine();
+            }
+
+            DecalComponent[] decals = UnityEngine.Object.FindObjectsByType<DecalComponent>();
+            builder.Append("decalComponents=").Append(decals.Length).AppendLine();
+            LightComponent[] lights = UnityEngine.Object.FindObjectsByType<LightComponent>();
+            builder.Append("lightComponents=").Append(lights.Length).AppendLine();
+            for (int i = 0; i < lights.Length; ++i)
+            {
+                LightComponent light = lights[i];
+                builder.Append("  light=").Append(light.name);
+                builder.Append(" type=").Append(light.lightType);
+                builder.Append(" intensity=").Append(light.intensity);
+                builder.Append(" enableShadow=").Append(light.enableShadow);
+                builder.Append(" unityLight=").Append(light.unityLight != null);
+                builder.Append(" enabled=").Append(light.isActiveAndEnabled);
+                builder.AppendLine();
+            }
+
+            File.WriteAllText(path, builder.ToString());
+            Debug.Log($"[InfinityRP][Validation] Decal state dump: {path}\n{builder}");
         }
 
         [MenuItem(MenuRoot + "Dump Frame Debugger", false, 40)]

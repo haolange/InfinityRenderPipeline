@@ -33,6 +33,8 @@ namespace InfinityTech.Component
             public uint geometryRevision;
             public int[] materialInstanceIds;
             public int[] materialRenderQueues;
+            public int[] materialSurfaceRoutes;
+            public int[] materialTranslucentStages;
             public ERenderingLayer renderingLayer;
             public int renderPriority;
             public ECastShadowMethod castShadow;
@@ -64,6 +66,10 @@ namespace InfinityTech.Component
         public int renderPriority = 0;
         public EMotionType motionVector = EMotionType.Object;
 
+        static readonly int ID_SurfaceRoute = Shader.PropertyToID("_SurfaceRoute");
+        static readonly int ID_TranslucentStage = Shader.PropertyToID("_TranslucentStage");
+
+        private bool m_PreviousForceRenderingOff;
         private MeshInstanceId m_InstanceId;
         private TransformId m_TransformId;
         private MeshDrawId[] m_DrawIds;
@@ -76,6 +82,14 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
+            MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+            if (meshRenderer != null)
+            {
+                // MeshComponent owns MeshDraw; MeshRenderer owns RendererList — exclusive.
+                m_PreviousForceRenderingOff = meshRenderer.forceRenderingOff;
+                meshRenderer.forceRenderingOff = true;
+            }
+
             UpdateBounds();
             FGraphics.AddTask((RenderContext renderContext) =>
             {
@@ -119,6 +133,12 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
+            MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+            if (meshRenderer != null)
+            {
+                meshRenderer.forceRenderingOff = m_PreviousForceRenderingOff;
+            }
+
             MeshInstanceId instanceId = m_InstanceId;
             EStateType mobility = movebility;
             MeshComponent self = this;
@@ -364,7 +384,6 @@ namespace InfinityTech.Component
             }
 
             EMeshInstanceFlags flags = BuildInstanceFlags();
-            EPassEligibility eligibility = BuildPassEligibility();
 
             using (MeshSceneUpdate update = scene.BeginUpdate())
             {
@@ -395,6 +414,7 @@ namespace InfinityTech.Component
                         continue;
                     }
 
+                    EPassEligibility eligibility = BuildPassEligibility(material);
                     int renderQueue = material.renderQueue;
                     int priority = renderPriority + renderQueue;
                     uint staticFlags = movebility == EStateType.Static ? 1u : 0u;
@@ -460,7 +480,6 @@ namespace InfinityTech.Component
             }
 
             EMeshInstanceFlags flags = BuildInstanceFlags();
-            EPassEligibility eligibility = BuildPassEligibility();
             uint renderingLayerMask = (uint)renderingLayer;
 
             MeshScene scene = renderContext.GetMeshScene();
@@ -481,6 +500,7 @@ namespace InfinityTech.Component
 
                         Material material = (materials != null && i < materials.Length) ? materials[i] : null;
                         int renderQueue = 0;
+                        EPassEligibility eligibility = BuildPassEligibility(material);
                         if (material != null)
                         {
                             renderQueue = material.renderQueue;
@@ -507,20 +527,57 @@ namespace InfinityTech.Component
             return flags;
         }
 
-        private EPassEligibility BuildPassEligibility()
+        private EPassEligibility BuildPassEligibility(Material material)
         {
-            EPassEligibility eligibility = EPassEligibility.Depth | EPassEligibility.GBuffer | EPassEligibility.Forward;
-            if (motionVector == EMotionType.Object)
+            int surfaceRoute = 0;
+            int translucentStage = 0;
+            ReadMaterialRoute(material, out surfaceRoute, out translucentStage);
+
+            EPassEligibility eligibility = EPassEligibility.None;
+            if (translucentStage > 0)
+            {
+                eligibility = EPassEligibility.Transparent;
+            }
+            else if (surfaceRoute == 1)
+            {
+                eligibility = EPassEligibility.Depth | EPassEligibility.Forward;
+            }
+            else
+            {
+                eligibility = EPassEligibility.Depth | EPassEligibility.GBuffer;
+            }
+
+            if (translucentStage == 0 && motionVector == EMotionType.Object)
             {
                 eligibility |= EPassEligibility.Motion;
             }
 
-            if (castShadow != ECastShadowMethod.Off)
+            if (translucentStage == 0 && castShadow != ECastShadowMethod.Off)
             {
                 eligibility |= EPassEligibility.Shadow;
             }
 
             return eligibility;
+        }
+
+        private static void ReadMaterialRoute(Material material, out int surfaceRoute, out int translucentStage)
+        {
+            surfaceRoute = 0;
+            translucentStage = 0;
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty(ID_SurfaceRoute))
+            {
+                surfaceRoute = Mathf.RoundToInt(material.GetFloat(ID_SurfaceRoute));
+            }
+
+            if (material.HasProperty(ID_TranslucentStage))
+            {
+                translucentStage = Mathf.RoundToInt(material.GetFloat(ID_TranslucentStage));
+            }
         }
 
         private bool NeedsSync()
@@ -587,15 +644,21 @@ namespace InfinityTech.Component
 
             int materialCount = materials != null ? materials.Length : 0;
             int queueCount = m_Snapshot.materialRenderQueues != null ? m_Snapshot.materialRenderQueues.Length : 0;
-            if (materialCount != queueCount)
+            int routeCount = m_Snapshot.materialSurfaceRoutes != null ? m_Snapshot.materialSurfaceRoutes.Length : 0;
+            int stageCount = m_Snapshot.materialTranslucentStages != null ? m_Snapshot.materialTranslucentStages.Length : 0;
+            if (materialCount != queueCount || materialCount != routeCount || materialCount != stageCount)
             {
                 return true;
             }
 
             for (int i = 0; i < materialCount; ++i)
             {
-                int renderQueue = materials[i] != null ? materials[i].renderQueue : 0;
-                if (m_Snapshot.materialRenderQueues[i] != renderQueue)
+                Material material = materials[i];
+                int renderQueue = material != null ? material.renderQueue : 0;
+                ReadMaterialRoute(material, out int surfaceRoute, out int translucentStage);
+                if (m_Snapshot.materialRenderQueues[i] != renderQueue
+                    || m_Snapshot.materialSurfaceRoutes[i] != surfaceRoute
+                    || m_Snapshot.materialTranslucentStages[i] != translucentStage)
                 {
                     return true;
                 }
@@ -609,17 +672,22 @@ namespace InfinityTech.Component
             int materialCount = materials != null ? materials.Length : 0;
             int[] materialIds = new int[materialCount];
             int[] materialQueues = new int[materialCount];
+            int[] materialRoutes = new int[materialCount];
+            int[] materialStages = new int[materialCount];
             for (int i = 0; i < materialCount; ++i)
             {
                 if (materials[i] != null)
                 {
                     materialIds[i] = UnityEntityId.ToInt32(materials[i]);
                     materialQueues[i] = materials[i].renderQueue;
+                    ReadMaterialRoute(materials[i], out materialRoutes[i], out materialStages[i]);
                 }
                 else
                 {
                     materialIds[i] = 0;
                     materialQueues[i] = 0;
+                    materialRoutes[i] = 0;
+                    materialStages[i] = 0;
                 }
             }
 
@@ -634,6 +702,8 @@ namespace InfinityTech.Component
                 geometryRevision = m_GeometryRevision,
                 materialInstanceIds = materialIds,
                 materialRenderQueues = materialQueues,
+                materialSurfaceRoutes = materialRoutes,
+                materialTranslucentStages = materialStages,
                 renderingLayer = renderingLayer,
                 renderPriority = renderPriority,
                 castShadow = castShadow,

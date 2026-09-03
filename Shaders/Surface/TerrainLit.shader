@@ -34,6 +34,7 @@ Shader "InfinityPipeline/TerrainLit"
         // used in fallback on old cards & base map
         [HideInInspector] _MainTex("BaseMap (RGB)", 2D) = "grey" {}
         [HideInInspector] _BaseColor("Main Color", Color) = (1,1,1,1)
+        [HideInInspector] _EmissionColor("Emission", Color) = (0, 0, 0, 1)
 		
 		[HideInInspector] _TerrainHolesTexture("Holes Map (RGB)", 2D) = "white" {} 
 
@@ -61,6 +62,7 @@ Shader "InfinityPipeline/TerrainLit"
             #pragma fragment DeferredFragment
             
             #pragma multi_compile_instancing
+            #pragma multi_compile _ _DBUFFER
             //#pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 

@@ -47,6 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
                 sort = BuiltinMeshesPasses.Forward.defaultSort,
                 backendPolicy = EMeshBackendPolicy.Auto,
                 shaderPassIndex = BuiltinMeshesPasses.Forward.shaderPassIndex,
+                lightModeTag = BuiltinMeshesPasses.Forward.lightModeTag,
                 viewPosition = camera.transform.position,
                 renderingLayerMask = forwardFilter.renderingLayerMask,
                 viewKey = UnityEntityId.ToUInt64(camera)

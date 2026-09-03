@@ -853,6 +853,11 @@ namespace InfinityTech.Rendering.Pipeline
             features.MarkSupported(EFrameFeature.Depth);
             features.Request(EFrameFeature.GBuffer);
             features.MarkSupported(EFrameFeature.GBuffer);
+            if (renderContext.WorldDecalCount > 0)
+            {
+                features.Request(EFrameFeature.DBuffer);
+                features.MarkSupported(EFrameFeature.DBuffer);
+            }
             features.Request(EFrameFeature.Motion);
             features.MarkSupported(EFrameFeature.Motion);
             features.Request(EFrameFeature.DeferredShading);

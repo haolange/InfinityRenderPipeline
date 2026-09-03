@@ -11,6 +11,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshSortPlan sort;
         public EMeshBackendPolicy backendPolicy;
         public int shaderPassIndex;
+        public string lightModeTag;
         public float3 viewPosition;
         public uint renderingLayerMask;
         public ulong viewKey;

@@ -81,6 +81,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int DBufferC = Shader.PropertyToID("_DBufferTextureC");
         public static int GBufferA = Shader.PropertyToID("_GBufferTextureA");
         public static int GBufferB = Shader.PropertyToID("_GBufferTextureB");
+        public static int GBufferC = Shader.PropertyToID("_GBufferTextureC");
         public static int MotionBuffer = Shader.PropertyToID("_MotionTexture");
         public static int MotionDepthBuffer = Shader.PropertyToID("_MotionDepthTexture");
         public static int CascadeShadowMap = Shader.PropertyToID("_CascadeShadowMapTexture");
@@ -130,6 +131,9 @@ namespace InfinityTech.Rendering.Pipeline
         public static ShaderTagId MotionPass = new ShaderTagId("MotionPass");
         public static ShaderTagId ForwardPass = new ShaderTagId("ForwardPass");
         public static ShaderTagId TranslucentDepthPass = new ShaderTagId("TranslucentDepthPass");
+        public static ShaderTagId TranslucentT0Pass = new ShaderTagId("TranslucentT0Pass");
+        public static ShaderTagId TranslucentT1Pass = new ShaderTagId("TranslucentT1Pass");
+        public static ShaderTagId TranslucentT2Pass = new ShaderTagId("TranslucentT2Pass");
         public static ShaderTagId ForwardTranslucentPass = new ShaderTagId("ForwardTranslucentPass");
     }
 

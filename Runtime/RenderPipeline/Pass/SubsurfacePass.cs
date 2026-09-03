@@ -20,6 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
         internal static int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
+        internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
         internal static int UAV_SubsurfaceTextureID = Shader.PropertyToID("UAV_SubsurfaceTexture");
     }
 
@@ -37,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
             public RGTextureRef gBufferA;
             public RGTextureRef gBufferB;
+            public RGTextureRef gBufferC;
             public RGTextureRef subsurfaceTexture;
         }
 
@@ -65,6 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
             RGTextureRef gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
+            RGTextureRef gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
 
             //Add SubsurfacePass
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
@@ -81,6 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
+                passData.gBufferC = passRef.ReadTexture(gBufferC);
                 passData.subsurfaceTexture = passRef.WriteTexture(subsurfaceTexture);
 
                 //Execute Phase
@@ -97,6 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
+                    cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
                     cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, passData.subsurfaceTexture);
                     cmdEncoder.DispatchCompute(passData.subsurfaceShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });
