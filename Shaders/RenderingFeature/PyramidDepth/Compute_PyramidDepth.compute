@@ -1,29 +1,96 @@
 ﻿#pragma kernel HiZ_Generation
 #pragma enable_d3d11_debug_symbols
 
-float4 _PrevCurr_Inverse_Size;
-Texture2D<float> _PrevMipDepth; 
-SamplerState Global_point_clamp_sampler;
-RWTexture2D<float> _HierarchicalDepth;
+float4 _SrcSize;
+float4 _DstSize;
+int _CopySource;
+int _MipWriteCount;
+
+Texture2D<float> _PrevMipDepth;
+RWTexture2D<float> _HierarchicalDepth0;
+RWTexture2D<float> _HierarchicalDepth1;
+RWTexture2D<float> _HierarchicalDepth2;
+RWTexture2D<float> _HierarchicalDepth3;
+
+groupshared float gs_hiz[64];
+
+float HiZClosest(float a, float b)
+{
+#ifdef UNITY_REVERSED_Z
+    return max(a, b);
+#else
+    return min(a, b);
+#endif
+}
+
+float HiZLoadClamp(int2 coord)
+{
+    int2 srcSize = (int2)_SrcSize.xy;
+    coord = clamp(coord, int2(0, 0), srcSize - 1);
+    return _PrevMipDepth.Load(int3(coord, 0));
+}
 
 [numthreads(8, 8, 1)]
-void HiZ_Generation (uint3 id : SV_DispatchThreadID)
+void HiZ_Generation(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint3 id : SV_DispatchThreadID)
 {
-    float2 uv = (id.xy + 0.5) * _PrevCurr_Inverse_Size.xy;
-    float FinalMinZ = _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0);
-    
-    /*FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2( 1,  0) * _PrevCurr_Inverse_Size.zw, 0) );
-    FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(-1,  0) * _PrevCurr_Inverse_Size.zw, 0) );
-    FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2( 0,  1) * _PrevCurr_Inverse_Size.zw, 0) );
-    FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2( 0, -1) * _PrevCurr_Inverse_Size.zw, 0) );
-    FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2( 1,  1) * _PrevCurr_Inverse_Size.zw, 0) );
-    FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(-1,  1) * _PrevCurr_Inverse_Size.zw, 0) );
-    FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2( 1, -1) * _PrevCurr_Inverse_Size.zw, 0) );
-    FinalMinZ = max( FinalMinZ, _PrevMipDepth.SampleLevel(sampler_PrevMipDepth, uv + int2(-1, -1) * _PrevCurr_Inverse_Size.zw, 0) );*/
+    float depth;
+    if (_CopySource != 0)
+    {
+        depth = HiZLoadClamp((int2)id.xy);
+    }
+    else
+    {
+        int2 src = (int2)id.xy * 2;
+        float d00 = HiZLoadClamp(src);
+        float d10 = HiZLoadClamp(src + int2(1, 0));
+        float d01 = HiZLoadClamp(src + int2(0, 1));
+        float d11 = HiZLoadClamp(src + int2(1, 1));
+        depth = HiZClosest(HiZClosest(d00, d10), HiZClosest(d01, d11));
+    }
 
-    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0, int2(0, -1)));
-    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0, int2(-1, 0)));
-    FinalMinZ = max(FinalMinZ, _PrevMipDepth.SampleLevel(Global_point_clamp_sampler, uv, 0, int2(-1, -1)));
-    
-    _HierarchicalDepth[id.xy] = FinalMinZ;
+    if (_MipWriteCount > 0 && all(id.xy < (uint2)_DstSize.xy))
+    {
+        _HierarchicalDepth0[id.xy] = depth;
+    }
+
+    uint lds = groupThreadId.y * 8 + groupThreadId.x;
+    gs_hiz[lds] = depth;
+    GroupMemoryBarrierWithGroupSync();
+
+    if (_MipWriteCount > 1 && (groupThreadId.x & 1) == 0 && (groupThreadId.y & 1) == 0)
+    {
+        float reduced = HiZClosest(
+            HiZClosest(gs_hiz[lds], gs_hiz[lds + 1]),
+            HiZClosest(gs_hiz[lds + 8], gs_hiz[lds + 9]));
+        gs_hiz[lds] = reduced;
+        if (all((id.xy >> 1) < (uint2)_DstSize.xy >> 1))
+        {
+            _HierarchicalDepth1[id.xy >> 1] = reduced;
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (_MipWriteCount > 2 && (groupThreadId.x & 3) == 0 && (groupThreadId.y & 3) == 0)
+    {
+        float reduced = HiZClosest(
+            HiZClosest(gs_hiz[lds], gs_hiz[lds + 2]),
+            HiZClosest(gs_hiz[lds + 16], gs_hiz[lds + 18]));
+        gs_hiz[lds] = reduced;
+        if (all((id.xy >> 2) < (uint2)_DstSize.xy >> 2))
+        {
+            _HierarchicalDepth2[id.xy >> 2] = reduced;
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (_MipWriteCount > 3 && groupThreadId.x == 0 && groupThreadId.y == 0)
+    {
+        float reduced = HiZClosest(
+            HiZClosest(gs_hiz[0], gs_hiz[4]),
+            HiZClosest(gs_hiz[32], gs_hiz[36]));
+        if (all((id.xy >> 3) < (uint2)_DstSize.xy >> 3))
+        {
+            _HierarchicalDepth3[id.xy >> 3] = reduced;
+        }
+    }
 }

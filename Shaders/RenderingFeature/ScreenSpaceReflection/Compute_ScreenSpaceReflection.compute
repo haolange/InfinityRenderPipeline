@@ -9,7 +9,7 @@ int SSR_NumRays, SSR_NumSteps, SSR_FrameIndex;
 float SSR_BRDFBias, SSR_Thickness, SSR_Fadeness, SSR_Roughness, SSR_SpatialRadius, SSR_TemporalScale, SSR_TemporalWeight, ColorPyramidNumLOD;
 float4 SSR_Resolution, SSR_FilterResolution;
 float4x4 Matrix_Proj, Matrix_InvProj, Matrix_ViewProj, Matrix_InvViewProj, Matrix_LastViewProj, Matrix_WorldToView;
-Texture2D SRV_DepthTexture, SRV_MotionTexture, SRV_NormalTexture, SRV_RoughnessTexture, SRV_HiCTexture, SRV_HiZTexture, SRV_HitPDFTexture, SRV_ColorMaskTexture, SRV_AliasingTexture, SRV_HistoryTexture;
+Texture2D SRV_DepthTexture, SRV_MotionTexture, SRV_NormalTexture, SRV_RoughnessTexture, SRV_HiCTexture, SRV_HiZTexture, SRV_HitPDFTexture, SRV_ColorMaskTexture, SRV_AliasingTexture, SRV_HistoryTexture, SRV_HistoryMoments, SRV_HistoryDepthNormal;
 
 static const float2 kStackowiakSampleSet0[56 * 4] =
 {
@@ -361,19 +361,23 @@ float ComputeTemporalVariance(float3 History_Radiance, float3 Radiance)
 
 #pragma kernel TemporalFilter
 RWTexture2D<float4> UAV_AccmulateTexture;
+RWTexture2D<float4> UAV_MomentsTexture;
+RWTexture2D<float4> UAV_DepthNormalTexture;
 [numthreads(16, 16, 1)]
 void TemporalFilter (uint3 id : SV_DispatchThreadID)
 {
     float2 UV = (id.xy + 0.5) * SSR_FilterResolution.zw;
+    float SceneDepth = SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).r;
+    float3 WorldNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).xyz * 2 - 1;
     float HitDepth = SRV_HitPDFTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).z;
     float2 HitMotion = GetMotionVector(HitDepth, UV, Matrix_InvViewProj, Matrix_LastViewProj, Matrix_ViewProj);
     float2 DepthMotion = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).xy;
 
-    float4 SampleColors[9]; 
+    float4 SampleColors[9];
     float4 CurrColor, PrevColor, MomentA, MomentB;
 
     [loop]
-    for(int i = 0; i < 9; ++i) 
+    for(int i = 0; i < 9; ++i)
     {
         SampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, UV + (TemportalOffsets[i] * SSR_FilterResolution.zw), 0);
         MomentA += SampleColors[i];
@@ -386,36 +390,45 @@ void TemporalFilter (uint3 id : SV_DispatchThreadID)
     CurrColor = SampleColors[4];
     float4 MinColor = Mean - SSR_TemporalScale * Stddev;
     float4 MaxColor = Mean + SSR_TemporalScale * Stddev;
-    MinColor = min(MinColor, CurrColor); 
+    MinColor = min(MinColor, CurrColor);
     MaxColor = max(MaxColor, CurrColor);
 
     float2 PrevUV = UV - DepthMotion;
     float2 RayPrevUV = UV - HitMotion;
+    bool offscreen = any(PrevUV < 0) || any(PrevUV > 1) || any(RayPrevUV < 0) || any(RayPrevUV > 1);
 
-    if ( any(PrevUV < 0) && any(PrevUV > 1) && any(RayPrevUV < 0) && any(RayPrevUV > 1) ) 
-    { 
-		PrevColor = CurrColor;
-	} else {
-        //PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, RayPrevUV, 0);
-        //PrevColor = clamp(PrevColor, MinColor, MaxColor);
+    if (offscreen)
+    {
+        PrevColor = CurrColor;
+    }
+    else
+    {
+        float4 HistoryDepthNormal = SRV_HistoryDepthNormal.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
+        float3 HistoryNormal = HistoryDepthNormal.xyz * 2 - 1;
+        float DepthReject = abs(SceneDepth - HistoryDepthNormal.a);
+        float NormalReject = 1 - saturate(dot(WorldNormal, HistoryNormal));
+        float HistoryConfidence = saturate(1 - DepthReject * 200) * saturate(1 - NormalReject * 4);
 
         float4 RayProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, RayPrevUV, 0);
-        float4 RayProject_Dist = ( RayProject_PrevColor - Mean ) / Stddev;
+        float4 RayProject_Dist = ( RayProject_PrevColor - Mean ) / max(Stddev, 1e-4);
         float RayProject_Weight = exp2(-10 * Rec709Luminance(RayProject_Dist));
 
         float4 DepthProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
-        float4 DepthProject_Dist = (DepthProject_PrevColor - Mean) / Stddev;
+        float4 DepthProject_Dist = (DepthProject_PrevColor - Mean) / max(Stddev, 1e-4);
         float DepthProject_Weight = exp2(-10 * Rec709Luminance(DepthProject_Dist));
 
-        PrevColor = (RayProject_PrevColor * RayProject_Weight + DepthProject_PrevColor * DepthProject_Weight) / (RayProject_Weight + DepthProject_Weight);
+        PrevColor = (RayProject_PrevColor * RayProject_Weight + DepthProject_PrevColor * DepthProject_Weight) / max(RayProject_Weight + DepthProject_Weight, 1e-4);
         PrevColor = clamp(PrevColor, MinColor, MaxColor);
-	}
-	float BlendWeight = saturate(SSR_TemporalWeight * (1 - length(HitMotion) * 8) * (1 - length(DepthMotion) * 8));
+        PrevColor = lerp(CurrColor, PrevColor, HistoryConfidence);
+    }
 
+    float BlendWeight = saturate(SSR_TemporalWeight * (1 - length(HitMotion) * 8) * (1 - length(DepthMotion) * 8));
     float4 Radiance = max(0.0001, lerp(CurrColor, PrevColor, BlendWeight));
     float Variance = ComputeTemporalVariance(PrevColor.rgb, Radiance.rgb) > VARIANCE_THRESHOLD ? 0 : 1;
 
-	UAV_AccmulateTexture[id.xy] = Radiance;
+    UAV_AccmulateTexture[id.xy] = Radiance;
+    UAV_MomentsTexture[id.xy] = float4(Rec709Luminance(Mean.rgb), Rec709Luminance(Stddev.rgb), BlendWeight, Variance);
+    UAV_DepthNormalTexture[id.xy] = float4(WorldNormal * 0.5 + 0.5, SceneDepth);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

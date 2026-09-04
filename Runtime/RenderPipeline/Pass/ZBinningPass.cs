@@ -202,19 +202,27 @@ namespace InfinityTech.Rendering.Pipeline
                         encoder.SetComputeBufferParam(shader, kernel, ZBinningPassUtilityData.UAV_OverflowCounterID, data.overflowBuffer);
                     }
 
+                    cmdEncoder.BeginSample("ZBin_Clear");
                     BindCommon(ZBinningPassUtilityData.KernelLightCount);
                     cmdEncoder.SetComputeIntParam(shader, ZBinningPassUtilityData.ZBin_PhaseID, 0);
                     cmdEncoder.DispatchCompute(shader, ZBinningPassUtilityData.KernelLightCount, clearGroups, 1, 1);
+                    cmdEncoder.EndSample("ZBin_Clear");
 
+                    cmdEncoder.BeginSample("ZBin_Count");
                     BindCommon(ZBinningPassUtilityData.KernelLightCount);
                     cmdEncoder.SetComputeIntParam(shader, ZBinningPassUtilityData.ZBin_PhaseID, 1);
                     cmdEncoder.DispatchCompute(shader, ZBinningPassUtilityData.KernelLightCount, lightGroups, 1, 1);
+                    cmdEncoder.EndSample("ZBin_Count");
 
+                    cmdEncoder.BeginSample("ZBin_Prefix");
                     BindCommon(ZBinningPassUtilityData.KernelPrefixSum);
                     cmdEncoder.DispatchCompute(shader, ZBinningPassUtilityData.KernelPrefixSum, 1, 1, 1);
+                    cmdEncoder.EndSample("ZBin_Prefix");
 
+                    cmdEncoder.BeginSample("ZBin_Fill");
                     BindCommon(ZBinningPassUtilityData.KernelFill);
                     cmdEncoder.DispatchCompute(shader, ZBinningPassUtilityData.KernelFill, lightGroups, 1, 1);
+                    cmdEncoder.EndSample("ZBin_Fill");
 
                     encoder.SetComputeIntParam(shader, LightShaderIDs.HasTileLightList, 1);
                     encoder.SetGlobalInt("g_HasTileLightList", 1);

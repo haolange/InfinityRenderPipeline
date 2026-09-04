@@ -7,6 +7,10 @@
 #include "../../ShaderLibrary/Lighting.hlsl"
 #include "../../ShaderLibrary/ImageBasedLighting.hlsl"
 
+StructuredBuffer<float4> _AtmosphereSkySH;
+Texture2DArray<float4> _AtmosphereGGXPrefilter;
+float _AtmosphereIBLMaxMip;
+
 float4 DeferredShading_Resolution;
 int DeferredShading_TileSize;
 float DeferredShading_FarDepth;
@@ -24,8 +28,6 @@ Texture2D SRV_GBufferTextureC;
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_OcclusionTexture;
 Texture2D<float> SRV_ContactShadowTexture;
-Texture2D<float4> SRV_SSRTexture;
-Texture2D<float4> SRV_SSGITexture;
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
 RWTexture2D<float4> UAV_LightingTexture;
@@ -230,9 +232,6 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 
     float ao = SRV_OcclusionTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
     float contactShadow = SRV_ContactShadowTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
-    float4 ssrColor = SRV_SSRTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
-    float4 ssgiColor = SRV_SSGITexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
-
     float3 lighting = 0;
 
     for (int d = 0; d < g_DirectionalLightCount; ++d)
@@ -283,12 +282,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
         }
     }
 
-    float3 indirectDiffuse = ssgiColor.rgb;
-    lighting += microfaceCtx.AlbedoColor * indirectDiffuse * ao;
-
-    float2 envBRDF = IBL_Defualt_SpecularIntegrated_Approx(roughness, saturate(dot(normal, viewDir)));
-    float3 indirectSpecular = ssrColor.rgb * ssrColor.a;
-    lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular * ao;
+    lighting += EvaluateAtmosphereIBL(microfaceCtx, normal, viewDir, _AtmosphereSkySH, _AtmosphereGGXPrefilter, _AtmosphereIBLMaxMip) * ao;
 
     float3 emissive = UAV_LightingTexture[pixelCoord].rgb;
     UAV_LightingTexture[pixelCoord] = float4(max(0, lighting) + emissive, 1);

@@ -8,12 +8,12 @@ This file is the only on-disk task source. Cursor Todo tracks execution. Do not 
 | S1 R0 Camera/Volume/History | completed | Grok + Luna + Orchestrator gate | EditMode tests + Validation_Volume dump/play | `Logs/baseline/s1-*`, `Logs/volume-stack-dump.txt` |
 | S2 R1 Material/GBuffer/Decal | completed | Grok + Luna + Orchestrator gate | Validation_Decal + Spazon | `Logs/baseline/s2-decal-play.png`, `Logs/baseline/s2-spazon-play.png`. Frame tree TODO(UNVERIFIED). MeshDraw+Instanced+Plane stays a known fixture gap; Decal gate used RendererList + InfinityLit. |
 | S3 R2 Lights/Shadows | completed | Grok + Orchestrator gate | Validation_LocalLights | `Logs/baseline/s3-local-play.png` (Point/Spot/Rect + ground shadow), `s3-spazon-play.png` (brighter after intensity-once). Dump `s3-local-lights-state-dump.txt`. Frame tree TODO(UNVERIFIED). Luna slug unavailable this session. |
-| S4 R3 Pyramids/GTAO | pending | Grok / Luna | framedump mip batches + GTAO still | framedump, screenshots |
-| S5 R4 Atmosphere/IBL | pending | Grok / Luna | cache-hit zero dispatch | framedump, screenshots |
-| S6 R5 SSR/SSGI | pending | Grok / Luna | Validation_Temporal | framedump modes, screenshots |
-| S7 R6 Volume/Translucent | pending | Grok / Luna | Validation_Translucent | framedump order, screenshots |
-| S8 R7 Exposure/Output | pending | Grok / Luna | Validation_Output gray card + Metal HDR | screenshots, framedump |
-| S9 R8 Inspector/Cleanup/Docs | pending | Grok / Luna | Luna full review + all scenes | Delivery report |
+| S4 R3 Pyramids/GTAO | completed | Grok + Orchestrator gate | Spazon play | `Logs/baseline/s4-spazon-play.png`. HiZ 4-mip/batch, ColorPyramid 2-mip/batch, GTAO full chain. Frame tree TODO(UNVERIFIED). |
+| S5 R4 Atmosphere/IBL | completed | Grok + Orchestrator gate | Spazon play + profile assign | `Logs/baseline/s5-spazon-play.png`. Shared/View/IBL caches; Profile-only atmosphere. Cache-hit zero dispatch TODO(UNVERIFIED) without framedump. |
+| S6 R5 SSR/SSGI | completed | Grok + Orchestrator gate | Validation_Temporal | `Logs/baseline/s6-temporal-play.png` (liveness 17%), `s6-spazon-play.png`. SSR/SSGI denoise + four-mode framedump TODO(UNVERIFIED). Luna slug unavailable. |
+| S7 R6 Volume/Translucent | completed | Grok + Orchestrator gate | Validation_Translucent | `Logs/baseline/s7-translucent-play.png` (T0 glass + T2 sphere visible, console 0). Fog/T1 refraction quality + framedump order TODO(UNVERIFIED). |
+| S8 R7 Exposure/Output | completed | Grok + Orchestrator gate | Validation_Output | `Logs/baseline/s8-output-play.png`, `Logs/gray-card-mean.txt` mean=0.1608 (ARGBFloat after full RP). sRGB [0.44,0.48] Game-view gate and Metal HDR hardware TODO(UNVERIFIED). SDR skips HDROutputSettings probe. |
+| S9 R8 Inspector/Cleanup/Docs | completed | Grok + Orchestrator gate | docs + compile | SessionState inspectors, leftover Generator/Dummy/Compress delete, DESIGN/Delivery-Report. Luna full review unavailable. |
 
 ## Workflow
 

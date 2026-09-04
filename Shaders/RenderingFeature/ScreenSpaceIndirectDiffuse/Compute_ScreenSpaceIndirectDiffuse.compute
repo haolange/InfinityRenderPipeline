@@ -168,10 +168,153 @@ void Raytracing (uint3 id : SV_DispatchThreadID)
 	Out_ColorMask /= SSGi_NumRays;
 	Out_ColorMask.rgb *= SSGi_Intensity;
 	UAV_ScreenIrradiance[id.xy] = Out_ColorMask;
+}
 
-	//float3 ReflectVector = -reflect(WorldNormal, normalize(WorldPos - _WorldSpaceCameraPos));
-	//float ReflecOcclusion = ReflectionOcclusion(normalize(BentNormal), ReflectVector, 0.25, 0.5);
-	//UAV_ScreenIrradiance[id.xy] = ReflecOcclusion;
-	//UAV_ScreenIrradiance[id.xy] = float4(normalize(BentNormal), 1);
-	//UAV_ScreenIrradiance[id.xy] = dot(normalize(BentNormal), _WorldSpaceLightPos0.xyz);
+float4x4 Matrix_LastViewProj;
+float SSGi_SpatialRadius, SSGi_TemporalScale, SSGi_TemporalWeight;
+float4 SSGi_FilterResolution;
+Texture2D SRV_MotionTexture, SRV_ColorMaskTexture, SRV_AliasingTexture, SRV_HistoryTexture, SRV_HistoryMoments, SRV_HistoryDepthNormal;
+
+static const int2 SSGI_SpatialOffset[15] = { int2(0, 1), int2(-2, 1), int2(2, -3), int2(-3, 0), int2(1, 2), int2(-1, -2), int2(3, 0), int2(-3, 3), int2(0, -3), int2(-1, -1), int2(2, 1), int2(-2, -2), int2(1, 0), int2(0, 2), int2(3, -1) };
+
+float SSGI_GetEdgeStopNormalWeight(float3 normal_p, float3 normal_q, float sigma)
+{
+    return pow(max(dot(normal_p, normal_q), 0.0), sigma);
+}
+
+float SSGI_GetEdgeStopDepthWeight(float x, float m, float sigma)
+{
+    float a = length(x - m) / sigma;
+    a *= a;
+    return exp(-0.5 * a);
+}
+
+#pragma kernel SpatialFilter
+RWTexture2D<float4> UAV_SpatialTexture;
+[numthreads(16, 16, 1)]
+void SpatialFilter(uint3 id : SV_DispatchThreadID)
+{
+    float2 UV = (id.xy + 0.5) * SSGi_FilterResolution.zw;
+    float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
+    if (SceneDepth <= 1e-7)
+    {
+        UAV_SpatialTexture[id.xy] = 0;
+        return;
+    }
+
+    float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
+    float NumWeight = 0;
+    float4 SpatialColor = 0;
+
+    [loop]
+    for (int i = 0; i < 15; ++i)
+    {
+        float2 Offset_UV = UV + (SSGI_SpatialOffset[i] * SSGi_FilterResolution.zw * SSGi_SpatialRadius);
+        float OffsetDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).r;
+        float3 OffsetNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).xyz * 2 - 1;
+        float4 HitColorMask = SRV_ColorMaskTexture.SampleLevel(Global_bilinear_clamp_sampler, Offset_UV, 0);
+        float Weight = SSGI_GetEdgeStopDepthWeight(SceneDepth, OffsetDepth, 0.001) * SSGI_GetEdgeStopNormalWeight(WorldNormal, OffsetNormal, 32);
+        NumWeight += Weight;
+        SpatialColor += float4(HitColorMask.rgb * Weight, HitColorMask.a);
+    }
+
+    SpatialColor /= max(NumWeight, 1e-5);
+    UAV_SpatialTexture[id.xy] = SpatialColor;
+}
+
+#define SSGI_VARIANCE_THRESHOLD 0.0005
+static const int2 SSGI_TemporalOffset[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
+
+#pragma kernel TemporalFilter
+RWTexture2D<float4> UAV_AccmulateTexture;
+RWTexture2D<float4> UAV_MomentsTexture;
+RWTexture2D<float4> UAV_DepthNormalTexture;
+[numthreads(16, 16, 1)]
+void TemporalFilter(uint3 id : SV_DispatchThreadID)
+{
+    float2 UV = (id.xy + 0.5) * SSGi_FilterResolution.zw;
+    float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
+    float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
+    float2 DepthMotion = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).xy;
+
+    float4 SampleColors[9];
+    float4 CurrColor, PrevColor, MomentA = 0, MomentB = 0;
+    [loop]
+    for (int i = 0; i < 9; ++i)
+    {
+        SampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, UV + (SSGI_TemporalOffset[i] * SSGi_FilterResolution.zw), 0);
+        MomentA += SampleColors[i];
+        MomentB += SampleColors[i] * SampleColors[i];
+    }
+
+    float4 Mean = MomentA / 9;
+    float4 Stddev = sqrt(max(0, (MomentB / 9) - pow2(Mean)));
+    CurrColor = SampleColors[4];
+    float4 MinColor = min(Mean - SSGi_TemporalScale * Stddev, CurrColor);
+    float4 MaxColor = max(Mean + SSGi_TemporalScale * Stddev, CurrColor);
+
+    float2 PrevUV = UV - DepthMotion;
+    bool offscreen = any(PrevUV < 0) || any(PrevUV > 1);
+    if (offscreen)
+    {
+        PrevColor = CurrColor;
+    }
+    else
+    {
+        float4 HistoryDepthNormal = SRV_HistoryDepthNormal.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
+        float3 HistoryNormal = HistoryDepthNormal.xyz * 2 - 1;
+        float DepthReject = abs(SceneDepth - HistoryDepthNormal.a);
+        float NormalReject = 1 - saturate(dot(WorldNormal, HistoryNormal));
+        float HistoryConfidence = saturate(1 - DepthReject * 200) * saturate(1 - NormalReject * 4);
+        PrevColor = clamp(SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, PrevUV, 0), MinColor, MaxColor);
+        PrevColor = lerp(CurrColor, PrevColor, HistoryConfidence);
+    }
+
+    float BlendWeight = saturate(SSGi_TemporalWeight * (1 - length(DepthMotion) * 8));
+    float4 Radiance = max(0.0001, lerp(CurrColor, PrevColor, BlendWeight));
+    float historyLuma = Rec709Luminance(PrevColor.rgb);
+    float luma = Rec709Luminance(Radiance.rgb);
+    float Variance = (abs(historyLuma - luma) / max(max(historyLuma, luma), 1e-5)) > SSGI_VARIANCE_THRESHOLD ? 0 : 1;
+
+    UAV_AccmulateTexture[id.xy] = Radiance;
+    UAV_MomentsTexture[id.xy] = float4(Rec709Luminance(Mean.rgb), Rec709Luminance(Stddev.rgb), BlendWeight, Variance);
+    UAV_DepthNormalTexture[id.xy] = float4(WorldNormal * 0.5 + 0.5, SceneDepth);
+}
+
+static const float SSGI_BilateralKernel[25] = { 1.0 / 256.0, 1.0 / 64.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 256.0, 1.0 / 64.0, 1.0 / 16.0, 3.0 / 32.0, 1.0 / 16.0, 1.0 / 64.0, 3.0 / 128.0, 3.0 / 32.0, 9.0 / 64.0, 3.0 / 32.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 16.0, 3.0 / 32.0, 1.0 / 16.0, 1.0 / 64.0, 1.0 / 256.0, 1.0 / 64.0, 3.0 / 128.0, 1.0 / 64.0, 1.0 / 256.0 };
+static const int2 SSGI_BilateralOffset[25] = { int2(-2, -2), int2(-1, -2), int2(0, -2), int2(1, -2), int2(2, -2), int2(-2, -1), int2(-1, -1), int2(0, -1), int2(1, -1), int2(2, -1), int2(-2, 0), int2(-1, 0), int2(0, 0), int2(1, 0), int2(2, 0), int2(-2, 1), int2(-1, 1), int2(0, 1), int2(1, 1), int2(2, 1), int2(-2, 2), int2(-1, 2), int2(0, 2), int2(1, 2), int2(2, 2) };
+
+float SVGF_BilateralRadius, SVGF_ColorWeight, SVGF_NormalWeight, SVGF_DepthWeight;
+float4 SVGF_BilateralSize;
+
+#pragma kernel BilateralFilter
+RWTexture2D<float4> UAV_BilateralColor;
+[numthreads(16, 16, 1)]
+void BilateralFilter(uint3 id : SV_DispatchThreadID)
+{
+    float WeightSum = 0;
+    float4 ColorSum = 0;
+    float2 UV = (id.xy + 0.5) * SVGF_BilateralSize.zw;
+    float4 Color = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
+    float4 Normal = SRV_GBufferNormal.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
+    float Depth = LinearEyeDepth(SRV_SceneDepth.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).r);
+
+    for (int i = 0; i < 25; ++i)
+    {
+        float2 OffsetUV = UV + (SSGI_BilateralOffset[i] * SVGF_BilateralSize.zw * SVGF_BilateralRadius);
+        float4 OffsetColor = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
+        float4 OffsetNormal = SRV_GBufferNormal.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
+        float OffsetDepth = LinearEyeDepth(SRV_SceneDepth.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0).r);
+
+        float4 Distance = Normal - OffsetNormal;
+        float Distance2 = max(dot(Distance, Distance) / max(SVGF_BilateralRadius * SVGF_BilateralRadius, 1e-4), 0);
+        float WeightNormal = min(exp(-Distance2 / max(SVGF_NormalWeight, 1e-4)), 1);
+        float WeightDepth = (SVGF_DepthWeight == 0) ? 0 : abs(Depth - OffsetDepth) / SVGF_DepthWeight;
+        float WeightColor = abs(Rec709Luminance(Color.rgb) - Rec709Luminance(OffsetColor.rgb)) / max(SVGF_ColorWeight, 1e-4);
+        float Weight = exp(0 - max(WeightColor, 0) - max(WeightDepth, 0)) * WeightNormal;
+        ColorSum += OffsetColor * Weight * SSGI_BilateralKernel[i];
+        WeightSum += Weight * SSGI_BilateralKernel[i];
+    }
+
+    UAV_BilateralColor[id.xy] = ColorSum / max(WeightSum, 1e-5);
 }

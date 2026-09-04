@@ -20,7 +20,8 @@ namespace InfinityTech.Rendering.Pipeline
         VolumetricCloud,
         PostProcess,
         Display,
-        DBuffer
+        DBuffer,
+        OpaqueLightingPyramid
     }
 
     public class FrameFeatureSet

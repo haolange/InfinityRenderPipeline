@@ -1,11 +1,10 @@
+using System;
 using UnityEngine;
-using UnityEngine.Rendering;
 using InfinityTech.Rendering.Feature;
-using InfinityTech.Rendering.PostProcess;
 
 namespace InfinityTech.Rendering.Pipeline
 {
-    public struct AtmosphereParameter
+    public struct AtmosphereParameter : IEquatable<AtmosphereParameter>
     {
         public float planetRadius;
         public float atmosphereHeight;
@@ -42,100 +41,229 @@ namespace InfinityTech.Rendering.Pipeline
 
         public static AtmosphereParameter FromProfile(AtmosphericalProfile profile)
         {
-            AtmosphereParameter parameter = Default();
             if (profile == null)
             {
-                return parameter;
+                throw new ArgumentNullException(nameof(profile), "InfinityRP: AtmosphericalProfile is required. Atmosphere lives only on the profile.");
             }
 
-            parameter.planetRadius = profile.radius;
-            parameter.atmosphereHeight = profile.thickness;
-            parameter.rayleighScattering = profile.rayleighScatter * profile.rayleighStrength;
-            parameter.rayleighHeight = profile.rayleighHeight;
-            parameter.mieScattering = profile.mieStrength;
-            parameter.mieAbsorption = profile.mieAbsorption;
-            parameter.mieHeight = profile.mieHeight;
-            parameter.mieAnisotropy = profile.mieAnisotropy;
-            parameter.ozoneAbsorption = profile.ozoneAbsorption * profile.ozoneStrength;
-            parameter.ozoneLayerCenter = profile.ozoneLayerCenter;
-            parameter.ozoneLayerWidth = profile.ozoneLayerWidth;
-            parameter.groundAlbedo = profile.groundAlbedo;
-            parameter.brightness = profile.brightness;
-            parameter.multiScatterStrength = profile.multiScatterStrength;
-            parameter.sunAngle = profile.sunAngle;
-            parameter.drawGround = profile.drawGround;
-            parameter.transmittanceLUTWidth = profile.transmittanceLUTWidth;
-            parameter.transmittanceLUTHeight = profile.transmittanceLUTHeight;
-            parameter.multiScatteringLUTSize = profile.multiScatteringLUTSize;
-            parameter.skyViewLUTWidth = profile.skyViewLUTWidth;
-            parameter.skyViewLUTHeight = profile.skyViewLUTHeight;
-            parameter.aerialPerspectiveSize = profile.aerialPerspectiveSize;
-            parameter.aerialPerspectiveDistance = profile.aerialPerspectiveDistance;
-            parameter.cubemapSize = profile.cubemapSize;
-            return parameter;
-        }
-
-        public static AtmosphereParameter Default()
-        {
             return new AtmosphereParameter
             {
-                planetRadius = 6360000.0f,
-                atmosphereHeight = 60000.0f,
-                rayleighScattering = new Color(0.00580f, 0.01356f, 0.03310f, 1.0f),
-                rayleighHeight = 8000.0f,
-                mieScattering = 0.003996f,
-                mieAbsorption = 0.000444f,
-                mieHeight = 1200.0f,
-                mieAnisotropy = 0.8f,
-                ozoneAbsorption = new Color(0.000650f, 0.001881f, 0.000085f, 1.0f),
-                ozoneLayerCenter = 25000.0f,
-                ozoneLayerWidth = 15000.0f,
-                groundAlbedo = new Color(0.3f, 0.3f, 0.3f, 1.0f),
-                brightness = 1.0f,
-                multiScatterStrength = 1.0f,
-                sunAngle = 0.5f / 180.0f * Mathf.PI,
-                drawGround = false,
-                transmittanceLUTWidth = 256,
-                transmittanceLUTHeight = 64,
-                multiScatteringLUTSize = 32,
-                skyViewLUTWidth = 192,
-                skyViewLUTHeight = 108,
-                aerialPerspectiveSize = 32,
-                aerialPerspectiveDistance = 32000.0f,
-                cubemapSize = 128
+                planetRadius = profile.radius,
+                atmosphereHeight = profile.thickness,
+                rayleighScattering = profile.rayleighScatter * profile.rayleighStrength,
+                rayleighHeight = profile.rayleighHeight,
+                mieScattering = profile.mieStrength,
+                mieAbsorption = profile.mieAbsorption,
+                mieHeight = profile.mieHeight,
+                mieAnisotropy = profile.mieAnisotropy,
+                ozoneAbsorption = profile.ozoneAbsorption * profile.ozoneStrength,
+                ozoneLayerCenter = profile.ozoneLayerCenter,
+                ozoneLayerWidth = profile.ozoneLayerWidth,
+                groundAlbedo = profile.groundAlbedo,
+                brightness = profile.brightness,
+                multiScatterStrength = profile.multiScatterStrength,
+                sunAngle = profile.sunAngle,
+                drawGround = profile.drawGround,
+                transmittanceLUTWidth = profile.transmittanceLUTWidth,
+                transmittanceLUTHeight = profile.transmittanceLUTHeight,
+                multiScatteringLUTSize = profile.multiScatteringLUTSize,
+                skyViewLUTWidth = profile.skyViewLUTWidth,
+                skyViewLUTHeight = profile.skyViewLUTHeight,
+                aerialPerspectiveSize = profile.aerialPerspectiveSize,
+                aerialPerspectiveDistance = profile.aerialPerspectiveDistance,
+                cubemapSize = profile.cubemapSize
             };
         }
 
-        public static AtmosphereParameter Resolve(InfinityRenderPipelineAsset pipelineAsset, VolumeStack stack)
+        public void ThrowIfInvalid()
         {
-            AtmosphereParameter parameter = FromProfile(pipelineAsset != null ? pipelineAsset.atmosphericalProfile : null);
-            if (stack == null)
+            if (planetRadius <= 0.0f || atmosphereHeight <= 0.0f
+                || transmittanceLUTWidth <= 0 || transmittanceLUTHeight <= 0
+                || multiScatteringLUTSize <= 0
+                || skyViewLUTWidth <= 0 || skyViewLUTHeight <= 0
+                || aerialPerspectiveSize <= 0 || aerialPerspectiveDistance <= 0.0f
+                || cubemapSize <= 0)
             {
-                return parameter;
+                throw new InvalidOperationException("InfinityRP: AtmosphericalProfile deserialized invalid or zero fields. Open the profile or run Infinity/Validation/Upgrade Atmospherical Profile.");
             }
+        }
 
-            AtmosphericScattering volume = stack.GetComponent<AtmosphericScattering>();
-            if (!volume.active)
+        public bool Equals(AtmosphereParameter other)
+        {
+            return planetRadius == other.planetRadius
+                && atmosphereHeight == other.atmosphereHeight
+                && ColorEquals(rayleighScattering, other.rayleighScattering)
+                && rayleighHeight == other.rayleighHeight
+                && mieScattering == other.mieScattering
+                && mieAbsorption == other.mieAbsorption
+                && mieHeight == other.mieHeight
+                && mieAnisotropy == other.mieAnisotropy
+                && ColorEquals(ozoneAbsorption, other.ozoneAbsorption)
+                && ozoneLayerCenter == other.ozoneLayerCenter
+                && ozoneLayerWidth == other.ozoneLayerWidth
+                && ColorEquals(groundAlbedo, other.groundAlbedo)
+                && brightness == other.brightness
+                && multiScatterStrength == other.multiScatterStrength
+                && sunAngle == other.sunAngle
+                && drawGround == other.drawGround
+                && transmittanceLUTWidth == other.transmittanceLUTWidth
+                && transmittanceLUTHeight == other.transmittanceLUTHeight
+                && multiScatteringLUTSize == other.multiScatteringLUTSize
+                && skyViewLUTWidth == other.skyViewLUTWidth
+                && skyViewLUTHeight == other.skyViewLUTHeight
+                && aerialPerspectiveSize == other.aerialPerspectiveSize
+                && aerialPerspectiveDistance == other.aerialPerspectiveDistance
+                && cubemapSize == other.cubemapSize;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is AtmosphereParameter other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
             {
-                return parameter;
+                int hash = 17;
+                hash = hash * 23 + planetRadius.GetHashCode();
+                hash = hash * 23 + atmosphereHeight.GetHashCode();
+                hash = hash * 23 + ColorHash(rayleighScattering);
+                hash = hash * 23 + rayleighHeight.GetHashCode();
+                hash = hash * 23 + mieScattering.GetHashCode();
+                hash = hash * 23 + mieAbsorption.GetHashCode();
+                hash = hash * 23 + mieHeight.GetHashCode();
+                hash = hash * 23 + mieAnisotropy.GetHashCode();
+                hash = hash * 23 + ColorHash(ozoneAbsorption);
+                hash = hash * 23 + ozoneLayerCenter.GetHashCode();
+                hash = hash * 23 + ozoneLayerWidth.GetHashCode();
+                hash = hash * 23 + ColorHash(groundAlbedo);
+                hash = hash * 23 + brightness.GetHashCode();
+                hash = hash * 23 + multiScatterStrength.GetHashCode();
+                hash = hash * 23 + sunAngle.GetHashCode();
+                hash = hash * 23 + (drawGround ? 1 : 0);
+                hash = hash * 23 + transmittanceLUTWidth;
+                hash = hash * 23 + transmittanceLUTHeight;
+                hash = hash * 23 + multiScatteringLUTSize;
+                hash = hash * 23 + skyViewLUTWidth;
+                hash = hash * 23 + skyViewLUTHeight;
+                hash = hash * 23 + aerialPerspectiveSize;
+                hash = hash * 23 + aerialPerspectiveDistance.GetHashCode();
+                hash = hash * 23 + cubemapSize;
+                return hash;
             }
+        }
 
-            if (volume.PlanetRadius.overrideState) parameter.planetRadius = volume.PlanetRadius.value;
-            if (volume.AtmosphereHeight.overrideState) parameter.atmosphereHeight = volume.AtmosphereHeight.value;
-            if (volume.RayleighScattering.overrideState) parameter.rayleighScattering = volume.RayleighScattering.value;
-            if (volume.RayleighHeight.overrideState) parameter.rayleighHeight = volume.RayleighHeight.value;
-            if (volume.MieScattering.overrideState) parameter.mieScattering = volume.MieScattering.value;
-            if (volume.MieAbsorption.overrideState) parameter.mieAbsorption = volume.MieAbsorption.value;
-            if (volume.MieHeight.overrideState) parameter.mieHeight = volume.MieHeight.value;
-            if (volume.MieAnisotropy.overrideState) parameter.mieAnisotropy = volume.MieAnisotropy.value;
-            if (volume.OzoneAbsorption.overrideState) parameter.ozoneAbsorption = volume.OzoneAbsorption.value;
-            if (volume.OzoneLayerCenter.overrideState) parameter.ozoneLayerCenter = volume.OzoneLayerCenter.value;
-            if (volume.OzoneLayerWidth.overrideState) parameter.ozoneLayerWidth = volume.OzoneLayerWidth.value;
-            if (volume.GroundAlbedo.overrideState) parameter.groundAlbedo = volume.GroundAlbedo.value;
-            if (volume.TransmittanceLUTWidth.overrideState) parameter.transmittanceLUTWidth = volume.TransmittanceLUTWidth.value;
-            if (volume.TransmittanceLUTHeight.overrideState) parameter.transmittanceLUTHeight = volume.TransmittanceLUTHeight.value;
-            if (volume.MultiScatteringLUTSize.overrideState) parameter.multiScatteringLUTSize = volume.MultiScatteringLUTSize.value;
-            return parameter;
+        static bool ColorEquals(Color a, Color b)
+        {
+            return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+        }
+
+        static int ColorHash(Color color)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + color.r.GetHashCode();
+                hash = hash * 23 + color.g.GetHashCode();
+                hash = hash * 23 + color.b.GetHashCode();
+                hash = hash * 23 + color.a.GetHashCode();
+                return hash;
+            }
+        }
+    }
+
+    internal struct AtmosphereViewKey : IEquatable<AtmosphereViewKey>
+    {
+        public AtmosphereParameter parameter;
+        public Vector3 sunDirection;
+        public int cameraX;
+        public int cameraY;
+        public int cameraZ;
+
+        public static AtmosphereViewKey Create(in AtmosphereParameter parameter, Vector3 sunDirection, Vector3 cameraPosition)
+        {
+            return new AtmosphereViewKey
+            {
+                parameter = parameter,
+                sunDirection = sunDirection,
+                cameraX = Mathf.FloorToInt(cameraPosition.x),
+                cameraY = Mathf.FloorToInt(cameraPosition.y),
+                cameraZ = Mathf.FloorToInt(cameraPosition.z)
+            };
+        }
+
+        public bool Equals(AtmosphereViewKey other)
+        {
+            return parameter.Equals(other.parameter)
+                && sunDirection.x == other.sunDirection.x
+                && sunDirection.y == other.sunDirection.y
+                && sunDirection.z == other.sunDirection.z
+                && cameraX == other.cameraX
+                && cameraY == other.cameraY
+                && cameraZ == other.cameraZ;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is AtmosphereViewKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + parameter.GetHashCode();
+                hash = hash * 23 + sunDirection.x.GetHashCode();
+                hash = hash * 23 + sunDirection.y.GetHashCode();
+                hash = hash * 23 + sunDirection.z.GetHashCode();
+                hash = hash * 23 + cameraX;
+                hash = hash * 23 + cameraY;
+                hash = hash * 23 + cameraZ;
+                return hash;
+            }
+        }
+    }
+
+    internal struct AtmosphereIBLKey : IEquatable<AtmosphereIBLKey>
+    {
+        public AtmosphereParameter parameter;
+        public Vector3 sunDirection;
+
+        public static AtmosphereIBLKey Create(in AtmosphereParameter parameter, Vector3 sunDirection)
+        {
+            return new AtmosphereIBLKey
+            {
+                parameter = parameter,
+                sunDirection = sunDirection
+            };
+        }
+
+        public bool Equals(AtmosphereIBLKey other)
+        {
+            return parameter.Equals(other.parameter)
+                && sunDirection.x == other.sunDirection.x
+                && sunDirection.y == other.sunDirection.y
+                && sunDirection.z == other.sunDirection.z;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is AtmosphereIBLKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + parameter.GetHashCode();
+                hash = hash * 23 + sunDirection.x.GetHashCode();
+                hash = hash * 23 + sunDirection.y.GetHashCode();
+                hash = hash * 23 + sunDirection.z.GetHashCode();
+                return hash;
+            }
         }
     }
 }

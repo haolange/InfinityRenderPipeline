@@ -19,12 +19,6 @@ namespace InfinityTech.Rendering.Pipeline
             set => m_VolumeProfile = value;
         }
 
-        public bool showShader = false;
-        public bool showTexture = false;
-        public bool showMaterial = false;
-        public bool showProfile = false;
-        public bool showAdvanced = true;
-
         public bool updateProxy = true;
         public bool enableRayTrace = false;
         public bool enableSuperResolution = false;
@@ -37,6 +31,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         [Header("Atmosphere")]
         public AtmosphericalProfile atmosphericalProfile;
+
+        [Header("Output")]
+        public EOutputMode outputMode = EOutputMode.SDR;
+        public EHDREncoding hdrEncoding = EHDREncoding.PQ_Rec2020;
 
         [Header("Compute Shaders")]
         public ComputeShader meshDrawPipelineCS;
@@ -54,9 +52,12 @@ namespace InfinityTech.Rendering.Pipeline
         public ComputeShader atmosphericLUTShader;
         public ComputeShader volumetricFogShader;
         public ComputeShader volumetricCloudShader;
+        public ComputeShader fogCompositeShader;
         public ComputeShader colorPyramidShader;
+        public ComputeShader screenSpaceCompositeShader;
         public ComputeShader superResolutionShader;
         public ComputeShader postProcessingShader;
+        public ComputeShader outputTransformShader;
 
         [Header("Shaders")]
         public Shader defaultShaderProxy;
@@ -84,6 +85,10 @@ namespace InfinityTech.Rendering.Pipeline
         protected override RenderPipeline CreatePipeline() 
         {
             EnsureAssignedComputeShaders();
+            if (atmosphericalProfile == null)
+            {
+                throw new InvalidOperationException("InfinityRP: AtmosphericalProfile is required on the pipeline asset. Atmosphere lives only on the profile.");
+            }
             renderPipeline = new InfinityRenderPipeline(this);
             Shader.SetGlobalTexture("g_BestFitNormal_LUT", bestFitNormalTexture);
             return renderPipeline;
@@ -102,21 +107,24 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR
             meshDrawPipelineCS = CoalesceCompute(meshDrawPipelineCS, "Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute", "CullInstances", "ClearCommandCounts", "CompactCommandInstances", "PrefixSumCommands", "ScatterVisibleInstances", "BuildIndirectArgs");
             taaShader = CoalesceCompute(taaShader, "Shaders/RenderingFeature/TemporalAntiAliasing/Compute_TemporalAntiAliasing.compute", "Main");
-            ssrShader = CoalesceCompute(ssrShader, "Shaders/RenderingFeature/ScreenSpaceReflection/Compute_ScreenSpaceReflection.compute", "Raytracing");
+            ssrShader = CoalesceCompute(ssrShader, "Shaders/RenderingFeature/ScreenSpaceReflection/Compute_ScreenSpaceReflection.compute", "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
             ssaoShader = CoalesceCompute(ssaoShader, "Shaders/RenderingFeature/ScreenSpaceAmbientOcclusion/Compute_GroundTruthOcclusion.compute", "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
-            ssgiShader = CoalesceCompute(ssgiShader, "Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute", "Raytracing");
+            ssgiShader = CoalesceCompute(ssgiShader, "Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute", "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
             combineLUTShader = CoalesceCompute(combineLUTShader, "Shaders/ColorGrading/Compute_CombineLUTs.compute", "MainCS");
             hiZShader = CoalesceCompute(hiZShader, "Shaders/RenderingFeature/PyramidDepth/Compute_PyramidDepth.compute", "HiZ_Generation");
             halfResDownsampleShader = CoalesceCompute(halfResDownsampleShader, "Shaders/RenderingFeature/HalfResDownsample/Compute_HalfResDownsample.compute", "HalfResDownsample");
             zBinningShader = CoalesceCompute(zBinningShader, "Shaders/RenderingFeature/ZBinningLightList/Compute_ZBinningLightList.compute", "LightCount", "PrefixSum", "Fill");
             contactShadowShader = CoalesceCompute(contactShadowShader, "Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute", "ContactShadowCS");
             deferredShadingShader = CoalesceCompute(deferredShadingShader, "Shaders/RenderingFeature/DeferredShading/Compute_DeferredShading.compute", "DeferredShadingCS");
-            atmosphericLUTShader = CoalesceCompute(atmosphericLUTShader, "Shaders/RenderingFeature/AtmosphericLUT/Compute_AtmosphericLUT.compute", "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT", "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite");
-            volumetricFogShader = CoalesceCompute(volumetricFogShader, "Shaders/RenderingFeature/VolumetricFog/Compute_VolumetricFog.compute", "ScatterDensity", "Integrate");
+            atmosphericLUTShader = CoalesceCompute(atmosphericLUTShader, "Shaders/RenderingFeature/AtmosphericLUT/Compute_AtmosphericLUT.compute", "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT", "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite", "AtmosphereSHProject", "AtmosphereSHReduce", "AtmosphereGGXPrefilter");
+            volumetricFogShader = CoalesceCompute(volumetricFogShader, "Shaders/RenderingFeature/VolumetricFog/Compute_VolumetricFog.compute", "ScatterDensity", "Integrate", "Temporal");
             volumetricCloudShader = CoalesceCompute(volumetricCloudShader, "Shaders/RenderingFeature/VolumetricCloud/Compute_VolumetricCloud.compute", "VolumetricCloudCS");
+            fogCompositeShader = CoalesceCompute(fogCompositeShader, "Shaders/RenderingFeature/FogComposite/Compute_FogComposite.compute", "FogComposite", "ClearReactiveMask");
             colorPyramidShader = CoalesceCompute(colorPyramidShader, "Shaders/RenderingFeature/PyramidColor/Compute_PyramidColor.compute", "KMain");
+            screenSpaceCompositeShader = CoalesceCompute(screenSpaceCompositeShader, "Shaders/RenderingFeature/ScreenSpaceComposite/Compute_ScreenSpaceComposite.compute", "ScreenSpaceComposite");
             superResolutionShader = CoalesceCompute(superResolutionShader, "Shaders/RenderingFeature/SuperResolution/Compute_SuperResolution.compute", "SuperResolutionCS");
-            postProcessingShader = CoalesceCompute(postProcessingShader, "Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute", "BloomDownsample", "BloomUpsample", "FinalCombine");
+            postProcessingShader = CoalesceCompute(postProcessingShader, "Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute", "BloomDownsample", "BloomUpsample", "FinalCombine", "ExposureClear", "ExposureHistogram", "ExposureReduce");
+            outputTransformShader = CoalesceCompute(outputTransformShader, "Shaders/RenderingFeature/OutputTransform/Compute_OutputTransform.compute", "OutputTransform");
             subsurfaceShader = KeepIfKernels(subsurfaceShader, "BurleySubsurfaceCS");
 #endif
         }

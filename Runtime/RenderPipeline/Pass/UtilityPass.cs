@@ -81,39 +81,6 @@ namespace InfinityTech.Rendering.Pipeline
         }
 #endif
 
-        // SkyBox Graph
-        struct SkyBoxPassData
-        {
-            public RendererList rendererList;
-        }
-
-        void RenderSkyBox(RenderContext renderContext, Camera camera)
-        {
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-
-            RendererList skyRendererList = renderContext.scriptableRenderContext.CreateSkyboxRendererList(camera);
-
-            // Add SkyBoxPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<SkyBoxPassData>(ProfilingSampler.Get(CustomSamplerId.RenderSkyBox)))
-            {
-                //Setup Phase
-                passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
-
-                ref SkyBoxPassData passData = ref passRef.GetPassData<SkyBoxPassData>();
-                {
-                    passData.rendererList = skyRendererList;
-                }
-
-                //Execute Phase
-                passRef.SetExecuteFunc((in SkyBoxPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    cmdEncoder.DrawRendererList(passData.rendererList);
-                });
-            }
-        }
-
         // Present Graph
         struct PresentPassData
         {

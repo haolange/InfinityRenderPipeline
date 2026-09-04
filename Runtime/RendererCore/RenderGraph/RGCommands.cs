@@ -49,6 +49,8 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetGlobalTexture(int nameID, RenderTargetIdentifier value);
         void DrawMesh(Mesh mesh, in Matrix4x4 matrix, Material material, in int submeshIndex, in int shaderPass);
         void DrawRendererList(in RendererList rendererList);
+        void BeginSample(string name);
+        void EndSample(string name);
     }
 
     public readonly struct CommandBufferCommands : ITransferCommands, IComputeCommands, IRaytracingCommands, IRasterCommands

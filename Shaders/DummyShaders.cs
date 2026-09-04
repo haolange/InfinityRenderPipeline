@@ -1,4 +1,0 @@
-internal struct DummyShaders
-{
-
-}

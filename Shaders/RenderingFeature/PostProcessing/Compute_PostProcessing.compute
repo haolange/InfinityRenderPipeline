@@ -1,9 +1,9 @@
 #pragma kernel BloomDownsample
 #pragma kernel BloomUpsample
 #pragma kernel FinalCombine
-
-#pragma multi_compile_local _ PP_VOLUMETRIC_FOG
-#pragma multi_compile_local _ PP_VOLUMETRIC_CLOUD
+#pragma kernel ExposureClear
+#pragma kernel ExposureHistogram
+#pragma kernel ExposureReduce
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
@@ -13,36 +13,54 @@ float4 PP_Resolution;
 float PP_BloomIntensity;
 float PP_BloomThreshold;
 float PP_VignetteIntensity;
+float PP_VignetteSmoothness;
 float PP_FilmGrainIntensity;
+float PP_FilmGrainResponse;
 int PP_FrameIndex;
-
-float4x4 Matrix_InvViewProj;
-float3 _WorldSpaceCameraPos;
-float PP_VolFog_MaxDistance;
+float PP_ExposureMultiplier;
+float PP_AutoExposure;
 
 Texture2D<float4> SRV_SceneColorTexture;
-#if defined(PP_VOLUMETRIC_FOG)
-Texture3D<float4> SRV_VolumetricFogTexture;
-#endif
-#if defined(PP_VOLUMETRIC_CLOUD)
-Texture2D<float4> SRV_VolumetricCloudTexture;
-#endif
-Texture2D<float> SRV_DepthTexture;
 RWTexture2D<float4> UAV_PostProcessTexture;
+Texture3D<float4> SRV_CombineLUT;
+Texture2D<float> SRV_ExposureEV;
 
-// Bloom source texture (for downsample/upsample chain)
 Texture2D<float4> SRV_BloomSource;
 RWTexture2D<float4> UAV_BloomTarget;
-float4 BloomMipSize; // (width, height, 1/width, 1/height)
+float4 BloomMipSize;
 float PP_BloomPrefilter;
 
-// Resolved bloom mip 0, read back by FinalCombine
 Texture2D<float4> SRV_BloomTexture;
 
-//--------------------------------------------------------------
-// Kernel 0: Bloom Downsample (13-tap)
-// Uses Karis average for first pass to reduce fireflies
-//--------------------------------------------------------------
+RWStructuredBuffer<uint> UAV_ExposureHistogram;
+Texture2D<float> SRV_ExposureHistoryEV;
+RWTexture2D<float> UAV_ExposureEV;
+float4 PP_ExposureHistogramRange;
+float PP_ExposureLowPercentile;
+float PP_ExposureHighPercentile;
+float PP_ExposureAdapt;
+int PP_ExposureReset;
+
+float3 LinToLog(float3 linearColor)
+{
+    const float LinearRange = 14.0;
+    const float LinearGrey = 0.18;
+    const float ExposureGrey = 444.0;
+    float3 logColor = log2(max(linearColor, 1e-6)) / LinearRange - log2(LinearGrey) / LinearRange + ExposureGrey / 1023.0;
+    return saturate(logColor);
+}
+
+float CurrentExposureMultiplier()
+{
+    float multiplier = PP_ExposureMultiplier;
+    if (PP_AutoExposure > 0.5)
+    {
+        multiplier *= exp2(SRV_ExposureEV[uint2(0, 0)]);
+    }
+
+    return multiplier;
+}
+
 float3 KarisAverage(float3 c)
 {
     return c / (1.0 + Rec709Luminance(c));
@@ -57,7 +75,6 @@ void BloomDownsample(uint3 id : SV_DispatchThreadID)
     float2 uv = (id.xy + 0.5) * BloomMipSize.zw;
     float2 texelSize = BloomMipSize.zw;
 
-    // 13-tap downsample filter (from Call of Duty: Advanced Warfare)
     float3 a = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-2, -2) * texelSize, 0).rgb;
     float3 b = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0, -2) * texelSize, 0).rgb;
     float3 c = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 2, -2) * texelSize, 0).rgb;
@@ -79,10 +96,9 @@ void BloomDownsample(uint3 id : SV_DispatchThreadID)
     result += (f + g + k + l) * 0.125 * 0.25;
     result += (g + h + l + m) * 0.125 * 0.25;
 
-    // Only the mip 0 dispatch prefilters. The deeper mips reuse this kernel, and thresholding an
-    // already-thresholded input a second time would crush the chain to nothing.
     if (PP_BloomPrefilter > 0.5)
     {
+        result *= CurrentExposureMultiplier();
         const float knee = 0.5;
         float brightness = Rec709Luminance(result);
         float soft = clamp(brightness - PP_BloomThreshold + knee, 0, 2.0 * knee);
@@ -94,9 +110,6 @@ void BloomDownsample(uint3 id : SV_DispatchThreadID)
     UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
 }
 
-//--------------------------------------------------------------
-// Kernel 1: Bloom Upsample (9-tap tent filter)
-//--------------------------------------------------------------
 [numthreads(8, 8, 1)]
 void BloomUpsample(uint3 id : SV_DispatchThreadID)
 {
@@ -106,7 +119,6 @@ void BloomUpsample(uint3 id : SV_DispatchThreadID)
     float2 uv = (id.xy + 0.5) * BloomMipSize.zw;
     float2 texelSize = BloomMipSize.zw;
 
-    // 9-tap tent filter for smooth upsampling
     float3 result = 0;
     result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1, -1) * texelSize, 0).rgb * 1.0;
     result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0, -1) * texelSize, 0).rgb * 2.0;
@@ -118,39 +130,18 @@ void BloomUpsample(uint3 id : SV_DispatchThreadID)
     result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0,  1) * texelSize, 0).rgb * 2.0;
     result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  1) * texelSize, 0).rgb * 1.0;
     result /= 16.0;
-
-    // Progressive upsample: each level keeps its own detail and adds the blurrier level above it.
-    // Overwriting instead would leave mip 0 holding only the widest blur.
     result += UAV_BloomTarget[id.xy].rgb;
 
     UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
 }
 
-//--------------------------------------------------------------
-// Kernel 2: Final Combine
-// Apply bloom, volumetric fog/cloud, tone mapping, vignette, film grain
-//--------------------------------------------------------------
-
-// ACES Filmic Tone Mapping (simplified)
-float3 ACESFilm(float3 x)
-{
-    float a = 2.51;
-    float b = 0.03;
-    float c = 2.43;
-    float d = 0.59;
-    float e = 0.14;
-    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
-}
-
-// Vignette effect
 float ComputeVignette(float2 uv)
 {
     float2 d = abs(uv - 0.5) * 2.0;
-    float vignette = saturate(1.0 - dot(d, d) * PP_VignetteIntensity);
-    return vignette * vignette;
+    float falloff = saturate(1.0 - dot(d, d) * PP_VignetteIntensity);
+    return pow(max(falloff, 1e-4), max(PP_VignetteSmoothness, 0.01) * 2.0);
 }
 
-// Film grain
 float3 ApplyFilmGrain(float3 color, float2 uv, int frameIndex)
 {
     if (PP_FilmGrainIntensity <= 0)
@@ -158,20 +149,9 @@ float3 ApplyFilmGrain(float3 color, float2 uv, int frameIndex)
 
     float noise = InterleavedGradientNoise(uv * PP_Resolution.xy, frameIndex);
     noise = (noise - 0.5) * 2.0 * PP_FilmGrainIntensity;
-
-    // Luminance-based grain strength (more grain in shadows)
     float lum = Rec709Luminance(color);
-    float grainStrength = 1.0 - saturate(lum);
-
+    float grainStrength = lerp(1.0, 1.0 - saturate(lum), PP_FilmGrainResponse);
     return color + noise * grainStrength;
-}
-
-// Linear to sRGB conversion
-float3 LinearToSRGB(float3 color)
-{
-    float3 lo = color * 12.92;
-    float3 hi = pow(max(abs(color), 1e-6), 1.0 / 2.4) * 1.055 - 0.055;
-    return color <= 0.0031308 ? lo : hi;
 }
 
 [numthreads(8, 8, 1)]
@@ -181,41 +161,77 @@ void FinalCombine(uint3 id : SV_DispatchThreadID)
         return;
 
     float2 screenUV = (id.xy + 0.5) * PP_Resolution.zw;
-
-    float3 sceneColor = SRV_SceneColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb;
-    float depth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
-
-    float2 ndc = screenUV * 2.0 - 1.0;
-    float4 world = mul(Matrix_InvViewProj, float4(ndc, depth, 1.0));
-    world.xyz /= max(world.w, 1e-6);
-    float linearDepth = length(world.xyz - _WorldSpaceCameraPos);
-
-#if defined(PP_VOLUMETRIC_FOG)
-    float fogSlice = saturate(sqrt(linearDepth / max(PP_VolFog_MaxDistance, 1.0)));
-    float4 fogData = SRV_VolumetricFogTexture.SampleLevel(Global_trilinear_clamp_sampler, float3(screenUV, fogSlice), 0);
-    sceneColor = sceneColor * fogData.a + fogData.rgb;
-#endif
-
-#if defined(PP_VOLUMETRIC_CLOUD)
-    float4 cloudData = SRV_VolumetricCloudTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0);
-    sceneColor = sceneColor * cloudData.a + cloudData.rgb;
-#endif
-
-    // Bloom. The mip chain is resolved into mip 0 by the upsample pass above.
+    float3 sceneColor = SRV_SceneColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).rgb;
+    sceneColor *= CurrentExposureMultiplier();
     sceneColor += SRV_BloomTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb * PP_BloomIntensity;
 
-    // Tone mapping
-    float3 tonemapped = ACESFilm(sceneColor);
+    float3 graded = SRV_CombineLUT.SampleLevel(Global_trilinear_clamp_sampler, LinToLog(max(sceneColor, 1e-6)), 0).rgb;
+    graded *= ComputeVignette(screenUV);
+    graded = ApplyFilmGrain(graded, screenUV, PP_FrameIndex);
 
-    // Vignette
-    float vignette = ComputeVignette(screenUV);
-    tonemapped *= vignette;
+    UAV_PostProcessTexture[id.xy] = float4(max(0, graded), 1);
+}
 
-    // Film grain
-    tonemapped = ApplyFilmGrain(tonemapped, screenUV, PP_FrameIndex);
+[numthreads(64, 1, 1)]
+void ExposureClear(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < 256)
+    {
+        UAV_ExposureHistogram[id.x] = 0;
+    }
+}
 
-    // Linear to sRGB
-    float3 finalColor = LinearToSRGB(tonemapped);
+[numthreads(8, 8, 1)]
+void ExposureHistogram(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)PP_Resolution.xy))
+        return;
 
-    UAV_PostProcessTexture[id.xy] = float4(max(0, finalColor), 1);
+    float3 sceneColor = SRV_SceneColorTexture[id.xy].rgb;
+    float luma = max(Rec709Luminance(sceneColor), 1e-6);
+    float logLum = log2(luma);
+    float t = saturate((logLum - PP_ExposureHistogramRange.x) * PP_ExposureHistogramRange.z);
+    uint bin = (uint)(t * 255.999);
+    InterlockedAdd(UAV_ExposureHistogram[bin], 1);
+}
+
+[numthreads(1, 1, 1)]
+void ExposureReduce(uint3 id : SV_DispatchThreadID)
+{
+    uint total = 0;
+    for (uint i = 0; i < 256; ++i)
+    {
+        total += UAV_ExposureHistogram[i];
+    }
+
+    float targetEV = 0.0;
+    if (total > 0)
+    {
+        uint lowCount = (uint)(total * PP_ExposureLowPercentile / 100.0);
+        uint highCount = (uint)(total * PP_ExposureHighPercentile / 100.0);
+        uint running = 0;
+        float weighted = 0.0;
+        float weight = 0.0;
+        for (uint bin = 0; bin < 256; ++bin)
+        {
+            uint count = UAV_ExposureHistogram[bin];
+            uint next = running + count;
+            if (next > lowCount && running < highCount)
+            {
+                uint usable = min(next, highCount) - max(running, lowCount);
+                float logCenter = lerp(PP_ExposureHistogramRange.x, PP_ExposureHistogramRange.y, (bin + 0.5) / 256.0);
+                weighted += logCenter * usable;
+                weight += usable;
+            }
+
+            running = next;
+        }
+
+        float avgLog = weight > 0.0 ? weighted / weight : 0.0;
+        targetEV = log2(0.18) - avgLog;
+    }
+
+    float prevEV = PP_ExposureReset != 0 ? targetEV : SRV_ExposureHistoryEV[uint2(0, 0)];
+    float ev = lerp(prevEV, targetEV, saturate(PP_ExposureAdapt));
+    UAV_ExposureEV[uint2(0, 0)] = ev;
 }

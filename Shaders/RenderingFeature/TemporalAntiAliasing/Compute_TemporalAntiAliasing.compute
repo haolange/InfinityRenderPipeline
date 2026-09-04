@@ -8,6 +8,7 @@ Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryDepthTexture;
 Texture2D SRV_HistoryColorTexture;
 Texture2D SRV_AliasingColorTexture;
+Texture2D SRV_ReactiveMaskTexture;
 RWTexture2D<float4> UAV_AccmulateColorTexture;
 
 static const half TONEMAP_EPSILON = 1.0f / 65530.0f;
@@ -116,6 +117,8 @@ void Main (uint3 id : SV_DispatchThreadID)
 
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, length(velocity) * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
     weight *= confidence;
+    float reactive = SRV_ReactiveMaskTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
+    weight *= 1.0 - saturate(reactive);
 
     float3 blended = lerp(currColor, lastColor, weight);
 

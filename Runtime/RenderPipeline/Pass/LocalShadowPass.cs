@@ -161,6 +161,8 @@ namespace InfinityTech.Rendering.Pipeline
 
                     for (int slice = 0; slice < passData.sliceCount; ++slice)
                     {
+                        string faceMarker = $"LocalShadowSlice{slice}";
+                        cmdEncoder.BeginSample(faceMarker);
                         Vector4 rect = passData.tileRects[slice];
                         cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
                         cmdEncoder.SetGlobalDepthBias(1.0f, 2.5f);
@@ -177,6 +179,7 @@ namespace InfinityTech.Rendering.Pipeline
                         }
 
                         cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);
+                        cmdEncoder.EndSample(faceMarker);
                     }
 
                     cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, passData.cameraViewProj);

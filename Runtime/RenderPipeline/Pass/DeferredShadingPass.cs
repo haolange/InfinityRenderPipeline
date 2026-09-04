@@ -19,8 +19,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int SRV_OcclusionTextureID = Shader.PropertyToID("SRV_OcclusionTexture");
         internal static int SRV_ContactShadowTextureID = Shader.PropertyToID("SRV_ContactShadowTexture");
-        internal static int SRV_SSRTextureID = Shader.PropertyToID("SRV_SSRTexture");
-        internal static int SRV_SSGITextureID = Shader.PropertyToID("SRV_SSGITexture");
         internal static int SRV_CascadeShadowMapID = Shader.PropertyToID("SRV_CascadeShadowMap");
         internal static int SRV_LocalShadowMapID = Shader.PropertyToID("SRV_LocalShadowMap");
         internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
@@ -71,11 +69,12 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
             public RGTextureRef occlusionTexture;
             public RGTextureRef contactShadowTexture;
-            public RGTextureRef ssrTexture;
-            public RGTextureRef ssgiTexture;
             public RGTextureRef cascadeShadowMap;
             public RGTextureRef localShadowMap;
             public RGTextureRef lightingTexture;
+            public RGTextureRef atmosphereGGXPrefilter;
+            public RGBufferRef atmosphereSkySH;
+            public float atmosphereIBLMaxMip;
             public RGBufferRef tileRange;
             public RGBufferRef tileList;
             public RGBufferRef zBinRange;
@@ -102,10 +101,12 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureRef occlusionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.OcclusionBuffer);
             RGTextureRef contactShadowTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer);
-            RGTextureRef ssrTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.SSRBuffer);
-            RGTextureRef ssgiTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.SSGIBuffer);
             RGTextureRef cascadeShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap);
             RGTextureRef localShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.LocalShadowMap);
+            RGTextureRef atmosphereGGXPrefilter = m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter);
+            RGBufferRef atmosphereSkySH = m_RGScoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH);
+            AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
+            atmosphereParameter.ThrowIfInvalid();
 
             RGBufferRef tileRange = default;
             RGBufferRef tileList = default;
@@ -153,11 +154,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.occlusionTexture = passRef.ReadTexture(occlusionTexture);
                 passData.contactShadowTexture = passRef.ReadTexture(contactShadowTexture);
-                passData.ssrTexture = passRef.ReadTexture(ssrTexture);
-                passData.ssgiTexture = passRef.ReadTexture(ssgiTexture);
                 passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);
                 passData.localShadowMap = passRef.ReadTexture(localShadowMap);
                 passData.lightingTexture = passRef.WriteTexture(lightingTexture);
+                passData.atmosphereGGXPrefilter = passRef.ReadTexture(atmosphereGGXPrefilter);
+                passData.atmosphereSkySH = passRef.ReadBuffer(atmosphereSkySH);
+                passData.atmosphereIBLMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(atmosphereParameter.cubemapSize) - 1;
                 if (hasTileList)
                 {
                     passData.tileRange = passRef.ReadBuffer(tileRange);
@@ -196,11 +198,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_OcclusionTextureID, passData.occlusionTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_ContactShadowTextureID, passData.contactShadowTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_SSRTextureID, passData.ssrTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_SSGITextureID, passData.ssgiTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_CascadeShadowMapID, passData.cascadeShadowMap);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowMapID, passData.localShadowMap);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, 0, InfinityShaderIDs.AtmosphereGGXPrefilter, passData.atmosphereGGXPrefilter);
+                    cmdEncoder.SetComputeBufferParam(shader, 0, InfinityShaderIDs.AtmosphereSkySH, passData.atmosphereSkySH);
+                    cmdEncoder.SetComputeFloatParam(shader, InfinityShaderIDs.AtmosphereIBLMaxMip, passData.atmosphereIBLMaxMip);
 
                     if (passData.hasTileList != 0)
                     {

@@ -5,40 +5,38 @@ InfinityRenderPipeline is a graphics research SRP for Unity (InfinityRP).
 ### Documentation
 
 - [AGENTS.md](AGENTS.md) — coding conventions and agent collaboration rules
-- [DESIGN.md](DESIGN.md) — Mesh Drawing Pipeline design (as implemented)
-- [Docs/MeshPipeline-Baseline.md](Docs/MeshPipeline-Baseline.md) — migration baseline
-- [Docs/MeshPipeline-Delivery-Report.md](Docs/MeshPipeline-Delivery-Report.md) — Closure D (D1–D6) delivery + cross-platform verification
-- [PLAN.md](PLAN.md) — broader rendering-feature roadmap (lighting/volumetrics/post)
+- [DESIGN.md](DESIGN.md) — Mesh Drawing Pipeline + full rendering order (as implemented)
+- [Docs/MeshPipeline-Baseline.md](Docs/MeshPipeline-Baseline.md) — MeshDraw migration baseline
+- [Docs/MeshPipeline-Delivery-Report.md](Docs/MeshPipeline-Delivery-Report.md) — Closure D (D1–D6)
+- [Docs/FullRendering-Delivery-Report.md](Docs/FullRendering-Delivery-Report.md) — S0–S9 full-rendering delivery
+- [PLAN.md](PLAN.md) — stage table (S0–S9)
 
 ### Feature
 
-Completed:
+Completed (record path; image quality stays `TODO(UNVERIFIED)` unless a capture is listed in PLAN):
 
-- ThinGBuffer
-- TemporalAA
+- ThinGBuffer (Crytek A/B + GBufferC flags/SSS)
+- TemporalAA (jitter-free motion, direct-texel history)
 - RenderGraph (custom RGBuilder + async compute hooks)
-- DiaphragmDOF
-- MaskOnly PreDepth
-- ScreenSpaceGlobalIllumination
-- StochasticScreenSpaceReflection
-- Ground-truth ambient occlusion family
+- Screen-space GI / reflection (RayMarch → Spatial → Temporal → Bilateral + Composite)
+- Ground-truth ambient occlusion (Trace → SpatialX/Y → Temporal → Upsample)
+- Atmosphere LUT + IBL (Profile-only; Shared / View / IBL caches)
+- Z-Binning tile / z-bin light lists
+- Volumetric fog and cloud (after T0 depth) + FogComposite
+- Translucent T0 / T1 refraction / T2
+- Exposure / Bloom / CombineLUT / Vignette / FilmGrain / OutputTransform
 - Instanced terrain / runtime virtual texture / foliage systems (separate from MeshScene)
 - **Mesh Drawing Pipeline** — `MeshScene` SoA + RDG `RGDrawListRef` + CPU/GPU backends (per-payload indirect, Auto fallback); Motion / CascadeShadow / LocalShadow (Spot + Point **6-face**) MeshDraw; instance-indexed GPU cull (compact → transform); exclusive TransformId 1:1 ownership; shared `renderingLayer` (`ERenderingLayer : byte` flags); shadow MeshDraw uses `light.cullingMask` + `shadowLayer`; no HZB / GPU radix sort / full GPU LOD in this closed slice
 
-Development:
+Out of this delivery:
 
-- Atmospherical Fog
-- Z-Binning tile-based lighting
-
-Planned:
-
-- ScreenSpaceShadow
-- Volumetric Fog & Cloud
-- ScreenSpaceRefraction
-- Separable Subsurface Scatter
-- Broader PBR shading models
-- Patch shadow maps / PCSS
-- DXR-based probes / larger GI
+- Hardware RT (RTAO/RTGI files stay; no RG pass)
+- Baked GI
+- Depth of field
+- Super-resolution expansion
+- XR
+- MSAA
+- Dynamic resolution
 
 ### Mesh Drawing Pipeline (quick start)
 

@@ -1,12 +1,15 @@
 #pragma kernel ScatterDensity
 #pragma kernel Integrate
+#pragma kernel Temporal
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
+#include "../../ShaderLibrary/ShadowSampling.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
+#include "../../ShaderLibrary/AtmosphereCommon.hlsl"
 
 float4 VolFog_ScreenSize;
-float4 VolFog_Resolution; // froxel resolution (x, y, z, 0)
+float4 VolFog_Resolution;
 float VolFog_Density;
 float VolFog_Height;
 float VolFog_HeightFalloff;
@@ -17,43 +20,32 @@ int VolFog_DepthSlices;
 float VolFog_MaxDistance;
 float VolFog_TemporalWeight;
 int VolFog_FrameIndex;
+int VolFog_HasTileList;
+int VolFog_NumTilesX;
+int VolFog_NumBins;
+float4 VolFog_NearFar;
+float4x4 Matrix_WorldToView;
 
 float4x4 Matrix_InvViewProj;
 float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_CascadeShadowMap;
+Texture2D<float> SRV_LocalShadowMap;
+Texture2D<float4> SRV_SkyViewLUT;
+Texture3D<float4> SRV_AerialPerspectiveLUT;
+Texture3D<float4> SRV_HistoryVolumetricFog;
+int VolFog_HasSkyView;
+int VolFog_HasAerial;
+float VolFog_AerialDistance;
 RWTexture3D<float4> UAV_VolumetricFogTexture;
 
-// Exponential distribution of depth slices
 float SliceToDepth(float slice, float maxDistance, int numSlices)
 {
     float t = slice / max(numSlices, 1);
-    // Exponential distribution: more slices near camera
     return maxDistance * t * t;
 }
 
-float DepthToSlice(float depth, float maxDistance, int numSlices)
-{
-    float t = sqrt(depth / maxDistance);
-    return t * numSlices;
-}
-
-// Height-based fog density
-float GetFogDensity(float3 worldPos)
-{
-    float heightAboveFog = worldPos.y - VolFog_Height;
-    float density = VolFog_Density;
-
-    if (VolFog_HeightFalloff > 0)
-    {
-        density *= exp(-max(0, heightAboveFog) * VolFog_HeightFalloff);
-    }
-
-    return max(0, density);
-}
-
-// Henyey-Greenstein phase function
 float HGPhase(float g, float cosTheta)
 {
     float g2 = g * g;
@@ -61,26 +53,125 @@ float HGPhase(float g, float cosTheta)
     return (1.0 - g2) / (4.0 * Pi * pow(abs(denom), 1.5));
 }
 
-// Froxel to world position
+float GetFogDensity(float3 worldPos)
+{
+    float heightAboveFog = worldPos.y - VolFog_Height;
+    float density = VolFog_Density;
+    if (VolFog_HeightFalloff > 0)
+    {
+        density *= exp(-max(0, heightAboveFog) * VolFog_HeightFalloff);
+    }
+    return max(0, density);
+}
+
 float3 FroxelToWorld(uint3 froxelCoord)
 {
     float2 screenUV = (froxelCoord.xy + 0.5) / VolFog_Resolution.xy;
     float depth = SliceToDepth(froxelCoord.z + 0.5, VolFog_MaxDistance, VolFog_DepthSlices);
-
-    // Approximate: use screen UV and depth to reconstruct world position
     float2 ndc = screenUV * 2.0 - 1.0;
-    float4 clipPos = float4(ndc, 0.5, 1.0); // Approximate z
+    float4 clipPos = float4(ndc, 0.5, 1.0);
     float4 worldPos = mul(Matrix_InvViewProj, clipPos);
     worldPos /= worldPos.w;
-
     float3 viewDir = normalize(worldPos.xyz - _WorldSpaceCameraPos);
     return _WorldSpaceCameraPos + viewDir * depth;
 }
 
-//--------------------------------------------------------------
-// Kernel 0: Scatter + Density
-// Each thread computes in-scatter and extinction for one froxel voxel
-//--------------------------------------------------------------
+float VolumeLightAttenuation(FLightRecord light, float3 worldPos)
+{
+    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
+    {
+        return 1.0;
+    }
+
+    float3 toLight = light.positionRange.xyz - worldPos;
+    float distance = length(toLight);
+    float att = DistanceAttenuation(distance, light.positionRange.w);
+    if (light.lightType == LIGHT_TYPE_SPOT)
+    {
+        float3 L = toLight / max(distance, 1e-4);
+        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.z, light.shape.w);
+    }
+    return att;
+}
+
+float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
+{
+    float3 L;
+    float att = 1.0;
+    float shadow;
+    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
+    {
+        L = light.directionSpot.xyz;
+        shadow = SampleCascadeShadow(cascadeShadowMap, worldPos, viewDepth);
+    }
+    else
+    {
+        float3 toLight = light.positionRange.xyz - worldPos;
+        float distance = length(toLight);
+        L = toLight / max(distance, 1e-4);
+        att = VolumeLightAttenuation(light, worldPos);
+        shadow = SampleLocalShadow(localShadowMap, light, worldPos);
+    }
+
+    if ((light.flags & LIGHT_FLAG_VOLUMETRIC) != 0)
+    {
+        shadow *= light.shadowSoftVol.z;
+    }
+
+    float cosTheta = dot(viewDir, L);
+    float phase = HGPhase(VolFog_Anisotropy, cosTheta);
+    return scattering * LightRadiance(light) * phase * shadow * att;
+}
+
+void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, float2 screenUV, inout float3 inScatter, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
+{
+    if (g_LocalLightCount <= 0)
+    {
+        return;
+    }
+
+    if (VolFog_HasTileList != 0)
+    {
+        uint2 pixelCoord = uint2(screenUV * VolFog_ScreenSize.xy);
+        uint2 tile = pixelCoord / 16u;
+        uint tileIndex = tile.y * (uint)VolFog_NumTilesX + tile.x;
+        uint2 range = SRV_TileLightRange[tileIndex];
+        float t = saturate((viewDepth - VolFog_NearFar.x) / max(VolFog_NearFar.y - VolFog_NearFar.x, 1e-4));
+        uint pixelBin = min((uint)(t * VolFog_NumBins), (uint)VolFog_NumBins - 1);
+        uint2 zRange = SRV_ZBinRange[pixelBin];
+
+        [loop]
+        for (uint i = 0; i < range.y; ++i)
+        {
+            uint lightIdx = SRV_TileLightList[range.x + i];
+            bool inBin = false;
+            [loop]
+            for (uint z = 0; z < zRange.y; ++z)
+            {
+                if (SRV_ZBinLightList[zRange.x + z] == lightIdx)
+                {
+                    inBin = true;
+                    break;
+                }
+            }
+            if (!inBin && zRange.y > 0)
+            {
+                continue;
+            }
+
+            inScatter += EvaluateVolumeLight(g_LightRecordBuffer[lightIdx], worldPos, viewDir, scattering, viewDepth, cascadeShadowMap, localShadowMap);
+        }
+    }
+    else
+    {
+        [loop]
+        for (int l = 0; l < g_LocalLightCount; ++l)
+        {
+            inScatter += EvaluateVolumeLight(g_LightRecordBuffer[g_DirectionalLightCount + l], worldPos, viewDir, scattering, viewDepth, cascadeShadowMap, localShadowMap);
+        }
+    }
+}
+
 [numthreads(8, 8, 1)]
 void ScatterDensity(uint3 id : SV_DispatchThreadID)
 {
@@ -88,15 +179,10 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
     if (any(id.xy >= froxelRes.xy))
         return;
 
-    // Temporal jitter for noise reduction
-    uint frameJitter = VolFog_FrameIndex & 7;
-    float jitter = InterleavedGradientNoise(float2(id.xy) + 0.5, frameJitter);
-
     [loop]
     for (uint z = 0; z < (uint)VolFog_DepthSlices; ++z)
     {
         float3 worldPos = FroxelToWorld(uint3(id.xy, z));
-
         float density = GetFogDensity(worldPos);
         if (density < 1e-6)
         {
@@ -106,43 +192,40 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
 
         float3 extinction = density;
         float3 scattering = density * VolFog_Albedo.rgb;
-
-        // In-scattering from directional light
         float3 inScatter = 0;
+        float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+        float3 viewPos = mul(Matrix_WorldToView, float4(worldPos, 1.0)).xyz;
+        float viewDepth = -viewPos.z;
+        float2 screenUV = (id.xy + 0.5) / VolFog_Resolution.xy;
 
-        if (g_DirectionalLightCount > 0)
+        [loop]
+        for (int d = 0; d < g_DirectionalLightCount; ++d)
         {
-            FLightRecord dirLight = g_LightRecordBuffer[0];
-            float3 lightDir = dirLight.directionSpot.xyz;
-            float3 lightColor = LightRadiance(dirLight);
-
-            // Phase function
-            float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
-            float cosTheta = dot(viewDir, lightDir);
-            float phase = HGPhase(VolFog_Anisotropy, cosTheta);
-
-            // Shadow (simplified - could sample cascade shadow map here)
-            float shadow = 1.0;
-            if ((dirLight.flags & LIGHT_FLAG_VOLUMETRIC) != 0)
-            {
-                shadow *= dirLight.shadowSoftVol.z;
-            }
-
-            inScatter += scattering * lightColor * phase * shadow;
+            inScatter += EvaluateVolumeLight(g_LightRecordBuffer[d], worldPos, viewDir, scattering, viewDepth, SRV_CascadeShadowMap, SRV_LocalShadowMap);
         }
 
-        // Ambient contribution
-        inScatter += scattering * VolFog_AmbientIntensity;
+        AccumulateLocalLights(worldPos, viewDir, scattering, viewDepth, screenUV, inScatter, SRV_CascadeShadowMap, SRV_LocalShadowMap);
 
-        // Store: rgb = in-scattering * transmittance, a = extinction
+        if (VolFog_HasSkyView != 0)
+        {
+            inScatter += scattering * SampleAtmosphereSkyViewLUT(SRV_SkyViewLUT, viewDir) * VolFog_AmbientIntensity;
+        }
+        else
+        {
+            inScatter += scattering * VolFog_AmbientIntensity;
+        }
+
+        if (VolFog_HasAerial != 0)
+        {
+            float linearDepth = length(worldPos - _WorldSpaceCameraPos);
+            float4 aerial = SampleAtmosphereAerialLUT(SRV_AerialPerspectiveLUT, screenUV, linearDepth, VolFog_AerialDistance);
+            inScatter += aerial.rgb * density;
+        }
+
         UAV_VolumetricFogTexture[uint3(id.xy, z)] = float4(inScatter, extinction.x);
     }
 }
 
-//--------------------------------------------------------------
-// Kernel 1: Ray-march integration along Z-axis
-// Accumulates in-scattering and transmittance front-to-back
-//--------------------------------------------------------------
 [numthreads(8, 8, 1)]
 void Integrate(uint3 id : SV_DispatchThreadID)
 {
@@ -150,7 +233,7 @@ void Integrate(uint3 id : SV_DispatchThreadID)
     if (any(id.xy >= froxelRes.xy))
         return;
 
-    float4 accumulatedScatterTransmittance = float4(0, 0, 0, 1); // rgb=scatter, a=transmittance
+    float4 accumulatedScatterTransmittance = float4(0, 0, 0, 1);
 
     [loop]
     for (uint z = 0; z < (uint)VolFog_DepthSlices; ++z)
@@ -158,22 +241,30 @@ void Integrate(uint3 id : SV_DispatchThreadID)
         float4 voxelData = UAV_VolumetricFogTexture[uint3(id.xy, z)];
         float3 inScatter = voxelData.rgb;
         float extinction = voxelData.a;
-
-        // Depth of this slice
         float sliceNear = SliceToDepth((float)z, VolFog_MaxDistance, VolFog_DepthSlices);
         float sliceFar = SliceToDepth((float)(z + 1), VolFog_MaxDistance, VolFog_DepthSlices);
         float sliceThickness = sliceFar - sliceNear;
-
         float sliceTransmittance = exp(-extinction * sliceThickness);
-
-        // Integrate analytically within the slice (constant medium approximation)
         float3 sliceScatter = extinction > 0 ? inScatter * (1.0 - sliceTransmittance) / extinction : inScatter * sliceThickness;
-
-        // Accumulate front-to-back
         accumulatedScatterTransmittance.rgb += accumulatedScatterTransmittance.a * sliceScatter;
         accumulatedScatterTransmittance.a *= sliceTransmittance;
-
-        // Write accumulated result for each slice (for volume texture sampling)
         UAV_VolumetricFogTexture[uint3(id.xy, z)] = accumulatedScatterTransmittance;
+    }
+}
+
+[numthreads(8, 8, 1)]
+void Temporal(uint3 id : SV_DispatchThreadID)
+{
+    uint3 froxelRes = uint3(VolFog_Resolution.xyz);
+    if (any(id.xy >= froxelRes.xy))
+        return;
+
+    float weight = saturate(VolFog_TemporalWeight);
+    [loop]
+    for (uint z = 0; z < (uint)VolFog_DepthSlices; ++z)
+    {
+        float4 current = UAV_VolumetricFogTexture[uint3(id.xy, z)];
+        float4 history = SRV_HistoryVolumetricFog[uint3(id.xy, z)];
+        UAV_VolumetricFogTexture[uint3(id.xy, z)] = lerp(current, history, weight);
     }
 }

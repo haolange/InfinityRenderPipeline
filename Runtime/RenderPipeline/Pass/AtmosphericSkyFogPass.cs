@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.atmosphericLUTShader, "AtmosphereComposite"))
             {
-                return;
+                throw new System.InvalidOperationException("InfinityRP: Atmosphere is designed on but AtmosphereComposite kernel is missing.");
             }
             if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightingBuffer, out RGTextureRef lightingTexture) ||
                 !m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureRef depthTexture) ||
@@ -49,10 +49,11 @@ namespace InfinityTech.Rendering.Pipeline
                 !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureRef aerialPerspectiveLUT) ||
                 !m_RGScoper.TryQueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer, out RGBufferRef sunBuffer))
             {
-                return;
+                throw new System.InvalidOperationException("InfinityRP: Atmosphere composite is missing Lighting, Depth, SkyView, Aerial, or SunBuffer.");
             }
 
-            AtmosphereParameter parameter = AtmosphereParameter.Resolve(pipelineAsset, ActiveVolumeStack);
+            AtmosphereParameter parameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
+            parameter.ThrowIfInvalid();
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
 
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.RenderAtmosphericSkyAndFog)))

@@ -11,14 +11,6 @@ namespace InfinityTech.Component
     [AddComponentMenu("InfinityRenderer/Light Component")]
     public class LightComponent : BaseComponent
     {
-        public bool showGeneral = true;
-        public bool showEmission = true;
-        public bool showIndirect = true;
-        public bool showShadow = false;
-        public bool showContactShadow = true;
-        public bool showVolumetricFog = true;
-        public bool showPerformance = true;
-
         public Light unityLight;
         public ELightState state = ELightState.Dynamic;
         public ERenderingLayer lightLayer = ERenderingLayer.LightLayerDefault;

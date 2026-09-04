@@ -11,7 +11,6 @@ namespace InfinityTech.Rendering.Pipeline
         RenderDBuffer,
         RenderGBuffer,
         RenderObjectMotion,
-        CopyMotionDepth,
         RenderCameraMotion,
         ComputeHiZ,
         ComputeHalfResDownsample,
@@ -23,17 +22,27 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeContactShadow,
         ComputeScreenSpaceReflection,
         ComputeScreenSpaceIndirect,
+        ComputeOpaqueLightingPyramid,
+        ComputeScreenSpaceComposite,
+        CopyHistorySSR,
+        CopyHistorySSGI,
         ComputeDeferredShading,
         RenderForward,
         ComputeBurleySubsurface,
         RenderAtmosphericSkyAndFog,
-        RenderSkyBox,
         ComputeVolumetricFog,
         ComputeVolumetricCloud,
+        CopyHistoryVolumetricFog,
+        CopyHistoryVolumetricCloud,
+        ComputeFogComposite,
+        ClearReactiveMask,
         RenderTranslucentDepth,
+        RenderTranslucentT0,
+        RenderTranslucentT1,
+        RenderTranslucentT2,
         ComputeColorPyramid,
-        CopyHistoryColorPyramid,
-        RenderForwardTranslucent,
+        CopyHistoryOcclusion,
+        CopyHistoryOcclusionDepth,
         ComputeSuperResolution,
         ComputeAntiAliasing,
         CopyHistoryAntiAliasing,
@@ -42,6 +51,8 @@ namespace InfinityTech.Rendering.Pipeline
         PostProcessing,
         ComputeBloom,
         ComputePostCombine,
+        ComputeExposure,
+        ComputeOutputTransform,
         RenderWireOverlay,
         RenderGizmos,
         Present,
@@ -83,7 +94,6 @@ namespace InfinityTech.Rendering.Pipeline
         public static int GBufferB = Shader.PropertyToID("_GBufferTextureB");
         public static int GBufferC = Shader.PropertyToID("_GBufferTextureC");
         public static int MotionBuffer = Shader.PropertyToID("_MotionTexture");
-        public static int MotionDepthBuffer = Shader.PropertyToID("_MotionDepthTexture");
         public static int CascadeShadowMap = Shader.PropertyToID("_CascadeShadowMapTexture");
         public static int LocalShadowMap = Shader.PropertyToID("_LocalShadowMapTexture");
         public static int AtmosphereTransmittanceLUT = Shader.PropertyToID("_AtmosphereTransmittanceLUT");
@@ -93,6 +103,9 @@ namespace InfinityTech.Rendering.Pipeline
         public static int AtmosphereAerialPerspectiveLUT = Shader.PropertyToID("_AtmosphereAerialPerspectiveLUT");
         public static int AtmosphereCubemap = Shader.PropertyToID("_AtmosphereCubemap");
         public static int AtmosphereSunBuffer = Shader.PropertyToID("_AtmosphereSunBuffer");
+        public static int AtmosphereSkySH = Shader.PropertyToID("_AtmosphereSkySH");
+        public static int AtmosphereGGXPrefilter = Shader.PropertyToID("_AtmosphereGGXPrefilter");
+        public static int AtmosphereIBLMaxMip = Shader.PropertyToID("_AtmosphereIBLMaxMip");
         public static int ZBinLightListBuffer = Shader.PropertyToID("_ZBinLightListBuffer");
         public static int ZBinCountBuffer = Shader.PropertyToID("_ZBinCountBuffer");
         public static int ZBinRangeBuffer = Shader.PropertyToID("_ZBinRangeBuffer");
@@ -100,24 +113,50 @@ namespace InfinityTech.Rendering.Pipeline
         public static int TileLightCountBuffer = Shader.PropertyToID("_TileLightCountBuffer");
         public static int TileLightRangeBuffer = Shader.PropertyToID("_TileLightRangeBuffer");
         public static int OcclusionBuffer = Shader.PropertyToID("_OcclusionTexture");
+        public static int OcclusionHalfBuffer = Shader.PropertyToID("_OcclusionHalfTexture");
         public static int SpatialTempBuffer = Shader.PropertyToID("_SpatialTempTexture");
+        public static int HistoryOcclusionBuffer = Shader.PropertyToID("_HistoryOcclusionTexture");
+        public static int HistoryOcclusionDepthBuffer = Shader.PropertyToID("_HistoryOcclusionDepthTexture");
         public static int ContactShadowBuffer = Shader.PropertyToID("_ContactShadowTexture");
         public static int SSRBuffer = Shader.PropertyToID("_SSRTexture");
         public static int SSRHitPDFBuffer = Shader.PropertyToID("_SSRHitPDFTexture");
+        public static int SSRRadianceBuffer = Shader.PropertyToID("_SSRRadianceTexture");
+        public static int SSRSpatialBuffer = Shader.PropertyToID("_SSRSpatialTexture");
+        public static int SSRTemporalBuffer = Shader.PropertyToID("_SSRTemporalTexture");
+        public static int SSRMomentsBuffer = Shader.PropertyToID("_SSRMomentsTexture");
+        public static int SSRDepthNormalBuffer = Shader.PropertyToID("_SSRDepthNormalTexture");
+        public static int HistorySSRRadianceBuffer = Shader.PropertyToID("_HistorySSRRadianceTexture");
+        public static int HistorySSRMomentsBuffer = Shader.PropertyToID("_HistorySSRMomentsTexture");
+        public static int HistorySSRDepthNormalBuffer = Shader.PropertyToID("_HistorySSRDepthNormalTexture");
         public static int SSGIBuffer = Shader.PropertyToID("_SSGITexture");
+        public static int SSGIRadianceBuffer = Shader.PropertyToID("_SSGIRadianceTexture");
+        public static int SSGISpatialBuffer = Shader.PropertyToID("_SSGISpatialTexture");
+        public static int SSGITemporalBuffer = Shader.PropertyToID("_SSGITemporalTexture");
+        public static int SSGIMomentsBuffer = Shader.PropertyToID("_SSGIMomentsTexture");
+        public static int SSGIDepthNormalBuffer = Shader.PropertyToID("_SSGIDepthNormalTexture");
+        public static int HistorySSGIRadianceBuffer = Shader.PropertyToID("_HistorySSGIRadianceTexture");
+        public static int HistorySSGIMomentsBuffer = Shader.PropertyToID("_HistorySSGIMomentsTexture");
+        public static int HistorySSGIDepthNormalBuffer = Shader.PropertyToID("_HistorySSGIDepthNormalTexture");
         public static int LightingBuffer = Shader.PropertyToID("_LightingTexture");
+        public static int OpaqueLightingPyramidBuffer = Shader.PropertyToID("_OpaqueLightingPyramidTexture");
+        public static int OpaqueSceneColorBuffer = Shader.PropertyToID("_OpaqueSceneColorTexture");
+        public static int FoggedSceneColorBuffer = Shader.PropertyToID("_FoggedSceneColorTexture");
+        public static int ReactiveMaskBuffer = Shader.PropertyToID("_ReactiveMaskTexture");
+        public static int HistoryVolumetricFogBuffer = Shader.PropertyToID("_HistoryVolumetricFogTexture");
+        public static int HistoryVolumetricCloudBuffer = Shader.PropertyToID("_HistoryVolumetricCloudTexture");
+        public static int ScreenSpaceCompositeBuffer = Shader.PropertyToID("_ScreenSpaceCompositeTexture");
         public static int SubsurfaceBuffer = Shader.PropertyToID("_SubsurfaceTexture");
         public static int VolumetricFogBuffer = Shader.PropertyToID("_VolumetricFogTexture");
         public static int VolumetricCloudBuffer = Shader.PropertyToID("_VolumetricCloudTexture");
         public static int TranslucentDepthBuffer = Shader.PropertyToID("_TranslucentDepthTexture");
         public static int ColorPyramidBuffer = Shader.PropertyToID("_ColorPyramidTexture");
-        public static int HistoryColorPyramidBuffer = Shader.PropertyToID("_HistoryColorPyramidTexture");
-        public static int TranslucentLightingBuffer = Shader.PropertyToID("_TranslucentLightingTexture");
         public static int SuperResolutionBuffer = Shader.PropertyToID("_SuperResolutionTexture");
         public static int AntiAliasingBuffer = Shader.PropertyToID("_AntiAliasingBuffer");
         public static int PostProcessBuffer = Shader.PropertyToID("_PostProcessTexture");
         public static int DisplayColorBuffer = Shader.PropertyToID("_DisplayColorTexture");
         public static int BloomBuffer = Shader.PropertyToID("_BloomTexture");
+        public static int CombineLookupTexture = Shader.PropertyToID("CombineLookupTexture");
+        public static int ExposureEVBuffer = Shader.PropertyToID("_ExposureEVTexture");
         public static int MainTexture = Shader.PropertyToID("_MainTex");
         public static int ScaleBias = Shader.PropertyToID("_ScaleBais");
         public static int InstanceIndexOffset = Shader.PropertyToID("instanceIndexOffset");
@@ -138,7 +177,6 @@ namespace InfinityTech.Rendering.Pipeline
         public static ShaderTagId TranslucentT0Pass = new ShaderTagId("TranslucentT0Pass");
         public static ShaderTagId TranslucentT1Pass = new ShaderTagId("TranslucentT1Pass");
         public static ShaderTagId TranslucentT2Pass = new ShaderTagId("TranslucentT2Pass");
-        public static ShaderTagId ForwardTranslucentPass = new ShaderTagId("ForwardTranslucentPass");
     }
 
     public static class InfinityRenderQueue

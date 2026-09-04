@@ -16,10 +16,18 @@ namespace InfinityTech.Rendering.Editor
         const string PassTranslucentT0 = "TranslucentT0Pass";
         const string PassTranslucentT1 = "TranslucentT1Pass";
         const string PassTranslucentT2 = "TranslucentT2Pass";
+        const string FoldoutPrefix = "InfinityRP.LitGUI.Foldout.";
 
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
         {
-            base.OnGUI(materialEditor, properties);
+            DrawGroup(materialEditor, properties, "Color", true, "_UseAlbedoTex", "_MainTex", "_BaseColor", "_BaseColorTile", "_EmissionColor");
+            DrawGroup(materialEditor, properties, "Microface", true, "_Roughness", "_Reflectance", "_SpecularLevel");
+            DrawGroup(materialEditor, properties, "Normal", true, "_NomralTexture", "_NormalTile");
+            DrawGroup(materialEditor, properties, "Iridescence", false, "_Iridescence", "_Iridescence_Distance");
+            DrawGroup(materialEditor, properties, "PixelDepthOffset", false, "_PixelDepthOffsetVaule");
+            DrawGroup(materialEditor, properties, "Subsurface", false, "_Subsurface", "_SSSProfileIndex", "_SSSThickness");
+            DrawGroup(materialEditor, properties, "SurfaceRoute", true, "_SurfaceRoute", "_TranslucentStage", "_RefractionStrength");
+            DrawGroup(materialEditor, properties, "RenderState", false, "_ZTest", "_ZWrite");
             ApplyTargets(materialEditor);
         }
 
@@ -32,6 +40,31 @@ namespace InfinityTech.Rendering.Editor
         public override void ValidateMaterial(Material material)
         {
             ApplyPassState(material);
+        }
+
+        static void DrawGroup(MaterialEditor materialEditor, MaterialProperty[] properties, string title, bool defaultOpen, params string[] names)
+        {
+            string key = FoldoutPrefix + title;
+            bool open = SessionState.GetBool(key, defaultOpen);
+            bool next = EditorGUILayout.BeginFoldoutHeaderGroup(open, title);
+            if (next != open)
+            {
+                SessionState.SetBool(key, next);
+            }
+
+            if (next)
+            {
+                for (int i = 0; i < names.Length; ++i)
+                {
+                    MaterialProperty property = FindProperty(names[i], properties, false);
+                    if (property != null)
+                    {
+                        materialEditor.ShaderProperty(property, property.displayName);
+                    }
+                }
+            }
+
+            EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
         static void ApplyTargets(MaterialEditor materialEditor)
@@ -70,6 +103,20 @@ namespace InfinityTech.Rendering.Editor
             SetPass(material, PassTranslucentT0, translucent && stage == 1);
             SetPass(material, PassTranslucentT1, translucent && stage == 2);
             SetPass(material, PassTranslucentT2, translucent && stage == 3);
+
+            if (translucent)
+            {
+                material.SetOverrideTag("RenderType", "Transparent");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            else
+            {
+                material.SetOverrideTag("RenderType", "Opaque");
+                if (material.renderQueue >= (int)UnityEngine.Rendering.RenderQueue.Transparent)
+                {
+                    material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
+                }
+            }
         }
 
         static void SetPass(Material material, string passName, bool enabled)

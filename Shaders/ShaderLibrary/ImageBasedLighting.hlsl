@@ -3,6 +3,8 @@
 
 #include "BSDF.hlsl"
 #include "ShadingModel.hlsl"
+#include "SphericalHarmonic.hlsl"
+#include "AtmosphereCommon.hlsl"
 
 // Environment LUT 
 float IBL_Defualt_DiffuseIntegrated(float Roughness, float NoV) 
@@ -205,6 +207,31 @@ float3 PreintegratedGF_ClothCharlie(float3 SpecularColor, float Roughness, float
 {
     float2 AB = IBL_Charlie_SpecularIntegrated_Approx(Roughness, NoV);
     return SpecularColor * AB.r + AB.g;
+}
+
+float3 SampleGGXCubemapArray(Texture2DArray<float4> cubemap, float3 direction, float roughness, float maxMip)
+{
+    uint face;
+    float2 uv;
+    CubemapDirectionToFaceUv(normalize(direction), face, uv);
+    float mip = saturate(roughness) * maxMip;
+    return cubemap.SampleLevel(Global_trilinear_clamp_sampler, float3(uv, face), mip).rgb;
+}
+
+float3 EvaluateSplitSumIBL(float3 albedo, float3 specular, float roughness, float3 normal, float3 view, StructuredBuffer<float4> shCoefficients, Texture2DArray<float4> ggxPrefilter, float maxMip)
+{
+    float3 n = normalize(normal);
+    float3 v = normalize(view);
+    float3 diffuse = albedo * EvaluateSH2Irradiance(n, shCoefficients);
+    float3 r = reflect(-v, n);
+    float3 prefiltered = SampleGGXCubemapArray(ggxPrefilter, r, roughness, maxMip);
+    float4 envBRDF = EnvBRDFApprox(specular, roughness, saturate(dot(n, v)));
+    return diffuse + prefiltered * envBRDF.rgb;
+}
+
+float3 EvaluateAtmosphereIBL(MicrofaceContext microface, float3 normal, float3 view, StructuredBuffer<float4> shCoefficients, Texture2DArray<float4> ggxPrefilter, float maxMip)
+{
+    return EvaluateSplitSumIBL(microface.AlbedoColor, microface.SpecularColor, microface.RoughnessClamp, normal, view, shCoefficients, ggxPrefilter, maxMip);
 }
 
 #endif

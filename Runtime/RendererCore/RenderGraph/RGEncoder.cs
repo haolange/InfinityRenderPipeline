@@ -623,6 +623,16 @@ namespace InfinityTech.Rendering.RenderGraph
             m_DrawLists?.Submit(m_CommandBuffer, draws);
         }
 
+        public void BeginSample(string name)
+        {
+            m_CommandBuffer.BeginSample(name);
+        }
+
+        public void EndSample(string name)
+        {
+            m_CommandBuffer.EndSample(name);
+        }
+
         #region SetGlobalParameter
         public void SetGlobalFloat(string name, float value)
         {

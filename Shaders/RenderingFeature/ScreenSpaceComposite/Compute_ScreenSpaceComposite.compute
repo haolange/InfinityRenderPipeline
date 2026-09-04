@@ -1,0 +1,74 @@
+#pragma kernel ScreenSpaceComposite
+#pragma multi_compile_local _ COMPOSITE_SSR
+#pragma multi_compile_local _ COMPOSITE_SSGI
+#pragma multi_compile_local _ COMPOSITE_AO
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/BSDF.hlsl"
+#include "../../ShaderLibrary/ImageBasedLighting.hlsl"
+
+float4 Composite_Resolution;
+float4x4 Matrix_InvViewProj;
+float3 _WorldSpaceCameraPos;
+Texture2D SRV_LightingTexture;
+Texture2D SRV_GBufferTextureA;
+Texture2D SRV_GBufferTextureB;
+Texture2D SRV_GBufferTextureC;
+Texture2D<float> SRV_DepthTexture;
+#if defined(COMPOSITE_AO)
+Texture2D<float> SRV_OcclusionTexture;
+#endif
+#if defined(COMPOSITE_SSR)
+Texture2D<float4> SRV_SSRTexture;
+#endif
+#if defined(COMPOSITE_SSGI)
+Texture2D<float4> SRV_SSGITexture;
+#endif
+RWTexture2D<float4> UAV_SceneColor;
+
+[numthreads(16, 16, 1)]
+void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)Composite_Resolution.x || id.y >= (uint)Composite_Resolution.y)
+    {
+        return;
+    }
+
+    uint2 pixelCoord = id.xy;
+    float3 lighting = SRV_LightingTexture[pixelCoord].rgb;
+    float rawDepth = SRV_DepthTexture[pixelCoord];
+    if (rawDepth <= 1e-7)
+    {
+        UAV_SceneColor[pixelCoord] = float4(lighting, 1);
+        return;
+    }
+
+    FGBufferData gbufferData;
+    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbufferData);
+    MicrofaceContext microfaceCtx = InitMicrofaceContext(gbufferData.Specular, gbufferData.Roughness, gbufferData.Reflactance, gbufferData.Albedo);
+
+#if defined(COMPOSITE_AO)
+    float ao = SRV_OcclusionTexture[pixelCoord];
+#else
+    float ao = 1.0;
+#endif
+
+#if defined(COMPOSITE_SSGI)
+    float4 ssgiColor = SRV_SSGITexture[pixelCoord];
+    lighting += microfaceCtx.AlbedoColor * ssgiColor.rgb * ao;
+#endif
+
+#if defined(COMPOSITE_SSR)
+    float2 screenUV = (pixelCoord + 0.5) * Composite_Resolution.zw;
+    float3 ndcPos = GetNDCPos(screenUV, rawDepth);
+    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
+    float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+    float4 ssrColor = SRV_SSRTexture[pixelCoord];
+    float2 envBRDF = IBL_Defualt_SpecularIntegrated_Approx(gbufferData.Roughness, saturate(dot(gbufferData.Normal, viewDir)));
+    float3 indirectSpecular = ssrColor.rgb * ssrColor.a;
+    lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular * ao;
+#endif
+
+    UAV_SceneColor[pixelCoord] = float4(max(0, lighting), 1);
+}

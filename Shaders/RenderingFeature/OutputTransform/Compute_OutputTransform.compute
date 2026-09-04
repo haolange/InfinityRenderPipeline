@@ -1,0 +1,94 @@
+#pragma kernel OutputTransform
+
+#include "../../ShaderLibrary/Common.hlsl"
+
+float4 OT_Resolution;
+int OT_Policy;
+int OT_ApplyRec2020;
+float OT_NitsScale;
+
+Texture2D<float4> SRV_GradedColor;
+RWTexture2D<float4> UAV_DisplayColor;
+
+float3 LinearToSRGB(float3 color)
+{
+    float3 lo = color * 12.92;
+    float3 hi = pow(max(abs(color), 1e-6), 1.0 / 2.4) * 1.055 - 0.055;
+    return color <= 0.0031308 ? lo : hi;
+}
+
+float3 LinearToST2084(float3 lin)
+{
+    const float m1 = 0.1593017578125;
+    const float m2 = 78.84375;
+    const float c1 = 0.8359375;
+    const float c2 = 18.8515625;
+    const float c3 = 18.6875;
+    const float C = 10000.0;
+
+    float3 L = max(lin, 0.0) / C;
+    float3 Lm = pow(abs(L), m1);
+    float3 N = (c1 + c2 * Lm) * rcp(1.0 + c3 * Lm);
+    return pow(N, m2);
+}
+
+float LinearToHLGChannel(float E)
+{
+    const float a = 0.17883277;
+    const float b = 0.28466892;
+    const float c = 0.55991073;
+    E = max(E, 0.0);
+    if (E <= 1.0 / 12.0)
+    {
+        return sqrt(3.0 * E);
+    }
+
+    return a * log(12.0 * E - b) + c;
+}
+
+float3 LinearToHLG(float3 lin)
+{
+    return float3(LinearToHLGChannel(lin.r), LinearToHLGChannel(lin.g), LinearToHLGChannel(lin.b));
+}
+
+float3 Rec709ToRec2020(float3 rec709)
+{
+    const float3x3 Rec709_2_Rec2020 =
+    {
+        0.6274040, 0.3292820, 0.0433136,
+        0.0690970, 0.9195400, 0.0113612,
+        0.0163914, 0.0880133, 0.8955950
+    };
+    return mul(Rec709_2_Rec2020, rec709);
+}
+
+[numthreads(8, 8, 1)]
+void OutputTransform(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)OT_Resolution.xy))
+    {
+        return;
+    }
+
+    float3 color = SRV_GradedColor[id.xy].rgb;
+    if (OT_ApplyRec2020 != 0)
+    {
+        color = Rec709ToRec2020(color);
+    }
+
+    // OT_Policy matches EOutputEncodePolicy. Transfer encoding happens exactly once here.
+    if (OT_Policy == 0)
+    {
+        color = LinearToSRGB(color);
+    }
+    else if (OT_Policy == 2)
+    {
+        color = LinearToST2084(color * OT_NitsScale);
+    }
+    else if (OT_Policy == 3)
+    {
+        color = LinearToHLG(color);
+    }
+
+    UAV_DisplayColor[id.xy] = float4(color, 1);
+}

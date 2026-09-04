@@ -33,6 +33,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 		[Header(Surface Route)]
 		[Enum(Deferred, 0, Forward, 1)] _SurfaceRoute ("Surface Route", Float) = 0
 		[Enum(None, 0, T0, 1, T1, 2, T2, 3)] _TranslucentStage ("Translucent Stage", Float) = 0
+		_RefractionStrength ("Refraction Strength", Range(0, 0.2)) = 0.04
 
 		[Header(RenderState)]
 		//[HideInInspector] 
@@ -168,7 +169,13 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#include "../ShaderLibrary/Lightmap.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/DBuffer.hlsl"
+			#include "../ShaderLibrary/BSDF.hlsl"
+			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+
+			StructuredBuffer<float4> _AtmosphereSkySH;
+			Texture2DArray<float4> _AtmosphereGGXPrefilter;
+			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -281,7 +288,12 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#include "../ShaderLibrary/Lighting.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/ShadingModel.hlsl"
+			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+
+			StructuredBuffer<float4> _AtmosphereSkySH;
+			Texture2DArray<float4> _AtmosphereGGXPrefilter;
+			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -393,6 +405,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 					}
 				}
 
+				lightingBuffer.rgb += EvaluateAtmosphereIBL(microfaceContext, pnormalWS, cameraDirWS, _AtmosphereSkySH, _AtmosphereGGXPrefilter, _AtmosphereIBLMaxMip);
 				lightingBuffer.rgb += _EmissionColor.rgb;
 			}
 			ENDHLSL
@@ -513,16 +526,20 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Name "TranslucentT0Pass"
 			Tags { "LightMode" = "TranslucentT0Pass" }
 			ZTest LEqual ZWrite Off Cull Back
-			Blend SrcAlpha OneMinusSrcAlpha
+			Blend 0 SrcAlpha OneMinusSrcAlpha
+			Blend 1 One Zero
+			Blend 2 One Zero
 
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
+			#pragma multi_compile _ _VOLUMETRIC_FOG
+			#pragma multi_compile _ _AERIAL_PERSPECTIVE
 
 			#include "../ShaderLibrary/GPUScene.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
@@ -539,7 +556,17 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			struct Varyings
 			{
 				float2 uv0 : TEXCOORD0;
+				float3 worldPos : TEXCOORD1;
+				float4 clipPos : TEXCOORD2;
+				float4 clipPosOld : TEXCOORD3;
 				float4 vertex : SV_POSITION;
+			};
+
+			struct FragOutput
+			{
+				float4 color : SV_Target0;
+				float reactive : SV_Target1;
+				float2 motion : SV_Target2;
 			};
 
 			Varyings vert(Attributes In)
@@ -549,13 +576,23 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				FTransformData meshBatch = transformBuffer[primitiveId];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				Out.worldPos = worldPos.xyz;
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
+				Out.clipPos = mul(Matrix_ViewProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewProj, mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0)));
 				return Out;
 			}
 
-			float4 frag(Varyings In) : SV_Target
+			FragOutput frag(Varyings In)
 			{
-				return float4(_MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb, _BaseColor.a);
+				float2 screenUV = In.vertex.xy / _ScreenParams.xy;
+				float linearDepth = length(In.worldPos - _WorldSpaceCameraPos);
+				float3 albedo = _MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb;
+				FragOutput o;
+				o.color = ApplyT0Fog(albedo, _BaseColor.a, screenUV, linearDepth);
+				o.reactive = TranslucentReactive(_BaseColor.a);
+				o.motion = TranslucentMotion(In.clipPos, In.clipPosOld);
+				return o;
 			}
 			ENDHLSL
 		}
@@ -565,19 +602,24 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Name "TranslucentT1Pass"
 			Tags { "LightMode" = "TranslucentT1Pass" }
 			ZTest LEqual ZWrite Off Cull Back
-			Blend SrcAlpha OneMinusSrcAlpha
+			Blend 0 SrcAlpha OneMinusSrcAlpha
+			Blend 1 One Zero
+			Blend 2 One Zero
 
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
+			#pragma multi_compile _ _REFRACTION_PYRAMID
 
 			#include "../ShaderLibrary/GPUScene.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
+				float _Roughness;
+				float _RefractionStrength;
 			CBUFFER_END
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
@@ -585,13 +627,24 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				uint InstanceId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
+				float3 normal : NORMAL;
 				float4 vertex : POSITION;
 			};
 
 			struct Varyings
 			{
 				float2 uv0 : TEXCOORD0;
+				float3 normalWS : TEXCOORD1;
+				float4 clipPos : TEXCOORD2;
+				float4 clipPosOld : TEXCOORD3;
 				float4 vertex : SV_POSITION;
+			};
+
+			struct FragOutput
+			{
+				float4 color : SV_Target0;
+				float reactive : SV_Target1;
+				float2 motion : SV_Target2;
 			};
 
 			Varyings vert(Attributes In)
@@ -601,13 +654,26 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				FTransformData meshBatch = transformBuffer[primitiveId];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				Out.normalWS = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normal));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
+				Out.clipPos = mul(Matrix_ViewProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewProj, worldPos);
 				return Out;
 			}
 
-			float4 frag(Varyings In) : SV_Target
+			FragOutput frag(Varyings In)
 			{
-				return float4(_MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb, _BaseColor.a);
+				float2 screenUV = In.vertex.xy / _ScreenParams.xy;
+				float glassDepth = _TranslucentDepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
+				float thickness = saturate(abs(LinearEyeDepth(In.vertex.z, _ZBufferParams) - LinearEyeDepth(glassDepth, _ZBufferParams)) * 0.05);
+				float4 refracted = SampleRefractionPyramid(screenUV, normalize(In.normalWS), _RefractionStrength * (0.25 + thickness), _Roughness);
+				float3 albedo = _MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb;
+				float3 color = lerp(albedo, refracted.rgb * albedo, saturate(_BaseColor.a));
+				FragOutput o;
+				o.color = float4(color, _BaseColor.a);
+				o.reactive = TranslucentReactive(_BaseColor.a);
+				o.motion = TranslucentMotion(In.clipPos, In.clipPosOld);
+				return o;
 			}
 			ENDHLSL
 		}
@@ -617,7 +683,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Name "TranslucentT2Pass"
 			Tags { "LightMode" = "TranslucentT2Pass" }
 			ZTest LEqual ZWrite Off Cull Back
-			Blend SrcAlpha OneMinusSrcAlpha
+			Blend 0 SrcAlpha OneMinusSrcAlpha
+			Blend 1 One Zero
+			Blend 2 One Zero
 
 			HLSLPROGRAM
 			#pragma target 4.5
@@ -626,7 +694,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			#include "../ShaderLibrary/GPUScene.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
@@ -643,7 +711,16 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			struct Varyings
 			{
 				float2 uv0 : TEXCOORD0;
+				float4 clipPos : TEXCOORD1;
+				float4 clipPosOld : TEXCOORD2;
 				float4 vertex : SV_POSITION;
+			};
+
+			struct FragOutput
+			{
+				float4 color : SV_Target0;
+				float reactive : SV_Target1;
+				float2 motion : SV_Target2;
 			};
 
 			Varyings vert(Attributes In)
@@ -654,12 +731,19 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
+				Out.clipPos = mul(Matrix_ViewProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewProj, worldPos);
 				return Out;
 			}
 
-			float4 frag(Varyings In) : SV_Target
+			FragOutput frag(Varyings In)
 			{
-				return float4(_MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb, _BaseColor.a);
+				float3 albedo = _MainTex.Sample(sampler_MainTex, In.uv0).rgb * _BaseColor.rgb;
+				FragOutput o;
+				o.color = float4(albedo, _BaseColor.a);
+				o.reactive = TranslucentReactive(_BaseColor.a);
+				o.motion = TranslucentMotion(In.clipPos, In.clipPosOld);
+				return o;
 			}
 			ENDHLSL
 		}

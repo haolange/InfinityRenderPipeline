@@ -169,6 +169,8 @@ namespace InfinityTech.Rendering.Pipeline
 
                     for (int cascade = 0; cascade < passData.cascadeCount; ++cascade)
                     {
+                        string cascadeMarker = $"CascadeSlice{cascade}";
+                        cmdEncoder.BeginSample(cascadeMarker);
                         Vector4 rect = passData.tileRects[cascade];
                         cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
                         cmdEncoder.SetGlobalDepthBias(1.0f, 2.5f);
@@ -185,6 +187,7 @@ namespace InfinityTech.Rendering.Pipeline
                         }
 
                         cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);
+                        cmdEncoder.EndSample(cascadeMarker);
                     }
 
                     cmdEncoder.SetViewport(new Rect(0, 0, halfRes * 2, halfRes * 2));

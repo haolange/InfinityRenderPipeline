@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -57,11 +58,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static int OutputGamutID = Shader.PropertyToID("OutputGamut");
         internal static int OutputDeviceID = Shader.PropertyToID("OutputDevice");
+        internal static int IdentityLUTID = Shader.PropertyToID("IdentityLUT");
         internal static int InverseGammaID = Shader.PropertyToID("InverseGamma");
         internal static int ColorShadowTint2ID = Shader.PropertyToID("ColorShadow_Tint2");
     }
 
-    internal struct CombineLutParameterDescriptor
+    internal struct CombineLutParameterDescriptor : IEquatable<CombineLutParameterDescriptor>
     {
         public float WhiteTemp;
         public float WhiteTint;
@@ -108,8 +110,57 @@ namespace InfinityTech.Rendering.Pipeline
 
         public int OutputGamut;
         public int OutputDevice;
+        public int IdentityLut;
+        public int OutputMode;
+        public int HDREncoding;
         public float4 InverseGamma;
         public float4 ColorShadowTint2;
+
+        public bool Equals(CombineLutParameterDescriptor other)
+        {
+            return WhiteTemp.Equals(other.WhiteTemp)
+                && WhiteTint.Equals(other.WhiteTint)
+                && FilmSlope.Equals(other.FilmSlope)
+                && FilmToe.Equals(other.FilmToe)
+                && FilmShoulder.Equals(other.FilmShoulder)
+                && FilmBlackClip.Equals(other.FilmBlackClip)
+                && FilmWhiteClip.Equals(other.FilmWhiteClip)
+                && ColorSaturation.Equals(other.ColorSaturation)
+                && ColorContrast.Equals(other.ColorContrast)
+                && ColorGamma.Equals(other.ColorGamma)
+                && ColorGain.Equals(other.ColorGain)
+                && ColorOffset.Equals(other.ColorOffset)
+                && ColorSaturationShadows.Equals(other.ColorSaturationShadows)
+                && ColorContrastShadows.Equals(other.ColorContrastShadows)
+                && ColorGammaShadows.Equals(other.ColorGammaShadows)
+                && ColorGainShadows.Equals(other.ColorGainShadows)
+                && ColorOffsetShadows.Equals(other.ColorOffsetShadows)
+                && ColorCorrectionShadowsMax.Equals(other.ColorCorrectionShadowsMax)
+                && ColorSaturationMidtones.Equals(other.ColorSaturationMidtones)
+                && ColorContrastMidtones.Equals(other.ColorContrastMidtones)
+                && ColorGammaMidtones.Equals(other.ColorGammaMidtones)
+                && ColorGainMidtones.Equals(other.ColorGainMidtones)
+                && ColorOffsetMidtones.Equals(other.ColorOffsetMidtones)
+                && ColorSaturationHighlights.Equals(other.ColorSaturationHighlights)
+                && ColorContrastHighlights.Equals(other.ColorContrastHighlights)
+                && ColorGammaHighlights.Equals(other.ColorGammaHighlights)
+                && ColorGainHighlights.Equals(other.ColorGainHighlights)
+                && ColorOffsetHighlights.Equals(other.ColorOffsetHighlights)
+                && ColorCorrectionHighlightsMin.Equals(other.ColorCorrectionHighlightsMin)
+                && ColorCorrectionHighlightsMax.Equals(other.ColorCorrectionHighlightsMax)
+                && BlueCorrection.Equals(other.BlueCorrection)
+                && ExpandGamut.Equals(other.ExpandGamut)
+                && ColorScale.Equals(other.ColorScale)
+                && OverlayColor.Equals(other.OverlayColor)
+                && MappingPolynomial.Equals(other.MappingPolynomial)
+                && OutputGamut == other.OutputGamut
+                && OutputDevice == other.OutputDevice
+                && IdentityLut == other.IdentityLut
+                && OutputMode == other.OutputMode
+                && HDREncoding == other.HDREncoding
+                && InverseGamma.Equals(other.InverseGamma)
+                && ColorShadowTint2.Equals(other.ColorShadowTint2);
+        }
     }
 
     public partial class InfinityRenderPipeline
@@ -121,10 +172,30 @@ namespace InfinityTech.Rendering.Pipeline
             public CombineLutParameterDescriptor combineLutParameterDescriptor;
         }
 
-        void ComputeCombineLuts(RenderContext renderContext, in CombineLutParameterDescriptor combineLutParameterDescriptor)
+        void ComputeCombineLuts(CameraFrameState frameState, in CombineLutParameterDescriptor combineLutParameterDescriptor)
         {
-            TextureDescriptor combineLookupTextureDescriptor = new TextureDescriptor(32, 32, 32) { dimension = TextureDimension.Tex3D, name = CombineLutPassUtilityData.CombineLookupTextureName, colorFormat = GraphicsFormat.A2B10G10R10_UNormPack32, enableRandomWrite = true, depthBufferBits = EDepthBits.None };
-            RGTextureRef combineLookupTexture = m_RGScoper.CreateAndRegisterTexture(CombineLutPassUtilityData.CombineLookupTextureID, combineLookupTextureDescriptor);
+            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.combineLUTShader, "MainCS"))
+            {
+                throw new InvalidOperationException("InfinityRP: CombineLUT is required but combineLUTShader kernel MainCS is missing.");
+            }
+
+            TextureDescriptor combineLookupTextureDescriptor = new TextureDescriptor(32, 32, 32);
+            combineLookupTextureDescriptor.dimension = TextureDimension.Tex3D;
+            combineLookupTextureDescriptor.name = CombineLutPassUtilityData.CombineLookupTextureName;
+            combineLookupTextureDescriptor.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
+            combineLookupTextureDescriptor.enableRandomWrite = true;
+            combineLookupTextureDescriptor.depthBufferBits = EDepthBits.None;
+            combineLookupTextureDescriptor.filterMode = FilterMode.Trilinear;
+            combineLookupTextureDescriptor.wrapMode = TextureWrapMode.Clamp;
+
+            frameState.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out FTextureRef lutHandle, out bool hit);
+            RGTextureRef combineLookupTexture = m_RGBuilder.ImportTexture(lutHandle);
+            m_RGScoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTexture);
+
+            if (hit)
+            {
+                return;
+            }
 
             //Add ColorGradePass
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts)))
@@ -186,6 +257,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     cmdEncoder.SetComputeIntParam(passData.combineLUTShader, CombineLutPassUtilityData.OutputGamutID, passData.combineLutParameterDescriptor.OutputGamut);
                     cmdEncoder.SetComputeIntParam(passData.combineLUTShader, CombineLutPassUtilityData.OutputDeviceID, passData.combineLutParameterDescriptor.OutputDevice);
+                    cmdEncoder.SetComputeIntParam(passData.combineLUTShader, CombineLutPassUtilityData.IdentityLUTID, passData.combineLutParameterDescriptor.IdentityLut);
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.InverseGammaID, passData.combineLutParameterDescriptor.InverseGamma);
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.ColorShadowTint2ID, passData.combineLutParameterDescriptor.ColorShadowTint2);
 
@@ -194,6 +266,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.combineLUTShader, 0, 4, 4, 4);
                 });
             }
+
+            frameState.combineLutCache.MarkProduced();
         }
     }
 }

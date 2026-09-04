@@ -37,7 +37,7 @@ cbuffer CBV_OcclusionUnifrom
     float4x4 Matrix_WorldToView;
 };
 
-Texture2D SRV_DepthTexture, SRV_NormalTexture, SRV_OcclusionTexture, SRV_HistoryTexture, SRV_MotionTexture;
+Texture2D SRV_DepthTexture, SRV_NormalTexture, SRV_OcclusionTexture, SRV_HistoryTexture, SRV_HistoryDepthTexture, SRV_MotionTexture;
 SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
 
 static const int2 SampleOffset[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };

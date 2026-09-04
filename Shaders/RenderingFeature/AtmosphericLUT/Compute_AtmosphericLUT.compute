@@ -5,8 +5,14 @@
 #pragma kernel AtmosphereCubemap
 #pragma kernel SunBuffer
 #pragma kernel AtmosphereComposite
+#pragma kernel AtmosphereSHProject
+#pragma kernel AtmosphereSHReduce
+#pragma kernel AtmosphereGGXPrefilter
 
 #include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Montcalo.hlsl"
+#include "../../ShaderLibrary/SphericalHarmonic.hlsl"
+#include "../../ShaderLibrary/AtmosphereCommon.hlsl"
 
 // Atmospheric parameters
 float Atmo_PlanetRadius;
@@ -30,6 +36,10 @@ float Atmo_AerialPerspectiveDistance;
 float Atmo_SunAngle;
 float4 Atmo_SunDirection;
 float4 Atmo_SunIlluminance;
+int Atmo_CubemapSize;
+int Atmo_SHPartialCount;
+int Atmo_PrefilterMip;
+float Atmo_PrefilterRoughness;
 float3 _WorldSpaceCameraPos;
 float4x4 Matrix_InvViewProj;
 
@@ -44,7 +54,11 @@ RWTexture2D<float4> UAV_MultiScatteringLUT;
 RWTexture2D<float4> UAV_SkyViewLUT;
 RWTexture3D<float4> UAV_AerialPerspectiveLUT;
 RWTexture2DArray<float4> UAV_AtmosphereCubemap;
+RWTexture2DArray<float4> UAV_GGXPrefilter;
+Texture2DArray<float4> SRV_AtmosphereCubemap;
 RWStructuredBuffer<float4> UAV_SunBuffer;
+RWStructuredBuffer<float4> UAV_SHPartial;
+RWStructuredBuffer<float4> UAV_SHCoefficients;
 RWTexture2D<float4> UAV_LightingTexture;
 
 #define TRANSMITTANCE_STEPS 40
@@ -637,4 +651,154 @@ void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
     float4 aerial = SRV_AerialPerspectiveLUT.SampleLevel(Global_trilinear_clamp_sampler, float3(uv, sliceT), 0);
     float3 scene = UAV_LightingTexture[id.xy].rgb;
     UAV_LightingTexture[id.xy] = float4(scene * aerial.a + aerial.rgb, 1);
+}
+
+//--------------------------------------------------------------
+// Kernel 7: Project sky cubemap to L2 SH partials (one group = 8x8 texels)
+//--------------------------------------------------------------
+groupshared float3 g_SHDir[64];
+groupshared float3 g_SHRadiance[64];
+groupshared float g_SHWeight[64];
+
+[numthreads(8, 8, 1)]
+void AtmosphereSHProject(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint groupIndex : SV_GroupIndex)
+{
+    uint size = (uint)max(Atmo_CubemapSize, 1);
+    float3 dir = 0;
+    float3 radiance = 0;
+    float weight = 0;
+    if (id.x < size && id.y < size && id.z < 6)
+    {
+        float2 uv = (id.xy + 0.5) / float(size);
+        dir = CubemapFaceDirection(id.z, uv);
+        radiance = SRV_AtmosphereCubemap[uint3(id.xy, id.z)].rgb;
+        float2 st = uv * 2.0 - 1.0;
+        float tmp = 1.0 + dot(st, st);
+        weight = 4.0 / (tmp * tmp) / (size * size);
+    }
+
+    g_SHDir[groupIndex] = dir;
+    g_SHRadiance[groupIndex] = radiance;
+    g_SHWeight[groupIndex] = weight;
+    GroupMemoryBarrierWithGroupSync();
+
+    if (groupIndex != 0)
+    {
+        return;
+    }
+
+    float3 acc[9];
+    [unroll] for (int k = 0; k < 9; ++k) acc[k] = 0;
+
+    for (uint i = 0; i < 64; ++i)
+    {
+        float w = g_SHWeight[i];
+        if (w <= 0.0)
+        {
+            continue;
+        }
+
+        FSphericalHarmonicTwoBasis basis = InitSH2Basis(InitSH2Table(g_SHDir[i]), g_SHRadiance[i]);
+        [unroll]
+        for (int c = 0; c < 9; ++c)
+        {
+            acc[c] += basis.basis[c] * w;
+        }
+    }
+
+    uint groups = (size + 7) / 8;
+    uint groupLinear = groupId.z * groups * groups + groupId.y * groups + groupId.x;
+    [unroll]
+    for (int o = 0; o < 9; ++o)
+    {
+        UAV_SHPartial[groupLinear * 9 + o] = float4(acc[o], 0);
+    }
+}
+
+//--------------------------------------------------------------
+// Kernel 8: Reduce SH partials and bake cosine-lobe irradiance
+//--------------------------------------------------------------
+[numthreads(1, 1, 1)]
+void AtmosphereSHReduce(uint3 id : SV_DispatchThreadID)
+{
+    float3 acc[9];
+    [unroll] for (int k = 0; k < 9; ++k) acc[k] = 0;
+
+    uint count = (uint)max(Atmo_SHPartialCount, 0);
+    for (uint i = 0; i < count; ++i)
+    {
+        [unroll]
+        for (int c = 0; c < 9; ++c)
+        {
+            acc[c] += UAV_SHPartial[i * 9 + c].rgb;
+        }
+    }
+
+    acc[0] *= Pi;
+    acc[1] *= Two_Pi / 3.0;
+    acc[2] *= Two_Pi / 3.0;
+    acc[3] *= Two_Pi / 3.0;
+    acc[4] *= Pi / 4.0;
+    acc[5] *= Pi / 4.0;
+    acc[6] *= Pi / 4.0;
+    acc[7] *= Pi / 4.0;
+    acc[8] *= Pi / 4.0;
+
+    [unroll]
+    for (int o = 0; o < 9; ++o)
+    {
+        UAV_SHCoefficients[o] = float4(acc[o], 0);
+    }
+}
+
+//--------------------------------------------------------------
+// Kernel 9: GGX prefilter into the mip chain of a cubemap array
+//--------------------------------------------------------------
+[numthreads(8, 8, 1)]
+void AtmosphereGGXPrefilter(uint3 id : SV_DispatchThreadID)
+{
+    uint mipSize = (uint)max(Atmo_CubemapSize >> Atmo_PrefilterMip, 1);
+    if (id.x >= mipSize || id.y >= mipSize || id.z >= 6)
+    {
+        return;
+    }
+
+    float2 uv = (id.xy + 0.5) / float(mipSize);
+    float3 n = CubemapFaceDirection(id.z, uv);
+    float roughness = Atmo_PrefilterRoughness;
+
+    if (roughness < 1e-4)
+    {
+        UAV_GGXPrefilter[uint3(id.xy, id.z)] = float4(SRV_AtmosphereCubemap.SampleLevel(Global_bilinear_clamp_sampler, float3(uv, id.z), 0).rgb, 1);
+        return;
+    }
+
+    float3 up = abs(n.z) < 0.999 ? float3(0, 0, 1) : float3(1, 0, 0);
+    float3 tangent = normalize(cross(up, n));
+    float3 bitangent = cross(n, tangent);
+
+    const uint sampleCount = 32;
+    float3 color = 0;
+    float weight = 0;
+    [loop]
+    for (uint i = 0; i < sampleCount; ++i)
+    {
+        float2 e = Hammersley(i, sampleCount);
+        float3 hLocal = ImportanceSampleGGX(e, roughness).xyz;
+        float3 h = normalize(tangent * hLocal.x + bitangent * hLocal.y + n * hLocal.z);
+        float3 l = normalize(2.0 * dot(n, h) * h - n);
+        float noL = saturate(dot(n, l));
+        if (noL <= 0.0)
+        {
+            continue;
+        }
+
+        uint face;
+        float2 sampleUv;
+        CubemapDirectionToFaceUv(l, face, sampleUv);
+        color += SRV_AtmosphereCubemap.SampleLevel(Global_bilinear_clamp_sampler, float3(sampleUv, face), 0).rgb * noL;
+        weight += noL;
+    }
+
+    UAV_GGXPrefilter[uint3(id.xy, id.z)] = float4(color / max(weight, 1e-6), 1);
 }

@@ -5,6 +5,7 @@ using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Feature
 {
+    // TODO: retire TemporalAntiAliasingGenerator after CameraUniform and AntiAliasingPass stop calling CaculateProjectionMatrix / objectPool.Get.
     public static class HaltonSequence
     {
         public static float Get(int index, in int radix)
@@ -44,6 +45,7 @@ namespace InfinityTech.Rendering.Feature
         public RenderTargetIdentifier historyDepthTexture;
         public RenderTargetIdentifier historyColorTexture;
         public RenderTargetIdentifier aliasingColorTexture;
+        public RenderTargetIdentifier reactiveMaskTexture;
     }
 
     public struct TemporalAAOutputData
@@ -61,6 +63,7 @@ namespace InfinityTech.Rendering.Feature
         public static int HistoryDepthTexture = Shader.PropertyToID("SRV_HistoryDepthTexture");
         public static int HistoryColorTexture = Shader.PropertyToID("SRV_HistoryColorTexture");
         public static int AliasingColorTexture = Shader.PropertyToID("SRV_AliasingColorTexture");
+        public static int ReactiveMaskTexture = Shader.PropertyToID("SRV_ReactiveMaskTexture");
         public static int AccmulateColorTexture = Shader.PropertyToID("UAV_AccmulateColorTexture");
     }
 
@@ -76,6 +79,7 @@ namespace InfinityTech.Rendering.Feature
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryColorTexture, inputData.historyColorTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AliasingColorTexture, inputData.aliasingColorTexture);
+            cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.ReactiveMaskTexture, inputData.reactiveMaskTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
             cmd.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
         }

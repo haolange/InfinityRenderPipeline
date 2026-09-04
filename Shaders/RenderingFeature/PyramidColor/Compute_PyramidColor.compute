@@ -1,6 +1,10 @@
 float4 _Size;
+float4 _DstSize;
+int _MipWriteCount;
+int _SrcScale;
 Texture2D<float4> _Source;
 RWTexture2D<float4> _Result;
+RWTexture2D<float4> _Result1;
 SamplerState sampler_LinearClamp;
 
 // 16x16 pixels with an 8x8 center that we will be blurring writing out. Each uint is two color
@@ -52,7 +56,6 @@ void Load1Pixel(uint index, out float4 pixel)
     pixel = asfloat(uint4(gs_cacheR[index], gs_cacheG[index], gs_cacheB[index], gs_cacheA[index]));
 }
 
-// Blur two pixels horizontally.  This reduces LDS reads and pixel unpacking.
 void BlurHorizontally(uint outIndex, uint leftMostIndex)
 {
     float4 s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
@@ -66,7 +69,7 @@ void BlurHorizontally(uint outIndex, uint leftMostIndex)
     Store1Pixel(outIndex + 1, BlurPixels(s1, s2, s3, s4, s5, s6, s7, s8, s9));
 }
 
-void BlurVertically(uint2 pixelCoord, uint topMostIndex)
+float4 BlurVertically(uint topMostIndex)
 {
     float4 s0, s1, s2, s3, s4, s5, s6, s7, s8;
     Load1Pixel(topMostIndex     , s0);
@@ -78,11 +81,7 @@ void BlurVertically(uint2 pixelCoord, uint topMostIndex)
     Load1Pixel(topMostIndex + 48, s6);
     Load1Pixel(topMostIndex + 56, s7);
     Load1Pixel(topMostIndex + 64, s8);
-
-    float4 blurred = BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8);
-
-    // Write to the final target
-    _Result[pixelCoord] = blurred;
+    return BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8);
 }
 
 #pragma kernel KMain
@@ -96,31 +95,48 @@ TRIVIAL_COMPUTE_KERNEL(KMain)
 [numthreads(8, 8, 1)]
 void KMain(uint2 groupId : SV_GroupID, uint2 groupThreadId : SV_GroupThreadID, uint2 dispatchThreadId : SV_DispatchThreadID)
 {
-    // Upper-left pixel coordinate of quad that this thread will read
-    int2 threadUL = (groupThreadId << 1) + (groupId << 3) - 4;
+    uint groupShift = _SrcScale == 2 ? 4u : 3u;
+    int2 threadUL = (int2)(groupThreadId << 1) + (int2)(groupId << groupShift) - 4;
 
-    // Downsample the block
     float2 offset = float2(threadUL);
     float4 p00 = _Source.SampleLevel(sampler_LinearClamp, (offset                    + 0.5) * _Size.zw, 0.0);
     float4 p10 = _Source.SampleLevel(sampler_LinearClamp, (offset + float2(1.0, 0.0) + 0.5) * _Size.zw, 0.0);
     float4 p01 = _Source.SampleLevel(sampler_LinearClamp, (offset + float2(0.0, 1.0) + 0.5) * _Size.zw, 0.0);
     float4 p11 = _Source.SampleLevel(sampler_LinearClamp, (offset + float2(1.0, 1.0) + 0.5) * _Size.zw, 0.0);
 
-    // Store the 4 downsampled pixels in LDS
     uint destIdx = groupThreadId.x + (groupThreadId.y << 4u);
     Store2Pixels(destIdx     , p00, p10);
     Store2Pixels(destIdx + 8u, p01, p11);
 
     GroupMemoryBarrierWithGroupSync();
 
-    // Horizontally blur the pixels in LDS
     uint row = groupThreadId.y << 4u;
     BlurHorizontally(row + (groupThreadId.x << 1u), row + groupThreadId.x + (groupThreadId.x & 4u));
 
     GroupMemoryBarrierWithGroupSync();
 
-    // Vertically blur the pixels in LDS and write the result to memory
-    BlurVertically(dispatchThreadId, (groupThreadId.y << 3u) + groupThreadId.x);
+    float4 blurred = BlurVertically((groupThreadId.y << 3u) + groupThreadId.x);
+    if (_MipWriteCount > 0 && all(dispatchThreadId < (uint2)_DstSize.xy))
+    {
+        _Result[dispatchThreadId] = blurred;
+    }
+
+    uint packedIdx = groupThreadId.x + (groupThreadId.y << 3u);
+    Store1Pixel(packedIdx, blurred);
+    GroupMemoryBarrierWithGroupSync();
+
+    if (_MipWriteCount > 1 && (groupThreadId.x & 1) == 0 && (groupThreadId.y & 1) == 0)
+    {
+        float4 a, b, c, d;
+        Load1Pixel(packedIdx, a);
+        Load1Pixel(packedIdx + 1, b);
+        Load1Pixel(packedIdx + 8, c);
+        Load1Pixel(packedIdx + 9, d);
+        if (all((dispatchThreadId >> 1) < ((uint2)_DstSize.xy >> 1)))
+        {
+            _Result1[dispatchThreadId >> 1] = 0.25 * (a + b + c + d);
+        }
+    }
 }
 
-#endif // DISABLE_COMPUTE_SHADERS
+#endif

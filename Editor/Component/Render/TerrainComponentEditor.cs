@@ -1,5 +1,6 @@
 ﻿using UnityEditor;
 using UnityEngine;
+using InfinityTech.Rendering.Editor;
 
 namespace InfinityTech.Component.Editor
 {
@@ -7,7 +8,6 @@ namespace InfinityTech.Component.Editor
     [CustomEditor(typeof(TerrainComponent))]
     internal class TerrainComponentEditor : UnityEditor.Editor
     {
-        public bool showGeneral = true;
         [System.NonSerialized] SerializedProperty lOD0ScreenSize;
         [System.NonSerialized] SerializedProperty lOD0Distribution;
         [System.NonSerialized] SerializedProperty lODXDistribution;
@@ -34,8 +34,7 @@ namespace InfinityTech.Component.Editor
         {
             serializedTerrain.Update();
 
-            showGeneral = EditorGUILayout.BeginFoldoutHeaderGroup(showGeneral, "General");
-            if (showGeneral)
+            if (InfinityInspectorGUI.BeginFoldout("InfinityRP.Terrain.Foldout.General", "General"))
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(lOD0ScreenSize, new GUIContent("LOD0 ScreenSize"));
@@ -43,7 +42,7 @@ namespace InfinityTech.Component.Editor
                 EditorGUILayout.PropertyField(lODXDistribution, new GUIContent("LODX Distribution"));
                 EditorGUI.indentLevel--;
             }
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            InfinityInspectorGUI.EndFoldout();
 
             serializedTerrain.ApplyModifiedProperties();
         }

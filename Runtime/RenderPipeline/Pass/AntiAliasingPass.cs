@@ -30,6 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef historyDepthTexture;
             public RGTextureRef historyColorTexture;
             public RGTextureRef aliasingColorTexture;
+            public RGTextureRef reactiveMaskTexture;
             public RGTextureRef accmulateColorTexture;
         }
 
@@ -53,7 +54,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGScoper.RegisterTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorTexture);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureRef motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
-            RGTextureRef aliasingColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGTextureRef aliasingColorTexture = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
+            RGTextureRef reactiveMaskTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer);
             RGTextureRef accmulateColorTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescriptor);
 
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
@@ -67,6 +69,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyDepthTexture = passRef.ReadTexture(historyDepthTexture);
                 passData.historyColorTexture = passRef.ReadTexture(historyColorTexture);
                 passData.aliasingColorTexture = passRef.ReadTexture(aliasingColorTexture);
+                passData.reactiveMaskTexture = passRef.ReadTexture(reactiveMaskTexture);
                 passData.accmulateColorTexture = passRef.WriteTexture(accmulateColorTexture);
 
                 passRef.EnablePassCulling(false);
@@ -80,6 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
                         taaInputData.historyDepthTexture = passData.historyDepthTexture;
                         taaInputData.historyColorTexture = passData.historyColorTexture;
                         taaInputData.aliasingColorTexture = passData.aliasingColorTexture;
+                        taaInputData.reactiveMaskTexture = passData.reactiveMaskTexture;
                     }
                     TemporalAAOutputData taaOutputData;
                     {

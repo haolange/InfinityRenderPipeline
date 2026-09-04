@@ -211,3 +211,34 @@ GPU cull separates lookup identity from shading matrix identity:
 | Cascade / Local shadow MeshDraw | `light.cullingMask` | `light.shadowLayer` (`LightComponent`) when present; else `Everything` |
 
 `MeshComponent.renderingLayer` is flags, not an int layer index. Do not reintroduce `1 << renderLayer` indexing.
+
+## 15. Full rendering pipeline (S7 / S8 locked order)
+
+`InfinityRenderPipeline.RecordRG` records in these phases. Do not reorder without a new stage and a captured frame.
+
+```text
+Phase 0  CombineLUT + AtmosphericLUT          (zero RG-resource inputs; async-eligible)
+Phase 1  Depth → DBuffer → GBuffer → Motion
+Phase 2  HiZ + HalfResDownsample + ZBin       (async-eligible)
+Phase 3  CascadeShadow + LocalShadow
+Phase 4  reserved (VolFog moved to Phase 7)
+Phase 5  GTAO → CopyHistoryOcclusion → ContactShadow
+Phase 6  Deferred → Forward → SSS → AtmosphericSkyAndFog
+         → OpaqueLightingPyramid → SSR/SSGI (+ history) → ScreenSpaceComposite
+         → OpaqueSceneColor
+Phase 7  TranslucentDepth → VolCloud (+ history) → VolFog (+ history)
+         → FogComposite → FoggedSceneColor
+         → T0 → ColorPyramid → T1 → T2
+Phase 8  TAA or SuperResolution (+ history) → Post (Exposure → Bloom → CombineLUT
+         → Vignette → FilmGrain) → OutputTransform → DisplayColorBuffer → Present
+```
+
+Contracts that stay locked:
+
+- Atmosphere lives only on `AtmosphericalProfile`. Volume does not override it.
+- History lives only in `HistoryCache`. CopyHistory is Transfer `CopyTexture` after the producer.
+- `DisplayColorBuffer` is the present source. OutputTransform is the single transfer-encoding owner.
+- Present stays Raster. Gizmo / WireOverlay / Present disable native RP for API reasons only.
+- Hardware RT, Baked GI, DOF, SR expansion, XR, MSAA, and dynamic resolution are out of this delivery.
+
+Image / Frame Debugger / GPU-Trace results stay `TODO(UNVERIFIED)` until captured. See [Docs/FullRendering-Delivery-Report.md](Docs/FullRendering-Delivery-Report.md).

@@ -8,6 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
+using InfinityTech.Rendering.Feature;
 using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.PostProcess;
@@ -52,6 +53,89 @@ namespace InfinityTech.Rendering.Editor.Validation
         public static void OpenLocalLightsFixture()
         {
             OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_LocalLights.unity", "Validation_LocalLights.unity missing. Run Create Local Lights Fixture first.");
+        }
+
+        [MenuItem(MenuRoot + "Open Temporal Fixture", false, 56)]
+        public static void OpenTemporalFixture()
+        {
+            OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_Temporal.unity", "Validation_Temporal.unity missing. Run Create Temporal Fixture first.");
+        }
+
+        [MenuItem(MenuRoot + "Open Translucent Fixture", false, 58)]
+        public static void OpenTranslucentFixture()
+        {
+            OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_Translucent.unity", "Validation_Translucent.unity missing. Run Create Translucent Fixture first.");
+        }
+
+        [MenuItem(MenuRoot + "Open Output Fixture", false, 59)]
+        public static void OpenOutputFixture()
+        {
+            OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_Output.unity", "Validation_Output.unity missing. Run Create Output Fixture first.");
+        }
+
+        [MenuItem(MenuRoot + "Dump Gray Card Mean", false, 60)]
+        public static void DumpGrayCardMean()
+        {
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                Camera[] cameras = UnityEngine.Object.FindObjectsByType<Camera>();
+                for (int i = 0; i < cameras.Length; ++i)
+                {
+                    if (cameras[i] != null && cameras[i].enabled)
+                    {
+                        camera = cameras[i];
+                        break;
+                    }
+                }
+            }
+
+            if (camera == null)
+            {
+                throw new InvalidOperationException("InfinityRP Validation: no enabled Camera for gray-card dump.");
+            }
+
+            int width = Mathf.Max(32, camera.pixelWidth);
+            int height = Mathf.Max(32, camera.pixelHeight);
+            RenderTexture previous = camera.targetTexture;
+            RenderTexture rt = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGBFloat);
+            camera.targetTexture = rt;
+            camera.Render();
+            camera.targetTexture = previous;
+
+            RenderTexture active = RenderTexture.active;
+            RenderTexture.active = rt;
+            Texture2D texture = new Texture2D(width, height, TextureFormat.RGBAFloat, false);
+            texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+            texture.Apply();
+            RenderTexture.active = active;
+            RenderTexture.ReleaseTemporary(rt);
+
+            int sample = 32;
+            int x0 = (width - sample) / 2;
+            int y0 = (height - sample) / 2;
+            Color[] pixels = texture.GetPixels(x0, y0, sample, sample);
+            Vector3 sum = Vector3.zero;
+            for (int i = 0; i < pixels.Length; ++i)
+            {
+                sum.x += pixels[i].r;
+                sum.y += pixels[i].g;
+                sum.z += pixels[i].b;
+            }
+
+            float inv = 1.0f / pixels.Length;
+            Vector3 mean = sum * inv;
+            UnityEngine.Object.DestroyImmediate(texture);
+
+            string path = Path.Combine(EnsureLogsDirectory(), "gray-card-mean.txt");
+            File.WriteAllText(path,
+                $"GRAY_CARD_MEAN{Environment.NewLine}" +
+                $"time={DateTime.UtcNow:O}{Environment.NewLine}" +
+                $"playing={EditorApplication.isPlaying}{Environment.NewLine}" +
+                $"resolution={width}x{height}{Environment.NewLine}" +
+                $"sample=center {sample}x{sample}{Environment.NewLine}" +
+                $"mean={mean.x.ToString("G6", CultureInfo.InvariantCulture)} {mean.y.ToString("G6", CultureInfo.InvariantCulture)} {mean.z.ToString("G6", CultureInfo.InvariantCulture)}{Environment.NewLine}");
+            Debug.Log($"[InfinityRP][Validation] Gray card mean written: {path} rgb=({mean.x:F4}, {mean.y:F4}, {mean.z:F4})");
         }
 
         [MenuItem(MenuRoot + "Dump Active Volume Stacks", false, 52)]
@@ -268,6 +352,51 @@ namespace InfinityTech.Rendering.Editor.Validation
             File.WriteAllBytes(path, texture.EncodeToPNG());
             UnityEngine.Object.DestroyImmediate(texture);
             Debug.Log($"[InfinityRP][Validation] Game view captured: {path}");
+        }
+
+        [MenuItem(MenuRoot + "Upgrade Atmospherical Profile", false, 57)]
+        public static void UpgradeAtmosphericalProfile()
+        {
+            InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
+            if (asset == null)
+            {
+                throw new InvalidOperationException("InfinityRP Validation: current render pipeline is not InfinityRenderPipelineAsset.");
+            }
+
+            const string profilePath = "Assets/Profile/AtmosphericalProfile.asset";
+            AtmosphericalProfile profile = asset.atmosphericalProfile;
+            if (profile == null)
+            {
+                profile = AssetDatabase.LoadAssetAtPath<AtmosphericalProfile>(profilePath);
+            }
+
+            if (profile == null)
+            {
+                Directory.CreateDirectory(Path.Combine(Application.dataPath, "Profile"));
+                profile = ScriptableObject.CreateInstance<AtmosphericalProfile>();
+                profile.UpgradeZerosToDefaults();
+                AssetDatabase.CreateAsset(profile, profilePath);
+            }
+
+            Undo.RecordObject(profile, "Upgrade Atmospherical Profile");
+            bool changed = profile.UpgradeZerosToDefaults();
+            if (changed)
+            {
+                EditorUtility.SetDirty(profile);
+            }
+
+            if (asset.atmosphericalProfile != profile)
+            {
+                Undo.RecordObject(asset, "Assign Atmospherical Profile");
+                asset.atmosphericalProfile = profile;
+                EditorUtility.SetDirty(asset);
+                changed = true;
+            }
+
+            AssetDatabase.SaveAssets();
+            Debug.Log(changed
+                ? $"[InfinityRP][Validation] AtmosphericalProfile ready: {profilePath}"
+                : $"[InfinityRP][Validation] {profile.name} already assigned with non-zero fields.");
         }
 
         [MenuItem(MenuRoot + "Dump Local Lights State", false, 56)]

@@ -103,12 +103,19 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     float MaxColor = mean + TemporalScale * stddev;
 
     float CurrColor = SampleColors[4];
-    float PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, ScreenUV - Velocity, 0);
+    float2 HistoryUV = ScreenUV - Velocity;
+    float PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, HistoryUV, 0);
     MinColor = min(MinColor, CurrColor);
     MaxColor = max(MaxColor, CurrColor);
     PrevColor = clamp(PrevColor, MinColor, MaxColor);
 
-	float VelocityWeight = saturate(TemporalWeight * (1 - length(Velocity) * 8));
+    float CurrDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, ScreenUV, 0).r;
+    float HistDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, HistoryUV, 0).r;
+    float CurrLinear = LinearEyeDepth(CurrDepth);
+    float HistLinear = LinearEyeDepth(HistDepth);
+    float DepthReject = 1.0 - smoothstep(0.02, 0.1, abs(CurrLinear - HistLinear) / max(CurrLinear, 1e-2));
+
+	float VelocityWeight = saturate(TemporalWeight * (1 - length(Velocity) * 8)) * DepthReject;
     UAV_AccmulateTexture[id.xy] = lerp(CurrColor, PrevColor, VelocityWeight);
 }
 
@@ -147,5 +154,5 @@ void OcclusionUpsample(uint3 id : SV_DispatchThreadID)
         WeightSum += Weight;
         OcclusionSum += SRV_OcclusionTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (UpsampleOffset[k] * Resolution.zw), 0).r * Weight;
     }
-    UAV_UpsampleTexture[id.xy] = OcclusionSum / WeightSum;
+    UAV_UpsampleTexture[id.xy] = WeightSum > 0 ? OcclusionSum / WeightSum : TopLeft_Color;
 }

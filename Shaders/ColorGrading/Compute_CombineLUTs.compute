@@ -229,6 +229,7 @@ float3 ColorCorrectAll( float3 WorkingColor )
 
 uint OutputDevice;
 uint OutputGamut;
+uint IdentityLUT;
 
 uint GetOutputDevice()
 {
@@ -281,19 +282,15 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	const float3x3 AP1_2_Output  = OuputGamutMappingMatrix( OutputGamut );
 
 	float3 LUTEncodedColor = Neutral.rgb;
-	float3 LinearColor;
-	// Decode texture values as ST-2084 (Dolby PQ)
-	if (GetOutputDevice() >= 3)
+	// Consumers sample with LinToLog. LUT texels are always log-encoded, never PQ/sRGB.
+	float3 LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
+
+	if (IdentityLUT != 0)
 	{
-		// Since ST2084 returns linear values in nits, divide by a scale factor to convert
-		// the reference nit result to be 1.0 in linear.
-		// (for efficiency multiply by precomputed inverse)
-		LinearColor = ST2084ToLinear(LUTEncodedColor) * LinearToNitsScaleInverse;
-	}
-	// Decode log values
-	else
-	{
-		LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
+		float4 IdentityColor = 0;
+		IdentityColor.rgb = LinearColor;
+		IdentityColor.a = 1;
+		return IdentityColor;
 	}
 	
 	float3 BalancedColor = WhiteBalance( LinearColor );
@@ -373,91 +370,11 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	// Apply "gamma" curve adjustment.
 	FilmColor = pow( max(0, FilmColorNoGamma), InverseGamma.y );
 		
-	half3 OutDeviceColor = 0;
+	// OutputTransform is the single transfer-encoding owner. CombineLUT writes Rec.709
+	// linear graded+tonemapped color. OutputGamut/OutputDevice stay in the CPU key.
+	half3 OutDeviceColor = FilmColorNoGamma;
 
-	// sRGB, user specified gamut
-	if( GetOutputDevice() == 0 )
-	{		
-		// Convert from sRGB to specified output gamut	
-		//float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
-
-		// FIXME: Workaround for UE-29935, pushing all colors with a 0 component to black output
-		// Default parameters seem to cancel out (sRGB->XYZ->AP1->XYZ->sRGB), so should be okay for a temp fix
-		float3 OutputGamutColor = FilmColor;
-
-		// Apply conversion to sRGB (this must be an exact sRGB conversion else darks are bad).
-		OutDeviceColor = LinearToSrgb( OutputGamutColor );
-	}
-
-	// Rec 709, user specified gamut
-	/*else if( GetOutputDevice() == 1 )
-	{
-		// Convert from sRGB to specified output gamut
-		float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
-
-		// Didn't profile yet if the branching version would be faster (different linear segment).
-		OutDeviceColor = LinearTo709Branchless( OutputGamutColor );
-	}
-
-	// ACES 1000nit transform with PQ/2084 encoding, user specified gamut 
-	else if( GetOutputDevice() == 3 || GetOutputDevice() == 5 )
-	{		
-		// 1000 nit ODT
-		float3 ODTColor = ACESOutputTransforms1000( GradedColor );
-
-		// Convert from AP1 to specified output gamut
-		ODTColor = mul( AP1_2_Output, ODTColor );
-
-		// Apply conversion to ST-2084 (Dolby PQ)
-		OutDeviceColor = LinearToST2084( ODTColor );
-	}
-
-	// ACES 2000nit transform with PQ/2084 encoding, user specified gamut 
-	else if( GetOutputDevice() == 4 || GetOutputDevice() == 6 )
-	{		
-		// 2000 nit ODT
-		float3 ODTColor = ACESOutputTransforms2000( GradedColor );
-
-		// Convert from AP1 to specified output gamut
-		ODTColor = mul( AP1_2_Output, ODTColor );
-
-		// Apply conversion to ST-2084 (Dolby PQ)
-		OutDeviceColor = LinearToST2084( ODTColor );
-	}	
-	
-	else if( GetOutputDevice() == 7 )
-	{
-			float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, GradedColor ) );
-			OutDeviceColor = LinearToST2084( OutputGamutColor );
-	}
-	// Linear HDR, including all color correction, but no tone curve
-	else if( GetOutputDevice() == 8 ) 
-	{
-			OutDeviceColor = GradedColor;
-	}
-	// "Linear" including all color correction and the tone curve, but no device gamma
-	else if (GetOutputDevice() == 9)
-	{
-		float3 OutputGamutColor = mul(AP1_2_Output, mul(sRGB_2_AP1, FilmColorNoGamma));
-
-		OutDeviceColor = OutputGamutColor;
-	}*/
-
-	// OutputDevice == 2
-	// Gamma 2.2, user specified gamut
-	else
-	{
-		// Convert from sRGB to specified output gamut
-		float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
-
-		// This is different than the prior "gamma" curve adjustment (but reusing the variable).
-		// For displays set to a gamma colorspace.
-		// Note, MacOSX native output is raw gamma 2.2 not sRGB!
-		OutDeviceColor = pow( abs(OutputGamutColor), InverseGamma.z );
-	}
-
-	// Better to saturate(lerp(a,b,t)) than lerp(saturate(a),saturate(b),t)
-	OutColor.rgb = OutDeviceColor / 1.05;
+	OutColor.rgb = OutDeviceColor;
 	OutColor.a = 1;
 
 	return OutColor;

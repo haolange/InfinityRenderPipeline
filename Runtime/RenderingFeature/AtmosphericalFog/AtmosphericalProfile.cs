@@ -82,5 +82,74 @@ namespace InfinityTech.Rendering.Feature
 
         [Range(16, 256)]
         public int cubemapSize = 128;
+
+        public bool UpgradeZerosToDefaults()
+        {
+            bool changed = false;
+            changed |= Upgrade(ref radius, 6360000.0f);
+            changed |= Upgrade(ref thickness, 60000.0f);
+            changed |= Upgrade(ref brightness, 1.0f);
+            changed |= UpgradeColor(ref groundAlbedo, new Color(0.3f, 0.3f, 0.3f));
+            changed |= UpgradeColor(ref rayleighScatter, new Color(0.00580f, 0.01356f, 0.03310f));
+            changed |= Upgrade(ref rayleighStrength, 1.0f);
+            changed |= Upgrade(ref rayleighHeight, 8000.0f);
+            changed |= Upgrade(ref mieStrength, 0.003996f);
+            changed |= Upgrade(ref mieAbsorption, 0.000444f);
+            changed |= Upgrade(ref mieHeight, 1200.0f);
+            changed |= Upgrade(ref mieAnisotropy, 0.8f, allowZero: true);
+            changed |= UpgradeColor(ref ozoneAbsorption, new Color(0.000650f, 0.001881f, 0.000085f));
+            changed |= Upgrade(ref ozoneStrength, 1.0f);
+            changed |= Upgrade(ref ozoneLayerCenter, 25000.0f);
+            changed |= Upgrade(ref ozoneLayerWidth, 15000.0f);
+            changed |= Upgrade(ref multiScatterStrength, 1.0f);
+            changed |= Upgrade(ref sunAngle, 0.5f / 180.0f * Mathf.PI);
+            changed |= Upgrade(ref transmittanceLUTWidth, 256);
+            changed |= Upgrade(ref transmittanceLUTHeight, 64);
+            changed |= Upgrade(ref multiScatteringLUTSize, 32);
+            changed |= Upgrade(ref skyViewLUTWidth, 192);
+            changed |= Upgrade(ref skyViewLUTHeight, 108);
+            changed |= Upgrade(ref aerialPerspectiveSize, 32);
+            changed |= Upgrade(ref aerialPerspectiveDistance, 32000.0f);
+            changed |= Upgrade(ref cubemapSize, 128);
+            return changed;
+        }
+
+        static bool Upgrade(ref float field, float fallback, bool allowZero = false)
+        {
+            if (allowZero)
+            {
+                return false;
+            }
+
+            if (field <= 0.0f)
+            {
+                field = fallback;
+                return true;
+            }
+
+            return false;
+        }
+
+        static bool Upgrade(ref int field, int fallback)
+        {
+            if (field <= 0)
+            {
+                field = fallback;
+                return true;
+            }
+
+            return false;
+        }
+
+        static bool UpgradeColor(ref Color field, Color fallback)
+        {
+            if (field.r == 0.0f && field.g == 0.0f && field.b == 0.0f)
+            {
+                field = fallback;
+                return true;
+            }
+
+            return false;
+        }
     }
 }

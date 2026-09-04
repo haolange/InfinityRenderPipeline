@@ -74,4 +74,21 @@ FSphericalHarmonicTwoBasis InitSH2Basis(FSphericalHarmonicTwoTable shTable, floa
     return shBasis;
 }
 
+float3 EvaluateSH2(float3 direction, StructuredBuffer<float4> coefficients)
+{
+    FSphericalHarmonicTwoTable shTable = InitSH2Table(direction);
+    float3 result = 0;
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        result += shTable.coefficients[i] * coefficients[i].rgb;
+    }
+    return max(result, 0);
+}
+
+float3 EvaluateSH2Irradiance(float3 normal, StructuredBuffer<float4> coefficients)
+{
+    return EvaluateSH2(normal, coefficients);
+}
+
 #endif

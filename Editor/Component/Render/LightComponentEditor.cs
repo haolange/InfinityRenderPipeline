@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.LightPipeline;
+using InfinityTech.Rendering.Editor;
 
 namespace InfinityTech.Component.Editor
 {
@@ -47,6 +48,10 @@ namespace InfinityTech.Component.Editor
         SerializedProperty m_EnableVolumetric;
         SerializedProperty m_VolumetricIntensity;
         SerializedProperty m_VolumetricOcclusion;
+        SerializedProperty m_IESIndex;
+        SerializedProperty m_IESTexture;
+        SerializedProperty m_CookieIndex;
+        SerializedProperty m_CookieTexture;
         SerializedProperty m_MaxDrawDistance;
         SerializedProperty m_MaxDrawDistanceFade;
 
@@ -126,6 +131,10 @@ namespace InfinityTech.Component.Editor
             m_EnableVolumetric = m_ExtensionObject.FindProperty("enableVolumetric");
             m_VolumetricIntensity = m_ExtensionObject.FindProperty("volumetricIntensity");
             m_VolumetricOcclusion = m_ExtensionObject.FindProperty("volumetricOcclusion");
+            m_IESIndex = m_ExtensionObject.FindProperty("IESIndex");
+            m_IESTexture = m_ExtensionObject.FindProperty("IESTexture");
+            m_CookieIndex = m_ExtensionObject.FindProperty("cookieIndex");
+            m_CookieTexture = m_ExtensionObject.FindProperty("cookieTexture");
             m_MaxDrawDistance = m_ExtensionObject.FindProperty("maxDrawDistance");
             m_MaxDrawDistanceFade = m_ExtensionObject.FindProperty("maxDrawDistanceFade");
         }
@@ -203,9 +212,10 @@ namespace InfinityTech.Component.Editor
         {
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Infinity Extensions", EditorStyles.boldLabel);
+            const string foldoutPrefix = "InfinityRP.Light.Foldout.";
 
-            m_LightComponent.showGeneral = EditorGUILayout.BeginFoldoutHeaderGroup(m_LightComponent.showGeneral, "General");
-            if (m_LightComponent.showGeneral)
+            #region General
+            if (InfinityInspectorGUI.BeginFoldout(foldoutPrefix + "General", "General"))
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(m_State, new GUIContent("State"));
@@ -213,10 +223,11 @@ namespace InfinityTech.Component.Editor
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            InfinityInspectorGUI.EndFoldout();
+            #endregion
 
-            m_LightComponent.showEmission = EditorGUILayout.BeginFoldoutHeaderGroup(m_LightComponent.showEmission, "Shading");
-            if (m_LightComponent.showEmission)
+            #region Shading
+            if (InfinityInspectorGUI.BeginFoldout(foldoutPrefix + "Shading", "Shading"))
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.Slider(m_Diffuse, 0, 1, new GUIContent("Diffuse"));
@@ -228,13 +239,18 @@ namespace InfinityTech.Component.Editor
                     EditorGUILayout.PropertyField(m_Height, new GUIContent("Height (fallback)"));
                 }
 
+                EditorGUILayout.PropertyField(m_IESIndex, new GUIContent("IES Index"));
+                EditorGUILayout.PropertyField(m_IESTexture, new GUIContent("IES Texture"));
+                EditorGUILayout.PropertyField(m_CookieIndex, new GUIContent("Cookie Index"));
+                EditorGUILayout.PropertyField(m_CookieTexture, new GUIContent("Cookie Texture"));
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            InfinityInspectorGUI.EndFoldout();
+            #endregion
 
-            m_LightComponent.showIndirect = EditorGUILayout.BeginFoldoutHeaderGroup(m_LightComponent.showIndirect, "Indirect");
-            if (m_LightComponent.showIndirect)
+            #region Indirect
+            if (InfinityInspectorGUI.BeginFoldout(foldoutPrefix + "Indirect", "Indirect"))
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(m_EnableIndirect, new GUIContent("Enable"));
@@ -246,11 +262,12 @@ namespace InfinityTech.Component.Editor
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            InfinityInspectorGUI.EndFoldout();
+            #endregion
 
             LightType lightType = m_Type != null ? (LightType)m_Type.enumValueIndex : LightType.Directional;
-            m_LightComponent.showShadow = EditorGUILayout.BeginFoldoutHeaderGroup(m_LightComponent.showShadow, "Shadow");
-            if (m_LightComponent.showShadow)
+            #region Shadow
+            if (InfinityInspectorGUI.BeginFoldout(foldoutPrefix + "Shadow", "Shadow", false))
             {
                 EditorGUI.indentLevel++;
                 if (lightType == LightType.Rectangle)
@@ -273,8 +290,14 @@ namespace InfinityTech.Component.Editor
                             EditorGUILayout.Slider(m_MaxSoftness, 0, 2, new GUIContent("Max Softness"));
                         }
 
-                        m_LightComponent.showContactShadow = EditorGUILayout.Foldout(m_LightComponent.showContactShadow, "Contact Shadow", true, EditorStyles.foldoutHeader);
-                        if (m_LightComponent.showContactShadow)
+                        bool contactOpen = SessionState.GetBool(foldoutPrefix + "ContactShadow", true);
+                        bool contactNext = EditorGUILayout.Foldout(contactOpen, "Contact Shadow", true, EditorStyles.foldoutHeader);
+                        if (contactNext != contactOpen)
+                        {
+                            SessionState.SetBool(foldoutPrefix + "ContactShadow", contactNext);
+                        }
+
+                        if (contactNext)
                         {
                             EditorGUI.indentLevel++;
                             EditorGUILayout.PropertyField(m_EnableContactShadow, new GUIContent("Enable"));
@@ -291,10 +314,11 @@ namespace InfinityTech.Component.Editor
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            InfinityInspectorGUI.EndFoldout();
+            #endregion
 
-            m_LightComponent.showVolumetricFog = EditorGUILayout.BeginFoldoutHeaderGroup(m_LightComponent.showVolumetricFog, "Volumetric");
-            if (m_LightComponent.showVolumetricFog)
+            #region Volumetric
+            if (InfinityInspectorGUI.BeginFoldout(foldoutPrefix + "Volumetric", "Volumetric"))
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(m_EnableVolumetric, new GUIContent("Enable"));
@@ -307,12 +331,13 @@ namespace InfinityTech.Component.Editor
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            InfinityInspectorGUI.EndFoldout();
+            #endregion
 
             if (lightType != LightType.Directional)
             {
-                m_LightComponent.showPerformance = EditorGUILayout.BeginFoldoutHeaderGroup(m_LightComponent.showPerformance, "Performance");
-                if (m_LightComponent.showPerformance)
+                #region Performance
+                if (InfinityInspectorGUI.BeginFoldout(foldoutPrefix + "Performance", "Performance"))
                 {
                     EditorGUI.indentLevel++;
                     EditorGUILayout.PropertyField(m_MaxDrawDistance, new GUIContent("Max Draw Distance"));
@@ -320,7 +345,8 @@ namespace InfinityTech.Component.Editor
                     EditorGUI.indentLevel--;
                 }
 
-                EditorGUILayout.EndFoldoutHeaderGroup();
+                InfinityInspectorGUI.EndFoldout();
+                #endregion
             }
         }
     }
