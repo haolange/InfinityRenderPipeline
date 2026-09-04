@@ -36,6 +36,9 @@ namespace InfinityTech.Rendering.Pipeline
         public EOutputMode outputMode = EOutputMode.SDR;
         public EHDREncoding hdrEncoding = EHDREncoding.PQ_Rec2020;
 
+        [Header("Debug")]
+        public EDebugView debugView = EDebugView.None;
+
         [Header("Compute Shaders")]
         public ComputeShader meshDrawPipelineCS;
         public ComputeShader taaShader;
@@ -58,6 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
         public ComputeShader superResolutionShader;
         public ComputeShader postProcessingShader;
         public ComputeShader outputTransformShader;
+        public ComputeShader debugViewShader;
 
         [Header("Shaders")]
         public Shader defaultShaderProxy;
@@ -106,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
 #if UNITY_EDITOR
             meshDrawPipelineCS = CoalesceCompute(meshDrawPipelineCS, "Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute", "CullInstances", "ClearCommandCounts", "CompactCommandInstances", "PrefixSumCommands", "ScatterVisibleInstances", "BuildIndirectArgs");
-            taaShader = CoalesceCompute(taaShader, "Shaders/RenderingFeature/TemporalAntiAliasing/Compute_TemporalAntiAliasing.compute", "Main");
+            taaShader = CoalesceCompute(taaShader, "Shaders/RenderingFeature/TemporalAntiAliasing/Compute_TemporalAntiAliasing.compute", "Main", "MainDebug");
             ssrShader = CoalesceCompute(ssrShader, "Shaders/RenderingFeature/ScreenSpaceReflection/Compute_ScreenSpaceReflection.compute", "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
             ssaoShader = CoalesceCompute(ssaoShader, "Shaders/RenderingFeature/ScreenSpaceAmbientOcclusion/Compute_GroundTruthOcclusion.compute", "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
             ssgiShader = CoalesceCompute(ssgiShader, "Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute", "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
@@ -125,6 +129,7 @@ namespace InfinityTech.Rendering.Pipeline
             superResolutionShader = CoalesceCompute(superResolutionShader, "Shaders/RenderingFeature/SuperResolution/Compute_SuperResolution.compute", "SuperResolutionCS");
             postProcessingShader = CoalesceCompute(postProcessingShader, "Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute", "BloomDownsample", "BloomUpsample", "FinalCombine", "ExposureClear", "ExposureHistogram", "ExposureReduce");
             outputTransformShader = CoalesceCompute(outputTransformShader, "Shaders/RenderingFeature/OutputTransform/Compute_OutputTransform.compute", "OutputTransform");
+            debugViewShader = CoalesceCompute(debugViewShader, "Shaders/RenderingFeature/DebugView/Compute_DebugView.compute", "DebugViewGBuffer", "DebugViewMotion", "DebugViewSceneColor", "DebugViewOptional", "DebugViewMissing");
             subsurfaceShader = KeepIfKernels(subsurfaceShader, "BurleySubsurfaceCS");
 #endif
         }

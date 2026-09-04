@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string VolumeStackDumpName = "volume-stack-dump.txt";
         static int s_FrameDumpRetries;
 
-        static string ProjectLogsDirectory
+        internal static string ProjectLogsDirectory
         {
             get
             {

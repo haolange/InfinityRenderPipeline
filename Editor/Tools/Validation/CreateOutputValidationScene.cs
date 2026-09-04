@@ -71,6 +71,7 @@ namespace InfinityTech.Rendering.Editor.Validation
 
             GameObject cameraGo = new GameObject("Camera");
             Camera camera = cameraGo.AddComponent<Camera>();
+            camera.tag = "MainCamera";
             camera.transform.position = new Vector3(0.0f, 0.0f, -1.6f);
             camera.transform.LookAt(Vector3.zero);
             camera.cullingMask = ~0;
@@ -78,6 +79,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.backgroundColor = new Color(0.0f, 0.0f, 0.0f, 1.0f);
             camera.fieldOfView = 40.0f;
             cameraGo.AddComponent<CameraComponent>();
+            DebugViewCapture.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
@@ -94,7 +96,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             }
 
             Material material = new Material(litShader);
-            material.SetColor("_BaseColor", Color.black);
+            material.SetColor("_BaseColor", new Color(0.18f, 0.18f, 0.18f, 1.0f));
             material.SetFloat("_Roughness", 1.0f);
             material.SetFloat("_SpecularLevel", 0.0f);
             material.SetColor("_EmissionColor", emission);

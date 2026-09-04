@@ -14,6 +14,7 @@ This file is the only on-disk task source. Cursor Todo tracks execution. Do not 
 | S7 R6 Volume/Translucent | completed | Grok + Orchestrator gate | Validation_Translucent | `Logs/baseline/s7-translucent-play.png` (T0 glass + T2 sphere visible, console 0). Fog/T1 refraction quality + framedump order TODO(UNVERIFIED). |
 | S8 R7 Exposure/Output | completed | Grok + Orchestrator gate | Validation_Output | `Logs/baseline/s8-output-play.png`, `Logs/gray-card-mean.txt` mean=0.1608 (ARGBFloat after full RP). sRGB [0.44,0.48] Game-view gate and Metal HDR hardware TODO(UNVERIFIED). SDR skips HDROutputSettings probe. |
 | S9 R8 Inspector/Cleanup/Docs | completed | Grok + Orchestrator gate | docs + compile | SessionState inspectors, leftover Generator/Dummy/Compress delete, DESIGN/Delivery-Report. Luna full review unavailable. |
+| R0 DebugView infra | completed | Grok + Luna + Orchestrator | EditMode DebugViewStats + Capture Debug Views | `Logs/debug/Validation_Output-*.png` Albedo mean 0.180; `Logs/debug/Scene_Spazon-*.png` + stats; Play FramePairDiff diffRate 25%; Luna review+verifier PASS. Marker ROI oversized P1. Beauty still T1–T5. |
 
 ## Workflow
 

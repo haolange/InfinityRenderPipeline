@@ -85,12 +85,14 @@ namespace InfinityTech.Rendering.Editor.Validation
 
             GameObject cameraGo = new GameObject("Camera");
             Camera camera = cameraGo.AddComponent<Camera>();
+            camera.tag = "MainCamera";
             camera.transform.position = new Vector3(0.0f, 3.2f, -6.0f);
             camera.transform.LookAt(Vector3.zero);
             camera.cullingMask = ~0;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.18f, 0.18f, 0.20f, 1.0f);
             cameraGo.AddComponent<CameraComponent>();
+            DebugViewCapture.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();

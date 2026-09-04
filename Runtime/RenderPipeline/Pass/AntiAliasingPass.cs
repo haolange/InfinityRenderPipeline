@@ -14,6 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string HistoryDepthTextureName = "HistoryDepthTexture";
         internal static string HistoryColorTextureName = "HistoryColorTexture";
         internal static string AccmulateTextureName = "AccmulateTexture";
+        internal static string TAAConfidenceTextureName = "TAAConfidenceTexture";
         internal static int HistoryDepthTextureID = Shader.PropertyToID("HistoryDepthTexture");
         internal static int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
     }
@@ -24,6 +25,8 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public float4 resolution;
             public bool resetHistory;
+            public bool writeConfidence;
+            public int kernelIndex;
             public ComputeShader taaShader;
             public RGTextureRef depthTexture;
             public RGTextureRef motionTexture;
@@ -32,6 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef aliasingColorTexture;
             public RGTextureRef reactiveMaskTexture;
             public RGTextureRef accmulateColorTexture;
+            public RGTextureRef confidenceTexture;
         }
 
         void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache, CameraUniform cameraUniform)
@@ -58,11 +62,37 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef reactiveMaskTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer);
             RGTextureRef accmulateColorTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescriptor);
 
+            bool writeConfidence = pipelineAsset.debugView != EDebugView.None;
+            int kernelIndex = pipelineAsset.taaShader.FindKernel("Main");
+            RGTextureRef confidenceTexture = default;
+            if (writeConfidence)
+            {
+                if (!pipelineAsset.taaShader.HasKernel("MainDebug"))
+                {
+                    throw new InvalidOperationException("InfinityRP: DebugView is active but taaShader kernel MainDebug is missing.");
+                }
+
+                kernelIndex = pipelineAsset.taaShader.FindKernel("MainDebug");
+                TextureDescriptor confidenceDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
+                {
+                    dimension = TextureDimension.Tex2D,
+                    name = AntiAliasingUtilityData.TAAConfidenceTextureName,
+                    colorFormat = GraphicsFormat.R8_UNorm,
+                    depthBufferBits = EDepthBits.None,
+                    enableRandomWrite = true,
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp
+                };
+                confidenceTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, confidenceDescriptor);
+            }
+
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
                 passData.resolution = new float4(camera.pixelWidth, camera.pixelHeight, 1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
                 passData.resetHistory = cameraUniform.historyReset || historyColorCreated || historyDepthCreated;
+                passData.writeConfidence = writeConfidence;
+                passData.kernelIndex = kernelIndex;
                 passData.taaShader = pipelineAsset.taaShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
@@ -71,6 +101,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.aliasingColorTexture = passRef.ReadTexture(aliasingColorTexture);
                 passData.reactiveMaskTexture = passRef.ReadTexture(reactiveMaskTexture);
                 passData.accmulateColorTexture = passRef.WriteTexture(accmulateColorTexture);
+                if (writeConfidence)
+                {
+                    passData.confidenceTexture = passRef.WriteTexture(confidenceTexture);
+                }
 
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
@@ -94,7 +128,14 @@ namespace InfinityTech.Rendering.Pipeline
                         : new TemporalAAParameter(0.97f, 0.95f, 200, 1.25f, 0.35f);
 
                     TemporalAntiAliasingGenerator temporalAAGenerator = objectPool.Get<TemporalAntiAliasingGenerator>();
-                    temporalAAGenerator.Dispatch(cmdEncoder, passData.taaShader, taaParameter, taaInputData, taaOutputData);
+                    if (passData.writeConfidence)
+                    {
+                        temporalAAGenerator.DispatchDebug(cmdEncoder, passData.taaShader, passData.kernelIndex, taaParameter, taaInputData, taaOutputData, passData.confidenceTexture);
+                    }
+                    else
+                    {
+                        temporalAAGenerator.Dispatch(cmdEncoder, passData.taaShader, taaParameter, taaInputData, taaOutputData);
+                    }
                     objectPool.Release(temporalAAGenerator);
                 });
             }

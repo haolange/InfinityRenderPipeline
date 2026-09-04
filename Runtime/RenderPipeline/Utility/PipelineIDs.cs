@@ -53,6 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputePostCombine,
         ComputeExposure,
         ComputeOutputTransform,
+        ComputeDebugView,
         RenderWireOverlay,
         RenderGizmos,
         Present,
@@ -152,6 +153,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int ColorPyramidBuffer = Shader.PropertyToID("_ColorPyramidTexture");
         public static int SuperResolutionBuffer = Shader.PropertyToID("_SuperResolutionTexture");
         public static int AntiAliasingBuffer = Shader.PropertyToID("_AntiAliasingBuffer");
+        public static int TAAConfidenceBuffer = Shader.PropertyToID("_TAAConfidenceTexture");
         public static int PostProcessBuffer = Shader.PropertyToID("_PostProcessTexture");
         public static int DisplayColorBuffer = Shader.PropertyToID("_DisplayColorTexture");
         public static int BloomBuffer = Shader.PropertyToID("_BloomTexture");

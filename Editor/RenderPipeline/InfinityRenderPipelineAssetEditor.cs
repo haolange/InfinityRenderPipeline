@@ -24,6 +24,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
 
         SerializedProperty m_OutputMode;
         SerializedProperty m_HDREncoding;
+        SerializedProperty m_DebugView;
 
         SerializedProperty m_MeshDrawPipelineCS;
         SerializedProperty m_TAAShader;
@@ -46,6 +47,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_SuperResolutionShader;
         SerializedProperty m_PostProcessingShader;
         SerializedProperty m_OutputTransformShader;
+        SerializedProperty m_DebugViewShader;
 
         SerializedProperty m_DefaultShader;
         SerializedProperty m_BlitMaterial;
@@ -72,6 +74,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
 
             m_OutputMode = serializedObject.FindProperty("outputMode");
             m_HDREncoding = serializedObject.FindProperty("hdrEncoding");
+            m_DebugView = serializedObject.FindProperty("debugView");
 
             m_MeshDrawPipelineCS = serializedObject.FindProperty("meshDrawPipelineCS");
             m_TAAShader = serializedObject.FindProperty("taaShader");
@@ -94,6 +97,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_SuperResolutionShader = serializedObject.FindProperty("superResolutionShader");
             m_PostProcessingShader = serializedObject.FindProperty("postProcessingShader");
             m_OutputTransformShader = serializedObject.FindProperty("outputTransformShader");
+            m_DebugViewShader = serializedObject.FindProperty("debugViewShader");
 
             m_DefaultShader = serializedObject.FindProperty("defaultShaderProxy");
             m_BlitMaterial = serializedObject.FindProperty("blitMaterial");
@@ -125,6 +129,14 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             {
                 EditorGUILayout.PropertyField(m_OutputMode, new GUIContent("Output Mode"));
                 EditorGUILayout.PropertyField(m_HDREncoding, new GUIContent("HDR Encoding"));
+            }
+            InfinityInspectorGUI.EndFoldout();
+            #endregion
+
+            #region Debug
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Debug", "Debug"))
+            {
+                EditorGUILayout.PropertyField(m_DebugView, new GUIContent("Debug View"));
             }
             InfinityInspectorGUI.EndFoldout();
             #endregion
@@ -163,6 +175,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_SuperResolutionShader, new GUIContent("Super Resolution"));
                 EditorGUILayout.PropertyField(m_PostProcessingShader, new GUIContent("Post Processing"));
                 EditorGUILayout.PropertyField(m_OutputTransformShader, new GUIContent("Output Transform"));
+                EditorGUILayout.PropertyField(m_DebugViewShader, new GUIContent("Debug View"));
             }
             InfinityInspectorGUI.EndFoldout();
             #endregion

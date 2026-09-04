@@ -59,6 +59,7 @@ namespace InfinityTech.Rendering.Editor.Validation
 
             GameObject cameraAGo = new GameObject("CameraA");
             Camera cameraA = cameraAGo.AddComponent<Camera>();
+            cameraA.tag = "MainCamera";
             cameraA.rect = new Rect(0.0f, 0.0f, 0.5f, 1.0f);
             cameraA.transform.position = new Vector3(-1.5f, 1.0f, -4.0f);
             cameraA.transform.LookAt(cube.transform);
@@ -78,6 +79,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraB.backgroundColor = new Color(0.24f, 0.32f, 0.40f, 1.0f);
             CameraComponent cameraBComponent = cameraBGo.AddComponent<CameraComponent>();
             cameraBComponent.volumeLayerMask = (1 << layerDefault) | (1 << layerWater);
+            DebugViewCapture.EnsureLitLivenessMarker(cameraA);
 
             GameObject localVolumeGo = new GameObject("Local Volume");
             localVolumeGo.layer = layerWater;

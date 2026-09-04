@@ -1,0 +1,120 @@
+#pragma kernel DebugViewGBuffer DV_KERNEL_GBUFFER
+#pragma kernel DebugViewMotion DV_KERNEL_MOTION
+#pragma kernel DebugViewSceneColor DV_KERNEL_SCENECOLOR
+#pragma kernel DebugViewOptional DV_KERNEL_OPTIONAL
+#pragma kernel DebugViewMissing DV_KERNEL_MISSING
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/GBufferPack.hlsl"
+
+float4 DV_Resolution;
+int DV_Mode;
+
+#if defined(DV_KERNEL_GBUFFER)
+Texture2D SRV_GBufferTextureA;
+Texture2D SRV_GBufferTextureB;
+Texture2D SRV_GBufferTextureC;
+#endif
+
+#if defined(DV_KERNEL_MOTION)
+Texture2D SRV_MotionTexture;
+#endif
+
+#if defined(DV_KERNEL_SCENECOLOR)
+Texture2D SRV_SceneColorTexture;
+#endif
+
+#if defined(DV_KERNEL_OPTIONAL)
+Texture2D SRV_OptionalTexture;
+#endif
+
+RWTexture2D<float4> UAV_PostProcessTexture;
+
+#if defined(DV_KERNEL_GBUFFER)
+[numthreads(8, 8, 1)]
+void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    float3 color;
+    FGBufferData gbuffer;
+    DecodeGBuffer(id.xy, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbuffer);
+    if (DV_Mode == 1)
+    {
+        color = gbuffer.Albedo;
+    }
+    else if (DV_Mode == 2)
+    {
+        color = gbuffer.Normal * 0.5 + 0.5;
+    }
+    else
+    {
+        color = SRV_GBufferTextureA[id.xy].b.xxx;
+    }
+
+    UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_MOTION)
+[numthreads(8, 8, 1)]
+void DebugViewMotion(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    float3 color = saturate(length(SRV_MotionTexture[id.xy].xy) * 10.0).xxx;
+    UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_SCENECOLOR)
+[numthreads(8, 8, 1)]
+void DebugViewSceneColor(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    float3 color = Rec709Luminance(SRV_SceneColorTexture[id.xy].rgb).xxx;
+    UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_OPTIONAL)
+[numthreads(8, 8, 1)]
+void DebugViewOptional(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    float3 color = SRV_OptionalTexture[id.xy].rgb;
+    if (DV_Mode == 4 || DV_Mode == 8)
+    {
+        color = color.r.xxx;
+    }
+
+    UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_MISSING)
+[numthreads(8, 8, 1)]
+void DebugViewMissing(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    UAV_PostProcessTexture[id.xy] = float4(1.0, 0.0, 1.0, 1.0);
+}
+#endif

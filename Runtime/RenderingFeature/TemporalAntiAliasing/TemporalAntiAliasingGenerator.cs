@@ -65,6 +65,7 @@ namespace InfinityTech.Rendering.Feature
         public static int AliasingColorTexture = Shader.PropertyToID("SRV_AliasingColorTexture");
         public static int ReactiveMaskTexture = Shader.PropertyToID("SRV_ReactiveMaskTexture");
         public static int AccmulateColorTexture = Shader.PropertyToID("UAV_AccmulateColorTexture");
+        public static int ConfidenceTexture = Shader.PropertyToID("UAV_TAAConfidenceTexture");
     }
 
     public sealed class TemporalAntiAliasingGenerator
@@ -82,6 +83,22 @@ namespace InfinityTech.Rendering.Feature
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.ReactiveMaskTexture, inputData.reactiveMaskTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
             cmd.DispatchCompute(shader, 0, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
+        }
+
+        public void DispatchDebug<T>(T cmd, ComputeShader shader, int kernelIndex, in TemporalAAParameter parameter, in TemporalAAInputData inputData, in TemporalAAOutputData outputData, RenderTargetIdentifier confidenceTexture) where T : IComputeCommands
+        {
+            cmd.SetComputeVectorParam(shader, TemporalAAShaderID.Resolution, inputData.resolution);
+            cmd.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
+            cmd.SetComputeFloatParam(shader, TemporalAAShaderID.Sharpness, parameter.sharpness);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.DepthTexture, inputData.depthTexture);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.MotionTexture, inputData.motionTexture);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.HistoryColorTexture, inputData.historyColorTexture);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.AliasingColorTexture, inputData.aliasingColorTexture);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.ReactiveMaskTexture, inputData.reactiveMaskTexture);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.AccmulateColorTexture, outputData.accmulateColorTexture);
+            cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.ConfidenceTexture, confidenceTexture);
+            cmd.DispatchCompute(shader, kernelIndex, Mathf.CeilToInt(inputData.resolution.x / 16), Mathf.CeilToInt(inputData.resolution.y / 16), 1);
         }
 
         public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)

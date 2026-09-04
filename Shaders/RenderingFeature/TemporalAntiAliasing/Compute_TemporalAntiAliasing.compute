@@ -1,4 +1,5 @@
 #pragma kernel Main
+#pragma kernel MainDebug TAA_WRITE_CONFIDENCE
 
 float4 TAA_Resolution;
 float4 TAA_BlendParameter; // x: static, y: dynamic, z: motion amplification, w: temporalScale
@@ -10,6 +11,9 @@ Texture2D SRV_HistoryColorTexture;
 Texture2D SRV_AliasingColorTexture;
 Texture2D SRV_ReactiveMaskTexture;
 RWTexture2D<float4> UAV_AccmulateColorTexture;
+#if defined(TAA_WRITE_CONFIDENCE)
+RWTexture2D<float> UAV_TAAConfidenceTexture;
+#endif
 
 static const half TONEMAP_EPSILON = 1.0f / 65530.0f;
 static const int2 SampleOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
@@ -64,8 +68,7 @@ float2 GetClosestFragment(float2 uv, float currDepth)
     return (uv + result.xy * TAA_Resolution.zw);
 }
 
-[numthreads(16, 16, 1)]
-void Main (uint3 id : SV_DispatchThreadID)
+void TemporalAntiAlias(uint3 id)
 {
     float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
 
@@ -127,6 +130,21 @@ void Main (uint3 id : SV_DispatchThreadID)
     blended.x = clamp(blended.x, minColor.x, maxColor.x);
 
     UAV_AccmulateColorTexture[id.xy] = float4(clamp(InverseTonemap(YCoCg2RGB(blended)), 0.0, 65472), 1.0);
+#if defined(TAA_WRITE_CONFIDENCE)
+    UAV_TAAConfidenceTexture[id.xy] = confidence;
+#endif
+}
+
+[numthreads(16, 16, 1)]
+void Main(uint3 id : SV_DispatchThreadID)
+{
+    TemporalAntiAlias(id);
+}
+
+[numthreads(16, 16, 1)]
+void MainDebug(uint3 id : SV_DispatchThreadID)
+{
+    TemporalAntiAlias(id);
 }
 
 /*float2 GetClosestFragment(float2 uv)

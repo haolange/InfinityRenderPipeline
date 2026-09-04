@@ -101,6 +101,7 @@ These rules exist because Console-clean patches have already hidden real ownersh
 1. **Mip chains stay in one compute pass.** HiZ / ColorPyramid / bloom downsample are the same resource reading mip N-1 and writing mip N. RG tracks resources, not subresources; splitting per-mip into multiple passes creates false hazards and no extra parallelism. Loop dispatches inside one execute.
 2. **LUT / froxel / cubemap generation is compute.** Do not introduce `Blit` / `SetRenderTarget` / `BuiltinRenderTextureType` to generate atmosphere tables. Cubemap faces are a `RWTexture2DArray`.
 3. **Fallback raster depth flags follow `EDepthAccess`.** `ReadOnlyDepthStencil` is set only when the pass declared read-only depth without write.
+4. **DebugView writes linear quantities only, immediately before OutputTransform.** It overwrites `PostProcessBuffer`. It is not a second encoding owner. `TAAConfidenceBuffer` is created only when `debugView != None`.
 
 ## Known gaps (do not paper over)
 

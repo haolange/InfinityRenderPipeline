@@ -192,6 +192,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             MarkFeatureProduced(EFrameFeature.PostProcess);
+            ComputeDebugView(camera);
             ComputeOutputTransform(camera, outputDecision);
         }
 
