@@ -229,7 +229,6 @@ float3 ColorCorrectAll( float3 WorkingColor )
 
 uint OutputDevice;
 uint OutputGamut;
-uint IdentityLUT;
 
 uint GetOutputDevice()
 {
@@ -285,14 +284,6 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	// Consumers sample with LinToLog. LUT texels are always log-encoded, never PQ/sRGB.
 	float3 LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
 
-	if (IdentityLUT != 0)
-	{
-		float4 IdentityColor = 0;
-		IdentityColor.rgb = LinearColor;
-		IdentityColor.a = 1;
-		return IdentityColor;
-	}
-	
 	float3 BalancedColor = WhiteBalance( LinearColor );
 	float3 ColorAP1 = mul( sRGB_2_AP1, BalancedColor );
 

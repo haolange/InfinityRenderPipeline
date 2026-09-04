@@ -178,13 +178,59 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             a.WhiteTemp = 6500.0f;
             a.OutputMode = (int)EOutputMode.SDR;
             a.HDREncoding = (int)EHDREncoding.PQ_Rec2020;
-            a.IdentityLut = 1;
 
             CombineLutParameterDescriptor b = a;
             Assert.IsTrue(a.Equals(b));
 
             b.OutputMode = (int)EOutputMode.HDR;
             Assert.IsFalse(a.Equals(b));
+        }
+
+        [Test]
+        public void ResolveBackbufferFormat_TargetWins()
+        {
+            GraphicsFormat format = OutputTransformUtility.ResolveBackbufferFormat(
+                GraphicsFormat.R8G8B8A8_SRGB,
+                GraphicsFormat.R16G16B16A16_SFloat,
+                hasImportDescriptor: true,
+                GraphicsFormat.B8G8R8A8_UNorm);
+            Assert.AreEqual(GraphicsFormat.R8G8B8A8_SRGB, format);
+        }
+
+        [Test]
+        public void ResolveBackbufferFormat_ActiveUsedWhenTargetMissing()
+        {
+            GraphicsFormat format = OutputTransformUtility.ResolveBackbufferFormat(
+                null,
+                GraphicsFormat.B8G8R8A8_SRGB,
+                hasImportDescriptor: true,
+                GraphicsFormat.R16G16B16A16_SFloat);
+            Assert.AreEqual(GraphicsFormat.B8G8R8A8_SRGB, format);
+        }
+
+        [Test]
+        public void ResolveBackbufferFormat_ImportUsedWhenTargetAndActiveMissing()
+        {
+            GraphicsFormat format = OutputTransformUtility.ResolveBackbufferFormat(
+                null,
+                null,
+                hasImportDescriptor: true,
+                GraphicsFormat.R16G16B16A16_SFloat);
+            Assert.AreEqual(GraphicsFormat.R16G16B16A16_SFloat, format);
+        }
+
+        [Test]
+        public void ResolveBackbufferFormat_AllMissing_Throws()
+        {
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+                OutputTransformUtility.ResolveBackbufferFormat(
+                    null,
+                    null,
+                    hasImportDescriptor: false,
+                    GraphicsFormat.None));
+            Assert.IsTrue(exception.Message.Contains("no targetTexture"));
+            Assert.IsTrue(exception.Message.Contains("no activeTexture"));
+            Assert.IsTrue(exception.Message.Contains("no import-backbuffer descriptor"));
         }
     }
 }

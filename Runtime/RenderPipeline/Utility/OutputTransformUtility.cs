@@ -1,6 +1,10 @@
 using System;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -254,6 +258,16 @@ namespace InfinityTech.Rendering.Pipeline
 
         public static OutputTransformDecision ResolveFromHardware(EOutputMode mode, EHDREncoding encoding, Camera camera)
         {
+            return ResolveFromHardware(mode, encoding, camera, hasLastKnownFormat: false, lastKnownFormat: GraphicsFormat.None);
+        }
+
+        public static OutputTransformDecision ResolveFromHardware(
+            EOutputMode mode,
+            EHDREncoding encoding,
+            Camera camera,
+            bool hasLastKnownFormat,
+            GraphicsFormat lastKnownFormat)
+        {
             // SDR never queries HDROutputSettings. Accessing .main when Player Settings HDR is off
             // logs InvalidOperationException every frame even if the caller catches it.
             bool hdrAvailable = false;
@@ -263,19 +277,203 @@ namespace InfinityTech.Rendering.Pipeline
                 TryReadHdrOutput(out hdrAvailable, out gamut);
             }
 
-            GraphicsFormat backbufferFormat = ResolveBackbufferFormat(camera, mode, hdrAvailable);
+            GraphicsFormat backbufferFormat = ResolveBackbufferFormat(camera, mode, hdrAvailable, hasLastKnownFormat, lastKnownFormat);
             return Resolve(mode, encoding, hdrAvailable, backbufferFormat, QualitySettings.activeColorSpace, gamut);
+        }
+
+        public static GraphicsFormat ResolveBackbufferFormat(
+            GraphicsFormat? target,
+            GraphicsFormat? active,
+            bool hasImportDescriptor,
+            GraphicsFormat importFormat)
+        {
+            if (target.HasValue)
+            {
+                return target.Value;
+            }
+
+            if (active.HasValue)
+            {
+                return active.Value;
+            }
+
+            if (hasImportDescriptor)
+            {
+                return importFormat;
+            }
+
+            throw new InvalidOperationException("InfinityRP: OutputTransform cannot resolve backbuffer format (no targetTexture, no activeTexture, no import-backbuffer descriptor).");
         }
 
         public static GraphicsFormat ResolveBackbufferFormat(Camera camera, EOutputMode mode, bool hdrAvailable)
         {
-            if (camera != null && camera.targetTexture != null)
+            return ResolveBackbufferFormat(camera, mode, hdrAvailable, hasLastKnownFormat: false, lastKnownFormat: GraphicsFormat.None);
+        }
+
+        public static GraphicsFormat ResolveBackbufferFormat(
+            Camera camera,
+            EOutputMode mode,
+            bool hdrAvailable,
+            bool hasLastKnownFormat,
+            GraphicsFormat lastKnownFormat)
+        {
+            GraphicsFormat? target = null;
+            GraphicsFormat? active = null;
+            if (camera != null)
             {
-                return camera.targetTexture.graphicsFormat;
+                if (camera.targetTexture != null)
+                {
+                    target = camera.targetTexture.graphicsFormat;
+                }
+
+                if (camera.activeTexture != null)
+                {
+                    active = camera.activeTexture.graphicsFormat;
+                }
             }
 
-            DefaultFormat defaultFormat = (mode == EOutputMode.HDR && hdrAvailable) ? DefaultFormat.HDR : DefaultFormat.LDR;
-            return SystemInfo.GetGraphicsFormat(defaultFormat);
+            bool hasImport = hasLastKnownFormat;
+            GraphicsFormat importFormat = lastKnownFormat;
+            if (!hasImport && TryReadEditorPresentFormat(camera, out GraphicsFormat editorFormat))
+            {
+                hasImport = true;
+                importFormat = editorFormat;
+            }
+
+            if (!hasImport && mode == EOutputMode.HDR && hdrAvailable)
+            {
+                hasImport = TryReadHdrGraphicsFormat(out importFormat);
+            }
+
+            return ResolveBackbufferFormat(target, active, hasImport, importFormat);
+        }
+
+        static bool TryReadEditorPresentFormat(Camera camera, out GraphicsFormat format)
+        {
+            format = GraphicsFormat.None;
+#if UNITY_EDITOR
+            if (camera == null)
+            {
+                return false;
+            }
+
+            if (camera.cameraType == CameraType.SceneView && TryReadSceneViewFormat(camera, out format))
+            {
+                return true;
+            }
+
+            if ((camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Preview) &&
+                TryReadPlayModeViewFormat(out format))
+            {
+                return true;
+            }
+#endif
+            return false;
+        }
+
+#if UNITY_EDITOR
+        static MethodInfo s_GetMainPlayModeView;
+        static FieldInfo s_PlayModeTargetTexture;
+        static bool s_PlayModeViewResolved;
+
+        static bool TryReadSceneViewFormat(Camera camera, out GraphicsFormat format)
+        {
+            format = GraphicsFormat.None;
+            SceneView current = SceneView.currentDrawingSceneView;
+            if (TryReadSceneViewCameraFormat(current, camera, out format))
+            {
+                return true;
+            }
+
+            var sceneViews = SceneView.sceneViews;
+            if (sceneViews == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < sceneViews.Count; ++i)
+            {
+                if (TryReadSceneViewCameraFormat(sceneViews[i] as SceneView, camera, out format))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        static bool TryReadSceneViewCameraFormat(SceneView sceneView, Camera camera, out GraphicsFormat format)
+        {
+            format = GraphicsFormat.None;
+            if (sceneView == null)
+            {
+                return false;
+            }
+
+            Camera sceneCamera = sceneView.camera;
+            if (sceneCamera != null && (camera == null || sceneCamera == camera) && sceneCamera.targetTexture != null)
+            {
+                format = sceneCamera.targetTexture.graphicsFormat;
+                return format != GraphicsFormat.None;
+            }
+
+            return false;
+        }
+
+        static bool TryReadPlayModeViewFormat(out GraphicsFormat format)
+        {
+            format = GraphicsFormat.None;
+            if (!s_PlayModeViewResolved)
+            {
+                s_PlayModeViewResolved = true;
+                Type playModeViewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.PlayModeView");
+                if (playModeViewType != null)
+                {
+                    s_GetMainPlayModeView = playModeViewType.GetMethod("GetMainPlayModeView", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    s_PlayModeTargetTexture = playModeViewType.GetField("m_TargetTexture", BindingFlags.Instance | BindingFlags.NonPublic);
+                }
+            }
+
+            if (s_GetMainPlayModeView == null || s_PlayModeTargetTexture == null)
+            {
+                return false;
+            }
+
+            object view = s_GetMainPlayModeView.Invoke(null, null);
+            if (view == null)
+            {
+                return false;
+            }
+
+            RenderTexture target = s_PlayModeTargetTexture.GetValue(view) as RenderTexture;
+            if (target == null)
+            {
+                return false;
+            }
+
+            format = target.graphicsFormat;
+            return format != GraphicsFormat.None;
+        }
+#endif
+
+        static bool TryReadHdrGraphicsFormat(out GraphicsFormat format)
+        {
+            format = GraphicsFormat.None;
+            try
+            {
+                HDROutputSettings hdr = HDROutputSettings.main;
+                if (hdr == null || !hdr.available)
+                {
+                    return false;
+                }
+
+                format = hdr.graphicsFormat;
+                return format != GraphicsFormat.None;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
         }
     }
 }

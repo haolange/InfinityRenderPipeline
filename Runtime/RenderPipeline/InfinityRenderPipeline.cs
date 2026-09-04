@@ -229,8 +229,10 @@ namespace InfinityTech.Rendering.Pipeline
             QualitySettings.antiAliasing = 0;
             RTHandles.Initialize(Screen.width, Screen.height);
 
-            //var defaultVolumeProfileSettings = GraphicsSettings.GetRenderPipelineSettings<InfinityRPDefaultVolumeProfileSettings>();
+            // Process-global; only the current active Infinity RP Asset may own this.
+            // Switching RP assets recreates the pipeline and resets it.
             VolumeManager.instance.Initialize(null, asset.volumeProfile);
+            VolumeManager.instance.SetCustomDefaultProfiles(new List<VolumeProfile> { asset.volumeProfile });
 
             m_UpdateInit = true;
             renderContext = new RenderContext();
@@ -407,51 +409,11 @@ namespace InfinityTech.Rendering.Pipeline
 
                         FilmTonemap filmTonemapVolume = volumeStack.GetComponent<FilmTonemap>();
                         ColorGrading colorGradingVolume = volumeStack.GetComponent<ColorGrading>();
-
-                        CombineLutParameterDescriptor combineLutParameterDescriptor;
-                        {
-                            combineLutParameterDescriptor.WhiteTemp = colorGradingVolume.Temp.value;
-                            combineLutParameterDescriptor.WhiteTint = colorGradingVolume.Tint.value;
-
-                            combineLutParameterDescriptor.FilmSlope = filmTonemapVolume.Slop.value;
-                            combineLutParameterDescriptor.FilmToe = filmTonemapVolume.Toe.value;
-                            combineLutParameterDescriptor.FilmShoulder = filmTonemapVolume.Shoulder.value;
-                            combineLutParameterDescriptor.FilmBlackClip = filmTonemapVolume.BlackClip.value;
-                            combineLutParameterDescriptor.FilmWhiteClip = filmTonemapVolume.WhiteClip.value;
-
-                            combineLutParameterDescriptor.ColorSaturation = colorGradingVolume.ColorSaturation.value;
-                            combineLutParameterDescriptor.ColorContrast = colorGradingVolume.ColorContrast.value;
-                            combineLutParameterDescriptor.ColorGamma = colorGradingVolume.ColorGamma.value;
-                            combineLutParameterDescriptor.ColorGain = colorGradingVolume.ColorGain.value;
-                            combineLutParameterDescriptor.ColorOffset = colorGradingVolume.ColorOffset.value;
-
-                            combineLutParameterDescriptor.ColorSaturationShadows = colorGradingVolume.ColorSaturationShadows.value;
-                            combineLutParameterDescriptor.ColorContrastShadows = colorGradingVolume.ColorContrastShadows.value;
-                            combineLutParameterDescriptor.ColorGammaShadows = colorGradingVolume.ColorGammaShadows.value;
-                            combineLutParameterDescriptor.ColorGainShadows = colorGradingVolume.ColorGainShadows.value;
-                            combineLutParameterDescriptor.ColorOffsetShadows = colorGradingVolume.ColorOffsetShadows.value;
-                            combineLutParameterDescriptor.ColorCorrectionShadowsMax = colorGradingVolume.ShadowsMax.value;
-
-                            combineLutParameterDescriptor.ColorSaturationMidtones = colorGradingVolume.ColorSaturationMidtones.value;
-                            combineLutParameterDescriptor.ColorContrastMidtones = colorGradingVolume.ColorContrastMidtones.value;
-                            combineLutParameterDescriptor.ColorGammaMidtones = colorGradingVolume.ColorGammaMidtones.value;
-                            combineLutParameterDescriptor.ColorGainMidtones = colorGradingVolume.ColorGainMidtones.value;
-                            combineLutParameterDescriptor.ColorOffsetMidtones = colorGradingVolume.ColorOffsetMidtones.value;
-
-                            combineLutParameterDescriptor.ColorSaturationHighlights = colorGradingVolume.ColorSaturationHighlights.value;
-                            combineLutParameterDescriptor.ColorContrastHighlights = colorGradingVolume.ColorContrastHighlights.value;
-                            combineLutParameterDescriptor.ColorGammaHighlights = colorGradingVolume.ColorGammaHighlights.value;
-                            combineLutParameterDescriptor.ColorGainHighlights = colorGradingVolume.ColorGainHighlights.value;
-                            combineLutParameterDescriptor.ColorOffsetHighlights = colorGradingVolume.ColorOffsetHighlights.value;
-                            combineLutParameterDescriptor.ColorCorrectionHighlightsMin = colorGradingVolume.HighlightsMin.value;
-                            combineLutParameterDescriptor.ColorCorrectionHighlightsMax = colorGradingVolume.HighlightsMax.value;
-
-                            combineLutParameterDescriptor.BlueCorrection = colorGradingVolume.BlueCorrection.value;
-                            combineLutParameterDescriptor.ExpandGamut = colorGradingVolume.ExpandGamut.value;
-
-                            combineLutParameterDescriptor.ColorScale = new float4(1.0f, 1.0f, 1.0f, 0.0f);
-                            combineLutParameterDescriptor.OverlayColor = new float4(0, 0, 0, 0);
-                        }
+                        Exposure exposureVolume = volumeStack.GetComponent<Exposure>();
+                        CombineLutParameterDescriptor combineLutParameterDescriptor = CombineLutParameterUtility.FromVolumeStack(
+                            filmTonemapVolume,
+                            colorGradingVolume,
+                            exposureVolume);
                         float3 ColorTransform = new float3(0.0f, 0.5f, 1.0f);
                         {
                             // x is the input value, y the output value
@@ -470,12 +432,18 @@ namespace InfinityTech.Rendering.Pipeline
                         OutputTransformDecision outputDecision = OutputTransformUtility.ResolveFromHardware(
                             pipelineAsset.outputMode,
                             pipelineAsset.hdrEncoding,
-                            camera);
-                        bool identityLut = !GraphicsUtility.VolumeHasOverrides(colorGradingVolume)
-                            && !GraphicsUtility.VolumeHasOverrides(filmTonemapVolume);
+                            camera,
+                            frameState.hasResolvedBackbufferFormat,
+                            frameState.lastResolvedBackbufferFormat);
+                        frameState.lastResolvedBackbufferFormat = outputDecision.backbufferFormat;
+                        frameState.hasResolvedBackbufferFormat = true;
+                        if (!frameState.loggedOutputDecision)
+                        {
+                            Debug.Log($"[InfinityRP] OutputTransform camera={camera.name} type={camera.cameraType} format={outputDecision.backbufferFormat} colorSpace={outputDecision.colorSpace} policy={outputDecision.policy}");
+                            frameState.loggedOutputDecision = true;
+                        }
                         combineLutParameterDescriptor.OutputGamut = outputDecision.outputGamut;
                         combineLutParameterDescriptor.OutputDevice = outputDecision.outputDevice;
-                        combineLutParameterDescriptor.IdentityLut = identityLut ? 1 : 0;
                         combineLutParameterDescriptor.OutputMode = (int)outputDecision.mode;
                         combineLutParameterDescriptor.HDREncoding = (int)outputDecision.hdrEncoding;
 
@@ -559,13 +527,13 @@ namespace InfinityTech.Rendering.Pipeline
                                     CopyHistoryAntiAliasing(renderContext, historyCache, camera);
                                     CopyHistoryDepth(renderContext, historyCache, camera);
                                 }
-                                ComputePostProcessing(renderContext, camera, frameState, outputDecision);
-                                frameState.features.EnsureRequiredProducers(pipelineAsset.enableSuperResolution);
-
+                                ComputePostProcessing(renderContext, camera, frameState);
                             #if UNITY_EDITOR
                                 RenderWireOverlay(renderContext, camera);
                                 RenderGizmos(renderContext, camera);
                             #endif
+                                ComputeOutputTransform(camera, outputDecision);
+                                frameState.features.EnsureRequiredProducers(pipelineAsset.enableSuperResolution);
                                 RenderPresent(renderContext, camera);
                             }
 
@@ -796,6 +764,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 m_CameraStates.Clear();
                 m_CameraSamplers.Clear();
+                VolumeManager.instance.SetCustomDefaultProfiles(null);
                 VolumeManager.instance.Deinitialize();
                 m_DiffusionProfileBuffer?.Release();
                 m_DiffusionProfileBuffer = null;

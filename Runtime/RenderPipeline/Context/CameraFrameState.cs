@@ -27,6 +27,9 @@ namespace InfinityTech.Rendering.Pipeline
         public CombineLutCache combineLutCache;
         public ExposureState exposureState;
         public bool executeSucceeded;
+        public bool loggedOutputDecision;
+        public bool hasResolvedBackbufferFormat;
+        public GraphicsFormat lastResolvedBackbufferFormat;
 
         public CameraFrameState(int cameraId)
         {
@@ -39,6 +42,9 @@ namespace InfinityTech.Rendering.Pipeline
             combineLutCache = new CombineLutCache();
             exposureState = new ExposureState { evCompensation = 0.0f };
             colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
+            loggedOutputDecision = false;
+            hasResolvedBackbufferFormat = false;
+            lastResolvedBackbufferFormat = GraphicsFormat.None;
         }
 
         public void Dispose()

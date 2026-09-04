@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.PostProcess
         public ClampedFloatParameter HighlightsMax = new ClampedFloatParameter(1.0f, 1.0f, 10.0f);
 
         [Header("Misc")]
-        public ClampedFloatParameter BlueCorrection = new ClampedFloatParameter(0.6f, 0.0f, 1.0f);
-        public ClampedFloatParameter ExpandGamut = new ClampedFloatParameter(1.0f, 0.0f, 1.0f);
+        public ClampedFloatParameter BlueCorrection = new ClampedFloatParameter(0.0f, 0.0f, 1.0f);
+        public ClampedFloatParameter ExpandGamut = new ClampedFloatParameter(0.0f, 0.0f, 1.0f);
     }
 }

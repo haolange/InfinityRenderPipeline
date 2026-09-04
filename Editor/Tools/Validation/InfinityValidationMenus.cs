@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -138,6 +139,99 @@ namespace InfinityTech.Rendering.Editor.Validation
             Debug.Log($"[InfinityRP][Validation] Gray card mean written: {path} rgb=({mean.x:F4}, {mean.y:F4}, {mean.z:F4})");
         }
 
+        [MenuItem(MenuRoot + "Ensure Default Volume Profile", false, 49)]
+        public static void EnsureDefaultVolumeProfile()
+        {
+            VolumeProfile profile = DefaultVolumeProfileFactory.EnsureAsset();
+            InfinityRenderPipelineAsset pipelineAsset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
+            DefaultVolumeProfileFactory.AssignToPipeline(pipelineAsset);
+            AssetDatabase.SaveAssets();
+            RebuildActiveInfinityPipeline(pipelineAsset);
+            Debug.Log($"[InfinityRP][Validation] Default Volume Profile ready: {DefaultVolumeProfileFactory.AssetPath} assigned={(pipelineAsset != null && pipelineAsset.volumeProfile == profile)} customDefaultProfiles={FormatCustomDefaultProfileNames()}");
+        }
+
+        static void RebuildActiveInfinityPipeline(InfinityRenderPipelineAsset pipelineAsset)
+        {
+            if (pipelineAsset == null)
+            {
+                return;
+            }
+
+            RenderPipelineAsset defaultPipeline = GraphicsSettings.defaultRenderPipeline ?? pipelineAsset;
+            RenderPipelineAsset qualityPipeline = QualitySettings.renderPipeline;
+
+            GraphicsSettings.defaultRenderPipeline = defaultPipeline;
+            if (qualityPipeline != null)
+            {
+                QualitySettings.renderPipeline = qualityPipeline;
+            }
+
+            if (CustomDefaultsInclude(pipelineAsset.volumeProfile))
+            {
+                return;
+            }
+
+            try
+            {
+                if (qualityPipeline != null)
+                {
+                    QualitySettings.renderPipeline = null;
+                }
+
+                GraphicsSettings.defaultRenderPipeline = null;
+            }
+            finally
+            {
+                GraphicsSettings.defaultRenderPipeline = defaultPipeline;
+                if (qualityPipeline != null)
+                {
+                    QualitySettings.renderPipeline = qualityPipeline;
+                }
+            }
+        }
+
+        static bool CustomDefaultsInclude(VolumeProfile profile)
+        {
+            if (profile == null || !VolumeManager.instance.isInitialized ||
+                VolumeManager.instance.customDefaultProfiles == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < VolumeManager.instance.customDefaultProfiles.Count; ++i)
+            {
+                if (VolumeManager.instance.customDefaultProfiles[i] == profile)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        static string FormatCustomDefaultProfileNames()
+        {
+            if (!VolumeManager.instance.isInitialized || VolumeManager.instance.customDefaultProfiles == null ||
+                VolumeManager.instance.customDefaultProfiles.Count == 0)
+            {
+                return "none";
+            }
+
+            StringBuilder names = new StringBuilder();
+            for (int i = 0; i < VolumeManager.instance.customDefaultProfiles.Count; ++i)
+            {
+                if (i > 0)
+                {
+                    names.Append(',');
+                }
+
+                VolumeProfile custom = VolumeManager.instance.customDefaultProfiles[i];
+                names.Append(custom != null ? custom.name : "null");
+            }
+
+            return names.ToString();
+        }
+
         [MenuItem(MenuRoot + "Dump Active Volume Stacks", false, 52)]
         public static void DumpActiveVolumeStacks()
         {
@@ -146,13 +240,37 @@ namespace InfinityTech.Rendering.Editor.Validation
                 VolumeManager.instance.Initialize(null, null);
             }
 
-            Camera[] cameras = UnityEngine.Object.FindObjectsByType<Camera>();
             StringBuilder builder = new StringBuilder();
             builder.Append("VOLUME_STACK_DUMP").AppendLine();
             builder.Append("source=InfinityValidationMenus").AppendLine();
             builder.Append("time=").Append(DateTime.UtcNow.ToString("O")).AppendLine();
             builder.Append("playing=").Append(EditorApplication.isPlaying).AppendLine();
             builder.Append("volumeManagerInitialized=").Append(VolumeManager.instance.isInitialized).AppendLine();
+
+            InfinityRenderPipelineAsset pipelineAsset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
+            VolumeProfile defaultProfile = pipelineAsset != null ? pipelineAsset.volumeProfile : null;
+            builder.Append("defaultProfile=").Append(defaultProfile != null ? defaultProfile.name : "null").AppendLine();
+            builder.Append("globalDefaultProfile=").Append(VolumeManager.instance.globalDefaultProfile != null ? VolumeManager.instance.globalDefaultProfile.name : "null").AppendLine();
+            builder.Append("qualityDefaultProfile=").Append(VolumeManager.instance.qualityDefaultProfile != null ? VolumeManager.instance.qualityDefaultProfile.name : "null").AppendLine();
+            builder.Append("customDefaultProfiles=");
+            if (VolumeManager.instance.customDefaultProfiles == null || VolumeManager.instance.customDefaultProfiles.Count == 0)
+            {
+                builder.Append("none");
+            }
+            else
+            {
+                for (int i = 0; i < VolumeManager.instance.customDefaultProfiles.Count; ++i)
+                {
+                    if (i > 0)
+                    {
+                        builder.Append(',');
+                    }
+
+                    VolumeProfile custom = VolumeManager.instance.customDefaultProfiles[i];
+                    builder.Append(custom != null ? custom.name : "null");
+                }
+            }
+            builder.AppendLine();
 
             Volume[] registered = VolumeManager.instance.GetVolumes(~0);
             builder.Append("registeredVolumes=").Append(registered != null ? registered.Length : 0).AppendLine();
@@ -193,25 +311,31 @@ namespace InfinityTech.Rendering.Editor.Validation
                 }
             }
 
+            List<Camera> dumpCameras = new List<Camera>();
+            AppendUniqueCameras(dumpCameras, UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include));
+            AppendUniqueCameras(dumpCameras, Camera.allCameras);
+            AppendUniqueCameras(dumpCameras, SceneView.GetAllSceneCameras());
+
             int dumped = 0;
-            for (int i = 0; i < cameras.Length; ++i)
+            for (int i = 0; i < dumpCameras.Count; ++i)
             {
-                Camera camera = cameras[i];
+                Camera camera = dumpCameras[i];
                 if (camera == null)
                 {
                     continue;
                 }
 
                 CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
-                if (cameraComponent == null)
+                bool isSceneView = camera.cameraType == CameraType.SceneView;
+                if (cameraComponent == null && !isSceneView)
                 {
                     continue;
                 }
 
-                Transform trigger = cameraComponent.volumeTrigger != null
+                Transform trigger = cameraComponent != null && cameraComponent.volumeTrigger != null
                     ? cameraComponent.volumeTrigger
                     : camera.transform;
-                LayerMask mask = cameraComponent.volumeLayerMask;
+                LayerMask mask = cameraComponent != null ? cameraComponent.volumeLayerMask : ~0;
 
                 VolumeStack stack = VolumeManager.instance.CreateStack();
                 try
@@ -221,6 +345,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                     VolumetricFog fog = stack.GetComponent<VolumetricFog>();
 
                     builder.Append("camera=").Append(camera.name);
+                    builder.Append(" type=").Append(camera.cameraType);
                     builder.Append(" mask=").Append((int)mask);
                     builder.Append(" trigger=").Append(trigger != null ? trigger.name : "null");
                     builder.Append(" matched=").Append(VolumeManager.instance.GetVolumes(mask).Length);
@@ -704,6 +829,25 @@ namespace InfinityTech.Rendering.Editor.Validation
             }
 
             EditorSceneManager.OpenScene(path);
+        }
+
+        static void AppendUniqueCameras(List<Camera> dest, Camera[] source)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < source.Length; ++i)
+            {
+                Camera camera = source[i];
+                if (camera == null || dest.Contains(camera))
+                {
+                    continue;
+                }
+
+                dest.Add(camera);
+            }
         }
 
         static int CountOverrides(VolumeComponent component)

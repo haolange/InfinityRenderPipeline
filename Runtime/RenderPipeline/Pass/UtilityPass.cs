@@ -24,12 +24,13 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderWireOverlay(RenderContext renderContext, Camera camera)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer);
+            RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
             RendererList wireOverlayRendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
             {
+                // Unity forbids drawing gizmos / wire overlay inside BeginRenderPass.
                 passRef.EnableNativeRenderPass(false);
                 passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
@@ -57,12 +58,13 @@ namespace InfinityTech.Rendering.Pipeline
             if (Handles.ShouldRenderGizmos())
             {
                 RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-                RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer);
+                RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
                 RendererList gizmosRendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
 
                 using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
                 {
+                    // Unity forbids drawing gizmos inside BeginRenderPass.
                     passRef.EnableNativeRenderPass(false);
                     passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                     passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);

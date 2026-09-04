@@ -230,7 +230,8 @@ Phase 7  TranslucentDepth → VolCloud (+ history) → VolFog (+ history)
          → FogComposite → FoggedSceneColor
          → T0 → ColorPyramid → T1 → T2
 Phase 8  TAA or SuperResolution (+ history) → Post (Exposure → Bloom → CombineLUT
-         → Vignette → FilmGrain) → OutputTransform → DisplayColorBuffer → Present
+         → Vignette → FilmGrain) → DebugView → Gizmo/WireOverlay (linear PostProcessBuffer)
+         → OutputTransform → DisplayColorBuffer → Present
 ```
 
 Contracts that stay locked:
@@ -242,3 +243,17 @@ Contracts that stay locked:
 - Hardware RT, Baked GI, DOF, SR expansion, XR, MSAA, and dynamic resolution are out of this delivery.
 
 Image / Frame Debugger / GPU-Trace results stay `TODO(UNVERIFIED)` until captured. See [Docs/FullRendering-Delivery-Report.md](Docs/FullRendering-Delivery-Report.md).
+
+## 16. Default Volume, Output authority, Gizmo-before-encode
+
+Default Volume values come only from the RP Asset `volumeProfile`. `CreatePipeline` requires it. The pipeline ctor calls `VolumeManager.Initialize(null, asset.volumeProfile)` then `SetCustomDefaultProfiles` with that same profile (process-global; switching RP assets recreates the pipeline and resets it). Dispose clears custom defaults then `Deinitialize()`. There is no second hardcoded default: no `IdentityLut`, no `AtmosphereParameter.Default()`. CombineLUT always builds from the stack (class defaults when a component is inactive). Neutral film/grade numbers are the only identity.
+
+OutputTransform resolves the backbuffer format in this order (first hit wins):
+
+1. `camera.targetTexture.graphicsFormat`
+2. `camera.activeTexture.graphicsFormat` (Editor Game/Scene target)
+3. Editor Game/Scene present target (`PlayModeView` / `SceneView` RT that Unity already allocated), then last successfully resolved format for that camera, then HDR `HDROutputSettings.graphicsFormat` when HDR is actually available
+
+All three missing throws at record time. `SystemInfo.GetGraphicsFormat(DefaultFormat.LDR)` is not an authority.
+
+Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before OutputTransform, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. OutputTransform remains the single transfer-encoding owner; `DisplayColorBuffer` remains the present source.

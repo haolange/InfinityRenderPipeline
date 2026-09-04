@@ -93,6 +93,10 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 throw new InvalidOperationException("InfinityRP: AtmosphericalProfile is required on the pipeline asset. Atmosphere lives only on the profile.");
             }
+            if (volumeProfile == null)
+            {
+                throw new InvalidOperationException("InfinityRP: defaultVolumeProfile is required on the pipeline asset. Default Volume values come only from this profile.");
+            }
             renderPipeline = new InfinityRenderPipeline(this);
             Shader.SetGlobalTexture("g_BestFitNormal_LUT", bestFitNormalTexture);
             return renderPipeline;
@@ -131,6 +135,10 @@ namespace InfinityTech.Rendering.Pipeline
             outputTransformShader = CoalesceCompute(outputTransformShader, "Shaders/RenderingFeature/OutputTransform/Compute_OutputTransform.compute", "OutputTransform");
             debugViewShader = CoalesceCompute(debugViewShader, "Shaders/RenderingFeature/DebugView/Compute_DebugView.compute", "DebugViewGBuffer", "DebugViewMotion", "DebugViewSceneColor", "DebugViewOptional", "DebugViewMissing");
             subsurfaceShader = KeepIfKernels(subsurfaceShader, "BurleySubsurfaceCS");
+            if (m_VolumeProfile == null)
+            {
+                DefaultVolumeProfileFactory.AssignToPipelineIfNull(this);
+            }
 #endif
         }
 

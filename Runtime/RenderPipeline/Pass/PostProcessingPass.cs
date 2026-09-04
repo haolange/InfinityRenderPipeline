@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
             "ExposureClear", "ExposureHistogram", "ExposureReduce"
         };
 
-        void ComputePostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState, in OutputTransformDecision outputDecision)
+        void ComputePostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
@@ -193,7 +193,6 @@ namespace InfinityTech.Rendering.Pipeline
 
             MarkFeatureProduced(EFrameFeature.PostProcess);
             ComputeDebugView(camera);
-            ComputeOutputTransform(camera, outputDecision);
         }
 
         static PostVolumeState ResolvePostVolumeState(CameraFrameState frameState)
