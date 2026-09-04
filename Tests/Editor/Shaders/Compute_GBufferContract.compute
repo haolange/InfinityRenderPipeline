@@ -1,0 +1,25 @@
+#pragma kernel DecodeGBufferContract
+
+#include "../../../Shaders/ShaderLibrary/GBufferPack.hlsl"
+
+Texture2D SRV_GBufferTextureA;
+Texture2D SRV_GBufferTextureB;
+Texture2D SRV_GBufferTextureC;
+float4 CBV_Resolution;
+
+RWTexture2D<float4> UAV_DecodedAlbedo;
+RWTexture2D<float4> UAV_DecodedNormal;
+
+[numthreads(8, 8, 1)]
+void DecodeGBufferContract(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)CBV_Resolution.xy))
+    {
+        return;
+    }
+
+    FGBufferData gbuffer;
+    DecodeGBuffer(id.xy, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbuffer);
+    UAV_DecodedAlbedo[id.xy] = float4(gbuffer.Albedo, 1.0);
+    UAV_DecodedNormal[id.xy] = float4(gbuffer.Normal, 1.0);
+}

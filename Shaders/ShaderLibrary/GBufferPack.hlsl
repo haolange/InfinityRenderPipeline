@@ -105,9 +105,29 @@ void UnpackGBufferCChannelR(float packedR, out uint shadingModel, out uint flags
     flags = (packed >> 4) & 0xFu;
 }
 
-void EncodeGBuffer(FGBufferData GBufferData, uint2 PixelCoord, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC)
+// GBuffer albedo uses Color.hlsl RGBToYCoCg / YCoCgToRGB (8-bit chroma bias 128/255).
+// Common.hlsl RGB2YCoCg / YCoCg2RGB are a different unnormalized transform (TAA / BC).
+float3 GBufferAlbedoToYCoCg(float3 rgb)
 {
-    float3 YCoCgColor = RGBToYCoCg(GBufferData.Albedo);
+    return RGBToYCoCg(rgb);
+}
+
+float3 GBufferYCoCgToAlbedo(float3 ycocg)
+{
+    return YCoCgToRGB(ycocg);
+}
+
+// Checkerboard parity is the integer pixel of SV_POSITION.xy (pixel center truncates).
+// Compute decode must pass the same texel index (DispatchThreadID.xy / Texture2D[pixel]).
+uint2 GBufferPixelCoord(float2 svPositionXY)
+{
+    return uint2(svPositionXY);
+}
+
+void EncodeGBuffer(FGBufferData GBufferData, float2 svPositionXY, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC)
+{
+    uint2 PixelCoord = GBufferPixelCoord(svPositionXY);
+    float3 YCoCgColor = GBufferAlbedoToYCoCg(GBufferData.Albedo);
     GBufferA = float4(((PixelCoord.x & 1) == (PixelCoord.y & 1)) ? YCoCgColor.rg : YCoCgColor.rb, GBufferData.Roughness, GBufferData.Reflactance);
     GBufferB = float4(EncodeBestFit(GBufferData.Normal) * 0.5 + 0.5, GBufferData.Specular);
     GBufferC = float4(
@@ -125,7 +145,7 @@ void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 G
 
     GBufferData.Specular = GBufferB.a;
     GBufferData.Roughness = GBufferA.b;
-    GBufferData.Albedo = YCoCgToRGB(YCoCgColor);
+    GBufferData.Albedo = GBufferYCoCgToAlbedo(YCoCgColor);
     GBufferData.Reflactance = GBufferA.a;
     GBufferData.Normal = normalize(GBufferB.xyz * 2 - 1);
     UnpackGBufferCChannelR(GBufferC.r, GBufferData.ShadingModel, GBufferData.Flags);

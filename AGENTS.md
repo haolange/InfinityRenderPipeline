@@ -154,6 +154,7 @@ S4–S8 closed the record paths below. Image / Frame Debugger / GPU-Trace qualit
 - Shader path: `InfinityPipeline/...`; tag `RenderPipeline=InfinityRenderPipeline`.
 - Compute files: `Compute_<Feature>.compute`.
 - LightMode tags must match `InfinityPassIDs` (`DepthPass`, `GBufferPass`, …).
+- GBuffer encode/decode symmetry (YCoCg checkerboard from `SV_POSITION.xy` and BestFit) is owned by `GBufferPack.hlsl`.
 
 ## Comments and hygiene
 
