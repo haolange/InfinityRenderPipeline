@@ -257,3 +257,9 @@ OutputTransform resolves the backbuffer format in this order (first hit wins):
 All three missing throws at record time. `SystemInfo.GetGraphicsFormat(DefaultFormat.LDR)` is not an authority.
 
 Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before OutputTransform, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. OutputTransform remains the single transfer-encoding owner; `DisplayColorBuffer` remains the present source.
+
+## 17. DebugView and SceneView temporal gating
+
+`EDebugView` writes a linear quantity into `PostProcessBuffer` in one compute pass immediately before Gizmo/WireOverlay. It is not a second encoding owner. `TAAConfidenceBuffer` exists only when `debugView != None`. Optional AO/SSR/SSGI views that were not recorded this frame use a dedicated Missing kernel (magenta), never an invalid RT bind.
+
+SceneView uses the full pipeline. A new camera state or a skipped frame (`lastSeenFrame` gap > 1) sets `historyReset` and disables jitter that frame. SceneView states recycle after 120 unseen frames so docking the tab does not rebuild history every time. Game recycle stays 8. Preview is unchanged and remains a documented independent defect.

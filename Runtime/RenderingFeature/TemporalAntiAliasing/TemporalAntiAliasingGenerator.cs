@@ -5,7 +5,7 @@ using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Feature
 {
-    // TODO: retire TemporalAntiAliasingGenerator after CameraUniform and AntiAliasingPass stop calling CaculateProjectionMatrix / objectPool.Get.
+    // TODO: split Halton / CaculateProjectionMatrix into CameraUniform and keep dispatch in AntiAliasingPass. This file is still the live jitter+dispatch owner — do not delete it this delivery.
     public static class HaltonSequence
     {
         public static float Get(int index, in int radix)
