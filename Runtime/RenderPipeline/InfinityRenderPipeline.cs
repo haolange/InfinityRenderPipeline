@@ -887,7 +887,8 @@ namespace InfinityTech.Rendering.Pipeline
                 }
             }
 
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample"))
+            bool gtaoKernels = GraphicsUtility.HasRequiredKernels(pipelineAsset.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
+            if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels)
             {
                 features.Request(EFrameFeature.GTAO);
                 features.MarkSupported(EFrameFeature.GTAO);

@@ -1,12 +1,13 @@
 #pragma kernel ScreenSpaceComposite
 #pragma multi_compile_local _ COMPOSITE_SSR
 #pragma multi_compile_local _ COMPOSITE_SSGI
-#pragma multi_compile_local _ COMPOSITE_AO
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/ImageBasedLighting.hlsl"
+
+// AO is applied once in DeferredShading on IBL; SSR/SSGI sample already-lit color and must not be multiplied again.
 
 float4 Composite_Resolution;
 float4x4 Matrix_InvViewProj;
@@ -16,9 +17,6 @@ Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
 Texture2D SRV_GBufferTextureC;
 Texture2D<float> SRV_DepthTexture;
-#if defined(COMPOSITE_AO)
-Texture2D<float> SRV_OcclusionTexture;
-#endif
 #if defined(COMPOSITE_SSR)
 Texture2D<float4> SRV_SSRTexture;
 #endif
@@ -48,15 +46,9 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
     DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbufferData);
     MicrofaceContext microfaceCtx = InitMicrofaceContext(gbufferData.Specular, gbufferData.Roughness, gbufferData.Reflactance, gbufferData.Albedo);
 
-#if defined(COMPOSITE_AO)
-    float ao = SRV_OcclusionTexture[pixelCoord];
-#else
-    float ao = 1.0;
-#endif
-
 #if defined(COMPOSITE_SSGI)
     float4 ssgiColor = SRV_SSGITexture[pixelCoord];
-    lighting += microfaceCtx.AlbedoColor * ssgiColor.rgb * ao;
+    lighting += microfaceCtx.AlbedoColor * ssgiColor.rgb;
 #endif
 
 #if defined(COMPOSITE_SSR)
@@ -67,7 +59,7 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
     float4 ssrColor = SRV_SSRTexture[pixelCoord];
     float2 envBRDF = IBL_Defualt_SpecularIntegrated_Approx(gbufferData.Roughness, saturate(dot(gbufferData.Normal, viewDir)));
     float3 indirectSpecular = ssrColor.rgb * ssrColor.a;
-    lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular * ao;
+    lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular;
 #endif
 
     UAV_SceneColor[pixelCoord] = float4(max(0, lighting), 1);

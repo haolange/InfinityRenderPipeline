@@ -43,5 +43,10 @@ namespace InfinityTech.Rendering.Pipeline
         {
             return mode == EScreenSpaceMode.SSGI || mode == EScreenSpaceMode.Both;
         }
+
+        public static bool ShouldRequestGTAO(ScreenSpaceAmbientOcclusion occlusion)
+        {
+            return GraphicsUtility.VolumeHasOverrides(occlusion);
+        }
     }
 }

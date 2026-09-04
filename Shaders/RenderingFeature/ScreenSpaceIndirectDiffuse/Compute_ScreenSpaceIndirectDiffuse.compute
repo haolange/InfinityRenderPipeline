@@ -206,6 +206,14 @@ void SpatialFilter(uint3 id : SV_DispatchThreadID)
     float NumWeight = 0;
     float4 SpatialColor = 0;
 
+    float4 CenterMask = SRV_ColorMaskTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
+    float CenterHit = saturate(max(CenterMask.a, Rec709Luminance(CenterMask.rgb) > 1e-6 ? 1.0 : 0.0));
+    if (CenterHit > 0)
+    {
+        NumWeight += 1;
+        SpatialColor += CenterMask;
+    }
+
     [loop]
     for (int i = 0; i < 15; ++i)
     {
@@ -213,9 +221,10 @@ void SpatialFilter(uint3 id : SV_DispatchThreadID)
         float OffsetDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).r;
         float3 OffsetNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).xyz * 2 - 1;
         float4 HitColorMask = SRV_ColorMaskTexture.SampleLevel(Global_bilinear_clamp_sampler, Offset_UV, 0);
-        float Weight = SSGI_GetEdgeStopDepthWeight(SceneDepth, OffsetDepth, 0.001) * SSGI_GetEdgeStopNormalWeight(WorldNormal, OffsetNormal, 32);
+        float HitWeight = saturate(max(HitColorMask.a, Rec709Luminance(HitColorMask.rgb) > 1e-6 ? 1.0 : 0.0));
+        float Weight = SSGI_GetEdgeStopDepthWeight(SceneDepth, OffsetDepth, 0.001) * SSGI_GetEdgeStopNormalWeight(WorldNormal, OffsetNormal, 32) * HitWeight;
         NumWeight += Weight;
-        SpatialColor += float4(HitColorMask.rgb * Weight, HitColorMask.a);
+        SpatialColor += HitColorMask * Weight;
     }
 
     SpatialColor /= max(NumWeight, 1e-5);
@@ -270,7 +279,7 @@ void TemporalFilter(uint3 id : SV_DispatchThreadID)
         PrevColor = lerp(CurrColor, PrevColor, HistoryConfidence);
     }
 
-    float BlendWeight = saturate(SSGi_TemporalWeight * (1 - length(DepthMotion) * 8));
+    float BlendWeight = clamp(lerp(SSGi_TemporalWeight, 0.0, length(DepthMotion) * 200.0), 0.0, SSGi_TemporalWeight);
     float4 Radiance = max(0.0001, lerp(CurrColor, PrevColor, BlendWeight));
     float historyLuma = Rec709Luminance(PrevColor.rgb);
     float luma = Rec709Luminance(Radiance.rgb);

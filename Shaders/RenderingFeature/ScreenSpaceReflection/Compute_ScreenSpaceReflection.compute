@@ -315,7 +315,7 @@ void SpatialFilter (uint3 id : SV_DispatchThreadID)
         float2 Offset_UV = kStackowiakSampleSet4[i] * SSR_FilterResolution.zw;
         Offset_UV = UV + mul(OffsetRotationMatrix, Offset_UV * SSR_SpatialRadius);*/
 
-        float2 Offset_UV = UV + (kStackowiakSampleSet4[i] * SSR_FilterResolution.zw);
+        float2 Offset_UV = UV + (kStackowiakSampleSet4[i] * SSR_FilterResolution.zw * SSR_SpatialRadius);
 
         float OffsetDepth = SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, Offset_UV, 0).r;
         float3 OffsetNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, Offset_UV, 0).xyz * 2 - 1;
@@ -422,7 +422,8 @@ void TemporalFilter (uint3 id : SV_DispatchThreadID)
         PrevColor = lerp(CurrColor, PrevColor, HistoryConfidence);
     }
 
-    float BlendWeight = saturate(SSR_TemporalWeight * (1 - length(HitMotion) * 8) * (1 - length(DepthMotion) * 8));
+    float motionLength = max(length(HitMotion), length(DepthMotion));
+    float BlendWeight = clamp(lerp(SSR_TemporalWeight, 0.0, motionLength * 200.0), 0.0, SSR_TemporalWeight);
     float4 Radiance = max(0.0001, lerp(CurrColor, PrevColor, BlendWeight));
     float Variance = ComputeTemporalVariance(PrevColor.rgb, Radiance.rgb) > VARIANCE_THRESHOLD ? 0 : 1;
 

@@ -178,7 +178,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.sharpeness = ssao.Sharpeness.value;
                 passData.temporalScale = ssao.TemporalScale.value;
                 bool resetHistory = m_CameraUniform.historyReset || historyAOCreated || historyDepthCreated;
-                passData.temporalWeight = resetHistory ? 0.0f : ssao.TemporalWeight.value;
+                passData.temporalWeight = ScreenSpaceHistoryUtility.RampTemporalWeight(ssao.TemporalWeight.value, ref m_ActiveFrameState.gtaoValidFrames, resetHistory);
                 passData.halfResolution = new int2(halfWidth, halfHeight);
                 passData.fullResolution = new int2(fullWidth, fullHeight);
 

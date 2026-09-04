@@ -8,6 +8,27 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ScreenSpaceHistoryUtility
     {
+        internal const int TemporalResetRampFrames = 8;
+
+        internal static float RampTemporalWeight(float configuredWeight, ref int validFrames, bool resetHistory)
+        {
+            if (resetHistory)
+            {
+                validFrames = 0;
+            }
+
+            float ramp = TemporalResetRampFrames <= 1
+                ? 1.0f
+                : Mathf.Clamp01(validFrames / (float)TemporalResetRampFrames);
+            float weight = configuredWeight * ramp;
+            if (validFrames < TemporalResetRampFrames)
+            {
+                ++validFrames;
+            }
+
+            return weight;
+        }
+
         internal static TextureDescriptor CreateFilterDescriptor(int width, int height, string name, GraphicsFormat format, bool randomWrite)
         {
             TextureDescriptor descriptor = new TextureDescriptor(width, height);

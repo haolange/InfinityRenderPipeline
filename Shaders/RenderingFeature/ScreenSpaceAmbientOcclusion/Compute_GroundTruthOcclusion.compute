@@ -115,7 +115,7 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     float HistLinear = LinearEyeDepth(HistDepth);
     float DepthReject = 1.0 - smoothstep(0.02, 0.1, abs(CurrLinear - HistLinear) / max(CurrLinear, 1e-2));
 
-	float VelocityWeight = saturate(TemporalWeight * (1 - length(Velocity) * 8)) * DepthReject;
+	float VelocityWeight = clamp(lerp(TemporalWeight, 0.0, length(Velocity) * 200.0), 0.0, TemporalWeight) * DepthReject;
     UAV_AccmulateTexture[id.xy] = lerp(CurrColor, PrevColor, VelocityWeight);
 }
 

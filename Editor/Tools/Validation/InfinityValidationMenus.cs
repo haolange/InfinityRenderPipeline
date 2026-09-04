@@ -21,7 +21,107 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string MenuRoot = "Infinity/Validation/";
         const string FailedMarkerName = "framedump-FAILED.txt";
         const string VolumeStackDumpName = "volume-stack-dump.txt";
+        const string ExamplePostProcessProfilePath = "Assets/Profile/PostProcessProfile.asset";
         static int s_FrameDumpRetries;
+
+        [InitializeOnLoadMethod]
+        static void StripExampleStochasticSSR()
+        {
+            EditorApplication.delayCall += StripExampleStochasticSSRNow;
+        }
+
+        static void StripExampleStochasticSSRNow()
+        {
+            VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(ExamplePostProcessProfilePath);
+            if (profile == null)
+            {
+                return;
+            }
+
+            bool hasLeftover = false;
+            UnityEngine.Object[] loadedAssets = AssetDatabase.LoadAllAssetsAtPath(ExamplePostProcessProfilePath);
+            for (int i = 0; i < loadedAssets.Length; ++i)
+            {
+                UnityEngine.Object loaded = loadedAssets[i];
+                if (loaded == null || loaded.GetType().Name == "StochasticScreenSpaceReflection")
+                {
+                    hasLeftover = true;
+                    break;
+                }
+            }
+
+            if (!hasLeftover)
+            {
+                for (int i = 0; i < profile.components.Count; ++i)
+                {
+                    VolumeComponent listed = profile.components[i];
+                    if (listed == null || listed.GetType().Name == "StochasticScreenSpaceReflection")
+                    {
+                        hasLeftover = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hasLeftover)
+            {
+                return;
+            }
+
+            const string tempPath = "Assets/Profile/PostProcessProfile.rebuild.asset";
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(tempPath) != null)
+            {
+                AssetDatabase.DeleteAsset(tempPath);
+            }
+
+            VolumeProfile rebuilt = ScriptableObject.CreateInstance<VolumeProfile>();
+            rebuilt.name = profile.name;
+            AssetDatabase.CreateAsset(rebuilt, tempPath);
+
+            int copied = 0;
+            for (int i = 0; i < profile.components.Count; ++i)
+            {
+                VolumeComponent source = profile.components[i];
+                if (source == null || source.GetType().Name == "StochasticScreenSpaceReflection")
+                {
+                    continue;
+                }
+
+                VolumeComponent copy = rebuilt.Add(source.GetType(), false);
+                AssetDatabase.AddObjectToAsset(copy, rebuilt);
+                EditorUtility.CopySerialized(source, copy);
+                copy.hideFlags = source.hideFlags;
+                copied++;
+            }
+
+            if (copied == 0)
+            {
+                AssetDatabase.DeleteAsset(tempPath);
+                Debug.LogError("[InfinityRP] Aborted example Volume profile rebuild because no valid components were copied.");
+                return;
+            }
+
+            EditorUtility.SetDirty(rebuilt);
+            AssetDatabase.SaveAssets();
+
+            string metaPath = ExamplePostProcessProfilePath + ".meta";
+            string meta = File.Exists(metaPath) ? File.ReadAllText(metaPath) : null;
+            AssetDatabase.DeleteAsset(ExamplePostProcessProfilePath);
+            string moveError = AssetDatabase.MoveAsset(tempPath, ExamplePostProcessProfilePath);
+            if (!string.IsNullOrEmpty(moveError))
+            {
+                Debug.LogError($"[InfinityRP] Failed to replace example Volume profile: {moveError}");
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(meta))
+            {
+                File.WriteAllText(metaPath, meta);
+            }
+
+            AssetDatabase.ImportAsset(ExamplePostProcessProfilePath);
+            Debug.Log("[InfinityRP] Stripped leftover StochasticScreenSpaceReflection from Assets/Profile/PostProcessProfile.asset");
+        }
 
         internal static string ProjectLogsDirectory
         {

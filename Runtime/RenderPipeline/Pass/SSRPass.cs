@@ -184,7 +184,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.spatialRadius = math.max(1, ssr.SpatialRadius.value);
                 bool resetHistory = m_CameraUniform.historyReset || historyRadianceCreated || historyMomentsCreated || historyDepthNormalCreated;
                 passData.temporalScale = ssr.TemporalScale.value;
-                passData.temporalWeight = resetHistory ? 0.0f : ssr.TemporalWeight.value;
+                passData.temporalWeight = ScreenSpaceHistoryUtility.RampTemporalWeight(ssr.TemporalWeight.value, ref m_ActiveFrameState.ssrValidFrames, resetHistory);
                 passData.bilateralRadius = math.max(1, ssr.BilateralSample.value);
                 passData.bilateralColorWeight = ssr.BilateralColorWeight.value;
                 passData.bilateralDepthWeight = ssr.BilateralDepthWeight.value;

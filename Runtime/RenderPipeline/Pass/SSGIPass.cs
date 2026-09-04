@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.spatialRadius = math.max(1, ssgi.SpatialRadius.value);
                 bool resetHistory = m_CameraUniform.historyReset || historyRadianceCreated || historyMomentsCreated || historyDepthNormalCreated;
                 passData.temporalScale = ssgi.TemporalScale.value;
-                passData.temporalWeight = resetHistory ? 0.0f : ssgi.TemporalWeight.value;
+                passData.temporalWeight = ScreenSpaceHistoryUtility.RampTemporalWeight(ssgi.TemporalWeight.value, ref m_ActiveFrameState.ssgiValidFrames, resetHistory);
                 passData.bilateralRadius = math.max(1, ssgi.BilateralSample.value);
                 passData.bilateralColorWeight = ssgi.BilateralColorWeight.value;
                 passData.bilateralDepthWeight = ssgi.BilateralDepthWeight.value;

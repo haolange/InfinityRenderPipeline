@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.PostProcess
     public class ScreenSpaceReflection : VolumeComponent
     {
         [Header("Tracing")]
-        public ClampedIntParameter NumRays = new ClampedIntParameter(1, 1, 12);
+        public ClampedIntParameter NumRays = new ClampedIntParameter(2, 1, 12);
         public ClampedIntParameter NumSteps = new ClampedIntParameter(8, 8, 64);
         public ClampedFloatParameter BrdfBias = new ClampedFloatParameter(0.7f, 0.0f, 1.0f);
         public ClampedFloatParameter Fadeness = new ClampedFloatParameter(0.05f, 0.05f, 0.25f);

@@ -1,4 +1,5 @@
 #pragma kernel DeferredShadingCS
+#pragma multi_compile_local _ DEFERRED_AO
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
@@ -26,7 +27,9 @@ Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
 Texture2D SRV_GBufferTextureC;
 Texture2D<float> SRV_DepthTexture;
+#if defined(DEFERRED_AO)
 Texture2D<float> SRV_OcclusionTexture;
+#endif
 Texture2D<float> SRV_ContactShadowTexture;
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
@@ -230,7 +233,11 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 
     MicrofaceContext microfaceCtx = InitMicrofaceContext(specular, roughness, reflectance, albedo);
 
+#if defined(DEFERRED_AO)
     float ao = SRV_OcclusionTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+#else
+    float ao = 1.0;
+#endif
     float contactShadow = SRV_ContactShadowTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
     float3 lighting = 0;
 
