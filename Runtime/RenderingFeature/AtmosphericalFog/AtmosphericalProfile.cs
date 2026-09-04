@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Feature
 {
@@ -83,73 +85,127 @@ namespace InfinityTech.Rendering.Feature
         [Range(16, 256)]
         public int cubemapSize = 128;
 
-        public bool UpgradeZerosToDefaults()
+        public void ResetToEarth()
+        {
+            radius = AtmosphereParameter.EarthPlanetRadius;
+            thickness = AtmosphereParameter.EarthAtmosphereHeight;
+            brightness = AtmosphereParameter.EarthBrightness;
+            drawGround = false;
+            groundAlbedo = AtmosphereParameter.EarthGroundAlbedo;
+            rayleighScatter = AtmosphereParameter.EarthRayleighScattering;
+            rayleighStrength = 1.0f;
+            rayleighHeight = AtmosphereParameter.EarthRayleighHeight;
+            mieStrength = AtmosphereParameter.EarthMieScattering;
+            mieAbsorption = AtmosphereParameter.EarthMieAbsorption;
+            mieHeight = AtmosphereParameter.EarthMieHeight;
+            mieAnisotropy = AtmosphereParameter.EarthMieAnisotropy;
+            ozoneAbsorption = AtmosphereParameter.EarthOzoneAbsorption;
+            ozoneStrength = 1.0f;
+            ozoneLayerCenter = AtmosphereParameter.EarthOzoneLayerCenter;
+            ozoneLayerWidth = AtmosphereParameter.EarthOzoneLayerWidth;
+            multiScatterStrength = AtmosphereParameter.EarthMultiScatterStrength;
+            sunAngle = AtmosphereParameter.EarthSunAngle;
+            transmittanceLUTWidth = 256;
+            transmittanceLUTHeight = 64;
+            multiScatteringLUTSize = 32;
+            skyViewLUTWidth = 192;
+            skyViewLUTHeight = 108;
+            aerialPerspectiveSize = 32;
+            aerialPerspectiveDistance = 32000.0f;
+            cubemapSize = 128;
+        }
+
+        public bool UpgradeOutOfRangeToEarth()
+        {
+            return UpgradeOutOfRangeToEarth(null);
+        }
+
+        public bool UpgradeOutOfRangeToEarth(List<string> changedFields)
         {
             bool changed = false;
-            changed |= Upgrade(ref radius, 6360000.0f);
-            changed |= Upgrade(ref thickness, 60000.0f);
-            changed |= Upgrade(ref brightness, 1.0f);
-            changed |= UpgradeColor(ref groundAlbedo, new Color(0.3f, 0.3f, 0.3f));
-            changed |= UpgradeColor(ref rayleighScatter, new Color(0.00580f, 0.01356f, 0.03310f));
-            changed |= Upgrade(ref rayleighStrength, 1.0f);
-            changed |= Upgrade(ref rayleighHeight, 8000.0f);
-            changed |= Upgrade(ref mieStrength, 0.003996f);
-            changed |= Upgrade(ref mieAbsorption, 0.000444f);
-            changed |= Upgrade(ref mieHeight, 1200.0f);
-            changed |= Upgrade(ref mieAnisotropy, 0.8f, allowZero: true);
-            changed |= UpgradeColor(ref ozoneAbsorption, new Color(0.000650f, 0.001881f, 0.000085f));
-            changed |= Upgrade(ref ozoneStrength, 1.0f);
-            changed |= Upgrade(ref ozoneLayerCenter, 25000.0f);
-            changed |= Upgrade(ref ozoneLayerWidth, 15000.0f);
-            changed |= Upgrade(ref multiScatterStrength, 1.0f);
-            changed |= Upgrade(ref sunAngle, 0.5f / 180.0f * Mathf.PI);
-            changed |= Upgrade(ref transmittanceLUTWidth, 256);
-            changed |= Upgrade(ref transmittanceLUTHeight, 64);
-            changed |= Upgrade(ref multiScatteringLUTSize, 32);
-            changed |= Upgrade(ref skyViewLUTWidth, 192);
-            changed |= Upgrade(ref skyViewLUTHeight, 108);
-            changed |= Upgrade(ref aerialPerspectiveSize, 32);
-            changed |= Upgrade(ref aerialPerspectiveDistance, 32000.0f);
-            changed |= Upgrade(ref cubemapSize, 128);
+            changed |= UpgradeIf(ref radius, AtmosphereParameter.EarthPlanetRadius, radius <= 0.0f, "radius", changedFields);
+            changed |= UpgradeIf(ref thickness, AtmosphereParameter.EarthAtmosphereHeight, !AtmosphereParameter.IsAtmosphereHeightInRange(thickness), "thickness", changedFields);
+            changed |= UpgradeIf(ref brightness, AtmosphereParameter.EarthBrightness, brightness <= 0.0f, "brightness", changedFields);
+            changed |= UpgradeColorIf(ref groundAlbedo, AtmosphereParameter.EarthGroundAlbedo, groundAlbedo.r == 0.0f && groundAlbedo.g == 0.0f && groundAlbedo.b == 0.0f, "groundAlbedo", changedFields);
+
+            Color rayleigh = rayleighScatter * rayleighStrength;
+            if (!AtmosphereParameter.IsRayleighScatterInRange(rayleigh) || rayleighStrength <= 0.0f)
+            {
+                changed |= UpgradeIf(ref rayleighScatter, AtmosphereParameter.EarthRayleighScattering, true, "rayleighScatter", changedFields);
+                changed |= UpgradeIf(ref rayleighStrength, 1.0f, true, "rayleighStrength", changedFields);
+            }
+
+            changed |= UpgradeIf(ref rayleighHeight, AtmosphereParameter.EarthRayleighHeight, !AtmosphereParameter.IsDensityHeightInRange(rayleighHeight), "rayleighHeight", changedFields);
+            changed |= UpgradeIf(ref mieStrength, AtmosphereParameter.EarthMieScattering, !AtmosphereParameter.IsMieScatteringInRange(mieStrength), "mieStrength", changedFields);
+            changed |= UpgradeIf(ref mieAbsorption, AtmosphereParameter.EarthMieAbsorption, !AtmosphereParameter.IsMieAbsorptionInRange(mieAbsorption), "mieAbsorption", changedFields);
+            changed |= UpgradeIf(ref mieHeight, AtmosphereParameter.EarthMieHeight, !AtmosphereParameter.IsDensityHeightInRange(mieHeight), "mieHeight", changedFields);
+
+            Color ozone = ozoneAbsorption * ozoneStrength;
+            if (!AtmosphereParameter.IsOzoneAbsorptionInRange(ozone) || ozoneStrength <= 0.0f)
+            {
+                changed |= UpgradeIf(ref ozoneAbsorption, AtmosphereParameter.EarthOzoneAbsorption, true, "ozoneAbsorption", changedFields);
+                changed |= UpgradeIf(ref ozoneStrength, 1.0f, true, "ozoneStrength", changedFields);
+            }
+
+            changed |= UpgradeIf(ref ozoneLayerCenter, AtmosphereParameter.EarthOzoneLayerCenter, ozoneLayerCenter <= 0.0f, "ozoneLayerCenter", changedFields);
+            changed |= UpgradeIf(ref ozoneLayerWidth, AtmosphereParameter.EarthOzoneLayerWidth, ozoneLayerWidth <= 0.0f, "ozoneLayerWidth", changedFields);
+            changed |= UpgradeIf(ref multiScatterStrength, AtmosphereParameter.EarthMultiScatterStrength, multiScatterStrength <= 0.0f, "multiScatterStrength", changedFields);
+            changed |= UpgradeIf(ref sunAngle, AtmosphereParameter.EarthSunAngle, !AtmosphereParameter.IsSunAngleInRange(sunAngle), "sunAngle", changedFields);
+            changed |= UpgradeIf(ref transmittanceLUTWidth, 256, transmittanceLUTWidth <= 0, "transmittanceLUTWidth", changedFields);
+            changed |= UpgradeIf(ref transmittanceLUTHeight, 64, transmittanceLUTHeight <= 0, "transmittanceLUTHeight", changedFields);
+            changed |= UpgradeIf(ref multiScatteringLUTSize, 32, multiScatteringLUTSize <= 0, "multiScatteringLUTSize", changedFields);
+            changed |= UpgradeIf(ref skyViewLUTWidth, 192, skyViewLUTWidth <= 0, "skyViewLUTWidth", changedFields);
+            changed |= UpgradeIf(ref skyViewLUTHeight, 108, skyViewLUTHeight <= 0, "skyViewLUTHeight", changedFields);
+            changed |= UpgradeIf(ref aerialPerspectiveSize, 32, aerialPerspectiveSize <= 0, "aerialPerspectiveSize", changedFields);
+            changed |= UpgradeIf(ref aerialPerspectiveDistance, 32000.0f, aerialPerspectiveDistance <= 0.0f, "aerialPerspectiveDistance", changedFields);
+            changed |= UpgradeIf(ref cubemapSize, 128, cubemapSize <= 0, "cubemapSize", changedFields);
             return changed;
         }
 
-        static bool Upgrade(ref float field, float fallback, bool allowZero = false)
+        static bool UpgradeIf(ref float field, float earth, bool invalid, string name, List<string> changedFields)
         {
-            if (allowZero)
+            if (!invalid || field == earth)
             {
                 return false;
             }
 
-            if (field <= 0.0f)
-            {
-                field = fallback;
-                return true;
-            }
-
-            return false;
+            field = earth;
+            changedFields?.Add(name);
+            return true;
         }
 
-        static bool Upgrade(ref int field, int fallback)
+        static bool UpgradeIf(ref int field, int earth, bool invalid, string name, List<string> changedFields)
         {
-            if (field <= 0)
+            if (!invalid || field == earth)
             {
-                field = fallback;
-                return true;
+                return false;
             }
 
-            return false;
+            field = earth;
+            changedFields?.Add(name);
+            return true;
         }
 
-        static bool UpgradeColor(ref Color field, Color fallback)
+        static bool UpgradeIf(ref Color field, Color earth, bool invalid, string name, List<string> changedFields)
         {
-            if (field.r == 0.0f && field.g == 0.0f && field.b == 0.0f)
+            if (!invalid || ColorRgbEquals(field, earth))
             {
-                field = fallback;
-                return true;
+                return false;
             }
 
-            return false;
+            field = earth;
+            changedFields?.Add(name);
+            return true;
+        }
+
+        static bool UpgradeColorIf(ref Color field, Color earth, bool invalid, string name, List<string> changedFields)
+        {
+            return UpgradeIf(ref field, earth, invalid, name, changedFields);
+        }
+
+        static bool ColorRgbEquals(Color a, Color b)
+        {
+            return a.r == b.r && a.g == b.g && a.b == b.b;
         }
     }
 }

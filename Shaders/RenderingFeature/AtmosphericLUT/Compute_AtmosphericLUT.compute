@@ -298,7 +298,9 @@ void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
     float cosSunZenith = uv.x * 2.0 - 1.0;
     float altitude = max(uv.y * Atmo_AtmosphereHeight, MIN_ALTITUDE);
 
-    float3 sunDir = float3(sqrt(max(0, 1.0 - cosSunZenith * cosSunZenith)), cosSunZenith, 0);
+    float3 sunAzimuth = Atmo_SunDirection.xyz - float3(0, Atmo_SunDirection.y, 0);
+    sunAzimuth = (dot(sunAzimuth, sunAzimuth) > 1e-8) ? normalize(sunAzimuth) : float3(1, 0, 0);
+    float3 sunDir = sunAzimuth * sqrt(max(0, 1.0 - cosSunZenith * cosSunZenith)) + float3(0, cosSunZenith, 0);
 
     // Integrate scattered luminance over all directions
     float3 lumTotal = 0;

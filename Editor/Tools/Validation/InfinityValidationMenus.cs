@@ -488,40 +488,399 @@ namespace InfinityTech.Rendering.Editor.Validation
                 throw new InvalidOperationException("InfinityRP Validation: current render pipeline is not InfinityRenderPipelineAsset.");
             }
 
-            const string profilePath = "Assets/Profile/AtmosphericalProfile.asset";
-            AtmosphericalProfile profile = asset.atmosphericalProfile;
-            if (profile == null)
+            HashSet<AtmosphericalProfile> profiles = new HashSet<AtmosphericalProfile>();
+            string[] guids = AssetDatabase.FindAssets("t:AtmosphericalProfile", new[] { "Assets" });
+            for (int i = 0; i < guids.Length; ++i)
             {
-                profile = AssetDatabase.LoadAssetAtPath<AtmosphericalProfile>(profilePath);
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                AtmosphericalProfile found = AssetDatabase.LoadAssetAtPath<AtmosphericalProfile>(path);
+                if (found != null)
+                {
+                    profiles.Add(found);
+                }
             }
 
-            if (profile == null)
+            if (asset.atmosphericalProfile != null)
             {
+                profiles.Add(asset.atmosphericalProfile);
+            }
+
+            if (profiles.Count == 0)
+            {
+                const string profilePath = "Assets/Profile/AtmosphericalProfile.asset";
                 Directory.CreateDirectory(Path.Combine(Application.dataPath, "Profile"));
-                profile = ScriptableObject.CreateInstance<AtmosphericalProfile>();
-                profile.UpgradeZerosToDefaults();
-                AssetDatabase.CreateAsset(profile, profilePath);
+                AtmosphericalProfile created = ScriptableObject.CreateInstance<AtmosphericalProfile>();
+                created.ResetToEarth();
+                AssetDatabase.CreateAsset(created, profilePath);
+                profiles.Add(created);
             }
 
-            Undo.RecordObject(profile, "Upgrade Atmospherical Profile");
-            bool changed = profile.UpgradeZerosToDefaults();
-            if (changed)
+            bool anyChanged = false;
+            foreach (AtmosphericalProfile profile in profiles)
             {
-                EditorUtility.SetDirty(profile);
+                List<string> changedFields = new List<string>();
+                Undo.RecordObject(profile, "Upgrade Atmospherical Profile");
+                bool changed = profile.UpgradeOutOfRangeToEarth(changedFields);
+                string assetPath = AssetDatabase.GetAssetPath(profile);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+                    assetPath = profile.name;
+                }
+
+                if (changed)
+                {
+                    EditorUtility.SetDirty(profile);
+                    anyChanged = true;
+                    Debug.Log($"[InfinityRP][Validation] {assetPath} upgraded: {string.Join(", ", changedFields)}");
+                }
+                else
+                {
+                    Debug.Log($"[InfinityRP][Validation] {assetPath} already within Earth physical ranges.");
+                }
             }
 
-            if (asset.atmosphericalProfile != profile)
+            if (asset.atmosphericalProfile == null)
             {
-                Undo.RecordObject(asset, "Assign Atmospherical Profile");
-                asset.atmosphericalProfile = profile;
-                EditorUtility.SetDirty(asset);
-                changed = true;
+                AtmosphericalProfile assign = null;
+                foreach (AtmosphericalProfile profile in profiles)
+                {
+                    assign = profile;
+                    break;
+                }
+
+                if (assign != null)
+                {
+                    Undo.RecordObject(asset, "Assign Atmospherical Profile");
+                    asset.atmosphericalProfile = assign;
+                    EditorUtility.SetDirty(asset);
+                    anyChanged = true;
+                }
             }
 
             AssetDatabase.SaveAssets();
-            Debug.Log(changed
-                ? $"[InfinityRP][Validation] AtmosphericalProfile ready: {profilePath}"
-                : $"[InfinityRP][Validation] {profile.name} already assigned with non-zero fields.");
+            if (!anyChanged)
+            {
+                Debug.Log("[InfinityRP][Validation] AtmosphericalProfile upgrade complete. No out-of-range fields.");
+            }
+        }
+
+        [MenuItem(MenuRoot + "Dump Atmosphere SkyView", false, 63)]
+        public static void DumpAtmosphereSkyView()
+        {
+            // SkyView LUT + zenith/horizon/SH-proxy stats for T2 verifier.
+            Camera camera = Camera.main;
+            if (camera == null || !camera.enabled || camera.cameraType != CameraType.Game)
+            {
+                Camera[] cameras = UnityEngine.Object.FindObjectsByType<Camera>();
+                for (int i = 0; i < cameras.Length; ++i)
+                {
+                    if (cameras[i] != null && cameras[i].enabled && cameras[i].cameraType == CameraType.Game)
+                    {
+                        camera = cameras[i];
+                        break;
+                    }
+                }
+            }
+
+            if (camera == null)
+            {
+                throw new InvalidOperationException("InfinityRP Validation: no Game camera for SkyView dump.");
+            }
+
+            Light sun = FindDirectionalLight();
+            Quaternion previousSun = Quaternion.identity;
+            bool restoreSun = false;
+            if (sun != null)
+            {
+                previousSun = sun.transform.rotation;
+                restoreSun = true;
+                // Elevation 45°, azimuth 0: light forward points toward -Z with +Y.
+                sun.transform.rotation = Quaternion.LookRotation(new Vector3(0.0f, -Mathf.Sin(45.0f * Mathf.Deg2Rad), -Mathf.Cos(45.0f * Mathf.Deg2Rad)), Vector3.up);
+            }
+
+            Texture2D texture;
+            int width;
+            int height;
+            try
+            {
+                camera.Render();
+
+                Texture skyView = Shader.GetGlobalTexture(InfinityShaderIDs.AtmosphereSkyViewLUT);
+                if (skyView == null)
+                {
+                    throw new InvalidOperationException("InfinityRP Validation: _AtmosphereSkyViewLUT is not bound. Render a Game camera first.");
+                }
+
+                width = skyView.width;
+                height = skyView.height;
+                RenderTexture source = skyView as RenderTexture;
+                if (source == null)
+                {
+                    throw new InvalidOperationException("InfinityRP Validation: SkyView LUT is not a RenderTexture.");
+                }
+
+                RenderTexture readable = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGBFloat);
+                Graphics.Blit(source, readable);
+                RenderTexture active = RenderTexture.active;
+                RenderTexture.active = readable;
+                texture = new Texture2D(width, height, TextureFormat.RGBAFloat, false, true);
+                texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                texture.Apply();
+                RenderTexture.active = active;
+                RenderTexture.ReleaseTemporary(readable);
+            }
+            finally
+            {
+                if (restoreSun)
+                {
+                    sun.transform.rotation = previousSun;
+                }
+            }
+
+            Color[] pixels = texture.GetPixels();
+            AtmosphereSkyViewStats stats = ComputeSkyViewStats(pixels, width, height);
+
+            string debugDir = Path.Combine(ProjectLogsDirectory, "debug");
+            Directory.CreateDirectory(debugDir);
+            string pngPath = Path.Combine(debugDir, "atmosphere-skyview.png");
+            File.WriteAllBytes(pngPath, texture.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(texture);
+
+            string jsonPath = Path.Combine(debugDir, "atmosphere-skyview-stats.json");
+            StringBuilder json = new StringBuilder();
+            json.Append("{\n");
+            json.Append("  \"width\": ").Append(width).Append(",\n");
+            json.Append("  \"height\": ").Append(height).Append(",\n");
+            json.Append("  \"zenithRgb\": [").Append(F(stats.zenith.r)).Append(", ").Append(F(stats.zenith.g)).Append(", ").Append(F(stats.zenith.b)).Append("],\n");
+            json.Append("  \"horizonRgb\": [").Append(F(stats.horizon.r)).Append(", ").Append(F(stats.horizon.g)).Append(", ").Append(F(stats.horizon.b)).Append("],\n");
+            json.Append("  \"zenithLuma\": ").Append(F(stats.zenithLuma)).Append(",\n");
+            json.Append("  \"horizonLuma\": ").Append(F(stats.horizonLuma)).Append(",\n");
+            json.Append("  \"zenithHorizonRatio\": ").Append(F(stats.zenithHorizonRatio)).Append(",\n");
+            json.Append("  \"zenithUv\": [").Append(F(stats.zenithU)).Append(", ").Append(F(stats.zenithV)).Append("],\n");
+            json.Append("  \"deltaUvD65\": ").Append(F(stats.deltaUvD65)).Append(",\n");
+            json.Append("  \"deltaUvDaylight\": ").Append(F(stats.deltaUvDaylight)).Append(",\n");
+            json.Append("  \"l0Rgb\": [").Append(F(stats.l0.r)).Append(", ").Append(F(stats.l0.g)).Append(", ").Append(F(stats.l0.b)).Append("],\n");
+            json.Append("  \"l0RB\": ").Append(F(stats.l0RB)).Append(",\n");
+            json.Append("  \"sunMean\": ").Append(F(stats.sunMean)).Append(",\n");
+            json.Append("  \"skyMedian\": ").Append(F(stats.skyMedian)).Append(",\n");
+            json.Append("  \"sunOverSky\": ").Append(F(stats.sunOverSky)).Append("\n");
+            json.Append("}\n");
+            File.WriteAllText(jsonPath, json.ToString());
+            Debug.Log($"[InfinityRP][Validation] Atmosphere SkyView dump: {jsonPath}\n{json}");
+        }
+
+        struct AtmosphereSkyViewStats
+        {
+            public Color zenith;
+            public Color horizon;
+            public Color l0;
+            public float zenithLuma;
+            public float horizonLuma;
+            public float zenithHorizonRatio;
+            public float zenithU;
+            public float zenithV;
+            public float deltaUvD65;
+            public float deltaUvDaylight;
+            public float l0RB;
+            public float sunMean;
+            public float skyMedian;
+            public float sunOverSky;
+        }
+
+        static AtmosphereSkyViewStats ComputeSkyViewStats(Color[] pixels, int width, int height)
+        {
+            Color zenith = AverageRowBand(pixels, width, height, height - 2, height);
+            Color horizon = AverageRowBand(pixels, width, height, height / 2 - 1, height / 2 + 1);
+            Color l0 = AverageHemisphere(pixels, width, height);
+            float zenithLuma = Luma(zenith);
+            float horizonLuma = Luma(horizon);
+            LinearToCieUv(zenith, out float zenithU, out float zenithV);
+            const float d65U = 0.19783f;
+            const float d65V = 0.46832f;
+            float du = zenithU - d65U;
+            float dv = zenithV - d65V;
+            float daylightDelta = DistanceToCieDaylightLocus(zenithU, zenithV);
+
+            float maxSun = 0.0f;
+            int sunX = 0;
+            int sunY = 0;
+            List<float> skyLumas = new List<float>(width * height / 2);
+            for (int y = height / 2; y < height; ++y)
+            {
+                for (int x = 0; x < width; ++x)
+                {
+                    float luma = Luma(pixels[y * width + x]);
+                    skyLumas.Add(luma);
+                    if (luma > maxSun)
+                    {
+                        maxSun = luma;
+                        sunX = x;
+                        sunY = y;
+                    }
+                }
+            }
+
+            float sunMean = Average3x3(pixels, width, height, sunX, sunY);
+            skyLumas.Sort();
+            float skyMedian = skyLumas.Count > 0 ? skyLumas[skyLumas.Count / 2] : 0.0f;
+
+            return new AtmosphereSkyViewStats
+            {
+                zenith = zenith,
+                horizon = horizon,
+                l0 = l0,
+                zenithLuma = zenithLuma,
+                horizonLuma = horizonLuma,
+                zenithHorizonRatio = horizonLuma > 1e-8f ? zenithLuma / horizonLuma : 0.0f,
+                zenithU = zenithU,
+                zenithV = zenithV,
+                deltaUvD65 = Mathf.Sqrt(du * du + dv * dv),
+                deltaUvDaylight = daylightDelta,
+                l0RB = l0.b > 1e-8f ? l0.r / l0.b : 0.0f,
+                sunMean = sunMean,
+                skyMedian = skyMedian,
+                sunOverSky = skyMedian > 1e-8f ? sunMean / skyMedian : 0.0f
+            };
+        }
+
+        static Color AverageRowBand(Color[] pixels, int width, int height, int y0, int y1)
+        {
+            y0 = Mathf.Clamp(y0, 0, height);
+            y1 = Mathf.Clamp(y1, 0, height);
+            if (y1 <= y0)
+            {
+                y0 = Mathf.Max(0, height - 1);
+                y1 = height;
+            }
+
+            Color sum = Color.black;
+            int count = 0;
+            for (int y = y0; y < y1; ++y)
+            {
+                for (int x = 0; x < width; ++x)
+                {
+                    sum += pixels[y * width + x];
+                    count++;
+                }
+            }
+
+            return count > 0 ? sum / count : Color.black;
+        }
+
+        static Color AverageHemisphere(Color[] pixels, int width, int height)
+        {
+            Color sum = Color.black;
+            int count = 0;
+            for (int y = height / 2; y < height; ++y)
+            {
+                for (int x = 0; x < width; ++x)
+                {
+                    sum += pixels[y * width + x];
+                    count++;
+                }
+            }
+
+            return count > 0 ? sum / count : Color.black;
+        }
+
+        static float Average3x3(Color[] pixels, int width, int height, int cx, int cy)
+        {
+            Color sum = Color.black;
+            int count = 0;
+            for (int y = cy - 1; y <= cy + 1; ++y)
+            {
+                if (y < 0 || y >= height)
+                {
+                    continue;
+                }
+
+                for (int x = cx - 1; x <= cx + 1; ++x)
+                {
+                    if (x < 0 || x >= width)
+                    {
+                        continue;
+                    }
+
+                    sum += pixels[y * width + x];
+                    count++;
+                }
+            }
+
+            return count > 0 ? Luma(sum / count) : 0.0f;
+        }
+
+        static float Luma(Color color)
+        {
+            return 0.2126f * color.r + 0.7152f * color.g + 0.0722f * color.b;
+        }
+
+        static void LinearToCieUv(Color rgb, out float u, out float v)
+        {
+            float x = 0.4124564f * rgb.r + 0.3575761f * rgb.g + 0.1804375f * rgb.b;
+            float y = 0.2126729f * rgb.r + 0.7151522f * rgb.g + 0.0721750f * rgb.b;
+            float z = 0.0193339f * rgb.r + 0.1191920f * rgb.g + 0.9503041f * rgb.b;
+            float denom = x + 15.0f * y + 3.0f * z;
+            if (denom <= 1e-8f)
+            {
+                u = 0.0f;
+                v = 0.0f;
+                return;
+            }
+
+            u = 4.0f * x / denom;
+            v = 9.0f * y / denom;
+        }
+
+        static float DistanceToCieDaylightLocus(float u, float v)
+        {
+            float best = float.MaxValue;
+            for (int kelvin = 4000; kelvin <= 25000; kelvin += 250)
+            {
+                float t = kelvin;
+                float xd;
+                if (kelvin <= 7000)
+                {
+                    xd = (((-4.6070e9f / t) + 2.9678e6f) / t + 0.09911e3f) / t + 0.244063f;
+                }
+                else
+                {
+                    xd = (((-2.0064e9f / t) + 1.9018e6f) / t + 0.24748e3f) / t + 0.237040f;
+                }
+
+                float yd = -3.0f * xd * xd + 2.87f * xd - 0.275f;
+                float X = xd / Mathf.Max(yd, 1e-6f);
+                float Y = 1.0f;
+                float Z = (1.0f - xd - yd) / Mathf.Max(yd, 1e-6f);
+                float denom = X + 15.0f * Y + 3.0f * Z;
+                float lu = 4.0f * X / denom;
+                float lv = 9.0f * Y / denom;
+                float d = Mathf.Sqrt((u - lu) * (u - lu) + (v - lv) * (v - lv));
+                if (d < best)
+                {
+                    best = d;
+                }
+            }
+
+            return best;
+        }
+
+        static string F(float value)
+        {
+            return value.ToString("0.######", CultureInfo.InvariantCulture);
+        }
+
+        static Light FindDirectionalLight()
+        {
+            Light[] lights = UnityEngine.Object.FindObjectsByType<Light>();
+            for (int i = 0; i < lights.Length; ++i)
+            {
+                if (lights[i] != null && lights[i].enabled && lights[i].type == LightType.Directional)
+                {
+                    return lights[i];
+                }
+            }
+
+            return null;
         }
 
         [MenuItem(MenuRoot + "Dump Local Lights State", false, 56)]

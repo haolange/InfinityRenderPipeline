@@ -118,9 +118,17 @@ namespace InfinityTech.Rendering.Editor
             InfinityInspectorGUI.EndFoldout();
             #endregion
 
-            if (GUILayout.Button("Upgrade zero fields to profile defaults"))
+            if (GUILayout.Button("Reset to Earth (Hillaire)"))
             {
-                UpgradeIfNeeded();
+                serializedObject.ApplyModifiedProperties();
+                AtmosphericalProfile profile = (AtmosphericalProfile)target;
+                if (profile != null)
+                {
+                    Undo.RecordObject(profile, "Reset Atmospherical Profile to Earth");
+                    profile.ResetToEarth();
+                    EditorUtility.SetDirty(profile);
+                    serializedObject.Update();
+                }
             }
 
             serializedObject.ApplyModifiedProperties();
@@ -135,7 +143,7 @@ namespace InfinityTech.Rendering.Editor
             }
 
             Undo.RecordObject(profile, "Upgrade Atmospherical Profile");
-            if (profile.UpgradeZerosToDefaults())
+            if (profile.UpgradeOutOfRangeToEarth())
             {
                 EditorUtility.SetDirty(profile);
             }

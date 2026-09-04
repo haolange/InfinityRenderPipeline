@@ -61,6 +61,98 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(a.Equals(c));
         }
 
+        [Test]
+        public void ThrowIfInvalid_EarthValidParameter_Passes()
+        {
+            Assert.DoesNotThrow(() => ValidParameter().ThrowIfInvalid());
+        }
+
+        [Test]
+        public void ThrowIfInvalid_Thickness8000_Throws()
+        {
+            AtmosphereParameter parameter = ValidParameter();
+            parameter.atmosphereHeight = 8000.0f;
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => parameter.ThrowIfInvalid());
+            StringAssert.Contains("atmosphereHeight", exception.Message);
+        }
+
+        [Test]
+        public void ThrowIfInvalid_Rayleigh30xEarth_Throws()
+        {
+            AtmosphereParameter parameter = ValidParameter();
+            parameter.rayleighScattering = new Color(
+                AtmosphereParameter.EarthRayleighScattering.r * 30.0f,
+                AtmosphereParameter.EarthRayleighScattering.g * 30.0f,
+                AtmosphereParameter.EarthRayleighScattering.b * 30.0f,
+                1.0f);
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => parameter.ThrowIfInvalid());
+            StringAssert.Contains("rayleighScattering", exception.Message);
+        }
+
+        [Test]
+        public void ThrowIfInvalid_Heights1_Throws()
+        {
+            AtmosphereParameter parameter = ValidParameter();
+            parameter.rayleighHeight = 1.0f;
+            parameter.mieHeight = 1.0f;
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => parameter.ThrowIfInvalid());
+            StringAssert.Contains("Height", exception.Message);
+        }
+
+        [Test]
+        public void ThrowIfInvalid_OzoneZero_Throws()
+        {
+            AtmosphereParameter parameter = ValidParameter();
+            parameter.ozoneAbsorption = new Color(0.0f, 0.0f, 0.0f, 1.0f);
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => parameter.ThrowIfInvalid());
+            StringAssert.Contains("ozoneAbsorption", exception.Message);
+        }
+
+        [Test]
+        public void ThrowIfInvalid_SunAngleZero_Throws()
+        {
+            AtmosphereParameter parameter = ValidParameter();
+            parameter.sunAngle = 0.0f;
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => parameter.ThrowIfInvalid());
+            StringAssert.Contains("sunAngle", exception.Message);
+        }
+
+        [Test]
+        public void UpgradeOutOfRangeToEarth_BrokenProfile_RestoresEarth()
+        {
+            AtmosphericalProfile profile = ScriptableObject.CreateInstance<AtmosphericalProfile>();
+            try
+            {
+                profile.thickness = 8000.0f;
+                profile.rayleighScatter = new Color(
+                    AtmosphereParameter.EarthRayleighScattering.r * 30.0f,
+                    AtmosphereParameter.EarthRayleighScattering.g * 30.0f,
+                    AtmosphereParameter.EarthRayleighScattering.b * 30.0f);
+                profile.rayleighHeight = 1.0f;
+                profile.mieHeight = 1.0f;
+                profile.ozoneAbsorption = Color.black;
+                profile.sunAngle = 0.0f;
+
+                Assert.IsTrue(profile.UpgradeOutOfRangeToEarth());
+                Assert.AreEqual(AtmosphereParameter.EarthAtmosphereHeight, profile.thickness);
+                Assert.AreEqual(AtmosphereParameter.EarthRayleighScattering.r, profile.rayleighScatter.r);
+                Assert.AreEqual(AtmosphereParameter.EarthRayleighScattering.g, profile.rayleighScatter.g);
+                Assert.AreEqual(AtmosphereParameter.EarthRayleighScattering.b, profile.rayleighScatter.b);
+                Assert.AreEqual(AtmosphereParameter.EarthRayleighHeight, profile.rayleighHeight);
+                Assert.AreEqual(AtmosphereParameter.EarthMieHeight, profile.mieHeight);
+                Assert.AreEqual(AtmosphereParameter.EarthOzoneAbsorption.r, profile.ozoneAbsorption.r);
+                Assert.AreEqual(AtmosphereParameter.EarthSunAngle, profile.sunAngle);
+
+                AtmosphereParameter parameter = AtmosphereParameter.FromProfile(profile);
+                Assert.DoesNotThrow(() => parameter.ThrowIfInvalid());
+                Assert.IsFalse(profile.UpgradeOutOfRangeToEarth());
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(profile);
+            }
+        }
+
         static AtmosphereParameter ValidParameter()
         {
             return new AtmosphereParameter

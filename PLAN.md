@@ -16,6 +16,7 @@ This file is the only on-disk task source. Cursor Todo tracks execution. Do not 
 | S9 R8 Inspector/Cleanup/Docs | completed | Grok + Orchestrator gate | docs + compile | SessionState inspectors, leftover Generator/Dummy/Compress delete, DESIGN/Delivery-Report. Luna full review unavailable. |
 | R0 DebugView infra | completed | Grok + Luna + Orchestrator | EditMode DebugViewStats + Capture Debug Views | `Logs/debug/Validation_Output-*.png` Albedo mean 0.180; `Logs/debug/Scene_Spazon-*.png` + stats; Play FramePairDiff diffRate 25%; Luna review+verifier PASS. Marker ROI oversized P1. Beauty still T1–T5. |
 | R1 Default Volume / Output authority | completed | Grok + Luna + Orchestrator | DefaultVolumeOutputTests + Ensure profile + dumps | IdentityLut deleted. `volumeProfile` → SetCustomDefaultProfiles. Gizmo before OT on PostProcessBuffer. Format chain: target→active→editor/HDR, no LDR guess. Gray-card Game sRGB luma 0.31 (gate [0.44,0.48] FAIL; linear dump 0.078). Film InMatch=0.18 but 0.18 emission still lands ~0.078. TODO(UNVERIFIED) mid-gray. |
+| R2 Atmosphere integrity | completed | Grok + Luna + Orchestrator | AtmosphereParameter/Cache tests + SkyView dump | ThrowIfInvalid physical ranges; UpgradeOutOfRangeToEarth; MultiScatter uses sun azimuth; cache Equals miss. Earth fixture: ΔuvDaylight 0.007, L0 r/b 0.55 PASS. zenith/horizon 0.15 (gate [0.2,0.8] FAIL); sun/sky 3.9 (gate >8 FAIL; Hillaire SkyView has no solar disc). Lighting |Co|/|Cg| drop 8%/2% — T3 albedo. Profile already Earth. TODO(UNVERIFIED) sun disc. |
 
 ## Workflow
 

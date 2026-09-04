@@ -34,6 +34,33 @@ namespace InfinityTech.Rendering.Pipeline
         // Hillaire coefficients are stored per kilometer. Integration and Unity world units are meters.
         public const float ScatterPerKmToPerMeter = 0.001f;
 
+        public const float EarthPlanetRadius = 6360000.0f;
+        public const float EarthAtmosphereHeight = 60000.0f;
+        public static readonly Color EarthRayleighScattering = new Color(0.00580f, 0.01356f, 0.03310f, 1.0f);
+        public const float EarthRayleighHeight = 8000.0f;
+        public const float EarthMieScattering = 0.003996f;
+        public const float EarthMieAbsorption = 0.000444f;
+        public const float EarthMieHeight = 1200.0f;
+        public const float EarthMieAnisotropy = 0.8f;
+        public static readonly Color EarthOzoneAbsorption = new Color(0.000650f, 0.001881f, 0.000085f, 1.0f);
+        public const float EarthOzoneLayerCenter = 25000.0f;
+        public const float EarthOzoneLayerWidth = 15000.0f;
+        public static readonly Color EarthGroundAlbedo = new Color(0.3f, 0.3f, 0.3f, 1.0f);
+        public const float EarthBrightness = 1.0f;
+        public const float EarthMultiScatterStrength = 1.0f;
+        public static readonly float EarthSunAngle = 0.5f / 180.0f * Mathf.PI;
+
+        public const float AtmosphereHeightMin = 10000.0f;
+        public const float AtmosphereHeightMax = 120000.0f;
+        public const float ScatterScaleMin = 0.1f;
+        public const float ScatterScaleMax = 10.0f;
+        public const float DensityHeightMin = 100.0f;
+        public const float DensityHeightMax = 20000.0f;
+        public static readonly float SunAngleMin = 0.1f / 180.0f * Mathf.PI;
+        public static readonly float SunAngleMax = 5.0f / 180.0f * Mathf.PI;
+
+        const string InvalidRangeHint = "Open AtmosphericalProfile Inspector or run Infinity/Validation/Upgrade Atmospherical Profile";
+
         public Vector4 RayleighScatteringPerMeter => (Vector4)rayleighScattering * ScatterPerKmToPerMeter;
         public float MieScatteringPerMeter => mieScattering * ScatterPerKmToPerMeter;
         public float MieAbsorptionPerMeter => mieAbsorption * ScatterPerKmToPerMeter;
@@ -85,6 +112,67 @@ namespace InfinityTech.Rendering.Pipeline
                 || cubemapSize <= 0)
             {
                 throw new InvalidOperationException("InfinityRP: AtmosphericalProfile deserialized invalid or zero fields. Open the profile or run Infinity/Validation/Upgrade Atmospherical Profile.");
+            }
+
+            ThrowIfOutOfRange(IsAtmosphereHeightInRange(atmosphereHeight), "atmosphereHeight", "[10000, 120000] m");
+            ThrowIfOutOfRange(IsRayleighScatterInRange(rayleighScattering), "rayleighScattering", "[0.1x, 10x] of Earth Hillaire");
+            ThrowIfOutOfRange(IsMieScatteringInRange(mieScattering), "mieScattering", "[0.1x, 10x] of 0.003996");
+            ThrowIfOutOfRange(IsMieAbsorptionInRange(mieAbsorption), "mieAbsorption", "[0.1x, 10x] of 0.000444");
+            ThrowIfOutOfRange(IsDensityHeightInRange(rayleighHeight), "rayleighHeight", "[100, 20000] m");
+            ThrowIfOutOfRange(IsDensityHeightInRange(mieHeight), "mieHeight", "[100, 20000] m");
+            ThrowIfOutOfRange(IsOzoneAbsorptionInRange(ozoneAbsorption), "ozoneAbsorption", "rgb > 0");
+            ThrowIfOutOfRange(ozoneLayerCenter > 0.0f, "ozoneLayerCenter", "> 0");
+            ThrowIfOutOfRange(ozoneLayerWidth > 0.0f, "ozoneLayerWidth", "> 0");
+            ThrowIfOutOfRange(IsSunAngleInRange(sunAngle), "sunAngle", "[0.1, 5] degrees");
+        }
+
+        public static bool IsAtmosphereHeightInRange(float height)
+        {
+            return height >= AtmosphereHeightMin && height <= AtmosphereHeightMax;
+        }
+
+        public static bool IsRayleighScatterInRange(Color scatter)
+        {
+            return ChannelInEarthScale(scatter.r, EarthRayleighScattering.r)
+                && ChannelInEarthScale(scatter.g, EarthRayleighScattering.g)
+                && ChannelInEarthScale(scatter.b, EarthRayleighScattering.b);
+        }
+
+        public static bool IsMieScatteringInRange(float mieScattering)
+        {
+            return ChannelInEarthScale(mieScattering, EarthMieScattering);
+        }
+
+        public static bool IsMieAbsorptionInRange(float mieAbsorption)
+        {
+            return ChannelInEarthScale(mieAbsorption, EarthMieAbsorption);
+        }
+
+        public static bool IsDensityHeightInRange(float height)
+        {
+            return height >= DensityHeightMin && height <= DensityHeightMax;
+        }
+
+        public static bool IsOzoneAbsorptionInRange(Color absorption)
+        {
+            return absorption.r > 0.0f && absorption.g > 0.0f && absorption.b > 0.0f;
+        }
+
+        public static bool IsSunAngleInRange(float sunAngleRadians)
+        {
+            return sunAngleRadians >= SunAngleMin && sunAngleRadians <= SunAngleMax;
+        }
+
+        static bool ChannelInEarthScale(float value, float earth)
+        {
+            return value >= earth * ScatterScaleMin && value <= earth * ScatterScaleMax;
+        }
+
+        static void ThrowIfOutOfRange(bool valid, string fieldName, string rangeText)
+        {
+            if (!valid)
+            {
+                throw new InvalidOperationException($"InfinityRP: {fieldName} is outside {rangeText}. {InvalidRangeHint}");
             }
         }
 
