@@ -4,6 +4,7 @@
 float4 TAA_Resolution;
 float4 TAA_BlendParameter; // x: static, y: dynamic, z: motion amplification, w: temporalScale
 float TAA_Sharpness;
+float TAA_ResetBlend;
 Texture2D SRV_DepthTexture;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryDepthTexture;
@@ -68,6 +69,28 @@ float2 GetClosestFragment(float2 uv, float currDepth)
     return (uv + result.xy * TAA_Resolution.zw);
 }
 
+float HistoryDepthConfidence(float2 reprojUV, float currLinear)
+{
+    if (any(reprojUV < 0.0) || any(reprojUV > 1.0))
+    {
+        return 0.0;
+    }
+
+    float histMin = 1e20;
+    float histMax = 0.0;
+    [unroll]
+    for (uint n = 0; n < 9; ++n)
+    {
+        float histDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, reprojUV, 0, SampleOffsets[n]).r;
+        float histLinear = LinearEyeDepth(histDepth, _ZBufferParams);
+        histMin = min(histMin, histLinear);
+        histMax = max(histMax, histLinear);
+    }
+
+    float expand = max(abs(histMax - histMin), 1e-4) * 0.5 + max(currLinear, 1e-4) * 0.01;
+    return (currLinear < histMin - expand || currLinear > histMax + expand) ? 0.0 : 1.0;
+}
+
 void TemporalAntiAlias(uint3 id)
 {
     float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
@@ -78,13 +101,8 @@ void TemporalAntiAlias(uint3 id)
     float3 lastColor = Texture2DSampleBicubic(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, reprojUV, TAA_Resolution.xy, TAA_Resolution.zw).rgb;
     lastColor = RGB2YCoCg(Tonemap(lastColor));
 
-    float lastDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, reprojUV, 0).r;
     float currLinear = LinearEyeDepth(currDepth, _ZBufferParams);
-    float histLinear = LinearEyeDepth(lastDepth, _ZBufferParams);
-    float depthDelta = abs(currLinear - histLinear) / max(currLinear, 1e-4);
-
-    float confidence = (any(reprojUV < 0.0) || any(reprojUV > 1.0)) ? 0.0 : 1.0;
-    confidence *= 1.0 - smoothstep(0.02, 0.1, depthDelta);
+    float confidence = HistoryDepthConfidence(reprojUV, currLinear);
 
     float3 sampleColors[9];
 
@@ -119,6 +137,7 @@ void TemporalAntiAlias(uint3 id)
     lastColor = ClipAABB(lastColor, minColor, maxColor);
 
     float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, length(velocity) * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
+    weight *= TAA_ResetBlend;
     weight *= confidence;
     float reactive = SRV_ReactiveMaskTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
     weight *= 1.0 - saturate(reactive);

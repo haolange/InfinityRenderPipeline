@@ -102,7 +102,7 @@ namespace InfinityTech.Rendering.Pipeline
         private const float HistoryCutPosition = 2.0f;
         private const float HistoryCutAngle = 20.0f;
 
-        private void UpdateCurrFrameData(Camera camera)
+        internal void UpdateCurrFrameData(Camera camera, bool forceHistoryReset = false)
         {
             if (!m_HasLastView)
             {
@@ -115,11 +115,17 @@ namespace InfinityTech.Rendering.Pipeline
                 historyReset = positionDelta > HistoryCutPosition || angleDelta > HistoryCutAngle;
             }
 
+            if (forceHistoryReset)
+            {
+                historyReset = true;
+            }
+
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-            TemporalAntiAliasingGenerator.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj);
+            bool applyJitter = camera.cameraType == CameraType.Preview || !historyReset;
+            TemporalAntiAliasingGenerator.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: applyJitter);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
@@ -149,9 +155,14 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void UnpateUniformData(Camera camera, in bool bLastFrame = false)
         {
+            UnpateUniformData(camera, bLastFrame, forceHistoryReset: false);
+        }
+
+        public void UnpateUniformData(Camera camera, in bool bLastFrame, bool forceHistoryReset)
+        {
             if(!bLastFrame) 
             {
-                UpdateCurrFrameData(camera);
+                UpdateCurrFrameData(camera, forceHistoryReset);
             } else {
                 UpdateLastFrameData(camera);
             }
@@ -280,8 +291,12 @@ namespace InfinityTech.Rendering.Pipeline
                     bool isEditView = camera.cameraType == CameraType.SceneView;
                     bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
-                    CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId);
+                    CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId, out bool newlyCreated);
+                    int previousLastSeen = frameState.lastSeenFrame;
+                    bool forceHistoryReset = camera.cameraType != CameraType.Preview
+                        && CameraFrameState.ShouldForceHistoryReset(newlyCreated, previousLastSeen, Time.frameCount);
                     frameState.lastSeenFrame = Time.frameCount;
+                    frameState.cameraType = camera.cameraType;
                     frameState.executeSucceeded = false;
                     if (frameState.pixelWidth != camera.pixelWidth || frameState.pixelHeight != camera.pixelHeight)
                     {
@@ -303,7 +318,7 @@ namespace InfinityTech.Rendering.Pipeline
                     VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
 
                     // CameraRendering
-                    cameraUniform.UnpateUniformData(camera, false);
+                    cameraUniform.UnpateUniformData(camera, false, forceHistoryReset);
                     m_CameraUniform = cameraUniform;
                     m_ActiveFrameState = frameState;
                     using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
@@ -789,9 +804,10 @@ namespace InfinityTech.Rendering.Pipeline
             m_ActiveFrameState.features.MarkProduced(feature);
         }
 
-        CameraFrameState GetOrCreateCameraFrameState(int cameraId)
+        CameraFrameState GetOrCreateCameraFrameState(int cameraId, out bool created)
         {
-            if (!m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState))
+            created = !m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState);
+            if (created)
             {
                 frameState = new CameraFrameState(cameraId);
                 m_CameraStates.Add(cameraId, frameState);
@@ -802,11 +818,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RecycleUnseenCameraStates(int frameCount)
         {
-            const int UnseenFramesToRecycle = 8;
             m_CameraStateRecycleIds.Clear();
             foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
             {
-                if (frameCount - pair.Value.lastSeenFrame > UnseenFramesToRecycle)
+                if (CameraFrameState.ShouldRecycle(pair.Value.lastSeenFrame, frameCount, pair.Value.cameraType))
                 {
                     m_CameraStateRecycleIds.Add(pair.Key);
                 }

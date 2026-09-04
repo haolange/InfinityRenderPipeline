@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct AntiAliasingPassData
         {
             public float4 resolution;
-            public bool resetHistory;
+            public float resetBlend;
             public bool writeConfidence;
             public int kernelIndex;
             public ComputeShader taaShader;
@@ -90,7 +90,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
                 passData.resolution = new float4(camera.pixelWidth, camera.pixelHeight, 1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
-                passData.resetHistory = cameraUniform.historyReset || historyColorCreated || historyDepthCreated;
+                bool resetHistory = cameraUniform.historyReset || historyColorCreated || historyDepthCreated;
+                passData.resetBlend = ScreenSpaceHistoryUtility.RampTemporalWeight(1.0f, ref m_ActiveFrameState.taaValidFrames, resetHistory);
                 passData.writeConfidence = writeConfidence;
                 passData.kernelIndex = kernelIndex;
                 passData.taaShader = pipelineAsset.taaShader;
@@ -123,9 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         taaOutputData.accmulateColorTexture = passData.accmulateColorTexture;
                     }
-                    TemporalAAParameter taaParameter = passData.resetHistory
-                        ? new TemporalAAParameter(0.0f, 0.0f, 200, 1.25f, 0.35f)
-                        : new TemporalAAParameter(0.97f, 0.95f, 200, 1.25f, 0.35f);
+                    TemporalAAParameter taaParameter = new TemporalAAParameter(0.97f, 0.95f, 200, 1.25f, 0.35f, passData.resetBlend);
 
                     TemporalAntiAliasingGenerator temporalAAGenerator = objectPool.Get<TemporalAntiAliasingGenerator>();
                     if (passData.writeConfidence)

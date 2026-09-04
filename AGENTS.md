@@ -122,7 +122,8 @@ S4–S8 closed the record paths below. Image / Frame Debugger / GPU-Trace qualit
 - `Compute_ScreenSpaceReflection` unprojects HiZ with the global `Matrix_InvViewProj` (`renderIntoTexture = true` convention). Compute-side reconstruction uses `FlipY` (`renderIntoTexture = false`). That mismatch is a separate contract defect.
 - `TAAJitter` is still uploaded globally but the active TAA kernel no longer samples with it. Keep the upload until SuperResolution decides whether it still needs the offset. `TAA_BlendParameter.x = 0.97` is a quality knob left unchanged after the jitter-free motion / direct-texel fix; whether it should drop is `TODO(UNVERIFIED)`.
 - TAA sharpening lives in-kernel as a luma-only unsharp (`TAA_Sharpness = 0.35`). A proper post-TAA sharpening pass (RCAS-style) is not implemented; if more sharpness is needed, add it as its own PostProcessing stage instead of raising the in-kernel strength.
-- TAA depth rejection uses relative linear-eye delta `smoothstep(0.02, 0.1)`. Thresholds are a quality knob; remaining ghosting at thin geometry after this pass is `TODO(UNVERIFIED)` until a moving-camera frame is inspected.
+- TAA depth rejection uses a 3x3 HistoryDepth neighborhood plus gradient expand. Remaining ghosting at thin geometry after this pass is `TODO(UNVERIFIED)` until a moving-camera frame is inspected.
+- Preview cameras still lack temporal gating; independent defect, not in Spazon gate.
 
 ## Render target and depth conventions
 
@@ -144,7 +145,7 @@ S4–S8 closed the record paths below. Image / Frame Debugger / GPU-Trace qualit
 1. **`UNITY_MATRIX_VP` is `Matrix_ViewJitterProj`.** Depth and GBuffer are rasterized in jitter space. Any matrix that reconstructs world/view position from `(screenUV, depth buffer)` must be the jittered inverse VP. On the compute side that is `matrix_*FlipYJitter*` — `FlipY` in this repo means `GL.GetGPUProjectionMatrix(..., renderIntoTexture = false)`.
 2. **Motion vectors must be jitter-free.** `SV_POSITION` uses the jitter VP so coverage matches the depth buffer. The clip positions used to compute velocity use the non-jitter VP. Baking jitter into motion makes a static frame produce `j_prev - j_curr` every Halton step, which wobbles history lookups and bicubic-resamples the accumulation.
 3. **TAA reads the current frame at the exact texel.** `screenUV = (id.xy + 0.5) * texelSize` with point-clamp. Do not bilinear-resample at `screenUV - TAAJitter` to "unjitter" the image; that throws away the subpixel sample TAA exists to accumulate.
-4. **History confidence gates offscreen reprojection and depth disocclusion.** UV outside the viewport zeroes the blend weight. Linear-eye depth of the current sample vs HistoryDepth at `reprojUV` scales the weight down (`smoothstep(0.02, 0.1)` relative delta). HistoryDepth is Depth32, copied by Transfer `CopyTexture` after TAA.
+4. **History confidence gates offscreen reprojection and depth disocclusion.** UV outside the viewport zeroes the blend weight. HistoryDepth is sampled in a 3x3 around `reprojUV`, converted to linear-eye, and the current linear-eye is accepted only inside `[min, max]` expanded by `max(|max-min|, ε) * 0.5` plus a 1% relative pad. HistoryDepth is Depth32, copied by Transfer `CopyTexture` after TAA. After a history reset, `TAA_ResetBlend` ramps from 0 to 1 over 8 frames (`taaValidFrames`); do not persist a hard 0 blend.
 5. **TAA sharpen is luma-only and neighborhood-clamped.** Sharpen only the Y channel of YCoCg and clamp back into the neighborhood min/max. Sharpening chroma reintroduces color fringing; skipping the clamp reintroduces ringing.
 
 ## Unity / Shader

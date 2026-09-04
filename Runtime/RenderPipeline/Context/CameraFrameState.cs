@@ -20,6 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
         public FrameFeatureSet features;
         public int descriptorGeneration;
         public int lastSeenFrame;
+        public CameraType cameraType;
         public int pixelWidth;
         public int pixelHeight;
         public GraphicsFormat colorFormat;
@@ -33,6 +34,25 @@ namespace InfinityTech.Rendering.Pipeline
         public int ssrValidFrames;
         public int ssgiValidFrames;
         public int gtaoValidFrames;
+        public int taaValidFrames;
+
+        internal const int GameUnseenFramesToRecycle = 8;
+        internal const int SceneViewUnseenFramesToRecycle = 120;
+
+        internal static int UnseenFramesToRecycle(CameraType cameraType)
+        {
+            return cameraType == CameraType.SceneView ? SceneViewUnseenFramesToRecycle : GameUnseenFramesToRecycle;
+        }
+
+        internal static bool ShouldRecycle(int lastSeenFrame, int frameCount, CameraType cameraType)
+        {
+            return frameCount - lastSeenFrame > UnseenFramesToRecycle(cameraType);
+        }
+
+        internal static bool ShouldForceHistoryReset(bool newlyCreated, int lastSeenFrame, int frameCount)
+        {
+            return newlyCreated || (frameCount - lastSeenFrame > 1);
+        }
 
         public CameraFrameState(int cameraId)
         {

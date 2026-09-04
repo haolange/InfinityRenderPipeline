@@ -80,5 +80,28 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 VolumeManager.instance.Deinitialize();
             }
         }
+
+        [Test]
+        public void ShouldForceHistoryReset_NewStateOrFrameGap()
+        {
+            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: true, lastSeenFrame: 0, frameCount: 1));
+            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 12));
+            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 11));
+            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 10));
+        }
+
+        [Test]
+        public void RecycleThreshold_SceneView120_Game8()
+        {
+            Assert.AreEqual(120, CameraFrameState.UnseenFramesToRecycle(CameraType.SceneView));
+            Assert.AreEqual(8, CameraFrameState.UnseenFramesToRecycle(CameraType.Game));
+            Assert.AreEqual(8, CameraFrameState.UnseenFramesToRecycle(CameraType.Preview));
+            Assert.AreEqual(8, CameraFrameState.UnseenFramesToRecycle(CameraType.Reflection));
+
+            Assert.IsFalse(CameraFrameState.ShouldRecycle(0, 120, CameraType.SceneView));
+            Assert.IsTrue(CameraFrameState.ShouldRecycle(0, 121, CameraType.SceneView));
+            Assert.IsFalse(CameraFrameState.ShouldRecycle(0, 8, CameraType.Game));
+            Assert.IsTrue(CameraFrameState.ShouldRecycle(0, 9, CameraType.Game));
+        }
     }
 }

@@ -29,11 +29,13 @@ namespace InfinityTech.Rendering.Feature
     {
         public float4 blendParameter;
         public float sharpness;
+        public float resetBlend;
 
-        public TemporalAAParameter(in float staticFactor, in float dynamicFactor, in float motionFactor, in float temporalScale, in float sharpness)
+        public TemporalAAParameter(in float staticFactor, in float dynamicFactor, in float motionFactor, in float temporalScale, in float sharpness, in float resetBlend = 1.0f)
         {
             blendParameter = new float4(staticFactor, dynamicFactor, motionFactor, temporalScale);
             this.sharpness = sharpness;
+            this.resetBlend = resetBlend;
         }
     }
 
@@ -58,6 +60,7 @@ namespace InfinityTech.Rendering.Feature
         public static int Resolution = Shader.PropertyToID("TAA_Resolution");
         public static int BlendParameter = Shader.PropertyToID("TAA_BlendParameter");
         public static int Sharpness = Shader.PropertyToID("TAA_Sharpness");
+        public static int ResetBlend = Shader.PropertyToID("TAA_ResetBlend");
         public static int DepthTexture = Shader.PropertyToID("SRV_DepthTexture");
         public static int MotionTexture = Shader.PropertyToID("SRV_MotionTexture");
         public static int HistoryDepthTexture = Shader.PropertyToID("SRV_HistoryDepthTexture");
@@ -75,6 +78,7 @@ namespace InfinityTech.Rendering.Feature
             cmd.SetComputeVectorParam(shader, TemporalAAShaderID.Resolution, inputData.resolution);
             cmd.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
             cmd.SetComputeFloatParam(shader, TemporalAAShaderID.Sharpness, parameter.sharpness);
+            cmd.SetComputeFloatParam(shader, TemporalAAShaderID.ResetBlend, parameter.resetBlend);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.DepthTexture, inputData.depthTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.MotionTexture, inputData.motionTexture);
             cmd.SetComputeTextureParam(shader, 0, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
@@ -90,6 +94,7 @@ namespace InfinityTech.Rendering.Feature
             cmd.SetComputeVectorParam(shader, TemporalAAShaderID.Resolution, inputData.resolution);
             cmd.SetComputeVectorParam(shader, TemporalAAShaderID.BlendParameter, parameter.blendParameter);
             cmd.SetComputeFloatParam(shader, TemporalAAShaderID.Sharpness, parameter.sharpness);
+            cmd.SetComputeFloatParam(shader, TemporalAAShaderID.ResetBlend, parameter.resetBlend);
             cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.DepthTexture, inputData.depthTexture);
             cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.MotionTexture, inputData.motionTexture);
             cmd.SetComputeTextureParam(shader, kernelIndex, TemporalAAShaderID.HistoryDepthTexture, inputData.historyDepthTexture);
@@ -140,8 +145,22 @@ namespace InfinityTech.Rendering.Feature
             projFlipY = GL.GetGPUProjectionMatrix(jitteredProj, false);
         }
 
-        public static void CaculateProjectionMatrix(Camera camera, in float jitterSpread, ref int frameIndex, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
+        public static void CaculateProjectionMatrix(Camera camera, in float jitterSpread, ref int frameIndex, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY, bool applyJitter = true)
         {
+            if (!applyJitter || jitterSpread <= 0.0f)
+            {
+                jitter = float2.zero;
+                if (++frameIndex >= 8)
+                {
+                    frameIndex = 0;
+                }
+
+                Matrix4x4 unjittered = camera.projectionMatrix;
+                proj = GL.GetGPUProjectionMatrix(unjittered, true);
+                projFlipY = GL.GetGPUProjectionMatrix(unjittered, false);
+                return;
+            }
+
             float jitterX = HaltonSequence.Get((frameIndex & 1023) + 1, 2) - 0.5f;
             float jitterY = HaltonSequence.Get((frameIndex & 1023) + 1, 3) - 0.5f;
             jitter = new float2(jitterX, jitterY);
