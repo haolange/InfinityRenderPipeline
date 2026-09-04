@@ -35,6 +35,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         private SerializedProperty m_DefaultMaterial;
 
         private SerializedProperty m_BestFitNormalTexture;
+        private SerializedProperty m_DiffusionProfiles;
+        private SerializedProperty m_SubsurfaceQuality;
 
         void OnEnable()
         {
@@ -59,6 +61,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_DefaultMaterial = serializedObject.FindProperty("defaultMaterialProxy");
 
             m_BestFitNormalTexture = serializedObject.FindProperty("bestFitNormalTexture");
+            m_DiffusionProfiles = serializedObject.FindProperty("diffusionProfiles");
+            m_SubsurfaceQuality = serializedObject.FindProperty("subsurfaceQuality");
         }
 
         public override void OnInspectorGUI()
@@ -70,6 +74,15 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             {
                 EditorGUILayout.PropertyField(m_VolumeProfile, new GUIContent("Default Volume Profile"), GUILayout.Height(18));
                 EditorGUILayout.PropertyField(m_AtmosphericalProfile, new GUIContent("Atmospherical Profile"), GUILayout.Height(18));
+                if (m_DiffusionProfiles != null)
+                {
+                    EditorGUILayout.PropertyField(m_DiffusionProfiles, new GUIContent("Diffusion Profiles"), true);
+                }
+
+                if (m_SubsurfaceQuality != null)
+                {
+                    EditorGUILayout.PropertyField(m_SubsurfaceQuality, new GUIContent("SSS Quality"));
+                }
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 

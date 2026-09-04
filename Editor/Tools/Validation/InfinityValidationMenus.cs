@@ -19,6 +19,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string MenuRoot = "Infinity/Validation/";
         const string FailedMarkerName = "framedump-FAILED.txt";
         const string VolumeStackDumpName = "volume-stack-dump.txt";
+        static int s_FrameDumpRetries;
 
         static string ProjectLogsDirectory
         {
@@ -45,6 +46,12 @@ namespace InfinityTech.Rendering.Editor.Validation
         public static void OpenDecalFixture()
         {
             OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_Decal.unity", "Validation_Decal.unity missing. Run Create Decal Fixture first.");
+        }
+
+        [MenuItem(MenuRoot + "Open Local Lights Fixture", false, 55)]
+        public static void OpenLocalLightsFixture()
+        {
+            OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_LocalLights.unity", "Validation_LocalLights.unity missing. Run Create Local Lights Fixture first.");
         }
 
         [MenuItem(MenuRoot + "Dump Active Volume Stacks", false, 52)]
@@ -263,6 +270,42 @@ namespace InfinityTech.Rendering.Editor.Validation
             Debug.Log($"[InfinityRP][Validation] Game view captured: {path}");
         }
 
+        [MenuItem(MenuRoot + "Dump Local Lights State", false, 56)]
+        public static void DumpLocalLightsState()
+        {
+            string logs = EnsureLogsDirectory();
+            string path = Path.Combine(logs, "local-lights-state-dump.txt");
+            StringBuilder builder = new StringBuilder();
+            builder.Append("time=").Append(DateTime.UtcNow.ToString("O")).AppendLine();
+            builder.Append("playing=").Append(EditorApplication.isPlaying).AppendLine();
+
+            InfinityRenderPipeline pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
+            if (pipeline == null || pipeline.renderContext == null || pipeline.renderContext.lightContext == null)
+            {
+                builder.Append("pipeline=null").AppendLine();
+                File.WriteAllText(path, builder.ToString());
+                Debug.Log($"[InfinityRP][Validation] Local lights dump: {path}");
+                return;
+            }
+
+            pipeline.renderContext.lightContext.WriteValidationDump(builder);
+            Light[] lights = UnityEngine.Object.FindObjectsByType<Light>();
+            builder.Append("sceneLights=").Append(lights.Length).AppendLine();
+            for (int i = 0; i < lights.Length; ++i)
+            {
+                Light light = lights[i];
+                builder.Append("  scene=").Append(light.name);
+                builder.Append(" type=").Append(light.type);
+                builder.Append(" intensity=").Append(light.intensity);
+                builder.Append(" shadows=").Append(light.shadows);
+                builder.Append(" range=").Append(light.range);
+                builder.AppendLine();
+            }
+
+            File.WriteAllText(path, builder.ToString());
+            Debug.Log($"[InfinityRP][Validation] Local lights dump: {path}\n{builder}");
+        }
+
         [MenuItem(MenuRoot + "Dump Decal State", false, 54)]
         public static void DumpDecalState()
         {
@@ -287,6 +330,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             builder.Append("worldDecalCount=").Append(renderContext.WorldDecalCount).AppendLine();
             builder.Append("worldLights=").Append(renderContext.GetWorldLight().Count).AppendLine();
             builder.Append("directionalLights=").Append(renderContext.lightContext.DirectionalLightCount).AppendLine();
+            builder.Append("localLights=").Append(renderContext.lightContext.LocalLightCount).AppendLine();
             builder.Append("meshInstances=").Append(scene.LogicalInstanceCount).AppendLine();
             builder.Append("meshDraws=").Append(scene.DrawCount).AppendLine();
             builder.Append("staticMeshes=").Append(renderContext.GetWorldStaticMesh().Count).AppendLine();
@@ -318,10 +362,11 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 LightComponent light = lights[i];
                 builder.Append("  light=").Append(light.name);
-                builder.Append(" type=").Append(light.lightType);
-                builder.Append(" intensity=").Append(light.intensity);
+                Light unityLight = light.unityLight != null ? light.unityLight : light.GetComponent<Light>();
+                builder.Append(" type=").Append(unityLight != null ? unityLight.type.ToString() : "null");
+                builder.Append(" intensity=").Append(unityLight != null ? unityLight.intensity.ToString() : "null");
                 builder.Append(" enableShadow=").Append(light.enableShadow);
-                builder.Append(" unityLight=").Append(light.unityLight != null);
+                builder.Append(" unityLight=").Append(unityLight != null);
                 builder.Append(" enabled=").Append(light.isActiveAndEnabled);
                 builder.AppendLine();
             }
@@ -369,14 +414,30 @@ namespace InfinityTech.Rendering.Editor.Validation
                         setEnabled.Invoke(null, new object[] { true, 0 });
                     }
                 }
+
+                EditorApplication.delayCall += () => DumpFrameDebugger();
+                Debug.Log("[InfinityRP][Validation] Frame Debugger enabled; waiting one frame to dump.");
+                return;
             }
 
             int count = Convert.ToInt32(countProperty.GetValue(null), CultureInfo.InvariantCulture);
             if (count <= 0)
             {
+                if (s_FrameDumpRetries < 8)
+                {
+                    s_FrameDumpRetries++;
+                    EditorApplication.QueuePlayerLoopUpdate();
+                    EditorApplication.delayCall += () => DumpFrameDebugger();
+                    Debug.Log($"[InfinityRP][Validation] Frame Debugger count=0, retry {s_FrameDumpRetries}/8.");
+                    return;
+                }
+
+                s_FrameDumpRetries = 0;
                 WriteFailed(failedPath, $"Frame Debugger reported count={count}. Enable Frame Debugger and capture a frame first.");
                 throw new InvalidOperationException("InfinityRP Validation: Frame Debugger has no events.");
             }
+
+            s_FrameDumpRetries = 0;
 
             StringBuilder builder = new StringBuilder(count * 128);
             builder.Append("FRAME_DUMP_COUNT=").Append(count).AppendLine();

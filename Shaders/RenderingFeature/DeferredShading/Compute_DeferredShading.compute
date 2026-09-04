@@ -13,6 +13,10 @@ float DeferredShading_FarDepth;
 float4x4 Matrix_InvProj;
 float4x4 Matrix_InvViewProj;
 float3 _WorldSpaceCameraPos;
+int DeferredShading_HasTileList;
+int DeferredShading_NumTilesX;
+int DeferredShading_NumBins;
+float4 DeferredShading_NearFar;
 
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
@@ -23,18 +27,40 @@ Texture2D<float> SRV_ContactShadowTexture;
 Texture2D<float4> SRV_SSRTexture;
 Texture2D<float4> SRV_SSGITexture;
 Texture2D<float> SRV_CascadeShadowMap;
+Texture2D<float> SRV_LocalShadowMap;
 RWTexture2D<float4> UAV_LightingTexture;
 
-// Cascade shadow map sampling
 float4 _CascadeShadowMapSize;
 int _CascadeCount;
 float4x4 _CascadeMatrices[4];
 float4 _CascadeSplitDistances;
+float4 _LocalShadowMapSize;
 
-// Sample cascade shadow map with simple PCF
+float SampleShadowPCF3x3(Texture2D<float> shadowMap, float2 uv, float compareZ, float2 texelSize, float4 clipRect)
+{
+    float2 minUV = clipRect.xy + texelSize;
+    float2 maxUV = clipRect.xy + clipRect.zw - texelSize;
+    float sum = 0;
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            float2 sampleUV = clamp(uv + float2(x, y) * texelSize, minUV, maxUV);
+            float depth = shadowMap.SampleLevel(Global_bilinear_clamp_sampler, sampleUV, 0);
+#if UNITY_REVERSED_Z
+            sum += compareZ >= depth ? 1.0 : 0.0;
+#else
+            sum += compareZ <= depth ? 1.0 : 0.0;
+#endif
+        }
+    }
+    return sum / 9.0;
+}
+
 float SampleCascadeShadow(float3 worldPos, float viewDepth)
 {
-    // Select cascade
     int cascadeIdx = 3;
     [unroll]
     for (int i = 0; i < 4; ++i)
@@ -47,16 +73,126 @@ float SampleCascadeShadow(float3 worldPos, float viewDepth)
     }
 
     float4 shadowCoord = mul(_CascadeMatrices[cascadeIdx], float4(worldPos, 1.0));
+    if (shadowCoord.w <= 0.0)
+    {
+        return 1.0;
+    }
     shadowCoord.xyz /= shadowCoord.w;
-    float2 shadowUV = shadowCoord.xy * 0.5 + 0.5;
-
-    // Offset UV to the correct cascade tile in the atlas
+    float2 localUV = shadowCoord.xy * 0.5 + 0.5;
+    if (any(localUV < 0.0) || any(localUV > 1.0))
+    {
+        return 1.0;
+    }
     int col = cascadeIdx % 2;
     int row = cascadeIdx / 2;
-    shadowUV = shadowUV * 0.5 + float2(col * 0.5, row * 0.5);
+    float4 clipRect = float4(col * 0.5, row * 0.5, 0.5, 0.5);
+    float2 shadowUV = localUV * 0.5 + clipRect.xy;
+    return SampleShadowPCF3x3(SRV_CascadeShadowMap, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect);
+}
 
-    float shadowMapDepth = SRV_CascadeShadowMap.SampleLevel(Global_bilinear_clamp_sampler, shadowUV, 0);
-    return shadowCoord.z <= shadowMapDepth ? 1.0 : 0.0;
+float SampleLocalShadow(FLightRecord light, float3 worldPos)
+{
+    if ((light.flags & LIGHT_FLAG_SHADOW) == 0 || light.shadowMatrixIndex < 0 || light.shadowSliceCount <= 0)
+    {
+        return 1.0;
+    }
+
+    int face = 0;
+    if (light.lightType == LIGHT_TYPE_POINT)
+    {
+        face = SelectPointShadowFace(worldPos - light.positionRange.xyz);
+        face = min(face, light.shadowSliceCount - 1);
+    }
+
+    int slice = light.shadowMatrixIndex + face;
+    float4x4 shadowMatrix = SRV_LocalShadowMatrices[slice];
+    float4 clipRect = SRV_LocalShadowRects[slice];
+    float4 shadowCoord = mul(shadowMatrix, float4(worldPos, 1.0));
+    if (shadowCoord.w <= 0.0)
+    {
+        return 1.0;
+    }
+    shadowCoord.xyz /= shadowCoord.w;
+    float2 localUV = shadowCoord.xy * 0.5 + 0.5;
+    if (any(localUV < 0.0) || any(localUV > 1.0))
+    {
+        return 1.0;
+    }
+    float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
+#if UNITY_REVERSED_Z
+    float compareZ = saturate(shadowCoord.z + 0.002);
+#else
+    float compareZ = saturate(shadowCoord.z - 0.002);
+#endif
+    return SampleShadowPCF3x3(SRV_LocalShadowMap, shadowUV, compareZ, _LocalShadowMapSize.zw, clipRect);
+}
+
+float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth)
+{
+    float3 L = light.directionSpot.xyz;
+    float3 H = normalize(viewDir + L);
+    BSDFContext bsdfCtx = InitBXDFContext(normal, viewDir, L, H);
+    float NoL = saturate(bsdfCtx.NoL);
+    if (NoL <= 0)
+    {
+        return 0;
+    }
+
+    float shadow = _CascadeCount > 0 ? SampleCascadeShadow(worldPos, viewDepth) : 1.0;
+    shadow *= contactShadow;
+    float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
+    return brdf * LightRadiance(light) * NoL * shadow * light.axisX.w;
+}
+
+float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx)
+{
+    if (light.lightType == LIGHT_TYPE_RECT)
+    {
+        float3 R = reflect(-viewDir, normal);
+        float3 specPos = KarisRectRepresentativePoint(worldPos, R, light);
+        float3 Lspec = normalize(specPos - worldPos);
+        float3 H = normalize(viewDir + Lspec);
+        BSDFContext specCtx = InitBXDFContext(normal, viewDir, Lspec, H);
+        float3 spec = 0;
+        if (specCtx.NoL > 0)
+        {
+            MicrofaceContext specMicro = microfaceCtx;
+            specMicro.AlbedoColor = 0;
+            spec = DefultLit(specCtx, specMicro) * LightRadiance(light) * saturate(specCtx.NoL) * light.axisY.w;
+        }
+
+        float form = FrostbiteRectFormFactor(worldPos, normal, light);
+        float3 diff = microfaceCtx.AlbedoColor * LightRadiance(light) * form * light.axisX.w * (1.0 / 3.14159265);
+        float dist = length(light.positionRange.xyz - worldPos);
+        float att = DistanceAttenuation(dist, light.positionRange.w);
+        return (diff + spec) * att;
+    }
+
+    float3 toLight = light.positionRange.xyz - worldPos;
+    float dist = length(toLight);
+    float3 L = toLight / max(dist, 1e-4);
+    float att = DistanceAttenuation(dist, light.positionRange.w);
+    if (light.lightType == LIGHT_TYPE_SPOT)
+    {
+        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
+    }
+
+    if (att <= 0)
+    {
+        return 0;
+    }
+
+    float3 H = normalize(viewDir + L);
+    BSDFContext bsdfCtx = InitBXDFContext(normal, viewDir, L, H);
+    float NoL = saturate(bsdfCtx.NoL);
+    if (NoL <= 0)
+    {
+        return 0;
+    }
+
+    float shadow = SampleLocalShadow(light, worldPos);
+    float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
+    return brdf * LightRadiance(light) * NoL * att * shadow * light.axisX.w;
 }
 
 [numthreads(16, 16, 1)]
@@ -84,15 +220,14 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float reflectance = gbufferData.Reflactance;
     float specular = gbufferData.Specular;
 
-    // Reconstruct world position
     float3 ndcPos = GetNDCPos(screenUV, rawDepth);
     float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
     float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
+    float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvProj);
+    float viewDepth = -viewPos.z;
 
-    // Initialize BSDF and microface contexts
     MicrofaceContext microfaceCtx = InitMicrofaceContext(specular, roughness, reflectance, albedo);
 
-    // Read screen-space effects
     float ao = SRV_OcclusionTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
     float contactShadow = SRV_ContactShadowTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
     float4 ssrColor = SRV_SSRTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
@@ -100,36 +235,57 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 
     float3 lighting = 0;
 
-    // ---- Directional Lights ----
     for (int d = 0; d < g_DirectionalLightCount; ++d)
     {
-        FDirectionalLightElement dirLight = g_DirectionalLightBuffer[d];
-        float3 L = dirLight.directional.xyz;
-        float3 H = normalize(viewDir + L);
-
-        BSDFContext bsdfCtx = InitBXDFContext(normal, viewDir, L, H);
-
-        float NoL = saturate(bsdfCtx.NoL);
-        if (NoL <= 0)
-            continue;
-
-        // Shadow
-        float3 viewPos = GetViewSpacePos(ndcPos, Matrix_InvProj);
-        float shadow = _CascadeCount > 0 ? SampleCascadeShadow(worldPos, -viewPos.z) : 1.0;
-        shadow *= contactShadow;
-
-        // Evaluate shading model
-        float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
-        float3 lightColor = dirLight.color.rgb * dirLight.color.a;
-
-        lighting += brdf * lightColor * NoL * shadow;
+        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, contactShadow, viewDepth);
     }
 
-    // ---- Indirect Diffuse (SSGI + ambient) ----
+    if (g_LocalLightCount > 0)
+    {
+        if (DeferredShading_HasTileList != 0)
+        {
+            uint2 tile = pixelCoord / (uint)DeferredShading_TileSize;
+            uint tileIndex = tile.y * (uint)DeferredShading_NumTilesX + tile.x;
+            uint2 range = SRV_TileLightRange[tileIndex];
+            uint pixelBin = 0;
+            float t = saturate((viewDepth - DeferredShading_NearFar.x) / max(DeferredShading_NearFar.y - DeferredShading_NearFar.x, 1e-4));
+            pixelBin = min((uint)(t * DeferredShading_NumBins), (uint)DeferredShading_NumBins - 1);
+            uint2 zRange = SRV_ZBinRange[pixelBin];
+
+            [loop]
+            for (uint i = 0; i < range.y; ++i)
+            {
+                uint lightIdx = SRV_TileLightList[range.x + i];
+                bool inBin = false;
+                [loop]
+                for (uint z = 0; z < zRange.y; ++z)
+                {
+                    if (SRV_ZBinLightList[zRange.x + z] == lightIdx)
+                    {
+                        inBin = true;
+                        break;
+                    }
+                }
+                if (!inBin && zRange.y > 0)
+                {
+                    continue;
+                }
+
+                lighting += EvaluateLocal(g_LightRecordBuffer[lightIdx], worldPos, normal, viewDir, microfaceCtx);
+            }
+        }
+        else
+        {
+            for (int l = 0; l < g_LocalLightCount; ++l)
+            {
+                lighting += EvaluateLocal(g_LightRecordBuffer[g_DirectionalLightCount + l], worldPos, normal, viewDir, microfaceCtx);
+            }
+        }
+    }
+
     float3 indirectDiffuse = ssgiColor.rgb;
     lighting += microfaceCtx.AlbedoColor * indirectDiffuse * ao;
 
-    // ---- Indirect Specular (SSR) ----
     float2 envBRDF = IBL_Defualt_SpecularIntegrated_Approx(roughness, saturate(dot(normal, viewDir)));
     float3 indirectSpecular = ssrColor.rgb * ssrColor.a;
     lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular * ao;

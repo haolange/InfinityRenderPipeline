@@ -511,8 +511,8 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
     LightingBuffer = 0;
     for(int i = 0; i < g_DirectionalLightCount; ++i)
     {
-        half3 lighting = saturate(dot(g_DirectionalLightBuffer[i].directional.xyz, inputData.normalWS.xyz));
-        lighting *= 0.318 * mixedDiffuse.rgb * g_DirectionalLightBuffer[i].color.rgb;
+        half3 lighting = saturate(dot(g_LightRecordBuffer[i].directionSpot.xyz, inputData.normalWS.xyz));
+        lighting *= 0.318 * mixedDiffuse.rgb * LightRadiance(g_LightRecordBuffer[i]);
         LightingBuffer.rgb += lighting;
     }
     LightingBuffer *= weight;

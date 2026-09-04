@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public int directionalLightCount;
-            public GraphicsBuffer directionalLightBuffer;
+            public GraphicsBuffer lightRecordBuffer;
             public ComputeShader contactShadowShader;
             public RGTextureRef depthTexture;
             public RGTextureRef contactShadowTexture;
@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
-                passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;
+                passData.lightRecordBuffer = renderContext.lightContext.LightRecordBuffer;
                 passData.contactShadowShader = pipelineAsset.contactShadowShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.contactShadowTexture = passRef.WriteTexture(contactShadowTexture);
@@ -104,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(passData.contactShadowShader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(passData.contactShadowShader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
                     cmdEncoder.SetComputeIntParam(passData.contactShadowShader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
-                    cmdEncoder.SetComputeBufferParam(passData.contactShadowShader, 0, LightShaderIDs.DirectionalLightBuffer, passData.directionalLightBuffer);
+                    cmdEncoder.SetComputeBufferParam(passData.contactShadowShader, 0, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     cmdEncoder.SetComputeTextureParam(passData.contactShadowShader, 0, ContactShadowPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(passData.contactShadowShader, 0, ContactShadowPassUtilityData.UAV_ContactShadowTextureID, passData.contactShadowTexture);
                     cmdEncoder.DispatchCompute(passData.contactShadowShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);

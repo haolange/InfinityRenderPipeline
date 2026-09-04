@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Editor
         const string PassForward = "ForwardPass";
         const string PassDepth = "DepthPass";
         const string PassShadow = "ShadowPass";
+        const string PassShadowCaster = "ShadowCaster";
         const string PassMotion = "MotionPass";
         const string PassTranslucentDepth = "TranslucentDepthPass";
         const string PassTranslucentT0 = "TranslucentT0Pass";
@@ -63,6 +64,7 @@ namespace InfinityTech.Rendering.Editor
             SetPass(material, PassForward, forward);
             SetPass(material, PassDepth, !translucent);
             SetPass(material, PassShadow, !translucent);
+            SetPass(material, PassShadowCaster, !translucent);
             SetPass(material, PassMotion, !translucent);
             SetPass(material, PassTranslucentDepth, translucent);
             SetPass(material, PassTranslucentT0, translucent && stage == 1);

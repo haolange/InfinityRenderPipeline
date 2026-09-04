@@ -94,7 +94,11 @@ namespace InfinityTech.Rendering.Pipeline
         public static int AtmosphereCubemap = Shader.PropertyToID("_AtmosphereCubemap");
         public static int AtmosphereSunBuffer = Shader.PropertyToID("_AtmosphereSunBuffer");
         public static int ZBinLightListBuffer = Shader.PropertyToID("_ZBinLightListBuffer");
+        public static int ZBinCountBuffer = Shader.PropertyToID("_ZBinCountBuffer");
+        public static int ZBinRangeBuffer = Shader.PropertyToID("_ZBinRangeBuffer");
         public static int TileLightListBuffer = Shader.PropertyToID("_TileLightListBuffer");
+        public static int TileLightCountBuffer = Shader.PropertyToID("_TileLightCountBuffer");
+        public static int TileLightRangeBuffer = Shader.PropertyToID("_TileLightRangeBuffer");
         public static int OcclusionBuffer = Shader.PropertyToID("_OcclusionTexture");
         public static int SpatialTempBuffer = Shader.PropertyToID("_SpatialTempTexture");
         public static int ContactShadowBuffer = Shader.PropertyToID("_ContactShadowTexture");

@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public int directionalLightCount;
-            public GraphicsBuffer directionalLightBuffer;
+            public GraphicsBuffer lightRecordBuffer;
             public ComputeShader volumetricFogShader;
             public RGTextureRef depthTexture;
             public RGTextureRef cascadeShadowMap;
@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
-                passData.directionalLightBuffer = renderContext.lightContext.DirectionalLightBuffer;
+                passData.lightRecordBuffer = renderContext.lightContext.LightRecordBuffer;
                 passData.volumetricFogShader = pipelineAsset.volumetricFogShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);
@@ -140,7 +140,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(passData.volumetricFogShader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(passData.volumetricFogShader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
                     cmdEncoder.SetComputeIntParam(passData.volumetricFogShader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
-                    cmdEncoder.SetComputeBufferParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.KernelScatterDensity, LightShaderIDs.DirectionalLightBuffer, passData.directionalLightBuffer);
+                    cmdEncoder.SetComputeBufferParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.KernelScatterDensity, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
 
                     // Kernel 0: Scatter + Density
                     cmdEncoder.SetComputeTextureParam(passData.volumetricFogShader, VolumetricFogPassUtilityData.KernelScatterDensity, VolumetricFogPassUtilityData.SRV_DepthTextureID, passData.depthTexture);

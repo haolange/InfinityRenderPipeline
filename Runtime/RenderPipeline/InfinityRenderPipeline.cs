@@ -243,6 +243,8 @@ namespace InfinityTech.Rendering.Pipeline
         private int m_ActiveCascadeCount;
         private readonly Matrix4x4[] m_ActiveCascadeMatrices = new Matrix4x4[4];
         private Vector4 m_ActiveCascadeSplitDistances;
+        private GraphicsBuffer m_DiffusionProfileBuffer;
+        private int m_DiffusionProfileCapacity;
 
         internal RenderContext renderContext;
         internal InfinityRenderPipelineAsset pipelineAsset 
@@ -395,28 +397,23 @@ namespace InfinityTech.Rendering.Pipeline
                             // ProcessLight
                             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
                             {
-                                renderContext.lightContext.Clear();
-                                Dictionary<int, LightComponent> lights = renderContext.GetWorldLight();
-                                foreach (KeyValuePair<int, LightComponent> pair in lights)
+                                FShadowAllocatorSettings shadowSettings;
+                                shadowSettings.cascadeMapResolution = pipelineAsset.cascadeShadowMapResolution;
+                                shadowSettings.localMapResolution = pipelineAsset.localShadowMapResolution;
+                                shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
+                                shadowSettings.cascadeRatios = new Vector3(0.067f, 0.2f, 0.467f);
+                                shadowSettings.maxLocalLights = 16;
+                                renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings);
+                                renderContext.lightContext.SetLightData(cmdBuffer);
+
+                                ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
+                                m_ActiveCascadeCount = shadowAllocator.CascadeAllocatedCount;
+                                m_ActiveCascadeSplitDistances = shadowAllocator.CascadeSplitDistances;
+                                for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
                                 {
-                                    LightComponent additionLight = pair.Value;
-                                    if (additionLight == null || !additionLight.isActiveAndEnabled)
-                                    {
-                                        continue;
-                                    }
-
-                                    if (additionLight.unityLight != null && !additionLight.unityLight.enabled)
-                                    {
-                                        continue;
-                                    }
-
-                                    if (additionLight.lightType == ELightType.Directional)
-                                    {
-                                        renderContext.lightContext.AddDirectionalLight(0, additionLight);
-                                    }
+                                    m_ActiveCascadeMatrices[cascade] = shadowAllocator.CascadeMatrices[cascade];
                                 }
 
-                                renderContext.lightContext.SetDirectionalLightData(cmdBuffer);
                                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                                 cmdBuffer.Clear();
                             }
@@ -530,10 +527,12 @@ namespace InfinityTech.Rendering.Pipeline
                                 ComputeZBinningLightList(renderContext, camera);
                                 ComputeVolumetricCloud(renderContext, camera);
 
-                                // PHASE 3: shadow raster (longest ROP window)
+                                // PHASE 3: shadow raster (longest ROP window).
+                                // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs.
+                                RecordAllocatedShadowCasterSplits(renderContext);
+                                FlushShadowCasterCulling(scriptableRenderContext, cullingResults);
                                 RenderCascadeShadow(renderContext, camera, cullingResults);
                                 RenderLocalShadow(renderContext, camera, cullingResults);
-                                FlushShadowCasterCulling(scriptableRenderContext, cullingResults);
 
                                 // PHASE 4: shadow-dependent async (VolFog reads CascadeShadowMap)
                                 ComputeVolumetricFog(renderContext, camera);
@@ -790,6 +789,8 @@ namespace InfinityTech.Rendering.Pipeline
                 m_CameraStates.Clear();
                 m_CameraSamplers.Clear();
                 VolumeManager.instance.Deinitialize();
+                m_DiffusionProfileBuffer?.Release();
+                m_DiffusionProfileBuffer = null;
             }
         }
 

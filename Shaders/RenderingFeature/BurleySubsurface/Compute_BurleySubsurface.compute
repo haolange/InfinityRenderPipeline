@@ -10,6 +10,16 @@ float SSS_ScatteringDistance;
 float4 SSS_SurfaceAlbedo;
 int SSS_NumSamples;
 float SSS_MaxRadius;
+int SSS_ProfileCount;
+int SSS_HasOverride;
+
+struct FDiffusionProfileRecord
+{
+    float4 scatterAlbedoDistance;
+    float4 parameters;
+};
+
+StructuredBuffer<FDiffusionProfileRecord> SRV_DiffusionProfiles;
 
 Texture2D<float4> SRV_LightingTexture;
 Texture2D<float> SRV_DepthTexture;
@@ -90,8 +100,34 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
     float3 centerNormal = gbufferData.Normal;
     float centerLinearDepth = LinearizeDepthReverseZ(rawDepth);
 
+    float scatterDistance = SSS_ScatteringDistance;
+    float3 surfaceAlbedo = SSS_SurfaceAlbedo.rgb;
+    float maxRadius = SSS_MaxRadius;
+    if (SSS_ProfileCount > 0)
+    {
+        uint profileIndex = min(gbufferData.SSSProfileIndex, (uint)SSS_ProfileCount - 1);
+        FDiffusionProfileRecord profile = SRV_DiffusionProfiles[profileIndex];
+        if (SSS_HasOverride == 0)
+        {
+            surfaceAlbedo = profile.scatterAlbedoDistance.rgb;
+            scatterDistance = profile.scatterAlbedoDistance.w;
+            maxRadius = profile.parameters.x;
+        }
+        else
+        {
+            if (scatterDistance <= 0)
+            {
+                scatterDistance = profile.scatterAlbedoDistance.w;
+            }
+            if (maxRadius <= 0)
+            {
+                maxRadius = profile.parameters.x;
+            }
+        }
+    }
+
     // Project sampling radius from world-space to screen-space
-    float worldRadius = SSS_MaxRadius * SSS_ScatteringDistance;
+    float worldRadius = maxRadius * scatterDistance;
     float screenRadius = worldRadius * Matrix_Proj[0][0] / centerLinearDepth;
     float maxScreenRadius = screenRadius * SSS_Resolution.x; // In pixels
 
@@ -113,7 +149,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
         float2 hash = Hammersley16(i, SSS_NumSamples, random);
 
         // Sample radius using Burley profile inverse CDF
-        float r = SampleBurleyRadius(hash.x, SSS_ScatteringDistance);
+        float r = SampleBurleyRadius(hash.x, scatterDistance);
         float angle = hash.y * Two_Pi;
 
         float2 offset = float2(cos(angle), sin(angle)) * r;
@@ -144,7 +180,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
 
         // Evaluate diffusion profile
         float worldR = r * worldRadius;
-        float3 profile = EvaluateBurleyDiffusionProfile(worldR, SSS_ScatteringDistance * SSS_SurfaceAlbedo.rgb);
+        float3 profile = EvaluateBurleyDiffusionProfile(worldR, scatterDistance * surfaceAlbedo);
 
         float3 sampleColor = SRV_LightingTexture.SampleLevel(Global_point_clamp_sampler, sampleUV, 0).rgb;
 

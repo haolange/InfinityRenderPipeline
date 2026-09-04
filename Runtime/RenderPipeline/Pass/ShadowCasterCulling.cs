@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -26,6 +28,46 @@ namespace InfinityTech.Rendering.Pipeline
                 splitData = split,
                 projectionType = projectionType
             });
+        }
+
+        void RecordAllocatedShadowCasterSplits(RenderContext renderContext)
+        {
+            if (renderContext == null || renderContext.lightContext == null)
+            {
+                return;
+            }
+
+            ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            if (allocator == null)
+            {
+                return;
+            }
+
+            int cascadeLight = allocator.CascadeVisibleLightIndex;
+            if (cascadeLight >= 0)
+            {
+                for (int cascade = 0; cascade < allocator.CascadeAllocatedCount; ++cascade)
+                {
+                    FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
+                    if (!slice.valid)
+                    {
+                        continue;
+                    }
+
+                    RecordShadowCasterSplit(cascadeLight, cascade, slice.splitData, BatchCullingProjectionType.Orthographic);
+                }
+            }
+
+            for (int sliceIndex = 0; sliceIndex < allocator.LocalSliceCount; ++sliceIndex)
+            {
+                FLocalShadowSlice local = allocator.LocalSlices[sliceIndex];
+                if (!local.valid)
+                {
+                    continue;
+                }
+
+                RecordShadowCasterSplit(local.visibleLightIndex, local.face, local.splitData, BatchCullingProjectionType.Perspective);
+            }
         }
 
         void FlushShadowCasterCulling(ScriptableRenderContext context, in CullingResults cullingResults)

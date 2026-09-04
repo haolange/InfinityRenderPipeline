@@ -102,10 +102,10 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
     float shadow = 1.0;
     if (g_DirectionalLightCount > 0)
     {
-        FDirectionalLightElement dirLight = g_DirectionalLightBuffer[0];
-        if (dirLight.enableContactShadow > 0)
+        FLightRecord dirLight = g_LightRecordBuffer[0];
+        if ((dirLight.flags & LIGHT_FLAG_CONTACT) != 0)
         {
-            float3 lightDir = dirLight.directional.xyz;
+            float3 lightDir = dirLight.directionSpot.xyz;
             shadow = RayMarchContactShadow(worldPos, lightDir, screenUV, rawDepth);
         }
     }

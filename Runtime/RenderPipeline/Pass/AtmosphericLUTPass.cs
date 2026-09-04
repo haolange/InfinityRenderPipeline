@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.LightPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -136,14 +137,7 @@ namespace InfinityTech.Rendering.Pipeline
             sunDsc.name = AtmosphericLUTPassUtilityData.SunBufferName;
             RGBufferRef sunBuffer = m_RGScoper.CreateBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunDsc);
 
-            Vector4 sunDirection = new Vector4(0, 1, 0, 0);
-            Vector4 sunIlluminance = new Vector4(1, 1, 1, 1);
-            Light sunLight = RenderSettings.sun;
-            if (sunLight != null)
-            {
-                sunDirection = -sunLight.transform.forward;
-                sunIlluminance = (Vector4)(sunLight.color * sunLight.intensity);
-            }
+            LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
 
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
             {

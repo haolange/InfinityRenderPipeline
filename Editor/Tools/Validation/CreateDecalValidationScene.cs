@@ -42,8 +42,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             lightGo.transform.rotation = Quaternion.Euler(50.0f, -30.0f, 0.0f);
             LightComponent lightComponent = lightGo.AddComponent<LightComponent>();
             lightComponent.enableShadow = false;
-            lightComponent.intensity = 10.0f;
-            lightComponent.color = Color.white;
             RenderSettings.sun = light;
 
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);

@@ -7,7 +7,7 @@ This file is the only on-disk task source. Cursor Todo tracks execution. Do not 
 | S0 Tooling | completed | Orchestrator | Refresh.sh / Capture.sh / Validation menus | `Logs/baseline/s0-*` |
 | S1 R0 Camera/Volume/History | completed | Grok + Luna + Orchestrator gate | EditMode tests + Validation_Volume dump/play | `Logs/baseline/s1-*`, `Logs/volume-stack-dump.txt` |
 | S2 R1 Material/GBuffer/Decal | completed | Grok + Luna + Orchestrator gate | Validation_Decal + Spazon | `Logs/baseline/s2-decal-play.png`, `Logs/baseline/s2-spazon-play.png`. Frame tree TODO(UNVERIFIED). MeshDraw+Instanced+Plane stays a known fixture gap; Decal gate used RendererList + InfinityLit. |
-| S3 R2 Lights/Shadows | pending | Grok / Luna | Validation_LocalLights | ZBin 3 kernels, local shadow faces |
+| S3 R2 Lights/Shadows | completed | Grok + Orchestrator gate | Validation_LocalLights | `Logs/baseline/s3-local-play.png` (Point/Spot/Rect + ground shadow), `s3-spazon-play.png` (brighter after intensity-once). Dump `s3-local-lights-state-dump.txt`. Frame tree TODO(UNVERIFIED). Luna slug unavailable this session. |
 | S4 R3 Pyramids/GTAO | pending | Grok / Luna | framedump mip batches + GTAO still | framedump, screenshots |
 | S5 R4 Atmosphere/IBL | pending | Grok / Luna | cache-hit zero dispatch | framedump, screenshots |
 | S6 R5 SSR/SSGI | pending | Grok / Luna | Validation_Temporal | framedump modes, screenshots |

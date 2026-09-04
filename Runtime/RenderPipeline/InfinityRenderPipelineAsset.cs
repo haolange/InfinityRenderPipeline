@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering;
 using InfinityTech.Rendering.Feature;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -72,6 +73,10 @@ namespace InfinityTech.Rendering.Pipeline
         public int localShadowMapResolution = 2048;
         public float shadowDistance = 128;
 
+        [Header("Subsurface")]
+        public DiffusionProfile[] diffusionProfiles;
+        public ESSSQuality subsurfaceQuality = ESSSQuality.Medium;
+
         [System.NonSerialized] public InfinityRenderPipeline renderPipeline;
         public override Shader defaultShader { get { return defaultShaderProxy; } }
         public override Material defaultMaterial { get { return defaultMaterialProxy; } }
@@ -103,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
             combineLUTShader = CoalesceCompute(combineLUTShader, "Shaders/ColorGrading/Compute_CombineLUTs.compute", "MainCS");
             hiZShader = CoalesceCompute(hiZShader, "Shaders/RenderingFeature/PyramidDepth/Compute_PyramidDepth.compute", "HiZ_Generation");
             halfResDownsampleShader = CoalesceCompute(halfResDownsampleShader, "Shaders/RenderingFeature/HalfResDownsample/Compute_HalfResDownsample.compute", "HalfResDownsample");
-            zBinningShader = CoalesceCompute(zBinningShader, "Shaders/RenderingFeature/ZBinningLightList/Compute_ZBinningLightList.compute", "ZBinning", "TileLighting");
+            zBinningShader = CoalesceCompute(zBinningShader, "Shaders/RenderingFeature/ZBinningLightList/Compute_ZBinningLightList.compute", "LightCount", "PrefixSum", "Fill");
             contactShadowShader = CoalesceCompute(contactShadowShader, "Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute", "ContactShadowCS");
             deferredShadingShader = CoalesceCompute(deferredShadingShader, "Shaders/RenderingFeature/DeferredShading/Compute_DeferredShading.compute", "DeferredShadingCS");
             atmosphericLUTShader = CoalesceCompute(atmosphericLUTShader, "Shaders/RenderingFeature/AtmosphericLUT/Compute_AtmosphericLUT.compute", "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT", "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite");

@@ -25,6 +25,11 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 		[Header(PixelDepthOffset)]
         _PixelDepthOffsetVaule ("PixelDepthOffsetVaule", Range(-1, 1)) = 0
 
+		[Header(Subsurface)]
+		[Toggle(_SUBSURFACE)] _Subsurface ("Subsurface", Float) = 0
+		_SSSProfileIndex ("SSS Profile Index", Range(0, 15)) = 0
+		_SSSThickness ("SSS Thickness", Range(0, 1)) = 0
+
 		[Header(Surface Route)]
 		[Enum(Deferred, 0, Forward, 1)] _SurfaceRoute ("Surface Route", Float) = 0
 		[Enum(None, 0, T0, 1, T1, 2, T2, 3)] _TranslucentStage ("Translucent Stage", Float) = 0
@@ -173,6 +178,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _NormalTile;
 				float _BaseColorTile;
 				float _SpecularLevel;
+				float _Subsurface;
+				float _SSSProfileIndex;
+				float _SSSThickness;
 				float4 _BaseColor;
 				float4 _EmissionColor;
 			CBUFFER_END
@@ -245,10 +253,10 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				GBufferData.Specular = surfaceSpecular;
 				GBufferData.Roughness = surfaceRoughness;
 				GBufferData.Reflactance = surfaceReflctance;
-				GBufferData.ShadingModel = GBUFFER_SHADING_MODEL_DEFAULT_LIT;
-				GBufferData.Flags = 0;
-				GBufferData.SSSProfileIndex = 0;
-				GBufferData.Thickness = 0;
+				GBufferData.ShadingModel = _Subsurface > 0.5 ? GBUFFER_SHADING_MODEL_SUBSURFACE : GBUFFER_SHADING_MODEL_DEFAULT_LIT;
+				GBufferData.Flags = _Subsurface > 0.5 ? GBUFFER_FLAG_SUBSURFACE : 0;
+				GBufferData.SSSProfileIndex = (uint)(_SSSProfileIndex + 0.5);
+				GBufferData.Thickness = _SSSThickness;
 				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
 				LightingBuffer = float4(_EmissionColor.rgb, 0);
 			}
@@ -284,6 +292,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float _NormalTile;
 				float _BaseColorTile;
 				float _SpecularLevel;
+				float _Subsurface;
+				float _SSSProfileIndex;
+				float _SSSThickness;
 				float4 _BaseColor;
 				float4 _EmissionColor;
 			CBUFFER_END
@@ -350,13 +361,36 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				lightingBuffer = 0;
 				for(int i = 0; i < g_DirectionalLightCount; ++i)
 				{
-					float3 lightColor = g_DirectionalLightBuffer[i].color.rgb;
-					float3 lightDirWS = g_DirectionalLightBuffer[i].directional.xyz;
+					FLightRecord dirLight = g_LightRecordBuffer[i];
+					float3 lightColor = LightRadiance(dirLight);
+					float3 lightDirWS = dirLight.directionSpot.xyz;
 					float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
 
 					BSDFContext bsdfContext = InitBXDFContext(pnormalWS, cameraDirWS, lightDirWS, halfDirWS);
-					lightingBuffer.rgb += DefultLit(bsdfContext, microfaceContext);
-					lightingBuffer.rgb *= lightColor * bsdfContext.NoL;
+					lightingBuffer.rgb += DefultLit(bsdfContext, microfaceContext) * lightColor * saturate(bsdfContext.NoL);
+				}
+
+				if (g_HasTileLightList != 0 && g_LocalLightCount > 0)
+				{
+					uint2 tile = (uint2)(In.vertexCS.xy / 16.0);
+					uint tileIndex = tile.y * (uint)ceil(_ScreenParams.x / 16.0) + tile.x;
+					uint2 range = SRV_TileLightRange[tileIndex];
+					[loop]
+					for (uint li = 0; li < range.y; ++li)
+					{
+						FLightRecord light = g_LightRecordBuffer[SRV_TileLightList[range.x + li]];
+						float3 toLight = light.positionRange.xyz - positionWS;
+						float dist = length(toLight);
+						float3 lightDirWS = toLight / max(dist, 1e-4);
+						float att = DistanceAttenuation(dist, light.positionRange.w);
+						if (light.lightType == LIGHT_TYPE_SPOT)
+						{
+							att *= SpotAttenuation(lightDirWS, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
+						}
+						float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
+						BSDFContext bsdfContext = InitBXDFContext(pnormalWS, cameraDirWS, lightDirWS, halfDirWS);
+						lightingBuffer.rgb += DefultLit(bsdfContext, microfaceContext) * LightRadiance(light) * saturate(bsdfContext.NoL) * att;
+					}
 				}
 
 				lightingBuffer.rgb += _EmissionColor.rgb;

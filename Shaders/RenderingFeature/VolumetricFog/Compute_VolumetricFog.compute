@@ -112,9 +112,9 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
 
         if (g_DirectionalLightCount > 0)
         {
-            FDirectionalLightElement dirLight = g_DirectionalLightBuffer[0];
-            float3 lightDir = dirLight.directional.xyz;
-            float3 lightColor = dirLight.color.rgb * dirLight.color.a;
+            FLightRecord dirLight = g_LightRecordBuffer[0];
+            float3 lightDir = dirLight.directionSpot.xyz;
+            float3 lightColor = LightRadiance(dirLight);
 
             // Phase function
             float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
@@ -123,9 +123,9 @@ void ScatterDensity(uint3 id : SV_DispatchThreadID)
 
             // Shadow (simplified - could sample cascade shadow map here)
             float shadow = 1.0;
-            if (dirLight.enableVolumetric > 0)
+            if ((dirLight.flags & LIGHT_FLAG_VOLUMETRIC) != 0)
             {
-                shadow *= dirLight.volumetricIntensity;
+                shadow *= dirLight.shadowSoftVol.z;
             }
 
             inScatter += scattering * lightColor * phase * shadow;
