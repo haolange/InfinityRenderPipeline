@@ -183,6 +183,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 OutputTransformUtility.ResolveBackbufferFormat(null, null, true, GraphicsFormat.R16G16B16A16_SFloat));
             Assert.Throws<InvalidOperationException>(() =>
                 OutputTransformUtility.ResolveBackbufferFormat(null, null, false, GraphicsFormat.None));
+            Assert.Throws<InvalidOperationException>(() =>
+                OutputTransformUtility.ResolveBackbufferFormat(null, null, true, GraphicsFormat.None));
+            Assert.Throws<InvalidOperationException>(() =>
+                OutputTransformUtility.ResolveBackbufferFormat(
+                    camera: null,
+                    EOutputMode.HDR,
+                    hdrAvailable: true,
+                    hasLastKnownFormat: false,
+                    lastKnownFormat: GraphicsFormat.None));
+            Assert.AreEqual(
+                GraphicsFormat.B8G8R8A8_SRGB,
+                OutputTransformUtility.ResolveBackbufferFormat(
+                    camera: null,
+                    EOutputMode.SDR,
+                    hdrAvailable: false,
+                    hasLastKnownFormat: true,
+                    lastKnownFormat: GraphicsFormat.B8G8R8A8_SRGB));
         }
 
         static void AssertPackagedFilmAndGrade(FilmTonemap film, ColorGrading grading)

@@ -287,17 +287,17 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasImportDescriptor,
             GraphicsFormat importFormat)
         {
-            if (target.HasValue)
+            if (IsResolvedFormat(target))
             {
                 return target.Value;
             }
 
-            if (active.HasValue)
+            if (IsResolvedFormat(active))
             {
                 return active.Value;
             }
 
-            if (hasImportDescriptor)
+            if (hasImportDescriptor && IsResolvedFormat(importFormat))
             {
                 return importFormat;
             }
@@ -321,31 +321,39 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsFormat? active = null;
             if (camera != null)
             {
-                if (camera.targetTexture != null)
+                if (camera.targetTexture != null && IsResolvedFormat(camera.targetTexture.graphicsFormat))
                 {
                     target = camera.targetTexture.graphicsFormat;
                 }
 
-                if (camera.activeTexture != null)
+                if (camera.activeTexture != null && IsResolvedFormat(camera.activeTexture.graphicsFormat))
                 {
                     active = camera.activeTexture.graphicsFormat;
                 }
             }
 
-            bool hasImport = hasLastKnownFormat;
-            GraphicsFormat importFormat = lastKnownFormat;
-            if (!hasImport && TryReadEditorPresentFormat(camera, out GraphicsFormat editorFormat))
+            GraphicsFormat editorFormat;
+            if (TryReadEditorPresentFormat(camera, out editorFormat) && IsResolvedFormat(editorFormat))
             {
-                hasImport = true;
-                importFormat = editorFormat;
+                return ResolveBackbufferFormat(target, active, hasImportDescriptor: true, editorFormat);
             }
 
-            if (!hasImport && mode == EOutputMode.HDR && hdrAvailable)
+            if (hasLastKnownFormat && IsResolvedFormat(lastKnownFormat))
             {
-                hasImport = TryReadHdrGraphicsFormat(out importFormat);
+                return ResolveBackbufferFormat(target, active, hasImportDescriptor: true, lastKnownFormat);
             }
 
-            return ResolveBackbufferFormat(target, active, hasImport, importFormat);
+            return ResolveBackbufferFormat(target, active, hasImportDescriptor: false, GraphicsFormat.None);
+        }
+
+        static bool IsResolvedFormat(GraphicsFormat? format)
+        {
+            return format.HasValue && format.Value != GraphicsFormat.None;
+        }
+
+        static bool IsResolvedFormat(GraphicsFormat format)
+        {
+            return format != GraphicsFormat.None;
         }
 
         static bool TryReadEditorPresentFormat(Camera camera, out GraphicsFormat format)
@@ -455,25 +463,5 @@ namespace InfinityTech.Rendering.Pipeline
             return format != GraphicsFormat.None;
         }
 #endif
-
-        static bool TryReadHdrGraphicsFormat(out GraphicsFormat format)
-        {
-            format = GraphicsFormat.None;
-            try
-            {
-                HDROutputSettings hdr = HDROutputSettings.main;
-                if (hdr == null || !hdr.available)
-                {
-                    return false;
-                }
-
-                format = hdr.graphicsFormat;
-                return format != GraphicsFormat.None;
-            }
-            catch (InvalidOperationException)
-            {
-                return false;
-            }
-        }
     }
 }

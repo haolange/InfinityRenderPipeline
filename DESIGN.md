@@ -248,13 +248,14 @@ Image / Frame Debugger / GPU-Trace results stay `TODO(UNVERIFIED)` until capture
 
 Default Volume values come only from the RP Asset `volumeProfile`. `CreatePipeline` requires it. The pipeline ctor calls `VolumeManager.Initialize(null, asset.volumeProfile)` then `SetCustomDefaultProfiles` with that same profile (process-global; switching RP assets recreates the pipeline and resets it). Dispose clears custom defaults then `Deinitialize()`. There is no second hardcoded default: no `IdentityLut`, no `AtmosphereParameter.Default()`. CombineLUT always builds from the stack (class defaults when a component is inactive). Neutral film/grade numbers are the only identity.
 
-OutputTransform resolves the backbuffer format in this order (first hit wins):
+OutputTransform resolves the backbuffer format in this order (first hit wins; `GraphicsFormat.None` is not a hit):
 
 1. `camera.targetTexture.graphicsFormat`
-2. `camera.activeTexture.graphicsFormat` (Editor Game/Scene target)
-3. Editor Game/Scene present target (`PlayModeView` / `SceneView` RT that Unity already allocated), then last successfully resolved format for that camera, then HDR `HDROutputSettings.graphicsFormat` when HDR is actually available
+2. `camera.activeTexture.graphicsFormat`
+3. Editor Game/Scene present target (`PlayModeView` / `SceneView` RT that Unity already allocated)
+4. last successfully resolved format for that camera
 
-All three missing throws at record time. `SystemInfo.GetGraphicsFormat(DefaultFormat.LDR)` is not an authority.
+All missing throws at record time. HDR `HDROutputSettings.graphicsFormat` and `SystemInfo.GetGraphicsFormat(DefaultFormat.LDR)` are not authorities.
 
 Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before OutputTransform, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. OutputTransform remains the single transfer-encoding owner; `DisplayColorBuffer` remains the present source.
 

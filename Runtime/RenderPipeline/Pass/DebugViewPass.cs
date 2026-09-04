@@ -140,15 +140,18 @@ namespace InfinityTech.Rendering.Pipeline
                     RequireTexture(InfinityShaderIDs.MotionBuffer, "MotionBuffer", view, out motionTexture);
                     break;
                 case EDebugView.TAAConfidence:
-                    if (pipelineAsset.enableSuperResolution)
+                    if (pipelineAsset.enableSuperResolution ||
+                        !m_RGScoper.TryQueryTexture(InfinityShaderIDs.TAAConfidenceBuffer, out optionalTexture))
                     {
-                        throw new InvalidOperationException("InfinityRP: DebugView TAAConfidence requires the TAA path (enableSuperResolution is on).");
+                        kernelName = "DebugViewMissing";
+                        bindSet = 4;
                     }
-
-                    kernelName = "DebugViewOptional";
-                    bindSet = 3;
-                    needOptional = true;
-                    RequireTexture(InfinityShaderIDs.TAAConfidenceBuffer, "TAAConfidenceBuffer", view, out optionalTexture);
+                    else
+                    {
+                        kernelName = "DebugViewOptional";
+                        bindSet = 3;
+                        needOptional = true;
+                    }
                     break;
                 case EDebugView.PreTonemapLuma:
                     kernelName = "DebugViewSceneColor";

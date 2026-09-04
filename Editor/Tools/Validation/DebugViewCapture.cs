@@ -229,9 +229,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 }
             }
 
-            int roiW = Mathf.Min(64, width);
-            int roiH = Mathf.Min(64, height);
-            return new RectInt(width - roiW, 0, roiW, roiH);
+            return null;
         }
 
         static void AppendStatsJson(StringBuilder json, in DebugViewStatResult stats, string pngName)

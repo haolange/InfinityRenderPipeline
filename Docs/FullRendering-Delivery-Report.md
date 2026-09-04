@@ -78,7 +78,7 @@ Take this report to a Windows D3D12 or Vulkan editor. Do **not** treat Metal num
 |------|------|----------|---------------|
 | Refresh + compile | Assets > Refresh; diagnose only the new `Logs/Editor.log` window | 0 InfinityRP errors, 0 CS | Same as Metal |
 | GBuffer contract | `Infinity/Validation/Run GBuffer Contract Tests` | 5/5. Albedo abs &lt; 2/255; BestFit &lt; 1° | reversed-Z does not change this test (it writes/reads GBuffer, not depth compares) |
-| Output format | first-frame log + `Dump Gray Card Mean` | decision from target/active/editor RT, **never** `GetGraphicsFormat(LDR)` | D3D12 SDR Game is often `R8G8B8A8_SRGB` or `B8G8R8A8_SRGB`. Vulkan may differ. HDR: PQ/HLG only when `HDROutputSettings.available` |
+| Output format | first-frame log + `Dump Gray Card Mean` | decision from target → active → editor present RT → lastKnown; **never** `GetGraphicsFormat(LDR)` or HDR format guess | D3D12 SDR Game is often `R8G8B8A8_SRGB` or `B8G8R8A8_SRGB`. Vulkan may differ. HDR encode still only in OutputTransform |
 | Gray card | `Open Output Fixture` + Capture Game center 32×32 | sRGB mean ∈ [0.44, 0.48] | Metal observed 0.31 — close this gate per platform |
 | Atmosphere | `Upgrade Atmospherical Profile` then `Dump Atmosphere Earth Fixture` | ΔuvDaylight &lt; 0.02; L0 r/b ∈ [0.5, 1.2] | `GetGPUProjectionMatrix` FlipY differs; SkyView UV convention must stay (azimuth, latitude²) |
 | DebugView Albedo | `Capture Debug Views` on Spazon | stone ROI not purple; banners authored-saturated | Same decode as Metal (`GBufferPack.hlsl`) |
