@@ -33,11 +33,18 @@ namespace InfinityTech.Rendering.RenderGraph
     public delegate void RGRayTracingPassExecuteAction<T>(in T passData, in RGRaytracingEncoder cmdEncoder, RGObjectPool objectPool) where T : struct;
     public delegate void RGRasterPassExecuteAction<T>(in T passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) where T : struct;
 
+    internal interface IRGPassQueueObserver
+    {
+        void OnQueued();
+        void OnQueueFailed();
+    }
+
     internal abstract class IRGPass
     {
         public int index;
         public string name;
         public ProfilingSampler customSampler;
+        internal IRGPassQueueObserver queueObserver;
 
         public int refCount { get; protected set; }
         public EPassType passType { get; protected set; }
@@ -105,6 +112,7 @@ namespace InfinityTech.Rendering.RenderGraph
             colorBufferMaxIndex = Math.Max(colorBufferMaxIndex, index);
             colorBuffers[index] = resource;
             colorBufferActions[index] = new RGAttachmentAction(loadAction, storeAction);
+            if (loadAction == RenderBufferLoadAction.Load) AddResourceRead(resource.handle);
             AddResourceWrite(resource.handle);
         }
 
@@ -114,7 +122,7 @@ namespace InfinityTech.Rendering.RenderGraph
             depthBuffer = resource;
             depthBufferAccess = flags;
             depthBufferAction = new RGAttachmentAction(loadAction, storeAction);
-            if ((flags & EDepthAccess.ReadOnly) != 0) 
+            if ((flags & EDepthAccess.ReadOnly) != 0 || loadAction == RenderBufferLoadAction.Load) 
             {
                 AddResourceRead(resource.handle);
             }
@@ -148,6 +156,7 @@ namespace InfinityTech.Rendering.RenderGraph
             name = "";
             index = -1;
             customSampler = null;
+            queueObserver = null;
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 resourceReadLists[i].Clear();
@@ -293,6 +302,7 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_TransferPass;
+        internal void SetQueueObserver(IRGPassQueueObserver observer) => m_TransferPass.queueObserver = observer;
         RGResourceFactory m_ResourceFactory;
 
         internal RGTransferPassRef(IRGPass transferPass, RGResourceFactory resourceFactory)
@@ -384,6 +394,7 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_ComputePass;
+        internal void SetQueueObserver(IRGPassQueueObserver observer) => m_ComputePass.queueObserver = observer;
         RGResourceFactory m_ResourceFactory;
 
         internal RGComputePassRef(IRGPass computePass, RGResourceFactory resourceFactory)
@@ -572,6 +583,7 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_RasterPass;
+        internal void SetQueueObserver(IRGPassQueueObserver observer) => m_RasterPass.queueObserver = observer;
         RGResourceFactory m_ResourceFactory;
         RGDrawListContext m_DrawLists;
 

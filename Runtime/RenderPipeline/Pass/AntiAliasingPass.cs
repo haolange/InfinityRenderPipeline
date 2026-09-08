@@ -62,7 +62,8 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef reactiveMaskTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer);
             RGTextureRef accmulateColorTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescriptor);
 
-            bool writeConfidence = pipelineAsset.debugView != EDebugView.None;
+            bool writeConfidence = pipelineAsset.debugView != EDebugView.None ||
+                (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
             int kernelIndex = pipelineAsset.taaShader.FindKernel("Main");
             RGTextureRef confidenceTexture = default;
             if (writeConfidence)

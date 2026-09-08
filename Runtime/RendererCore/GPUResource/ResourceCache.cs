@@ -67,6 +67,7 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
+    [Serializable]
     public struct TextureDescriptor : IEquatable<TextureDescriptor>
     {
         public string name;

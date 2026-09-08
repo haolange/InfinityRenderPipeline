@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int PP_ResolutionID = Shader.PropertyToID("PP_Resolution");
         internal static int PP_BloomIntensityID = Shader.PropertyToID("PP_BloomIntensity");
         internal static int PP_BloomThresholdID = Shader.PropertyToID("PP_BloomThreshold");
+        internal static int PP_BloomScatterID = Shader.PropertyToID("PP_BloomScatter");
         internal static int PP_VignetteIntensityID = Shader.PropertyToID("PP_VignetteIntensity");
         internal static int PP_VignetteSmoothnessID = Shader.PropertyToID("PP_VignetteSmoothness");
         internal static int PP_FilmGrainIntensityID = Shader.PropertyToID("PP_FilmGrainIntensity");
@@ -47,7 +48,6 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static int KernelBloomDownsample = 0;
         internal static int KernelBloomUpsample = 1;
-        internal static int KernelCombine = 2;
         internal static int KernelExposureClear = 3;
         internal static int KernelExposureHistogram = 4;
         internal static int KernelExposureReduce = 5;
@@ -61,6 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public int2 resolution;
             public float bloomThreshold;
+            public float bloomScatter;
             public float exposureMultiplier;
             public float autoExposure;
             public ComputeShader postProcessingShader;
@@ -71,6 +72,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct PostCombinePassData
         {
+            public bool hasBloom;
+            public int kernel;
             public int2 resolution;
             public float bloomIntensity;
             public float vignetteIntensity;
@@ -107,6 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
             public float exposureMultiplier;
             public float autoExposure;
             public float bloomThreshold;
+            public float bloomScatter;
             public float bloomIntensity;
             public float vignetteIntensity;
             public float vignetteSmoothness;
@@ -121,7 +125,7 @@ namespace InfinityTech.Rendering.Pipeline
         static readonly string[] PostProcessingKernelNames =
         {
             "BloomDownsample", "BloomUpsample", "FinalCombine",
-            "ExposureClear", "ExposureHistogram", "ExposureReduce"
+            "ExposureClear", "ExposureHistogram", "ExposureReduce", "FinalCombineNoBloom"
         };
 
         void ComputePostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState)
@@ -161,19 +165,23 @@ namespace InfinityTech.Rendering.Pipeline
             postProcessDsc.wrapMode = TextureWrapMode.Clamp;
             RGTextureRef postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, postProcessDsc);
 
-            int bloomWidth = Mathf.Max(1, width >> 1);
-            int bloomHeight = Mathf.Max(1, height >> 1);
-            TextureDescriptor bloomDsc = new TextureDescriptor(bloomWidth, bloomHeight);
-            bloomDsc.name = PostProcessingPassUtilityData.BloomTextureName;
-            bloomDsc.dimension = TextureDimension.Tex2D;
-            bloomDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
-            bloomDsc.depthBufferBits = EDepthBits.None;
-            bloomDsc.enableRandomWrite = true;
-            bloomDsc.useMipMap = true;
-            bloomDsc.autoGenerateMips = false;
-            bloomDsc.filterMode = FilterMode.Bilinear;
-            bloomDsc.wrapMode = TextureWrapMode.Clamp;
-            RGTextureRef bloomTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BloomBuffer, bloomDsc);
+            RGTextureRef bloomTexture = default;
+            if (volumes.bloomIntensity > 0)
+            {
+                int bloomWidth = Mathf.Max(1, width >> 1);
+                int bloomHeight = Mathf.Max(1, height >> 1);
+                TextureDescriptor bloomDsc = new TextureDescriptor(bloomWidth, bloomHeight);
+                bloomDsc.name = PostProcessingPassUtilityData.BloomTextureName;
+                bloomDsc.dimension = TextureDimension.Tex2D;
+                bloomDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
+                bloomDsc.depthBufferBits = EDepthBits.None;
+                bloomDsc.enableRandomWrite = true;
+                bloomDsc.useMipMap = true;
+                bloomDsc.autoGenerateMips = false;
+                bloomDsc.filterMode = FilterMode.Bilinear;
+                bloomDsc.wrapMode = TextureWrapMode.Clamp;
+                bloomTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BloomBuffer, bloomDsc);
+            }
 
             RGTextureRef exposureEV;
             using (new RGProfilingScope(m_RGBuilder, ProfilingSampler.Get(CustomSamplerId.PostProcessing)))
@@ -187,7 +195,8 @@ namespace InfinityTech.Rendering.Pipeline
                     exposureEV = ImportIdleExposureEV(frameState);
                 }
 
-                ComputeBloom(camera, sceneColorTexture, bloomTexture, exposureEV, volumes);
+                if (volumes.bloomIntensity > 0)
+                    ComputeBloom(camera, sceneColorTexture, bloomTexture, exposureEV, volumes);
                 ComputePostCombine(camera, sceneColorTexture, bloomTexture, combineLUT, exposureEV, postProcessTexture, volumes);
             }
 
@@ -204,11 +213,8 @@ namespace InfinityTech.Rendering.Pipeline
             FilmGrain filmGrain = stack.GetComponent<FilmGrain>();
 
             PostVolumeState state = default;
-            bool exposureActive = ExposureUtility.VolumeIsActive(exposure);
             state.recordAutoExposure = ExposureUtility.ShouldRecordAuto(exposure);
-            state.exposureMultiplier = exposureActive
-                ? ExposureUtility.EvToMultiplier(exposure.evCompensation.value)
-                : 1.0f;
+            state.exposureMultiplier = ExposureUtility.EvToMultiplier(ExposureUtility.ResolveCpuEvCompensation(exposure));
             state.autoExposure = state.recordAutoExposure ? 1.0f : 0.0f;
             if (state.recordAutoExposure)
             {
@@ -221,27 +227,20 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 state.bloomThreshold = bloom.threshold.value;
                 state.bloomIntensity = bloom.intensity.value;
+                state.bloomScatter = bloom.scatter.value;
             }
 
             if (GraphicsUtility.VolumeHasOverrides(vignette))
             {
                 state.vignetteIntensity = vignette.intensity.value;
-                state.vignetteSmoothness = vignette.smoothness.value;
             }
-            else
-            {
-                state.vignetteSmoothness = 0.4f;
-            }
+            state.vignetteSmoothness = vignette.smoothness.value;
 
             if (GraphicsUtility.VolumeHasOverrides(filmGrain))
             {
                 state.filmGrainIntensity = filmGrain.intensity.value;
-                state.filmGrainResponse = filmGrain.response.value;
             }
-            else
-            {
-                state.filmGrainResponse = 0.8f;
-            }
+            state.filmGrainResponse = filmGrain.response.value;
 
             return state;
         }
@@ -345,6 +344,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref BloomPassData passData = ref passRef.GetPassData<BloomPassData>();
                 passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
                 passData.bloomThreshold = volumes.bloomThreshold;
+                passData.bloomScatter = volumes.bloomScatter;
                 passData.exposureMultiplier = volumes.exposureMultiplier;
                 passData.autoExposure = volumes.autoExposure;
                 passData.postProcessingShader = pipelineAsset.postProcessingShader;
@@ -356,6 +356,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in BloomPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomThresholdID, passData.bloomThreshold);
+                    cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomScatterID, passData.bloomScatter);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_ExposureMultiplierID, passData.exposureMultiplier);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_AutoExposureID, passData.autoExposure);
                     cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.SRV_ExposureEVID, passData.exposureEV);
@@ -428,7 +429,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.frameIndex = Time.frameCount;
                 passData.postProcessingShader = pipelineAsset.postProcessingShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
-                passData.bloomTexture = passRef.ReadTexture(bloomTexture);
+                passData.hasBloom = volumes.bloomIntensity > 0;
+                passData.kernel = pipelineAsset.postProcessingShader.FindKernel(passData.hasBloom ? "FinalCombine" : "FinalCombineNoBloom");
+                if (passData.hasBloom) passData.bloomTexture = passRef.ReadTexture(bloomTexture);
                 passData.combineLUT = passRef.ReadTexture(combineLUT);
                 passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);
                 passData.exposureEV = passRef.ReadTexture(exposureEV);
@@ -447,13 +450,14 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_AutoExposureID, passData.autoExposure);
                     cmdEncoder.SetComputeIntParam(shader, PostProcessingPassUtilityData.PP_FrameIndexID, passData.frameIndex);
 
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_BloomTextureID, passData.bloomTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_CombineLUTID, passData.combineLUT);
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelCombine, PostProcessingPassUtilityData.SRV_ExposureEVID, passData.exposureEV);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
+                    if (passData.hasBloom)
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_BloomTextureID, passData.bloomTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_CombineLUTID, passData.combineLUT);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_ExposureEVID, passData.exposureEV);
 
-                    cmdEncoder.DispatchCompute(shader, PostProcessingPassUtilityData.KernelCombine, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.DispatchCompute(shader, passData.kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });
             }
         }

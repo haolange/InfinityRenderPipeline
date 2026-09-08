@@ -5,10 +5,14 @@ namespace InfinityTech.Rendering.RenderGraph
 {
     public interface ITransferCommands
     {
+        void SetBufferData<T>(GraphicsBuffer buffer, Unity.Collections.NativeArray<T> data) where T : struct;
+        void SetBufferData(GraphicsBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count);
         void CopyBuffer(GraphicsBuffer src, GraphicsBuffer dst);
         void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst);
         void CopyTexture(in RenderTargetIdentifier src, in int srcElement, in RenderTargetIdentifier dst, in int dstElement);
         void CopyTexture(in RenderTargetIdentifier src, in int srcElement, in int srcMip, in RenderTargetIdentifier dst, in int dstElement, in int dstMip);
+        void RequestAsyncReadback(GraphicsBuffer source, System.Action<AsyncGPUReadbackRequest> completion);
+        void RequestAsyncReadback(Texture source, System.Action<AsyncGPUReadbackRequest> completion);
     }
 
     public interface IComputeCommands
@@ -20,6 +24,7 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel);
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, ComputeBuffer buffer);
+        void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferRef buffer);
         void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, ComputeBuffer buffer, int offset, int size);
         void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ);
         void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst);
@@ -43,7 +48,12 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public interface IRasterCommands
     {
+        void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data);
         void SetViewport(in Rect pixelRect);
+        void SetGlobalFloat(int nameID, float value);
+        void SetGlobalBuffer(int nameID, ComputeBuffer value);
+        void SetGlobalBuffer(int nameID, RGBufferRef value);
+        void SetGlobalBuffer(int nameID, GraphicsBuffer value);
         void SetGlobalInt(int nameID, int value);
         void SetGlobalVector(int nameID, Vector4 value);
         void SetGlobalTexture(int nameID, RenderTargetIdentifier value);
@@ -57,14 +67,40 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         readonly CommandBuffer m_CommandBuffer;
 
+        public void SetGlobalBuffer(int nameID, RGBufferRef value) => value.BindGlobal(m_CommandBuffer, nameID);
+        public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferRef value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
+
+        public void SetGlobalFloat(int nameID, float value) => m_CommandBuffer.SetGlobalFloat(nameID, value);
+        public void SetGlobalBuffer(int nameID, ComputeBuffer value) => m_CommandBuffer.SetGlobalBuffer(nameID, value);
+        public void SetGlobalBuffer(int nameID, GraphicsBuffer value) => m_CommandBuffer.SetGlobalBuffer(nameID, value);
+
+        public void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data)
+        {
+            m_CommandBuffer.IssuePluginEventAndData(callback, eventId, data);
+        }
+
         public CommandBufferCommands(CommandBuffer commandBuffer)
         {
             m_CommandBuffer = commandBuffer;
         }
 
+        public void SetBufferData<T>(GraphicsBuffer buffer, Unity.Collections.NativeArray<T> data) where T : struct
+            => m_CommandBuffer.SetBufferData(buffer, data);
+
+        public void SetBufferData(GraphicsBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count)
+            => m_CommandBuffer.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
+
         public void CopyBuffer(GraphicsBuffer src, GraphicsBuffer dst)
         {
             m_CommandBuffer.CopyBuffer(src, dst);
+        }
+
+        public void RequestAsyncReadback(GraphicsBuffer source, System.Action<AsyncGPUReadbackRequest> completion)
+            => m_CommandBuffer.RequestAsyncReadback(source, completion);
+
+        public void RequestAsyncReadback(Texture source, System.Action<AsyncGPUReadbackRequest> completion)
+        {
+            m_CommandBuffer.RequestAsyncReadback(source, 0, completion);
         }
 
         public void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst)

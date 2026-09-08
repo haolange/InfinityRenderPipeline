@@ -1,5 +1,5 @@
 {
-    "name": "Unity.RenderPipelines.HighDefinition.Runtime",
+    "name": "Unity.RenderPipelines.Infinity.Runtime",
     "rootNamespace": "",
     "references": [
         "Unity.Jobs",
@@ -18,7 +18,7 @@
     "defineConstraints": [],
     "versionDefines": [
         {
-            "name": "com.unity.render-pipelines.infinity",
+            "name": "com.infinity.render-pipeline",
             "expression": "0.0.0",
             "define": "InfinityRenderPipeline"
         }

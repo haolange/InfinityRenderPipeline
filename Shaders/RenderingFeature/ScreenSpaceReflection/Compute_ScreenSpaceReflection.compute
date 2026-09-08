@@ -8,7 +8,7 @@
 int SSR_NumRays, SSR_NumSteps, SSR_FrameIndex;
 float SSR_BRDFBias, SSR_Thickness, SSR_Fadeness, SSR_Roughness, SSR_SpatialRadius, SSR_TemporalScale, SSR_TemporalWeight, ColorPyramidNumLOD;
 float4 SSR_Resolution, SSR_FilterResolution;
-float4x4 Matrix_Proj, Matrix_InvProj, Matrix_ViewProj, Matrix_InvViewProj, Matrix_LastViewProj, Matrix_WorldToView;
+float4x4 Matrix_Proj, Matrix_InvProj, Matrix_InvViewProj, Matrix_HitMotionViewProj, Matrix_HitMotionLastViewProj, Matrix_WorldToView;
 Texture2D SRV_DepthTexture, SRV_MotionTexture, SRV_NormalTexture, SRV_RoughnessTexture, SRV_HiCTexture, SRV_HiZTexture, SRV_HitPDFTexture, SRV_ColorMaskTexture, SRV_AliasingTexture, SRV_HistoryTexture, SRV_HistoryMoments, SRV_HistoryDepthNormal;
 
 static const float2 kStackowiakSampleSet0[56 * 4] =
@@ -141,6 +141,7 @@ RWTexture2D<float4> UAV_ColorMaskTexture;
 [numthreads(16, 16, 1)]
 void Raytracing(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SSR_Resolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSR_Resolution.zw;
     uint2 PixelPosition = uint2(UV.xy * SSR_Resolution.xy);
 
@@ -160,9 +161,7 @@ void Raytracing(uint3 id : SV_DispatchThreadID)
         return;
     }
     float3 NDCPos = GetNDCPos(UV, SceneDepth);
-    float3 WorldPos = GetWorldSpacePos(NDCPos, Matrix_InvViewProj);
     float3 ViewPos = GetViewSpacePos(NDCPos, Matrix_InvProj);
-    float3 ViewDir = GetViewDir(WorldPos, ViewPos);
     float3 WorldNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).xyz * 2 - 1;
     float3x3 TangentToWorld = GetTangentBasis(WorldNormal);
 
@@ -287,6 +286,7 @@ RWTexture2D<float4> UAV_SpatialTexture;
 [numthreads(16, 16, 1)]
 void SpatialFilter (uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SSR_FilterResolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSR_FilterResolution.zw;
     uint2 PixelPosition = uint2(UV.xy * SSR_FilterResolution.xy);
 	float SceneDepth = SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).r;
@@ -302,9 +302,9 @@ void SpatialFilter (uint3 id : SV_DispatchThreadID)
     //float3 WorldSpacePos = GetWorldSpacePos(NDCPos, Matrix_InvViewProj);
     //float3 ViewSpacePos = GetViewSpacePos(NDCPos, Matrix_InvProj);
 
-	float NumWeight;
+	float NumWeight = 0;
     //float3 MomentA, MomentB;
-	float4 SpatialColor;
+	float4 SpatialColor = 0;
 	uint2 Random = Rand3DPCG16( uint3(id.xy + 0.5, SSR_FrameIndex) ).xy;
 
 	[loop]
@@ -336,7 +336,7 @@ void SpatialFilter (uint3 id : SV_DispatchThreadID)
         NumWeight += Weight;
 
 		///SpatioSampler
-        SpatialColor += float4(HitColorMask.rgb * Weight, HitColorMask.a);
+        SpatialColor += HitColorMask * Weight;
 	}
 	SpatialColor /= max(NumWeight, 0.00001);
 
@@ -366,15 +366,16 @@ RWTexture2D<float4> UAV_DepthNormalTexture;
 [numthreads(16, 16, 1)]
 void TemporalFilter (uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SSR_FilterResolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSR_FilterResolution.zw;
     float SceneDepth = SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).r;
     float3 WorldNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).xyz * 2 - 1;
     float HitDepth = SRV_HitPDFTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).z;
-    float2 HitMotion = GetMotionVector(HitDepth, UV, Matrix_InvViewProj, Matrix_LastViewProj, Matrix_ViewProj);
+    float2 HitMotion = GetMotionVector(HitDepth, UV, Matrix_InvViewProj, Matrix_HitMotionLastViewProj, Matrix_HitMotionViewProj);
     float2 DepthMotion = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).xy;
 
     float4 SampleColors[9];
-    float4 CurrColor, PrevColor, MomentA, MomentB;
+    float4 CurrColor, PrevColor, MomentA = 0, MomentB = 0;
 
     [loop]
     for(int i = 0; i < 9; ++i)
@@ -385,7 +386,7 @@ void TemporalFilter (uint3 id : SV_DispatchThreadID)
     }
 
     float4 Mean = MomentA / 9;
-    float4 Stddev = sqrt( (MomentB / 9) - pow2(Mean) );
+    float4 Stddev = sqrt(max(0, (MomentB / 9) - pow2(Mean)));
 
     CurrColor = SampleColors[4];
     float4 MinColor = Mean - SSR_TemporalScale * Stddev;
@@ -411,11 +412,11 @@ void TemporalFilter (uint3 id : SV_DispatchThreadID)
 
         float4 RayProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, RayPrevUV, 0);
         float4 RayProject_Dist = ( RayProject_PrevColor - Mean ) / max(Stddev, 1e-4);
-        float RayProject_Weight = exp2(-10 * Rec709Luminance(RayProject_Dist));
+        float RayProject_Weight = exp2(-10 * Rec709Luminance(abs(RayProject_Dist.rgb)));
 
         float4 DepthProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
         float4 DepthProject_Dist = (DepthProject_PrevColor - Mean) / max(Stddev, 1e-4);
-        float DepthProject_Weight = exp2(-10 * Rec709Luminance(DepthProject_Dist));
+        float DepthProject_Weight = exp2(-10 * Rec709Luminance(abs(DepthProject_Dist.rgb)));
 
         PrevColor = (RayProject_PrevColor * RayProject_Weight + DepthProject_PrevColor * DepthProject_Weight) / max(RayProject_Weight + DepthProject_Weight, 1e-4);
         PrevColor = clamp(PrevColor, MinColor, MaxColor);
@@ -446,6 +447,7 @@ RWTexture2D<float4> UAV_BilateralColor;
 [numthreads(16, 16, 1)]
 void BilateralFilter (uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SVGF_BilateralSize.xy)) return;
 	float WeightSum = 0;
 	float4 ColorSum = 0;
 
@@ -455,7 +457,7 @@ void BilateralFilter (uint3 id : SV_DispatchThreadID)
 	float Depth = LinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).r);
 
 	for(int i = 0; i < 25; i++) {
-		float2 OffsetUV = UV + (BilateralOffset[i] * SVGF_BilateralSize * SVGF_BilateralRadius);
+		float2 OffsetUV = UV + (BilateralOffset[i] * SVGF_BilateralSize.zw * SVGF_BilateralRadius);
 
 		float4 OffsetColor = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
         float4 OffsetNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
@@ -463,9 +465,9 @@ void BilateralFilter (uint3 id : SV_DispatchThreadID)
 
 		float4 Distance = Normal - OffsetNormal;
 		float Distance2 = max( dot(Distance, Distance) / (SVGF_BilateralRadius * SVGF_BilateralRadius), 0);
-		float WeightNormal = min( exp(-Distance2 / SVGF_NormalWeight), 1 );
+		float WeightNormal = min( exp(-Distance2 / max(SVGF_NormalWeight, 1e-4)), 1 );
 	    float WeightDepth = (SVGF_DepthWeight == 0) ? 0 : abs(Depth - OffsetDepth) / SVGF_DepthWeight;
-	    float WeightColor = abs( Rec709Luminance(Color.rgb) - Rec709Luminance(OffsetColor.rgb) ) / SVGF_ColorWeight;
+	    float WeightColor = abs( Rec709Luminance(Color.rgb) - Rec709Luminance(OffsetColor.rgb) ) / max(SVGF_ColorWeight, 1e-4);
         float Weight = exp(0 - max(WeightColor, 0) - max(WeightDepth, 0)) * WeightNormal;
 
 		ColorSum += OffsetColor * Weight * Bilateralkernel[i];

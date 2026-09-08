@@ -81,13 +81,13 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 cascadeSplitDistances;
             public Vector4 cascadeShadowMapSize;
             public Vector4 localShadowMapSize;
-            public GraphicsBuffer lightRecordBuffer;
-            public GraphicsBuffer localShadowMatrixBuffer;
-            public GraphicsBuffer localShadowRectBuffer;
-            public GraphicsBuffer emptyTileRange;
-            public GraphicsBuffer emptyTileList;
-            public GraphicsBuffer emptyZBinRange;
-            public GraphicsBuffer emptyZBinList;
+            public RGBufferRef lightRecordBuffer;
+            public RGBufferRef localShadowMatrixBuffer;
+            public RGBufferRef localShadowRectBuffer;
+            public RGBufferRef emptyTileRange;
+            public RGBufferRef emptyTileList;
+            public RGBufferRef emptyZBinRange;
+            public RGBufferRef emptyZBinList;
             public ComputeShader volumetricFogShader;
             public RGTextureRef depthTexture;
             public RGTextureRef cascadeShadowMap;
@@ -205,13 +205,13 @@ namespace InfinityTech.Rendering.Pipeline
                     pipelineAsset.localShadowMapResolution,
                     1.0f / pipelineAsset.localShadowMapResolution,
                     1.0f / pipelineAsset.localShadowMapResolution);
-                passData.lightRecordBuffer = renderContext.lightContext.LightRecordBuffer;
-                passData.localShadowMatrixBuffer = renderContext.lightContext.LocalShadowMatrixBuffer;
-                passData.localShadowRectBuffer = renderContext.lightContext.LocalShadowRectBuffer;
-                passData.emptyTileRange = renderContext.lightContext.EmptyTileRangeBuffer;
-                passData.emptyTileList = renderContext.lightContext.EmptyTileListBuffer;
-                passData.emptyZBinRange = renderContext.lightContext.EmptyZBinRangeBuffer;
-                passData.emptyZBinList = renderContext.lightContext.EmptyZBinListBuffer;
+                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
+                passData.localShadowMatrixBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer));
+                passData.localShadowRectBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer));
+                passData.emptyTileRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileRangeBuffer));
+                passData.emptyTileList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileListBuffer));
+                passData.emptyZBinRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinRangeBuffer));
+                passData.emptyZBinList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinListBuffer));
                 passData.volumetricFogShader = pipelineAsset.volumetricFogShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);

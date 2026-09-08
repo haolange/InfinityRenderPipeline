@@ -219,6 +219,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<MeshInstanceRecord> GetInstances() => m_Instances;
         public NativeArray<uint> GetInstanceGenerations() => m_InstanceGenerations;
         public NativeArray<TransformRecord> GetTransforms() => m_Transforms;
+        public uint GetTransformRenderingLayer(int transformIndex)
+        {
+            if (transformIndex < 0 || transformIndex >= m_TransformHighWater) return 0;
+            int owner = m_TransformOwners[transformIndex];
+            return owner >= 0 && IsInstanceSlotLive(owner) ? m_Instances[owner].renderingLayerMask : 0;
+        }
         public NativeArray<uint> GetTransformGenerations() => m_TransformGenerations;
         public NativeArray<MeshDrawRecord> GetDraws() => m_Draws;
         public NativeArray<uint> GetDrawGenerations() => m_DrawGenerations;
@@ -437,6 +443,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal MeshInstanceId AllocInstance(in MeshInstanceRecord record)
         {
+            RenderingLayerUtility.Validate(record.renderingLayerMask);
             if (!IsTransformAlive(record.transform))
             {
                 throw new ArgumentException("CreateInstance requires a live TransformId.", nameof(record));
@@ -457,6 +464,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             stored.drawCount = 0;
             m_Instances[index] = stored;
             m_TransformOwners[transformIndex] = index;
+            MarkTransformDirty(transformIndex);
             MarkBoundsDirty(index);
 
             StructuralRevision++;
@@ -537,10 +545,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             MeshInstanceRecord record = m_Instances[(int)id.Index];
+            RenderingLayerUtility.Validate(renderingLayerMask);
             record.renderingLayerMask = renderingLayerMask;
             record.motionType = motionType;
             record.castShadow = castShadow;
             m_Instances[(int)id.Index] = record;
+            MarkTransformDirty((int)record.transform.Index);
             ContentRevision++;
             VisibilityRevision++;
         }
@@ -1102,6 +1112,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (m_TransformOwners[transformIndex] == instanceIndex)
             {
                 m_TransformOwners[transformIndex] = -1;
+                MarkTransformDirty(transformIndex);
             }
         }
 
@@ -1114,6 +1125,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             // Rollback restores transform then instance; overwrite keeps owner map consistent.
             m_TransformOwners[(int)transform.Index] = instanceIndex;
+            MarkTransformDirty((int)transform.Index);
         }
 
         private void FillTransformOwners(int value, int begin, int end)

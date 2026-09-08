@@ -55,6 +55,7 @@ struct FGBufferData
     uint Flags;
     uint SSSProfileIndex;
     float Thickness;
+    uint RenderingLayer;
 };
 
 struct FReconstructInput
@@ -134,7 +135,7 @@ void EncodeGBuffer(FGBufferData GBufferData, float2 svPositionXY, out float4 GBu
         PackGBufferCChannelR(GBufferData.ShadingModel, GBufferData.Flags),
         saturate(GBufferData.SSSProfileIndex / 255.0),
         saturate(GBufferData.Thickness),
-        0);
+        GBufferData.RenderingLayer / 255.0);
 }
 
 void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 GBufferB, float4 GBufferC, out FGBufferData GBufferData)
@@ -151,6 +152,7 @@ void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 G
     UnpackGBufferCChannelR(GBufferC.r, GBufferData.ShadingModel, GBufferData.Flags);
     GBufferData.SSSProfileIndex = (uint)(GBufferC.g * 255.0 + 0.5);
     GBufferData.Thickness = GBufferC.b;
+    GBufferData.RenderingLayer = (uint)(GBufferC.a * 255.0 + 0.5);
 }
 
 void DecodeGBuffer(uint2 pixel, Texture2D texA, Texture2D texB, Texture2D texC, out FGBufferData GBufferData)

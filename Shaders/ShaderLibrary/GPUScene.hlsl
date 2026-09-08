@@ -14,5 +14,6 @@ uint instanceIndexOffset;
 StructuredBuffer<uint> instanceIndexBuffer;
 StructuredBuffer<FTransformData> transformBuffer;
 StructuredBuffer<FTransformData> previousTransformBuffer;
+StructuredBuffer<uint> renderingLayerBuffer;
 
 #endif

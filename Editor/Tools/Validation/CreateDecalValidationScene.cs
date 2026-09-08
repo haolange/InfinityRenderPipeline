@@ -41,7 +41,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             light.shadows = LightShadows.None;
             lightGo.transform.rotation = Quaternion.Euler(50.0f, -30.0f, 0.0f);
             LightComponent lightComponent = lightGo.AddComponent<LightComponent>();
-            lightComponent.enableShadow = false;
             RenderSettings.sun = light;
 
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
@@ -69,7 +68,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 groundMaterial.SetColor("_EmissionColor", new Color(0.35f, 0.35f, 0.32f, 1.0f));
             }
-            InfinityLitGUI.ApplyPassState(groundMaterial);
+            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(groundMaterial);
             AssetDatabase.CreateAsset(groundMaterial, groundMatPath);
             ground.GetComponent<MeshRenderer>().sharedMaterial = groundMaterial;
 
@@ -92,7 +91,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.18f, 0.18f, 0.20f, 1.0f);
             cameraGo.AddComponent<CameraComponent>();
-            DebugViewCapture.EnsureLitLivenessMarker(camera);
+            ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();

@@ -20,6 +20,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private FBufferRef m_TransformBuffer;
         private FBufferRef m_PreviousTransformBuffer;
+        private FBufferRef m_RenderingLayerBuffer;
         private FBufferRef m_BoundsCenterBuffer;
         private FBufferRef m_BoundsExtentBuffer;
         private FBufferRef m_InstanceTransformIndexBuffer;
@@ -30,6 +31,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public FBufferRef TransformBuffer => m_TransformBuffer;
         public FBufferRef PreviousTransformBuffer => m_PreviousTransformBuffer;
+        public FBufferRef RenderingLayerBuffer => m_RenderingLayerBuffer;
         public FBufferRef BoundsCenterBuffer => m_BoundsCenterBuffer;
         public FBufferRef BoundsExtentBuffer => m_BoundsExtentBuffer;
         public FBufferRef InstanceTransformIndexBuffer => m_InstanceTransformIndexBuffer;
@@ -70,11 +72,13 @@ namespace InfinityTech.Rendering.MeshPipeline
                     {
                         m_ResourcePool.ReleaseBuffer(m_TransformBuffer);
                         m_ResourcePool.ReleaseBuffer(m_PreviousTransformBuffer);
+                        m_ResourcePool.ReleaseBuffer(m_RenderingLayerBuffer);
                     }
 
                     m_TransformBufferCapacity = neededTransforms;
                     m_TransformBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, Marshal.SizeOf<float4x4>()));
                     m_PreviousTransformBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, Marshal.SizeOf<float4x4>()));
+                    m_RenderingLayerBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, sizeof(uint)));
                     m_HasTransformBuffer = true;
 
                     UploadTransformRange(0, m_Scene.TransformHighWater);
@@ -138,6 +142,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             int count = exclusiveEnd - begin;
             var currentMatrices = new NativeArray<float4x4>(count, Allocator.Temp);
             var previousMatrices = new NativeArray<float4x4>(count, Allocator.Temp);
+            var layers = new NativeArray<uint>(count, Allocator.Temp);
             try
             {
                 for (int i = begin; i < exclusiveEnd; ++i)
@@ -145,15 +150,18 @@ namespace InfinityTech.Rendering.MeshPipeline
                     TransformRecord transform = transforms[i];
                     currentMatrices[i - begin] = transform.current;
                     previousMatrices[i - begin] = transform.previous;
+                    layers[i - begin] = m_Scene.GetTransformRenderingLayer(i);
                 }
 
                 m_TransformBuffer.buffer.SetData(currentMatrices, 0, begin, count);
                 m_PreviousTransformBuffer.buffer.SetData(previousMatrices, 0, begin, count);
+                m_RenderingLayerBuffer.buffer.SetData(layers, 0, begin, count);
             }
             finally
             {
                 currentMatrices.Dispose();
                 previousMatrices.Dispose();
+                layers.Dispose();
             }
         }
 
@@ -219,6 +227,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 m_ResourcePool.ReleaseBuffer(m_TransformBuffer);
                 m_ResourcePool.ReleaseBuffer(m_PreviousTransformBuffer);
+                m_ResourcePool.ReleaseBuffer(m_RenderingLayerBuffer);
                 m_HasTransformBuffer = false;
                 m_TransformBufferCapacity = 0;
             }

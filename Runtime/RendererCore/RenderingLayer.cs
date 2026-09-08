@@ -3,7 +3,7 @@ using System;
 namespace InfinityTech.Rendering
 {
     // Canonical 8-bit rendering layer mask for lights and meshes.
-    // Filter: (instance.mask & filter.mask) == 0 rejects. Everything=0xFF; use ~0u only for full 32-bit open.
+    // Surface lighting and caster filtering use these bits; camera visibility is separate.
     [Flags]
     public enum ERenderingLayer : byte
     {
@@ -17,5 +17,15 @@ namespace InfinityTech.Rendering
         LightLayer6 = 1 << 6,
         LightLayer7 = 1 << 7,
         Everything = 0xFF,
+    }
+
+    public static class RenderingLayerUtility
+    {
+        public static uint Validate(uint mask)
+        {
+            if ((mask & ~0xFFu) != 0)
+                throw new ArgumentOutOfRangeException(nameof(mask), mask, "Infinity rendering layers are eight bits. Migrate Unity Everything explicitly; unknown high bits are invalid.");
+            return mask;
+        }
     }
 }

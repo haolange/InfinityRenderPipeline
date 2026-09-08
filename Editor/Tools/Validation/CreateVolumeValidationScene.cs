@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraB.backgroundColor = new Color(0.24f, 0.32f, 0.40f, 1.0f);
             CameraComponent cameraBComponent = cameraBGo.AddComponent<CameraComponent>();
             cameraBComponent.volumeLayerMask = (1 << layerDefault) | (1 << layerWater);
-            DebugViewCapture.EnsureLitLivenessMarker(cameraA);
+            ValidationSceneUtility.EnsureLitLivenessMarker(cameraA);
 
             GameObject localVolumeGo = new GameObject("Local Volume");
             localVolumeGo.layer = layerWater;

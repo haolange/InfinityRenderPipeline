@@ -6,7 +6,8 @@
         "UnityEditor.TestRunner",
         "Unity.Mathematics",
         "Unity.Collections",
-        "Unity.RenderPipelines.HighDefinition.Runtime",
+        "Unity.RenderPipelines.Infinity.Runtime",
+        "Unity.RenderPipelines.Infinity.Editor",
         "Unity.RenderPipelines.Core.Runtime"
     ],
     "includePlatforms": [

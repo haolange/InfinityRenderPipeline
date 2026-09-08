@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -10,12 +9,12 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         struct CacheKey : IEquatable<CacheKey>
         {
-            public int materialInstanceId;
+            public Shader shader;
             public string lightMode;
 
             public bool Equals(CacheKey other)
             {
-                return materialInstanceId == other.materialInstanceId
+                return ReferenceEquals(shader, other.shader)
                     && string.Equals(lightMode, other.lightMode, StringComparison.Ordinal);
             }
 
@@ -25,7 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 unchecked
                 {
-                    int hash = materialInstanceId * 397;
+                    int hash = shader.GetHashCode() * 397;
                     if (lightMode != null)
                     {
                         hash ^= lightMode.GetHashCode();
@@ -40,14 +39,14 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public static int FindPassIndex(Material material, string lightMode)
         {
-            if (material == null || string.IsNullOrEmpty(lightMode))
+            if (material == null || material.shader == null || string.IsNullOrEmpty(lightMode))
             {
                 return -1;
             }
 
             CacheKey key = new CacheKey
             {
-                materialInstanceId = UnityEntityId.ToInt32(material),
+                shader = material.shader,
                 lightMode = lightMode
             };
             if (s_Cache.TryGetValue(key, out int cached))

@@ -103,6 +103,7 @@ inline half ReflectionOcclusion(half3 BentNormal, half3 ReflectionVector, half R
 [numthreads(16, 16, 1)]
 void Raytracing (uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SSGi_TraceResolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSGi_TraceResolution.zw;
 	uint2 PixelPosition = uint2(UV.xy * SSGi_TraceResolution.xy);
 
@@ -194,6 +195,7 @@ RWTexture2D<float4> UAV_SpatialTexture;
 [numthreads(16, 16, 1)]
 void SpatialFilter(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SSGi_FilterResolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSGi_FilterResolution.zw;
     float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
     if (SceneDepth <= 1e-7)
@@ -241,6 +243,7 @@ RWTexture2D<float4> UAV_DepthNormalTexture;
 [numthreads(16, 16, 1)]
 void TemporalFilter(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SSGi_FilterResolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSGi_FilterResolution.zw;
     float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
     float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
@@ -301,6 +304,7 @@ RWTexture2D<float4> UAV_BilateralColor;
 [numthreads(16, 16, 1)]
 void BilateralFilter(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)SVGF_BilateralSize.xy)) return;
     float WeightSum = 0;
     float4 ColorSum = 0;
     float2 UV = (id.xy + 0.5) * SVGF_BilateralSize.zw;

@@ -1,5 +1,5 @@
 {
-    "name": "Unity.RenderPipelines.HighDefinition.Shaders",
+    "name": "Unity.RenderPipelines.Infinity.Shaders",
     "rootNamespace": "",
     "references": [
         "GUID:c5fe2eb9d5ef64b4f892cb2e1428b4cc",

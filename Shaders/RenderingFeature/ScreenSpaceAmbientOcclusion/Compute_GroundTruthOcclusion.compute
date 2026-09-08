@@ -13,6 +13,7 @@ RWTexture2D<float> UAV_OcclusionTexture;
 [numthreads(16, 16, 1)]
 void OcclusionTrace(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)Resolution.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
 	uint2 PixelPosition = uint2(ScreenUV * Resolution.xy);
 
@@ -43,6 +44,7 @@ RWTexture2D<float> UAV_SpatialTexture;
 [numthreads(16, 16, 1)]
 void OcclusionSpatialX(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)Resolution.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
     UAV_SpatialTexture[id.xy] = BilateralBlur(ScreenUV, float2(Resolution.z, 0));
 }
@@ -50,6 +52,7 @@ void OcclusionSpatialX(uint3 id : SV_DispatchThreadID)
 [numthreads(16, 16, 1)]
 void OcclusionSpatialY(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)Resolution.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
     UAV_SpatialTexture[id.xy] = BilateralBlur(ScreenUV, float2(0, Resolution.w));
 }
@@ -58,6 +61,7 @@ RWTexture2D<float> UAV_AccmulateTexture;
 [numthreads(16, 16, 1)]
 void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)Resolution.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
     float2 Velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, ScreenUV, 0);
 
@@ -97,7 +101,7 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     }
 
     float mean = m1 / 9;
-    float stddev = sqrt( (m2 / 9) - pow2(mean) );
+    float stddev = sqrt(max(0, (m2 / 9) - pow2(mean)));
 
     float MinColor = mean - TemporalScale * stddev;
     float MaxColor = mean + TemporalScale * stddev;
@@ -124,6 +128,7 @@ static const int2 UpsampleOffset[4] = { int2(0, 1), int2(1, 0), int2(-1, 0), int
 [numthreads(16, 16, 1)]
 void OcclusionUpsample(uint3 id : SV_DispatchThreadID)
 {
+    if (any(id.xy >= (uint2)UpsampleSize.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * UpsampleSize.zw;			
 	float TopLeft_Color = SRV_OcclusionTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV, 0).r;
 

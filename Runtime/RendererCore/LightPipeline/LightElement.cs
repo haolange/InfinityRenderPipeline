@@ -1,5 +1,7 @@
+using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Rendering;
 using InfinityTech.Component;
 using InfinityTech.Core;
 using InfinityTech.Rendering;
@@ -14,36 +16,10 @@ namespace InfinityTech.Rendering.LightPipeline
         Rect = 3
     }
 
-    public enum ELightState
-    {
-        Static = 0,
-        Mixed = 1,
-        Dynamic = 2
-    }
-
-    public enum ELightUnit
-    {
-        Lumen,
-        Candela,
-        Lux,
-        Luminance,
-        Ev100,
-    }
-
-    public enum EShadowResolution
-    {
-        X512 = 0,
-        X1024 = 1,
-        X2048 = 2,
-        X4096 = 3,
-        X8192 = 4
-    }
-
     public enum EShadowType
     {
         Hard = 0,
-        PCF = 1,
-        PCSS = 2
+        PCF = 1
     }
 
     public enum EShadowCascade
@@ -59,7 +35,6 @@ namespace InfinityTech.Rendering.LightPipeline
         public const int EnableShadow = 1 << 0;
         public const int EnableContactShadow = 1 << 1;
         public const int EnableVolumetric = 1 << 2;
-        public const int EnableIndirect = 1 << 3;
     }
 
     /// <summary>
@@ -79,8 +54,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public Vector4 axisX;
         public Vector4 axisY;
         public Vector4 shadowAtlasRect;
-        public Vector4 shadowSoftVol;
-        public Vector4 extra;
+        public Vector4 attenuation;
         public int lightType;
         public int lightLayer;
         public int flags;
@@ -88,7 +62,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public int shadowSliceCount;
         public int shadowType;
         public int visibleLightIndex;
-        public int unused0;
+        public int padding;
     }
 
     /// <summary>
@@ -120,17 +94,18 @@ namespace InfinityTech.Rendering.LightPipeline
                     return ELightType.Spot;
                 case LightType.Rectangle:
                     return ELightType.Rect;
-                case LightType.Disc:
-                    return ELightType.Spot;
                 default:
-                    return ELightType.Point;
+                    throw new NotSupportedException($"Infinity does not implement light shape {unityType}.");
             }
         }
 
         public static FLightRecord FromUnityLight(Light light, LightComponent ext, ELightType type, int visibleIndex)
         {
             FLightRecord record = default;
-            record.radiance = Radiance(light.color, light.intensity);
+            Color color = light.color;
+            if (light.useColorTemperature)
+                color *= Mathf.CorrelatedColorTemperatureToRGB(light.colorTemperature);
+            record.radiance = Radiance(color, light.intensity);
             record.visibleLightIndex = visibleIndex;
             record.lightType = (int)type;
             record.shadowMatrixIndex = -1;
@@ -159,18 +134,8 @@ namespace InfinityTech.Rendering.LightPipeline
                 Vector2 area = light.areaSize;
                 width = area.x;
                 height = area.y;
-                if (ext != null)
-                {
-                    if (width <= 0.0f)
-                    {
-                        width = ext.width;
-                    }
-
-                    if (height <= 0.0f)
-                    {
-                        height = ext.height;
-                    }
-                }
+                if (width <= 0 || height <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(light), "Rectangle lights require positive native areaSize.");
 
                 Vector3 right = transform.right;
                 Vector3 up = transform.up;
@@ -183,35 +148,24 @@ namespace InfinityTech.Rendering.LightPipeline
                 record.axisY = new Vector4(0, 0, 0, 1.0f);
             }
 
-            float sourceRadius = 0.0f;
             float fade = 1.0f;
             float diffuse = 1.0f;
             float specular = 1.0f;
-            float minSoft = 0.1f;
-            float maxSoft = 1.0f;
             float volIntensity = 1.0f;
             float volOcclusion = 1.0f;
-            float contactLength = 0.05f;
             float maxDrawDistance = 128.0f;
-            float indirectIntensity = 1.0f;
             int flags = 0;
             ERenderingLayer layer = ERenderingLayer.LightLayerDefault;
-            EShadowType shadowType = EShadowType.PCF;
 
             if (ext != null)
             {
                 diffuse = ext.diffuse;
                 specular = ext.specular;
                 fade = ext.maxDrawDistanceFade;
-                minSoft = ext.minSoftness;
-                maxSoft = ext.maxSoftness;
                 volIntensity = ext.volumetricIntensity;
                 volOcclusion = ext.volumetricOcclusion;
-                contactLength = ext.contactShadowLength;
                 maxDrawDistance = ext.maxDrawDistance;
-                indirectIntensity = ext.indirectIntensity;
                 layer = ext.lightLayer;
-                shadowType = ext.shadowType;
                 if (ext.enableContactShadow)
                 {
                     flags |= FLightRecordFlags.EnableContactShadow;
@@ -222,27 +176,20 @@ namespace InfinityTech.Rendering.LightPipeline
                     flags |= FLightRecordFlags.EnableVolumetric;
                 }
 
-                if (ext.enableIndirect)
-                {
-                    flags |= FLightRecordFlags.EnableIndirect;
-                }
             }
             else
             {
-                flags |= FLightRecordFlags.EnableVolumetric | FLightRecordFlags.EnableIndirect;
-                indirectIntensity = light.bounceIntensity;
+                flags |= FLightRecordFlags.EnableVolumetric;
             }
 
-            record.shape = new Vector4(type == ELightType.Rect ? width : innerCos, type == ELightType.Rect ? height : 0.0f, sourceRadius, fade);
+            record.shape = new Vector4(type == ELightType.Rect ? width : innerCos, type == ELightType.Rect ? height : 0.0f, 0, 0);
             record.directionSpot.w = outerCos;
             record.axisX.w = diffuse;
             record.axisY.w = specular;
-            record.shadowSoftVol = new Vector4(minSoft, maxSoft, volIntensity, volOcclusion);
-            record.extra = new Vector4(contactLength, maxDrawDistance, indirectIntensity, 0.0f);
-            record.lightLayer = (int)layer;
+            record.attenuation = new Vector4(maxDrawDistance, fade, volIntensity, volOcclusion);
+            record.lightLayer = (int)RenderingLayerUtility.Validate((uint)layer);
             record.flags = flags;
-            record.shadowType = (int)shadowType;
-            record.unused0 = WantsShadow(light, ext, type) ? 1 : 0;
+            record.shadowType = light.shadows == LightShadows.Hard ? (int)EShadowType.Hard : (int)EShadowType.PCF;
             return record;
         }
 
@@ -258,19 +205,5 @@ namespace InfinityTech.Rendering.LightPipeline
             return bounds;
         }
 
-        public static bool WantsShadow(Light light, LightComponent ext, ELightType type)
-        {
-            if (type == ELightType.Rect || light == null || light.shadows == LightShadows.None)
-            {
-                return false;
-            }
-
-            if (ext != null && !ext.enableShadow)
-            {
-                return false;
-            }
-
-            return true;
-        }
     }
 }

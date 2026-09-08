@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             groundMaterial.SetColor("_BaseColor", new Color(0.65f, 0.65f, 0.62f, 1.0f));
             groundMaterial.SetFloat("_Roughness", 0.45f);
             groundMaterial.SetFloat("_SpecularLevel", 0.4f);
-            InfinityLitGUI.ApplyPassState(groundMaterial);
+            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(groundMaterial);
             AssetDatabase.CreateAsset(groundMaterial, groundMatPath);
 
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
@@ -79,7 +79,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             directional.shadows = LightShadows.Soft;
             directionalGo.transform.rotation = Quaternion.Euler(50.0f, -35.0f, 0.0f);
             LightComponent directionalExt = directionalGo.AddComponent<LightComponent>();
-            directionalExt.enableShadow = true;
             RenderSettings.sun = directional;
 
             GameObject pointGo = new GameObject("Point Light");
@@ -91,7 +90,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             point.shadows = LightShadows.Soft;
             pointGo.transform.position = new Vector3(-2.4f, 2.2f, 0.6f);
             LightComponent pointExt = pointGo.AddComponent<LightComponent>();
-            pointExt.enableShadow = true;
 
             GameObject spotGo = new GameObject("Spot Light");
             Light spot = spotGo.AddComponent<Light>();
@@ -105,7 +103,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             spotGo.transform.position = new Vector3(2.6f, 3.0f, -1.4f);
             spotGo.transform.LookAt(new Vector3(2.0f, 0.0f, 0.0f));
             LightComponent spotExt = spotGo.AddComponent<LightComponent>();
-            spotExt.enableShadow = true;
 
             GameObject rectGo = new GameObject("Rect Light");
             Light rect = rectGo.AddComponent<Light>();
@@ -118,9 +115,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             rectGo.transform.position = new Vector3(0.0f, 2.6f, 0.2f);
             rectGo.transform.rotation = Quaternion.Euler(90.0f, 0.0f, 0.0f);
             LightComponent rectExt = rectGo.AddComponent<LightComponent>();
-            rectExt.enableShadow = false;
-            rectExt.width = 2.2f;
-            rectExt.height = 1.1f;
 
             VolumeProfile volumeProfile = ScriptableObject.CreateInstance<VolumeProfile>();
             VolumetricFog fog = volumeProfile.Add<VolumetricFog>(true);
@@ -144,7 +138,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.12f, 0.13f, 0.16f, 1.0f);
             cameraGo.AddComponent<CameraComponent>();
-            DebugViewCapture.EnsureLitLivenessMarker(camera);
+            ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();

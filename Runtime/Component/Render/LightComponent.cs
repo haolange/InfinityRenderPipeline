@@ -11,33 +11,21 @@ namespace InfinityTech.Component
     [AddComponentMenu("InfinityRenderer/Light Component")]
     public class LightComponent : BaseComponent
     {
-        public Light unityLight;
-        public ELightState state = ELightState.Dynamic;
+        Light m_UnityLight;
+        int m_RegisteredLightId;
+        public Light unityLight => m_UnityLight ? m_UnityLight : (m_UnityLight = GetComponent<Light>());
         public ERenderingLayer lightLayer = ERenderingLayer.LightLayerDefault;
 
         public float diffuse = 1;
         public float specular = 1;
-        public float width = 0.5f;
-        public float height = 0.5f;
 
-        public bool enableIndirect = true;
-        public float indirectIntensity = 1;
-
-        public int IESIndex = 0;
-        public Texture2D IESTexture;
-        public int cookieIndex = 0;
-        public Texture2D cookieTexture;
-
-        public bool enableShadow = true;
-        public float nearPlane = 0.05f;
-        public float minSoftness = 0.1f;
-        public float maxSoftness = 1;
-        public EShadowType shadowType = EShadowType.PCF;
-        public ERenderingLayer shadowLayer = ERenderingLayer.LightLayerDefault;
-        public EShadowResolution resolution = EShadowResolution.X1024;
+        public ERenderingLayer shadowLayer
+        {
+            get => (ERenderingLayer)RenderingLayerUtility.Validate(unchecked((uint)unityLight.renderingLayerMask));
+            set => unityLight.renderingLayerMask = checked((int)RenderingLayerUtility.Validate((uint)value));
+        }
 
         public bool enableContactShadow = false;
-        public float contactShadowLength = 0.05f;
 
         public bool enableVolumetric = true;
         public float volumetricIntensity = 1;
@@ -48,10 +36,12 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
-            unityLight = GetComponent<Light>();
+            m_UnityLight = GetComponent<Light>();
+            m_RegisteredLightId = UnityEntityId.ToInt32(m_UnityLight);
+            int lightId = m_RegisteredLightId;
             FGraphics.AddTask((RenderContext renderContext) =>
             {
-                renderContext.AddWorldLight(UnityEntityId.ToInt32(unityLight), this);
+                if (this && m_UnityLight) renderContext.AddWorldLight(lightId, this);
             });
         }
 
@@ -67,9 +57,10 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
+            int lightId = m_RegisteredLightId;
             FGraphics.AddTask((RenderContext renderContext) =>
             {
-                renderContext.RemoveWorldLight(UnityEntityId.ToInt32(unityLight));
+                renderContext.RemoveWorldLight(lightId);
             });
         }
     }

@@ -619,13 +619,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
             using (var cache = new MeshPassDrawCache(32))
             {
-                MeshPassDrawId first = cache.GetOrCreate(
+                MeshPassDrawId first = cache.GetOrCreate(0, 0, 
                     keyA.shaderPassIndex, keyA.meshUnityId, keyA.sectionIndex, keyA.materialUnityId,
                     keyA.materialRevision, keyA.sectionRevision, keyA.platformFeatureKey, keyA.staticFlags);
-                MeshPassDrawId second = cache.GetOrCreate(
+                MeshPassDrawId second = cache.GetOrCreate(0, 0, 
                     keyA.shaderPassIndex, keyA.meshUnityId, keyA.sectionIndex, keyA.materialUnityId,
                     keyA.materialRevision, keyA.sectionRevision, keyA.platformFeatureKey, keyA.staticFlags);
-                MeshPassDrawId other = cache.GetOrCreate(
+                MeshPassDrawId other = cache.GetOrCreate(0, 0, 
                     keyB.shaderPassIndex, keyB.meshUnityId, keyB.sectionIndex, keyB.materialUnityId,
                     keyB.materialRevision, keyB.sectionRevision, keyB.platformFeatureKey, keyB.staticFlags);
 
@@ -642,20 +642,20 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             MeshPipelineDiagnostics.Reset();
             using (var cache = new MeshPassDrawCache(32))
             {
-                MeshPassDrawId first = cache.GetOrCreate(1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 3);
-                MeshPassDrawId second = cache.GetOrCreate(1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 3);
+                MeshPassDrawId first = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 3);
+                MeshPassDrawId second = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 3);
 
                 Assert.AreEqual(first, second);
                 Assert.GreaterOrEqual(MeshPipelineDiagnostics.TemplateCacheHits, 1);
 
-                MeshPassDrawId revised = cache.GetOrCreate(1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 2, sectionRevision: 3);
+                MeshPassDrawId revised = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 2, sectionRevision: 3);
                 Assert.AreNotEqual(first, revised);
                 Assert.GreaterOrEqual(MeshPipelineDiagnostics.TemplateCacheMisses, 1);
 
-                MeshPassDrawId sectionRevised = cache.GetOrCreate(1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 4);
+                MeshPassDrawId sectionRevised = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 4);
                 Assert.AreNotEqual(first, sectionRevised);
 
-                MeshPassDrawId staticFlagChanged = cache.GetOrCreate(
+                MeshPassDrawId staticFlagChanged = cache.GetOrCreate(0, 0, 
                     1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1,
                     sectionRevision: 3, platformFeatureKey: 0, staticFlags: 1u);
                 Assert.AreNotEqual(first, staticFlagChanged);
@@ -671,7 +671,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshPassDrawCache.Enabled = false;
                 using (var cache = new MeshPassDrawCache(16))
                 {
-                    MeshPassDrawId id = cache.GetOrCreate(1, 10, 0, 20, materialRevision: 1);
+                    MeshPassDrawId id = cache.GetOrCreate(0, 0, 1, 10, 0, 20, materialRevision: 1);
                     Assert.AreEqual(MeshPassDrawId.Invalid, id);
                     Assert.IsFalse(id.IsValid);
                 }
@@ -1082,8 +1082,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             // Known unequal pair with identical GetHashCode under the current Mixer (397 / xor).
             // staticFlags=0 preserves the prior collision (final mix is *397 ^ 0).
             // If the hash formula changes, fall back to a short random probe.
-            keyA = new MeshPassDrawCacheKey(6, 78, 25, 815, 42, 56, 50, 0);
-            keyB = new MeshPassDrawCacheKey(3, 21, 20, 582, 5, 38, 25, 0);
+            keyA = new MeshPassDrawCacheKey(0, 0, 6, 78, 25, 815, 42, 56, 50, 0);
+            keyB = new MeshPassDrawCacheKey(0, 0, 3, 21, 20, 582, 5, 38, 25, 0);
             if (!keyA.Equals(keyB) && keyA.GetHashCode() == keyB.GetHashCode())
             {
                 return true;
@@ -1093,7 +1093,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             var seen = new Dictionary<int, MeshPassDrawCacheKey>(65536);
             for (int i = 0; i < 4000000; ++i)
             {
-                var key = new MeshPassDrawCacheKey(
+                var key = new MeshPassDrawCacheKey(0, 0, 
                     rnd.Next(8), rnd.Next(1024), rnd.Next(64), rnd.Next(1024),
                     (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64));
                 int hash = key.GetHashCode();

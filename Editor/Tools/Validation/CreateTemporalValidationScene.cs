@@ -77,7 +77,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             light.shadows = LightShadows.Soft;
             lightGo.transform.rotation = Quaternion.Euler(48.0f, -28.0f, 0.0f);
             LightComponent lightComponent = lightGo.AddComponent<LightComponent>();
-            lightComponent.enableShadow = true;
             RenderSettings.sun = light;
 
             VolumeProfile profile = ScriptableObject.CreateInstance<VolumeProfile>();
@@ -103,7 +102,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.backgroundColor = new Color(0.10f, 0.12f, 0.16f, 1.0f);
             cameraGo.AddComponent<CameraComponent>();
             cameraGo.AddComponent<TemporalValidationCamera>();
-            DebugViewCapture.EnsureLitLivenessMarker(camera);
+            ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
@@ -123,7 +122,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             material.SetColor("_BaseColor", baseColor);
             material.SetFloat("_Roughness", roughness);
             material.SetFloat("_SpecularLevel", specular);
-            InfinityLitGUI.ApplyPassState(material);
+            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(material);
             AssetDatabase.CreateAsset(material, assetPath);
             return material;
         }

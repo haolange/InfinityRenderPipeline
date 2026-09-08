@@ -161,7 +161,21 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
         }
 
-        void ComputeAtmosphericLUT(RenderContext renderContext, Camera camera, CommandBuffer cmdBuffer)
+        sealed class AtmosphereProduction : IRGPassQueueObserver
+        {
+            public AtmosphereSharedCache shared;
+            public AtmosphereViewCache view;
+            public bool generateShared, generateView, generateIBL;
+            public void OnQueueFailed() { }
+            public void OnQueued()
+            {
+                if (generateShared) shared.MarkSharedProduced();
+                if (generateView) view.MarkProduced();
+                if (generateIBL) shared.MarkIBLProduced();
+            }
+        }
+
+        void ComputeAtmosphericLUT(RenderContext renderContext, Camera camera)
         {
             if (pipelineAsset.atmosphericalProfile == null)
             {
@@ -225,15 +239,6 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGScoper.RegisterBuffer(InfinityShaderIDs.AtmosphereSkySH, shCoefficients);
 
             int ggxMipCount = AtmosphericLUTPassUtilityData.GGXMipCount(parameter.cubemapSize);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceHandle.texture);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatterHandle.texture);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, skyViewHandle.texture);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, aerialHandle.texture);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.AtmosphereCubemap, cubemapHandle.texture);
-            cmdBuffer.SetGlobalTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, prefilterHandle.texture);
-            cmdBuffer.SetGlobalBuffer(InfinityShaderIDs.AtmosphereSunBuffer, sunHandle.buffer);
-            cmdBuffer.SetGlobalBuffer(InfinityShaderIDs.AtmosphereSkySH, shHandle.buffer);
-            cmdBuffer.SetGlobalFloat(InfinityShaderIDs.AtmosphereIBLMaxMip, ggxMipCount - 1);
 
             bool generateShared = !sharedHit;
             bool generateView = !viewHit;
@@ -255,6 +260,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
             {
+                passRef.SetQueueObserver(new AtmosphereProduction { shared = m_AtmosphereSharedCache,
+                    view = m_ActiveFrameState.atmosphereViewCache, generateShared = generateShared,
+                    generateView = generateView, generateIBL = generateIBL });
                 ref AtmosphericLUTPassData passData = ref passRef.GetPassData<AtmosphericLUTPassData>();
                 passData.parameter = parameter;
                 passData.sunDirection = sunDirection;
@@ -272,7 +280,6 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.transmittanceLUT = passRef.WriteTexture(transmittanceLUT);
                     passData.multiScatteringLUT = passRef.WriteTexture(multiScatteringLUT);
-                    m_AtmosphereSharedCache.MarkSharedProduced();
                 }
                 else
                 {
@@ -285,7 +292,6 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.skyViewLUT = passRef.WriteTexture(skyViewLUT);
                     passData.aerialPerspectiveLUT = passRef.WriteTexture(aerialPerspectiveLUT);
                     passData.sunBuffer = passRef.WriteBuffer(sunBuffer);
-                    m_ActiveFrameState.atmosphereViewCache.MarkProduced();
                 }
 
                 if (generateIBL)
@@ -294,7 +300,6 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.ggxPrefilter = passRef.WriteTexture(ggxPrefilter);
                     passData.shCoefficients = passRef.WriteBuffer(shCoefficients);
                     passData.shPartial = passRef.WriteBuffer(shPartial);
-                    m_AtmosphereSharedCache.MarkIBLProduced();
                 }
 
                 passRef.EnablePassCulling(false);

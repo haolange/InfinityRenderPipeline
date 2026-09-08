@@ -72,7 +72,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				uint PrimitiveId : SV_InstanceID;
+				nointerpolation uint PrimitiveId : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float4 vertex_CS : SV_POSITION;
 			};
@@ -124,7 +124,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				uint PrimitiveId  : SV_InstanceID;
+				nointerpolation uint PrimitiveId : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float4 vertex_WS : TEXCOORD2;
 				float4 vertex_CS : SV_POSITION;
@@ -207,7 +207,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				uint PrimitiveId : SV_InstanceID;
+				nointerpolation uint PrimitiveId : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
@@ -264,6 +264,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				GBufferData.Flags = _Subsurface > 0.5 ? GBUFFER_FLAG_SUBSURFACE : 0;
 				GBufferData.SSSProfileIndex = (uint)(_SSSProfileIndex + 0.5);
 				GBufferData.Thickness = _SSSThickness;
+                GBufferData.RenderingLayer = renderingLayerBuffer[In.PrimitiveId];
 				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
 				LightingBuffer = float4(_EmissionColor.rgb, 0);
 			}
@@ -327,7 +328,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				uint PrimitiveId : SV_InstanceID;
+				nointerpolation uint PrimitiveId : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
@@ -374,6 +375,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				for(int i = 0; i < g_DirectionalLightCount; ++i)
 				{
 					FLightRecord dirLight = g_LightRecordBuffer[i];
+                    if ((dirLight.lightLayer & renderingLayerBuffer[In.PrimitiveId]) == 0) continue;
 					float3 lightColor = LightRadiance(dirLight);
 					float3 lightDirWS = dirLight.directionSpot.xyz;
 					float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
@@ -391,6 +393,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 					for (uint li = 0; li < range.y; ++li)
 					{
 						FLightRecord light = g_LightRecordBuffer[SRV_TileLightList[range.x + li]];
+                        if ((light.lightLayer & renderingLayerBuffer[In.PrimitiveId]) == 0) continue;
 						float3 toLight = light.positionRange.xyz - positionWS;
 						float dist = length(toLight);
 						float3 lightDirWS = toLight / max(dist, 1e-4);
@@ -443,7 +446,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				uint PrimitiveId : SV_InstanceID;
+				nointerpolation uint PrimitiveId : TEXCOORD7;
 				float4 clipPos : TEXCOORD0;
 				float4 clipPosOld : TEXCOORD1;
 				float4 vertex : SV_POSITION;

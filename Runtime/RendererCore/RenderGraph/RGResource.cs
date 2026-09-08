@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
@@ -51,7 +51,29 @@ namespace InfinityTech.Rendering.RenderGraph
             this.handle = new RGResourceHandle(handle, ERGResourceType.Buffer); 
         }
 
-        public static implicit operator ComputeBuffer(RGBufferRef bufferRef) => bufferRef.IsValid() ? RGResourceFactory.current.GetBuffer(bufferRef) : null;
+        public static implicit operator ComputeBuffer(RGBufferRef bufferRef) => bufferRef.Resolve().resource
+            ?? throw new InvalidOperationException("The graph buffer is a GraphicsBuffer, not a ComputeBuffer.");
+
+        internal RGBuffer Resolve()
+        {
+            if (!IsValid() || RGResourceFactory.current == null)
+                throw new InvalidOperationException("RGBufferRef is invalid or the resource factory is not active.");
+            return RGResourceFactory.current.ResolveBuffer(this);
+        }
+
+        internal void BindGlobal(CommandBuffer commands, int nameID)
+        {
+            RGBuffer buffer = Resolve();
+            if (buffer.graphicsResource != null) commands.SetGlobalBuffer(nameID, buffer.graphicsResource);
+            else commands.SetGlobalBuffer(nameID, buffer.resource);
+        }
+
+        internal void BindCompute(CommandBuffer commands, ComputeShader shader, int kernel, int nameID)
+        {
+            RGBuffer buffer = Resolve();
+            if (buffer.graphicsResource != null) commands.SetComputeBufferParam(shader, kernel, nameID, buffer.graphicsResource);
+            else commands.SetComputeBufferParam(shader, kernel, nameID, buffer.resource);
+        }
         public bool IsValid() => handle.IsValid();
     }
 
@@ -136,6 +158,15 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal class RGBuffer : RGResource<BufferDescriptor, ComputeBuffer>
     {
+        public GraphicsBuffer graphicsResource;
+        public GraphicsBuffer.Target graphicsTarget;
+
+        public override void Reset()
+        {
+            base.Reset();
+            graphicsResource = null;
+            graphicsTarget = default;
+        }
         public override string GetName()
         {
             return descriptor.name;
@@ -167,6 +198,9 @@ namespace InfinityTech.Rendering.RenderGraph
 
         BufferCache m_BufferPool = new BufferCache();
         TextureCache m_TexturePool = new TextureCache();
+        readonly List<FTextureRef> m_RetiredTextures = new List<FTextureRef>();
+        readonly List<FBufferRef> m_RetiredBuffers = new List<FBufferRef>();
+        internal int RetiredResourceCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
         RTHandle m_Backbuffer;
         RenderTargetIdentifier m_BackbufferIdentifier;
         DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
@@ -182,7 +216,8 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ComputeBuffer GetBuffer(in RGBufferRef bufferRef)
         {
-            return GetBufferResource(bufferRef.handle).resource;
+            return ResolveBuffer(bufferRef).resource
+                ?? throw new InvalidOperationException("Cannot resolve an imported GraphicsBuffer as a ComputeBuffer.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -236,14 +271,35 @@ namespace InfinityTech.Rendering.RenderGraph
             return result;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal RGBufferRef ImportBuffer(ComputeBuffer computeBuffer)
+        internal RGBuffer ResolveBuffer(in RGBufferRef bufferRef)
         {
-            int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Buffer], out RGBuffer rdgBuffer);
-            rdgBuffer.resource = computeBuffer;
-            rdgBuffer.imported = true;
+            RGBuffer buffer = GetBufferResource(bufferRef.handle);
+            if (buffer.resource == null && buffer.graphicsResource == null)
+                throw new InvalidOperationException($"Graph buffer '{buffer.GetName()}' has no live resource.");
+            return buffer;
+        }
 
-            return new RGBufferRef(newHandle);
+        internal RGBufferRef ImportBuffer(in FBufferRef buffer)
+        {
+            if (buffer.buffer == null || !buffer.buffer.IsValid())
+                throw new ArgumentException("Cannot import an invalid buffer.", nameof(buffer));
+            int index = AddNewResource(m_Resources[(int)ERGResourceType.Buffer], out RGBuffer resource);
+            resource.resource = buffer.buffer;
+            resource.descriptor = buffer.descriptor;
+            resource.imported = true;
+            return new RGBufferRef(index);
+        }
+
+        internal RGBufferRef ImportBuffer(GraphicsBuffer buffer, string name)
+        {
+            if (buffer == null || !buffer.IsValid())
+                throw new ArgumentException("Cannot import an invalid GraphicsBuffer.", nameof(buffer));
+            int index = AddNewResource(m_Resources[(int)ERGResourceType.Buffer], out RGBuffer resource);
+            resource.graphicsResource = buffer;
+            resource.graphicsTarget = buffer.target;
+            resource.descriptor = new BufferDescriptor { name = name, count = buffer.count, stride = buffer.stride };
+            resource.imported = true;
+            return new RGBufferRef(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -271,7 +327,10 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal BufferDescriptor GetBufferDescriptor(in RGResourceHandle handle)
         {
-            return (m_Resources[(int)ERGResourceType.Buffer][handle] as RGBuffer).descriptor;
+            RGBuffer buffer = GetBufferResource(handle);
+            if (buffer.graphicsResource != null)
+                throw new InvalidOperationException("Imported GraphicsBuffer targets cannot be cloned as ComputeBuffer descriptors.");
+            return buffer.descriptor;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -435,10 +494,37 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {
-            for (int i = 0; i < (int)ERGResourceType.Max; ++i)
+            // A failed graph may never reach compiled last-use releases. Preserve those allocations
+            // outside the reusable pool until the enclosing frame has been submitted.
+            for (int i = 0; i < m_Resources[(int)ERGResourceType.Texture].size; i++)
             {
-                m_Resources[i].Clear();
+                RGTexture texture = (RGTexture)m_Resources[(int)ERGResourceType.Texture][i];
+                if (!texture.imported && texture.resource != null)
+                {
+                    m_RetiredTextures.Add(new FTextureRef(texture.cachedHash, texture.descriptor, texture.resource));
+                    texture.resource = null;
+                }
             }
+            for (int i = 0; i < m_Resources[(int)ERGResourceType.Buffer].size; i++)
+            {
+                RGBuffer buffer = (RGBuffer)m_Resources[(int)ERGResourceType.Buffer][i];
+                if (!buffer.imported && buffer.resource != null)
+                {
+                    m_RetiredBuffers.Add(new FBufferRef(buffer.cachedHash, buffer.descriptor, buffer.resource));
+                    buffer.resource = null;
+                }
+            }
+            for (int i = 0; i < (int)ERGResourceType.Max; ++i) m_Resources[i].Clear();
+        }
+
+        internal void FlushRetired()
+        {
+            foreach (FTextureRef texture in m_RetiredTextures)
+                m_TexturePool.Push(texture.handle, texture.descriptor, texture.texture);
+            foreach (FBufferRef buffer in m_RetiredBuffers)
+                m_BufferPool.Push(buffer.handle, buffer.descriptor, buffer.buffer);
+            m_RetiredTextures.Clear();
+            m_RetiredBuffers.Clear();
         }
 
         internal void Dispose()
@@ -449,6 +535,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Backbuffer = null;
             }
 
+            FlushRetired();
             m_BufferPool.Dispose();
             m_TexturePool.Dispose();
         }

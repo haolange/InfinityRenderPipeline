@@ -511,6 +511,7 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
     LightingBuffer = 0;
     for(int i = 0; i < g_DirectionalLightCount; ++i)
     {
+        if ((g_LightRecordBuffer[i].lightLayer & asuint(unity_RenderingLayer.x)) == 0) continue;
         half3 lighting = saturate(dot(g_LightRecordBuffer[i].directionSpot.xyz, inputData.normalWS.xyz));
         lighting *= 0.318 * mixedDiffuse.rgb * LightRadiance(g_LightRecordBuffer[i]);
         LightingBuffer.rgb += lighting;
@@ -581,6 +582,7 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     GBufferData.Flags = 0;
     GBufferData.SSSProfileIndex = 0;
     GBufferData.Thickness = 0;
+    GBufferData.RenderingLayer = asuint(unity_RenderingLayer.x);
     EncodeGBuffer(GBufferData, IN.clipPos.xy, GBufferA, GBufferB, GBufferC);
     #if defined(TERRAIN_SPLAT_ADDPASS)
     LightingBuffer = 0;

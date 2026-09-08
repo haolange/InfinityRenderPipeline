@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -27,6 +28,77 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_View?.Dispose();
             m_Shared = null;
             m_View = null;
+        }
+
+        [Test]
+        public void ProducedKeyReplacement_AbandoningSecondKeyCannotCommitFirstDataUnderSecondKey()
+        {
+            AtmosphereParameter a = ValidParameter();
+            AtmosphereParameter b = a; b.brightness += 1;
+            var trans = MakeLut(16, 8, "Trans");
+            var multi = MakeLut(8, 8, "Multi");
+            m_Shared.BeginFrame();
+            m_Shared.ResolveShared(a, trans, multi, out var first, out _, out _);
+            m_Shared.MarkSharedProduced();
+            m_Shared.ResolveShared(b, trans, multi, out var second, out _, out bool hit);
+            Assert.IsFalse(hit);
+            Assert.AreNotSame(first.texture, second.texture);
+            Assert.IsTrue(first.texture.rt.IsCreated());
+            m_Shared.DiscardUnproducedPending();
+            m_Shared.CommitFrame();
+            m_Shared.BeginFrame();
+            m_Shared.ResolveShared(b, trans, multi, out _, out _, out hit);
+            Assert.IsFalse(hit, "Abandoned new-key producer must not inherit earlier production state.");
+        }
+
+        [TestCase(true, false, true, true)]
+        [TestCase(false, true, true, true)]
+        [TestCase(false, false, true, true)]
+        [TestCase(true, true, true, false)]
+        [TestCase(true, false, false, true)]
+        [TestCase(false, true, false, true)]
+        [TestCase(true, true, false, true)]
+        [TestCase(false, false, false, false)]
+        public void FrameTransaction_UsesPerCameraSuccessAndActualSharedProducer(bool firstSuccess, bool secondSuccess,
+            bool submitted, bool sharedProduced)
+        {
+            bool ownsVolumes = !VolumeManager.instance.isInitialized;
+            if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
+            var states = new Dictionary<int, CameraFrameState>();
+            try
+            {
+                var descriptor = MakeLut(8, 8, "CameraHistory");
+                for (int i = 0; i < 2; i++)
+                {
+                    var state = new CameraFrameState(90 + i) { lastSeenFrame = 50, executeSucceeded = i == 0 ? firstSuccess : secondSuccess,
+                        taaValidFrames = 8, ssrValidFrames = 8 };
+                    states.Add(i, state);
+                    state.historyCache.GetTexture(123, descriptor);
+                    state.historyCache.GetWriteTexture(123, descriptor);
+                    state.historyCache.MarkProduced(123);
+                }
+                var key = ValidParameter();
+                m_Shared.BeginFrame();
+                m_Shared.ResolveShared(key, descriptor, descriptor, out _, out _, out _);
+                if (sharedProduced) m_Shared.MarkSharedProduced();
+                InfinityRenderPipeline.CompleteFrameTransaction(m_Shared, states, submitted, 50);
+                for (int i = 0; i < 2; i++)
+                {
+                    bool success = submitted && (i == 0 ? firstSuccess : secondSuccess);
+                    Assert.AreEqual(success ? 1 : 0, states[i].historyCache.TextureGeneration(123));
+                    Assert.AreEqual(!success, states[i].requiresHistoryReset);
+                    Assert.IsFalse(states[i].executeSucceeded);
+                    if (!success) Assert.AreEqual(0, states[i].taaValidFrames);
+                }
+                m_Shared.BeginFrame();
+                m_Shared.ResolveShared(key, descriptor, descriptor, out _, out _, out bool hit);
+                Assert.AreEqual(submitted && sharedProduced, hit, "Camera success cannot replace actual shared production.");
+            }
+            finally
+            {
+                foreach (CameraFrameState state in states.Values) state.Dispose();
+                if (ownsVolumes) VolumeManager.instance.Deinitialize();
+            }
         }
 
         [Test]

@@ -46,6 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
         public int outputGamut;
         public int outputDevice;
         public bool hdrAvailable;
+        public bool displayTransferAuthority;
     }
 
     public static class OutputTransformUtility
@@ -208,6 +209,20 @@ namespace InfinityTech.Rendering.Pipeline
             decision.displayFormat = ResolveDisplayFormat(decision.policy);
             decision.outputGamut = ResolveOutputGamut(mode, encoding);
             decision.outputDevice = OutputDeviceLinear;
+            decision.displayTransferAuthority = false;
+            return decision;
+        }
+
+        public static OutputTransformDecision ResolveSdrDisplay(ColorSpace colorSpace, bool requiresSrgbBlit)
+        {
+            // Display reports the required transfer, not the native attachment's pixel format.
+            // Keep that format explicitly unknown instead of inventing a BGRA/UNorm descriptor.
+            OutputTransformDecision decision = Resolve(EOutputMode.SDR, EHDREncoding.PQ_Rec2020,
+                false, GraphicsFormat.None, colorSpace, ColorGamut.sRGB);
+            decision.policy = colorSpace == ColorSpace.Linear && !requiresSrgbBlit
+                ? EOutputEncodePolicy.HardwareSRGB : EOutputEncodePolicy.ShaderLinearToSRGB;
+            decision.displayFormat = ResolveDisplayFormat(decision.policy);
+            decision.displayTransferAuthority = true;
             return decision;
         }
 
@@ -268,6 +283,16 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasLastKnownFormat,
             GraphicsFormat lastKnownFormat)
         {
+            if (!Application.isEditor && mode == EOutputMode.SDR && camera != null &&
+                camera.targetTexture == null && camera.activeTexture == null)
+            {
+                int displayIndex = camera.targetDisplay;
+                Display[] displays = Display.displays;
+                if (displayIndex < 0 || displayIndex >= displays.Length)
+                    throw new InvalidOperationException("InfinityRP: camera targets an unavailable display.");
+                return ResolveSdrDisplay(QualitySettings.activeColorSpace,
+                    displays[displayIndex].requiresSrgbBlitToBackbuffer);
+            }
             // SDR never queries HDROutputSettings. Accessing .main when Player Settings HDR is off
             // logs InvalidOperationException every frame even if the caller catches it.
             bool hdrAvailable = false;

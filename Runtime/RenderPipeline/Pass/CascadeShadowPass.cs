@@ -78,11 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 Light shadowLight = cullingResults.visibleLights[lightIndex].light;
                 int lightInstanceId = UnityEntityId.ToInt32(shadowLight);
-                uint shadowRenderingLayerMask = (uint)ERenderingLayer.Everything;
-                if (shadowLight != null && shadowLight.TryGetComponent(out LightComponent lightComponent))
-                {
-                    shadowRenderingLayerMask = (uint)lightComponent.shadowLayer;
-                }
+                uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
 
                 for (int cascade = 0; cascade < cascadeCount; ++cascade)
                 {
@@ -93,6 +89,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
+                    shadowDrawingSettings.useRenderingLayerMaskTest = true;
                     shadowDrawingSettings.splitIndex = cascade;
                     rendererLists[cascade] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
 
@@ -108,6 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
                     MeshFilterProgram shadowFilter = BuiltinMeshesPasses.Shadow.defaultFilter;
                     shadowFilter.layerMask = shadowLight.cullingMask;
                     shadowFilter.renderingLayerMask = shadowRenderingLayerMask;
+                    shadowFilter.filterRenderingLayers = true;
                     var shadowRequest = new MeshDrawRequest
                     {
                         filter = shadowFilter,
@@ -116,7 +114,6 @@ namespace InfinityTech.Rendering.Pipeline
                         shaderPassIndex = BuiltinMeshesPasses.Shadow.shaderPassIndex,
                         lightModeTag = BuiltinMeshesPasses.Shadow.lightModeTag,
                         viewPosition = camera.transform.position,
-                        renderingLayerMask = shadowFilter.renderingLayerMask,
                         viewKey = cascadeKey
                     };
                     cascadeDraws[cascade] = m_RGBuilder.DeclareDrawList(m_ShadowMeshProcessor, shadowRequest, cascadeVis, m_VisibilityShare);

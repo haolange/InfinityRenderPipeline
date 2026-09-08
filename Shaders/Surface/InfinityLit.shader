@@ -59,6 +59,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 			#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
@@ -115,6 +116,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -165,6 +167,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 			#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
@@ -220,6 +223,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 			#pragma enable_d3d11_debug_symbols
 			#pragma multi_compile _ _DBUFFER
 			//#pragma multi_compile _ LIGHTMAP_ON
@@ -328,6 +332,7 @@
 				GBufferData.Flags = _Subsurface > 0.5 ? GBUFFER_FLAG_SUBSURFACE : 0;
 				GBufferData.SSSProfileIndex = (uint)(_SSSProfileIndex + 0.5);
 				GBufferData.Thickness = _SSSThickness;
+                GBufferData.RenderingLayer = asuint(unity_RenderingLayer.x);
 				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
 				LightingBuffer = float4(_EmissionColor.rgb, 0);
 			}
@@ -346,6 +351,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 			#pragma enable_d3d11_debug_symbols
 			#pragma multi_compile _ LIGHTMAP_ON
 
@@ -464,6 +470,7 @@
 				for(int i = 0; i < g_DirectionalLightCount; ++i)
 				{
 					FLightRecord dirLight = g_LightRecordBuffer[i];
+                    if ((dirLight.lightLayer & asuint(unity_RenderingLayer.x)) == 0) continue;
 					float3 lightColor = LightRadiance(dirLight);
 					float3 lightDirWS = dirLight.directionSpot.xyz;
 					float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
@@ -481,6 +488,7 @@
 					for (uint li = 0; li < range.y; ++li)
 					{
 						FLightRecord light = g_LightRecordBuffer[SRV_TileLightList[range.x + li]];
+                        if ((light.lightLayer & asuint(unity_RenderingLayer.x)) == 0) continue;
 						float3 toLight = light.positionRange.xyz - positionWS;
 						float dist = length(toLight);
 						float3 lightDirWS = light.lightType == LIGHT_TYPE_RECT ? normalize(light.positionRange.xyz - positionWS) : toLight / max(dist, 1e-4);
@@ -520,6 +528,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 			#pragma enable_d3d11_debug_symbols
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
@@ -584,6 +593,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
@@ -632,6 +642,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 			#pragma multi_compile _ _VOLUMETRIC_FOG
 			#pragma multi_compile _ _AERIAL_PERSPECTIVE
 
@@ -711,6 +722,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 			#pragma multi_compile _ _REFRACTION_PYRAMID
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
@@ -795,6 +807,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "../ShaderLibrary/TranslucentCommon.hlsl"

@@ -1,5 +1,7 @@
 # InfinityRP Mesh Drawing Pipeline — Design (as implemented)
 
+> Active delivery is governed by PLAN.md N00–N15. Its new layer, SSS, dimension and output contracts are approved targets, not implemented claims in this historical design. Main agent implements/reviews; Terra verifies task results.
+
 Status: **code-converged; runtime-unverified** (closure **D / D1–D6**). Editor / GPU / multi-camera / Frame Debugger runs remain `TODO(UNVERIFIED)`.
 Wave C gate **C5** (“CPU Submit ownership + frame buffer release” / “physical resources closed”) is **withdrawn** and **superseded by D1** (frame-end retirement).
 This does **not** include HZB occlusion, GPU radix sort, or a full GPU LOD pipeline.
@@ -185,7 +187,7 @@ Local shadows for Spot / Point lights use the same MeshDraw + RDG DrawList path 
 
 - **Tile budget:** atlas resolution from `localShadowMapResolution`; `tileResolution = resolution/4`, `tilesPerRow = resolution/tileResolution`, budget = `tilesPerRow²`. Spot costs 1 tile; Point costs 6. Candidates are scored (shadow strength / distance, Spot preferred on ties) and greedily accepted; over-budget lights increment `LocalShadowBudgetDropped` and are skipped.
 - **Point 6-face:** each accepted Point light records six face frusta / view-projection matrices and six `MakeLocalShadowViewKey(light, face)` visibility acquires (`PolicyLocalShadow`). Spot uses a single face/key. Point face matrix construction uses `light.shadowNearPlane` as nearPlane.
-- **Shadow MeshDraw filter (Cascade + Local):** `layerMask = light.cullingMask`; `renderingLayerMask = light.shadowLayer` from `LightComponent` when present, else `ERenderingLayer.Everything`.
+- **Shadow MeshDraw filter (Cascade + Local):** `layerMask = light.cullingMask`; `filterRenderingLayers = true`, with the validated native `Light.renderingLayerMask` as the caster mask. Unity shadow RendererLists enable `useRenderingLayerMaskTest` against the same native mask.
 - **Dual path:** each atlas slice draws Infinity `MeshComponent` content via `RGDrawListRef` **and** Unity-owned renderers via `DrawRendererList`. The two paths cover different object ownership — not dual authority for the same Infinity mesh.
 
 ## 13. Instance-indexed GPU cull
@@ -203,12 +205,12 @@ GPU cull separates lookup identity from shading matrix identity:
 
 ## 14. Rendering layer unification
 
-`ERenderingLayer : byte` with `[Flags]` (`Nothing` … `Everything = 0xFF`) is the shared Mesh/Light mask. `MeshFilterProgram` defaults `renderingLayerMask` to `Everything`. Filter reject rule: `(instance.mask & filter.mask) == 0`.
+`ERenderingLayer : byte` with `[Flags]` (`Nothing` … `Everything = 0xFF`) is the shared Mesh/Light mask. `MeshFilterProgram` tests rendering layers only when `filterRenderingLayers` is enabled. The enabled filter rejects `(instance.mask & filter.mask) == 0`; camera visibility leaves this filter disabled, including for zero-layer surfaces.
 
 | Pass family | `layerMask` | `renderingLayerMask` |
 |-------------|-------------|----------------------|
-| Depth / GBuffer / Forward / Motion | camera / pass default (`~0` open) | `ERenderingLayer.Everything` |
-| Cascade / Local shadow MeshDraw | `light.cullingMask` | `light.shadowLayer` (`LightComponent`) when present; else `Everything` |
+| Depth / GBuffer / Forward / Motion | camera / pass default (`~0` open) | Layer filtering disabled; native RendererLists use an open mask |
+| Cascade / Local shadow MeshDraw | `light.cullingMask` | Validated native `Light.renderingLayerMask`; layer filtering enabled |
 
 `MeshComponent.renderingLayer` is flags, not an int layer index. Do not reintroduce `1 << renderLayer` indexing.
 
@@ -246,7 +248,7 @@ Image / Frame Debugger / GPU-Trace results stay `TODO(UNVERIFIED)` until capture
 
 ## 16. Default Volume, Output authority, Gizmo-before-encode
 
-Default Volume values come only from the RP Asset `volumeProfile`. `CreatePipeline` requires it. The pipeline ctor calls `VolumeManager.Initialize(null, asset.volumeProfile)` then `SetCustomDefaultProfiles` with that same profile (process-global; switching RP assets recreates the pipeline and resets it). Dispose clears custom defaults then `Deinitialize()`. There is no second hardcoded default: no `IdentityLut`, no `AtmosphereParameter.Default()`. CombineLUT always builds from the stack (class defaults when a component is inactive). Neutral film/grade numbers are the only identity.
+Default Volume values come only from the RP Asset `volumeProfile`. Pipeline creation requires active Exposure, FilmTonemap and ColorGrading with complete parameter overrides and the optional-feature type registry. The constructor calls `VolumeManager.Initialize(asset.volumeProfile, null)` once; disposal deinitializes that manager. Required color/exposure consumers read the resolved camera stack, including default values whose scene override flags CoreRP clears. CombineLUT has no inactive-component constant fallback. Atmosphere remains separately owned by AtmosphericalProfile.
 
 OutputTransform resolves the backbuffer format in this order (first hit wins; `GraphicsFormat.None` is not a hit):
 
@@ -261,6 +263,63 @@ Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView an
 
 ## 17. DebugView and SceneView temporal gating
 
-`EDebugView` writes a linear quantity into `PostProcessBuffer` in one compute pass immediately before Gizmo/WireOverlay. It is not a second encoding owner. `TAAConfidenceBuffer` exists only when `debugView != None`. Optional AO/SSR/SSGI views that were not recorded this frame use a dedicated Missing kernel (magenta), never an invalid RT bind.
+`EDebugView` writes a linear quantity into `PostProcessBuffer` in one compute pass immediately before Gizmo/WireOverlay. It is not a second encoding owner. `TAAConfidenceBuffer` exists only when `debugView != None` or an explicit normal-frame capture requests confidence for this frame. Optional AO/SSR/SSGI views that were not recorded this frame use a dedicated Missing kernel (magenta), never an invalid RT bind.
 
 SceneView uses the full pipeline. A new camera state or a skipped frame (`lastSeenFrame` gap > 1) sets `historyReset` and disables jitter that frame. SceneView states recycle after 120 unseen frames so docking the tab does not rebuild history every time. Game recycle stays 8. Preview is unchanged and remains a documented independent defect.
+
+
+## Rendering integration and serialized-asset authority
+
+The approved N00–N15 delivery graph is authoritative in `PLAN.md`; historical mesh convergence does not imply complete render or platform acceptance. N01 has applied package 0.3.0 and Infinity identities on Unity 6000.5.3f1/CoreRP 17.5.0. The active Editor compiled/reloaded the new assemblies. Seven binary assets received 22 explicit class-identifier updates with exact remaining native-data checks and a separate no-op. Final N01 type verification/independent acceptance passed. N02 subsequently executed 136 passing Editor tests; the first Player build failed on a missing Mac IL2CPP module, so Player acceptance remains open.
+
+Atmosphere's sole physical/configuration owner is RP Asset → AtmosphericalProfile → AtmosphereParameter.FromProfile. T02c persisted the already effective configuration and removed abandoned serialized fields only after exact loaded-value, parameter-bit, native-delta and idempotence evidence. It did not re-tune the atmosphere or derive new Hillaire values from old fields. Unity Light remains the light-value owner; the Validation scene cleanup removed old LightComponent duplicates and editor show-state, preserving all current native Light fields and references. Layer-route behavior and material import/persistence still require N06 verification.
+
+A source schema migration is a targeted persistent-data transaction: immutable current-byte backups and intent precede writes; exact per-object allowed deltas and complete non-target/identity checks follow; a separate no-op verifies persisted idempotence. Old failed evidence remains immutable. Composite acceptance may inherit unchanged parsed-source/copy proofs through exact hashes and reviewed reader equivalence, adding narrowly certified source replacements or explicit source deletions. It must not hide unknown changes or reclassify an unverified platform as passed. Three referenced BoxMatrix LightingSettings changes are approved (Hybrid/SRPBatcher MinBounces 1→2; MeshPipeline Direct/AO Gaussian 1/2→5/5; no Bake) and passed N01.a source migration/independent no-op under Terra verification.
+
+GraphSRP output integration is currently unsupported. The retired Infinity VFX binder was a nonfunctional stub relying on an inaccessible Unity-internal friend API, with no valid output data and broken template paths. T02d removed its 99 proven invalid binder/template/include files under exact backup/deletion review. The VFX 17.5 package dependency remains; ordinary ParticleSystem rendering remains within N11. No old-identity shim or PackageCache patch is part of this design, and usable hardware-RT assets are retained.
+
+Current Validation scene images are explicit quality failures: sky black bands, large triangular dark regions and cube blotches are assigned to N07/N08/N11 for causal diagnosis and image/numeric verification. Passing source schema or C# compilation checks does not satisfy those rendering gates. See `Docs/FullRendering-Delivery-Report.md` for the root-inspected images and fresh log windows.
+
+
+### Player Volume component registry (N02 startup correction)
+
+CoreRP 17.5 uses reflection to enumerate Volume types in Editor, but Player derives its type registry exclusively from the global default Profile. Infinity passes its RP Asset `volumeProfile` to `VolumeManager.Initialize(profile, null)`. The asset is registered once as the global default; there is no duplicate custom binding. That Profile contains the three required color/exposure components and all ten consumed optional-feature types. Optional types are present with override flags disabled, preserving the existing off-by-default policy while allowing scene Volume overrides to operate in Player. Pipeline creation rejects an incomplete registry. The explicit migration only appends absent types and retains the existing components and their identities/values. Full N05 parameter/default/LUT convergence is still pending.
+
+
+### Native SDR display transfer authority (N02 candidate)
+
+A Player camera targeting a native Display need not expose a RenderTexture. Its sRGB conversion requirement comes from that target display's `requiresSrgbBlitToBackbuffer`, not from a guessed default texture format. Output decisions retain `backbufferFormat=None` and `displayTransferAuthority=true` when only this transfer capability is known. Linear projects use hardware conversion when the display supports it, otherwise OutputTransform performs LinearToSRGB. Camera RenderTexture and Editor surfaces retain their observed texture-format path. Missing or invalid RG texture resources still fail; an unknown native display pixel format is tracked separately from a valid display transfer decision. Native Metal pixel-format capture passed N03; full output image contracts remain N05 work.
+
+## Normal-frame capture ownership
+
+`RenderCaptureService` owns one immutable request and session shared by Editor and Player. A matching camera warms on successful submitted frames. Capture records explicit RG Transfer source reads and copies to session-owned imported staging; the staging descriptor is the actual source `TextureDescriptor`, serialized without a second descriptor schema. Raw readbacks retain nonfinite values and fail validation. The normal camera target, DebugView and history are not changed.
+
+Staging is reserved before recording. Once queued, it remains alive until both frame submission and the asynchronous readback terminal callback. Cancellation/timeout stop new recording and drain outstanding work. Evidence I/O failure records the original error, fails the session and continues retirement. A read-only native Metal event in the existing Present raster pass records its actual color attachment format/dimensions; its unmanaged payload follows the same submission/terminal ownership. This format observation is separate from the linear intermediate's bytes and display-transfer decision. N04 still owns full RenderGraph/Submit failure-transaction closure.
+
+The Editor Frame Debugger adapter is an independent, paused inspection after normal capture ends. It restores prior enabled/limit/pause state and removes callbacks even when capture or persistence fails. Its actual event tree can be accepted without claiming unavailable per-event native detail fields. N03 independently passed Editor/Player capture and frame-tree gates. Later camera-selection and Lighting-stage refinements are verified with N04.b in PLAN.md.
+
+Lighting capture is recorded after the final opaque lighting/atmosphere producer and before scene-color ownership transfer. Display and confidence are captured at their own later stage. Capture does not guess a replacement scoper name after MoveTexture; the source is selected while its semantic owner is authoritative.
+
+## RenderGraph failure and consumer contracts (N04)
+
+The graph owns an unnamed command buffer separate from enclosing frame/camera scopes. Execute propagates the original exception and stack; failed pass commands are abandoned without clearing enclosing scopes. Async temporary command buffers return in finally. Unreturned transient graph allocations move to a retirement queue during logical clear and become reusable only after the enclosing frame Submit. N04.a is independently accepted; shared-cache production and whole-frame Submit-failure closure remain N04.c work.
+
+Attachment Load is a read of prior contents. Loaded depth that later effects or capture consume must be stored. Forward explicitly reads GGX/SH and, when local lights exist, Tile range/list resources; it binds through the raster capability surface. Atmosphere and ZBin producers no longer prebind their outputs globally. Required local-light ZBin kernels fail at record when absent. N04.d records the LightContext upload as a Transfer producer. Imported GraphicsBuffer resources share RGBufferRef dependency tracking with ComputeBuffer resources; native target/count/stride remain explicit and an imported GraphicsBuffer cannot be cloned as a ComputeBuffer descriptor. Capability bindings resolve the actual native resource without a second handle system. LightContext retains ownership and retires replaced buffers only after frame Submit. Forward (including Terrain) binds its own light records and counts. Explicit overflow capture copies the ZBin output in a dependent Transfer pass into session-owned staging; nonzero raw counters fail the capture. No diagnostic staging exists without a request. N04.d acceptance and full failed-command/Submit coupling are tracked separately in PLAN.md.
+
+Pass queue observers publish capture ownership and atmosphere production only after Unity accepts the pass command buffer. Abandoned recording never latches queued ownership. A graph orders its first async work after earlier graphics submissions and joins its last accepted async fence on exit, including a later recording failure. Resource last-use returns occur after queue acceptance. N04.c.1 covers this queue boundary; whole-frame Submit failure, shared-key replacement and camera transactions remain c.2/c.3.
+
+HistoryCache keeps separate committed and pending descriptors and swaps each descriptor with its own allocation. A failed pending resize cannot replace committed history. Shared atmosphere keys discard an earlier pending generation before recording a different key; failed cameras discard only unproduced shared reservations. Successful frame submission commits shared resources by accepted production and each camera by its own execution result. A failed camera or submission requires a history reset and clears temporal-valid counters. Final queue failure still attempts Submit; physical retirement runs only after successful submission and a known async join. Uncertain capture queue receipts retain ownership and drain readbacks on the exceptional post-Submit path. End-context and command-buffer cleanup preserve the original exception. c.2 unit/live baseline acceptance and c.3 integrated fault recovery remain separate gates.
+
+### Resolved default Volume values
+
+The RP asset profile is registered once as the VolumeManager global default profile, including the complete Player type registry. Exposure, FilmTonemap and ColorGrading are required active components with all parameters overridden in that profile. Their consumers read the resolved per-camera stack values. CoreRP clears stack parameter override flags when applying default values; those flags describe scene overrides and must not gate required exposure. Optional features retain their explicit active/override record gates. CombineLUT has no separate inactive-component default table; exposure remains a pre-LUT multiply.
+
+### Explicit material route updates
+
+Infinity surface materials declare `_SurfaceRoute` and `_TranslucentStage` on their shader. `MaterialRouteUtility.Read` validates their exact integer values; fractional, nonfinite and out-of-range values fail rather than being rounded into another route. Subsurface scattering requires opaque Deferred routing. `MeshComponent` eligibility and the Editor share this reader. `MaterialRouteUtility.ApplyPassState` is the explicit Runtime/Editor operation after changing these properties; it derives pass enables and the opaque/transparent queue category. The ShaderGUI validates without rewriting serialized state and applies derived state only after a user edit or explicit shader assignment. Direct property writes alone do not apply the derived Unity Renderer pass state; runtime callers must invoke the explicit update. The two inspected asset pass-state migrations have independent acceptance receipts in PLAN. Rendered route parity remains an N06 gate.
+
+### N06 layer and native light ownership
+
+`LightComponent.shadowLayer` is a validated property over native `Light.renderingLayerMask`; there is no serialized duplicate. Native Light owns physical color/intensity/temperature, geometry and shadow mode. Removed IES/Cookie, per-light indirect, PCSS and duplicate configuration fields have no compatibility storage. The nine explicit scene retirements preserve the previously effective native values and all non-target data; PLAN links their independent receipts.
+
+Surface masks are encoded in GBufferC alpha as an eight-bit UNorm value. Unity shaders use native rendering-layer data. Infinity Mesh retains instance records as authority; residency derives a transform-indexed uint layer buffer through the existing exclusive Transform/Instance owner map and uploads it with transform dirty ranges. CPU and GPU submissions bind the same buffer. Surface direct-light masks are independent of caster masks and camera visibility. Runtime high bits are rejected; Everything normalization belongs only to an explicit asset migration. These paths compile and have unit/GPU packing evidence; full rendered parity is still pending.

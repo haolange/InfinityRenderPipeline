@@ -10,7 +10,7 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
-    public class GBufferContractTests
+    public partial class GBufferContractTests
     {
         const int k_Width = 32;
         const int k_Height = 32;
@@ -290,6 +290,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                         Vector3 expected = ExpectedAlbedo(fixtureId, x, y, k_Width, k_Height);
                         Color pixel = m_AlbedoPixels[y * k_Width + x];
+                        int expectedLayer = (x & 3) == 0 ? 1 : ((x & 3) == 1 ? 2 : ((x & 3) == 2 ? 128 : 255));
+                        Assert.AreEqual(expectedLayer, pixel.a, "Rendering layer must survive actual GBuffer UNorm encode/decode.");
                         maxAbs = Mathf.Max(maxAbs, Mathf.Abs(pixel.r - expected.x));
                         maxAbs = Mathf.Max(maxAbs, Mathf.Abs(pixel.g - expected.y));
                         maxAbs = Mathf.Max(maxAbs, Mathf.Abs(pixel.b - expected.z));

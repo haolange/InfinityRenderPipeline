@@ -59,10 +59,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             WarmPassDrawCache(request, passDrawIds);
 
             MeshFilterProgram filter = request.filter;
-            if (request.renderingLayerMask != 0)
-            {
-                filter.renderingLayerMask = request.renderingLayerMask;
-            }
+
 
             var build = new MeshDrawBuild
             {
@@ -272,6 +269,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.InstanceIndexBuffer, indexBufferRef.buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.TransformBuffer, m_Residency.TransformBuffer.buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.PreviousTransformBuffer, m_Residency.PreviousTransformBuffer.buffer);
+                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.RenderingLayerBuffer, m_Residency.RenderingLayerBuffer.buffer);
                     cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, passIndex, command.countOffset.x, m_PropertyBlock);
                 }
             }
@@ -314,7 +312,17 @@ namespace InfinityTech.Rendering.MeshPipeline
                     }
                 }
 
+                Material resolvedMaterial = UnityEntityId.ToObject<Material>(draw.materialUnityId);
+                int shaderIdentity = resolvedMaterial ? UnityEntityId.ToInt32(resolvedMaterial.shader) : 0;
+                uint materialRoute = 0;
+                if (resolvedMaterial && resolvedMaterial.HasProperty("_SurfaceRoute") && resolvedMaterial.HasProperty("_TranslucentStage"))
+                {
+                    MaterialRouteUtility.Read(resolvedMaterial, out int route, out int stage);
+                    materialRoute = (uint)((route << 2) | stage);
+                }
                 passDrawIds[drawIndex] = m_PassDrawCache.GetOrCreate(
+                    shaderIdentity,
+                    materialRoute,
                     request.shaderPassIndex,
                     draw.meshUnityId,
                     draw.sectionIndex,

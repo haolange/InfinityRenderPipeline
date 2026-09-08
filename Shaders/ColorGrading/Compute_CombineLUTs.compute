@@ -293,7 +293,8 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 
 	// Expand bright saturated colors outside the sRGB gamut to fake wide gamut rendering.
 	float  LumaAP1 = dot( ColorAP1, AP1_RGB2Y );
-	float3 ChromaAP1 = ColorAP1 / LumaAP1;
+	// Black has no chroma to expand. Define this limit before dividing by luminance.
+	float3 ChromaAP1 = LumaAP1 > 0 ? ColorAP1 / LumaAP1 : float3(1, 1, 1);
 
 	float ChromaDistSqr = dot( ChromaAP1 - 1, ChromaAP1 - 1 );
 	float ExpandAmount = ( 1 - exp2( -4 * ChromaDistSqr ) ) * ( 1 - exp2( -4 * ExpandGamut * LumaAP1*LumaAP1 ) );

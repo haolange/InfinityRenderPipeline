@@ -4,6 +4,7 @@
 #pragma kernel ExposureClear
 #pragma kernel ExposureHistogram
 #pragma kernel ExposureReduce
+#pragma kernel FinalCombineNoBloom
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
@@ -12,6 +13,7 @@
 float4 PP_Resolution;
 float PP_BloomIntensity;
 float PP_BloomThreshold;
+float PP_BloomScatter;
 float PP_VignetteIntensity;
 float PP_VignetteSmoothness;
 float PP_FilmGrainIntensity;
@@ -130,7 +132,8 @@ void BloomUpsample(uint3 id : SV_DispatchThreadID)
     result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0,  1) * texelSize, 0).rgb * 2.0;
     result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  1) * texelSize, 0).rgb * 1.0;
     result /= 16.0;
-    result += UAV_BloomTarget[id.xy].rgb;
+    // Scatter selects the wider mip contribution without increasing constant-field energy.
+    result = lerp(UAV_BloomTarget[id.xy].rgb, result, PP_BloomScatter);
 
     UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
 }
@@ -147,15 +150,15 @@ float3 ApplyFilmGrain(float3 color, float2 uv, int frameIndex)
     if (PP_FilmGrainIntensity <= 0)
         return color;
 
-    float noise = InterleavedGradientNoise(uv * PP_Resolution.xy, frameIndex);
+    float noise = (Rand3DPCG16(int3(int2(uv * PP_Resolution.xy), frameIndex)).x + 0.5) / 65536.0;
     noise = (noise - 0.5) * 2.0 * PP_FilmGrainIntensity;
     float lum = Rec709Luminance(color);
     float grainStrength = lerp(1.0, 1.0 - saturate(lum), PP_FilmGrainResponse);
-    return color + noise * grainStrength;
+    // Signal-relative, zero-mean modulation preserves black and avoids clipping-induced exposure bias.
+    return color * (1.0 + noise * grainStrength);
 }
 
-[numthreads(8, 8, 1)]
-void FinalCombine(uint3 id : SV_DispatchThreadID)
+void CombinePostColor(uint3 id, bool hasBloom)
 {
     if (any(id.xy >= (uint2)PP_Resolution.xy))
         return;
@@ -163,13 +166,26 @@ void FinalCombine(uint3 id : SV_DispatchThreadID)
     float2 screenUV = (id.xy + 0.5) * PP_Resolution.zw;
     float3 sceneColor = SRV_SceneColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).rgb;
     sceneColor *= CurrentExposureMultiplier();
-    sceneColor += SRV_BloomTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb * PP_BloomIntensity;
+    if (hasBloom)
+        sceneColor += SRV_BloomTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb * PP_BloomIntensity;
 
     float3 graded = SRV_CombineLUT.SampleLevel(Global_trilinear_clamp_sampler, LinToLog(max(sceneColor, 1e-6)), 0).rgb;
     graded *= ComputeVignette(screenUV);
     graded = ApplyFilmGrain(graded, screenUV, PP_FrameIndex);
 
     UAV_PostProcessTexture[id.xy] = float4(max(0, graded), 1);
+}
+
+[numthreads(8, 8, 1)]
+void FinalCombine(uint3 id : SV_DispatchThreadID)
+{
+    CombinePostColor(id, true);
+}
+
+[numthreads(8, 8, 1)]
+void FinalCombineNoBloom(uint3 id : SV_DispatchThreadID)
+{
+    CombinePostColor(id, false);
 }
 
 [numthreads(64, 1, 1)]

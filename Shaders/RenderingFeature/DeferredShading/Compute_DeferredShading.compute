@@ -243,6 +243,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 
     for (int d = 0; d < g_DirectionalLightCount; ++d)
     {
+        if ((g_LightRecordBuffer[d].lightLayer & gbufferData.RenderingLayer) == 0) continue;
         lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, contactShadow, viewDepth);
     }
 
@@ -277,6 +278,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
                     continue;
                 }
 
+                if ((g_LightRecordBuffer[lightIdx].lightLayer & gbufferData.RenderingLayer) == 0) continue;
                 lighting += EvaluateLocal(g_LightRecordBuffer[lightIdx], worldPos, normal, viewDir, microfaceCtx);
             }
         }
@@ -284,6 +286,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
         {
             for (int l = 0; l < g_LocalLightCount; ++l)
             {
+                if ((g_LightRecordBuffer[g_DirectionalLightCount + l].lightLayer & gbufferData.RenderingLayer) == 0) continue;
                 lighting += EvaluateLocal(g_LightRecordBuffer[g_DirectionalLightCount + l], worldPos, normal, viewDir, microfaceCtx);
             }
         }

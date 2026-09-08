@@ -62,7 +62,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void CameraFrameState_CreateDispose_DestroysVolumeStack()
         {
-            VolumeManager.instance.Initialize(null, null);
+            var manager = VolumeManager.instance;
+            bool ownsInitialization = !manager.isInitialized;
+            if (ownsInitialization)
+                manager.Initialize(null, null);
+            var existingStack = manager.stack;
             CameraFrameState frameState = null;
             try
             {
@@ -73,11 +77,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsNotNull(frameState.features);
                 Assert.IsNotNull(frameState.cameraUniform);
                 Assert.AreEqual(0.0f, frameState.exposureState.evCompensation);
+
+                var cameraStack = frameState.volumeStack;
+                Assert.IsTrue(cameraStack.isValid);
+                frameState.Dispose();
+                frameState = null;
+                Assert.IsFalse(cameraStack.isValid);
+                Assert.IsTrue(manager.isInitialized);
+                Assert.AreSame(existingStack, manager.stack);
+                Assert.IsTrue(existingStack.isValid);
             }
             finally
             {
                 frameState?.Dispose();
-                VolumeManager.instance.Deinitialize();
+                if (ownsInitialization)
+                    manager.Deinitialize();
             }
         }
 

@@ -90,13 +90,10 @@ namespace InfinityTech.Rendering.Pipeline
                 Light shadowLight = visibleLight.light;
                 int lightInstanceId = UnityEntityId.ToInt32(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
-                uint shadowRenderingLayerMask = (uint)ERenderingLayer.Everything;
-                if (shadowLight.TryGetComponent(out LightComponent lightComponent))
-                {
-                    shadowRenderingLayerMask = (uint)lightComponent.shadowLayer;
-                }
+                uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
 
                 ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
+                shadowDrawingSettings.useRenderingLayerMaskTest = true;
                 shadowDrawingSettings.splitIndex = local.face;
                 rendererLists[slice] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
 
@@ -112,6 +109,7 @@ namespace InfinityTech.Rendering.Pipeline
                 MeshFilterProgram shadowFilter = BuiltinMeshesPasses.Shadow.defaultFilter;
                 shadowFilter.layerMask = shadowLight.cullingMask;
                 shadowFilter.renderingLayerMask = shadowRenderingLayerMask;
+                    shadowFilter.filterRenderingLayers = true;
                 var shadowRequest = new MeshDrawRequest
                 {
                     filter = shadowFilter,
@@ -120,7 +118,6 @@ namespace InfinityTech.Rendering.Pipeline
                     shaderPassIndex = BuiltinMeshesPasses.Shadow.shaderPassIndex,
                     lightModeTag = BuiltinMeshesPasses.Shadow.lightModeTag,
                     viewPosition = lightPosition,
-                    renderingLayerMask = shadowFilter.renderingLayerMask,
                     viewKey = viewKey
                 };
                 sliceDraws[slice] = m_RGBuilder.DeclareDrawList(m_ShadowMeshProcessor, shadowRequest, localVis, m_VisibilityShare);

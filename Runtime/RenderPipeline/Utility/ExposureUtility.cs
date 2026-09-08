@@ -15,34 +15,28 @@ namespace InfinityTech.Rendering.Pipeline
             return math.exp2(ev);
         }
 
-        public static bool VolumeIsActive(Exposure exposure)
+        static void ValidateSnapshot(Exposure exposure)
         {
-            return GraphicsUtility.VolumeHasOverrides(exposure);
+            if (exposure == null || !math.isfinite(exposure.evCompensation.value))
+                throw new System.InvalidOperationException("InfinityRP: a finite resolved Exposure snapshot is required.");
         }
 
         public static float ResolveCpuEvCompensation(Exposure exposure)
         {
-            if (!VolumeIsActive(exposure))
-            {
-                return 0.0f;
-            }
-
+            ValidateSnapshot(exposure);
             return exposure.evCompensation.value;
         }
 
         public static bool ShouldRecordAuto(Exposure exposure)
         {
-            return VolumeIsActive(exposure) && exposure.mode.value == EExposureMode.Auto;
+            ValidateSnapshot(exposure);
+            return exposure.mode.value == EExposureMode.Auto;
         }
 
         public static float ResolveManualMultiplier(Exposure exposure)
         {
-            if (!VolumeIsActive(exposure) || exposure.mode.value != EExposureMode.Manual)
-            {
-                return 1.0f;
-            }
-
-            return EvToMultiplier(exposure.evCompensation.value);
+            ValidateSnapshot(exposure);
+            return exposure.mode.value == EExposureMode.Manual ? EvToMultiplier(exposure.evCompensation.value) : 1.0f;
         }
     }
 }

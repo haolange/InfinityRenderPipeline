@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = InfinityRenderQueue.k_RenderQueue_AllTransparent;
                 rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
-                rendererListDesc.renderingLayerMask = 1;
+                rendererListDesc.renderingLayerMask = uint.MaxValue;
                 rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
@@ -126,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = InfinityRenderQueue.k_RenderQueue_AllTransparent;
                 rendererListDesc.sortingCriteria = SortingCriteria.CommonTransparent;
-                rendererListDesc.renderingLayerMask = 1;
+                rendererListDesc.renderingLayerMask = uint.MaxValue;
                 rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }

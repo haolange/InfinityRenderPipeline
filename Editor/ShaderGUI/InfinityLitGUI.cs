@@ -1,25 +1,17 @@
 using UnityEditor;
 using UnityEngine;
 using InfinityTech.Component;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
     public class InfinityLitGUI : ShaderGUI
     {
-        const string PassGBuffer = "GBufferPass";
-        const string PassForward = "ForwardPass";
-        const string PassDepth = "DepthPass";
-        const string PassShadow = "ShadowPass";
-        const string PassShadowCaster = "ShadowCaster";
-        const string PassMotion = "MotionPass";
-        const string PassTranslucentDepth = "TranslucentDepthPass";
-        const string PassTranslucentT0 = "TranslucentT0Pass";
-        const string PassTranslucentT1 = "TranslucentT1Pass";
-        const string PassTranslucentT2 = "TranslucentT2Pass";
         const string FoldoutPrefix = "InfinityRP.LitGUI.Foldout.";
 
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
         {
+            EditorGUI.BeginChangeCheck();
             DrawGroup(materialEditor, properties, "Color", true, "_UseAlbedoTex", "_MainTex", "_BaseColor", "_BaseColorTile", "_EmissionColor");
             DrawGroup(materialEditor, properties, "Microface", true, "_Roughness", "_Reflectance", "_SpecularLevel");
             DrawGroup(materialEditor, properties, "Normal", true, "_NomralTexture", "_NormalTile");
@@ -28,18 +20,19 @@ namespace InfinityTech.Rendering.Editor
             DrawGroup(materialEditor, properties, "Subsurface", false, "_Subsurface", "_SSSProfileIndex", "_SSSThickness");
             DrawGroup(materialEditor, properties, "SurfaceRoute", true, "_SurfaceRoute", "_TranslucentStage", "_RefractionStrength");
             DrawGroup(materialEditor, properties, "RenderState", false, "_ZTest", "_ZWrite");
-            ApplyTargets(materialEditor);
+            if (EditorGUI.EndChangeCheck())
+                ApplyTargets(materialEditor);
         }
 
         public override void AssignNewShaderToMaterial(Material material, Shader oldShader, Shader newShader)
         {
             base.AssignNewShaderToMaterial(material, oldShader, newShader);
-            ApplyPassState(material);
+            MaterialRouteUtility.ApplyPassState(material);
         }
 
         public override void ValidateMaterial(Material material)
         {
-            ApplyPassState(material);
+            MaterialRouteUtility.Read(material, out _, out _);
         }
 
         static void DrawGroup(MaterialEditor materialEditor, MaterialProperty[] properties, string title, bool defaultOpen, params string[] names)
@@ -74,56 +67,9 @@ namespace InfinityTech.Rendering.Editor
             {
                 if (targets[i] is Material material)
                 {
-                    ApplyPassState(material);
+                    MaterialRouteUtility.ApplyPassState(material);
                     DirtyMeshComponents(material);
                 }
-            }
-        }
-
-        public static void ApplyPassState(Material material)
-        {
-            if (material == null)
-            {
-                return;
-            }
-
-            int route = material.HasProperty("_SurfaceRoute") ? Mathf.RoundToInt(material.GetFloat("_SurfaceRoute")) : 0;
-            int stage = material.HasProperty("_TranslucentStage") ? Mathf.RoundToInt(material.GetFloat("_TranslucentStage")) : 0;
-            bool translucent = stage > 0;
-            bool deferred = !translucent && route == 0;
-            bool forward = !translucent && route == 1;
-
-            SetPass(material, PassGBuffer, deferred);
-            SetPass(material, PassForward, forward);
-            SetPass(material, PassDepth, !translucent);
-            SetPass(material, PassShadow, !translucent);
-            SetPass(material, PassShadowCaster, !translucent);
-            SetPass(material, PassMotion, !translucent);
-            SetPass(material, PassTranslucentDepth, translucent);
-            SetPass(material, PassTranslucentT0, translucent && stage == 1);
-            SetPass(material, PassTranslucentT1, translucent && stage == 2);
-            SetPass(material, PassTranslucentT2, translucent && stage == 3);
-
-            if (translucent)
-            {
-                material.SetOverrideTag("RenderType", "Transparent");
-                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-            }
-            else
-            {
-                material.SetOverrideTag("RenderType", "Opaque");
-                if (material.renderQueue >= (int)UnityEngine.Rendering.RenderQueue.Transparent)
-                {
-                    material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
-                }
-            }
-        }
-
-        static void SetPass(Material material, string passName, bool enabled)
-        {
-            if (material.FindPass(passName) >= 0)
-            {
-                material.SetShaderPassEnabled(passName, enabled);
             }
         }
 

@@ -71,6 +71,7 @@ Shader "Hidden/InfinityPipeline/GBufferContractRaster"
                 data.Flags = 0;
                 data.SSSProfileIndex = 0;
                 data.Thickness = 0.0;
+                data.RenderingLayer = (pixel.x & 3) == 0 ? 1 : ((pixel.x & 3) == 1 ? 2 : ((pixel.x & 3) == 2 ? 128 : 255));
                 EncodeGBuffer(data, input.positionCS.xy, GBufferA, GBufferB, GBufferC);
             }
             ENDHLSL

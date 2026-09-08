@@ -28,6 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
         public CombineLutCache combineLutCache;
         public ExposureState exposureState;
         public bool executeSucceeded;
+        public bool requiresHistoryReset;
         public bool loggedOutputDecision;
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
@@ -68,6 +69,26 @@ namespace InfinityTech.Rendering.Pipeline
             loggedOutputDecision = false;
             hasResolvedBackbufferFormat = false;
             lastResolvedBackbufferFormat = GraphicsFormat.None;
+        }
+
+        internal void RollbackFrame()
+        {
+            historyCache.RollbackPending();
+            atmosphereViewCache.RollbackPending();
+            combineLutCache.RollbackPending();
+            executeSucceeded = false;
+            requiresHistoryReset = true;
+            ssrValidFrames = ssgiValidFrames = gtaoValidFrames = taaValidFrames = 0;
+        }
+
+        internal void CommitFrame()
+        {
+            if (!executeSucceeded) return;
+            historyCache.CommitFrame();
+            atmosphereViewCache.CommitFrame();
+            combineLutCache.CommitFrame();
+            executeSucceeded = false;
+            requiresHistoryReset = false;
         }
 
         public void Dispose()

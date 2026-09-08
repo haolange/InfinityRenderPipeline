@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
                 VisibleLight visible = cullingResults.visibleLights[record.visibleLightIndex];
                 Light light = visible.light;
-                if (record.unused0 == 0 || light == null || light.shadows == LightShadows.None)
+                if (light == null || light.shadows == LightShadows.None)
                 {
                     continue;
                 }
@@ -213,7 +213,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 }
 
                 VisibleLight visible = cullingResults.visibleLights[record.visibleLightIndex];
-                if (record.unused0 == 0 || visible.light == null || visible.light.shadows == LightShadows.None || !cullingResults.GetShadowCasterBounds(record.visibleLightIndex, out _))
+                if (visible.light == null || visible.light.shadows == LightShadows.None || !cullingResults.GetShadowCasterBounds(record.visibleLightIndex, out _))
                 {
                     continue;
                 }
@@ -234,7 +234,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 }
 
                 VisibleLight visible = cullingResults.visibleLights[record.visibleLightIndex];
-                if (record.unused0 == 0 || visible.light == null || visible.light.shadows == LightShadows.None || !cullingResults.GetShadowCasterBounds(record.visibleLightIndex, out _))
+                if (visible.light == null || visible.light.shadows == LightShadows.None || !cullingResults.GetShadowCasterBounds(record.visibleLightIndex, out _))
                 {
                     continue;
                 }

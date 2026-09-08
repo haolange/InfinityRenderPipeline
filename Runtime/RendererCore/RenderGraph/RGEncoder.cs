@@ -15,9 +15,23 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer = commandBuffer;
         }
 
+        public void SetBufferData<T>(GraphicsBuffer buffer, Unity.Collections.NativeArray<T> data) where T : struct
+            => m_CommandBuffer.SetBufferData(buffer, data);
+
+        public void SetBufferData(GraphicsBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count)
+            => m_CommandBuffer.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
+
         public void CopyBuffer(GraphicsBuffer src, GraphicsBuffer dst)
         {
             m_CommandBuffer.CopyBuffer(src, dst);
+        }
+
+        public void RequestAsyncReadback(GraphicsBuffer source, System.Action<AsyncGPUReadbackRequest> completion)
+            => m_CommandBuffer.RequestAsyncReadback(source, completion);
+
+        public void RequestAsyncReadback(Texture source, System.Action<AsyncGPUReadbackRequest> completion)
+        {
+            m_CommandBuffer.RequestAsyncReadback(source, 0, completion);
         }
 
         public void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst)
@@ -43,6 +57,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public struct RGComputeEncoder : IComputeCommands
     {
+        public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferRef value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
         internal CommandBuffer m_CommandBuffer;
 
         internal RGComputeEncoder(CommandBuffer commandBuffer)
@@ -608,6 +623,11 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public struct RGRasterEncoder : IRasterCommands
     {
+        public void SetGlobalBuffer(int nameID, RGBufferRef value) => value.BindGlobal(m_CommandBuffer, nameID);
+        public void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data)
+        {
+            m_CommandBuffer.IssuePluginEventAndData(callback, eventId, data);
+        }
         internal CommandBuffer m_CommandBuffer;
         internal RGDrawListContext m_DrawLists;
 

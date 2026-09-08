@@ -1,50 +1,35 @@
 #!/usr/bin/env bash
-# Capture the open Unity Editor window to a PNG.
+# Capture the existing Unity Editor or an explicitly identified Player window.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEFAULT_PROJECT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 PROJECT_PATH="${1:-$DEFAULT_PROJECT}"
 OUT_PATH="${2:-$PROJECT_PATH/Logs/unity_capture.png}"
+PROJECT_NAME="$(basename "${PROJECT_PATH%/}")"
+PLAYER_PID="${3:-}"
 
-INSTANCE_PATH="$PROJECT_PATH/Library/EditorInstance.json"
-if [[ ! -f "$INSTANCE_PATH" ]]; then
-  echo "Unity EditorInstance.json not found." >&2
-  exit 1
-fi
-
-UNITY_PID="$(python3 -c "import json; print(json.load(open('$INSTANCE_PATH'))['process_id'])")"
-if ! kill -0 "$UNITY_PID" 2>/dev/null; then
-  echo "Unity process $UNITY_PID is not running." >&2
+# EditorInstance.json may be stale and kill -0 may be denied by the sandbox.
+# CoreGraphics is the authority for the actual currently visible capture window.
+WINDOW_ARGUMENTS=("$PROJECT_NAME")
+if [[ -n "$PLAYER_PID" ]]; then WINDOW_ARGUMENTS+=("$PLAYER_PID"); fi
+UNITY_WINDOW_ID="$(/usr/bin/swift -module-cache-path "${TMPDIR:-/tmp}/InfinityRP-SwiftModuleCache" "$SCRIPT_DIR/UnityWindowId.swift" "${WINDOW_ARGUMENTS[@]}")"
+if [[ ! "$UNITY_WINDOW_ID" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Invalid CoreGraphics window ID: $UNITY_WINDOW_ID" >&2
   exit 1
 fi
 
 mkdir -p "$(dirname "$OUT_PATH")"
+if [[ -e "$OUT_PATH" ]]; then
+  echo "Capture output already exists; choose a new run filename: $OUT_PATH" >&2
+  exit 1
+fi
 
-RECT="$(osascript <<APPLESCRIPT
-tell application "System Events"
-    set unityProcs to every process whose unix id is $UNITY_PID
-    if (count of unityProcs) is 0 then
-        set unityProcs to every process whose name is "Unity"
-    end if
-    if (count of unityProcs) is 0 then error "Unity process not found"
-    set unityProc to item 1 of unityProcs
-    set frontmost of unityProc to true
-    delay 0.35
-    tell unityProc
-        set p to position of window 1
-        set s to size of window 1
-        return (item 1 of p as integer as text) & "," & (item 2 of p as integer as text) & "," & (item 1 of s as integer as text) & "," & (item 2 of s as integer as text)
-    end tell
-end tell
-APPLESCRIPT
-)"
-
-echo "WINDOW=$RECT"
-screencapture -x -o -R "$RECT" "$OUT_PATH"
-
-if [[ ! -f "$OUT_PATH" ]]; then
-  echo "Capture failed." >&2
+echo "CG_WINDOW_ID=$UNITY_WINDOW_ID"
+echo "PLAYER_PID=${PLAYER_PID:-Editor}"
+/usr/sbin/screencapture -x -o -l "$UNITY_WINDOW_ID" "$OUT_PATH"
+if [[ ! -s "$OUT_PATH" ]]; then
+  echo "Capture failed; check Screen Recording permission." >&2
   exit 1
 fi
 

@@ -20,6 +20,6 @@ void DecodeGBufferContract(uint3 id : SV_DispatchThreadID)
 
     FGBufferData gbuffer;
     DecodeGBuffer(id.xy, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbuffer);
-    UAV_DecodedAlbedo[id.xy] = float4(gbuffer.Albedo, 1.0);
+    UAV_DecodedAlbedo[id.xy] = float4(gbuffer.Albedo, (float)gbuffer.RenderingLayer);
     UAV_DecodedNormal[id.xy] = float4(gbuffer.Normal, 1.0);
 }

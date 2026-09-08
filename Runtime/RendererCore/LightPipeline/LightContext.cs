@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Component;
 using InfinityTech.Core;
+using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
@@ -22,6 +23,11 @@ namespace InfinityTech.Rendering.LightPipeline
         public static int LocalShadowMatrixBuffer = Shader.PropertyToID("SRV_LocalShadowMatrices");
         public static int LocalShadowRectBuffer = Shader.PropertyToID("SRV_LocalShadowRects");
         public static int LocalShadowSliceCount = Shader.PropertyToID("g_LocalShadowSliceCount");
+        public static readonly int EmptyTileRangeBuffer = Shader.PropertyToID("EmptyTileRangeBuffer");
+        public static readonly int EmptyTileListBuffer = Shader.PropertyToID("EmptyTileListBuffer");
+        public static readonly int EmptyZBinRangeBuffer = Shader.PropertyToID("EmptyZBinRangeBuffer");
+        public static readonly int EmptyZBinListBuffer = Shader.PropertyToID("EmptyZBinListBuffer");
+        public static readonly int ZBinOverflowBuffer = Shader.PropertyToID("ZBinOverflowBuffer");
         public static int HasTileLightList = Shader.PropertyToID("g_HasTileLightList");
     }
 
@@ -47,6 +53,23 @@ namespace InfinityTech.Rendering.LightPipeline
         NativeList<FLightRecord> m_Records;
         NativeList<FLightBounds> m_LocalBounds;
         readonly ShadowAllocator m_ShadowAllocator;
+        readonly List<GraphicsBuffer> m_RetiredBuffers = new List<GraphicsBuffer>();
+        static readonly uint[] s_EmptyData = new uint[1];
+        static readonly uint2[] s_EmptyRange = new uint2[1];
+        internal int RetiredBufferCount => m_RetiredBuffers.Count;
+
+        internal void FlushRetiredBuffers()
+        {
+            foreach (GraphicsBuffer buffer in m_RetiredBuffers) buffer.Release();
+            m_RetiredBuffers.Clear();
+        }
+
+        void ReplaceBuffer(ref GraphicsBuffer buffer, int count, int stride)
+        {
+            var replacement = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, stride);
+            if (buffer != null) m_RetiredBuffers.Add(buffer);
+            buffer = replacement;
+        }
 
         internal LightContext()
         {
@@ -59,7 +82,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_LightBoundsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_BoundsCapacity, m_BoundsStride);
             m_LocalShadowMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, 64);
             m_LocalShadowRectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, 16);
-            m_ZBinOverflowBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
+            m_ZBinOverflowBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured | GraphicsBuffer.Target.CopySource, 1, sizeof(uint));
             m_EmptyTileRangeBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint) * 2);
             m_EmptyTileListBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             m_EmptyZBinRangeBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint) * 2);
@@ -84,7 +107,6 @@ namespace InfinityTech.Rendering.LightPipeline
         internal GraphicsBuffer EmptyZBinRangeBuffer => m_EmptyZBinRangeBuffer;
         internal GraphicsBuffer EmptyZBinListBuffer => m_EmptyZBinListBuffer;
         internal ShadowAllocator ShadowAllocator => m_ShadowAllocator;
-        internal uint LastZBinOverflow { get; set; }
 
         internal static bool HasZBinningLightList(int localLightCount)
         {
@@ -202,25 +224,27 @@ namespace InfinityTech.Rendering.LightPipeline
             int matrices = math.max(1, localMatrixCount);
             if (m_LightRecordBuffer == null || m_RecordCapacity < records)
             {
-                m_LightRecordBuffer?.Release();
+                ReplaceBuffer(ref m_LightRecordBuffer, records, m_RecordStride);
                 m_RecordCapacity = records;
-                m_LightRecordBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_RecordCapacity, m_RecordStride);
             }
 
             if (m_LightBoundsBuffer == null || m_BoundsCapacity < bounds)
             {
-                m_LightBoundsBuffer?.Release();
+                ReplaceBuffer(ref m_LightBoundsBuffer, bounds, m_BoundsStride);
                 m_BoundsCapacity = bounds;
-                m_LightBoundsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_BoundsCapacity, m_BoundsStride);
             }
 
             if (m_LocalShadowMatrixBuffer == null || m_LocalMatrixCapacity < matrices)
             {
-                m_LocalShadowMatrixBuffer?.Release();
-                m_LocalShadowRectBuffer?.Release();
+                var matrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, matrices, 64);
+                GraphicsBuffer rectBuffer;
+                try { rectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, matrices, 16); }
+                catch { matrixBuffer.Release(); throw; }
+                if (m_LocalShadowMatrixBuffer != null) m_RetiredBuffers.Add(m_LocalShadowMatrixBuffer);
+                if (m_LocalShadowRectBuffer != null) m_RetiredBuffers.Add(m_LocalShadowRectBuffer);
+                m_LocalShadowMatrixBuffer = matrixBuffer;
+                m_LocalShadowRectBuffer = rectBuffer;
                 m_LocalMatrixCapacity = matrices;
-                m_LocalShadowMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, 64);
-                m_LocalShadowRectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, 16);
             }
         }
 
@@ -243,7 +267,7 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetLightData(CommandBuffer cmdBuffer)
+        internal void Upload<TCommands>(in TCommands cmdBuffer) where TCommands : struct, ITransferCommands
         {
             RequireCapacity(m_Records.Length, m_LocalBounds.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
 
@@ -263,16 +287,10 @@ namespace InfinityTech.Rendering.LightPipeline
                 cmdBuffer.SetBufferData(m_LocalShadowRectBuffer, m_ShadowAllocator.LocalUVRects, 0, 0, m_ShadowAllocator.LocalSliceCount);
             }
 
-            cmdBuffer.SetGlobalInt(LightShaderIDs.DirectionalLightCount, m_DirectionalCount);
-            cmdBuffer.SetGlobalInt(LightShaderIDs.LocalLightCount, m_LocalCount);
-            cmdBuffer.SetGlobalInt(LightShaderIDs.HasTileLightList, 0);
-            cmdBuffer.SetGlobalInt(LightShaderIDs.SunRecordIndex, m_SunRecordIndex);
-            cmdBuffer.SetGlobalInt(LightShaderIDs.LocalShadowSliceCount, m_ShadowAllocator.LocalSliceCount);
-            cmdBuffer.SetGlobalBuffer(LightShaderIDs.LightRecordBuffer, m_LightRecordBuffer);
-            cmdBuffer.SetGlobalBuffer(LightShaderIDs.LightBoundsBuffer, m_LightBoundsBuffer);
-            cmdBuffer.SetGlobalBuffer(LightShaderIDs.SRV_LightBoundsBuffer, m_LightBoundsBuffer);
-            cmdBuffer.SetGlobalBuffer(LightShaderIDs.LocalShadowMatrixBuffer, m_LocalShadowMatrixBuffer);
-            cmdBuffer.SetGlobalBuffer(LightShaderIDs.LocalShadowRectBuffer, m_LocalShadowRectBuffer);
+            cmdBuffer.SetBufferData(m_EmptyTileRangeBuffer, s_EmptyRange, 0, 0, 1);
+            cmdBuffer.SetBufferData(m_EmptyTileListBuffer, s_EmptyData, 0, 0, 1);
+            cmdBuffer.SetBufferData(m_EmptyZBinRangeBuffer, s_EmptyRange, 0, 0, 1);
+            cmdBuffer.SetBufferData(m_EmptyZBinListBuffer, s_EmptyData, 0, 0, 1);
         }
 
         internal bool TryGetSunRecord(out FLightRecord record)
@@ -307,7 +325,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 builder.Append(" radiance=").Append(record.radiance);
                 builder.Append(" posRange=").Append(record.positionRange);
                 builder.Append(" flags=").Append(record.flags);
-                builder.Append(" wantsShadow=").Append(record.unused0);
+                builder.Append(" shadowType=").Append(record.shadowType);
                 builder.Append(" shadowIndex=").Append(record.shadowMatrixIndex);
                 builder.Append(" slices=").Append(record.shadowSliceCount);
                 builder.AppendLine();
@@ -340,6 +358,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         public void Dispose()
         {
+            FlushRetiredBuffers();
             m_LightRecordBuffer?.Release();
             m_LightBoundsBuffer?.Release();
             m_LocalShadowMatrixBuffer?.Release();

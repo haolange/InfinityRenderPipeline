@@ -37,6 +37,12 @@ namespace InfinityTech.Rendering.Pipeline
         {
             bool committedHit = m_HasShared && m_SharedKey.Equals(key);
             bool pendingHit = m_SharedProducedThisFrame && m_PendingSharedKey.Equals(key);
+            if (m_SharedProducedThisFrame && !pendingHit)
+            {
+                m_History.DiscardPending(InfinityShaderIDs.AtmosphereTransmittanceLUT);
+                m_History.DiscardPending(InfinityShaderIDs.AtmosphereMultiScatteringLUT);
+                m_SharedProducedThisFrame = false;
+            }
             hit = committedHit || pendingHit;
 
             if (committedHit && !pendingHit)
@@ -73,6 +79,13 @@ namespace InfinityTech.Rendering.Pipeline
         {
             bool committedHit = m_HasIBL && m_IBLKey.Equals(key);
             bool pendingHit = m_IBLProducedThisFrame && m_PendingIBLKey.Equals(key);
+            if (m_IBLProducedThisFrame && !pendingHit)
+            {
+                m_History.DiscardPending(InfinityShaderIDs.AtmosphereCubemap);
+                m_History.DiscardPending(InfinityShaderIDs.AtmosphereGGXPrefilter);
+                m_History.DiscardPending(InfinityShaderIDs.AtmosphereSkySH);
+                m_IBLProducedThisFrame = false;
+            }
             hit = committedHit || pendingHit;
 
             if (committedHit && !pendingHit)
@@ -118,6 +131,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_SharedProducedThisFrame = false;
             m_IBLProducedThisFrame = false;
         }
+
+        public void DiscardUnproducedPending() => m_History.DiscardUnproducedPending();
 
         public void RollbackPending()
         {

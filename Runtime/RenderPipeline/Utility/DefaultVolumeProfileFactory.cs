@@ -34,8 +34,12 @@ namespace InfinityTech.Rendering.Pipeline
             typeof(ScreenSpaceIndirectDiffuse),
             typeof(ScreenSpaceAmbientOcclusion),
             typeof(VolumetricFog),
-            typeof(VolumetricCloud)
+            typeof(VolumetricCloud),
+            typeof(ContactShadow),
+            typeof(SubsurfaceScattering)
         };
+
+        internal static System.Collections.Generic.IReadOnlyList<System.Type> OptionalComponentTypes => s_OptionalComponentTypes;
 
         public static VolumeProfile CreateInMemory()
         {
@@ -44,6 +48,8 @@ namespace InfinityTech.Rendering.Pipeline
             profile.Add<Exposure>(true);
             profile.Add<FilmTonemap>(true);
             profile.Add<ColorGrading>(true);
+            foreach (System.Type type in s_OptionalComponentTypes)
+                profile.Add(type, false);
             ApplyPackagedDefaults(profile);
             return profile;
         }
@@ -80,24 +86,24 @@ namespace InfinityTech.Rendering.Pipeline
                 return false;
             }
 
-            if (!profile.TryGet(out Exposure exposure) || !AllParametersOverridden(exposure))
+            if (!profile.TryGet(out Exposure exposure) || !exposure.active || !AllParametersOverridden(exposure))
             {
                 return false;
             }
 
-            if (!profile.TryGet(out FilmTonemap film) || !AllParametersOverridden(film))
+            if (!profile.TryGet(out FilmTonemap film) || !film.active || !AllParametersOverridden(film))
             {
                 return false;
             }
 
-            if (!profile.TryGet(out ColorGrading grading) || !AllParametersOverridden(grading))
+            if (!profile.TryGet(out ColorGrading grading) || !grading.active || !AllParametersOverridden(grading))
             {
                 return false;
             }
 
             for (int i = 0; i < s_OptionalComponentTypes.Length; ++i)
             {
-                if (profile.TryGet(s_OptionalComponentTypes[i], out VolumeComponent optional) &&
+                if (!profile.TryGet(s_OptionalComponentTypes[i], out VolumeComponent optional) ||
                     GraphicsUtility.VolumeHasOverrides(optional))
                 {
                     return false;
@@ -160,6 +166,8 @@ namespace InfinityTech.Rendering.Pipeline
             AddDefaultComponent<Exposure>(profile);
             AddDefaultComponent<FilmTonemap>(profile);
             AddDefaultComponent<ColorGrading>(profile);
+            foreach (System.Type type in s_OptionalComponentTypes)
+                AssetDatabase.AddObjectToAsset(profile.Add(type, false), profile);
             ApplyPackagedDefaults(profile);
 
             EditorUtility.SetDirty(profile);
@@ -188,16 +196,6 @@ namespace InfinityTech.Rendering.Pipeline
             pipelineAsset.volumeProfile = profile;
             EditorUtility.SetDirty(pipelineAsset);
             AssetDatabase.SaveAssets();
-        }
-
-        public static void AssignToPipelineIfNull(InfinityRenderPipelineAsset pipelineAsset)
-        {
-            if (pipelineAsset == null || pipelineAsset.volumeProfile != null)
-            {
-                return;
-            }
-
-            AssignToPipeline(pipelineAsset);
         }
 
         static void AddDefaultComponent<T>(VolumeProfile profile) where T : VolumeComponent

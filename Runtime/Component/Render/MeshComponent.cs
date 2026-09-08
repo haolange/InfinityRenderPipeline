@@ -66,8 +66,6 @@ namespace InfinityTech.Component
         public int renderPriority = 0;
         public EMotionType motionVector = EMotionType.Object;
 
-        static readonly int ID_SurfaceRoute = Shader.PropertyToID("_SurfaceRoute");
-        static readonly int ID_TranslucentStage = Shader.PropertyToID("_TranslucentStage");
 
         private bool m_PreviousForceRenderingOff;
         private MeshInstanceId m_InstanceId;
@@ -569,15 +567,7 @@ namespace InfinityTech.Component
                 return;
             }
 
-            if (material.HasProperty(ID_SurfaceRoute))
-            {
-                surfaceRoute = Mathf.RoundToInt(material.GetFloat(ID_SurfaceRoute));
-            }
-
-            if (material.HasProperty(ID_TranslucentStage))
-            {
-                translucentStage = Mathf.RoundToInt(material.GetFloat(ID_TranslucentStage));
-            }
+            MaterialRouteUtility.Read(material, out surfaceRoute, out translucentStage);
         }
 
         private bool NeedsSync()

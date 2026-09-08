@@ -165,7 +165,7 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
         att = DistanceAttenuation(distance, light.positionRange.w);
         if (light.lightType == LIGHT_TYPE_SPOT)
         {
-            att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.z, light.shape.w);
+            att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
         }
         shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
     }
@@ -174,8 +174,9 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
     float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, L.y, VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
     float phase = CloudPhase(dot(rayDir, L));
-    float3 radiance = LightRadiance(light) * sunTransmittance * lightEnergy * phase * shadow * att;
-    float3 ambient = LightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
+    shadow = VolumeShadowWeight(light, shadow);
+    float3 radiance = VolumeLightRadiance(light) * sunTransmittance * lightEnergy * phase * shadow * att;
+    float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
     return (radiance + ambient) * density;
 }
 

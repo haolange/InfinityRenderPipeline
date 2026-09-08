@@ -214,7 +214,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     continue;
                 }
 
-                if ((instance.renderingLayerMask & filter.renderingLayerMask) == 0)
+                if (filter.filterRenderingLayers && (instance.renderingLayerMask & filter.renderingLayerMask) == 0)
                 {
                     continue;
                 }

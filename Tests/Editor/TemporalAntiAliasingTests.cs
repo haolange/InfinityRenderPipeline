@@ -11,7 +11,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void NewCameraFrameState_HistoryResetAndZeroJitter()
         {
-            VolumeManager.instance.Initialize(null, null);
+            var manager = VolumeManager.instance;
+            bool ownsInitialization = !manager.isInitialized;
+            if (ownsInitialization)
+                manager.Initialize(null, null);
             GameObject go = new GameObject("TAATestCamera");
             CameraFrameState frameState = null;
             try
@@ -30,7 +33,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 frameState?.Dispose();
                 Object.DestroyImmediate(go);
-                VolumeManager.instance.Deinitialize();
+                if (ownsInitialization)
+                    manager.Deinitialize();
             }
         }
 

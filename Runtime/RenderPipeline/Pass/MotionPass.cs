@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
                 rendererListDesc.sortingCriteria = SortingCriteria.CommonOpaque;
-                rendererListDesc.renderingLayerMask = (uint)ERenderingLayer.Everything;
+                rendererListDesc.renderingLayerMask = uint.MaxValue;
                 rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
@@ -70,7 +70,6 @@ namespace InfinityTech.Rendering.Pipeline
                 shaderPassIndex = BuiltinMeshesPasses.Motion.shaderPassIndex,
                 lightModeTag = BuiltinMeshesPasses.Motion.lightModeTag,
                 viewPosition = camera.transform.position,
-                renderingLayerMask = motionFilter.renderingLayerMask,
                 viewKey = UnityEntityId.ToUInt64(camera)
             };
             RGDrawListRef motionDraws = m_RGBuilder.DeclareDrawList(m_MotionMeshProcessor, motionRequest, visibility, m_VisibilityShare);
@@ -107,7 +106,7 @@ namespace InfinityTech.Rendering.Pipeline
                 //Setup Phase
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref CameraMotionPassData passData = ref passRef.GetPassData<CameraMotionPassData>();
                 {

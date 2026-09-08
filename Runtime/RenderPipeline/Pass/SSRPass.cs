@@ -34,9 +34,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SSR_TemporalWeightID = Shader.PropertyToID("SSR_TemporalWeight");
         internal static int Matrix_ProjID = Shader.PropertyToID("Matrix_Proj");
         internal static int Matrix_InvProjID = Shader.PropertyToID("Matrix_InvProj");
-        internal static int Matrix_ViewProjID = Shader.PropertyToID("Matrix_ViewProj");
         internal static int Matrix_InvViewProjID = Shader.PropertyToID("Matrix_InvViewProj");
-        internal static int Matrix_LastViewProjID = Shader.PropertyToID("Matrix_LastViewProj");
+        internal static int Matrix_HitMotionViewProjID = Shader.PropertyToID("Matrix_HitMotionViewProj");
+        internal static int Matrix_HitMotionLastViewProjID = Shader.PropertyToID("Matrix_HitMotionLastViewProj");
         internal static int Matrix_WorldToViewID = Shader.PropertyToID("Matrix_WorldToView");
         internal static int SRV_HiZTextureID = Shader.PropertyToID("SRV_HiZTexture");
         internal static int SRV_HiCTextureID = Shader.PropertyToID("SRV_HiCTexture");
@@ -91,9 +91,9 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 resolution;
             public Matrix4x4 matrix_Proj;
             public Matrix4x4 matrix_InvProj;
-            public Matrix4x4 matrix_ViewProj;
             public Matrix4x4 matrix_InvViewProj;
-            public Matrix4x4 matrix_LastViewProj;
+            public Matrix4x4 matrix_HitMotionViewProj;
+            public Matrix4x4 matrix_HitMotionLastViewProj;
             public Matrix4x4 matrix_WorldToView;
             public ComputeShader ssrShader;
             public RGTextureRef hiZTexture;
@@ -193,9 +193,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.resolution = new int2(width, height);
                 passData.matrix_Proj = m_CameraUniform.matrix_FlipYJitterProj;
                 passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
-                passData.matrix_ViewProj = m_CameraUniform.matrix_ViewFlipYJitterProj;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_LastViewProj = m_CameraUniform.matrix_LastViewFlipYJitterProj;
+                passData.matrix_HitMotionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
+                passData.matrix_HitMotionLastViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
                 passData.ssrShader = pipelineAsset.ssrShader;
                 passData.hiZTexture = passRef.ReadTexture(hiZTexture);
@@ -245,9 +245,9 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_TemporalWeightID, passData.temporalWeight);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_ProjID, passData.matrix_Proj);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_InvProjID, passData.matrix_InvProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_ViewProjID, passData.matrix_ViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_InvViewProjID, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_LastViewProjID, passData.matrix_LastViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_HitMotionViewProjID, passData.matrix_HitMotionViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_HitMotionLastViewProjID, passData.matrix_HitMotionLastViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_WorldToViewID, passData.matrix_WorldToView);
 
                     int ray = SSRPassUtilityData.RaytracingKernel;

@@ -54,7 +54,6 @@ namespace InfinityTech.Rendering.Pipeline
                 shaderPassIndex = BuiltinMeshesPasses.Depth.shaderPassIndex,
                 lightModeTag = BuiltinMeshesPasses.Depth.lightModeTag,
                 viewPosition = camera.transform.position,
-                renderingLayerMask = depthFilter.renderingLayerMask,
                 viewKey = UnityEntityId.ToUInt64(camera)
             };
             RGDrawListRef depthDraws = m_RGBuilder.DeclareDrawList(m_DepthMeshProcessor, depthRequest, visibility, m_VisibilityShare);

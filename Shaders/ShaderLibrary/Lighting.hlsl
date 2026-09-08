@@ -9,7 +9,6 @@
 #define LIGHT_FLAG_SHADOW 1
 #define LIGHT_FLAG_CONTACT 2
 #define LIGHT_FLAG_VOLUMETRIC 4
-#define LIGHT_FLAG_INDIRECT 8
 
 // Packed visible-light record. First g_DirectionalLightCount entries are directional;
 // remaining g_LocalLightCount entries are Point/Spot/Rect. ZBin indices are absolute.
@@ -23,8 +22,7 @@ struct FLightRecord
     float4 axisX;
     float4 axisY;
     float4 shadowAtlasRect;
-    float4 shadowSoftVol;
-    float4 extra;
+    float4 attenuation;
     int lightType;
     int lightLayer;
     int flags;
@@ -32,7 +30,7 @@ struct FLightRecord
     int shadowSliceCount;
     int shadowType;
     int visibleLightIndex;
-    int unused0;
+    int padding;
 };
 
 struct FLightBounds
@@ -58,6 +56,16 @@ StructuredBuffer<uint> SRV_ZBinLightList;
 float3 LightRadiance(FLightRecord light)
 {
     return light.radiance.rgb;
+}
+
+float3 VolumeLightRadiance(FLightRecord light)
+{
+    return (light.flags & LIGHT_FLAG_VOLUMETRIC) != 0 ? light.radiance.rgb * light.attenuation.z : 0;
+}
+
+float VolumeShadowWeight(FLightRecord light, float shadow)
+{
+    return lerp(1.0, shadow, light.attenuation.w);
 }
 
 float DistanceAttenuation(float distance, float range)

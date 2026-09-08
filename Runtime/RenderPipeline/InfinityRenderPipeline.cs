@@ -242,8 +242,8 @@ namespace InfinityTech.Rendering.Pipeline
 
             // Process-global; only the current active Infinity RP Asset may own this.
             // Switching RP assets recreates the pipeline and resets it.
-            VolumeManager.instance.Initialize(null, asset.volumeProfile);
-            VolumeManager.instance.SetCustomDefaultProfiles(new List<VolumeProfile> { asset.volumeProfile });
+            // Player builds derive the component type registry from the global default profile.
+            VolumeManager.instance.Initialize(asset.volumeProfile, null);
 
             m_UpdateInit = true;
             renderContext = new RenderContext();
@@ -269,373 +269,425 @@ namespace InfinityTech.Rendering.Pipeline
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
                 renderContext.scriptableRenderContext = scriptableRenderContext;
+                m_RGBuilder.RecoverUnjoinedAsync(renderContext);
+                RenderCaptureService.Tick();
+                RenderFaultValidation.Tick(cameras);
+                PostEffectValidation.Tick(cameras);
 
                 InvokeProxyUpdate();
                 m_MeshSceneResidency.Update();
                 CommandBuffer cmdBuffer = CommandBufferPool.Get();
+                cmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.None);
                 cmdBuffer.Clear();
                 
-                BeginContextRendering(scriptableRenderContext, cameras);
                 Exception firstCameraException = null;
-                bool anyCameraExecuteSucceeded = false;
-                m_AtmosphereSharedCache.BeginFrame();
-                for (int i = 0; i < cameras.Count; ++i)
+                bool contextBegan = false;
+                bool submitted = false;
+                try
                 {
-                    Camera camera = cameras[i];
-                    CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
-
-                    MeshVisibilityHandle sharedVisibility = MeshVisibilityHandle.Invalid;
-                    CullingResults cullingResults;
-
-                    int cameraId = GetCameraID(camera);
-                    bool isEditView = camera.cameraType == CameraType.SceneView;
-                    bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
-
-                    CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId, out bool newlyCreated);
-                    int previousLastSeen = frameState.lastSeenFrame;
-                    bool forceHistoryReset = camera.cameraType != CameraType.Preview
-                        && CameraFrameState.ShouldForceHistoryReset(newlyCreated, previousLastSeen, Time.frameCount);
-                    frameState.lastSeenFrame = Time.frameCount;
-                    frameState.cameraType = camera.cameraType;
-                    frameState.executeSucceeded = false;
-                    if (frameState.pixelWidth != camera.pixelWidth || frameState.pixelHeight != camera.pixelHeight)
+                    BeginContextRendering(scriptableRenderContext, cameras);
+                    contextBegan = true;
+                    m_AtmosphereSharedCache.BeginFrame();
+                    for (int i = 0; i < cameras.Count; ++i)
                     {
-                        frameState.descriptorGeneration++;
-                        frameState.pixelWidth = camera.pixelWidth;
-                        frameState.pixelHeight = camera.pixelHeight;
-                    }
+                        Camera camera = cameras[i];
+                        CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
 
-                    CameraUniform cameraUniform = frameState.cameraUniform;
-                    HistoryCache historyCache = frameState.historyCache;
-                    historyCache.BeginFrame();
-                    frameState.atmosphereViewCache.BeginFrame();
-                    frameState.combineLutCache.BeginFrame();
+                        MeshVisibilityHandle sharedVisibility = MeshVisibilityHandle.Invalid;
+                        CullingResults cullingResults;
 
-                    Transform volumeTrigger = (cameraComponent != null && cameraComponent.volumeTrigger != null)
-                        ? cameraComponent.volumeTrigger
-                        : camera.transform;
-                    LayerMask volumeLayerMask = cameraComponent != null ? cameraComponent.volumeLayerMask : ~0;
-                    VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
+                        int cameraId = GetCameraID(camera);
+                        bool isEditView = camera.cameraType == CameraType.SceneView;
+                        bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
 
-                    // CameraRendering
-                    cameraUniform.UnpateUniformData(camera, false, forceHistoryReset);
-                    m_CameraUniform = cameraUniform;
-                    m_ActiveFrameState = frameState;
-                    using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
-                    {
-                        BeginCameraRendering(scriptableRenderContext, camera);
-                        try
+                        CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId, out bool newlyCreated);
+                        int previousLastSeen = frameState.lastSeenFrame;
+                        bool forceHistoryReset = frameState.requiresHistoryReset || (camera.cameraType != CameraType.Preview
+                            && CameraFrameState.ShouldForceHistoryReset(newlyCreated, previousLastSeen, Time.frameCount));
+                        frameState.lastSeenFrame = Time.frameCount;
+                        frameState.cameraType = camera.cameraType;
+                        frameState.executeSucceeded = false;
+                        if (frameState.pixelWidth != camera.pixelWidth || frameState.pixelHeight != camera.pixelHeight)
                         {
-                        ConfigureFrameFeatures(frameState);
-                        using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
+                            frameState.descriptorGeneration++;
+                            frameState.pixelWidth = camera.pixelWidth;
+                            frameState.pixelHeight = camera.pixelHeight;
+                        }
+
+                        CameraUniform cameraUniform = frameState.cameraUniform;
+                        HistoryCache historyCache = frameState.historyCache;
+                        historyCache.BeginFrame();
+                        frameState.atmosphereViewCache.BeginFrame();
+                        frameState.combineLutCache.BeginFrame();
+
+                        Transform volumeTrigger = (cameraComponent != null && cameraComponent.volumeTrigger != null)
+                            ? cameraComponent.volumeTrigger
+                            : camera.transform;
+                        LayerMask volumeLayerMask = cameraComponent != null ? cameraComponent.volumeLayerMask : ~0;
+                        VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
+
+                        // CameraRendering
+                        cameraUniform.UnpateUniformData(camera, false, forceHistoryReset);
+                        m_CameraUniform = cameraUniform;
+                        m_ActiveFrameState = frameState;
+                        RenderCaptureService.current?.PrepareCamera(camera, frameState, pipelineAsset);
+                        RenderFaultValidation.BeforeCamera(camera, frameState);
+                        using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
                         {
-                            #if UNITY_EDITOR
-                            if (isEditView) 
-                            { 
-                                ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); 
-                            }
-                            #endif
-
-                            cameraUniform.SetUniformData(cmdBuffer, camera);
-                            scriptableRenderContext.SetupCameraProperties(camera);
-                            scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                            cmdBuffer.Clear();
-
-                            // ProcessVfx
-                            VFXManager.PrepareCamera(camera);
-
-                            // SceneCulling
-                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
+                            BeginCameraRendering(scriptableRenderContext, camera);
+                            try
                             {
-                                camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                                cullingParameters.shadowDistance = 128;
-                                cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
-                                cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
-
-                                MeshScene meshScene = renderContext.GetMeshScene();
-                                m_VisibilityShare.BeginFrame(meshScene.VisibilityRevision);
-                                ulong viewKey = MeshVisibilityShare.MakeCameraViewKey(camera);
-                                // Main camera frustum: Depth/GBuffer/Forward/Motion share one Cull.
-                                sharedVisibility = m_VisibilityShare.Acquire(
-                                    meshScene,
-                                    viewKey,
-                                    ref cullingParameters,
-                                    MeshVisibilityShare.PolicyMainFrustum,
-                                    isSceneView);
-                            }
-
-                            // ProcessLOD
-                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLOD)))
+                            ConfigureFrameFeatures(frameState);
+                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
                             {
-                                List<TerrainComponent> terrains = renderContext.GetWorldTerrains();
-                                float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
-                                for(int j = 0; j < terrains.Count; ++j)
+                                #if UNITY_EDITOR
+                                if (isEditView) 
+                                { 
+                                    ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); 
+                                }
+                                #endif
+
+                                cameraUniform.SetUniformData(cmdBuffer, camera);
+                                scriptableRenderContext.SetupCameraProperties(camera);
+                                scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
+                                cmdBuffer.Clear();
+
+                                // ProcessVfx
+                                VFXManager.PrepareCamera(camera);
+
+                                // SceneCulling
+                                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
                                 {
-                                    TerrainComponent terrain = terrains[j];
-                                    terrain.ProcessLOD(camera.transform.position, matrix_Proj);
+                                    camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
+                                    cullingParameters.shadowDistance = 128;
+                                    cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
+                                    cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
+
+                                    MeshScene meshScene = renderContext.GetMeshScene();
+                                    m_VisibilityShare.BeginFrame(meshScene.VisibilityRevision);
+                                    ulong viewKey = MeshVisibilityShare.MakeCameraViewKey(camera);
+                                    // Main camera frustum: Depth/GBuffer/Forward/Motion share one Cull.
+                                    sharedVisibility = m_VisibilityShare.Acquire(
+                                        meshScene,
+                                        viewKey,
+                                        ref cullingParameters,
+                                        MeshVisibilityShare.PolicyMainFrustum,
+                                        isSceneView);
+                                }
+
+                                // ProcessLOD
+                                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLOD)))
+                                {
+                                    List<TerrainComponent> terrains = renderContext.GetWorldTerrains();
+                                    float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
+                                    for(int j = 0; j < terrains.Count; ++j)
+                                    {
+                                        TerrainComponent terrain = terrains[j];
+                                        terrain.ProcessLOD(camera.transform.position, matrix_Proj);
                                     
-                                    #if UNITY_EDITOR
-                                    if (Handles.ShouldRenderGizmos()) 
-                                    { 
-                                        terrain.DrawBounds(true); 
+                                        #if UNITY_EDITOR
+                                        if (Handles.ShouldRenderGizmos()) 
+                                        { 
+                                            terrain.DrawBounds(true); 
+                                        }
+                                        #endif
                                     }
-                                    #endif
                                 }
-                            }
 
-                            // ProcessLight
-                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
-                            {
-                                FShadowAllocatorSettings shadowSettings;
-                                shadowSettings.cascadeMapResolution = pipelineAsset.cascadeShadowMapResolution;
-                                shadowSettings.localMapResolution = pipelineAsset.localShadowMapResolution;
-                                shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
-                                shadowSettings.cascadeRatios = new Vector3(0.067f, 0.2f, 0.467f);
-                                shadowSettings.maxLocalLights = 16;
-                                renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings);
-                                renderContext.lightContext.SetLightData(cmdBuffer);
-
-                                ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
-                                m_ActiveCascadeCount = shadowAllocator.CascadeAllocatedCount;
-                                m_ActiveCascadeSplitDistances = shadowAllocator.CascadeSplitDistances;
-                                for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
+                                // ProcessLight
+                                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLight)))
                                 {
-                                    m_ActiveCascadeMatrices[cascade] = shadowAllocator.CascadeMatrices[cascade];
+                                    FShadowAllocatorSettings shadowSettings;
+                                    shadowSettings.cascadeMapResolution = pipelineAsset.cascadeShadowMapResolution;
+                                    shadowSettings.localMapResolution = pipelineAsset.localShadowMapResolution;
+                                    shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
+                                    shadowSettings.cascadeRatios = new Vector3(0.067f, 0.2f, 0.467f);
+                                    shadowSettings.maxLocalLights = 16;
+                                    renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings);
+
+                                    ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
+                                    m_ActiveCascadeCount = shadowAllocator.CascadeAllocatedCount;
+                                    m_ActiveCascadeSplitDistances = shadowAllocator.CascadeSplitDistances;
+                                    for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
+                                    {
+                                        m_ActiveCascadeMatrices[cascade] = shadowAllocator.CascadeMatrices[cascade];
+                                    }
+
+                                    scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
+                                    cmdBuffer.Clear();
                                 }
 
+                                // ProcessVfx Command
+                                VFXCameraXRSettings cameraXRSettings;
+                                {
+                                    cameraXRSettings.viewTotal = 1;
+                                    cameraXRSettings.viewCount = 1;
+                                    cameraXRSettings.viewOffset = 0;
+                                }
+                                VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
                                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                                 cmdBuffer.Clear();
                             }
 
-                            // ProcessVfx Command
-                            VFXCameraXRSettings cameraXRSettings;
+                            #region PostProcessVolume Parameter
+                            VolumeStack volumeStack = frameState.volumeStack;
+
+                            FilmTonemap filmTonemapVolume = volumeStack.GetComponent<FilmTonemap>();
+                            ColorGrading colorGradingVolume = volumeStack.GetComponent<ColorGrading>();
+                            CombineLutParameterDescriptor combineLutParameterDescriptor = CombineLutParameterUtility.FromVolumeStack(
+                                filmTonemapVolume,
+                                colorGradingVolume);
+                            float3 ColorTransform = new float3(0.0f, 0.5f, 1.0f);
                             {
-                                cameraXRSettings.viewTotal = 1;
-                                cameraXRSettings.viewCount = 1;
-                                cameraXRSettings.viewOffset = 0;
-                            }
-                            VFXManager.ProcessCameraCommand(camera, cmdBuffer, cameraXRSettings, cullingResults);
-                            scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                            cmdBuffer.Clear();
-                        }
+                                // x is the input value, y the output value
+                                // RGB = a, b, c where y = a * x*x + b * x + c
 
-                        #region PostProcessVolume Parameter
-                        VolumeStack volumeStack = frameState.volumeStack;
+                                float c = ColorTransform.x;
+                                float b = 4 * ColorTransform.y - 3 * ColorTransform.x - ColorTransform.z;
+                                float a = ColorTransform.z - ColorTransform.x - b;
 
-                        FilmTonemap filmTonemapVolume = volumeStack.GetComponent<FilmTonemap>();
-                        ColorGrading colorGradingVolume = volumeStack.GetComponent<ColorGrading>();
-                        Exposure exposureVolume = volumeStack.GetComponent<Exposure>();
-                        CombineLutParameterDescriptor combineLutParameterDescriptor = CombineLutParameterUtility.FromVolumeStack(
-                            filmTonemapVolume,
-                            colorGradingVolume,
-                            exposureVolume);
-                        float3 ColorTransform = new float3(0.0f, 0.5f, 1.0f);
-                        {
-                            // x is the input value, y the output value
-                            // RGB = a, b, c where y = a * x*x + b * x + c
-
-                            float c = ColorTransform.x;
-                            float b = 4 * ColorTransform.y - 3 * ColorTransform.x - ColorTransform.z;
-                            float a = ColorTransform.z - ColorTransform.x - b;
-
-                            combineLutParameterDescriptor.MappingPolynomial.x = a;
-                            combineLutParameterDescriptor.MappingPolynomial.y = b;
-                            combineLutParameterDescriptor.MappingPolynomial.z = c;
-                            combineLutParameterDescriptor.MappingPolynomial.w = 1;
-                        }
-
-                        OutputTransformDecision outputDecision = OutputTransformUtility.ResolveFromHardware(
-                            pipelineAsset.outputMode,
-                            pipelineAsset.hdrEncoding,
-                            camera,
-                            frameState.hasResolvedBackbufferFormat,
-                            frameState.lastResolvedBackbufferFormat);
-                        frameState.lastResolvedBackbufferFormat = outputDecision.backbufferFormat;
-                        frameState.hasResolvedBackbufferFormat = true;
-                        if (!frameState.loggedOutputDecision)
-                        {
-                            Debug.Log($"[InfinityRP] OutputTransform camera={camera.name} type={camera.cameraType} format={outputDecision.backbufferFormat} colorSpace={outputDecision.colorSpace} policy={outputDecision.policy}");
-                            frameState.loggedOutputDecision = true;
-                        }
-                        combineLutParameterDescriptor.OutputGamut = outputDecision.outputGamut;
-                        combineLutParameterDescriptor.OutputDevice = outputDecision.outputDevice;
-                        combineLutParameterDescriptor.OutputMode = (int)outputDecision.mode;
-                        combineLutParameterDescriptor.HDREncoding = (int)outputDecision.hdrEncoding;
-
-                        float DisplayGamma = 2.2f;
-                        combineLutParameterDescriptor.InverseGamma.x = 1.0f / DisplayGamma;
-                        combineLutParameterDescriptor.InverseGamma.y = 2.2f / DisplayGamma;
-                        combineLutParameterDescriptor.InverseGamma.z = 1.0f / math.max(0, 1.0f);
-                        combineLutParameterDescriptor.InverseGamma.w = 0.0f;
-
-                        combineLutParameterDescriptor.ColorShadowTint2 = new float4(0, 0, 0, 1);
-                        #endregion PostProcessVolume Parameter
-
-                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
-                            {
-                                // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
-                                // so the whole geometry raster window can overlap them.
-                                ComputeCombineLuts(frameState, combineLutParameterDescriptor);
-                                ComputeAtmosphericLUT(renderContext, camera, cmdBuffer);
-
-                                // PHASE 1: geometry raster (shared depth attachment chain).
-                                RenderDepth(renderContext, camera, sharedVisibility, cullingResults);
-                                RenderDBuffer(renderContext, camera, cullingResults);
-                                RenderGBuffer(renderContext, camera, sharedVisibility, cullingResults);
-                                RenderMotion(renderContext, camera, sharedVisibility, cullingResults);
-
-                                // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
-                                ComputeHiZ(renderContext, camera);
-                                ComputeHalfResDownsample(renderContext, camera);
-                                ComputeZBinningLightList(renderContext, camera);
-
-                                // PHASE 3: shadow raster (longest ROP window).
-                                // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs.
-                                RecordAllocatedShadowCasterSplits(renderContext);
-                                FlushShadowCasterCulling(scriptableRenderContext, cullingResults);
-                                RenderCascadeShadow(renderContext, camera, cullingResults);
-                                RenderLocalShadow(renderContext, camera, cullingResults);
-
-                                // PHASE 4: reserved. VolFog moved after T0 depth so it can use CSM + ZBin.
-
-                                // PHASE 5: screen-space after HiZ / HalfRes (GTAO / Contact only)
-                                ComputeGroundTruthOcclusion(renderContext, camera, historyCache);
-                                CopyHistoryOcclusion(renderContext, historyCache, camera);
-                                ComputeContactShadow(renderContext, camera);
-
-                                // PHASE 6: DeferredBase → Forward → OpaqueLightingPyramid → SSR/SSGI → Composite → OpaqueSceneColor
-                                ComputeDeferredShading(renderContext, camera);
-                                RenderForward(renderContext, camera, sharedVisibility, cullingResults);
-                                ComputeBurleySubsurface(renderContext, camera);
-                                RenderAtmosphericSkyAndFog(renderContext, camera);
-                                ComputeOpaqueLightingPyramid(renderContext, camera);
-                                ComputeScreenSpaceReflection(renderContext, camera, historyCache);
-                                CopyHistorySSR(renderContext, historyCache, camera);
-                                ComputeScreenSpaceIndirect(renderContext, camera, historyCache);
-                                CopyHistorySSGI(renderContext, historyCache, camera);
-                                ComputeScreenSpaceComposite(renderContext, camera);
-                                ResolveOpaqueSceneColor();
-
-                                // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
-                                RenderTranslucentDepth(renderContext, camera, cullingResults);
-                                EnsureReactiveMask(camera);
-                                ComputeVolumetricCloud(renderContext, camera, historyCache);
-                                CopyHistoryVolumetricCloud(historyCache, camera);
-                                ComputeVolumetricFog(renderContext, camera, historyCache);
-                                CopyHistoryVolumetricFog(historyCache, camera);
-                                ComputeFogComposite(renderContext, camera);
-                                ResolveFoggedSceneColor();
-                                RenderTranslucentT0(renderContext, camera, cullingResults);
-                                ComputeColorPyramid(renderContext, camera);
-                                RenderTranslucentT1(renderContext, camera, cullingResults);
-                                RenderTranslucentT2(renderContext, camera, cullingResults);
-
-                                // PHASE 8: temporal resolve + post (TAA after fog/translucents)
-                                if (pipelineAsset.enableSuperResolution)
-                                {
-                                    ComputeSuperResolution(renderContext, camera, historyCache, cameraUniform.jitter);
-                                    CopyHistorySuperResolution(renderContext, historyCache, camera);
-                                }
-                                else
-                                {
-                                    ComputeAntiAliasing(renderContext, camera, historyCache, cameraUniform);
-                                    CopyHistoryAntiAliasing(renderContext, historyCache, camera);
-                                    CopyHistoryDepth(renderContext, historyCache, camera);
-                                }
-                                ComputePostProcessing(renderContext, camera, frameState);
-                            #if UNITY_EDITOR
-                                RenderWireOverlay(renderContext, camera);
-                                RenderGizmos(renderContext, camera);
-                            #endif
-                                ComputeOutputTransform(camera, outputDecision);
-                                frameState.features.EnsureRequiredProducers(pipelineAsset.enableSuperResolution);
-                                RenderPresent(renderContext, camera);
+                                combineLutParameterDescriptor.MappingPolynomial.x = a;
+                                combineLutParameterDescriptor.MappingPolynomial.y = b;
+                                combineLutParameterDescriptor.MappingPolynomial.z = c;
+                                combineLutParameterDescriptor.MappingPolynomial.w = 1;
                             }
 
-                            using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
+                            OutputTransformDecision outputDecision = OutputTransformUtility.ResolveFromHardware(
+                                pipelineAsset.outputMode,
+                                pipelineAsset.hdrEncoding,
+                                camera,
+                                frameState.hasResolvedBackbufferFormat,
+                                frameState.lastResolvedBackbufferFormat);
+                            frameState.lastResolvedBackbufferFormat = outputDecision.backbufferFormat;
+                            frameState.hasResolvedBackbufferFormat = outputDecision.backbufferFormat != UnityEngine.Experimental.Rendering.GraphicsFormat.None;
+                            if (!frameState.loggedOutputDecision)
                             {
-                                // ReleaseAllDrawLists releases per-Declare visibility refs (exception-safe).
-                                frameState.executeSucceeded = m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
-                                if (frameState.executeSucceeded)
+                                Debug.Log($"[InfinityRP] OutputTransform camera={camera.name} type={camera.cameraType} format={outputDecision.backbufferFormat} colorSpace={outputDecision.colorSpace} policy={outputDecision.policy} authority={(outputDecision.displayTransferAuthority ? "DisplayTransferCapability" : "TextureFormat")}");
+                                frameState.loggedOutputDecision = true;
+                            }
+                            combineLutParameterDescriptor.OutputGamut = outputDecision.outputGamut;
+                            combineLutParameterDescriptor.OutputDevice = outputDecision.outputDevice;
+                            combineLutParameterDescriptor.OutputMode = (int)outputDecision.mode;
+                            combineLutParameterDescriptor.HDREncoding = (int)outputDecision.hdrEncoding;
+
+                            float DisplayGamma = 2.2f;
+                            combineLutParameterDescriptor.InverseGamma.x = 1.0f / DisplayGamma;
+                            combineLutParameterDescriptor.InverseGamma.y = 2.2f / DisplayGamma;
+                            combineLutParameterDescriptor.InverseGamma.z = 1.0f / math.max(0, 1.0f);
+                            combineLutParameterDescriptor.InverseGamma.w = 0.0f;
+
+                            combineLutParameterDescriptor.ColorShadowTint2 = new float4(0, 0, 0, 1);
+                            #endregion PostProcessVolume Parameter
+
+                                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.RecordRG)))
                                 {
-                                    anyCameraExecuteSucceeded = true;
+                                    // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
+                                    // so the whole geometry raster window can overlap them.
+                                    UploadLightData(renderContext.lightContext);
+                                    ComputeCombineLuts(frameState, combineLutParameterDescriptor);
+                                    ComputeAtmosphericLUT(renderContext, camera);
+
+                                    // PHASE 1: geometry raster (shared depth attachment chain).
+                                    RenderDepth(renderContext, camera, sharedVisibility, cullingResults);
+                                    RenderDBuffer(renderContext, camera, cullingResults);
+                                    RenderGBuffer(renderContext, camera, sharedVisibility, cullingResults);
+                                    RenderMotion(renderContext, camera, sharedVisibility, cullingResults);
+
+                                    // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
+                                    ComputeHiZ(renderContext, camera);
+                                    ComputeHalfResDownsample(renderContext, camera);
+                                    ComputeZBinningLightList(renderContext, camera);
+
+                                    // PHASE 3: shadow raster (longest ROP window).
+                                    // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs.
+                                    RecordAllocatedShadowCasterSplits(renderContext);
+                                    FlushShadowCasterCulling(scriptableRenderContext, cullingResults);
+                                    RenderCascadeShadow(renderContext, camera, cullingResults);
+                                    RenderLocalShadow(renderContext, camera, cullingResults);
+
+                                    // PHASE 4: reserved. VolFog moved after T0 depth so it can use CSM + ZBin.
+
+                                    // PHASE 5: screen-space after HiZ / HalfRes (GTAO / Contact only)
+                                    ComputeGroundTruthOcclusion(renderContext, camera, historyCache);
+                                    CopyHistoryOcclusion(renderContext, historyCache, camera);
+                                    ComputeContactShadow(renderContext, camera);
+
+                                    // PHASE 6: DeferredBase → Forward → OpaqueLightingPyramid → SSR/SSGI → Composite → OpaqueSceneColor
+                                    ComputeDeferredShading(renderContext, camera);
+                                    RenderForward(renderContext, camera, sharedVisibility, cullingResults);
+                                    ComputeBurleySubsurface(renderContext, camera);
+                                    RenderAtmosphericSkyAndFog(renderContext, camera);
+                                    RecordLightingCapture();
+                                    ComputeOpaqueLightingPyramid(renderContext, camera);
+                                    ComputeScreenSpaceReflection(renderContext, camera, historyCache);
+                                    CopyHistorySSR(renderContext, historyCache, camera);
+                                    ComputeScreenSpaceIndirect(renderContext, camera, historyCache);
+                                    CopyHistorySSGI(renderContext, historyCache, camera);
+                                    ComputeScreenSpaceComposite(renderContext, camera);
+                                    ResolveOpaqueSceneColor();
+
+                                    // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
+                                    RenderTranslucentDepth(renderContext, camera, cullingResults);
+                                    EnsureReactiveMask(camera);
+                                    ComputeVolumetricCloud(renderContext, camera, historyCache);
+                                    CopyHistoryVolumetricCloud(historyCache, camera);
+                                    ComputeVolumetricFog(renderContext, camera, historyCache);
+                                    CopyHistoryVolumetricFog(historyCache, camera);
+                                    ComputeFogComposite(renderContext, camera);
+                                    ResolveFoggedSceneColor();
+                                    RenderTranslucentT0(renderContext, camera, cullingResults);
+                                    ComputeColorPyramid(renderContext, camera);
+                                    RenderTranslucentT1(renderContext, camera, cullingResults);
+                                    RenderTranslucentT2(renderContext, camera, cullingResults);
+
+                                    // PHASE 8: temporal resolve + post (TAA after fog/translucents)
+                                    if (pipelineAsset.enableSuperResolution)
+                                    {
+                                        ComputeSuperResolution(renderContext, camera, historyCache, cameraUniform.jitter);
+                                        CopyHistorySuperResolution(renderContext, historyCache, camera);
+                                    }
+                                    else
+                                    {
+                                        ComputeAntiAliasing(renderContext, camera, historyCache, cameraUniform);
+                                        CopyHistoryAntiAliasing(renderContext, historyCache, camera);
+                                        CopyHistoryDepth(renderContext, historyCache, camera);
+                                    }
+                                    ComputePostProcessing(renderContext, camera, frameState);
+                                #if UNITY_EDITOR
+                                    RenderWireOverlay(renderContext, camera);
+                                    RenderGizmos(renderContext, camera);
+                                #endif
+                                    ComputeOutputTransform(camera, outputDecision);
+                                    RecordNormalFrameCapture(camera);
+                                    frameState.features.EnsureRequiredProducers(pipelineAsset.enableSuperResolution);
+                                    RenderPresent(renderContext, camera);
+                                }
+
+                                using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
+                                {
+                                    // ReleaseAllDrawLists releases per-Declare visibility refs (exception-safe).
+                                    m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                                    frameState.executeSucceeded = true;
+                                    RenderCaptureService.current?.CameraExecuted(camera, frameState.executeSucceeded);
+                                    RenderFaultValidation.CameraResult(camera, true);
                                 }
                             }
-                        }
-                        catch (Exception exception)
-                        {
-                            historyCache.RollbackPending();
-                            frameState.atmosphereViewCache.RollbackPending();
-                            frameState.combineLutCache.RollbackPending();
-                            if (!anyCameraExecuteSucceeded)
+                            catch (Exception exception)
                             {
-                                m_AtmosphereSharedCache.RollbackPending();
+                                RenderCaptureService.current?.CameraExecuted(camera, false, exception);
+                                RenderFaultValidation.CameraResult(camera, false, exception);
+                                frameState.RollbackFrame();
+                                m_AtmosphereSharedCache.DiscardUnproducedPending();
+                                if (firstCameraException == null)
+                                {
+                                    firstCameraException = exception;
+                                }
+                                if (m_RGBuilder.HasQueueSubmissionFailure) throw;
                             }
-                            if (firstCameraException == null)
+                            finally
                             {
-                                firstCameraException = exception;
+                                // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
+                                m_RGBuilder.ClearRecordedGraph();
+                                m_ShadowCasterSplits.Clear();
+                                m_VisibilityShare.Release(sharedVisibility);
+                                sharedVisibility = MeshVisibilityHandle.Invalid;
+                                m_ActiveFrameState = null;
                             }
+                            EndCameraRendering(scriptableRenderContext, camera);
                         }
-                        finally
-                        {
-                            // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
-                            m_RGBuilder.ClearRecordedGraph();
-                            m_ShadowCasterSplits.Clear();
-                            m_VisibilityShare.Release(sharedVisibility);
-                            sharedVisibility = MeshVisibilityHandle.Invalid;
-                            m_ActiveFrameState = null;
-                        }
-                        EndCameraRendering(scriptableRenderContext, camera);
+
+                        m_RGScoper.Clear();
+                        cameraUniform.UnpateUniformData(camera, true);
                     }
 
-                    m_RGScoper.Clear();
-                    cameraUniform.UnpateUniformData(camera, true);
+                }
+                catch (Exception exception)
+                {
+                    if (firstCameraException == null) firstCameraException = exception;
                 }
 
-                scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
-                scriptableRenderContext.Submit();
+                bool frameValid = FrameSubmission.Execute(new ContextFrameSubmission(scriptableRenderContext),
+                    cmdBuffer, ref firstCameraException, out submitted);
 
-                if (anyCameraExecuteSucceeded)
+                try
                 {
-                    m_AtmosphereSharedCache.CommitFrame();
-                }
-                m_AtmosphereSharedCache.FlushRetired();
-
-                foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
-                {
-                    CameraFrameState state = pair.Value;
-                    if (state.executeSucceeded)
+                    frameValid &= m_RGBuilder.CanRetireSubmittedResources;
+                    CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
+                    if (!frameValid)
+                        RenderCaptureService.current?.Fail(firstCameraException?.ToString() ?? "Frame submission failed.");
+                    if (submitted)
                     {
-                        state.historyCache.CommitFrame();
-                        state.atmosphereViewCache.CommitFrame();
-                        state.combineLutCache.CommitFrame();
+                        RenderCaptureService.current?.AfterSubmit();
+                        if (m_RGBuilder.CanRetireSubmittedResources)
+                        {
+                            FlushFrameRetirement();
+                            RecycleUnseenCameraStates(Time.frameCount);
+                        }
                     }
-                    state.historyCache.FlushRetired();
-                    state.atmosphereViewCache.FlushRetired();
-                    state.combineLutCache.FlushRetired();
-                    state.executeSucceeded = false;
                 }
-
-                RecycleUnseenCameraStates(Time.frameCount);
-                EndContextRendering(scriptableRenderContext, cameras);
-
-                // Physical GPU/CPU resource retirement after Submit (logical Retire happened in ReleaseAll).
-                MeshDrawGPUBackend.FlushRetiredPayloads();
-                m_DepthMeshProcessor?.FlushRetiredBuffers();
-                m_GBufferMeshProcessor?.FlushRetiredBuffers();
-                m_ForwardMeshProcessor?.FlushRetiredBuffers();
-                m_MotionMeshProcessor?.FlushRetiredBuffers();
-                m_ShadowMeshProcessor?.FlushRetiredBuffers();
-
-                // End FrameContext
-                m_MeshSceneResidency.Clear();
-                CommandBufferPool.Release(cmdBuffer);
-
-                if (firstCameraException != null)
+                catch (Exception exception)
                 {
-                    throw firstCameraException;
+                    if (firstCameraException == null) firstCameraException = exception;
                 }
+                finally
+                {
+                    try
+                    {
+                        if (contextBegan) EndContextRendering(scriptableRenderContext, cameras);
+                    }
+                    catch (Exception exception)
+                    {
+                        if (firstCameraException == null) firstCameraException = exception;
+                    }
+                    finally
+                    {
+                        m_ActiveFrameState = null;
+                        m_RGScoper.Clear();
+                        try { m_MeshSceneResidency.Clear(); }
+                        catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
+                        try { cmdBuffer.Clear(); }
+                        catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
+                        try { CommandBufferPool.Release(cmdBuffer); }
+                        catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
+                    }
+                }
+
+                RenderFaultValidation.current?.EndFrame(m_CameraStates, submitted, firstCameraException,
+                    m_RGBuilder.RetiredResourceCount, renderContext.lightContext.RetiredBufferCount, m_RGBuilder.CanRetireSubmittedResources);
+                if (firstCameraException != null)
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstCameraException).Throw();
             }
+        }
+
+        internal static void CompleteFrameTransaction(AtmosphereSharedCache shared, Dictionary<int, CameraFrameState> states,
+            bool submitted, int frame)
+        {
+            if (submitted) shared.CommitFrame();
+            else shared.RollbackPending();
+            foreach (CameraFrameState state in states.Values)
+            {
+                if (submitted && state.executeSucceeded) state.CommitFrame();
+                else if (state.lastSeenFrame == frame || !submitted) state.RollbackFrame();
+            }
+        }
+
+        void FlushFrameRetirement()
+        {
+            m_RGBuilder.FlushRetiredResources();
+            renderContext.lightContext.FlushRetiredBuffers();
+            m_AtmosphereSharedCache.FlushRetired();
+            foreach (CameraFrameState state in m_CameraStates.Values)
+            {
+                state.historyCache.FlushRetired();
+                state.atmosphereViewCache.FlushRetired();
+                state.combineLutCache.FlushRetired();
+            }
+            MeshDrawGPUBackend.FlushRetiredPayloads();
+            m_DepthMeshProcessor?.FlushRetiredBuffers();
+            m_GBufferMeshProcessor?.FlushRetiredBuffers();
+            m_ForwardMeshProcessor?.FlushRetiredBuffers();
+            m_MotionMeshProcessor?.FlushRetiredBuffers();
+            m_ShadowMeshProcessor?.FlushRetiredBuffers();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -760,6 +812,7 @@ namespace InfinityTech.Rendering.Pipeline
             base.Dispose(disposing);
             if (disposing)
             {
+                RenderCaptureService.current?.Cancel("PipelineDisposed");
                 //EditorSceneManager.sceneUnloaded -= OnSceneUnloaded;
                 renderContext.Dispose();
                 m_DepthMeshProcessor?.Dispose();

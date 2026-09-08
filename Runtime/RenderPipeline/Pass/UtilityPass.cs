@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
                 // Unity forbids drawing gizmos / wire overlay inside BeginRenderPass.
                 passRef.EnableNativeRenderPass(false);
                 passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref WireOverlayPassData passData = ref passRef.GetPassData<WireOverlayPassData>();
                 {
@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
                     // Unity forbids drawing gizmos inside BeginRenderPass.
                     passRef.EnableNativeRenderPass(false);
                     passRef.SetColorAttachment(colorTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
-                    passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.DontCare, EDepthAccess.ReadOnly);
+                    passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                     ref GizmosPassData passData = ref passRef.GetPassData<GizmosPassData>();
                     {
@@ -88,6 +88,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public Camera camera;
             public RGTextureRef srcTexture;
+            public NativeDisplayProbe displayProbe;
         }
 
         void RenderPresent(RenderContext renderContext, Camera camera)
@@ -108,6 +109,8 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.camera = camera;
                     passData.srcTexture = passRef.ReadTexture(srcTexture);
+                    passData.displayProbe = RenderCaptureService.current?.ReserveNativeProbe();
+                    passRef.SetQueueObserver(passData.displayProbe);
                 }
 
                 //Execute Phase
@@ -129,6 +132,10 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetGlobalVector(InfinityShaderIDs.ScaleBias, scaleBias);
                     cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, srcBuffer);
                     cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 1);
+                    if (passData.displayProbe != null)
+                    {
+                        cmdEncoder.IssuePluginEventAndData(passData.displayProbe.callback, 0, passData.displayProbe.payload);
+                    }
                 });
             }
         }

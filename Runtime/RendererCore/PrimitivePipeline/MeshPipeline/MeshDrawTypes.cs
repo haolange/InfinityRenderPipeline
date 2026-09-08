@@ -13,7 +13,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int shaderPassIndex;
         public string lightModeTag;
         public float3 viewPosition;
-        public uint renderingLayerMask;
         public ulong viewKey;
     }
 

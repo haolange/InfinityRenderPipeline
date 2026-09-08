@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int renderQueueMax;
         public int layerMask;
         public uint renderingLayerMask;
+        public bool filterRenderingLayers;
         public EPassEligibility requiredEligibility;
         public bool excludeCameraMotionOnly;
 
@@ -19,7 +20,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             EPassEligibility requiredEligibility,
             int layerMask = ~0,
             bool excludeCameraMotionOnly = false,
-            uint renderingLayerMask = (uint)ERenderingLayer.Everything)
+            uint renderingLayerMask = (uint)ERenderingLayer.Everything,
+            bool filterRenderingLayers = false)
         {
             this.renderQueueMin = renderQueueMin;
             this.renderQueueMax = renderQueueMax;
@@ -27,6 +29,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             this.layerMask = layerMask;
             this.excludeCameraMotionOnly = excludeCameraMotionOnly;
             this.renderingLayerMask = renderingLayerMask;
+            this.filterRenderingLayers = filterRenderingLayers;
         }
     }
 
@@ -211,7 +214,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             shaderPassIndex = 0,
             lightModeTag = "ShadowPass",
             eligibility = EPassEligibility.Shadow,
-            defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Shadow),
+            defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Shadow, filterRenderingLayers: true),
             // Distance: meter scale (1) — coarser bins for cascade / large-world ranges.
             defaultSort = MeshSortPlan.Create(
                 new MeshSortField(EMeshSortSemantic.Distance, ESortDirection.Ascending, quantizeScale: 1f),

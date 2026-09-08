@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsNull(typeof(LightComponent).GetField("lightType", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
             Assert.IsNull(typeof(LightComponent).GetMethod("OnGUIChange", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
             Assert.IsNull(typeof(LightComponent).GetMethod("GetLightElement", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-            Assert.IsNotNull(typeof(LightComponent).GetField("enableShadow", BindingFlags.Instance | BindingFlags.Public));
+            Assert.IsNull(typeof(LightComponent).GetField("enableShadow", BindingFlags.Instance | BindingFlags.Public));
             Assert.IsNotNull(typeof(LightComponent).GetField("diffuse", BindingFlags.Instance | BindingFlags.Public));
         }
     }

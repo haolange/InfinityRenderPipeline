@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void Exposure_VolumeHasOverrides_RequiresActiveAndOverrideState()
+        public void Exposure_UsesResolvedSnapshotRegardlessOfOverrideFlags()
         {
             Exposure exposure = ScriptableObject.CreateInstance<Exposure>();
             try
@@ -51,7 +51,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
                 exposure.active = false;
                 Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(exposure));
-                Assert.IsFalse(ExposureUtility.ShouldRecordAuto(exposure));
+                Assert.IsTrue(ExposureUtility.ShouldRecordAuto(exposure));
+                exposure.evCompensation.overrideState = false;
+                Assert.AreEqual(1.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
             }
             finally
             {

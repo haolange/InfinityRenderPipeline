@@ -798,6 +798,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.InstanceIndexBuffer, payload.compactedIndices);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.TransformBuffer, residency.TransformBuffer.buffer);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousTransformBuffer, residency.PreviousTransformBuffer.buffer);
+                propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.RenderingLayerBuffer, residency.RenderingLayerBuffer.buffer);
 
                 int passIndex = MeshPassShaderUtility.ResolvePassIndex(material, lightModeTag, shaderPassIndex);
                 if (passIndex < 0)

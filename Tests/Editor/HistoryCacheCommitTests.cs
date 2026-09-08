@@ -62,6 +62,39 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         }
 
         [Test]
+        public void FailedResize_PreservesCommittedTextureAndDescriptor()
+        {
+            var small = MakeDescriptor(8, 8, "Committed");
+            var large = MakeDescriptor(17, 13, "Pending");
+            FTextureRef original = m_Cache.GetTexture(55, small);
+            FTextureRef pending = m_Cache.GetWriteTexture(55, large);
+            m_Cache.MarkProduced(55);
+            m_Cache.RollbackPending();
+            Assert.AreSame(original.texture, m_Cache.GetTexture(55, small, out bool recreated).texture);
+            Assert.IsFalse(recreated);
+            Assert.IsTrue(original.texture.rt.IsCreated());
+            Assert.IsTrue(pending.texture.rt.IsCreated(), "Rollback must retain GPU allocations until retirement.");
+            Assert.AreEqual(0, m_Cache.TextureGeneration(55));
+        }
+
+        [Test]
+        public void FailedResize_PreservesCommittedBufferAndDescriptor()
+        {
+            var small = new BufferDescriptor(1, 16, ComputeBufferType.Structured);
+            var large = new BufferDescriptor(8, 16, ComputeBufferType.Structured);
+            FBufferRef original = m_Cache.GetBuffer(56, small);
+            FBufferRef pending = m_Cache.GetWriteBuffer(56, large);
+            m_Cache.MarkProduced(56);
+            m_Cache.RollbackPending();
+            Assert.AreSame(original.buffer, m_Cache.GetBuffer(56, small).buffer);
+            Assert.IsTrue(original.buffer.IsValid());
+            Assert.IsTrue(pending.buffer.IsValid());
+            m_Cache.FlushRetired();
+            Assert.IsFalse(pending.buffer.IsValid());
+            Assert.IsTrue(original.buffer.IsValid());
+        }
+
+        [Test]
         public void CommitAfterRollbackPending_IsNoOp()
         {
             const int id = 22;

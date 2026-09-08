@@ -165,6 +165,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int InstanceIndexBuffer = Shader.PropertyToID("instanceIndexBuffer");
         public static int TransformBuffer = Shader.PropertyToID("transformBuffer");
         public static int PreviousTransformBuffer = Shader.PropertyToID("previousTransformBuffer");
+        public static int RenderingLayerBuffer = Shader.PropertyToID("renderingLayerBuffer");
     }
 
     public static class InfinityPassIDs

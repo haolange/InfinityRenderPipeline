@@ -92,16 +92,24 @@ These rules exist because Console-clean patches have already hidden real ownersh
 8. **RDG textures go through Create / Import / ResourcePool only.** No `GetTemporaryRT` on hot paths.
 9. **Record-time gate vs execute-time silence.** Volume-missing or optional-feature-off may skip recording. Shader/kernel missing for an optional feature also skips recording. A required producer (Lighting, active TAA, Display) throws at record. Execute must not contain `if (shader == null) return`.
 10. **Feature classes talk to command capability interfaces, never `CommandBuffer`.** `IComputeCommands` / `IRasterCommands` / `IRaytracingCommands` / `ITransferCommands` are the only command surfaces. RG encoders implement them. Outside RG, wrap a `CommandBuffer` with `CommandBufferCommands`. Do not add `implicit operator CommandBuffer` on encoders.
-11. **One physical quantity, one authority.** Atmosphere lives only on `AtmosphericalProfile`. There is no Volume override and no `AtmosphereParameter.Default()`. `FromProfile(null)` throws. `ThrowIfInvalid` rejects physical-range violations (thickness, Hillaire scatter/Mie/heights/ozone/sunAngle), not only zeros. Geometric sizes are meters. Hillaire scatter/absorption coefficients are stored per kilometer and converted to per-meter at bind (`AtmosphereParameter.ScatterPerKmToPerMeter`). Do not mix the two units in the compute shader. **Default Volume values come only from RP Asset `volumeProfile` via VolumeManager.SetCustomDefaultProfiles. There is no second hardcoded default (no IdentityLut, no AtmosphereParameter.Default).** Atmosphere / DeferredShading / TAA are not Volume features.
-12. **`VolumeManager.GetComponent<T>()` is never a null check.** Unity always returns a default component. Optional Volume features (volumetric fog/cloud, SSR, SSGI) record only when `active` and at least one parameter has `overrideState`.
-13. **Dead code is deletable only when zero-referenced and already replaced by an equivalent RG path.** "Not wired yet" is not "obsolete".
+11. **One physical quantity, one authority.** Atmosphere lives only on `AtmosphericalProfile`. There is no Volume override and no `AtmosphereParameter.Default()`. `FromProfile(null)` throws. `ThrowIfInvalid` rejects physical-range violations (thickness, Hillaire scatter/Mie/heights/ozone/sunAngle), not only zeros. Geometric sizes are meters. Hillaire scatter/absorption coefficients are stored per kilometer and converted to per-meter at bind (`AtmosphereParameter.ScatterPerKmToPerMeter`). Do not mix the two units in the compute shader. **Default Volume values come only from RP Asset `volumeProfile`. Pass this profile as the global default to `VolumeManager.Initialize(profile, null)` so Player builds register its component types; do not register the same profile again as a custom default. There is no second hardcoded default (no IdentityLut, no AtmosphereParameter.Default).** Atmosphere / DeferredShading / TAA are not Volume features.
+12. **Validate the Player Volume type registry before recording.** CoreRP 17.5 Editor discovers types by reflection, but Player only registers components listed in the global default Profile. Missing types return null; do not rely on Editor behavior or substitute hardcoded values. The RP default Profile includes all 13 consumed component types, with optional-feature overrides disabled. Once this registry is validated, optional features (volumetric fog/cloud, SSR, SSGI) record only when `active` and at least one parameter has `overrideState`.
+13. **Replaced rendering paths are deletable only after consumer closure and equivalent RG ownership are proved.** "Not wired yet" is not "obsolete". T02d separately audited and retired the nonfunctional GraphSRP binder/template stub after proving its unsupported capability and exact consumer closure; this is not permission to delete valid unintegrated hardware-RT assets.
 
 ## RenderGraph resource and pass shape
 
 1. **Mip chains stay in one compute pass.** HiZ / ColorPyramid / bloom downsample are the same resource reading mip N-1 and writing mip N. RG tracks resources, not subresources; splitting per-mip into multiple passes creates false hazards and no extra parallelism. Loop dispatches inside one execute.
 2. **LUT / froxel / cubemap generation is compute.** Do not introduce `Blit` / `SetRenderTarget` / `BuiltinRenderTextureType` to generate atmosphere tables. Cubemap faces are a `RWTexture2DArray`.
 3. **Fallback raster depth flags follow `EDepthAccess`.** `ReadOnlyDepthStencil` is set only when the pass declared read-only depth without write.
-4. **DebugView writes linear quantities only, immediately before Gizmo/WireOverlay and OutputTransform.** It overwrites `PostProcessBuffer`. Gizmo/WireOverlay then draw on that linear buffer; OutputTransform encodes them. DebugView is not a second encoding owner. `TAAConfidenceBuffer` is created only when `debugView != None`.
+4. **DebugView writes linear quantities only, immediately before Gizmo/WireOverlay and OutputTransform.** It overwrites `PostProcessBuffer`. Gizmo/WireOverlay then draw on that linear buffer; OutputTransform encodes them. DebugView is not a second encoding owner. `TAAConfidenceBuffer` is created only when `debugView != None` or an explicit normal-frame capture requests confidence for this frame. Capture must not change DebugView or history.
+
+## Source schema and integration boundaries
+
+- Native legacy fields and current effective values are different evidence. Before an explicit schema cleanup, identify the actual owner, bind source/meta and per-object/native field identities, and prove every non-approved field/reference unchanged. Preserve the currently running effective configuration; do not infer old physical units or material/light authority from discarded fields.
+- An approved source schema change uses fresh durable backups and intent before targeted saves, exact allowed native deltas, stable GUID/local IDs and references, current scene/dirty preservation, second-save byte identity and a separate no-op. Preserve pending evidence and original exceptions; do not clear dirty flags or blindly restore source bytes. Loading/reload never authorizes migration.
+- Completed preflight source/copy proofs may be reused only through immutable report/summary/artifact hashes, current input hashes and reviewed implementation equivalence. A failed original report remains failed; accepted replacement receipts are additional evidence. Explicitly retired source files and new diagnostic/docs inputs require exact delta receipts, never broad exclusions.
+- Custom VFX Graph/GraphSRP outputs are **unsupported** in the current InfinityRP. The invalid binder/templates/includes were retired in T02d; do not restore an old HDRP identity, add a friend-assembly shim, or patch PackageCache to revive them. The resolved VFX package is 17.5 and its target dependency is retained. Standard Unity ParticleSystem rendering remains part of N11; it is not proven by VFX retirement.
+- Schema, compilation and image gates remain separate. The current Validation_Decal/LocalLights/Translucent captures show sky/dark-triangle/cube artifacts despite clean error windows; PLAN assigns these visual FAIL baselines to N07/N08/N11. Do not relabel these as correct frames or as schema-induced lighting changes without evidence.
 
 ## Known gaps (do not paper over)
 
@@ -163,13 +171,17 @@ S4–S8 closed the record paths below. Image / Frame Debugger / GPU-Trace qualit
 - Comments in English; TODO format: `// TODO: <action>`.
 - Do not commit large blocks of commented-out dead code.
 - Do not introduce spellings that diverge further; fix typos when touching a symbol.
-- asmdef display names currently still say `HighDefinition.*` (historical). Prefer `Infinity` when renaming is intentionally scheduled.
+- Assembly identities use `Unity.RenderPipelines.Infinity.*`; keep references and friend declarations consistent. Old identities are allowed only in temporary explicit migration tooling and immutable historical evidence, never as compatibility shims.
 
-## Model / agent work split (project preference)
+## Model / agent work split (approved N00–N15 plan)
 
-- Search / explore / inventory: Composer-class low-cost agents.
-- Mid-leverage implementation: Grok-class agents.
-- Planning, architecture decisions, and review: the user-selected primary model.
+- Primary agent owns orchestration, planning, all source/test/documentation implementation, code review, Unity operation and visual inspection.
+- GPT-5.6 Luna assists only with bounded read-only search and inventory.
+- GPT-5.6 Terra is the sole delegation exception: independent task-result verification after a complete candidate. It does not implement changes or perform planning review.
+- Every task candidate requires Terra PASS plus the primary agent's applicable self-test/review and visual evidence. Failed/partial/missing evidence returns to the primary agent; dependent tasks remain locked. No retry limit.
+- PLAN.md N00–N15 is the only active task ledger. Old T/S/R records are historical scoped evidence, not current full acceptance.
+- Editor loading/script reload must never migrate, rebuild, delete or save user assets. Migrations are explicit and targeted, with current-byte backups, integrity, reopen and no-op checks.
+- Preflight never activates source scenes or instantiates prefabs. Use bounded cancellable inspection. Managed-reference missing-type APIs apply only to deduplicated supported MonoBehaviour/ScriptableObject hosts, not native objects/importers.
 
 ## Verification
 
@@ -187,3 +199,23 @@ Console-clean is not render-correct. A single depth-clear regression once held t
 4. Repeat until the new log window is free of InfinityRP errors **and** the captured frame is correct.
 5. Only results confirmed by a captured frame may drop the `TODO(UNVERIFIED)` marker. Log-only checks keep it.
 6. **Editor Game view that is not redrawing produces identical consecutive screenshots.** "Two static frames match" is not a convergence proof by itself. Require a liveness gate first: Play mode, or at least one pair of captures that differ in the Game view region. Without that gate, report the capture as invalid and do not claim image results.
+
+### N04 graph and validation ownership
+
+- `RGBuilder.Execute` propagates the original failure; it no longer returns a soft false result. Graph commands are isolated from enclosing frame/camera profiling scopes. Unreturned owned graph allocations retire into pools only after Submit.
+- Attachment Load declares a read. Preserve depth with Store when subsequent effects or diagnostics consume it.
+- Atmosphere/ZBin outputs are explicit consumer inputs; producer global prebindings are removed. Forward binds its declared GGX/SH/tile inputs through the raster command capability.
+- Capture uses an explicitly selected active Game camera or requires one unambiguous active Game camera. No MainCamera-tag assumption and no substring match between Camera and SceneCamera.
+- Capture Lighting before its ownership moves into scene-color stages. Do not query a retired semantic name at frame end or guess an alias.
+- N04 RG/transaction gate passed independent Editor and actual Player fault/recovery verification. Refer to PLAN for immutable receipts; this does not close image-quality or later feature gates.
+
+- LightContext uploads are graph Transfer producers. All light-buffer consumers declare RGBufferRef inputs and bind through capabilities. Imported GraphicsBuffer targets are not ComputeBuffer descriptors; do not silently clone or cast them. Replaced LightContext buffers retire after Submit. Overflow readback is requested only through dependent session-owned capture staging, never through an immediate callback on the production buffer.
+
+- History write reservations must not mutate committed descriptors/resources. Swap both on commit, and preserve old committed history on pending rollback. Shared-cache validity comes from queue-accepted producers, independent of camera success. Failed camera/frame transactions force history reset; frame cleanup must preserve the first exception and still attempt Submit for earlier accepted work.
+
+### Material route implementation checkpoint
+
+- Use `MaterialRouteUtility` for Infinity surface route validation and explicit pass-state updates. Do not reintroduce independent Editor rounding or route parsing.
+- `ShaderGUI.ValidateMaterial` is read-only. Inspector redraw alone must not apply derived pass state or mark every referencing MeshComponent dirty.
+- Runtime callers changing `_SurfaceRoute` or `_TranslucentStage` must call `MaterialRouteUtility.ApplyPassState` to apply Unity Renderer pass enables. Exact route values and Deferred-only SSS are validated before derived mutations. Full asset migration and draw-parity acceptance remain tracked in N06.
+- Agent model provenance comes from session `turn_context.model` matched to the agent path, not generic inherited role text or the model's own self-description.

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.GPUResource
         {
             public RTHandle committed;
             public RTHandle pending;
-            public TextureDescriptor descriptor;
+            public TextureDescriptor committedDescriptor, pendingDescriptor;
             public int generation;
             public bool producedThisFrame;
             public bool invalidateNextGet;
@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.GPUResource
         {
             public ComputeBuffer committed;
             public ComputeBuffer pending;
-            public BufferDescriptor descriptor;
+            public BufferDescriptor committedDescriptor, pendingDescriptor;
             public int generation;
             public bool producedThisFrame;
             public bool invalidateNextGet;
@@ -31,6 +31,18 @@ namespace InfinityTech.Rendering.GPUResource
         readonly Dictionary<int, BufferSlot> m_Buffers;
         readonly List<RTHandle> m_RetiredTextures;
         readonly List<ComputeBuffer> m_RetiredBuffers;
+
+        internal bool RetiredResourcesAreAlive
+        {
+            get
+            {
+                foreach (RTHandle texture in m_RetiredTextures)
+                    if (texture == null || texture.rt == null || !texture.rt.IsCreated()) return false;
+                foreach (ComputeBuffer buffer in m_RetiredBuffers)
+                    if (buffer == null || !buffer.IsValid()) return false;
+                return true;
+            }
+        }
 
         public int RetiredQueuedCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
 
@@ -57,11 +69,11 @@ namespace InfinityTech.Rendering.GPUResource
         public FBufferRef GetWriteBuffer(in int id, in BufferDescriptor descriptor)
         {
             BufferSlot slot = GetOrCreateBufferSlot(id);
-            ReallocCommittedBufferIfNeeded(slot, descriptor);
-            if (slot.pending != null && !descriptor.Equals(slot.descriptor))
+            if (slot.pending != null && !descriptor.Equals(slot.pendingDescriptor))
             {
                 Retire(slot.pending);
                 slot.pending = null;
+                slot.producedThisFrame = false;
             }
 
             if (slot.pending == null)
@@ -69,7 +81,7 @@ namespace InfinityTech.Rendering.GPUResource
                 slot.pending = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
             }
 
-            slot.descriptor = descriptor;
+            slot.pendingDescriptor = descriptor;
             return new FBufferRef(-1, descriptor, slot.pending);
         }
 
@@ -94,11 +106,11 @@ namespace InfinityTech.Rendering.GPUResource
         public FTextureRef GetWriteTexture(in int id, in TextureDescriptor descriptor)
         {
             TextureSlot slot = GetOrCreateTextureSlot(id);
-            ReallocCommittedTextureIfNeeded(slot, descriptor);
-            if (slot.pending != null && !descriptor.Equals(slot.descriptor))
+            if (slot.pending != null && !descriptor.Equals(slot.pendingDescriptor))
             {
                 Retire(slot.pending);
                 slot.pending = null;
+                slot.producedThisFrame = false;
             }
 
             if (slot.pending == null)
@@ -106,7 +118,7 @@ namespace InfinityTech.Rendering.GPUResource
                 slot.pending = AllocTexture(descriptor);
             }
 
-            slot.descriptor = descriptor;
+            slot.pendingDescriptor = descriptor;
             return new FTextureRef(-1, descriptor, slot.pending);
         }
 
@@ -158,6 +170,9 @@ namespace InfinityTech.Rendering.GPUResource
                     RTHandle previous = slot.committed;
                     slot.committed = slot.pending;
                     slot.pending = previous;
+                    var previousDescriptor = slot.committedDescriptor;
+                    slot.committedDescriptor = slot.pendingDescriptor;
+                    slot.pendingDescriptor = previousDescriptor;
                     slot.generation++;
                 }
 
@@ -171,10 +186,45 @@ namespace InfinityTech.Rendering.GPUResource
                     ComputeBuffer previous = slot.committed;
                     slot.committed = slot.pending;
                     slot.pending = previous;
+                    var previousDescriptor = slot.committedDescriptor;
+                    slot.committedDescriptor = slot.pendingDescriptor;
+                    slot.pendingDescriptor = previousDescriptor;
                     slot.generation++;
                 }
 
                 slot.producedThisFrame = false;
+            }
+        }
+
+        public void DiscardPending(int id)
+        {
+            if (m_Textures.TryGetValue(id, out TextureSlot texture))
+            {
+                Retire(texture.pending);
+                texture.pending = null;
+                texture.producedThisFrame = false;
+            }
+            if (m_Buffers.TryGetValue(id, out BufferSlot buffer))
+            {
+                Retire(buffer.pending);
+                buffer.pending = null;
+                buffer.producedThisFrame = false;
+            }
+        }
+
+        public void DiscardUnproducedPending()
+        {
+            foreach (TextureSlot slot in m_Textures.Values)
+            {
+                if (slot.producedThisFrame) continue;
+                Retire(slot.pending);
+                slot.pending = null;
+            }
+            foreach (BufferSlot slot in m_Buffers.Values)
+            {
+                if (slot.producedThisFrame) continue;
+                Retire(slot.pending);
+                slot.pending = null;
             }
         }
 
@@ -278,49 +328,39 @@ namespace InfinityTech.Rendering.GPUResource
 
         bool ReallocCommittedTextureIfNeeded(TextureSlot slot, in TextureDescriptor descriptor)
         {
-            if (slot.committed != null && !descriptor.Equals(slot.descriptor))
+            if (slot.committed != null && !descriptor.Equals(slot.committedDescriptor))
             {
                 Retire(slot.committed);
                 slot.committed = null;
-                if (slot.pending != null)
-                {
-                    Retire(slot.pending);
-                    slot.pending = null;
-                }
             }
 
             if (slot.committed == null)
             {
                 slot.committed = AllocTexture(descriptor);
-                slot.descriptor = descriptor;
+                slot.committedDescriptor = descriptor;
                 return true;
             }
 
-            slot.descriptor = descriptor;
+            slot.committedDescriptor = descriptor;
             return false;
         }
 
         void ReallocCommittedBufferIfNeeded(BufferSlot slot, in BufferDescriptor descriptor)
         {
-            if (slot.committed != null && !descriptor.Equals(slot.descriptor))
+            if (slot.committed != null && !descriptor.Equals(slot.committedDescriptor))
             {
                 Retire(slot.committed);
                 slot.committed = null;
-                if (slot.pending != null)
-                {
-                    Retire(slot.pending);
-                    slot.pending = null;
-                }
             }
 
             if (slot.committed == null)
             {
                 slot.committed = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
-                slot.descriptor = descriptor;
+                slot.committedDescriptor = descriptor;
             }
             else
             {
-                slot.descriptor = descriptor;
+                slot.committedDescriptor = descriptor;
             }
         }
 

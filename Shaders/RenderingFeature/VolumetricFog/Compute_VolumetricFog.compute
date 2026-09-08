@@ -89,7 +89,7 @@ float VolumeLightAttenuation(FLightRecord light, float3 worldPos)
     if (light.lightType == LIGHT_TYPE_SPOT)
     {
         float3 L = toLight / max(distance, 1e-4);
-        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.z, light.shape.w);
+        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
     }
     return att;
 }
@@ -113,14 +113,11 @@ float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, 
         shadow = SampleLocalShadow(localShadowMap, light, worldPos);
     }
 
-    if ((light.flags & LIGHT_FLAG_VOLUMETRIC) != 0)
-    {
-        shadow *= light.shadowSoftVol.z;
-    }
+    shadow = VolumeShadowWeight(light, shadow);
 
     float cosTheta = dot(viewDir, L);
     float phase = HGPhase(VolFog_Anisotropy, cosTheta);
-    return scattering * LightRadiance(light) * phase * shadow * att;
+    return scattering * VolumeLightRadiance(light) * phase * shadow * att;
 }
 
 void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, float2 screenUV, inout float3 inScatter, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)

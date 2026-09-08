@@ -627,32 +627,30 @@
 		{
 			float2 uv = i.localTexcoord.xy;
 			float coneAngle = 0.5;
-			float cosPhiStep = 1 / (127);
-			float sinThetaStep = 1 / (255);
 			uint coneZStepCount = 64;
 			uint conePhiStepCount = 64;
 
 			float cosPhi = uv.x;
 			float sinTheta = uv.y;
 
-			float shinPhi = sqrt(1 - cosPhi * cosPhi);
+			float sinPhi = sqrt(1 - cosPhi * cosPhi);
 			float cosTheta = sqrt(1 - sinTheta * sinTheta);
 
-			float3 sphereDir = float3(shinPhi, cosTheta, 0);
+			float3 sphereDir = float3(sinPhi, cosTheta, 0);
 			float cosConeAngle = cos(coneAngle);
-			float zStep = (1 - cosConeAngle) / (cosConeAngle - 1);
-			float conePhiStep = 6.28 / conePhiStepCount;
+			// Uniform solid-angle quadrature: cos(theta) spans the cone, never [-infinity, 1].
+			float zStep = (1 - cosConeAngle) / coneZStepCount;
+			float conePhiStep = 6.28318530718 / conePhiStepCount;
 
 			int numHit = 0;
 			for(uint i = 0; i < coneZStepCount; ++i)
 			{
-				float z = cosConeAngle + (i * zStep);
-				//float xy = sqrt(1 - z);
+				float z = cosConeAngle + ((i + 0.5) * zStep);
 				float xy = sqrt(1 - z * z);
 
 				for(uint j = 0; j < conePhiStepCount; ++j)
 				{
-					float conePhi = j * conePhiStep;
+					float conePhi = (j + 0.5) * conePhiStep;
 					float3 rayDir = float3(cos(conePhi) * xy, z, sin(conePhi) * xy);
 					if(dot(rayDir, sphereDir) < cosTheta)
 					{

@@ -14,6 +14,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     public struct MeshPassDraw
     {
+        public int shaderUnityId;
+        public uint materialRoute;
         public int shaderPassIndex;
         public int meshUnityId;
         public int sectionIndex;
@@ -30,6 +32,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     public struct MeshPassDrawCacheKey : IEquatable<MeshPassDrawCacheKey>
     {
+        public int shaderUnityId;
+        public uint materialRoute;
         public int shaderPassIndex;
         public int meshUnityId;
         public int sectionIndex;
@@ -40,6 +44,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public uint staticFlags;
 
         public MeshPassDrawCacheKey(
+            int shaderUnityId,
+            uint materialRoute,
             int shaderPassIndex,
             int meshUnityId,
             int sectionIndex,
@@ -49,6 +55,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             uint platformFeatureKey,
             uint staticFlags = 0)
         {
+            this.shaderUnityId = shaderUnityId;
+            this.materialRoute = materialRoute;
             this.shaderPassIndex = shaderPassIndex;
             this.meshUnityId = meshUnityId;
             this.sectionIndex = sectionIndex;
@@ -61,7 +69,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public bool Equals(MeshPassDrawCacheKey other)
         {
-            return shaderPassIndex == other.shaderPassIndex
+            return shaderUnityId == other.shaderUnityId
+                && materialRoute == other.materialRoute
+                && shaderPassIndex == other.shaderPassIndex
                 && meshUnityId == other.meshUnityId
                 && sectionIndex == other.sectionIndex
                 && materialUnityId == other.materialUnityId
@@ -85,6 +95,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = (hash * 397) ^ (int)sectionRevision;
                 hash = (hash * 397) ^ (int)platformFeatureKey;
                 hash = (hash * 397) ^ (int)staticFlags;
+                hash = (hash * 397) ^ shaderUnityId;
+                hash = (hash * 397) ^ (int)materialRoute;
                 return hash;
             }
         }
@@ -124,6 +136,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         public MeshPassDrawId GetOrCreate(
+            int shaderUnityId,
+            uint materialRoute,
             int shaderPassIndex,
             int meshUnityId,
             int sectionIndex,
@@ -145,6 +159,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             var key = new MeshPassDrawCacheKey(
+                shaderUnityId,
+                materialRoute,
                 shaderPassIndex,
                 meshUnityId,
                 sectionIndex,
@@ -181,6 +197,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             var id = new MeshPassDrawId((uint)slot, m_NextGeneration++);
             var entry = new MeshPassDraw
             {
+                shaderUnityId = shaderUnityId,
+                materialRoute = materialRoute,
                 shaderPassIndex = shaderPassIndex,
                 meshUnityId = meshUnityId,
                 sectionIndex = sectionIndex,
@@ -232,6 +250,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (entry.materialUnityId == materialUnityId && entry.materialRevision == materialRevision)
                 {
                     var key = new MeshPassDrawCacheKey(
+                        entry.shaderUnityId,
+                        entry.materialRoute,
                         entry.shaderPassIndex,
                         entry.meshUnityId,
                         entry.sectionIndex,

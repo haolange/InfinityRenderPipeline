@@ -163,14 +163,13 @@ namespace InfinityTech.Rendering.Pipeline
 
     internal static class CombineLutParameterUtility
     {
-        public static CombineLutParameterDescriptor FromVolumeStack(FilmTonemap film, ColorGrading grading, Exposure exposure)
+        public static CombineLutParameterDescriptor FromVolumeStack(FilmTonemap film, ColorGrading grading)
         {
+            if (film == null || grading == null)
+                throw new InvalidOperationException("InfinityRP: resolved FilmTonemap and ColorGrading snapshots are required.");
             CombineLutParameterDescriptor descriptor = default;
             ApplyFilmTonemap(ref descriptor, film);
             ApplyColorGrading(ref descriptor, grading);
-            // Exposure is applied as a pre-LUT multiply. Read it with the same stack snapshot so
-            // inactive components fall back to class defaults instead of a second IdentityLut path.
-            _ = exposure.active;
 
             descriptor.ColorScale = new float4(1.0f, 1.0f, 1.0f, 0.0f);
             descriptor.OverlayColor = new float4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -179,86 +178,42 @@ namespace InfinityTech.Rendering.Pipeline
 
         static void ApplyFilmTonemap(ref CombineLutParameterDescriptor descriptor, FilmTonemap film)
         {
-            if (film.active)
-            {
-                descriptor.FilmSlope = film.Slop.value;
-                descriptor.FilmToe = film.Toe.value;
-                descriptor.FilmShoulder = film.Shoulder.value;
-                descriptor.FilmBlackClip = film.BlackClip.value;
-                descriptor.FilmWhiteClip = film.WhiteClip.value;
-                return;
-            }
-
-            descriptor.FilmSlope = 0.88f;
-            descriptor.FilmToe = 0.55f;
-            descriptor.FilmShoulder = 0.26f;
-            descriptor.FilmBlackClip = 0.0f;
-            descriptor.FilmWhiteClip = 0.04f;
+            descriptor.FilmSlope = film.Slop.value;
+            descriptor.FilmToe = film.Toe.value;
+            descriptor.FilmShoulder = film.Shoulder.value;
+            descriptor.FilmBlackClip = film.BlackClip.value;
+            descriptor.FilmWhiteClip = film.WhiteClip.value;
         }
 
         static void ApplyColorGrading(ref CombineLutParameterDescriptor descriptor, ColorGrading grading)
         {
-            if (grading.active)
-            {
-                descriptor.WhiteTemp = grading.Temp.value;
-                descriptor.WhiteTint = grading.Tint.value;
-                descriptor.ColorSaturation = grading.ColorSaturation.value;
-                descriptor.ColorContrast = grading.ColorContrast.value;
-                descriptor.ColorGamma = grading.ColorGamma.value;
-                descriptor.ColorGain = grading.ColorGain.value;
-                descriptor.ColorOffset = grading.ColorOffset.value;
-                descriptor.ColorSaturationShadows = grading.ColorSaturationShadows.value;
-                descriptor.ColorContrastShadows = grading.ColorContrastShadows.value;
-                descriptor.ColorGammaShadows = grading.ColorGammaShadows.value;
-                descriptor.ColorGainShadows = grading.ColorGainShadows.value;
-                descriptor.ColorOffsetShadows = grading.ColorOffsetShadows.value;
-                descriptor.ColorCorrectionShadowsMax = grading.ShadowsMax.value;
-                descriptor.ColorSaturationMidtones = grading.ColorSaturationMidtones.value;
-                descriptor.ColorContrastMidtones = grading.ColorContrastMidtones.value;
-                descriptor.ColorGammaMidtones = grading.ColorGammaMidtones.value;
-                descriptor.ColorGainMidtones = grading.ColorGainMidtones.value;
-                descriptor.ColorOffsetMidtones = grading.ColorOffsetMidtones.value;
-                descriptor.ColorSaturationHighlights = grading.ColorSaturationHighlights.value;
-                descriptor.ColorContrastHighlights = grading.ColorContrastHighlights.value;
-                descriptor.ColorGammaHighlights = grading.ColorGammaHighlights.value;
-                descriptor.ColorGainHighlights = grading.ColorGainHighlights.value;
-                descriptor.ColorOffsetHighlights = grading.ColorOffsetHighlights.value;
-                descriptor.ColorCorrectionHighlightsMin = grading.HighlightsMin.value;
-                descriptor.ColorCorrectionHighlightsMax = grading.HighlightsMax.value;
-                descriptor.BlueCorrection = grading.BlueCorrection.value;
-                descriptor.ExpandGamut = grading.ExpandGamut.value;
-                return;
-            }
-
-            float4 one = new float4(1.0f, 1.0f, 1.0f, 1.0f);
-            float4 zero = new float4(0.0f, 0.0f, 0.0f, 0.0f);
-            descriptor.WhiteTemp = 6500.0f;
-            descriptor.WhiteTint = 0.0f;
-            descriptor.ColorSaturation = one;
-            descriptor.ColorContrast = one;
-            descriptor.ColorGamma = one;
-            descriptor.ColorGain = one;
-            descriptor.ColorOffset = zero;
-            descriptor.ColorSaturationShadows = one;
-            descriptor.ColorContrastShadows = one;
-            descriptor.ColorGammaShadows = one;
-            descriptor.ColorGainShadows = one;
-            descriptor.ColorOffsetShadows = zero;
-            descriptor.ColorCorrectionShadowsMax = 0.09f;
-            descriptor.ColorSaturationMidtones = one;
-            descriptor.ColorContrastMidtones = one;
-            descriptor.ColorGammaMidtones = one;
-            descriptor.ColorGainMidtones = one;
-            descriptor.ColorOffsetMidtones = zero;
-            descriptor.ColorSaturationHighlights = one;
-            descriptor.ColorContrastHighlights = one;
-            descriptor.ColorGammaHighlights = one;
-            descriptor.ColorGainHighlights = one;
-            descriptor.ColorOffsetHighlights = zero;
-            descriptor.ColorCorrectionHighlightsMin = 0.5f;
-            descriptor.ColorCorrectionHighlightsMax = 1.0f;
-            descriptor.BlueCorrection = DefaultVolumeProfileFactory.PackagedBlueCorrection;
-            descriptor.ExpandGamut = DefaultVolumeProfileFactory.PackagedExpandGamut;
+            descriptor.WhiteTemp = grading.Temp.value;
+            descriptor.WhiteTint = grading.Tint.value;
+            descriptor.ColorSaturation = grading.ColorSaturation.value;
+            descriptor.ColorContrast = grading.ColorContrast.value;
+            descriptor.ColorGamma = grading.ColorGamma.value;
+            descriptor.ColorGain = grading.ColorGain.value;
+            descriptor.ColorOffset = grading.ColorOffset.value;
+            descriptor.ColorSaturationShadows = grading.ColorSaturationShadows.value;
+            descriptor.ColorContrastShadows = grading.ColorContrastShadows.value;
+            descriptor.ColorGammaShadows = grading.ColorGammaShadows.value;
+            descriptor.ColorGainShadows = grading.ColorGainShadows.value;
+            descriptor.ColorOffsetShadows = grading.ColorOffsetShadows.value;
+            descriptor.ColorCorrectionShadowsMax = grading.ShadowsMax.value;
+            descriptor.ColorSaturationMidtones = grading.ColorSaturationMidtones.value;
+            descriptor.ColorContrastMidtones = grading.ColorContrastMidtones.value;
+            descriptor.ColorGammaMidtones = grading.ColorGammaMidtones.value;
+            descriptor.ColorGainMidtones = grading.ColorGainMidtones.value;
+            descriptor.ColorOffsetMidtones = grading.ColorOffsetMidtones.value;
+            descriptor.ColorSaturationHighlights = grading.ColorSaturationHighlights.value;
+            descriptor.ColorContrastHighlights = grading.ColorContrastHighlights.value;
+            descriptor.ColorGammaHighlights = grading.ColorGammaHighlights.value;
+            descriptor.ColorGainHighlights = grading.ColorGainHighlights.value;
+            descriptor.ColorOffsetHighlights = grading.ColorOffsetHighlights.value;
+            descriptor.ColorCorrectionHighlightsMin = grading.HighlightsMin.value;
+            descriptor.ColorCorrectionHighlightsMax = grading.HighlightsMax.value;
+            descriptor.BlueCorrection = grading.BlueCorrection.value;
+            descriptor.ExpandGamut = grading.ExpandGamut.value;
         }
     }
 

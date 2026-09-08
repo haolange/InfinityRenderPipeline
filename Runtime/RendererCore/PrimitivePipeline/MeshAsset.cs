@@ -1,5 +1,7 @@
-﻿using System;
+using System;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 using System.Collections.Generic;
 using InfinityTech.Core.Container;

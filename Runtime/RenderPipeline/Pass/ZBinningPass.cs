@@ -63,8 +63,8 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrixView;
             public Matrix4x4 matrixProj;
             public ComputeShader zBinningShader;
-            public GraphicsBuffer lightBoundsBuffer;
-            public GraphicsBuffer overflowBuffer;
+            public RGBufferRef lightBoundsBuffer;
+            public RGBufferRef overflowBuffer;
             public RGBufferRef tileCount;
             public RGBufferRef tileRange;
             public RGBufferRef tileLightList;
@@ -86,9 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.zBinningShader, "LightCount", "PrefixSum", "Fill"))
-            {
-                return;
-            }
+                throw new System.InvalidOperationException("Local lights require the LightCount, PrefixSum and Fill ZBin kernels.");
 
             int tileSize = 16;
             int width = camera.pixelWidth;
@@ -160,8 +158,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrixView = camera.worldToCameraMatrix;
                 passData.matrixProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
                 passData.zBinningShader = pipelineAsset.zBinningShader;
-                passData.lightBoundsBuffer = renderContext.lightContext.LightBoundsBuffer;
-                passData.overflowBuffer = renderContext.lightContext.ZBinOverflowBuffer;
+                passData.lightBoundsBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightBoundsBuffer));
+                passData.overflowBuffer = passRef.WriteBuffer(m_RGBuilder.ImportBuffer(renderContext.lightContext.ZBinOverflowBuffer, "ZBinOverflow"));
+                m_RGScoper.RegisterBuffer(LightShaderIDs.ZBinOverflowBuffer, passData.overflowBuffer);
                 passData.tileCount = passRef.WriteBuffer(tileCount);
                 passData.tileRange = passRef.WriteBuffer(tileRange);
                 passData.tileLightList = passRef.WriteBuffer(tileLightList);
@@ -225,22 +224,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.EndSample("ZBin_Fill");
 
                     encoder.SetComputeIntParam(shader, LightShaderIDs.HasTileLightList, 1);
-                    encoder.SetGlobalInt("g_HasTileLightList", 1);
-                    cmdEncoder.SetGlobalBuffer(ZBinningPassUtilityData.SRV_TileLightRangeID, data.tileRange);
-                    cmdEncoder.SetGlobalBuffer(ZBinningPassUtilityData.SRV_TileLightListID, data.tileLightList);
-                    cmdEncoder.SetGlobalBuffer(ZBinningPassUtilityData.SRV_ZBinRangeID, data.zBinRange);
-                    cmdEncoder.SetGlobalBuffer(ZBinningPassUtilityData.SRV_ZBinLightListID, data.zBinLightList);
 
-                    if (data.overflowBuffer != null)
-                    {
-                        AsyncGPUReadback.Request(data.overflowBuffer, sizeof(uint), 0, (AsyncGPUReadbackRequest request) =>
-                        {
-                            if (!request.hasError)
-                            {
-                                // Diagnostics only — never shrink this-frame ZBin capacity from the readback.
-                            }
-                        });
-                    }
                 });
             }
         }

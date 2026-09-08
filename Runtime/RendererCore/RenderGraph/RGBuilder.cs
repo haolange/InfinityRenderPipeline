@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections.Generic;
@@ -89,7 +89,6 @@ namespace InfinityTech.Rendering.RenderGraph
     public class RGBuilder 
     {
         public string name;
-        bool m_ExecuteExceptionIsRaised;
         RGResourceFactory m_Resources;
         Stack<int> m_CullingStack = new Stack<int>();
         List<IRGPass> m_PassList = new List<IRGPass>(64);
@@ -134,9 +133,14 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGBufferRef ImportBuffer(ComputeBuffer buffer)
+        public RGBufferRef ImportBuffer(in FBufferRef buffer)
         {
             return m_Resources.ImportBuffer(buffer);
+        }
+
+        public RGBufferRef ImportBuffer(GraphicsBuffer buffer, string name)
+        {
+            return m_Resources.ImportBuffer(buffer, name);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -185,6 +189,49 @@ namespace InfinityTech.Rendering.RenderGraph
         public TextureDescriptor GetTextureDescriptor(in RGTextureRef textureRef)
         {
             return m_Resources.GetTextureDescriptor(textureRef.handle);
+        }
+
+        internal string GetTextureProducer(in RGTextureRef textureRef, out string queue) => GetProducer(textureRef.handle, out queue);
+        internal string GetBufferProducer(in RGBufferRef bufferRef, out string queue) => GetProducer(bufferRef.handle, out queue);
+
+        string GetProducer(in RGResourceHandle handle, out string queue)
+        {
+            for (int i = m_PassList.Count - 1; i >= 0; --i)
+            {
+                IRGPass pass = m_PassList[i];
+                if (!pass.resourceWriteLists[handle.iType].Contains(handle)) continue;
+                queue = pass.enableAsyncCompute ? "AsyncCompute" : "Graphics";
+                return pass.name;
+            }
+            throw new InvalidOperationException("Capture source has no recorded producer.");
+        }
+
+        internal string DescribeCompiledGraph()
+        {
+            var text = new System.Text.StringBuilder();
+            text.AppendLine("index|name|type|queue|culled|waitForPass|signalsToPass|reads|writes|creates|releases|fence");
+            for (int i = 0; i < m_PassCompileInfos.size; ++i)
+            {
+                ref RGPassCompileInfo info = ref m_PassCompileInfos[i];
+                IRGPass pass = info.pass;
+                text.Append(i).Append('|').Append(pass.name).Append('|').Append(pass.passType).Append('|')
+                    .Append(pass.enableAsyncCompute ? "AsyncCompute" : "Graphics").Append('|').Append(info.culled)
+                    .Append('|').Append(info.syncToPassIndex).Append('|').Append(info.syncFromPassIndex).Append('|');
+                foreach (var list in pass.resourceReadLists)
+                    foreach (RGResourceHandle resource in list) text.Append(resource.type).Append(':').Append(resource.index).Append(',');
+                text.Append('|');
+                foreach (var list in pass.resourceWriteLists)
+                    foreach (RGResourceHandle resource in list) text.Append(resource.type).Append(':').Append(resource.index).Append(',');
+                text.Append('|');
+                for (int type = 0; type < (int)ERGResourceType.Max; type++)
+                    foreach (int resource in info.resourceCreateList[type]) text.Append((ERGResourceType)type).Append(':').Append(resource).Append(',');
+                text.Append('|');
+                for (int type = 0; type < (int)ERGResourceType.Max; type++)
+                    foreach (int resource in info.resourceReleaseList[type]) text.Append((ERGResourceType)type).Append(':').Append(resource).Append(',');
+                text.Append('|').Append(info.needGraphicsFence);
+                text.AppendLine();
+            }
+            return text.ToString();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -292,61 +339,124 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Execute(RenderContext renderContext, ResourcePool resourcePool, CommandBuffer cmdBuffer)
+        public void Execute(RenderContext renderContext, ResourcePool resourcePool, CommandBuffer cmdBuffer)
         {
-            RGContext graphContext;
+            m_QueueSubmissionFailed = false;
+            // Keep frame/camera scopes separate from commands that may be abandoned by a failed pass.
+            CommandBuffer graphCommands = CommandBufferPool.Get();
+            graphCommands.SetExecutionFlags(CommandBufferExecutionFlags.None);
+            RGContext graphContext = new RGContext
             {
-                graphContext.cmdBuffer = cmdBuffer;
-                graphContext.objectPool = m_ObjectPool;
-                graphContext.renderContext = renderContext;
-                graphContext.drawLists = m_DrawListRecords;
-            }
-            m_ExecuteExceptionIsRaised = false;
-
+                cmdBuffer = graphCommands, objectPool = m_ObjectPool,
+                renderContext = renderContext, drawLists = m_DrawListRecords
+            };
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
             try
             {
+                if (cmdBuffer.sizeInBytes != 0)
+                {
+                    QueueGraphics(renderContext, cmdBuffer);
+                    cmdBuffer.Clear();
+                }
                 m_Resources.BeginRender();
                 CompilePass();
                 ExecutePass(ref graphContext);
-                return true;
-            } 
-            catch (Exception exception) 
+            }
+            catch (Exception exception)
             {
-                if (!m_ExecuteExceptionIsRaised) 
-                { 
-                    Debug.LogException(exception); 
+                failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception);
+            }
+            finally
+            {
+                graphCommands.Clear();
+                CommandBufferPool.Release(graphCommands);
+                try { ClearPass(); }
+                catch (Exception cleanupError)
+                {
+                    if (failure == null) failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError);
+                    else Debug.LogException(cleanupError);
                 }
-                m_ExecuteExceptionIsRaised = true;
+                finally
+                {
+                    m_Resources.EndRender();
+                    try { m_ObjectPool.ReleaseAllTempAlloc(); }
+                    catch (Exception cleanupError)
+                    {
+                        if (failure == null) failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError);
+                        else Debug.LogException(cleanupError);
+                    }
+                }
+            }
+            failure?.Throw();
+        }
 
-                Debug.LogError("RenderGraph Execute error");
-                return false;
-            } 
-            finally 
+        bool m_QueueSubmissionFailed;
+        bool m_UnrecoverableAsyncSubmission;
+        internal bool HasQueueSubmissionFailure => m_QueueSubmissionFailed;
+        internal bool CanRetireSubmittedResources => !m_UnrecoverableAsyncSubmission;
+
+        void QueueGraphics(RenderContext context, CommandBuffer commands)
+        {
+            try { context.scriptableRenderContext.ExecuteCommandBuffer(commands); }
+            catch { m_QueueSubmissionFailed = true; throw; }
+        }
+
+        void QueueAsync(RenderContext context, CommandBuffer commands)
+        {
+            try { context.scriptableRenderContext.ExecuteCommandBufferAsync(commands, ComputeQueueType.Background); }
+            catch { m_QueueSubmissionFailed = true; throw; }
+        }
+
+        internal void RecoverUnjoinedAsync(RenderContext context)
+        {
+            if (!m_UnrecoverableAsyncSubmission) return;
+            var asyncCommands = CommandBufferPool.Get();
+            var graphicsCommands = CommandBufferPool.Get();
+            try
             {
-                ClearPass();
-                m_Resources.EndRender();
+                asyncCommands.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
+                graphicsCommands.SetExecutionFlags(CommandBufferExecutionFlags.None);
+                GraphicsFence fence = asyncCommands.CreateAsyncGraphicsFence();
+                QueueAsync(context, asyncCommands);
+                graphicsCommands.WaitOnAsyncGraphicsFence(fence);
+                QueueGraphics(context, graphicsCommands);
+                m_UnrecoverableAsyncSubmission = false;
+            }
+            finally
+            {
+                asyncCommands.Clear(); graphicsCommands.Clear();
+                CommandBufferPool.Release(asyncCommands); CommandBufferPool.Release(graphicsCommands);
             }
         }
+
+        internal int RetiredResourceCount => m_Resources.RetiredResourceCount;
+        internal void FlushRetiredResources() => m_Resources.FlushRetired();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ClearPass()
         {
-            ReleaseAllDrawLists();
-
+            Exception failure = null;
+            try { ReleaseAllDrawLists(); }
+            catch (Exception error) { failure = error; }
             foreach (var pass in m_PassList)
             {
-                pass.Release(m_ObjectPool);
+                try { pass.Release(m_ObjectPool); }
+                catch (Exception error)
+                {
+                    if (failure == null) failure = error;
+                    else Debug.LogException(error);
+                }
             }
-
             m_PassList.Clear();
-            m_Resources.Clear();
-
-            for (int i = 0; i < (int)ERGResourceType.Max; ++i)
+            try { m_Resources.Clear(); }
+            catch (Exception error)
             {
-                m_ResourcesCompileInfos[i].Clear();
+                if (failure == null) failure = error;
+                else Debug.LogException(error);
             }
-
+            for (int i = 0; i < (int)ERGResourceType.Max; ++i) m_ResourcesCompileInfos[i].Clear();
             m_PassCompileInfos.Clear();
+            if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1124,6 +1234,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
             }
 
+        }
+
+        void ReleasePassResources(ref RGPassCompileInfo passCompileInfo)
+        {
             m_ObjectPool.ReleaseAllTempAlloc();
 
             foreach (var buffer in passCompileInfo.resourceReleaseList[(int)ERGResourceType.Buffer]) 
@@ -1141,83 +1255,163 @@ namespace InfinityTech.Rendering.RenderGraph
         void ExecutePass(ref RGContext graphContext)
         {
             CommandBuffer graphicsCmdBuffer = graphContext.cmdBuffer;
-
-            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            bool hasQueuedAsync = false;
+            GraphicsFence lastAsyncFence = default;
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
+            try
             {
-                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
-                if (passInfo.culled) 
-                { 
-                    continue; 
-                }
-
-                if (!passInfo.pass.hasExecuteAction) 
+                for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
                 {
-                    throw new InvalidOperationException(string.Format("RenderPass {0} was not provided with an execute function.", passInfo.pass.name));
-                }
-
-                try
-                {
-                    IRGPass pass = passInfo.pass;
-                    graphContext.cmdBuffer = graphicsCmdBuffer;
-
-                    if (pass.enableAsyncCompute)
-                    {
-                        CommandBuffer asyncCmdBuffer = CommandBufferPool.Get();
-                        asyncCmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
-                        graphContext.cmdBuffer = asyncCmdBuffer;
+                    ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                    if (passInfo.culled) 
+                    { 
+                        continue; 
                     }
 
-                    ProfilingScope profilingScope = default;
-                    if (pass.customSampler != null)
+                    if (!passInfo.pass.hasExecuteAction) 
                     {
-                        profilingScope = new ProfilingScope(graphContext.cmdBuffer, pass.customSampler);
+                        throw new InvalidOperationException(string.Format("RenderPass {0} was not provided with an execute function.", passInfo.pass.name));
                     }
+
+                    CommandBuffer asyncCommands = null;
                     try
                     {
-                        List<RGDrawListRef> usedDrawLists = pass.usedDrawLists;
-                        for (int i = 0; i < usedDrawLists.Count; ++i)
+                        IRGPass pass = passInfo.pass;
+                        graphContext.cmdBuffer = graphicsCmdBuffer;
+
+                        if (pass.enableAsyncCompute)
                         {
-                            EnsureDrawListResolved(usedDrawLists[i]);
+                            asyncCommands = CommandBufferPool.Get();
+                            asyncCommands.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
+                            graphContext.cmdBuffer = asyncCommands;
+                            // Imported resources can be reused across camera graphs. Establish ordering
+                            // against all earlier graphics work before this graph's first async submit.
+                            if (!hasQueuedAsync)
+                            {
+                                GraphicsFence entryFence = graphicsCmdBuffer.CreateAsyncGraphicsFence();
+                                asyncCommands.WaitOnAsyncGraphicsFence(entryFence);
+                            }
                         }
 
-                        // D3D12: SetBufferData / DispatchCompute cannot run inside BeginRenderPass.
-                        for (int i = 0; i < usedDrawLists.Count; ++i)
+                        ProfilingScope profilingScope = default;
+                        if (pass.customSampler != null)
                         {
-                            m_DrawListRecords.PrepareSubmit(graphContext.cmdBuffer, usedDrawLists[i]);
+                            profilingScope = new ProfilingScope(graphContext.cmdBuffer, pass.customSampler);
+                        }
+                        try
+                        {
+                            List<RGDrawListRef> usedDrawLists = pass.usedDrawLists;
+                            for (int i = 0; i < usedDrawLists.Count; ++i)
+                            {
+                                EnsureDrawListResolved(usedDrawLists[i]);
+                            }
+
+                            // D3D12: SetBufferData / DispatchCompute cannot run inside BeginRenderPass.
+                            for (int i = 0; i < usedDrawLists.Count; ++i)
+                            {
+                                m_DrawListRecords.PrepareSubmit(graphContext.cmdBuffer, usedDrawLists[i]);
+                            }
+
+                            PrePassExecute(ref graphContext, passInfo);
+                            pass.Execute(ref graphContext);
+                            PostPassExecute(ref graphContext, ref passInfo);
+                        }
+                        finally
+                        {
+                            profilingScope.Dispose();
                         }
 
-                        PrePassExecute(ref graphContext, passInfo);
-                        pass.Execute(ref graphContext);
-                        PostPassExecute(ref graphContext, ref passInfo);
+                        RenderFaultValidation.AtPass(ERenderFaultPoint.BeforePassQueue, pass.name);
+                        if (pass.enableAsyncCompute)
+                        {
+                            GraphicsFence completionFence = passInfo.needGraphicsFence
+                                ? passInfo.fence : asyncCommands.CreateAsyncGraphicsFence();
+                            if (!hasQueuedAsync)
+                            {
+                                QueueGraphics(graphContext.renderContext, graphicsCmdBuffer);
+                                graphicsCmdBuffer.Clear();
+                            }
+                            try
+                            {
+                                QueueAsync(graphContext.renderContext, asyncCommands);
+                                RenderFaultValidation.AtPass(ERenderFaultPoint.AfterPassQueue, pass.name);
+                                lastAsyncFence = completionFence;
+                                hasQueuedAsync = true;
+                            }
+                            catch
+                            {
+                                pass.queueObserver?.OnQueueFailed();
+                                // A fresh fence on the same async queue covers both accepted and rejected
+                                // outcomes without waiting on a fence that may never have been queued.
+                                var drain = CommandBufferPool.Get();
+                                try
+                                {
+                                    drain.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
+                                    GraphicsFence drainFence = drain.CreateAsyncGraphicsFence();
+                                    QueueAsync(graphContext.renderContext, drain);
+                                    lastAsyncFence = drainFence;
+                                    hasQueuedAsync = true;
+                                }
+                                catch (Exception drainError)
+                                {
+                                    m_UnrecoverableAsyncSubmission = true;
+                                    Debug.LogException(drainError);
+                                }
+                                finally { drain.Clear(); CommandBufferPool.Release(drain); }
+                                throw;
+                            }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                QueueGraphics(graphContext.renderContext, graphContext.cmdBuffer);
+                                RenderFaultValidation.AtPass(ERenderFaultPoint.AfterPassQueue, pass.name);
+                            }
+                            catch { m_QueueSubmissionFailed = true; pass.queueObserver?.OnQueueFailed(); throw; }
+                            graphContext.cmdBuffer.Clear();
+                        }
+                        pass.queueObserver?.OnQueued();
+                        ReleasePassResources(ref passInfo);
                     }
                     finally
                     {
-                        profilingScope.Dispose();
-                    }
-
-                    if (pass.enableAsyncCompute)
-                    {
-                        graphContext.renderContext.scriptableRenderContext.ExecuteCommandBufferAsync(graphContext.cmdBuffer, ComputeQueueType.Background);
-                        CommandBufferPool.Release(graphContext.cmdBuffer);
+                        if (asyncCommands != null)
+                        {
+                            asyncCommands.Clear();
+                            CommandBufferPool.Release(asyncCommands);
+                        }
                         graphContext.cmdBuffer = graphicsCmdBuffer;
                     }
-                    else
-                    {
-                        graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
-                        graphContext.cmdBuffer.Clear();
-                    }
-                } 
-                catch (Exception e) 
+                }
+
+            }
+            catch (Exception error)
+            {
+                failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
+            }
+            finally
+            {
+                graphicsCmdBuffer.Clear();
+                if (hasQueuedAsync)
                 {
-                    m_ExecuteExceptionIsRaised = true;
-                    Debug.LogError($"RenderGraph Execute error at pass {passInfo.pass.name} ({passIndex})");
-                    Debug.LogException(e);
-                    throw;
+                    try
+                    {
+                        // A later pass failure does not cancel earlier async work. Join it before
+                        // another camera uploads into shared native buffers or changes cache content.
+                        graphicsCmdBuffer.WaitOnAsyncGraphicsFence(lastAsyncFence);
+                        QueueGraphics(graphContext.renderContext, graphicsCmdBuffer);
+                    }
+                    catch (Exception joinError)
+                    {
+                        m_UnrecoverableAsyncSubmission = true;
+                        if (failure == null) failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(joinError);
+                        else Debug.LogException(joinError);
+                    }
+                    finally { graphicsCmdBuffer.Clear(); }
                 }
             }
-
-            graphContext.renderContext.scriptableRenderContext.ExecuteCommandBuffer(graphContext.cmdBuffer);
-            graphContext.cmdBuffer.Clear();
+            failure?.Throw();
         }
         
         public void Dispose()

@@ -12,6 +12,74 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class DefaultVolumeOutputTests
     {
         [Test]
+        public void ResolvedDefaultProfile_PreservesExposureAndGradeWithoutSceneOverrides()
+        {
+            var manager = (VolumeManager)Activator.CreateInstance(typeof(VolumeManager), true);
+            VolumeProfile profile = DefaultVolumeProfileFactory.CreateInMemory();
+            try
+            {
+                profile.TryGet(out Exposure exposure);
+                profile.TryGet(out FilmTonemap film);
+                profile.TryGet(out ColorGrading grading);
+                exposure.evCompensation.value = 2.0f;
+                film.Slop.value = 0.7f;
+                grading.Temp.value = 5200.0f;
+                manager.Initialize(profile, null);
+                manager.Update(manager.stack, null, 0);
+                Exposure snapshot = manager.stack.GetComponent<Exposure>();
+                Assert.IsFalse(snapshot.evCompensation.overrideState,
+                    "CoreRP resets scene override flags even when defaults provide nonzero values.");
+                Assert.AreEqual(2.0f, ExposureUtility.ResolveCpuEvCompensation(snapshot));
+                Assert.AreEqual(4.0f, ExposureUtility.ResolveManualMultiplier(snapshot));
+                var descriptor = CombineLutParameterUtility.FromVolumeStack(
+                    manager.stack.GetComponent<FilmTonemap>(), manager.stack.GetComponent<ColorGrading>());
+                Assert.AreEqual(0.7f, descriptor.FilmSlope);
+                Assert.AreEqual(5200.0f, descriptor.WhiteTemp);
+            }
+            finally
+            {
+                manager.Deinitialize();
+                foreach (VolumeComponent component in profile.components)
+                    UnityEngine.Object.DestroyImmediate(component);
+                UnityEngine.Object.DestroyImmediate(profile);
+            }
+        }
+
+        [TestCase(typeof(Exposure))]
+        [TestCase(typeof(FilmTonemap))]
+        [TestCase(typeof(ColorGrading))]
+        public void DefaultProfile_RejectsInactiveRequiredComponents(Type type)
+        {
+            VolumeProfile profile = DefaultVolumeProfileFactory.CreateInMemory();
+            try
+            {
+                profile.TryGet(type, out VolumeComponent component);
+                component.active = false;
+                Assert.IsFalse(DefaultVolumeProfileFactory.HasRequiredDefaultComponents(profile));
+            }
+            finally
+            {
+                foreach (VolumeComponent component in profile.components)
+                    UnityEngine.Object.DestroyImmediate(component);
+                UnityEngine.Object.DestroyImmediate(profile);
+            }
+        }
+
+        [TestCase(ColorSpace.Linear, false, EOutputEncodePolicy.HardwareSRGB)]
+        [TestCase(ColorSpace.Linear, true, EOutputEncodePolicy.ShaderLinearToSRGB)]
+        [TestCase(ColorSpace.Gamma, false, EOutputEncodePolicy.ShaderLinearToSRGB)]
+        [TestCase(ColorSpace.Gamma, true, EOutputEncodePolicy.ShaderLinearToSRGB)]
+        public void PlayerDisplayTransfer_UsesCapabilityWithoutInventingPixelFormat(
+            ColorSpace space, bool requiresSrgbBlit, EOutputEncodePolicy expected)
+        {
+            OutputTransformDecision decision = OutputTransformUtility.ResolveSdrDisplay(space, requiresSrgbBlit);
+            Assert.AreEqual(expected, decision.policy);
+            Assert.AreEqual(GraphicsFormat.None, decision.backbufferFormat);
+            Assert.IsTrue(decision.displayTransferAuthority);
+            Assert.AreEqual(OutputTransformUtility.ResolveDisplayFormat(expected), decision.displayFormat);
+        }
+
+        [Test]
         public void DefaultProfileFactory_RequiredComponentsHaveOverrides()
         {
             VolumeProfile profile = DefaultVolumeProfileFactory.CreateInMemory();
@@ -27,17 +95,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(EExposureMode.Manual, exposure.mode.value);
                 Assert.AreEqual(0.0f, exposure.evCompensation.value);
                 AssertPackagedFilmAndGrade(film, grading);
-                Assert.IsFalse(profile.Has<Bloom>());
-                Assert.IsFalse(profile.Has<Vignette>());
-                Assert.IsFalse(profile.Has<FilmGrain>());
-                Assert.IsFalse(profile.Has<ScreenSpaceReflection>());
-                Assert.IsFalse(profile.Has<ScreenSpaceIndirectDiffuse>());
-                Assert.IsFalse(profile.Has<ScreenSpaceAmbientOcclusion>());
-                Assert.IsFalse(profile.Has<VolumetricFog>());
-                Assert.IsFalse(profile.Has<VolumetricCloud>());
+                foreach (Type type in DefaultVolumeProfileFactory.OptionalComponentTypes)
+                {
+                    Assert.IsTrue(profile.TryGet(type, out VolumeComponent optional), type.Name);
+                    Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(optional), type.Name);
+                }
             }
             finally
             {
+                foreach (VolumeComponent component in profile.components)
+                    UnityEngine.Object.DestroyImmediate(component);
+                UnityEngine.Object.DestroyImmediate(profile);
+            }
+        }
+
+        [Test]
+        public void DefaultProfileRegistry_MissingOptionalTypeIsInvalidForPlayer()
+        {
+            VolumeProfile profile = DefaultVolumeProfileFactory.CreateInMemory();
+            try
+            {
+                profile.TryGet(out VolumetricFog fog);
+                profile.Remove<VolumetricFog>();
+                UnityEngine.Object.DestroyImmediate(fog);
+                Assert.IsFalse(DefaultVolumeProfileFactory.HasRequiredDefaultComponents(profile));
+            }
+            finally
+            {
+                foreach (VolumeComponent component in profile.components)
+                    UnityEngine.Object.DestroyImmediate(component);
                 UnityEngine.Object.DestroyImmediate(profile);
             }
         }
@@ -62,6 +148,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
+                foreach (VolumeComponent component in profile.components)
+                    UnityEngine.Object.DestroyImmediate(component);
                 UnityEngine.Object.DestroyImmediate(profile);
             }
         }
@@ -138,7 +226,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void CombineLutFromInactiveVolumes_UsesClassDefaults()
+        public void CombineLutFromSnapshot_DoesNotReplaceValuesWithClassDefaults()
         {
             FilmTonemap film = ScriptableObject.CreateInstance<FilmTonemap>();
             ColorGrading grading = ScriptableObject.CreateInstance<ColorGrading>();
@@ -151,13 +239,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 film.Slop.value = 0.1f;
                 grading.Temp.value = 2000.0f;
 
-                CombineLutParameterDescriptor descriptor = CombineLutParameterUtility.FromVolumeStack(film, grading, exposure);
-                Assert.AreEqual(0.88f, descriptor.FilmSlope);
+                CombineLutParameterDescriptor descriptor = CombineLutParameterUtility.FromVolumeStack(film, grading);
+                Assert.AreEqual(0.1f, descriptor.FilmSlope);
                 Assert.AreEqual(0.55f, descriptor.FilmToe);
                 Assert.AreEqual(0.26f, descriptor.FilmShoulder);
                 Assert.AreEqual(0.0f, descriptor.FilmBlackClip);
                 Assert.AreEqual(0.04f, descriptor.FilmWhiteClip);
-                Assert.AreEqual(6500.0f, descriptor.WhiteTemp);
+                Assert.AreEqual(2000.0f, descriptor.WhiteTemp);
                 Assert.AreEqual(DefaultVolumeProfileFactory.PackagedExpandGamut, descriptor.ExpandGamut);
                 Assert.AreEqual(DefaultVolumeProfileFactory.PackagedBlueCorrection, descriptor.BlueCorrection);
             }

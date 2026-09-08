@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.backgroundColor = new Color(0.0f, 0.0f, 0.0f, 1.0f);
             camera.fieldOfView = 40.0f;
             cameraGo.AddComponent<CameraComponent>();
-            DebugViewCapture.EnsureLitLivenessMarker(camera);
+            ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             material.SetFloat("_Roughness", 1.0f);
             material.SetFloat("_SpecularLevel", 0.0f);
             material.SetColor("_EmissionColor", emission);
-            InfinityLitGUI.ApplyPassState(material);
+            InfinityTech.Rendering.Pipeline.MaterialRouteUtility.ApplyPassState(material);
             AssetDatabase.CreateAsset(material, assetPath);
             return material;
         }

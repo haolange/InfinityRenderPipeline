@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public int directionalLightCount;
-            public GraphicsBuffer lightRecordBuffer;
+            public RGBufferRef lightRecordBuffer;
             public ComputeShader contactShadowShader;
             public RGTextureRef depthTexture;
             public RGTextureRef contactShadowTexture;
@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
-                passData.lightRecordBuffer = renderContext.lightContext.LightRecordBuffer;
+                passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.contactShadowShader = pipelineAsset.contactShadowShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.contactShadowTexture = passRef.WriteTexture(contactShadowTexture);

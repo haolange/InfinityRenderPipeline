@@ -104,7 +104,6 @@ namespace InfinityTech.Rendering.Pipeline
                 shaderPassIndex = BuiltinMeshesPasses.GBuffer.shaderPassIndex,
                 lightModeTag = BuiltinMeshesPasses.GBuffer.lightModeTag,
                 viewPosition = camera.transform.position,
-                renderingLayerMask = gbufferFilter.renderingLayerMask,
                 viewKey = UnityEntityId.ToUInt64(camera)
             };
             RGDrawListRef gbufferDraws = m_RGBuilder.DeclareDrawList(m_GBufferMeshProcessor, gbufferRequest, visibility, m_VisibilityShare);
