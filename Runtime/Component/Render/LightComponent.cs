@@ -12,7 +12,7 @@ namespace InfinityTech.Component
     public class LightComponent : BaseComponent
     {
         Light m_UnityLight;
-        int m_RegisteredLightId;
+        ulong m_RegisteredLightId;
         public Light unityLight => m_UnityLight ? m_UnityLight : (m_UnityLight = GetComponent<Light>());
         public ERenderingLayer lightLayer = ERenderingLayer.LightLayerDefault;
 
@@ -37,8 +37,8 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             m_UnityLight = GetComponent<Light>();
-            m_RegisteredLightId = UnityEntityId.ToInt32(m_UnityLight);
-            int lightId = m_RegisteredLightId;
+            m_RegisteredLightId = UnityEntityId.ToUInt64(m_UnityLight);
+            ulong lightId = m_RegisteredLightId;
             FGraphics.AddTask((RenderContext renderContext) =>
             {
                 if (this && m_UnityLight) renderContext.AddWorldLight(lightId, this);
@@ -57,7 +57,7 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
-            int lightId = m_RegisteredLightId;
+            ulong lightId = m_RegisteredLightId;
             FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.RemoveWorldLight(lightId);

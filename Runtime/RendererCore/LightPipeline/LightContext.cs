@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal void Build(
             in CullingResults cullingResults,
-            Dictionary<int, LightComponent> worldLightLookup,
+            Dictionary<ulong, LightComponent> worldLightLookup,
             Camera camera,
             in FShadowAllocatorSettings settings)
         {
@@ -162,7 +162,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     LightComponent ext = null;
                     if (worldLightLookup != null)
                     {
-                        worldLightLookup.TryGetValue(UnityEntityId.ToInt32(light), out ext);
+                        worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext);
                     }
 
                     if (ext == null)

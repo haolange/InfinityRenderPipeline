@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
             int cascadeLight = allocator.CascadeVisibleLightIndex;
             if (cascadeLight >= 0)
             {
-                for (int cascade = 0; cascade < allocator.CascadeAllocatedCount; ++cascade)
+                for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
                 {
                     FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                     if (!slice.valid)

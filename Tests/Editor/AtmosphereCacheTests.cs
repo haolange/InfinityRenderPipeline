@@ -70,8 +70,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var descriptor = MakeLut(8, 8, "CameraHistory");
                 for (int i = 0; i < 2; i++)
                 {
-                    var state = new CameraFrameState(90 + i) { lastSeenFrame = 50, executeSucceeded = i == 0 ? firstSuccess : secondSuccess,
-                        taaValidFrames = 8, ssrValidFrames = 8 };
+                    var state = new CameraFrameState(90 + i) { lastSeenFrame = 50, preparedThisRender = true, executeSucceeded = i == 0 ? firstSuccess : secondSuccess,
+                        ssrValidFrames = 8 };
                     states.Add(i, state);
                     state.historyCache.GetTexture(123, descriptor);
                     state.historyCache.GetWriteTexture(123, descriptor);
@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.AreEqual(success ? 1 : 0, states[i].historyCache.TextureGeneration(123));
                     Assert.AreEqual(!success, states[i].requiresHistoryReset);
                     Assert.IsFalse(states[i].executeSucceeded);
-                    if (!success) Assert.AreEqual(0, states[i].taaValidFrames);
+                    if (!success) Assert.AreEqual(0, states[i].ssrValidFrames);
                 }
                 m_Shared.BeginFrame();
                 m_Shared.ResolveShared(key, descriptor, descriptor, out _, out _, out bool hit);
@@ -99,6 +99,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 foreach (CameraFrameState state in states.Values) state.Dispose();
                 if (ownsVolumes) VolumeManager.instance.Deinitialize();
             }
+        }
+
+        [Test]
+        public void FrameTransaction_DoesNotResetAnUnrenderedViewWithTheSameUnityFrame()
+        {
+            bool ownsVolumes = !VolumeManager.instance.isInitialized;
+            if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
+            var inactive = new CameraFrameState(92) { lastSeenFrame = 50, preparedThisRender = false };
+            try
+            {
+                var states = new Dictionary<int, CameraFrameState> { { 92, inactive } };
+                InfinityRenderPipeline.CompleteFrameTransaction(m_Shared, states, false, 50);
+                Assert.IsFalse(inactive.requiresHistoryReset);
+                Assert.AreEqual(0, inactive.successfulRenderCount);
+            }
+            finally { inactive.Dispose(); if (ownsVolumes) VolumeManager.instance.Deinitialize(); }
         }
 
         [Test]

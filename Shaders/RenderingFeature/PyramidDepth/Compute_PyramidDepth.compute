@@ -1,96 +1,54 @@
-﻿#pragma kernel HiZ_Generation
-#pragma enable_d3d11_debug_symbols
+#pragma kernel HiZ_Generation
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 float4 _SrcSize;
 float4 _DstSize;
 int _CopySource;
 int _MipWriteCount;
-
+int _SrcMip;
 Texture2D<float> _PrevMipDepth;
 RWTexture2D<float> _HierarchicalDepth0;
 RWTexture2D<float> _HierarchicalDepth1;
 RWTexture2D<float> _HierarchicalDepth2;
 RWTexture2D<float> _HierarchicalDepth3;
 
-groupshared float gs_hiz[64];
-
 float HiZClosest(float a, float b)
 {
-#ifdef UNITY_REVERSED_Z
+#if UNITY_REVERSED_Z
     return max(a, b);
 #else
     return min(a, b);
 #endif
 }
 
-float HiZLoadClamp(int2 coord)
+// Every batch reads only the previous completed mip. Each last output cell owns
+// the trailing odd row/column, including dimensions that have already reached 1.
+float ReduceDepth(uint2 pixel, int mip)
 {
-    int2 srcSize = (int2)_SrcSize.xy;
-    coord = clamp(coord, int2(0, 0), srcSize - 1);
-    return _PrevMipDepth.Load(int3(coord, 0));
+    uint2 srcSize = (uint2)_SrcSize.xy;
+    uint2 dstSize = max(uint2(1, 1), (uint2)_DstSize.xy >> mip);
+    uint scale = 1u << (mip + (_CopySource != 0 ? 0 : 1));
+    uint2 begin = min(pixel * scale, srcSize - 1);
+    uint2 end = min(begin + scale, srcSize);
+    if (pixel.x == dstSize.x - 1) end.x = srcSize.x;
+    if (pixel.y == dstSize.y - 1) end.y = srcSize.y;
+    float depth = _PrevMipDepth.Load(int3(begin, _SrcMip));
+    for (uint y = begin.y; y < end.y; ++y)
+        for (uint x = begin.x; x < end.x; ++x)
+            depth = HiZClosest(depth, _PrevMipDepth.Load(int3(x, y, _SrcMip)));
+    return depth;
 }
 
 [numthreads(8, 8, 1)]
-void HiZ_Generation(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint3 id : SV_DispatchThreadID)
+void HiZ_Generation(uint3 id : SV_DispatchThreadID)
 {
-    float depth;
-    if (_CopySource != 0)
-    {
-        depth = HiZLoadClamp((int2)id.xy);
-    }
-    else
-    {
-        int2 src = (int2)id.xy * 2;
-        float d00 = HiZLoadClamp(src);
-        float d10 = HiZLoadClamp(src + int2(1, 0));
-        float d01 = HiZLoadClamp(src + int2(0, 1));
-        float d11 = HiZLoadClamp(src + int2(1, 1));
-        depth = HiZClosest(HiZClosest(d00, d10), HiZClosest(d01, d11));
-    }
-
-    if (_MipWriteCount > 0 && all(id.xy < (uint2)_DstSize.xy))
-    {
-        _HierarchicalDepth0[id.xy] = depth;
-    }
-
-    uint lds = groupThreadId.y * 8 + groupThreadId.x;
-    gs_hiz[lds] = depth;
-    GroupMemoryBarrierWithGroupSync();
-
-    if (_MipWriteCount > 1 && (groupThreadId.x & 1) == 0 && (groupThreadId.y & 1) == 0)
-    {
-        float reduced = HiZClosest(
-            HiZClosest(gs_hiz[lds], gs_hiz[lds + 1]),
-            HiZClosest(gs_hiz[lds + 8], gs_hiz[lds + 9]));
-        gs_hiz[lds] = reduced;
-        if (all((id.xy >> 1) < (uint2)_DstSize.xy >> 1))
-        {
-            _HierarchicalDepth1[id.xy >> 1] = reduced;
-        }
-    }
-    GroupMemoryBarrierWithGroupSync();
-
-    if (_MipWriteCount > 2 && (groupThreadId.x & 3) == 0 && (groupThreadId.y & 3) == 0)
-    {
-        float reduced = HiZClosest(
-            HiZClosest(gs_hiz[lds], gs_hiz[lds + 2]),
-            HiZClosest(gs_hiz[lds + 16], gs_hiz[lds + 18]));
-        gs_hiz[lds] = reduced;
-        if (all((id.xy >> 2) < (uint2)_DstSize.xy >> 2))
-        {
-            _HierarchicalDepth2[id.xy >> 2] = reduced;
-        }
-    }
-    GroupMemoryBarrierWithGroupSync();
-
-    if (_MipWriteCount > 3 && groupThreadId.x == 0 && groupThreadId.y == 0)
-    {
-        float reduced = HiZClosest(
-            HiZClosest(gs_hiz[0], gs_hiz[4]),
-            HiZClosest(gs_hiz[32], gs_hiz[36]));
-        if (all((id.xy >> 3) < (uint2)_DstSize.xy >> 3))
-        {
-            _HierarchicalDepth3[id.xy >> 3] = reduced;
-        }
-    }
+    uint2 size = (uint2)_DstSize.xy;
+    if (_MipWriteCount > 0 && all(id.xy < size))
+        _HierarchicalDepth0[id.xy] = ReduceDepth(id.xy, 0);
+    if (_MipWriteCount > 1 && all(id.xy < max(uint2(1, 1), size >> 1)))
+        _HierarchicalDepth1[id.xy] = ReduceDepth(id.xy, 1);
+    if (_MipWriteCount > 2 && all(id.xy < max(uint2(1, 1), size >> 2)))
+        _HierarchicalDepth2[id.xy] = ReduceDepth(id.xy, 2);
+    if (_MipWriteCount > 3 && all(id.xy < max(uint2(1, 1), size >> 3)))
+        _HierarchicalDepth3[id.xy] = ReduceDepth(id.xy, 3);
 }

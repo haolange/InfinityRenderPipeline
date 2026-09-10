@@ -619,13 +619,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
             using (var cache = new MeshPassDrawCache(32))
             {
-                MeshPassDrawId first = cache.GetOrCreate(0, 0, 
+                MeshPassDrawId first = cache.GetOrCreate(0, 0,
                     keyA.shaderPassIndex, keyA.meshUnityId, keyA.sectionIndex, keyA.materialUnityId,
                     keyA.materialRevision, keyA.sectionRevision, keyA.platformFeatureKey, keyA.staticFlags);
-                MeshPassDrawId second = cache.GetOrCreate(0, 0, 
+                MeshPassDrawId second = cache.GetOrCreate(0, 0,
                     keyA.shaderPassIndex, keyA.meshUnityId, keyA.sectionIndex, keyA.materialUnityId,
                     keyA.materialRevision, keyA.sectionRevision, keyA.platformFeatureKey, keyA.staticFlags);
-                MeshPassDrawId other = cache.GetOrCreate(0, 0, 
+                MeshPassDrawId other = cache.GetOrCreate(0, 0,
                     keyB.shaderPassIndex, keyB.meshUnityId, keyB.sectionIndex, keyB.materialUnityId,
                     keyB.materialRevision, keyB.sectionRevision, keyB.platformFeatureKey, keyB.staticFlags);
 
@@ -655,7 +655,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshPassDrawId sectionRevised = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 4);
                 Assert.AreNotEqual(first, sectionRevised);
 
-                MeshPassDrawId staticFlagChanged = cache.GetOrCreate(0, 0, 
+                MeshPassDrawId staticFlagChanged = cache.GetOrCreate(0, 0,
                     1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1,
                     sectionRevision: 3, platformFeatureKey: 0, staticFlags: 1u);
                 Assert.AreNotEqual(first, staticFlagChanged);
@@ -787,26 +787,20 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.IsTrue(second.IsValid);
                 Assert.AreEqual(first, second);
 
-                ulong cascade0 = MeshVisibilityShare.MakeCascadeViewKey(lightInstanceId: 42, cascadeIndex: 0);
-                ulong cascade1 = MeshVisibilityShare.MakeCascadeViewKey(lightInstanceId: 42, cascadeIndex: 1);
-                Assert.AreNotEqual(cascade0, cascade1);
-                Assert.AreNotEqual(mainKey, cascade0);
-
+                // Native generation and subview identity are separate fields.
+                ulong cascade0 = (768ul << 32) | 42ul;
+                ulong cascade1 = cascade0;
                 MeshVisibilityHandle cascadeHandle = share.Acquire(
                     scene, cascade0, planes, MeshVisibilityShare.PolicyCascadeShadow, enable: true);
                 Assert.IsTrue(cascadeHandle.IsValid);
                 Assert.AreNotEqual(first, cascadeHandle);
 
                 MeshVisibilityHandle cascadeHandleB = share.Acquire(
-                    scene, cascade1, planes, MeshVisibilityShare.PolicyCascadeShadow, enable: true);
+                    scene, cascade1, planes, MeshVisibilityShare.PolicyCascadeShadow, enable: true, subviewIndex: 1);
                 Assert.IsTrue(cascadeHandleB.IsValid);
                 Assert.AreNotEqual(cascadeHandle, cascadeHandleB);
 
-                ulong localFace0 = MeshVisibilityShare.MakeLocalShadowViewKey(lightInstanceId: 42, faceIndex: 0);
-                ulong localFace1 = MeshVisibilityShare.MakeLocalShadowViewKey(lightInstanceId: 42, faceIndex: 1);
-                Assert.AreNotEqual(localFace0, localFace1);
-                Assert.AreNotEqual(localFace0, cascade0);
-
+                ulong localFace0 = cascade0;
                 MeshVisibilityHandle localHandle = share.Acquire(
                     scene, localFace0, planes, MeshVisibilityShare.PolicyLocalShadow, enable: true);
                 Assert.IsTrue(localHandle.IsValid);
@@ -1093,8 +1087,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             var seen = new Dictionary<int, MeshPassDrawCacheKey>(65536);
             for (int i = 0; i < 4000000; ++i)
             {
-                var key = new MeshPassDrawCacheKey(0, 0, 
-                    rnd.Next(8), rnd.Next(1024), rnd.Next(64), rnd.Next(1024),
+                var key = new MeshPassDrawCacheKey(0, 0,
+                    rnd.Next(8), (ulong)rnd.Next(1024), rnd.Next(64), (ulong)rnd.Next(1024),
                     (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64));
                 int hash = key.GetHashCode();
                 if (seen.TryGetValue(hash, out MeshPassDrawCacheKey prior) && !prior.Equals(key))

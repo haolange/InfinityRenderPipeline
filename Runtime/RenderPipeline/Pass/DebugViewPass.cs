@@ -140,8 +140,7 @@ namespace InfinityTech.Rendering.Pipeline
                     RequireTexture(InfinityShaderIDs.MotionBuffer, "MotionBuffer", view, out motionTexture);
                     break;
                 case EDebugView.TAAConfidence:
-                    if (pipelineAsset.enableSuperResolution ||
-                        !m_RGScoper.TryQueryTexture(InfinityShaderIDs.TAAConfidenceBuffer, out optionalTexture))
+                    if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.TAAConfidenceBuffer, out optionalTexture))
                     {
                         kernelName = "DebugViewMissing";
                         bindSet = 4;

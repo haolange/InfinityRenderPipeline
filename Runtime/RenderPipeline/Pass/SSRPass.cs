@@ -21,6 +21,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string HistoryMomentsName = "HistorySSRMoments";
         internal static string HistoryDepthNormalName = "HistorySSRDepthNormal";
 
+        internal static int TraceDistanceID = Shader.PropertyToID("SSR_MaxDistance");
+        internal static int TraceThicknessID = Shader.PropertyToID("SSR_Thickness");
         internal static int SSR_ResolutionID = Shader.PropertyToID("SSR_Resolution");
         internal static int SSR_FilterResolutionID = Shader.PropertyToID("SSR_FilterResolution");
         internal static int SSR_NumRaysID = Shader.PropertyToID("SSR_NumRays");
@@ -35,8 +37,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int Matrix_ProjID = Shader.PropertyToID("Matrix_Proj");
         internal static int Matrix_InvProjID = Shader.PropertyToID("Matrix_InvProj");
         internal static int Matrix_InvViewProjID = Shader.PropertyToID("Matrix_InvViewProj");
-        internal static int Matrix_HitMotionViewProjID = Shader.PropertyToID("Matrix_HitMotionViewProj");
-        internal static int Matrix_HitMotionLastViewProjID = Shader.PropertyToID("Matrix_HitMotionLastViewProj");
         internal static int Matrix_WorldToViewID = Shader.PropertyToID("Matrix_WorldToView");
         internal static int SRV_HiZTextureID = Shader.PropertyToID("SRV_HiZTexture");
         internal static int SRV_HiCTextureID = Shader.PropertyToID("SRV_HiCTexture");
@@ -73,6 +73,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SSRPassData
         {
+            public CaptureStageSnapshot radianceSnapshot, spatialSnapshot;
+            public float traceDistance, traceThickness;
             public int numRays;
             public int numSteps;
             public int numSpatial;
@@ -89,11 +91,11 @@ namespace InfinityTech.Rendering.Pipeline
             public float bilateralNormalWeight;
             public int frameIndex;
             public int2 resolution;
+            public Vector4 depthParameters;
+            public Matrix4x4 historyViewProj, motionViewProj, lastMotionViewProj;
             public Matrix4x4 matrix_Proj;
             public Matrix4x4 matrix_InvProj;
             public Matrix4x4 matrix_InvViewProj;
-            public Matrix4x4 matrix_HitMotionViewProj;
-            public Matrix4x4 matrix_HitMotionLastViewProj;
             public Matrix4x4 matrix_WorldToView;
             public ComputeShader ssrShader;
             public RGTextureRef hiZTexture;
@@ -137,7 +139,10 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsFormat format = GraphicsFormat.R16G16B16A16_SFloat;
 
             RGTextureRef radianceTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRadianceBuffer, ScreenSpaceHistoryUtility.CreateRadianceDescriptor(width, height, SSRPassUtilityData.RadianceName));
-            RGTextureRef hitPdfTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitPDFBuffer, ScreenSpaceHistoryUtility.CreateRadianceDescriptor(width, height, SSRPassUtilityData.HitPDFTextureName));
+            TextureDescriptor hitDescriptor = ScreenSpaceHistoryUtility.CreateRadianceDescriptor(width, height, SSRPassUtilityData.HitPDFTextureName);
+            // Hit UV is geometric data: half precision can move it into another depth texel.
+            hitDescriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
+            RGTextureRef hitPdfTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitPDFBuffer, hitDescriptor);
             RGTextureRef spatialTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRSpatialBuffer, ScreenSpaceHistoryUtility.CreateRadianceDescriptor(width, height, SSRPassUtilityData.SpatialName));
             RGTextureRef temporalTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer, ScreenSpaceHistoryUtility.CreateRadianceDescriptor(width, height, SSRPassUtilityData.TemporalName));
             RGTextureRef momentsTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMomentsBuffer, ScreenSpaceHistoryUtility.CreateMomentsDescriptor(width, height, SSRPassUtilityData.MomentsName));
@@ -174,6 +179,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<SSRPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceReflection)))
             {
                 ref SSRPassData passData = ref passRef.GetPassData<SSRPassData>();
+                passData.traceDistance = ssr.MaxDistance.value;
+                passData.traceThickness = ssr.Thickness.value;
                 passData.numRays = ssr.NumRays.value;
                 passData.numSteps = ssr.NumSteps.value;
                 passData.numSpatial = math.max(1, ssr.SpatialSample.value);
@@ -191,11 +198,13 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bilateralNormalWeight = ssr.BilateralNormalWeight.value;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(width, height);
+                passData.historyViewProj = m_CameraUniform.matrix_LastViewFlipYJitterProj;
+                passData.motionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
+                passData.lastMotionViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
+                passData.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 passData.matrix_Proj = m_CameraUniform.matrix_FlipYJitterProj;
                 passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
-                passData.matrix_HitMotionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
-                passData.matrix_HitMotionLastViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
                 passData.ssrShader = pipelineAsset.ssrShader;
                 passData.hiZTexture = passRef.ReadTexture(hiZTexture);
@@ -209,6 +218,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyDepthNormal = passRef.ReadTexture(historyDepthNormal);
                 passData.hitPdfTexture = passRef.WriteTexture(hitPdfTexture);
                 passData.radianceTexture = passRef.WriteTexture(radianceTexture);
+                passData.radianceSnapshot = PrepareStageSnapshot(passRef, "SSRRadiance", radianceTexture);
+                passData.spatialSnapshot = PrepareStageSnapshot(passRef, "SSRSpatial", spatialTexture);
                 passData.spatialTexture = passRef.WriteTexture(spatialTexture);
                 passData.temporalTexture = passRef.WriteTexture(temporalTexture);
                 passData.momentsTexture = passRef.WriteTexture(momentsTexture);
@@ -226,6 +237,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     ComputeShader shader = passData.ssrShader;
+                    cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("ScreenSpaceDepthParams"), passData.depthParameters);
+                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_HistoryViewProj"), passData.historyViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_MotionViewProj"), passData.motionViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_LastMotionViewProj"), passData.lastMotionViewProj);
                     int width = passData.resolution.x;
                     int height = passData.resolution.y;
                     Vector4 resolution = new Vector4(width, height, 1.0f / width, 1.0f / height);
@@ -234,6 +249,8 @@ namespace InfinityTech.Rendering.Pipeline
 
                     cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_ResolutionID, resolution);
                     cmdEncoder.SetComputeVectorParam(shader, SSRPassUtilityData.SSR_FilterResolutionID, resolution);
+                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.TraceDistanceID, passData.traceDistance);
+                    cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.TraceThicknessID, passData.traceThickness);
                     cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_NumRaysID, passData.numRays);
                     cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_NumStepsID, passData.numSteps);
                     cmdEncoder.SetComputeFloatParam(shader, SSRPassUtilityData.SSR_BRDFBiasID, passData.brdfBias);
@@ -246,8 +263,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_ProjID, passData.matrix_Proj);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_InvProjID, passData.matrix_InvProj);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_InvViewProjID, passData.matrix_InvViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_HitMotionViewProjID, passData.matrix_HitMotionViewProj);
-                    cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_HitMotionLastViewProjID, passData.matrix_HitMotionLastViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, SSRPassUtilityData.Matrix_WorldToViewID, passData.matrix_WorldToView);
 
                     int ray = SSRPassUtilityData.RaytracingKernel;
@@ -262,6 +277,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(shader, ray, groupsX, groupsY, 1);
                     cmdEncoder.EndSample("SSR_RayMarch");
 
+                    passData.radianceSnapshot.Record(cmdEncoder, passData.radianceTexture);
                     RGTextureRef spatialRead = passData.radianceTexture;
                     RGTextureRef spatialWrite = passData.spatialTexture;
                     int spatial = SSRPassUtilityData.SpatialKernel;
@@ -281,6 +297,7 @@ namespace InfinityTech.Rendering.Pipeline
                         spatialWrite = swap;
                     }
                     cmdEncoder.EndSample("SSR_Spatial");
+                    passData.spatialSnapshot.Record(cmdEncoder, spatialRead);
 
                     int temporal = SSRPassUtilityData.TemporalKernel;
                     cmdEncoder.BeginSample("SSR_Temporal");

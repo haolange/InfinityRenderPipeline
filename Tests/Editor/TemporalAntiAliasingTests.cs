@@ -47,13 +47,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Camera camera = go.AddComponent<Camera>();
                 CameraUniform uniform = new CameraUniform();
                 uniform.UpdateCurrFrameData(camera);
-                uniform.UnpateUniformData(camera, true);
+                uniform.Commit();
 
-                Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(false, 10, 11));
+                Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(false, 10, 11, cameraType: CameraType.Game));
                 uniform.UpdateCurrFrameData(camera, forceHistoryReset: false);
                 Assert.IsFalse(uniform.historyReset);
 
-                Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(false, 10, 12));
+                Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(false, 10, 12, cameraType: CameraType.Game));
                 uniform.UpdateCurrFrameData(camera, forceHistoryReset: true);
                 Assert.IsTrue(uniform.historyReset);
                 Assert.AreEqual(0.0f, uniform.jitter.x);
@@ -88,15 +88,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void TaaShader_UsesHistoryNeighborhoodAndResetBlend()
+        public void SceneViewSparseRepaintsDoNotDiscardSuccessfulHistory()
         {
-            string shaderPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/TemporalAntiAliasing/Compute_TemporalAntiAliasing.compute"));
-            Assert.IsTrue(File.Exists(shaderPath), shaderPath);
-            string source = File.ReadAllText(shaderPath);
-            Assert.IsTrue(source.Contains("HistoryDepthConfidence"));
-            Assert.IsTrue(source.Contains("TAA_ResetBlend"));
-            Assert.IsFalse(source.Contains("smoothstep(0.02, 0.1"));
-            Assert.IsTrue(source.Contains("SampleOffsets[n]"));
+            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(false, 10, 120, CameraType.SceneView));
+            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(true, 10, 120, CameraType.SceneView));
         }
     }
 }

@@ -1,224 +1,191 @@
 #pragma kernel Main
-#pragma kernel MainDebug TAA_WRITE_CONFIDENCE
-
-float4 TAA_Resolution;
-float4 TAA_BlendParameter; // x: static, y: dynamic, z: motion amplification, w: temporalScale
-float TAA_Sharpness;
-float TAA_ResetBlend;
-Texture2D SRV_DepthTexture;
-Texture2D SRV_MotionTexture;
-Texture2D SRV_HistoryDepthTexture;
-Texture2D SRV_HistoryColorTexture;
-Texture2D SRV_AliasingColorTexture;
-Texture2D SRV_ReactiveMaskTexture;
-RWTexture2D<float4> UAV_AccmulateColorTexture;
-#if defined(TAA_WRITE_CONFIDENCE)
-RWTexture2D<float> UAV_TAAConfidenceTexture;
-#endif
-
-static const half TONEMAP_EPSILON = 1.0f / 65530.0f;
-static const int2 SampleOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
-static const int2 NeighborOffsets[8] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(1, 1), int2(1, 0), int2(-1, 1), int2(0, 1) };
+#pragma kernel MainDebug TAA_WRITE_DIAGNOSTICS
+#pragma kernel Sharpen TAA_SHARPEN
 
 #include "../../ShaderLibrary/Common.hlsl"
-#include "../../ShaderLibrary/ShaderVariables.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceDepth.hlsl"
 
-float3 ClipAABB(float3 color, float3 aabbMin, float3 aabbMax)
-{
-    float3 center = 0.5 * (aabbMax + aabbMin);
-    float3 extents = 0.5 * (aabbMax - aabbMin) + 1e-5;
-    float3 offset = color - center;
-    float3 ts = abs(offset / extents);
-    float t = max3(ts.x, ts.y, ts.z);
-    return t > 1.0 ? center + offset / t : color;
-}
-
-#if 1 //defined(UNITY_REVERSED_Z)
-    #define COMPARE_DEPTH(a, b) step(b, a)
-#else
-    #define COMPARE_DEPTH(a, b) step(a, b)
+float4 TAA_Resolution;
+float4 TAA_JitterUV; // current xy, previous zw, in sampled framebuffer UV.
+float TAA_ResetBlend;
+float TAA_Sharpness;
+Texture2D<float4> SRV_AliasingColorTexture;
+Texture2D<float4> SRV_HistoryColorTexture;
+Texture2D<float> SRV_HistoryDepthTexture;
+Texture2D<float2> SRV_MotionTexture;
+Texture2D<float4> SRV_MotionMetadata;
+Texture2D<float> SRV_ReactiveMaskTexture;
+RWTexture2D<float4> UAV_AccumulateColorTexture;
+RWTexture2D<float> UAV_TemporalDepthTexture;
+#if defined(TAA_WRITE_DIAGNOSTICS)
+RWTexture2D<float4> UAV_TAADiagnostics;
+RWTexture2D<float4> UAV_TAAReprojection;
 #endif
 
-float3 Tonemap(float3 fRgb)
+float3 TaaCompress(float3 rgb)
 {
-    return fRgb / (max(max(0.f, fRgb.r), max(fRgb.g, fRgb.b)) + 1.f).xxx;
+    rgb = max(rgb, 0);
+    return rgb / (1 + dot(rgb, float3(0.2126, 0.7152, 0.0722)));
 }
-
-float3 InverseTonemap(float3 fRgb)
+float3 TaaExpand(float3 color)
 {
-    return fRgb / max(TONEMAP_EPSILON, 1.f - max(fRgb.r, max(fRgb.g, fRgb.b))).xxx;
+    color = max(YCoCg2RGB(color), 0);
+    return min(color / max(1.0 / 65504, 1 - dot(color, float3(0.2126, 0.7152, 0.0722))), 65504);
 }
-
-float2 GetClosestFragment(float2 uv, float currDepth)
+int2 TaaClampPixel(int2 pixel)
 {
-    float neighborhood[8];
-    [unroll]
-    for(uint i = 0; i < 8; ++i) 
-    {
-        neighborhood[i] = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0, NeighborOffsets[i]).r;
-    }
-
-    float3 result = float3(0, 0, currDepth);
-
-    [unroll]
-    for(uint j = 0; j < 8; ++j) 
-    {
-        result = lerp(result, float3(NeighborOffsets[j], neighborhood[j]), COMPARE_DEPTH(neighborhood[j], result.z));
-    }
-
-    return (uv + result.xy * TAA_Resolution.zw);
+    return clamp(pixel, 0, int2(TAA_Resolution.xy) - 1);
 }
-
-float HistoryDepthConfidence(float2 reprojUV, float currLinear)
+float3 TaaClip(float3 value, float3 low, float3 high)
 {
-    if (any(reprojUV < 0.0) || any(reprojUV > 1.0))
-    {
-        return 0.0;
-    }
-
-    float histMin = 1e20;
-    float histMax = 0.0;
-    [unroll]
-    for (uint n = 0; n < 9; ++n)
-    {
-        float histDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, reprojUV, 0, SampleOffsets[n]).r;
-        float histLinear = LinearEyeDepth(histDepth, _ZBufferParams);
-        histMin = min(histMin, histLinear);
-        histMax = max(histMax, histLinear);
-    }
-
-    float expand = max(abs(histMax - histMin), 1e-4) * 0.5 + max(currLinear, 1e-4) * 0.01;
-    return (currLinear < histMin - expand || currLinear > histMax + expand) ? 0.0 : 1.0;
+    float3 center = (low + high) * 0.5;
+    float3 extent = max((high - low) * 0.5, 1e-5);
+    float3 delta = value - center;
+    return center + delta / max(1, max3(abs(delta.x / extent.x), abs(delta.y / extent.y), abs(delta.z / extent.z)));
 }
-
+bool TaaDepthMatches(float expected, float actual)
+{
+    bool expectedFar = ScreenSpaceIsFarDepth(expected);
+    bool actualFar = ScreenSpaceIsFarDepth(actual);
+    if (expectedFar || actualFar) return expectedFar && actualFar;
+    float a = ScreenSpaceLinearEyeDepth(expected);
+    float b = ScreenSpaceLinearEyeDepth(actual);
+    return abs(a - b) <= max(0.002, 0.005 * a);
+}
+float4 TaaCubicWeights(float f)
+{
+    float f2 = f * f, f3 = f2 * f;
+    return float4(-0.5*f + f2 - 0.5*f3, 1 - 2.5*f2 + 1.5*f3,
+        0.5*f + 2*f2 - 1.5*f3, -0.5*f2 + 0.5*f3);
+}
+// Depth history preserves raster samples; color history is a stable-grid resolve.
+// These two lookups must not share the jitter offset.
+float TaaDepthCoverage(float2 depthUV, float expectedDepth)
+{
+    if (any(depthUV < 0) || any(depthUV >= 1)) return 0;
+    float2 texel = depthUV * TAA_Resolution.xy - 0.5;
+    int2 base = (int2)floor(texel);
+    float2 phase = frac(texel);
+    float coverage = 0;
+    [unroll] for (int y = 0; y < 2; y++)
+    [unroll] for (int x = 0; x < 2; x++)
+    {
+        int2 pixel = base + int2(x, y);
+        if (any(pixel < 0) || any(pixel >= int2(TAA_Resolution.xy))) continue;
+        float weight = (x == 0 ? 1 - phase.x : phase.x) * (y == 0 ? 1 - phase.y : phase.y);
+        if (TaaDepthMatches(expectedDepth, SRV_HistoryDepthTexture.Load(int3(pixel, 0)))) coverage += weight;
+    }
+    return saturate(coverage);
+}
+bool TaaReadHistory(float2 colorUV, float2 depthUV, float expectedDepth, out float4 history, out float coverage)
+{
+    history = 0; coverage = 0;
+    if (any(colorUV < 0) || any(colorUV >= 1)) return false;
+    coverage = TaaDepthCoverage(depthUV, expectedDepth);
+    // A matching footprint is a geometric witness, not a temporal blend probability.
+    // Multiplying sample age by bilinear phase repeatedly resets static silhouette pixels.
+    if (coverage <= 0) return false;
+    float2 texel = colorUV * TAA_Resolution.xy - 0.5;
+    int2 base = (int2)floor(texel);
+    float2 phase = frac(texel);
+    float4 wx = TaaCubicWeights(phase.x), wy = TaaCubicWeights(phase.y);
+    float3 low = 1e20, high = -1e20;
+    float sum = 0;
+    [unroll] for (int y = 0; y < 4; y++)
+    [unroll] for (int x = 0; x < 4; x++)
+    {
+        float weight = wx[x] * wy[y];
+        if (abs(weight) < 1e-8) continue;
+        int2 pixel = base + int2(x - 1, y - 1);
+        if (any(pixel < 0) || any(pixel >= int2(TAA_Resolution.xy))) continue;
+        float4 value = SRV_HistoryColorTexture.Load(int3(pixel, 0));
+        if (!all(isfinite(value)) || value.a < 1) continue;
+        low = min(low, value.rgb); high = max(high, value.rgb);
+        history += value * weight; sum += weight;
+    }
+    if (sum <= 0.05) return false;
+    history /= sum;
+    history.rgb = RGB2YCoCg(TaaCompress(clamp(history.rgb, low, high)));
+    history.a = clamp(history.a, 1, 32);
+    return true;
+}
 void TemporalAntiAlias(uint3 id)
 {
-    float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
-
-    float currDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
-    float2 velocity = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, GetClosestFragment(screenUV, currDepth), 0).xy;
-    float2 reprojUV = screenUV - velocity;
-    float3 lastColor = Texture2DSampleBicubic(SRV_HistoryColorTexture, Global_bilinear_clamp_sampler, reprojUV, TAA_Resolution.xy, TAA_Resolution.zw).rgb;
-    lastColor = RGB2YCoCg(Tonemap(lastColor));
-
-    float currLinear = LinearEyeDepth(currDepth, _ZBufferParams);
-    float confidence = HistoryDepthConfidence(reprojUV, currLinear);
-
-    float3 sampleColors[9];
-
-    [unroll]
-    for(uint i = 0; i < 9; ++i) 
+    if (any(id.xy >= (uint2)TAA_Resolution.xy)) return;
+    int2 pixel = id.xy;
+    float2 uv = (pixel + 0.5) * TAA_Resolution.zw;
+    float2 velocity = SRV_MotionTexture.Load(int3(pixel, 0));
+    float4 metadata = SRV_MotionMetadata.Load(int3(pixel, 0));
+    float2 historyUV = uv - velocity;
+    float2 historyDepthUV = historyUV + TAA_JitterUV.zw - TAA_JitterUV.xy;
+    float3 currentLinear = max(SRV_AliasingColorTexture.Load(int3(pixel, 0)).rgb, 0);
+    float3 current = RGB2YCoCg(TaaCompress(currentLinear));
+    float3 linearLow = currentLinear, linearHigh = currentLinear;
+    float3 mean = 0, moment = 0, neighborhoodLow = 1e20, neighborhoodHigh = -1e20;
+    [unroll] for (int y = -1; y <= 1; y++)
+    [unroll] for (int x = -1; x <= 1; x++)
     {
-        sampleColors[i] = SRV_AliasingColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0, SampleOffsets[i]).rgb;
-        sampleColors[i] = RGB2YCoCg(Tonemap(sampleColors[i]));
+        float3 sampleLinear = max(SRV_AliasingColorTexture.Load(int3(TaaClampPixel(pixel + int2(x, y)), 0)).rgb, 0);
+        linearLow = min(linearLow, sampleLinear); linearHigh = max(linearHigh, sampleLinear);
+        float3 value = RGB2YCoCg(TaaCompress(sampleLinear));
+        mean += value; moment += value * value;
+        neighborhoodLow = min(neighborhoodLow, value); neighborhoodHigh = max(neighborhoodHigh, value);
     }
-
-    float3 currColor = sampleColors[4];
-
-    float3 m1 = 0; 
-    float3 m2 = 0;
-
-    [unroll]
-    for(uint x = 0; x < 9; ++x) 
+    mean /= 9;
+    float3 deviation = sqrt(max(moment / 9 - mean * mean, 0));
+    float3 low = max(neighborhoodLow, min(current, mean - 1.25 * deviation));
+    float3 high = min(neighborhoodHigh, max(current, mean + 1.25 * deviation));
+    float4 history = 0;
+    float coverage = 0, weight = 0, count = 1;
+    // 1 reset, 2 invalid motion, 3 offscreen, 4 depth/footprint rejection.
+    float reason = TAA_ResetBlend <= 0 ? 1 : metadata.z <= 0 ? 2 : any(historyUV < 0) || any(historyUV >= 1) ? 3 : 4;
+    bool valid = TAA_ResetBlend > 0 && metadata.z > 0 && all(isfinite(velocity));
+    if (valid) valid = TaaReadHistory(historyUV, historyDepthUV, metadata.x, history, coverage);
+    if (valid)
     {
-        m1 += sampleColors[x];
-        m2 += sampleColors[x] * sampleColors[x];
+        float pixelsMoved = length(velocity * TAA_Resolution.xy);
+        float limit = lerp(32, 4, saturate(pixelsMoved / 8));
+        float samples = min(history.a, limit);
+        float reactive = saturate(SRV_ReactiveMaskTexture.Load(int3(pixel, 0)));
+        weight = samples / (samples + 1) * TAA_ResetBlend * (1 - reactive);
+        history.rgb = TaaClip(history.rgb, low, high);
+        count = min(32, 1 + samples * TAA_ResetBlend * (1 - reactive));
+        reason = reactive >= 1 ? 5 : 0;
     }
-
-    float3 mean = m1 / 9;
-    float3 stddev = sqrt((m2 / 9) - pow2(mean));
-
-    float3 minColor = mean - TAA_BlendParameter.w * stddev;
-    float3 maxColor = mean + TAA_BlendParameter.w * stddev;
-
-    minColor = min(minColor, currColor);
-    maxColor = max(maxColor, currColor);
-
-    lastColor = ClipAABB(lastColor, minColor, maxColor);
-
-    float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, length(velocity) * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
-    weight *= TAA_ResetBlend;
-    weight *= confidence;
-    float reactive = SRV_ReactiveMaskTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
-    weight *= 1.0 - saturate(reactive);
-
-    float3 blended = lerp(currColor, lastColor, weight);
-
-    float crossLuma = (sampleColors[1].x + sampleColors[3].x + sampleColors[5].x + sampleColors[7].x) * 0.25;
-    blended.x += (blended.x - crossLuma) * TAA_Sharpness;
-    blended.x = clamp(blended.x, minColor.x, maxColor.x);
-
-    UAV_AccmulateColorTexture[id.xy] = float4(clamp(InverseTonemap(YCoCg2RGB(blended)), 0.0, 65472), 1.0);
-#if defined(TAA_WRITE_CONFIDENCE)
-    UAV_TAAConfidenceTexture[id.xy] = confidence;
+    float3 result = valid ? lerp(currentLinear, clamp(TaaExpand(history.rgb), linearLow, linearHigh), weight) : currentLinear;
+    UAV_AccumulateColorTexture[pixel] = float4(min(result, 65504), count);
+    UAV_TemporalDepthTexture[pixel] = metadata.y;
+#if defined(TAA_WRITE_DIAGNOSTICS)
+    UAV_TAADiagnostics[pixel] = float4(valid ? coverage : 0, weight, reason, count);
+    UAV_TAAReprojection[pixel] = float4(historyUV, historyDepthUV);
 #endif
 }
-
-[numthreads(16, 16, 1)]
-void Main(uint3 id : SV_DispatchThreadID)
+[numthreads(8, 8, 1)]
+void Main(uint3 id : SV_DispatchThreadID) { TemporalAntiAlias(id); }
+[numthreads(8, 8, 1)]
+void MainDebug(uint3 id : SV_DispatchThreadID) { TemporalAntiAlias(id); }
+[numthreads(8, 8, 1)]
+void Sharpen(uint3 id : SV_DispatchThreadID)
 {
-    TemporalAntiAlias(id);
+    if (any(id.xy >= (uint2)TAA_Resolution.xy)) return;
+    int2 pixel = id.xy;
+    const float3 luminanceWeights = float3(0.2126, 0.7152, 0.0722);
+    float3 rgb = max(SRV_AliasingColorTexture.Load(int3(pixel, 0)).rgb, 0);
+    float luminance = dot(rgb, luminanceWeights);
+    float center = luminance / (1 + luminance);
+    float average = 0, low = center, high = center;
+    const int2 offsets[4] = {int2(-1,0), int2(1,0), int2(0,-1), int2(0,1)};
+    [unroll] for (int i = 0; i < 4; i++)
+    {
+        float3 neighbor = max(SRV_AliasingColorTexture.Load(int3(TaaClampPixel(pixel + offsets[i]), 0)).rgb, 0);
+        float value = dot(neighbor, luminanceWeights);
+        value /= 1 + value;
+        average += value * 0.25; low = min(low, value); high = max(high, value);
+    }
+    float target = clamp(center + (center - average) * TAA_Sharpness, low, high);
+    float targetLuminance = target / max(1 - target, 1.0 / 65504);
+    // Rescale radiance instead of adding an equal RGB offset: chromaticity and
+    // zero channels remain unchanged even beside high-contrast colored edges.
+    float scale = min(targetLuminance / max(luminance, 1e-6), 65504 / max(max3(rgb.r, rgb.g, rgb.b), 1e-6));
+    UAV_AccumulateColorTexture[pixel] = float4(rgb * scale, 1);
 }
-
-[numthreads(16, 16, 1)]
-void MainDebug(uint3 id : SV_DispatchThreadID)
-{
-    TemporalAntiAlias(id);
-}
-
-/*float2 GetClosestFragment(float2 uv)
-{
-    const float4 neighborhood = float4(
-        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(-1, -1)).r,
-        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(1, -1)).r,
-        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(-1, 1)).r,
-        SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0,  int2(1, 1)).r
-    );
-
-    float3 result = float3(0.0, 0.0, SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0).r);
-    result = lerp(result, float3(-1.0, -1.0, neighborhood.x), COMPARE_DEPTH(neighborhood.x, result.z));
-    result = lerp(result, float3( 1.0, -1.0, neighborhood.y), COMPARE_DEPTH(neighborhood.y, result.z));
-    result = lerp(result, float3(-1.0,  1.0, neighborhood.z), COMPARE_DEPTH(neighborhood.z, result.z));
-    result = lerp(result, float3( 1.0,  1.0, neighborhood.w), COMPARE_DEPTH(neighborhood.w, result.z));
-
-    return (uv + result.xy * TAA_Resolution.zw);
-}
-
-[numthreads(16, 16, 1)]
-void Main (uint3 id : SV_DispatchThreadID)
-{
-    float2 screenUV = (id.xy + 0.5) * TAA_Resolution.zw;
-    float2 unJitterUV = screenUV - TAAJitter.xy;
-
-    float3 color = SRV_AliasingColorTexture.SampleLevel(Global_bilinear_clamp_sampler, unJitterUV, 0).rgb;
-    float2 motion = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, GetClosestFragment(screenUV), 0).xy;
-
-    float3 topLeft = SRV_AliasingColorTexture.SampleLevel(Global_bilinear_clamp_sampler, unJitterUV, 0, int2(-1, -1)).rgb;
-    float3 bottomRight = SRV_AliasingColorTexture.SampleLevel(Global_bilinear_clamp_sampler, unJitterUV, 0, int2(1, 1)).rgb;
-
-    float3 corners = 4.0 * (topLeft + bottomRight) - 2.0 * color;
-
-    // Sharpen output
-    color += (color - (corners * 0.166667)) * 2.718282 * 0.25;
-    color = clamp(color, 0.0, 65536);
-
-    // Tonemap color and history samples
-    float3 average = (corners + color) * 0.142857;
-
-    float3 history = SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV - motion, 0).rgb;
-
-    float motionLength = length(motion);
-    float2 luma = float2(ColorLuminance(average), ColorLuminance(color));
-    //float nudge = 4.0 * abs(luma.x - luma.y);
-    float nudge = lerp(4.0, 0.25, saturate(motionLength * 100.0)) * abs(luma.x - luma.y);
-
-    float3 minimum = min(bottomRight, topLeft) - nudge;
-    float3 maximum = max(topLeft, bottomRight) + nudge;
-
-    // Clip history samples
-    history = ClipAABB(history, minimum, maximum);
-
-    // Blend method
-    float weight = clamp(lerp(TAA_BlendParameter.x, TAA_BlendParameter.y, motionLength * TAA_BlendParameter.z), TAA_BlendParameter.y, TAA_BlendParameter.x);
-    UAV_AccmulateColorTexture[id.xy] = float4(clamp(lerp(color, history, weight), 0, 65472), 1.0);
-}*/

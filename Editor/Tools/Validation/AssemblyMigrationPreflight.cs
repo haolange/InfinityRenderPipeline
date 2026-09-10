@@ -841,9 +841,9 @@ namespace InfinityTech.Rendering.Editor
             string json = includeJson ? EditorJsonUtility.ToJson(value) : string.Empty;
             json = Regex.Replace(json, "\"instanceID\":(-?\\d+)", match =>
             {
-                int instance = int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                ulong instance = ulong.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
                 if (instance == 0) return "\"object\":null";
-                Object referenced = EditorUtility.EntityIdToObject((EntityId)instance);
+                Object referenced = EditorUtility.EntityIdToObject(EntityId.FromULong(instance));
                 if (referenced == null) throw new InvalidDataException("Unresolved JSON object reference on " + key);
                 return "\"object\":\"" + StableKey(referenced) + "\"";
             });

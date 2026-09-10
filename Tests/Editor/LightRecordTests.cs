@@ -28,12 +28,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 light.type = LightType.Directional;
                 light.color = new Color(0.5f, 0.25f, 0.1f, 1.0f);
                 light.intensity = 4.0f;
+                light.shadowStrength = 0.35f;
                 LightComponent ext = go.AddComponent<LightComponent>();
 
                 FLightRecord record = FLightRecordPack.FromUnityLight(light, ext, ELightType.Directional, 0);
                 Assert.AreEqual(2.0f, record.radiance.x, 1e-4f);
                 Assert.AreEqual(1.0f, record.radiance.w, 1e-4f);
                 Assert.AreEqual((int)ELightType.Directional, record.lightType);
+                Assert.AreEqual(0.35f, record.shape.z, 1e-5f);
             }
             finally
             {

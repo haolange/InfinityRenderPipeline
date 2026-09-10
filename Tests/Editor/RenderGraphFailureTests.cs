@@ -41,6 +41,60 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             CollectionAssert.AreEquivalent(new[] { color.handle, depth.handle }, pass.resourceWriteLists[(int)ERGResourceType.Texture]);
         }
 
+        [Test]
+        public void FallbackMrtClear_PreservesLoadedAttachmentAndDistinctClearAlpha()
+        {
+            var graph = new RGBuilder("AttachmentClearContract");
+            var commands = new CommandBuffer();
+            var textures = new RenderTexture[3];
+            var handles = new RTHandle[3];
+            var pool = new RGObjectPool();
+            var depth = new RenderTexture(4, 4, 32, RenderTextureFormat.Depth);
+            RTHandle depthHandle = null;
+            try
+            {
+                var pass = new RGRasterPass<ConsumerPassData>();
+                Color retained = new Color(0.25f, 0.5f, 0.75f, 0.625f);
+                Color cleared = new Color(0.75f, 0.25f, 0.5f, 0.125f);
+                for (int i = 0; i < textures.Length; i++)
+                {
+                    textures[i] = new RenderTexture(4, 4, 0, RenderTextureFormat.ARGBFloat);
+                    textures[i].Create(); handles[i] = RTHandles.Alloc(textures[i]);
+                    commands.SetRenderTarget(textures[i]);
+                    commands.ClearRenderTarget(false, true, retained);
+                    var texture = graph.ImportTexture(handles[i]);
+                    // Imported descriptor is the same authority used by native attachments.
+                    var factory = typeof(RGBuilder).GetField("m_Resources", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(graph);
+                    var resource = (RGTexture)typeof(RGResourceFactory).GetMethod("GetTextureResource", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                        .Invoke(factory, new object[] { texture.handle });
+                    resource.descriptor = new TextureDescriptor(4, 4) { clearColor = i == 0 ? cleared : Color.clear };
+                    pass.SetColorAttachment(texture, i, i == 1 ? RenderBufferLoadAction.Load : RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                }
+                depth.Create(); depthHandle = RTHandles.Alloc(depth);
+                pass.SetDepthStencilAttachment(graph.ImportTexture(depthHandle), RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                var context = new RGContext { cmdBuffer = commands, objectPool = pool };
+                var info = new RGPassCompileInfo { pass = pass };
+                typeof(RGBuilder).GetMethod("SetRenderTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    .Invoke(graph, new object[] { context, info });
+                Graphics.ExecuteCommandBuffer(commands);
+                for (int i = 0; i < textures.Length; i++)
+                {
+                    var request = AsyncGPUReadback.Request(textures[i]); request.WaitForCompletion();
+                    Assert.IsFalse(request.hasError);
+                    Color expected = i == 1 ? retained : i == 0 ? cleared : Color.clear;
+                    foreach (Color pixel in request.GetData<Color>()) Assert.AreEqual(expected, pixel);
+                }
+            }
+            finally
+            {
+                graph.Dispose(); commands.Dispose(); pool.ReleaseAllTempAlloc();
+                foreach (var handle in handles) handle?.Release();
+                depthHandle?.Release();
+                foreach (var texture in textures) if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
+                UnityEngine.Object.DestroyImmediate(depth);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         static void InjectFailure(Exception error) => throw error;
 

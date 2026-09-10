@@ -20,6 +20,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string HistoryMomentsName = "HistorySSGIMoments";
         internal static string HistoryDepthNormalName = "HistorySSGIDepthNormal";
 
+        internal static int TraceDistanceID = Shader.PropertyToID("SSGi_MaxDistance");
+        internal static int TraceThicknessID = Shader.PropertyToID("SSGi_Thickness");
         internal static int SSGi_TraceResolutionID = Shader.PropertyToID("SSGi_TraceResolution");
         internal static int SSGi_FilterResolutionID = Shader.PropertyToID("SSGi_FilterResolution");
         internal static int SSGi_NumRaysID = Shader.PropertyToID("SSGi_NumRays");
@@ -67,6 +69,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SSGIPassData
         {
+            public CaptureStageSnapshot radianceSnapshot, spatialSnapshot;
+            public float traceDistance, traceThickness;
             public int numRays;
             public int numSteps;
             public int numSpatial;
@@ -81,6 +85,8 @@ namespace InfinityTech.Rendering.Pipeline
             public float bilateralNormalWeight;
             public int frameIndex;
             public int2 resolution;
+            public Vector4 depthParameters;
+            public Matrix4x4 historyViewProj, motionViewProj, lastMotionViewProj;
             public Matrix4x4 matrix_Proj;
             public Matrix4x4 matrix_InvProj;
             public Matrix4x4 matrix_ViewProj;
@@ -162,6 +168,8 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<SSGIPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceIndirect)))
             {
                 ref SSGIPassData passData = ref passRef.GetPassData<SSGIPassData>();
+                passData.traceDistance = ssgi.MaxDistance.value;
+                passData.traceThickness = ssgi.Thickness.value;
                 passData.numRays = ssgi.NumRays.value;
                 passData.numSteps = ssgi.NumSteps.value;
                 passData.numSpatial = math.max(1, ssgi.SpatialSample.value);
@@ -177,6 +185,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bilateralNormalWeight = ssgi.BilateralNormalWeight.value;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(width, height);
+                passData.historyViewProj = m_CameraUniform.matrix_LastViewFlipYJitterProj;
+                passData.motionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
+                passData.lastMotionViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
+                passData.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 passData.matrix_Proj = m_CameraUniform.matrix_FlipYJitterProj;
                 passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
                 passData.matrix_ViewProj = m_CameraUniform.matrix_ViewFlipYJitterProj;
@@ -193,6 +205,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyMoments = passRef.ReadTexture(historyMoments);
                 passData.historyDepthNormal = passRef.ReadTexture(historyDepthNormal);
                 passData.radianceTexture = passRef.WriteTexture(radianceTexture);
+                passData.radianceSnapshot = PrepareStageSnapshot(passRef, "SSGIRadiance", radianceTexture);
+                passData.spatialSnapshot = PrepareStageSnapshot(passRef, "SSGISpatial", spatialTexture);
                 passData.spatialTexture = passRef.WriteTexture(spatialTexture);
                 passData.temporalTexture = passRef.WriteTexture(temporalTexture);
                 passData.momentsTexture = passRef.WriteTexture(momentsTexture);
@@ -210,6 +224,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     ComputeShader shader = passData.ssgiShader;
+                    cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("ScreenSpaceDepthParams"), passData.depthParameters);
+                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_HistoryViewProj"), passData.historyViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_MotionViewProj"), passData.motionViewProj);
+                    cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_LastMotionViewProj"), passData.lastMotionViewProj);
                     int width = passData.resolution.x;
                     int height = passData.resolution.y;
                     Vector4 resolution = new Vector4(width, height, 1.0f / width, 1.0f / height);
@@ -218,6 +236,8 @@ namespace InfinityTech.Rendering.Pipeline
 
                     cmdEncoder.SetComputeVectorParam(shader, SSGIPassUtilityData.SSGi_TraceResolutionID, resolution);
                     cmdEncoder.SetComputeVectorParam(shader, SSGIPassUtilityData.SSGi_FilterResolutionID, resolution);
+                    cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.TraceDistanceID, passData.traceDistance);
+                    cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.TraceThicknessID, passData.traceThickness);
                     cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGi_NumRaysID, passData.numRays);
                     cmdEncoder.SetComputeIntParam(shader, SSGIPassUtilityData.SSGi_NumStepsID, passData.numSteps);
                     cmdEncoder.SetComputeFloatParam(shader, SSGIPassUtilityData.SSGi_IntensityID, passData.intensity);
@@ -242,6 +262,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(shader, ray, groupsX, groupsY, 1);
                     cmdEncoder.EndSample("SSGI_RayMarch");
 
+                    passData.radianceSnapshot.Record(cmdEncoder, passData.radianceTexture);
                     RGTextureRef spatialRead = passData.radianceTexture;
                     RGTextureRef spatialWrite = passData.spatialTexture;
                     int spatial = SSGIPassUtilityData.SpatialKernel;
@@ -259,6 +280,7 @@ namespace InfinityTech.Rendering.Pipeline
                         spatialWrite = swap;
                     }
                     cmdEncoder.EndSample("SSGI_Spatial");
+                    passData.spatialSnapshot.Record(cmdEncoder, spatialRead);
 
                     int temporal = SSGIPassUtilityData.TemporalKernel;
                     cmdEncoder.BeginSample("SSGI_Temporal");

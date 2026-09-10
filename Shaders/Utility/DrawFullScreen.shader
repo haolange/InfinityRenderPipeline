@@ -62,11 +62,12 @@
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
+            #include "../ShaderLibrary/ScreenSpaceDepth.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			
 			float4 _ScaleBais;
 			Texture2D _MainTex; SamplerState sampler_MainTex;
-			//Texture2D<uint4> _MainTex; SamplerState sampler_MainTex;
 
 			struct Attributes
 			{
@@ -92,15 +93,7 @@
 				float2 uv = i.uv.xy;
 				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0);
 
-				/*FGBufferData GBufferData;
-				FReconstructInput ReconstructInput;
-				ReconstructInput.PixelCoord = uv * _ScreenParams.xy;
-				ReconstructInput.CoCgR = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(1, 0)).rg;
-				ReconstructInput.CoCgL = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(-1, 0)).rg;
-				ReconstructInput.CoCgT = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(0, 1)).rg;
-				ReconstructInput.CoCgB = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0, int2(0, -1)).rg;
-				DecodeGBuffer(ReconstructInput, _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0), 1, GBufferData);
-				return float4(GBufferData.BaseColor, 1);*/
+
 			}
 			ENDHLSL
 		}
@@ -124,6 +117,8 @@
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
+            #include "../ShaderLibrary/ScreenSpaceDepth.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 			Texture2D _MainTex;
@@ -147,21 +142,41 @@
 				return o;
 			}
 
-			float4 frag(Varyings i) : SV_Target
-			{
-				float2 uv = i.uv.xy;
-				float sceneDepth = _MainTex.SampleLevel(Global_point_clamp_sampler, uv, 0).r;
+            MotionOutput frag(Varyings i)
+            {
+                float2 uv = i.vertex.xy / _ScreenParams.xy;
+                float depth = _MainTex.Load(int3(int2(i.vertex.xy), 0)).r;
+                float4 world = mul(Matrix_InvViewFlipYJitterProj, float4(uv * 2 - 1, depth, 1));
+                bool sky = ScreenSpaceIsFarDepth(depth);
+                if (sky)
+                {
+                    float4 view = mul(Matrix_InvFlipYJitterProj, float4(uv * 2 - 1, depth, 1));
+                    float3 direction = Matrix_FlipYProj[3][3] != 0 ? float3(0, 0, -1) : normalize(view.xyz);
+                    world = mul(Matrix_ViewToWorld, float4(direction, 0));
+                }
+                else world /= world.w;
+                float4 current = mul(Matrix_ViewFlipYProj, world);
+                float4 previous = mul(Matrix_LastViewFlipYProj, world);
+                MotionOutput output;
+                if (sky && Matrix_FlipYProj[3][3] != 0)
+                {
+                    // Parallel sky rays have no screen-space parallax. Translation and
+                    // roll preserve the ray; a changed viewing direction has no matching
+                    // ray anywhere in the previous orthographic framebuffer.
+                    float3 currentAxis = normalize(Matrix_ViewFlipYProj[2].xyz);
+                    float3 previousAxis = normalize(Matrix_LastViewFlipYProj[2].xyz);
+                    float3 directionDelta = currentAxis - previousAxis;
+                    output.velocity = 0;
+                    output.metadata = float4(depth, depth,
+                        dot(directionDelta, directionDelta) <= 1e-10 ? 1 : 0, 0);
+                    return output;
+                }
+                output.velocity = SurfaceVelocity(current, previous);
+                output.metadata = SurfaceMotionMetadata(current, previous, depth);
+                if (sky) output.metadata = float4(depth, depth, previous.w > 0 ? 1 : 0, 0);
+                return output;
+            }
 
-				float4 worldPos = mul(Matrix_InvViewJitterProj, float4(uv * 2 - 1, sceneDepth, 1));
-				worldPos.xyz /= worldPos.w;
-
-				float4 currClip = mul(Matrix_ViewProj, float4(worldPos.xyz, 1));
-				float2 currUV = (currClip.xy / currClip.w) * 0.5 + 0.5;
-				float4 lastClip = mul(Matrix_LastViewProj, float4(worldPos.xyz, 1));
-				float2 lastUV = (lastClip.xy / lastClip.w) * 0.5 + 0.5;
-
-				return float4(currUV - lastUV, 0, 1);		
-			}
 			ENDHLSL
 		}
     }

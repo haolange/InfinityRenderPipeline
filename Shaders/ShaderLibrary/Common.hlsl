@@ -386,7 +386,7 @@ float4 Texture2DSampleBicubic(Texture2D Tex, SamplerState Sampler, float2 UV, fl
 	FCatmullRomSamples Samples = GetBicubic2DCatmullRomSamples(UV, Size, InvSize);
 
 	float4 OutColor = 0;
-    
+
     [unroll]
 	for (uint i = 0; i < Samples.Count; i++)
 	{
@@ -484,7 +484,7 @@ float3 YCoCg2RGB(float3 YCoCg)
     float R = Y + Co - Cg;
     float G = Y + Cg;
     float B = Y - Co - Cg;
-    
+
     return float3(R, G, B);
 }
 
@@ -539,8 +539,8 @@ float CharlieL(float x, float r)
 void ConvertAnisotropyToRoughness(float Roughness, float Anisotropy, out float RoughnessT, out float RoughnessB) {
 	Roughness *= Roughness;
     float AnisoAspect = sqrt(1 - 0.9 * Anisotropy);
-    RoughnessT = Roughness / AnisoAspect; 
-    RoughnessB = Roughness * AnisoAspect; 
+    RoughnessT = Roughness / AnisoAspect;
+    RoughnessB = Roughness * AnisoAspect;
 }
 
 float3 ComputeGrainNormal(float3 grainDir, float3 V) {
@@ -570,13 +570,7 @@ float3 GetViewSpacePos(float3 NDCPos, float4x4 matrix_InvProj)
     return viewPos.xyz / viewPos.w;
 }
 
-float3 GetViewSpacePosInvZ(float3 screenPos, float4x4 matrix_InvProj)
-{
-    float4 viewPos = mul(matrix_InvProj, float4(screenPos, 1));
-	viewPos.xyz /= viewPos.w;;
-	viewPos.z = -viewPos.z;
-    return viewPos.xyz;
-}
+
 
 float3 GetWorldSpacePos(float3 NDCPos, float4x4 matrix_InvViewProj)
 {
@@ -602,7 +596,7 @@ float2 GetMotionVector(float sceneDepth, float2 screenUV, float4x4 matrix_InvVie
 
     float2 CurUV = CurNDC.xy * 0.5 + 0.5;
     float2 LastUV = LastNDC.xy * 0.5 + 0.5;
-    
+
     return CurUV - LastUV;
 }
 

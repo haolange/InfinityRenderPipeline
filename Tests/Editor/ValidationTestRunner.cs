@@ -22,14 +22,17 @@ namespace InfinityTech.Rendering.Tests
         }
 
         [MenuItem("Infinity/Validation/Tests/Run EditMode With XML")]
-        static void Run()
+        static void Run() => RunValidation(null, null);
+
+        public static string RunValidation(string outputDirectory, string testFilter)
         {
             if (s_Current != null || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
                 throw new InvalidOperationException("Use an idle EditMode editor with no active validation test run.");
             var runner = new ValidationTestRunner();
+            runner.m_Directory = outputDirectory == null ? Path.GetFullPath(Path.Combine(Application.dataPath, "../../InfinityRP-Validation",
+                "editor-tests-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N"))) : Path.GetFullPath(outputDirectory);
+            if (Directory.Exists(runner.m_Directory)) throw new ArgumentException("Test evidence directory must be new.");
             s_Current = runner;
-            runner.m_Directory = Path.GetFullPath(Path.Combine(Application.dataPath, "../../InfinityRP-Validation",
-                "editor-tests-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N")));
             try
             {
                 Directory.CreateDirectory(runner.m_Directory);
@@ -43,7 +46,8 @@ namespace InfinityTech.Rendering.Tests
                 runner.m_RunGuid = runner.m_Api.Execute(new ExecutionSettings(new Filter
                 {
                     testMode = TestMode.EditMode,
-                    assemblyNames = new[] { "Unity.RenderPipelines.Infinity.Tests" }
+                    assemblyNames = new[] { "Unity.RenderPipelines.Infinity.Tests" },
+                    groupNames = string.IsNullOrWhiteSpace(testFilter) ? null : new[] { System.Text.RegularExpressions.Regex.Escape(testFilter) }
                 }));
                 runner.m_Evidence.runGuid = runner.m_RunGuid;
                 runner.Save();
@@ -57,16 +61,19 @@ namespace InfinityTech.Rendering.Tests
                 finally { runner.Cleanup(); }
                 throw;
             }
+            return runner.m_Directory;
         }
 
         [MenuItem("Infinity/Validation/Tests/Cancel Active Run")]
-        static void Cancel()
+        public static void Cancel()
         {
             if (s_Current == null) return;
             s_Current.m_Evidence.status = "CancellationRequested";
             try { s_Current.Save(); }
             finally { TestRunnerApi.CancelTestRun(s_Current.m_RunGuid); }
         }
+
+        public static object Status() => new { active = s_Current != null, evidence = s_Current?.m_Directory, run = s_Current?.m_RunGuid };
 
         public void RunStarted(ITestAdaptor testsToRun)
         {
@@ -92,6 +99,12 @@ namespace InfinityTech.Rendering.Tests
                 m_Evidence.inconclusive = result.InconclusiveCount;
                 m_Evidence.seconds = result.Duration;
                 m_Evidence.finishedUtc = DateTime.UtcNow.ToString("O");
+                if (m_Evidence.discovered == 0)
+                {
+                    m_Evidence.status = "Failed";
+                    m_Evidence.result = "NoTestsMatched";
+                    m_Evidence.error = "The requested filter matched no tests; an empty run is not acceptance.";
+                }
                 Save();
                 Debug.Log("[InfinityRP] EditMode results " + result.ResultState + ": " + m_Directory);
             }

@@ -155,7 +155,7 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
     {
         L = light.directionSpot.xyz;
-        shadow = SampleCascadeShadow(SRV_CascadeShadowMap, samplePos, viewDepth);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, samplePos, viewDepth, light.shadowType) : 1);
     }
     else
     {
@@ -174,7 +174,7 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
     float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, L.y, VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
     float phase = CloudPhase(dot(rayDir, L));
-    shadow = VolumeShadowWeight(light, shadow);
+    shadow = VolumeShadowWeight(light, lerp(1, shadow, light.shape.z));
     float3 radiance = VolumeLightRadiance(light) * sunTransmittance * lightEnergy * phase * shadow * att;
     float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
     return (radiance + ambient) * density;

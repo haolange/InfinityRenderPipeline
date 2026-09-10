@@ -2,16 +2,19 @@
 #define _LightmapInclude
 
 #include "ShaderVariables.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 
 
 TEXTURE2D(unity_Lightmap); SAMPLER(samplerunity_Lightmap);
+TEXTURE2D(unity_LightmapInd);
+TEXTURE2D(unity_ShadowMask); SAMPLER(samplerunity_ShadowMask);
+int _InfinityHasProbes;
 
 
 half3 SampleSH(half3 normalWS)
 {
-    // LPPV is not supported in Ligthweight Pipeline
     real4 SHCoefficients[7];
     SHCoefficients[0] = unity_SHAr;
     SHCoefficients[1] = unity_SHAg;
@@ -55,27 +58,32 @@ half3 SampleSHPixel(half3 L2Term, half3 normalWS)
 
 half3 SampleLightmap(float2 lightmapUV, half3 normalWS)
 {
-#ifdef UNITY_LIGHTMAP_FULL_HDR
-    bool encodedLightmap = false;
-#else
-    bool encodedLightmap = true;
-#endif
-
-    half4 decodeInstructions = half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0h, 0.0h);
-
-    // The shader library sample lightmap functions transform the lightmap uv coords to apply bias and scale.
-    // However, universal pipeline already transformed those coords in vertex. We pass half4(1, 1, 0, 0) and
-    // the compiler will optimize the transform away.
+    // Native vertex stage already applies the renderer UV scale and offset.
     half4 transformCoords = half4(1, 1, 0, 0);
 
 #ifdef DIRLIGHTMAP_COMBINED
     return SampleDirectionalLightmap(TEXTURE2D_ARGS(unity_Lightmap, samplerunity_Lightmap),
         TEXTURE2D_ARGS(unity_LightmapInd, samplerunity_Lightmap),
-        lightmapUV, transformCoords, normalWS, encodedLightmap, decodeInstructions);
+        lightmapUV, transformCoords, normalWS, true);
 #elif defined(LIGHTMAP_ON)
-    return SampleSingleLightmap(TEXTURE2D_ARGS(unity_Lightmap, samplerunity_Lightmap), lightmapUV, transformCoords, encodedLightmap, decodeInstructions);
+    return SampleSingleLightmap(TEXTURE2D_ARGS(unity_Lightmap, samplerunity_Lightmap), lightmapUV, transformCoords, true);
 #else
     return half3(0.0, 0.0, 0.0);
+#endif
+}
+
+// RGB is scene-linear baked/probe diffuse; alpha identifies an authored GI source.
+void SampleBakedLighting(float2 uv, float3 normalWS, out float4 diffuse, out float4 mask)
+{
+    mask = 1;
+#if defined(LIGHTMAP_ON)
+    diffuse = float4(SampleLightmap(uv, normalWS), 1);
+#if defined(SHADOWS_SHADOWMASK)
+    mask = unity_ShadowMask.Sample(samplerunity_ShadowMask, uv);
+#endif
+#else
+    diffuse = float4(_InfinityHasProbes != 0 ? SampleSH(normalWS) : 0, _InfinityHasProbes != 0 ? 1 : 0);
+    if (_InfinityHasProbes != 0) mask = unity_ProbesOcclusion;
 #endif
 }
 

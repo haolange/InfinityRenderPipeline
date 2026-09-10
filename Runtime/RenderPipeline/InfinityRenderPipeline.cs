@@ -95,6 +95,12 @@ namespace InfinityTech.Rendering.Pipeline
         public Matrix4x4 matrix_LastViewJitterProj;
         public Matrix4x4 matrix_LastViewFlipYJitterProj;
         public bool historyReset;
+        public Vector2 previousJitterUV;
+        private Vector3 m_PreparedPosition;
+        private Quaternion m_PreparedRotation;
+        private Matrix4x4 m_PreparedProjection, m_LastProjection;
+        private int m_CommittedFrames;
+        private bool m_HasPreparedView;
 
         private bool m_HasLastView;
         private Vector3 m_LastCameraPosition;
@@ -112,7 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 float positionDelta = Vector3.Distance(camera.transform.position, m_LastCameraPosition);
                 float angleDelta = Quaternion.Angle(camera.transform.rotation, m_LastCameraRotation);
-                historyReset = positionDelta > HistoryCutPosition || angleDelta > HistoryCutAngle;
+                historyReset = positionDelta > HistoryCutPosition || angleDelta > HistoryCutAngle || camera.projectionMatrix != m_LastProjection;
             }
 
             if (forceHistoryReset)
@@ -120,12 +126,17 @@ namespace InfinityTech.Rendering.Pipeline
                 historyReset = true;
             }
 
+            m_HasPreparedView = true;
+            m_PreparedPosition = camera.transform.position;
+            m_PreparedRotation = camera.transform.rotation;
+            m_PreparedProjection = camera.projectionMatrix;
+            frameIndex = m_CommittedFrames % 8;
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             bool applyJitter = camera.cameraType == CameraType.Preview || !historyReset;
-            TemporalAntiAliasingGenerator.CaculateProjectionMatrix(camera, 0.75f, ref frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: applyJitter);
+            TemporalJitter.CalculateProjectionMatrix(camera, 0.75f, frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: applyJitter);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
@@ -138,34 +149,35 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_InvViewJitterProj = matrix_ViewJitterProj.inverse;
             matrix_ViewFlipYJitterProj = matrix_FlipYJitterProj * matrix_WorldToView;
             matrix_InvViewFlipYJitterProj = matrix_ViewFlipYJitterProj.inverse;
+            if (historyReset)
+            {
+                // No previous camera sample exists after a reset. Seed the upload without
+                // committing last-camera state; successful frame completion still owns that.
+                lastJitter = jitter; lastFrameIndex = frameIndex;
+                previousJitterUV = InfinityRenderPipeline.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
+                matrix_LastViewProj = matrix_ViewProj;
+                matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
+                matrix_LastViewJitterProj = matrix_ViewJitterProj;
+                matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
+            }
         }
 
-        private void UpdateLastFrameData(Camera camera)
+        internal void Commit()
         {
+            if (!m_HasPreparedView) return;
+            m_HasPreparedView = false;
             lastJitter = jitter;
             lastFrameIndex = frameIndex;
             matrix_LastViewProj = matrix_ViewProj;
             matrix_LastViewFlipYProj = matrix_ViewFlipYProj;
             matrix_LastViewJitterProj = matrix_ViewJitterProj;
             matrix_LastViewFlipYJitterProj = matrix_ViewFlipYJitterProj;
-            m_LastCameraPosition = camera.transform.position;
-            m_LastCameraRotation = camera.transform.rotation;
+            m_LastCameraPosition = m_PreparedPosition;
+            m_LastCameraRotation = m_PreparedRotation;
+            m_LastProjection = m_PreparedProjection;
+            previousJitterUV = InfinityRenderPipeline.ProjectionJitterUV(matrix_FlipYJitterProj, matrix_FlipYProj);
+            m_CommittedFrames++;
             m_HasLastView = true;
-        }
-
-        public void UnpateUniformData(Camera camera, in bool bLastFrame = false)
-        {
-            UnpateUniformData(camera, bLastFrame, forceHistoryReset: false);
-        }
-
-        public void UnpateUniformData(Camera camera, in bool bLastFrame, bool forceHistoryReset)
-        {
-            if(!bLastFrame) 
-            {
-                UpdateCurrFrameData(camera, forceHistoryReset);
-            } else {
-                UpdateLastFrameData(camera);
-            }
         }
 
         public void SetUniformData(CommandBuffer cmdBuffer, Camera camera)
@@ -225,11 +237,11 @@ namespace InfinityTech.Rendering.Pipeline
         private AtmosphereSharedCache m_AtmosphereSharedCache;
 
         internal RenderContext renderContext;
-        internal InfinityRenderPipelineAsset pipelineAsset 
-        { 
-            get 
-            { 
-                return (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline; 
+        internal InfinityRenderPipelineAsset pipelineAsset
+        {
+            get
+            {
+                return (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
             }
         }
 
@@ -273,13 +285,15 @@ namespace InfinityTech.Rendering.Pipeline
                 RenderCaptureService.Tick();
                 RenderFaultValidation.Tick(cameras);
                 PostEffectValidation.Tick(cameras);
+                VisualLightingValidation.Tick();
+                CameraMotionValidation.Tick();
 
                 InvokeProxyUpdate();
                 m_MeshSceneResidency.Update();
                 CommandBuffer cmdBuffer = CommandBufferPool.Get();
                 cmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.None);
                 cmdBuffer.Clear();
-                
+
                 Exception firstCameraException = null;
                 bool contextBegan = false;
                 bool submitted = false;
@@ -303,12 +317,15 @@ namespace InfinityTech.Rendering.Pipeline
                         CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId, out bool newlyCreated);
                         int previousLastSeen = frameState.lastSeenFrame;
                         bool forceHistoryReset = frameState.requiresHistoryReset || (camera.cameraType != CameraType.Preview
-                            && CameraFrameState.ShouldForceHistoryReset(newlyCreated, previousLastSeen, Time.frameCount));
+                            && CameraFrameState.ShouldForceHistoryReset(newlyCreated, previousLastSeen, Time.frameCount, camera.cameraType));
                         frameState.lastSeenFrame = Time.frameCount;
+                        frameState.camera = camera;
+                        frameState.preparedThisRender = true;
                         frameState.cameraType = camera.cameraType;
                         frameState.executeSucceeded = false;
                         if (frameState.pixelWidth != camera.pixelWidth || frameState.pixelHeight != camera.pixelHeight)
                         {
+                            forceHistoryReset = true;
                             frameState.descriptorGeneration++;
                             frameState.pixelWidth = camera.pixelWidth;
                             frameState.pixelHeight = camera.pixelHeight;
@@ -327,7 +344,7 @@ namespace InfinityTech.Rendering.Pipeline
                         VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
 
                         // CameraRendering
-                        cameraUniform.UnpateUniformData(camera, false, forceHistoryReset);
+                        cameraUniform.UpdateCurrFrameData(camera, forceHistoryReset);
                         m_CameraUniform = cameraUniform;
                         m_ActiveFrameState = frameState;
                         RenderCaptureService.current?.PrepareCamera(camera, frameState, pipelineAsset);
@@ -338,12 +355,16 @@ namespace InfinityTech.Rendering.Pipeline
                             try
                             {
                             ConfigureFrameFeatures(frameState);
+                            if (ShouldRecordFeature(EFrameFeature.Motion)) frameState.nativeMotionHistory.Prepare();
+                            // Declare camera outputs before Unity camera setup and culling.
+                            if (ShouldRecordFeature(EFrameFeature.Motion))
+                                camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
                             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.SetupCamera)))
                             {
                                 #if UNITY_EDITOR
-                                if (isEditView) 
-                                { 
-                                    ScriptableRenderContext.EmitWorldGeometryForSceneView(camera); 
+                                if (isEditView)
+                                {
+                                    ScriptableRenderContext.EmitWorldGeometryForSceneView(camera);
                                 }
                                 #endif
 
@@ -384,11 +405,11 @@ namespace InfinityTech.Rendering.Pipeline
                                     {
                                         TerrainComponent terrain = terrains[j];
                                         terrain.ProcessLOD(camera.transform.position, matrix_Proj);
-                                    
+
                                         #if UNITY_EDITOR
-                                        if (Handles.ShouldRenderGizmos()) 
-                                        { 
-                                            terrain.DrawBounds(true); 
+                                        if (Handles.ShouldRenderGizmos())
+                                        {
+                                            terrain.DrawBounds(true);
                                         }
                                         #endif
                                     }
@@ -401,7 +422,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.cascadeMapResolution = pipelineAsset.cascadeShadowMapResolution;
                                     shadowSettings.localMapResolution = pipelineAsset.localShadowMapResolution;
                                     shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
-                                    shadowSettings.cascadeRatios = new Vector3(0.067f, 0.2f, 0.467f);
+                                    shadowSettings.cascadeRatios = ShadowAllocator.DefaultCascadeRatios;
                                     shadowSettings.maxLocalLights = 16;
                                     renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings);
 
@@ -586,6 +607,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             finally
                             {
+                                frameState.nativeMotionHistory.RestoreBindings();
                                 // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
                                 m_RGBuilder.ClearRecordedGraph();
                                 m_ShadowCasterSplits.Clear();
@@ -597,7 +619,7 @@ namespace InfinityTech.Rendering.Pipeline
                         }
 
                         m_RGScoper.Clear();
-                        cameraUniform.UnpateUniformData(camera, true);
+
                     }
 
                 }
@@ -667,7 +689,7 @@ namespace InfinityTech.Rendering.Pipeline
             foreach (CameraFrameState state in states.Values)
             {
                 if (submitted && state.executeSucceeded) state.CommitFrame();
-                else if (state.lastSeenFrame == frame || !submitted) state.RollbackFrame();
+                else if (state.preparedThisRender) state.RollbackFrame();
             }
         }
 
@@ -714,7 +736,7 @@ namespace InfinityTech.Rendering.Pipeline
                 mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly | SupportedRenderingFeatures.LightmapMixedBakeModes.Shadowmask,
                 lightmapBakeTypes = LightmapBakeType.Baked | LightmapBakeType.Mixed | LightmapBakeType.Realtime,
                 lightmapsModes = LightmapsMode.NonDirectional | LightmapsMode.CombinedDirectional,
-                lightProbeProxyVolumes = true,
+                lightProbeProxyVolumes = false,
                 motionVectors = true,
                 receiveShadows = true,
                 reflectionProbes = true,
@@ -722,7 +744,7 @@ namespace InfinityTech.Rendering.Pipeline
                 overridesFog = true,
                 overridesOtherLightingSettings = true,
                 editableMaterialRenderQueue = true,
-                enlighten = true,
+                enlighten = false,
                 overridesLODBias = true,
                 overridesMaximumLODLevel = true
             };
@@ -778,6 +800,11 @@ namespace InfinityTech.Rendering.Pipeline
                     InvokeProxyUpdateRuntime();
                 #endif
 
+                // EventUpdate emits transform tasks after registration was drained.
+                // Apply those poses before residency upload and per-view history snapshots.
+                FGraphics.ProcessTasks(renderContext);
+                FGraphics.ClearTasks();
+
                 // After proxy EventUpdate (Dynamic may MarkDirty); drain applies SyncFromSnapshot same frame.
                 renderContext.DrainDirtyMeshes();
             }
@@ -806,7 +833,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             renderContext.InvokeWorldDynamicMeshUpdate();
         }
-        
+
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
@@ -874,7 +901,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_CameraStateRecycleIds.Clear();
             foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
             {
-                if (CameraFrameState.ShouldRecycle(pair.Value.lastSeenFrame, frameCount, pair.Value.cameraType))
+                if (pair.Value.camera == null || CameraFrameState.ShouldRecycle(pair.Value.lastSeenFrame, frameCount, pair.Value.cameraType))
                 {
                     m_CameraStateRecycleIds.Add(pair.Key);
                 }

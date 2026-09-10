@@ -1,5 +1,7 @@
 #ifndef _OcclusionCommon_
 #define _OcclusionCommon_
+#include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
+float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
 
 //#define float half
 //#define float2 half2
@@ -8,15 +10,14 @@
 //#define float3x3 half3x3
 //#define float4x4 half4x4
 //#define float4x3 half4x3
-#define PI 3.1415926
 #define Inv_PI 0.3183091
 #define Two_PI 6.2831852
 #define Half_PI 1.5707963
 #define Inv_Two_PI 0.15915494
 
 cbuffer CBV_OcclusionUnifrom
-{ 
-    int NumRay; 
+{
+    int NumRay;
     int NumStep;
     float Power;
     float Radius;
@@ -30,13 +31,14 @@ cbuffer CBV_OcclusionUnifrom
     float4 Resolution;
     float4 UpsampleSize;
     float4x4 Matrix_Proj;
-    float4x4 Matrix_InvProj; 
-    float4x4 Matrix_ViewProj; 
-    float4x4 Matrix_InvViewProj; 
-    float4x4 Matrix_ViewToWorld; 
+    float4x4 Matrix_InvProj;
+    float4x4 Matrix_ViewProj;
+    float4x4 Matrix_InvViewProj;
+    float4x4 Matrix_ViewToWorld;
     float4x4 Matrix_WorldToView;
 };
 
+Texture2D SRV_HalfResDepthTexture, SRV_HalfResNormalTexture;
 Texture2D SRV_DepthTexture, SRV_NormalTexture, SRV_OcclusionTexture, SRV_HistoryTexture, SRV_HistoryDepthTexture, SRV_MotionTexture;
 SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
 
@@ -231,6 +233,13 @@ float3 GetViewSpaceNormal(float3 normal, float4x4 matrix_WorldToView)
     return normalize(viewNormal);
 }
 
+float2 HalfResSourceUV(float2 uv)
+{
+    uint2 pixel = (uint2)clamp(floor(uv * Resolution.xy), 0, Resolution.xy - 1);
+    uint offset = (uint)round(SRV_NormalTexture.Load(int3(pixel, 0)).a * 8);
+    return (pixel * 2 + uint2(offset % 3, offset / 3) + 0.5) * UpsampleSize.zw;
+}
+
 float3 GetScreenSpacePos(float2 uv, float depth)
 {
     return float3(uv * 2 - 1, depth);
@@ -248,13 +257,7 @@ float3 GetViewSpacePos(float3 screenPos, float4x4 matrix_InvProj)
     return viewPos.xyz / viewPos.w;
 }
 
-float3 GetViewSpacePosInvZ(float3 screenPos, float4x4 matrix_InvProj)
-{
-    float4 viewPos = mul(matrix_InvProj, float4(screenPos, 1));
-	viewPos.xyz /= viewPos.w;;
-	viewPos.z = -viewPos.z;
-    return viewPos.xyz;
-}
+
 
 float3 GetViewDir(float3 worldPos, float3 viewPivot)
 {

@@ -97,10 +97,8 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     }
 
     float3 color = SRV_OptionalTexture[id.xy].rgb;
-    if (DV_Mode == 4 || DV_Mode == 8)
-    {
-        color = color.r.xxx;
-    }
+    if (DV_Mode == 4) color = color.r.xxx;
+    else if (DV_Mode == 8) color = color.g.xxx; // Final TAA history weight; R is geometric coverage.
 
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
 }

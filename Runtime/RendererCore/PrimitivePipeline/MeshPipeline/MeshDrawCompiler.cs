@@ -76,9 +76,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 case EMeshSortSemantic.PassPriority:
                     return EncodeSigned(draw.priority);
                 case EMeshSortSemantic.Material:
-                    return HashInt(draw.materialUnityId);
+                    return HashInt(draw.materialUnityId.GetHashCode());
                 case EMeshSortSemantic.Mesh:
-                    return HashInt(draw.meshUnityId);
+                    return HashInt(draw.meshUnityId.GetHashCode());
                 case EMeshSortSemantic.Section:
                     return EncodeUnsigned(draw.sectionIndex);
                 case EMeshSortSemantic.Distance:
@@ -224,7 +224,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     continue;
                 }
 
-                var grouping = new MeshGroupingKey(draw.meshUnityId, draw.sectionIndex, draw.materialUnityId, shaderPassIndex);
+                var grouping = new MeshGroupingKey(draw.meshUnityId, draw.sectionIndex, draw.materialUnityId, shaderPassIndex, instance.bakedLighting.TextureSet);
                 visibleDraws.Add(new VisibleMeshDraw
                 {
                     grouping = grouping,
@@ -271,6 +271,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             MeshPassDrawId lastPassDrawId = MeshPassDrawId.Invalid;
             MeshGroupingKey lastGrouping = default;
+            int lastBakedTextureSet = -1;
             bool hasLast = false;
             bool lastUsedPassDrawId = false;
 
@@ -297,6 +298,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                     lastUsedPassDrawId = false;
                 }
 
+                int bakedTextureSet = visible.grouping.bakedTextureSet;
+                newGroup |= bakedTextureSet != lastBakedTextureSet;
+                lastBakedTextureSet = bakedTextureSet;
                 if (newGroup)
                 {
                     hasLast = true;
@@ -304,7 +308,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         draw.meshUnityId,
                         draw.sectionIndex,
                         draw.materialUnityId,
-                        new int2(0, i)));
+                        new int2(0, i), bakedTextureSet));
                 }
 
                 MeshDrawCommand command = drawCommands[drawCommands.Length - 1];

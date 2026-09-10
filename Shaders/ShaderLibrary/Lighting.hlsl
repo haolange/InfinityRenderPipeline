@@ -18,7 +18,7 @@ struct FLightRecord
     float4 radiance;
     float4 positionRange;
     float4 directionSpot;
-    float4 shape;
+    float4 shape; // x/y: shape parameters, z: native shadow strength.
     float4 axisX;
     float4 axisY;
     float4 shadowAtlasRect;
@@ -30,7 +30,7 @@ struct FLightRecord
     int shadowSliceCount;
     int shadowType;
     int visibleLightIndex;
-    int padding;
+    int bakedOcclusionChannel;
 };
 
 struct FLightBounds
@@ -55,7 +55,7 @@ StructuredBuffer<uint> SRV_ZBinLightList;
 
 float3 LightRadiance(FLightRecord light)
 {
-    return light.radiance.rgb;
+    return (light.flags & 16) != 0 ? 0 : light.radiance.rgb;
 }
 
 float3 VolumeLightRadiance(FLightRecord light)

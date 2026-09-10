@@ -14,6 +14,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public string lightModeTag;
         public float3 viewPosition;
         public ulong viewKey;
+        internal UnityEngine.ComputeBuffer previousTransforms;
     }
 
     public struct MeshDrawBuild : IDisposable
@@ -98,17 +99,19 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct MeshDrawCommand
     {
-        public int meshUnityId;
+        public int bakedTextureSet;
+        public ulong meshUnityId;
         public int sectionIndex;
-        public int materialUnityId;
+        public ulong materialUnityId;
         public int2 countOffset;
 
-        public MeshDrawCommand(int meshUnityId, int sectionIndex, int materialUnityId, int2 countOffset)
+        public MeshDrawCommand(ulong meshUnityId, int sectionIndex, ulong materialUnityId, int2 countOffset, int bakedTextureSet = 0)
         {
             this.meshUnityId = meshUnityId;
             this.sectionIndex = sectionIndex;
             this.materialUnityId = materialUnityId;
             this.countOffset = countOffset;
+            this.bakedTextureSet = bakedTextureSet;
         }
     }
 }

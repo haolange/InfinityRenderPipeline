@@ -45,6 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
         CopyHistoryOcclusionDepth,
         ComputeSuperResolution,
         ComputeAntiAliasing,
+        ComputeTemporalSharpen,
         CopyHistoryAntiAliasing,
         CopyHistoryDepth,
         CopyHistorySuperResolution,
@@ -84,6 +85,10 @@ namespace InfinityTech.Rendering.Pipeline
 
     public static class InfinityShaderIDs
     {
+        public static readonly int BakedDiffuseBuffer = Shader.PropertyToID("BakedDiffuseBuffer");
+        public static readonly int BakedOcclusionBuffer = Shader.PropertyToID("BakedOcclusionBuffer");
+        public static readonly int IndirectDiffuseBuffer = Shader.PropertyToID("IndirectDiffuseBuffer");
+        public static readonly int IndirectSpecularBuffer = Shader.PropertyToID("IndirectSpecularBuffer");
         public static int DepthBuffer = Shader.PropertyToID("_DepthTexture");
         public static int HiZBuffer = Shader.PropertyToID("_HiZTexture");
         public static int HalfResDepthBuffer = Shader.PropertyToID("_HalfResDepthTexture");
@@ -152,6 +157,10 @@ namespace InfinityTech.Rendering.Pipeline
         public static int TranslucentDepthBuffer = Shader.PropertyToID("_TranslucentDepthTexture");
         public static int ColorPyramidBuffer = Shader.PropertyToID("_ColorPyramidTexture");
         public static int SuperResolutionBuffer = Shader.PropertyToID("_SuperResolutionTexture");
+        public static int TAAAccumulationBuffer = Shader.PropertyToID("_TAAAccumulationBuffer");
+        public static int TAADepthBuffer = Shader.PropertyToID("_TAADepthBuffer");
+        public static int TAAReprojectionBuffer = Shader.PropertyToID("_TAAReprojectionBuffer");
+        public static int MotionMetadataBuffer = Shader.PropertyToID("_MotionMetadataBuffer");
         public static int AntiAliasingBuffer = Shader.PropertyToID("_AntiAliasingBuffer");
         public static int TAAConfidenceBuffer = Shader.PropertyToID("_TAAConfidenceTexture");
         public static int PostProcessBuffer = Shader.PropertyToID("_PostProcessTexture");
@@ -164,6 +173,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static int InstanceIndexOffset = Shader.PropertyToID("instanceIndexOffset");
         public static int InstanceIndexBuffer = Shader.PropertyToID("instanceIndexBuffer");
         public static int TransformBuffer = Shader.PropertyToID("transformBuffer");
+        internal static int NativePreviousVertices = Shader.PropertyToID("SRV_NativePreviousVertices");
         public static int PreviousTransformBuffer = Shader.PropertyToID("previousTransformBuffer");
         public static int RenderingLayerBuffer = Shader.PropertyToID("renderingLayerBuffer");
     }

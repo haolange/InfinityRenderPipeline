@@ -1,0 +1,22 @@
+{
+  "name": "Unity.RenderPipelines.Infinity.Cli.Editor",
+  "references": [
+    "Unity.RenderPipelines.Infinity.Runtime",
+    "Unity.RenderPipelines.Infinity.Editor",
+    "Unity.Pipeline",
+    "Unity.Pipeline.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "defineConstraints": [
+    "INFINITY_UNITY_CLI"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.unity.pipeline",
+      "expression": "0.6.0-exp.1",
+      "define": "INFINITY_UNITY_CLI"
+    }
+  ]
+}

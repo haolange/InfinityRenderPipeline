@@ -8,6 +8,8 @@ namespace InfinityTech.Rendering.PostProcess
     public class ScreenSpaceReflection : VolumeComponent
     {
         [Header("Tracing")]
+        public MinFloatParameter MaxDistance = new MinFloatParameter(50f, 0.01f);
+        public MinFloatParameter Thickness = new MinFloatParameter(0.1f, 0.001f);
         public ClampedIntParameter NumRays = new ClampedIntParameter(2, 1, 12);
         public ClampedIntParameter NumSteps = new ClampedIntParameter(8, 8, 64);
         public ClampedFloatParameter BrdfBias = new ClampedFloatParameter(0.7f, 0.0f, 1.0f);

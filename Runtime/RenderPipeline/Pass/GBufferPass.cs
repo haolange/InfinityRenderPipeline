@@ -15,6 +15,13 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string TextureBName = "GBufferTextureB";
         internal static string TextureCName = "GBufferTextureC";
         internal static string LightingTextureName = "LightingTexture";
+        internal static readonly GlobalKeyword DirectionalLightmapKeyword = GlobalKeyword.Create("DIRLIGHTMAP_COMBINED");
+        internal static readonly GlobalKeyword ShadowmaskKeyword = GlobalKeyword.Create("SHADOWS_SHADOWMASK");
+        internal static bool HasShadowmask()
+        {
+            foreach (var map in LightmapSettings.lightmaps) if (map.shadowMask != null) return true;
+            return false;
+        }
         internal static readonly GlobalKeyword DBufferKeyword = GlobalKeyword.Create("_DBUFFER");
     }
 
@@ -23,6 +30,8 @@ namespace InfinityTech.Rendering.Pipeline
         struct GBufferPassData
         {
             public bool bindDBuffer;
+            public int hasProbes;
+            public bool directionalLightmap, shadowmask;
             public RendererList rendererList;
             public RGDrawListRef draws;
             public RGTextureRef dBufferA;
@@ -88,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
                 rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
                 rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.None;
+                rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RendererList gbufferRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
@@ -100,13 +109,20 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 filter = gbufferFilter,
                 sort = BuiltinMeshesPasses.GBuffer.defaultSort,
-                backendPolicy = EMeshBackendPolicy.Auto,
+                backendPolicy = RenderCaptureService.BackendFor(camera),
                 shaderPassIndex = BuiltinMeshesPasses.GBuffer.shaderPassIndex,
                 lightModeTag = BuiltinMeshesPasses.GBuffer.lightModeTag,
                 viewPosition = camera.transform.position,
                 viewKey = UnityEntityId.ToUInt64(camera)
             };
             RGDrawListRef gbufferDraws = m_RGBuilder.DeclareDrawList(m_GBufferMeshProcessor, gbufferRequest, visibility, m_VisibilityShare);
+
+            var bakedDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
+            { name = "BakedDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, clearColor = Color.clear };
+            RGTextureRef bakedDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedDiffuseBuffer, bakedDescriptor);
+            bakedDescriptor.name = "BakedOcclusion";
+            bakedDescriptor.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
+            RGTextureRef bakedOcclusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedOcclusionBuffer, bakedDescriptor);
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGBuffer)))
             {
@@ -115,11 +131,16 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(gbufferTextureB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(gbufferTextureC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(lightingTexture, 3, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.SetColorAttachment(bakedDiffuse, 4, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
+                passRef.SetColorAttachment(bakedOcclusion, 5, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref GBufferPassData passData = ref passRef.GetPassData<GBufferPassData>();
                 {
                     passData.bindDBuffer = bindDBuffer;
+                    passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
+                    passData.shadowmask = GBufferPassUtilityData.HasShadowmask();
+                    passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.rendererList = gbufferRendererList;
                     passData.draws = passRef.UseDrawList(gbufferDraws);
                     if (bindDBuffer)
@@ -132,6 +153,9 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
+                    cmdEncoder.SetGlobalInt(Shader.PropertyToID("_InfinityHasProbes"), passData.hasProbes);
+                    cmdEncoder.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, passData.directionalLightmap);
+                    cmdEncoder.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, passData.shadowmask);
                     if (passData.bindDBuffer)
                     {
                         cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DBufferA, passData.dBufferA);

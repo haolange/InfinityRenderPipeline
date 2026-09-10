@@ -14,7 +14,12 @@ namespace InfinityTech.Rendering.Pipeline
     internal class CameraFrameState : IDisposable
     {
         public int cameraId;
+        public Camera camera;
+        public bool preparedThisRender;
+        public long successfulRenderCount;
         public CameraUniform cameraUniform;
+        internal readonly NativeViewMotionHistory nativeMotionHistory = new NativeViewMotionHistory();
+        internal readonly MeshViewMotionHistory meshMotionHistory = new MeshViewMotionHistory();
         public VolumeStack volumeStack;
         public HistoryCache historyCache;
         public FrameFeatureSet features;
@@ -35,24 +40,16 @@ namespace InfinityTech.Rendering.Pipeline
         public int ssrValidFrames;
         public int ssgiValidFrames;
         public int gtaoValidFrames;
-        public int taaValidFrames;
 
         internal const int GameUnseenFramesToRecycle = 8;
-        internal const int SceneViewUnseenFramesToRecycle = 120;
-
-        internal static int UnseenFramesToRecycle(CameraType cameraType)
-        {
-            return cameraType == CameraType.SceneView ? SceneViewUnseenFramesToRecycle : GameUnseenFramesToRecycle;
-        }
-
         internal static bool ShouldRecycle(int lastSeenFrame, int frameCount, CameraType cameraType)
         {
-            return frameCount - lastSeenFrame > UnseenFramesToRecycle(cameraType);
+            return cameraType != CameraType.SceneView && frameCount - lastSeenFrame > GameUnseenFramesToRecycle;
         }
 
-        internal static bool ShouldForceHistoryReset(bool newlyCreated, int lastSeenFrame, int frameCount)
+        internal static bool ShouldForceHistoryReset(bool newlyCreated, int lastSeenFrame, int frameCount, CameraType cameraType)
         {
-            return newlyCreated || (frameCount - lastSeenFrame > 1);
+            return newlyCreated || (cameraType != CameraType.SceneView && frameCount - lastSeenFrame > 1);
         }
 
         public CameraFrameState(int cameraId)
@@ -73,17 +70,25 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal void RollbackFrame()
         {
+            preparedThisRender = false;
             historyCache.RollbackPending();
+            meshMotionHistory.Rollback();
+            nativeMotionHistory.Rollback();
             atmosphereViewCache.RollbackPending();
             combineLutCache.RollbackPending();
             executeSucceeded = false;
             requiresHistoryReset = true;
-            ssrValidFrames = ssgiValidFrames = gtaoValidFrames = taaValidFrames = 0;
+            ssrValidFrames = ssgiValidFrames = gtaoValidFrames = 0;
         }
 
         internal void CommitFrame()
         {
             if (!executeSucceeded) return;
+            cameraUniform.Commit();
+            meshMotionHistory.Commit();
+            nativeMotionHistory.Commit();
+            successfulRenderCount++;
+            preparedThisRender = false;
             historyCache.CommitFrame();
             atmosphereViewCache.CommitFrame();
             combineLutCache.CommitFrame();
@@ -93,6 +98,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Dispose()
         {
+            meshMotionHistory.Clear();
+            nativeMotionHistory.Clear();
             if (volumeStack != null)
             {
                 VolumeManager.instance.DestroyStack(volumeStack);

@@ -34,6 +34,9 @@ Shader "Hidden/InfinityPipeline/GBufferContractRaster"
 
             float3 FixtureAlbedo(int fixture, uint2 pixel, uint2 resolution)
             {
+                if (fixture == 6) return float3(0.4, 0.1, 0.03);
+                if (fixture == 4) return float3(0.03, 0.02, 0.01);
+                if (fixture == 5) return float3(0.8, 0.05, 0.02);
                 if (fixture == 0)
                 {
                     return 0.18;
@@ -61,6 +64,8 @@ Shader "Hidden/InfinityPipeline/GBufferContractRaster"
                 uint2 resolution = (uint2)_Resolution.xy;
                 uint2 pixel = GBufferPixelCoord(input.positionCS.xy);
 
+                if (_FixtureId == 4 && pixel.x > pixel.y) discard;
+                if (_FixtureId == 5 && pixel.x != resolution.x / 2) discard;
                 FGBufferData data;
                 data.Albedo = FixtureAlbedo(_FixtureId, pixel, resolution);
                 data.Normal = normalize(_FixtureNormal.xyz);

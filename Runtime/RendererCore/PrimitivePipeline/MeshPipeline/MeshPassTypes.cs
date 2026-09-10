@@ -87,17 +87,19 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct MeshGroupingKey : IEquatable<MeshGroupingKey>, IComparable<MeshGroupingKey>
     {
-        public int meshUnityId;
+        public ulong meshUnityId;
         public int sectionIndex;
-        public int materialUnityId;
+        public ulong materialUnityId;
         public int pipelinePassIndex;
+        public int bakedTextureSet;
 
-        public MeshGroupingKey(int meshUnityId, int sectionIndex, int materialUnityId, int pipelinePassIndex)
+        public MeshGroupingKey(ulong meshUnityId, int sectionIndex, ulong materialUnityId, int pipelinePassIndex, int bakedTextureSet = 0)
         {
             this.meshUnityId = meshUnityId;
             this.sectionIndex = sectionIndex;
             this.materialUnityId = materialUnityId;
             this.pipelinePassIndex = pipelinePassIndex;
+            this.bakedTextureSet = bakedTextureSet;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -106,7 +108,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             return meshUnityId == other.meshUnityId
                 && sectionIndex == other.sectionIndex
                 && materialUnityId == other.materialUnityId
-                && pipelinePassIndex == other.pipelinePassIndex;
+                && pipelinePassIndex == other.pipelinePassIndex
+                && bakedTextureSet == other.bakedTextureSet;
         }
 
         public override bool Equals(object obj) => obj is MeshGroupingKey other && Equals(other);
@@ -118,10 +121,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             unchecked
             {
-                int hash = meshUnityId;
+                int hash = meshUnityId.GetHashCode();
                 hash = (hash * 397) ^ sectionIndex;
-                hash = (hash * 397) ^ materialUnityId;
+                hash = (hash * 397) ^ materialUnityId.GetHashCode();
                 hash = (hash * 397) ^ pipelinePassIndex;
+                hash = (hash * 397) ^ bakedTextureSet;
                 return hash;
             }
         }
@@ -134,7 +138,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (c != 0) return c;
             c = materialUnityId.CompareTo(other.materialUnityId);
             if (c != 0) return c;
-            return pipelinePassIndex.CompareTo(other.pipelinePassIndex);
+            c = pipelinePassIndex.CompareTo(other.pipelinePassIndex);
+            return c != 0 ? c : bakedTextureSet.CompareTo(other.bakedTextureSet);
         }
     }
 

@@ -532,7 +532,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
-            string lightModeTag = null)
+            string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             if (cmdBuffer == null || !drawList.isValid || payload == null || staging == null || !staging.isValid)
             {
@@ -549,7 +549,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 for (int i = 0; i < s_BatchPlan.Count; ++i)
                 {
                     (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
-                    DrawBatch(cmdBuffer, drawList, shaderPassIndex, residency, propertyBlock, payload, staging, batch.commandBegin, batch.batchCommands, lightModeTag);
+                    DrawBatch(cmdBuffer, drawList, shaderPassIndex, residency, propertyBlock, payload, staging, batch.commandBegin, batch.batchCommands, lightModeTag, previousTransforms);
                 }
             }
         }
@@ -583,7 +583,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0 || residency == null
                 || residency.TransformBuffer.buffer == null
-                || residency.PreviousTransformBuffer.buffer == null
                 || residency.BoundsCenterBuffer.buffer == null
                 || residency.InstanceTransformIndexBuffer.buffer == null
                 || payload == null || staging == null || !staging.isValid)
@@ -779,7 +778,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshDrawGpuStaging staging,
             int commandBegin,
             int batchCommandCount,
-            string lightModeTag = null)
+            string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             int candidateBegin = (int)staging.candidateOffsets[commandBegin];
             for (int i = 0; i < batchCommandCount; ++i)
@@ -797,7 +796,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 propertyBlock.SetInt(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.InstanceIndexOffset, batchCandOff);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.InstanceIndexBuffer, payload.compactedIndices);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.TransformBuffer, residency.TransformBuffer.buffer);
-                propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousTransformBuffer, residency.PreviousTransformBuffer.buffer);
+                if (previousTransforms != null) propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousTransformBuffer, previousTransforms);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.RenderingLayerBuffer, residency.RenderingLayerBuffer.buffer);
 
                 int passIndex = MeshPassShaderUtility.ResolvePassIndex(material, lightModeTag, shaderPassIndex);
@@ -807,7 +806,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
 
                 int argsOffset = i * 5 * sizeof(uint);
+                MeshBakedLighting.Bind(cmdBuffer, propertyBlock, command.bakedTextureSet, residency.BakedLightingBuffer.buffer);
                 cmdBuffer.DrawMeshInstancedIndirect(mesh, command.sectionIndex, material, passIndex, payload.argsBuffer, argsOffset, propertyBlock);
+                MeshBakedLighting.ClearKeywords(cmdBuffer);
             }
         }
 

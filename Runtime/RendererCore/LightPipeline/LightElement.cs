@@ -35,6 +35,8 @@ namespace InfinityTech.Rendering.LightPipeline
         public const int EnableShadow = 1 << 0;
         public const int EnableContactShadow = 1 << 1;
         public const int EnableVolumetric = 1 << 2;
+        public const int MixedShadowmask = 1 << 3;
+        public const int Baked = 1 << 4;
     }
 
     /// <summary>
@@ -62,7 +64,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public int shadowSliceCount;
         public int shadowType;
         public int visibleLightIndex;
-        public int padding;
+        public int bakedOcclusionChannel;
     }
 
     /// <summary>
@@ -182,12 +184,20 @@ namespace InfinityTech.Rendering.LightPipeline
                 flags |= FLightRecordFlags.EnableVolumetric;
             }
 
-            record.shape = new Vector4(type == ELightType.Rect ? width : innerCos, type == ELightType.Rect ? height : 0.0f, 0, 0);
+            record.shape = new Vector4(type == ELightType.Rect ? width : innerCos, type == ELightType.Rect ? height : 0.0f, Mathf.Clamp01(light.shadowStrength), 0);
             record.directionSpot.w = outerCos;
             record.axisX.w = diffuse;
             record.axisY.w = specular;
             record.attenuation = new Vector4(maxDrawDistance, fade, volIntensity, volOcclusion);
             record.lightLayer = (int)RenderingLayerUtility.Validate((uint)layer);
+            var baking = light.bakingOutput;
+            record.bakedOcclusionChannel = -1;
+            if (baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Mixed && baking.mixedLightingMode == MixedLightingMode.Shadowmask)
+            {
+                flags |= FLightRecordFlags.MixedShadowmask;
+                record.bakedOcclusionChannel = baking.occlusionMaskChannel;
+            }
+            if (baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Baked) flags |= FLightRecordFlags.Baked;
             record.flags = flags;
             record.shadowType = light.shadows == LightShadows.Hard ? (int)EShadowType.Hard : (int)EShadowType.PCF;
             return record;

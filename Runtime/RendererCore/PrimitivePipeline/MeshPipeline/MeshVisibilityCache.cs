@@ -16,14 +16,16 @@ namespace InfinityTech.Rendering.MeshPipeline
         public ulong frustumHash;
         public int sceneVisibilityRevision;
         public int policyId;
+        public int subviewIndex;
 
-        public MeshVisibilitySignature(int sceneId, ulong viewKey, ulong frustumHash, int sceneVisibilityRevision, int policyId)
+        public MeshVisibilitySignature(int sceneId, ulong viewKey, ulong frustumHash, int sceneVisibilityRevision, int policyId, int subviewIndex = 0)
         {
             this.sceneId = sceneId;
             this.viewKey = viewKey;
             this.frustumHash = frustumHash;
             this.sceneVisibilityRevision = sceneVisibilityRevision;
             this.policyId = policyId;
+            this.subviewIndex = subviewIndex;
         }
 
         public bool Equals(MeshVisibilitySignature other)
@@ -32,7 +34,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 && viewKey == other.viewKey
                 && frustumHash == other.frustumHash
                 && sceneVisibilityRevision == other.sceneVisibilityRevision
-                && policyId == other.policyId;
+                && policyId == other.policyId && subviewIndex == other.subviewIndex;
         }
 
         public override bool Equals(object obj)
@@ -49,6 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = (hash * 397) ^ (int)(frustumHash ^ (frustumHash >> 32));
                 hash = (hash * 397) ^ sceneVisibilityRevision;
                 hash = (hash * 397) ^ policyId;
+                hash = (hash * 397) ^ subviewIndex;
                 return hash;
             }
         }
@@ -133,23 +136,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             return UnityEntityId.ToUInt64(camera);
         }
 
-        /// <summary>
-        /// Cascade shadow views must not share main-camera frustum cull results.
-        /// </summary>
-        public static ulong MakeCascadeViewKey(int lightInstanceId, int cascadeIndex)
-        {
-            return ((ulong)(uint)lightInstanceId) ^ (((ulong)(uint)(cascadeIndex + 1)) << 32);
-        }
-
-        /// <summary>
-        /// Local (spot/point) shadow face views; high bit separates from cascade keys.
-        /// faceIndex: Spot = 0; Point = CubemapFace 0..5.
-        /// </summary>
-        public static ulong MakeLocalShadowViewKey(int lightInstanceId, int faceIndex)
-        {
-            return ((ulong)(uint)lightInstanceId) ^ (((ulong)(uint)(faceIndex + 1)) << 32) ^ (1ul << 63);
-        }
-
         private struct Entry
         {
             public MeshVisibilitySignature signature;
@@ -200,7 +186,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return Insert(signature, result);
         }
 
-        public MeshVisibilityHandle Acquire(MeshScene scene, ulong viewKey, Plane[] planes, int policyId, bool enable)
+        public MeshVisibilityHandle Acquire(MeshScene scene, ulong viewKey, Plane[] planes, int policyId, bool enable, int subviewIndex = 0)
         {
             if (!enable || scene == null)
             {
@@ -210,7 +196,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             ulong frustumHash = HashFrustum(planes);
             var signature = new MeshVisibilitySignature(
-                scene.SceneId, viewKey, frustumHash, scene.VisibilityRevision, policyId);
+                scene.SceneId, viewKey, frustumHash, scene.VisibilityRevision, policyId, subviewIndex);
             if (m_Lookup.TryGetValue(signature, out int slot))
             {
                 return AddRef(new MeshVisibilityHandle { slot = slot, generation = m_Entries[slot].generation });

@@ -28,41 +28,15 @@ namespace InfinityTech.Core
         }
     }
 
-    public struct UObjectRef<T> where T : Object
-    {
-        public int Id;
-        public T light => UnityEntityId.ToObject<T>(Id);
-
-        public UObjectRef(int id)
-        {
-            Id = id;
-        }
-
-        public bool Equals(in ObjectRef<T> target)
-        {
-            return (Id == target.Id);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return Equals((ObjectRef<T>)obj);
-        }
-
-        public override int GetHashCode()
-        {
-            return Id;
-        }
-    }
-
     public class ObjectRefFactory<T> where T : class
     {
         public readonly Dictionary<int, T> m_SharedRefs;
- 
+
         public ObjectRefFactory(int initialCapacity = 256)
         {
             m_SharedRefs = new Dictionary<int, T>(initialCapacity);
         }
-    
+
         public ObjectRef<T> Add(T obj, in int id)
         {
             m_SharedRefs[id] = obj;
@@ -78,7 +52,7 @@ namespace InfinityTech.Core
         {
             return m_SharedRefs[objRef.Id];
         }
-    
+
         public void Remove(in ObjectRef<T> objRef)
         {
             m_SharedRefs.Remove(objRef.Id);

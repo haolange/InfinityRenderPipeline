@@ -2,7 +2,6 @@
     "name": "Unity.RenderPipelines.Infinity.Runtime",
     "rootNamespace": "",
     "references": [
-        "Unity.Jobs",
         "Unity.Burst",
         "Unity.Collections",
         "Unity.Mathematics",

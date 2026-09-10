@@ -36,6 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int hasSSGI;
             public ComputeShader compositeShader;
             public RGTextureRef lightingTexture;
+            public RGTextureRef indirectDiffuse, indirectSpecular;
             public RGTextureRef gBufferA;
             public RGTextureRef gBufferB;
             public RGTextureRef gBufferC;
@@ -86,6 +87,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.hasSSGI = hasSSGI ? 1 : 0;
                 passData.compositeShader = pipelineAsset.screenSpaceCompositeShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
+                passData.indirectDiffuse = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer));
+                passData.indirectSpecular = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer));
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
                 passData.gBufferC = passRef.ReadTexture(gBufferC);
@@ -104,6 +107,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in ScreenSpaceCompositePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     ComputeShader shader = passData.compositeShader;
+                    cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("SRV_IndirectDiffuse"), passData.indirectDiffuse);
+                    cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("SRV_IndirectSpecular"), passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.Composite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeMatrixParam(shader, ScreenSpaceCompositePassUtilityData.Matrix_InvViewProjID, passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.WorldSpaceCameraPosID, passData.worldSpaceCameraPos);

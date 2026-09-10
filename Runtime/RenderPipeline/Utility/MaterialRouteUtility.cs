@@ -38,7 +38,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             Read(material, out int route, out int stage);
             bool opaque = stage == 0;
-            SetPass(material, "GBufferPass", opaque && route == 0);
+            // Both opaque routes provide surface data for AO, ray tracing and motion consumers.
+            // Forward pixels are tagged so Deferred never shades them.
+            SetPass(material, "GBufferPass", opaque);
             SetPass(material, "ForwardPass", opaque && route == 1);
             SetPass(material, "DepthPass", opaque);
             SetPass(material, "ShadowPass", opaque);

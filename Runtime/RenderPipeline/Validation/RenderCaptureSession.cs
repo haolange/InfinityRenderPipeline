@@ -13,10 +13,19 @@ namespace InfinityTech.Rendering.Pipeline
     internal sealed class RenderCaptureRequest
     {
         public string outputDirectory, fixture, scene, camera;
+        public CameraType cameraType = CameraType.Game;
+        public string cameraEntity;
+        public bool requestRepaint;
+        public bool useFirstFrameDimensions;
+        public Vector2Int waitForSizeChangeFrom;
+        internal bool Matches(Camera target) => target.cameraType == cameraType &&
+            (string.IsNullOrEmpty(cameraEntity) ? target.name == camera &&
+                (cameraType == CameraType.SceneView || target.gameObject.scene.name == scene) : target.GetEntityId().ToString() == cameraEntity);
         public int width, height, warmupFrames = 120, frameCount = 3, frameInterval = 1;
         public float timeoutSeconds = 120;
         public bool includeConfidence = true;
         public bool includeZBinOverflow;
+        public MeshPipeline.EMeshBackendPolicy meshBackend = MeshPipeline.EMeshBackendPolicy.Auto;
         public string[] buffers = { "DisplayColor", "Lighting" };
         public RectInt roi;
     }
@@ -46,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
         [Serializable] internal sealed class BufferEvidence
         {
             public string semantic, producer, sourceQueue, queue = "Graphics", format, file, error;
-            public int width, height, layers, samples, producerFrame, completionFrame, submissionFrame;
+            public int width, height, layers, samples, producerFrame, completionFrame, submissionFrame, sourceMip, captureIndex;
             public long bytes;
             public string resourceKind = "Texture", bufferTarget;
             public int bufferCount, bufferStride;
@@ -56,11 +65,33 @@ namespace InfinityTech.Rendering.Pipeline
             public RectInt sourceRoi;
             public RawCaptureStatistics statistics;
         }
+        [Serializable] sealed class ShadowEvidence
+        {
+            public int frame, validCount;
+            public Vector4 splitDistances;
+            public bool[] valid = new bool[4];
+            public Matrix4x4[] rasterMatrices = new Matrix4x4[4], cullingMatrices = new Matrix4x4[4];
+            public Vector4[] spheres = new Vector4[4], bias = new Vector4[4];
+        }
+        [Serializable] sealed class CameraEvidence
+        {
+            public int frame, width, height, captureIndex;
+            public string cameraType, motionPhase;
+            public double gameTime, realtime;
+            public Vector2 currentJitterUV, previousJitterUV;
+            public string entity;
+            public bool historyReset;
+            public Vector3 position;
+            public Quaternion rotation;
+            public Matrix4x4 view, projection, jitteredViewProjection, inverseJitteredViewProjection, previousJitteredViewProjection, motionViewProjection, previousMotionViewProjection;
+        }
         [Serializable] sealed class SessionEvidence
         {
             public string status = "Warming", error, persistenceError, unity, api, gpu, platform, scene, camera;
             public int successfulFrames, capturedFrames, outstanding, retired, nativeRetired;
             public string[] volumeSnapshots;
+            public List<ShadowEvidence> shadows = new List<ShadowEvidence>();
+            public List<CameraEvidence> frames = new List<CameraEvidence>();
             public List<BufferEvidence> buffers = new List<BufferEvidence>();
             public List<NativeDisplayProbe.Evidence> nativeDisplays = new List<NativeDisplayProbe.Evidence>();
         }
@@ -87,6 +118,10 @@ namespace InfinityTech.Rendering.Pipeline
         Camera m_Camera;
         bool m_CameraAssigned;
         int m_LastGraphFrame = -1;
+        int m_CaptureIndex;
+        bool m_DimensionsResolved;
+        internal int CapturedFrames => m_Evidence.capturedFrames;
+        internal int SuccessfulFrames => m_Evidence.successfulFrames;
         public bool Finished => m_StopRecording && m_Staging.Count == 0 && m_NativeProbes.Count == 0;
         public bool CaptureThisFrame => m_CaptureThisFrame;
         internal string Status => m_Evidence.status;
@@ -110,11 +145,15 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new ArgumentException("Capture requires a new absolute output directory.");
             if (string.IsNullOrWhiteSpace(request.fixture) || string.IsNullOrWhiteSpace(request.scene) || string.IsNullOrWhiteSpace(request.camera))
                 throw new ArgumentException("Capture requires fixed fixture, scene and camera identifiers.");
-            if (request.width < 1 || request.height < 1 || request.warmupFrames < 0 || request.frameCount < 1 || request.frameCount > 32 || request.frameInterval < 1 || request.timeoutSeconds <= 0)
+            if (request.width < 1 || request.height < 1 || request.warmupFrames < 0 || request.frameCount < 1 || request.frameCount > 128 || request.frameInterval < 1 || request.timeoutSeconds <= 0)
                 throw new ArgumentException("Invalid capture dimensions, frame range or timeout.");
             if (request.roi.width < 1 || request.roi.height < 1 || request.roi.xMin < 0 || request.roi.yMin < 0 || request.roi.xMax > request.width || request.roi.yMax > request.height)
                 throw new ArgumentException("Declare a nonempty in-bounds ROI before capture.");
             if (request.buffers == null || request.buffers.Length == 0) throw new ArgumentException("Capture requires explicit source buffers.");
+            if (request.cameraType != CameraType.Game && request.cameraType != CameraType.SceneView)
+                throw new ArgumentException("Normal capture supports explicitly selected Game and SceneView cameras.");
+            if (Array.IndexOf(request.buffers, "TAAReprojection") >= 0 && !request.includeConfidence)
+                throw new ArgumentException("TAA reprojection capture requires diagnostics for this frame.");
             var names = new HashSet<string>();
             foreach (string semantic in request.buffers)
             {
@@ -126,10 +165,19 @@ namespace InfinityTech.Rendering.Pipeline
         internal void PrepareCamera(Camera camera, CameraFrameState state, InfinityRenderPipelineAsset asset)
         {
             m_CaptureThisFrame = false;
-            if (m_StopRecording || camera.cameraType != CameraType.Game || camera.name != request.camera || camera.gameObject.scene.name != request.scene) return;
+            if (m_StopRecording || !request.Matches(camera)) return;
             if (m_CameraAssigned && m_Camera != camera) { Fail("The fixed capture camera was replaced."); return; }
+            if (request.useFirstFrameDimensions && !m_DimensionsResolved)
+            {
+                if (request.waitForSizeChangeFrom.x > 0 && camera.pixelWidth == request.waitForSizeChangeFrom.x && camera.pixelHeight == request.waitForSizeChangeFrom.y) return;
+                request.width = camera.pixelWidth; request.height = camera.pixelHeight;
+                request.roi = new RectInt(0, 0, request.width, request.height);
+                m_DimensionsResolved = true;
+                File.WriteAllText(Path.Combine(request.outputDirectory, "resolved-target.json"), JsonUtility.ToJson(request, true));
+            }
             m_Camera = camera;
             m_CameraAssigned = true;
+            m_CaptureIndex++;
             if (camera.pixelWidth != request.width || camera.pixelHeight != request.height || asset.debugView != EDebugView.None)
             { Fail("Camera dimensions or normal-beauty DebugView contract changed."); return; }
             if (state.cameraUniform.historyReset) m_Evidence.successfulFrames = 0;
@@ -138,6 +186,14 @@ namespace InfinityTech.Rendering.Pipeline
             if (m_CaptureThisFrame)
             {
                 m_Evidence.status = "Capturing";
+                m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = Time.frameCount, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = CameraMotionValidation.current?.CurrentPhase,
+                    currentJitterUV = InfinityRenderPipeline.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj), previousJitterUV = state.cameraUniform.previousJitterUV, width = camera.pixelWidth, height = camera.pixelHeight,
+                    entity = camera.GetEntityId().ToString(), historyReset = state.cameraUniform.historyReset,
+                    position = camera.transform.position, rotation = camera.transform.rotation, view = camera.worldToCameraMatrix,
+                    projection = camera.projectionMatrix, jitteredViewProjection = state.cameraUniform.matrix_ViewFlipYJitterProj,
+                    inverseJitteredViewProjection = state.cameraUniform.matrix_InvViewFlipYJitterProj,
+                    previousJitteredViewProjection = state.cameraUniform.matrix_LastViewFlipYJitterProj,
+                    motionViewProjection = state.cameraUniform.matrix_ViewFlipYProj, previousMotionViewProjection = state.cameraUniform.matrix_LastViewFlipYProj });
                 var snapshots = new List<string>();
                 foreach (VolumeComponent component in asset.volumeProfile.components)
                 {
@@ -147,6 +203,18 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 m_Evidence.volumeSnapshots = snapshots.ToArray();
             }
+        }
+
+        internal void RecordShadowState(LightPipeline.ShadowAllocator allocator)
+        {
+            var shadow = new ShadowEvidence { frame = Time.frameCount, validCount = allocator.CascadeAllocatedCount, splitDistances = allocator.CascadeSplitDistances };
+            for (int i = 0; i < 4; i++)
+            {
+                shadow.valid[i] = allocator.CascadeSlices[i].valid;
+                shadow.rasterMatrices[i] = allocator.CascadeMatrices[i]; shadow.cullingMatrices[i] = allocator.CascadeSlices[i].cullingMatrix;
+                shadow.spheres[i] = allocator.CascadeSpheres[i]; shadow.bias[i] = allocator.CascadeSlices[i].casterBias;
+            }
+            m_Evidence.shadows.Add(shadow);
         }
 
         internal Staging Reserve(string semantic, string producer, TextureDescriptor descriptor, bool historyReset)
@@ -163,7 +231,7 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsFormat readbackFormat = descriptor.depthBufferBits == EDepthBits.None ? texture.graphicsFormat : texture.depthStencilFormat;
             var evidence = new BufferEvidence { semantic = semantic, producer = producer, format = readbackFormat.ToString(),
                 width = texture.width, height = texture.height, layers = texture.volumeDepth, samples = texture.antiAliasing,
-                producerFrame = Time.frameCount, historyReset = historyReset, sourceDescriptor = descriptor,
+                producerFrame = Time.frameCount, captureIndex = m_CaptureIndex, historyReset = historyReset, sourceDescriptor = descriptor,
                 sourceRoi = ScaleRoi(descriptor.width, descriptor.height) };
             var staging = new Staging { texture = texture, handle = handle, evidence = evidence, owner = this, readbackFormat = readbackFormat };
             m_Staging.Add(staging); m_Evidence.buffers.Add(evidence);
@@ -189,7 +257,7 @@ namespace InfinityTech.Rendering.Pipeline
             var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination, 1, sizeof(uint));
             var evidence = new BufferEvidence { semantic = semantic, producer = producer, sourceQueue = queue,
                 resourceKind = "GraphicsBuffer", format = "UInt32", bufferTarget = source.target.ToString(),
-                bufferCount = source.count, bufferStride = source.stride, producerFrame = Time.frameCount };
+                bufferCount = source.count, bufferStride = source.stride, producerFrame = Time.frameCount, captureIndex = m_CaptureIndex };
             var staging = new Staging { buffer = buffer, evidence = evidence, owner = this };
             m_Staging.Add(staging); m_Evidence.buffers.Add(evidence); m_DidCapture = true;
             Save();
@@ -218,9 +286,9 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal void RecordGraph(RenderGraph.RGBuilder graph, int frame)
         {
-            if (m_LastGraphFrame == frame) return;
-            File.WriteAllText(Path.Combine(request.outputDirectory, "compiled-graph-" + frame + ".txt"), graph.DescribeCompiledGraph());
-            m_LastGraphFrame = frame;
+            if (m_LastGraphFrame == m_CaptureIndex) return;
+            File.WriteAllText(Path.Combine(request.outputDirectory, "compiled-graph-" + m_CaptureIndex + "-" + frame + ".txt"), graph.DescribeCompiledGraph());
+            m_LastGraphFrame = m_CaptureIndex;
         }
 
         internal void AfterSubmit()
@@ -289,7 +357,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (readback.hasError) throw new InvalidOperationException("GPU readback failed without data substitution.");
                 byte[] bytes = readback.GetData<byte>().ToArray();
                 staging.evidence.bytes = bytes.LongLength;
-                staging.evidence.file = staging.evidence.semantic + "-" + staging.evidence.producerFrame + ".bin";
+                staging.evidence.file = staging.evidence.semantic + "-" + staging.evidence.captureIndex + "-" + staging.evidence.producerFrame + ".bin";
                 File.WriteAllBytes(Path.Combine(request.outputDirectory, staging.evidence.file), bytes);
                 if (staging.buffer != null)
                 {

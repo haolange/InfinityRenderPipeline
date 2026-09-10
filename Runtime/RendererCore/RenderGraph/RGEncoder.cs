@@ -21,6 +21,9 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetBufferData(GraphicsBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count)
             => m_CommandBuffer.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
 
+        internal void SetBufferData(ComputeBuffer buffer, System.Array data, int sourceIndex, int destinationIndex, int count)
+            => m_CommandBuffer.SetBufferData(buffer, data, sourceIndex, destinationIndex, count);
+
         public void CopyBuffer(GraphicsBuffer src, GraphicsBuffer dst)
         {
             m_CommandBuffer.CopyBuffer(src, dst);
@@ -623,6 +626,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public struct RGRasterEncoder : IRasterCommands
     {
+        public void SetKeyword(GlobalKeyword keyword, bool value) => m_CommandBuffer.SetKeyword(keyword, value);
         public void SetGlobalBuffer(int nameID, RGBufferRef value) => value.BindGlobal(m_CommandBuffer, nameID);
         public void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data)
         {
@@ -840,14 +844,14 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetInvertCulling(invertCulling);
         }
 
-        public void EnableScissorRect(in  Rect scissor) 
-        { 
-            m_CommandBuffer.EnableScissorRect(scissor); 
+        public void EnableScissorRect(in  Rect scissor)
+        {
+            m_CommandBuffer.EnableScissorRect(scissor);
         }
 
-        public void DisableScissorRect() 
-        { 
-            m_CommandBuffer.DisableScissorRect(); 
+        public void DisableScissorRect()
+        {
+            m_CommandBuffer.DisableScissorRect();
         }
 
         public void NextSubPass()

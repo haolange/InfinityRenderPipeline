@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1, 1)]
         [TestCase(1, 2)]
         [TestCase(1, 3)]
-        public void ExplicitUpdate_SelectsOneShadingPass_AndIsIdempotent(int route, int stage)
+        public void ExplicitUpdate_SelectsShadingRouteAndOpaqueSurfacePrepass_AndIsIdempotent(int route, int stage)
         {
             m_Material.SetFloat("_SurfaceRoute", route);
             m_Material.SetFloat("_TranslucentStage", stage);
@@ -39,10 +39,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             foreach (string pass in new[] { "GBufferPass", "ForwardPass", "TranslucentT0Pass", "TranslucentT1Pass", "TranslucentT2Pass" })
             {
                 Assert.GreaterOrEqual(m_Material.FindPass(pass), 0);
-                Assert.AreEqual(pass == expected, m_Material.GetShaderPassEnabled(pass), pass);
+                Assert.AreEqual(pass == expected || (stage == 0 && pass == "GBufferPass"), m_Material.GetShaderPassEnabled(pass), pass);
                 if (m_Material.GetShaderPassEnabled(pass)) ++enabled;
             }
-            Assert.AreEqual(1, enabled);
+            Assert.AreEqual(stage == 0 && route == 1 ? 2 : 1, enabled);
             Assert.AreEqual(stage == 0, m_Material.GetShaderPassEnabled("DepthPass"));
             Assert.AreEqual(stage != 0, m_Material.GetShaderPassEnabled("TranslucentDepthPass"));
             string before = EditorJsonUtility.ToJson(m_Material);

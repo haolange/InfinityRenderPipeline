@@ -1,0 +1,10 @@
+#pragma kernel CaptureDepth
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+Texture2D<float> SRV_Depth;
+RWTexture2D<float> UAV_Depth;
+float4 CaptureSize;
+[numthreads(8, 8, 1)]
+void CaptureDepth(uint3 id : SV_DispatchThreadID)
+{
+    if (all(id.xy < (uint2)CaptureSize.xy)) UAV_Depth[id.xy] = SRV_Depth.Load(int3(id.xy, 0));
+}

@@ -14,6 +14,7 @@ namespace InfinityTech.Component.Editor
         SerializedProperty m_Movebility;
         SerializedProperty m_MeshAsset;
         SerializedProperty m_Materials;
+        SerializedProperty m_BakedLightingSource;
         SerializedProperty m_CastShadow;
         SerializedProperty m_ReceiveShadow;
         SerializedProperty m_AffectIndirectLighting;
@@ -27,6 +28,7 @@ namespace InfinityTech.Component.Editor
             m_Movebility = serializedObject.FindProperty("movebility");
             m_MeshAsset = serializedObject.FindProperty("meshAsset");
             m_Materials = serializedObject.FindProperty("materials");
+            m_BakedLightingSource = serializedObject.FindProperty("m_BakedLightingSource");
             m_CastShadow = serializedObject.FindProperty("castShadow");
             m_ReceiveShadow = serializedObject.FindProperty("receiveShadow");
             m_AffectIndirectLighting = serializedObject.FindProperty("affectIndirectLighting");
@@ -60,6 +62,7 @@ namespace InfinityTech.Component.Editor
             #region Lighting
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Lighting", "Lighting"))
             {
+                EditorGUILayout.PropertyField(m_BakedLightingSource, new GUIContent("Baked Lighting Source", "Renderer supplying lightmap index, UV transform and probe settings. Empty uses the Renderer on this object, or interpolated probes."));
                 EditorGUILayout.PropertyField(m_CastShadow, new GUIContent("Cast Shadow"));
                 EditorGUILayout.PropertyField(m_ReceiveShadow, new GUIContent("Receive Shadow"));
                 EditorGUILayout.PropertyField(m_AffectIndirectLighting, new GUIContent("Affect Indirect"));

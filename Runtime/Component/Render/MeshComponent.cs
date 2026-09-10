@@ -28,10 +28,10 @@ namespace InfinityTech.Component
             public bool valid;
             public bool visible;
             public EStateType movebility;
-            public int meshAssetId;
+            public ulong meshAssetId;
             public int subMeshCount;
             public uint geometryRevision;
-            public int[] materialInstanceIds;
+            public ulong[] materialInstanceIds;
             public int[] materialRenderQueues;
             public int[] materialSurfaceRoutes;
             public int[] materialTranslucentStages;
@@ -56,6 +56,9 @@ namespace InfinityTech.Component
 #endif
 
         [Header("Lighting")]
+        [SerializeField] private Renderer m_BakedLightingSource;
+        private FMeshBakedLighting m_LastBakedLighting;
+        private FMeshBakedLighting ReadBakedLighting() => MeshBakedLighting.Capture(m_BakedLightingSource != null ? m_BakedLightingSource : GetComponent<Renderer>(), transform.position);
         public ECastShadowMethod castShadow = ECastShadowMethod.Off;
         public bool receiveShadow = true;
         public bool affectIndirectLighting = true;
@@ -155,6 +158,11 @@ namespace InfinityTech.Component
             });
         }
 
+        internal void RefreshBakedLighting()
+        {
+            if (m_InstanceId.IsValid && !ReadBakedLighting().Equals(m_LastBakedLighting)) MarkDirty();
+        }
+
         public void MarkDirty()
         {
             if (m_DirtyEnqueued)
@@ -205,6 +213,13 @@ namespace InfinityTech.Component
                 return;
             }
 
+            FMeshBakedLighting baked = ReadBakedLighting();
+            if (!baked.Equals(m_LastBakedLighting))
+            {
+                using (var update = renderContext.GetMeshScene().BeginUpdate())
+                { update.SetInstanceBakedLighting(m_InstanceId, baked); update.Commit(); }
+                m_LastBakedLighting = baked;
+            }
             if (!HasLightweightDiff())
             {
                 return;
@@ -342,7 +357,7 @@ namespace InfinityTech.Component
                     materials[i] = m_LastMaterials[i];
                 } else {
                     materials[i] = Resources.Load<Material>("Materials/M_DefaultLit");
-                } 
+                }
             }
         }
 #endif
@@ -396,9 +411,11 @@ namespace InfinityTech.Component
                     castShadow,
                     EGeometrySourceKind.IndexedMesh);
 
+                m_LastBakedLighting = ReadBakedLighting();
+                update.SetInstanceBakedLighting(m_InstanceId, m_LastBakedLighting);
                 int subMeshCount = meshAsset.subMeshCount;
                 m_DrawIds = new MeshDrawId[subMeshCount];
-                int meshUnityId = UnityEntityId.ToInt32(meshAsset);
+                ulong meshUnityId = UnityEntityId.ToUInt64(meshAsset);
                 m_GeometryRevision = ComputeGeometryRevision(meshAsset);
 
                 for (int i = 0; i < subMeshCount; ++i)
@@ -420,7 +437,7 @@ namespace InfinityTech.Component
                         m_InstanceId,
                         meshUnityId,
                         i,
-                        UnityEntityId.ToInt32(material),
+                        UnityEntityId.ToUInt64(material),
                         eligibility,
                         renderQueue,
                         priority,
@@ -446,6 +463,8 @@ namespace InfinityTech.Component
             using (MeshSceneUpdate update = scene.BeginUpdate())
             {
                 update.SetTransform(m_TransformId, m_LocalToWorldMatrix);
+                m_LastBakedLighting = ReadBakedLighting();
+                update.SetInstanceBakedLighting(m_InstanceId, m_LastBakedLighting);
                 update.SetBounds(m_InstanceId, m_BoundBox);
                 update.Commit();
             }
@@ -503,7 +522,7 @@ namespace InfinityTech.Component
                         {
                             renderQueue = material.renderQueue;
                             // Updates draw.renderQueue and MaterialData revision (same id, new queue).
-                            update.SetMaterial(drawId, UnityEntityId.ToInt32(material), renderQueue);
+                            update.SetMaterial(drawId, UnityEntityId.ToUInt64(material), renderQueue);
                         }
 
                         update.SetDrawPriority(drawId, renderPriority + renderQueue);
@@ -538,7 +557,7 @@ namespace InfinityTech.Component
             }
             else if (surfaceRoute == 1)
             {
-                eligibility = EPassEligibility.Depth | EPassEligibility.Forward;
+                eligibility = EPassEligibility.Depth | EPassEligibility.GBuffer | EPassEligibility.Forward;
             }
             else
             {
@@ -582,12 +601,12 @@ namespace InfinityTech.Component
                 return true;
             }
 
-            return HasStructuralDiff() || HasLightweightDiff();
+            return HasStructuralDiff() || HasLightweightDiff() || !ReadBakedLighting().Equals(m_LastBakedLighting);
         }
 
         private bool HasStructuralDiff()
         {
-            int meshId = UnityEntityId.ToInt32(meshAsset);
+            ulong meshId = UnityEntityId.ToUInt64(meshAsset);
             int subMeshCount = meshAsset != null ? meshAsset.subMeshCount : 0;
             uint geometryRevision = ComputeGeometryRevision(meshAsset);
             if (!m_Snapshot.valid
@@ -608,7 +627,7 @@ namespace InfinityTech.Component
 
             for (int i = 0; i < materialCount; ++i)
             {
-                int materialId = UnityEntityId.ToInt32(materials[i]);
+                ulong materialId = UnityEntityId.ToUInt64(materials[i]);
                 if (m_Snapshot.materialInstanceIds[i] != materialId)
                 {
                     return true;
@@ -660,7 +679,7 @@ namespace InfinityTech.Component
         private void CaptureSnapshot()
         {
             int materialCount = materials != null ? materials.Length : 0;
-            int[] materialIds = new int[materialCount];
+            ulong[] materialIds = new ulong[materialCount];
             int[] materialQueues = new int[materialCount];
             int[] materialRoutes = new int[materialCount];
             int[] materialStages = new int[materialCount];
@@ -668,7 +687,7 @@ namespace InfinityTech.Component
             {
                 if (materials[i] != null)
                 {
-                    materialIds[i] = UnityEntityId.ToInt32(materials[i]);
+                    materialIds[i] = UnityEntityId.ToUInt64(materials[i]);
                     materialQueues[i] = materials[i].renderQueue;
                     ReadMaterialRoute(materials[i], out materialRoutes[i], out materialStages[i]);
                 }
@@ -687,7 +706,7 @@ namespace InfinityTech.Component
                 valid = m_InstanceId.IsValid,
                 visible = visible,
                 movebility = movebility,
-                meshAssetId = UnityEntityId.ToInt32(meshAsset),
+                meshAssetId = UnityEntityId.ToUInt64(meshAsset),
                 subMeshCount = meshAsset != null ? meshAsset.subMeshCount : 0,
                 geometryRevision = m_GeometryRevision,
                 materialInstanceIds = materialIds,

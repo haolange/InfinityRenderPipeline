@@ -102,7 +102,7 @@ float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, 
     if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
     {
         L = light.directionSpot.xyz;
-        shadow = SampleCascadeShadow(cascadeShadowMap, worldPos, viewDepth);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, worldPos, viewDepth, light.shadowType) : 1);
     }
     else
     {
@@ -113,7 +113,7 @@ float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, 
         shadow = SampleLocalShadow(localShadowMap, light, worldPos);
     }
 
-    shadow = VolumeShadowWeight(light, shadow);
+    shadow = VolumeShadowWeight(light, lerp(1, shadow, light.shape.z));
 
     float cosTheta = dot(viewDir, L);
     float phase = HGPhase(VolFog_Anisotropy, cosTheta);

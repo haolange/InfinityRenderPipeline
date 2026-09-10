@@ -1,103 +1,16 @@
-//#include "UnityCG.cginc"
+#include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
+float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/ColorUtility.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 
 float4x4 Matrix_Proj, Matrix_InvProj, Matrix_ViewProj, Matrix_InvViewProj, Matrix_WorldToView;
 Texture2D SRV_PyramidColor, SRV_PyramidDepth, SRV_SceneDepth, SRV_GBufferNormal;
-////////////////////////Raytracing Pass////////////////////////
 int SSGi_RayMask, SSGi_FrameIndex, SSGi_NumRays, SSGi_NumSteps;
+float SSGi_MaxDistance;
 float SSGi_Thickness, SSGi_Intensity;
 float4 SSGi_HZBUvFactor, SSGi_TraceResolution;
 RWTexture2D<float4> UAV_ScreenIrradiance;
-
-/*#pragma kernel Raytracing
-[numthreads(16, 16, 1)]
-void Raytracing (uint3 id : SV_DispatchThreadID)
-{
-    float2 UV = (id.xy + 0.5) * SSGi_TraceResolution.zw;
-	uint2 PixelPosition = uint2(UV.xy * SSGi_TraceResolution.xy);
-
-	float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
-    if (SceneDepth <= 1e-7) {
-        UAV_ScreenIrradiance[id.xy] = 0;
-        return;
-    }
-	float3 ScreenPos = GetScreenSpacePos(UV, SceneDepth);
-	float3 WorldPos = GetWorldSpacePos(ScreenPos, Matrix_InvViewProj);
-	float3 ViewPos = GetViewSpacePos(ScreenPos, Matrix_InvProj);
-	float3 ViewDir = GetViewDir(WorldPos, ViewPos);
-	float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
-
-	uint FrameIDMod8 = uint(fmod(SSGi_FrameIndex, 8));
-	uint2 Random = Rand3DPCG16( uint3(PixelPosition, FrameIDMod8) ).xy;
-	float3x3 TangentToWorld = GetTangentBasis(WorldNormal);
-
-	float Out_AmbientOcclusion = 0;
-    float4 Out_IrradianceColor = 0;
-
-	[loop]
-	for (uint i = 0; i < (uint)SSGi_NumRays; i++) {
-		float2 Hash = Hammersley16(i, (uint)SSGi_NumRays, Random);
-
-		float3 LightDir_TS;
-		LightDir_TS.xy = UniformSampleDiskConcentric( Hash );
-		LightDir_TS.z = sqrt( 1 - dot( LightDir_TS.xy, LightDir_TS.xy ) );
-		float3 LightDir_WS = mul(LightDir_TS, TangentToWorld);
-		float3 LightDir_VS = mul( (float3x3)(Matrix_WorldToView), LightDir_WS );
-
-		float3 rayOrigin = float3(UV, ScreenPos.z);
-		float4 rayDir = mul ( Matrix_Proj, float4(ViewPos + LightDir_VS, 1) );
-		rayDir.xyz = normalize( (rayDir.xyz / max(rayDir.w, 1e-4)) - ScreenPos);
-		rayDir.xy *= 0.5;
-
-		float4 RayHitData = HiZ_Trace(SSGi_NumSteps * 8, SSGi_Thickness, SSGi_TraceResolution.zw, rayOrigin, rayDir.xyz, SRV_PyramidDepth);
-
-		float3 SampleColor = SRV_PyramidColor.SampleLevel(Global_point_clamp_sampler, RayHitData.xy, 0).rgb;
-		float3 SampleNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, RayHitData.xy, 0).xyz * 2 - 1;
-		float CosineWeight = 1 - saturate( dot(LightDir_WS, SampleNormal) );
-
-		float3 ViewSpace_RayHitData = GetViewSpacePos( GetScreenSpacePos(RayHitData.xy, RayHitData.z), Matrix_InvProj );
-		float3 ViewSpace_RayOrigin = GetViewSpacePos( GetScreenSpacePos(rayOrigin.xy, rayOrigin.z), Matrix_InvProj );
-		Out_AmbientOcclusion += smoothstep( 0, 5, distance(ViewSpace_RayOrigin, ViewSpace_RayHitData) );
-		
-		SampleColor *= CosineWeight;
-		SampleColor *= rcp( 1 + Rec709Luminance(SampleColor) );
-        
-		Out_IrradianceColor.rgb += SampleColor;
-		Out_IrradianceColor.a += RayHitData.a;
-	}
-	Out_AmbientOcclusion /= SSGi_NumRays;
-	Out_IrradianceColor /= SSGi_NumRays;
-	Out_IrradianceColor.rgb *= rcp( 1 - Rec709Luminance(Out_IrradianceColor.rgb) );
-    Out_IrradianceColor.a = saturate( sqrt(Out_IrradianceColor.a) );
-
-	[branch]
-	if(SSGi_RayMask == 1) {
-		UAV_ScreenIrradiance[id.xy] = float4( Out_IrradianceColor.rgb * SSGi_Intensity * Out_IrradianceColor.a, Out_AmbientOcclusion );
-	} else {
-		UAV_ScreenIrradiance[id.xy] = float4( Out_IrradianceColor.rgb * SSGi_Intensity, Out_AmbientOcclusion );
-	}
-}*/
-
-inline float ConeConeIntersection(float ArcLength0, float ArcLength1, float AngleBetweenCones)
-{
-	float AngleDifference = abs(ArcLength0 - ArcLength1);
-	float AngleBlendAlpha = saturate((AngleBetweenCones - AngleDifference) / (ArcLength0 + ArcLength1 - AngleDifference));
-	return smoothstep(0, 1, 1 - AngleBlendAlpha);
-}
-
-inline half ReflectionOcclusion(half3 BentNormal, half3 ReflectionVector, half Roughness, half OcclusionStrength)
-{
-	half BentNormalLength = length(BentNormal);
-
-	half ReflectionConeAngle = max(Roughness, 0.04) * Pi;
-	half UnoccludedAngle = BentNormalLength * Pi * OcclusionStrength;
-	half AngleBetween = acos( dot(BentNormal, ReflectionVector) / max(BentNormalLength, 0.001) );
-
-	half ReflectionOcclusion = ConeConeIntersection(ReflectionConeAngle, UnoccludedAngle, AngleBetween);
-	return lerp(0, ReflectionOcclusion, saturate((UnoccludedAngle - 0.1) / 0.2));
-}
 
 #pragma kernel Raytracing
 [numthreads(16, 16, 1)]
@@ -108,7 +21,7 @@ void Raytracing (uint3 id : SV_DispatchThreadID)
 	uint2 PixelPosition = uint2(UV.xy * SSGi_TraceResolution.xy);
 
 	float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
-    if (SceneDepth <= 1e-7) {
+    if (ScreenSpaceIsFarDepth(SceneDepth)) {
         UAV_ScreenIrradiance[id.xy] = 0;
         return;
     }
@@ -116,58 +29,42 @@ void Raytracing (uint3 id : SV_DispatchThreadID)
 	float3 WorldPos = GetWorldSpacePos(NDCPos, Matrix_InvViewProj);
 	float3 ViewPos = GetViewSpacePos(NDCPos, Matrix_InvProj);
 	float3 ViewDir = GetViewDir(WorldPos, ViewPos);
-	float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
+	float3 WorldNormal = normalize(SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1);
 	float3x3 TangentToWorld = GetTangentBasis(WorldNormal);
 
 	uint FrameIDMod8 = uint(fmod(SSGi_FrameIndex, 32));
 	uint2 Random = Rand3DPCG16( uint3(PixelPosition, FrameIDMod8) ).xy;
 	float StepOffset = InterleavedGradientNoise(PixelPosition + 0.5, FrameIDMod8) - 0.9;
 
-	float Out_Occlusion = 0;
     float4 Out_ColorMask = 0;
-	//float3 BentNormal = 0;
 
 	[loop]
-	for (uint i = 0; i < (uint)SSGi_NumRays; i++) 
+	for (uint i = 0; i < (uint)SSGi_NumRays; i++)
 	{
-		//float2 Hash = Halton(i, Random);
 		float2 Hash = Hammersley16(i, (uint)SSGi_NumRays, Random);
 		float3 LightDir_TS = CosineSampleHemisphere(Hash).xyz;
 		float3 LightDir_WS = mul(LightDir_TS, TangentToWorld);
 		float3 LightDir_VS = mul((float3x3)(Matrix_WorldToView), LightDir_WS);
 
-		float Level;
-		float3 HitUVz;
+        float3 HitUVz;
+        bool bHit = TraceScreenSpaceRay(ViewPos, normalize(LightDir_VS), SSGi_MaxDistance, SSGi_Thickness,
+            (uint)SSGi_NumSteps, StepOffset + 0.9, Matrix_Proj, SRV_PyramidDepth, HitUVz);
 
-		float3 RayStartScreen = NDCPos;
-		float4 RayEndScreen = mul( Matrix_Proj, float4(LightDir_VS, 0) ) + float4(RayStartScreen, 1); 
-		//RayEndScreen.xyz = RayEndScreen.xyz / max(RayEndScreen.w, 1e-4);
-		RayEndScreen.xyz = rcp(max(RayEndScreen.w, 1e-4)) * RayEndScreen.xyz;
-		float3 RayDepthScreen = 0.5 * (RayStartScreen + mul( Matrix_Proj, float4(0, 0, 1, 0) ).xyz);
-		float3 RayStepScreen = RayEndScreen.xyz - RayStartScreen;
-		RayStepScreen *= GetStepScreenFactorToClipAtScreenEdge(RayStartScreen.xy, RayStepScreen.xy);
-		float CompareTolerance = max(abs(RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * 2);
-
-		bool bHit = RayCast_Diffuse(SSGi_NumSteps, 1, CompareTolerance, StepOffset, RayStartScreen, RayStepScreen, SRV_PyramidDepth, HitUVz, Level);
-
-		[branch] 
-		if(bHit) 
+		[branch]
+		if(bHit)
 		{
 			float3 SampleNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, HitUVz.xy, 0).xyz * 2 - 1;
-			float CosineWeight = 1 - saturate( dot(LightDir_WS, SampleNormal) );
-			Out_Occlusion += CosineWeight;
 
 			float3 SampleColor = SRV_PyramidColor.SampleLevel(Global_point_clamp_sampler, HitUVz.xy, 0).rgb;
-			SampleColor.rgb *= rcp( 1 + Rec709Luminance(SampleColor.rgb) );
-			Out_ColorMask += float4(SampleColor.rgb, GetScreenFadeBord(HitUVz.xy, 0.1));
+			SampleColor.rgb *= saturate(-dot(LightDir_WS, normalize(SampleNormal)));
+			float confidence = GetScreenFadeBord(HitUVz.xy, 0.1);
+            Out_ColorMask += float4(SampleColor.rgb * confidence, confidence);
 
-			//BentNormal += LightDir_WS;
 		}
 	}
 
-	Out_Occlusion /= SSGi_NumRays;
 	Out_ColorMask /= SSGi_NumRays;
-	Out_ColorMask.rgb *= SSGi_Intensity;
+	Out_ColorMask *= SSGi_Intensity;
 	UAV_ScreenIrradiance[id.xy] = Out_ColorMask;
 }
 
@@ -178,18 +75,6 @@ Texture2D SRV_MotionTexture, SRV_ColorMaskTexture, SRV_AliasingTexture, SRV_Hist
 
 static const int2 SSGI_SpatialOffset[15] = { int2(0, 1), int2(-2, 1), int2(2, -3), int2(-3, 0), int2(1, 2), int2(-1, -2), int2(3, 0), int2(-3, 3), int2(0, -3), int2(-1, -1), int2(2, 1), int2(-2, -2), int2(1, 0), int2(0, 2), int2(3, -1) };
 
-float SSGI_GetEdgeStopNormalWeight(float3 normal_p, float3 normal_q, float sigma)
-{
-    return pow(max(dot(normal_p, normal_q), 0.0), sigma);
-}
-
-float SSGI_GetEdgeStopDepthWeight(float x, float m, float sigma)
-{
-    float a = length(x - m) / sigma;
-    a *= a;
-    return exp(-0.5 * a);
-}
-
 #pragma kernel SpatialFilter
 RWTexture2D<float4> UAV_SpatialTexture;
 [numthreads(16, 16, 1)]
@@ -198,33 +83,26 @@ void SpatialFilter(uint3 id : SV_DispatchThreadID)
     if (any(id.xy >= (uint2)SSGi_FilterResolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSGi_FilterResolution.zw;
     float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
-    if (SceneDepth <= 1e-7)
+    if (ScreenSpaceIsFarDepth(SceneDepth))
     {
         UAV_SpatialTexture[id.xy] = 0;
         return;
     }
 
-    float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
-    float NumWeight = 0;
-    float4 SpatialColor = 0;
-
-    float4 CenterMask = SRV_ColorMaskTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
-    float CenterHit = saturate(max(CenterMask.a, Rec709Luminance(CenterMask.rgb) > 1e-6 ? 1.0 : 0.0));
-    if (CenterHit > 0)
-    {
-        NumWeight += 1;
-        SpatialColor += CenterMask;
-    }
+    float3 WorldNormal = normalize(SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1);
+    float NumWeight = 1;
+    float4 SpatialColor = SRV_ColorMaskTexture.SampleLevel(Global_point_clamp_sampler, UV, 0);
 
     [loop]
     for (int i = 0; i < 15; ++i)
     {
         float2 Offset_UV = UV + (SSGI_SpatialOffset[i] * SSGi_FilterResolution.zw * SSGi_SpatialRadius);
+        if (any(Offset_UV < 0) || any(Offset_UV >= 1)) continue;
+        if (any(Offset_UV < 0) || any(Offset_UV >= 1)) continue;
         float OffsetDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).r;
-        float3 OffsetNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).xyz * 2 - 1;
+        float3 OffsetNormal = normalize(SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).xyz * 2 - 1);
         float4 HitColorMask = SRV_ColorMaskTexture.SampleLevel(Global_bilinear_clamp_sampler, Offset_UV, 0);
-        float HitWeight = saturate(max(HitColorMask.a, Rec709Luminance(HitColorMask.rgb) > 1e-6 ? 1.0 : 0.0));
-        float Weight = SSGI_GetEdgeStopDepthWeight(SceneDepth, OffsetDepth, 0.001) * SSGI_GetEdgeStopNormalWeight(WorldNormal, OffsetNormal, 32) * HitWeight;
+        float Weight = ScreenSpaceDepthWeight(ScreenSpaceLinearEyeDepth(SceneDepth), ScreenSpaceLinearEyeDepth(OffsetDepth), max(SSGi_Thickness, ScreenSpaceLinearEyeDepth(SceneDepth) * 0.01)) * ScreenSpaceNormalWeight(WorldNormal, OffsetNormal, 32);
         NumWeight += Weight;
         SpatialColor += HitColorMask * Weight;
     }
@@ -246,8 +124,8 @@ void TemporalFilter(uint3 id : SV_DispatchThreadID)
     if (any(id.xy >= (uint2)SSGi_FilterResolution.xy)) return;
     float2 UV = (id.xy + 0.5) * SSGi_FilterResolution.zw;
     float SceneDepth = SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
-    float3 WorldNormal = SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1;
-    float2 DepthMotion = SRV_MotionTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).xy;
+    float3 WorldNormal = normalize(SRV_GBufferNormal.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1);
+    float2 DepthMotion = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).xy;
 
     float4 SampleColors[9];
     float4 CurrColor, PrevColor, MomentA = 0, MomentB = 0;
@@ -265,7 +143,9 @@ void TemporalFilter(uint3 id : SV_DispatchThreadID)
     float4 MinColor = min(Mean - SSGi_TemporalScale * Stddev, CurrColor);
     float4 MaxColor = max(Mean + SSGi_TemporalScale * Stddev, CurrColor);
 
-    float2 PrevUV = UV - DepthMotion;
+    float2 PrevUV;
+    float expectedHistoryDepth;
+    ReprojectSurface(UV, SceneDepth, DepthMotion, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, PrevUV, expectedHistoryDepth);
     bool offscreen = any(PrevUV < 0) || any(PrevUV > 1);
     if (offscreen)
     {
@@ -275,15 +155,15 @@ void TemporalFilter(uint3 id : SV_DispatchThreadID)
     {
         float4 HistoryDepthNormal = SRV_HistoryDepthNormal.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
         float3 HistoryNormal = HistoryDepthNormal.xyz * 2 - 1;
-        float DepthReject = abs(SceneDepth - HistoryDepthNormal.a);
+        float DepthConfidence = HistoryDepthConfidence(SRV_HistoryDepthNormal, PrevUV, expectedHistoryDepth, 3);
         float NormalReject = 1 - saturate(dot(WorldNormal, HistoryNormal));
-        float HistoryConfidence = saturate(1 - DepthReject * 200) * saturate(1 - NormalReject * 4);
+        float HistoryConfidence = DepthConfidence * saturate(1 - NormalReject * 4);
         PrevColor = clamp(SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, PrevUV, 0), MinColor, MaxColor);
         PrevColor = lerp(CurrColor, PrevColor, HistoryConfidence);
     }
 
     float BlendWeight = clamp(lerp(SSGi_TemporalWeight, 0.0, length(DepthMotion) * 200.0), 0.0, SSGi_TemporalWeight);
-    float4 Radiance = max(0.0001, lerp(CurrColor, PrevColor, BlendWeight));
+    float4 Radiance = max(0, lerp(CurrColor, PrevColor, BlendWeight));
     float historyLuma = Rec709Luminance(PrevColor.rgb);
     float luma = Rec709Luminance(Radiance.rgb);
     float Variance = (abs(historyLuma - luma) / max(max(historyLuma, luma), 1e-5)) > SSGI_VARIANCE_THRESHOLD ? 0 : 1;
@@ -310,14 +190,14 @@ void BilateralFilter(uint3 id : SV_DispatchThreadID)
     float2 UV = (id.xy + 0.5) * SVGF_BilateralSize.zw;
     float4 Color = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
     float4 Normal = SRV_GBufferNormal.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
-    float Depth = LinearEyeDepth(SRV_SceneDepth.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).r);
+    float Depth = ScreenSpaceLinearEyeDepth(SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, UV, 0).r);
 
     for (int i = 0; i < 25; ++i)
     {
         float2 OffsetUV = UV + (SSGI_BilateralOffset[i] * SVGF_BilateralSize.zw * SVGF_BilateralRadius);
         float4 OffsetColor = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
         float4 OffsetNormal = SRV_GBufferNormal.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
-        float OffsetDepth = LinearEyeDepth(SRV_SceneDepth.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0).r);
+        float OffsetDepth = ScreenSpaceLinearEyeDepth(SRV_SceneDepth.SampleLevel(Global_point_clamp_sampler, OffsetUV, 0).r);
 
         float4 Distance = Normal - OffsetNormal;
         float Distance2 = max(dot(Distance, Distance) / max(SVGF_BilateralRadius * SVGF_BilateralRadius, 1e-4), 0);

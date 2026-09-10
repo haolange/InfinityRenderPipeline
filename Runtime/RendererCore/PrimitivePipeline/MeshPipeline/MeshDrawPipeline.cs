@@ -141,8 +141,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal FBufferRef PrepareCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
-                || m_Residency.TransformBuffer.buffer == null
-                || m_Residency.PreviousTransformBuffer.buffer == null)
+                || m_Residency.TransformBuffer.buffer == null)
             {
                 return default;
             }
@@ -175,7 +174,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             int shaderPassIndex,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
-            string lightModeTag = null)
+            string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             MeshDrawGPUBackend.DrawIndirect(
                 cmdBuffer,
@@ -186,7 +185,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_DrawProfiler,
                 payload,
                 staging,
-                lightModeTag);
+                lightModeTag, previousTransforms);
         }
 
         internal int GetBoundsCullCount()
@@ -235,12 +234,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassDrawCache.Dispose();
         }
 
-        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, FBufferRef indexBufferRef, string lightModeTag = null)
+        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, FBufferRef indexBufferRef, string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
                 || indexBufferRef.buffer == null
-                || m_Residency.TransformBuffer.buffer == null
-                || m_Residency.PreviousTransformBuffer.buffer == null)
+                || m_Residency.TransformBuffer.buffer == null)
             {
                 return;
             }
@@ -264,13 +262,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                     }
 
                     m_PropertyBlock.Clear();
-                    // Shader bindings: transformBuffer / previousTransformBuffer are MeshScene TransformTable matrices.
+                    // Current poses come from the scene; previous poses come from this view's accepted history.
                     m_PropertyBlock.SetInt(InfinityShaderIDs.InstanceIndexOffset, command.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.InstanceIndexBuffer, indexBufferRef.buffer);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.TransformBuffer, m_Residency.TransformBuffer.buffer);
-                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.PreviousTransformBuffer, m_Residency.PreviousTransformBuffer.buffer);
+                    if (previousTransforms != null) m_PropertyBlock.SetBuffer(InfinityShaderIDs.PreviousTransformBuffer, previousTransforms);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.RenderingLayerBuffer, m_Residency.RenderingLayerBuffer.buffer);
+                    MeshBakedLighting.Bind(cmdBuffer, m_PropertyBlock, command.bakedTextureSet, m_Residency.BakedLightingBuffer.buffer);
                     cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, passIndex, command.countOffset.x, m_PropertyBlock);
+                    MeshBakedLighting.ClearKeywords(cmdBuffer);
                 }
             }
         }
@@ -313,7 +313,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
 
                 Material resolvedMaterial = UnityEntityId.ToObject<Material>(draw.materialUnityId);
-                int shaderIdentity = resolvedMaterial ? UnityEntityId.ToInt32(resolvedMaterial.shader) : 0;
+                ulong shaderIdentity = resolvedMaterial ? UnityEntityId.ToUInt64(resolvedMaterial.shader) : 0;
                 uint materialRoute = 0;
                 if (resolvedMaterial && resolvedMaterial.HasProperty("_SurfaceRoute") && resolvedMaterial.HasProperty("_TranslucentStage"))
                 {

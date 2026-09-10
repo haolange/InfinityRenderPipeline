@@ -1,6 +1,6 @@
 ﻿Shader "InfinityPipeline/InfinityLit"
 {
-	Properties 
+	Properties
 	{
         [Header (Color)]
         [Toggle (_UseAlbedoTex)]UseBaseColorTex ("UseBaseColorTex", Range(0, 1)) = 0
@@ -37,11 +37,11 @@
 		_RefractionStrength ("Refraction Strength", Range(0, 0.2)) = 0.04
 
 		[Header(RenderState)]
-		//[HideInInspector] 
+		//[HideInInspector]
 		_ZTest("ZTest", Int) = 4
 		_ZWrite("ZWrite", Int) = 1
 	}
-	
+
 	SubShader
 	{
 		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
@@ -52,24 +52,28 @@
 			Name "ShadowPass"
 			Tags { "LightMode" = "ShadowPass" }
 			ZTest LEqual ZWrite On Cull Back
-			ColorMask 0 
+			ColorMask 0
 
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
+            #include "../ShaderLibrary/ShadowCaster.hlsl"
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-			#pragma enable_d3d11_debug_symbols
+			#pragma enable_debug_symbols
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			struct Attributes
 			{
 				float2 uv : TEXCOORD0;
 				float4 vertex : POSITION;
+                float3 normal : NORMAL;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -88,7 +92,8 @@
 
 				Out.uv = In.uv;
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				Out.vertex = mul(Matrix_ViewProj, WorldPos);
+				WorldPos.xyz = OffsetShadowCaster(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
+                Out.vertex = mul(Matrix_ViewFlipYProj, WorldPos);
 				return Out;
 			}
 
@@ -115,17 +120,21 @@
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
+            #include "../ShaderLibrary/ShadowCaster.hlsl"
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			struct Attributes
 			{
 				float2 uv : TEXCOORD0;
 				float4 vertex : POSITION;
+                float3 normal : NORMAL;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -143,7 +152,8 @@
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 				Out.uv = In.uv;
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
-				Out.vertex = mul(Matrix_ViewProj, WorldPos);
+				WorldPos.xyz = OffsetShadowCaster(WorldPos.xyz, normalize(mul(In.normal, (float3x3)unity_WorldToObject)));
+                Out.vertex = mul(Matrix_ViewFlipYProj, WorldPos);
 				return Out;
 			}
 
@@ -160,7 +170,7 @@
 			Name "DepthPass"
 			Tags { "LightMode" = "DepthPass" }
 			ZTest LEqual ZWrite On Cull Back
-			ColorMask 0 
+			ColorMask 0
 
 			HLSLPROGRAM
 			#pragma target 4.5
@@ -168,11 +178,13 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-			#pragma enable_d3d11_debug_symbols
+			#pragma enable_debug_symbols
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			struct Attributes
 			{
@@ -224,9 +236,11 @@
 			#pragma fragment frag
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-			#pragma enable_d3d11_debug_symbols
+			#pragma enable_debug_symbols
 			#pragma multi_compile _ _DBUFFER
-			//#pragma multi_compile _ LIGHTMAP_ON
+			#pragma multi_compile _ LIGHTMAP_ON
+            #pragma multi_compile _ DIRLIGHTMAP_COMBINED
+            #pragma multi_compile _ SHADOWS_SHADOWMASK
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/Lightmap.hlsl"
@@ -235,14 +249,17 @@
 			#include "../ShaderLibrary/BSDF.hlsl"
 			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 
 			StructuredBuffer<float4> _AtmosphereSkySH;
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
 			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
+                float _SurfaceRoute;
 				float _Roughness;
 				float _Reflectance;
 				float _NormalTile;
@@ -270,9 +287,7 @@
 			struct Varyings
 			{
 				float2 uv0 : TEXCOORD0;
-				/*#if defined(LIGHTMAP_ON)
 				float2 uv1 : TEXCOORD1;
-				#endif*/
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
                 float3 bitangentWS : TEXCOORD4;
@@ -280,7 +295,7 @@
 				float4 vertexCS : SV_POSITION;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
-			
+
 			Varyings vert(Attributes In)
 			{
 				Varyings Out = (Varyings)0;
@@ -288,9 +303,7 @@
 				UNITY_TRANSFER_INSTANCE_ID(In, Out);
 
 				Out.uv0 = In.uv0;
-				/*#if defined(LIGHTMAP_ON)
 				Out.uv1 = In.uv1 * unity_LightmapST.xy + unity_LightmapST.zw;
-				#endif*/
 				Out.vertexWS = mul(UNITY_MATRIX_M, float4(In.vertexOS.xyz, 1.0));
 				Out.vertexCS = mul(UNITY_MATRIX_VP, Out.vertexWS);
 				Out.normalWS = normalize(mul(In.normalOS, (float3x3)unity_WorldToObject));
@@ -298,19 +311,19 @@
                 Out.bitangentWS = normalize(cross(Out.normalWS, Out.tangentWS) * In.tangentOS.w);
 				return Out;
 			}
-			
-			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3)
+
+			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3, out float4 BakedDiffuse : SV_Target4, out float4 BakedOcclusion : SV_Target5)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
-				
+
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
 				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
-				
+
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;
 				float3 cameraDirWS = normalize(_WorldSpaceCameraPos - positionWS);
 				float3x3 tangentMatrix = float3x3(In.tangentWS, In.bitangentWS, vnormalWS);
-				float3 pnormalWS = normalize(mul(normalMap, tangentMatrix)); 
+				float3 pnormalWS = normalize(mul(normalMap, tangentMatrix));
 
 				float3 surfaceAlbedo = albedoMap.rgb * _BaseColor.rgb;
 				float surfaceSpecular = _SpecularLevel;
@@ -329,12 +342,15 @@
 				GBufferData.Roughness = surfaceRoughness;
 				GBufferData.Reflactance = surfaceReflctance;
 				GBufferData.ShadingModel = _Subsurface > 0.5 ? GBUFFER_SHADING_MODEL_SUBSURFACE : GBUFFER_SHADING_MODEL_DEFAULT_LIT;
-				GBufferData.Flags = _Subsurface > 0.5 ? GBUFFER_FLAG_SUBSURFACE : 0;
+				GBufferData.Flags = (_Subsurface > 0.5 ? GBUFFER_FLAG_SUBSURFACE : 0) | (_SurfaceRoute == 1 ? GBUFFER_FLAG_FORWARD : 0);
 				GBufferData.SSSProfileIndex = (uint)(_SSSProfileIndex + 0.5);
 				GBufferData.Thickness = _SSSThickness;
                 GBufferData.RenderingLayer = asuint(unity_RenderingLayer.x);
 				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
 				LightingBuffer = float4(_EmissionColor.rgb, 0);
+                float4 shadowMask;
+                SampleBakedLighting(In.uv1, pnormalWS, BakedDiffuse, shadowMask);
+                BakedOcclusion = 1 - shadowMask;
 			}
 			ENDHLSL
 		}
@@ -345,15 +361,22 @@
 			Name "ForwardPass"
 			Tags { "LightMode" = "ForwardPass" }
 			ZTest Equal ZWrite Off Cull Back
-		
+
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
+            #pragma multi_compile _ INFINITY_FORWARD_AO
+#if defined(INFINITY_FORWARD_AO)
+            Texture2D<float> SRV_ForwardOcclusion;
+#endif
+            #include "../ShaderLibrary/SurfaceLighting.hlsl"
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-			#pragma enable_d3d11_debug_symbols
+			#pragma enable_debug_symbols
 			#pragma multi_compile _ LIGHTMAP_ON
+            #pragma multi_compile _ DIRLIGHTMAP_COMBINED
+            #pragma multi_compile _ SHADOWS_SHADOWMASK
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/BSDF.hlsl"
@@ -363,12 +386,14 @@
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/ImageBasedLighting.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 
 			StructuredBuffer<float4> _AtmosphereSkySH;
 			Texture2DArray<float4> _AtmosphereGGXPrefilter;
 			float _AtmosphereIBLMaxMip;
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float _Roughness;
@@ -384,7 +409,7 @@
 			CBUFFER_END
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
-			Texture2D unity_ShadowMask; SamplerState samplerunity_ShadowMask;
+
 
 			struct Attributes
 			{
@@ -399,9 +424,7 @@
 			struct Varyings
 			{
 				float2 uv0 : TEXCOORD0;
-				#if defined(LIGHTMAP_ON)
 				float2 uv1 : TEXCOORD1;
-				#endif
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
                 float3 bitangentWS : TEXCOORD4;
@@ -428,16 +451,7 @@
 				return Out;
 			}
 
-			float SampleBakedShadows(float2 lightMapUV) 
-			{
-				#if defined(LIGHTMAP_ON)
-					return unity_ShadowMask.Sample(samplerunity_ShadowMask, lightMapUV).r;
-				#else
-					return 1.0;
-				#endif
-			}
-
-			void frag(Varyings In, out float4 lightingBuffer : SV_Target0)
+			void frag(Varyings In, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2)
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
@@ -448,7 +462,7 @@
 				float3 positionWS = In.vertexWS.xyz;
 				float3 cameraDirWS = normalize(_WorldSpaceCameraPos - positionWS);
 				float3x3 tangentMatrix = float3x3(In.tangentWS, In.bitangentWS, vnormalWS);
-				float3 pnormalWS = normalize(mul(normalMap, tangentMatrix)); 
+				float3 pnormalWS = normalize(mul(normalMap, tangentMatrix));
 
 				float3 surfaceAlbedo = albedoMap.rgb * _BaseColor.rgb;
 				float surfaceSpecular = _SpecularLevel;
@@ -456,56 +470,20 @@
 				float surfaceRoughness = _Roughness;
 				MicrofaceContext microfaceContext = InitMicrofaceContext(surfaceSpecular, surfaceRoughness, surfaceReflctance, surfaceAlbedo);
 
-				float staticShadow = 1;
-				float3 indirectLight = 1;
-
-				#if defined(LIGHTMAP_ON)
-					staticShadow = SampleBakedShadows(In.uv1);
-					indirectLight = SampleLightmap(In.uv1, pnormalWS);
-				#else
-					indirectLight = 0;
-				#endif
-
-				lightingBuffer = 0;
-				for(int i = 0; i < g_DirectionalLightCount; ++i)
-				{
-					FLightRecord dirLight = g_LightRecordBuffer[i];
-                    if ((dirLight.lightLayer & asuint(unity_RenderingLayer.x)) == 0) continue;
-					float3 lightColor = LightRadiance(dirLight);
-					float3 lightDirWS = dirLight.directionSpot.xyz;
-					float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
-
-					BSDFContext bsdfContext = InitBXDFContext(pnormalWS, cameraDirWS, lightDirWS, halfDirWS);
-					lightingBuffer.rgb += DefultLit(bsdfContext, microfaceContext) * lightColor * saturate(bsdfContext.NoL) * staticShadow;
-				}
-
-				if (g_HasTileLightList != 0 && g_LocalLightCount > 0)
-				{
-					uint2 tile = (uint2)(In.vertexCS.xy / 16.0);
-					uint tileIndex = tile.y * (uint)ceil(_ScreenParams.x / 16.0) + tile.x;
-					uint2 range = SRV_TileLightRange[tileIndex];
-					[loop]
-					for (uint li = 0; li < range.y; ++li)
-					{
-						FLightRecord light = g_LightRecordBuffer[SRV_TileLightList[range.x + li]];
-                        if ((light.lightLayer & asuint(unity_RenderingLayer.x)) == 0) continue;
-						float3 toLight = light.positionRange.xyz - positionWS;
-						float dist = length(toLight);
-						float3 lightDirWS = light.lightType == LIGHT_TYPE_RECT ? normalize(light.positionRange.xyz - positionWS) : toLight / max(dist, 1e-4);
-						float att = DistanceAttenuation(dist, light.positionRange.w);
-						if (light.lightType == LIGHT_TYPE_SPOT)
-						{
-							att *= SpotAttenuation(lightDirWS, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
-						}
-						float3 halfDirWS = normalize(lightDirWS + cameraDirWS);
-						BSDFContext bsdfContext = InitBXDFContext(pnormalWS, cameraDirWS, lightDirWS, halfDirWS);
-						lightingBuffer.rgb += DefultLit(bsdfContext, microfaceContext) * LightRadiance(light) * saturate(bsdfContext.NoL) * att;
-					}
-				}
-				
-				lightingBuffer += float4(surfaceAlbedo * indirectLight, 1);
-				lightingBuffer.rgb += EvaluateAtmosphereIBL(microfaceContext, pnormalWS, cameraDirWS, _AtmosphereSkySH, _AtmosphereGGXPrefilter, _AtmosphereIBLMaxMip);
-				lightingBuffer.rgb += _EmissionColor.rgb;
+                float4 baked, mask;
+                SampleBakedLighting(In.uv1, pnormalWS, baked, mask);
+                float viewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
+                float3 diffuse = microfaceContext.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
+                float3 specular = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflect(-cameraDirWS, pnormalWS), microfaceContext.RoughnessClamp, _AtmosphereIBLMaxMip)
+                    * EnvBRDFApprox(microfaceContext.SpecularColor, microfaceContext.RoughnessClamp, saturate(dot(pnormalWS, cameraDirWS))).rgb;
+                #if defined(INFINITY_FORWARD_AO)
+                float ao = SRV_ForwardOcclusion.Load(int3(In.vertexCS.xy, 0));
+                diffuse *= ao; specular *= ao;
+#endif
+                indirectDiffuse = float4(diffuse, 1);
+                indirectSpecular = float4(specular, 1);
+                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, asuint(unity_RenderingLayer.x))
+                    + diffuse + specular + _EmissionColor.rgb, 1);
 			}
 			ENDHLSL
 		}
@@ -522,23 +500,25 @@
                 comp always
                 pass replace
             }
-			
+
 			HLSLPROGRAM
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_instancing
             #pragma instancing_options renderinglayer
-			#pragma enable_d3d11_debug_symbols
+			#pragma enable_debug_symbols
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			struct Attributes
 			{
 				float4 vertex : POSITION;
-				float3 vertexOld : TEXCOORD4;
+				uint vertexId : SV_VertexID;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -558,26 +538,20 @@
 
 				float4 WorldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1));
 				Out.vertex = mul(UNITY_MATRIX_VP, WorldPos);
-				
-				Out.clipPos = mul(Matrix_ViewProj, WorldPos);
-				Out.clipPosOld = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
+
+				Out.clipPos = mul(Matrix_ViewFlipYProj, WorldPos);
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, NativePreviousPosition(In.vertex, In.vertexId));
 				return Out;
 			}
 
-			float2 frag(Varyings In) : SV_Target
-			{
-				if (unity_MotionVectorsParams.y == 0)
-				{
-					discard;
-				}
+            MotionOutput frag(Varyings In)
+            {
+                MotionOutput output;
+                output.velocity = SurfaceVelocity(In.clipPos, In.clipPosOld);
+                output.metadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
+                return output;
+            }
 
-				float2 hPos = (In.clipPos.xy / In.clipPos.w);
-				float2 hPosOld = (In.clipPosOld.xy / In.clipPosOld.w);
-
-				float2 ndcPos = (hPos.xy + 1.0f) / 2.0f;
-				float2 ndcPosOld = (hPosOld.xy + 1.0f) / 2.0f;
-				return ndcPos - ndcPosOld;
-			}
 			ENDHLSL
 		}
 
@@ -596,8 +570,10 @@
             #pragma instancing_options renderinglayer
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			struct Attributes
 			{
@@ -636,6 +612,7 @@
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
 			Blend 2 One Zero
+            Blend 3 One Zero
 
 			HLSLPROGRAM
 			#pragma target 4.5
@@ -647,8 +624,10 @@
 			#pragma multi_compile _ _AERIAL_PERSPECTIVE
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
@@ -659,7 +638,7 @@
 			{
 				float2 uv : TEXCOORD0;
 				float4 vertex : POSITION;
-				float3 vertexOld : TEXCOORD4;
+				uint vertexId : SV_VertexID;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -678,6 +657,7 @@
 				float4 color : SV_Target0;
 				float reactive : SV_Target1;
 				float2 motion : SV_Target2;
+                float4 motionMetadata : SV_Target3;
 			};
 
 			Varyings vert(Attributes In)
@@ -689,8 +669,8 @@
 				float4 worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
 				Out.worldPos = worldPos.xyz;
 				Out.vertex = mul(UNITY_MATRIX_VP, worldPos);
-				Out.clipPos = mul(Matrix_ViewProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
+				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, NativePreviousPosition(In.vertex, In.vertexId));
 				return Out;
 			}
 
@@ -702,7 +682,8 @@
 				FragOutput o;
 				o.color = ApplyT0Fog(albedo, _BaseColor.a, screenUV, linearDepth);
 				o.reactive = TranslucentReactive(_BaseColor.a);
-				o.motion = TranslucentMotion(In.clipPos, In.clipPosOld);
+				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
+                o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
 			}
 			ENDHLSL
@@ -716,6 +697,7 @@
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
 			Blend 2 One Zero
+            Blend 3 One Zero
 
 			HLSLPROGRAM
 			#pragma target 4.5
@@ -726,8 +708,10 @@
 			#pragma multi_compile _ _REFRACTION_PYRAMID
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
@@ -741,7 +725,7 @@
 				float2 uv : TEXCOORD0;
 				float3 normal : NORMAL;
 				float4 vertex : POSITION;
-				float3 vertexOld : TEXCOORD4;
+				uint vertexId : SV_VertexID;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -760,6 +744,7 @@
 				float4 color : SV_Target0;
 				float reactive : SV_Target1;
 				float2 motion : SV_Target2;
+                float4 motionMetadata : SV_Target3;
 			};
 
 			Varyings vert(Attributes In)
@@ -771,8 +756,8 @@
 				float4 worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
 				Out.normalWS = normalize(mul((float3x3)UNITY_MATRIX_M, In.normal));
 				Out.vertex = mul(UNITY_MATRIX_VP, worldPos);
-				Out.clipPos = mul(Matrix_ViewProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
+				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, NativePreviousPosition(In.vertex, In.vertexId));
 				return Out;
 			}
 
@@ -787,7 +772,8 @@
 				FragOutput o;
 				o.color = float4(color, _BaseColor.a);
 				o.reactive = TranslucentReactive(_BaseColor.a);
-				o.motion = TranslucentMotion(In.clipPos, In.clipPosOld);
+				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
+                o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
 			}
 			ENDHLSL
@@ -801,6 +787,7 @@
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
 			Blend 2 One Zero
+            Blend 3 One Zero
 
 			HLSLPROGRAM
 			#pragma target 4.5
@@ -810,8 +797,10 @@
             #pragma instancing_options renderinglayer
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
+            #include "../ShaderLibrary/NativeMotion.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float4 _BaseColor;
@@ -822,7 +811,7 @@
 			{
 				float2 uv : TEXCOORD0;
 				float4 vertex : POSITION;
-				float3 vertexOld : TEXCOORD4;
+				uint vertexId : SV_VertexID;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -840,6 +829,7 @@
 				float4 color : SV_Target0;
 				float reactive : SV_Target1;
 				float2 motion : SV_Target2;
+                float4 motionMetadata : SV_Target3;
 			};
 
 			Varyings vert(Attributes In)
@@ -850,8 +840,8 @@
 				Out.uv = In.uv;
 				float4 worldPos = mul(UNITY_MATRIX_M, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(UNITY_MATRIX_VP, worldPos);
-				Out.clipPos = mul(Matrix_ViewProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewProj, mul(unity_MatrixPreviousM, unity_MotionVectorsParams.x > 0 ? float4(In.vertexOld, 1) : In.vertex));
+				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, NativePreviousPosition(In.vertex, In.vertexId));
 				return Out;
 			}
 
@@ -861,12 +851,13 @@
 				FragOutput o;
 				o.color = float4(albedo, _BaseColor.a);
 				o.reactive = TranslucentReactive(_BaseColor.a);
-				o.motion = TranslucentMotion(In.clipPos, In.clipPosOld);
+				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
+                o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
 			}
 			ENDHLSL
 		}
-		
+
 		//BakeLighting
 		Pass
 		{
@@ -880,6 +871,7 @@
 			#pragma fragment frag
 
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
+            #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
@@ -945,7 +937,7 @@
 				}
 				return mul(unity_MatrixVP, float4(positionOS.xyz, 1.0));
 			}
-				
+
 			float4 MetaFragment(MetaInput input)
 			{
 				float4 res = 0;

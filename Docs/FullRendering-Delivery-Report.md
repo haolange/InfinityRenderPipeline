@@ -143,7 +143,7 @@ Windows/D3D12, Windows/Vulkan, Linux/Vulkan and HDR hardware are each **UNVERIFI
 | Item | Current entry / procedure | Acceptance |
 |------|---------------------------|------------|
 | Compilation and tests | Refresh the existing Editor; `Infinity/Validation/Tests/Run EditMode With XML` | Save the new log byte window and actual XML discovery/execution/pass/fail/skip counts. Compilation alone is insufficient. |
-| Normal-frame GPU capture | In an already running Game camera, `Infinity/Validation/Capture/Normal Beauty And Confidence`; Player reads an explicit JSON request through `-infinityCaptureRequest` | Unique run directory, immutable fixture/ROI, source descriptors and producer/queue/frame metadata, original raw bytes, zero NaN/Inf and terminal resource retirement. The macOS Player entry passed N03; other platforms remain externally unverified. |
+| Normal-frame GPU capture | In an already running Game camera, targeted Unity CLI `infinity_capture_start --requestPath <json>` with `infinity_capture_status` and `infinity_capture_cancel`; Player reads an explicit JSON request through `-infinityCaptureRequest` | Unique run directory, immutable fixture/ROI, source descriptors and producer/queue/frame metadata, original raw bytes, zero NaN/Inf and terminal resource retirement. The macOS Player entry passed N03; other platforms remain externally unverified. |
 | Static temporal quality | Fixed static fixture, FilmGrain disabled, proven liveness; warm up at least 120 successful frames then capture at least three normal beauty frames | Declare measurement color space and ROI beforehand. Per-channel change threshold 8/255; changed-pixel fraction below 0.5%. Stable valid confidence above 0.9; occlusion/reset must reject then recover. Constant fabricated confidence is invalid. |
 | Motion and transparency | Dedicated moving-object, disocclusion and transparent fixtures | Inspect coverage, rejection and recovery separately; do not apply the static difference gate to moving regions. N11/N12 fixtures remain pending. |
 | Output encoding | Known-linear OETF tests, actual target-format/transfer metadata, plus actual Game/Player window | Only a known linear 0.18 input is expected to encode to sRGB approximately 0.461356. Film/LUT/exposure are separate tests. HardwareSRGB intermediate bytes are pre-encoding linear data, not native backbuffer readback. |
@@ -201,3 +201,40 @@ Known band/triangle/cube errors remain N07/N08. Twelve pre-existing Metal shader
 ## Verifier model provenance correction
 
 On the current continuation, a historical verifier receipt declared GPT-6 Astra and the former Player verifier confirmed GPT-6/Codex despite its Terra task name. Those receipts remain unchanged as evidence but do not satisfy the required actual GPT-5.6 Terra model gate. New agents explicitly configured as `gpt-5.6-terra` are rechecking N00–N04 and N05 completed candidates. The PLAN table records this verification state; do not interpret earlier PASS wording as completed model-specific acceptance until supplemental receipts pass.
+
+## Unity CLI interaction preparation — 2026-09-09
+
+User authorized replacing UI-driven automation and selected Unity 6000.6.0f1, currently being downloaded after removal of the old Editor. Official CLI 1.0.0-beta.6 is installed; Example manifest now pins com.unity.pipeline 0.6.0-exp.1, with an exact dependency-only change and pre-change manifest/lock backups. No Editor connection, new-version compile or rendering acceptance is claimed. The source-audited official screenshot command rerenders the camera and is excluded from normal-frame evidence. N03.I tracks the command adapter, actual verification and retirement of superseded scripts; full interaction refactor remains incomplete until those gates pass.
+
+## Deprecated Jobs removal — 2026-09-09
+
+Removed com.unity.jobs from the Example and Infinity manifests and removed its empty Unity.Jobs assembly reference. Actual job namespaces/implementations remain provided by Unity and Collections. UPM regenerated the lock without Jobs or a referencing dependency. Corrected the Unity 6.6 CS0619 object-ID conversion in migration inspection to use ulong and EntityId.FromULong without narrowing. Unity 6000.6.0f1 recompiled and passed the actual216/216 Editor suite; Package Manager no longer shows the deprecated Jobs warning. Evidence: jobs-retirement-20260909. This does not validate all rendering features or rerun asset migrations on6.6. The official CLI server separately fails to bind ports7800–7849 and N03.I remains incomplete.
+
+## CLI listener recovery — 2026-09-09
+
+The previously open port-bind failure is now corrected in the outer Example embedded bridge: numeric IPv4 loopback replaces the failing wildcard prefix. Actual same-Editor probe, ready status, read-only eval and successful recompile/reconnect evidence are archived in cli-listener-fix-20260909. Authentication still rejects missing tokens with401 and the listener binds only127.0.0.1. No second Editor, production render change, Cache patch or retained probe script is involved. Full custom validation-command migration remains N03.I.
+
+
+## 2026-09-10 visual repair wave — Editor-only acceptance
+
+CSM, HiZ/SSR/SSGI/GTAO and baked/mixed-lighting repairs passed the finite visual-wave gates under user-selected Astra low independent review. Final Editor XML241/241; original scene/camera/11maps restored;0outstanding,MatrixDuplicateRatio1. See sibling `InfinityRP-Validation/visual-repair-20260909/DELIVERY.md` and `astra-independent-verdict.json`. No macOS build or Player run was performed. Unrelated N00–N15 and untested platform gates remain unchanged. Original failed receipts are preserved; no compatibility path or hit-record compression was added.
+
+
+## 2026-09-10 TAA candidate03 — rendering accepted, crash attribution open
+
+Game and SceneView now use matched per-view motion and previous-depth metadata, unsharpened RGBA16F accumulation/history, and a separate bounded luminance sharpen output. Native rigid/deformed snapshots and Mesh snapshots commit with accepted camera submissions. Consumer-audited replaced paths were removed; no history compression or compatibility shim was introduced.
+
+The final candidate03 Editor run passed264/264 tests. Current normal-frame evidence includes both seven-phase camera trajectories,62 exact color/depth history pairs, two projection fixtures, five CPU/GPU lighting scenarios,108 finite screen-space outputs,33 HiZ mip CPU comparisons and3,938,612 coherent SSR hits. Root and Astra low inspected enlarged pole/sky and stop-sequence evidence. Source differs from candidate02 only by a hash-proved line-ending correction. Evidence: sibling `InfinityRP-Validation/TAA-20260910-052410/final-candidate03`, with independent review03 and failure archives retained separately.
+
+Both required idle trajectories completed without recurrence in the same Editor (1801.362s startup;1801.550s after normal rendering/capture/Play). Nevertheless, an earlier candidate repeated the original SourceAssetDB idle crash. Its cause remains UNKNOWN; quiet observations do not prove a fix. Independent overall two-plan acceptance and the completion-conditioned main upload remain blocked on that distinction.
+
+A separate UDS startup `stoull` parser fault was reproduced in the same-version empty project using a4KB AppleDouble sidecar. Quarantining only that sidecar recovered original-project startup while preserving the actual461,996,998-byte data file hash. This does not attribute the idle crash. No macOS build, engine upgrade, Library deletion, asset save/migration or rebake was performed. Existing N11 custom Mesh transparent submission and other untested scopes are not claimed as passing draws.
+
+
+## 2026-09-10 main submission — current local change list
+
+This submission records the existing local rendering fixes, CLI validation tools, tests, Unity6.6 importer metadata and development instructions at the user's explicit request. It is not a declaration that both repair plans are fully closed. Earlier runs recorded241/241 visual-wave and264/264 final TAA Editor tests; this submission does not claim a new test run. Historical evidence locations referenced above are provenance records, not a guarantee that temporary or external raw files remain available.
+
+The original-path startup was temporarily recovered by removing a backed-up AppleDouble companion, but the Editor immediately generated a new ._UDSData_5.bin. Durable startup repair is therefore still open. The separate idle SourceAssetDB/MDB_BAD_RSLOT crash remains unattributed. No project relocation, installed-Editor binary/signature modification, engine upgrade or macOS Player build is part of this commit. Custom Mesh transparent submission remains the pre-existing N11 gap.
+
+The Example project's embedded Unity CLI transport is outside this package repository; this commit includes the package-side adapters and documentation, not that external dependency. Intermediate captures, crash logs and local credentials are not part of the Git submission.

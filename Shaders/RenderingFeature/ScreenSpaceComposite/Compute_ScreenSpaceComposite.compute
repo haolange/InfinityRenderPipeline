@@ -3,6 +3,8 @@
 #pragma multi_compile_local _ COMPOSITE_SSGI
 
 #include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceDepth.hlsl"
+#include "../../ShaderLibrary/IndirectComposition.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/ImageBasedLighting.hlsl"
@@ -13,6 +15,7 @@ float4 Composite_Resolution;
 float4x4 Matrix_InvViewProj;
 float3 _WorldSpaceCameraPos;
 Texture2D SRV_LightingTexture;
+Texture2D<float4> SRV_IndirectDiffuse, SRV_IndirectSpecular;
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
 Texture2D SRV_GBufferTextureC;
@@ -36,7 +39,7 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
     uint2 pixelCoord = id.xy;
     float3 lighting = SRV_LightingTexture[pixelCoord].rgb;
     float rawDepth = SRV_DepthTexture[pixelCoord];
-    if (rawDepth <= 1e-7)
+    if (ScreenSpaceIsFarDepth(rawDepth))
     {
         UAV_SceneColor[pixelCoord] = float4(lighting, 1);
         return;
@@ -48,7 +51,7 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
 
 #if defined(COMPOSITE_SSGI)
     float4 ssgiColor = SRV_SSGITexture[pixelCoord];
-    lighting += microfaceCtx.AlbedoColor * ssgiColor.rgb;
+    lighting = ReplaceIndirectContribution(lighting, SRV_IndirectDiffuse[pixelCoord].rgb, microfaceCtx.AlbedoColor * ssgiColor.rgb, ssgiColor.a);
 #endif
 
 #if defined(COMPOSITE_SSR)
@@ -58,8 +61,8 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
     float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
     float4 ssrColor = SRV_SSRTexture[pixelCoord];
     float2 envBRDF = IBL_Defualt_SpecularIntegrated_Approx(gbufferData.Roughness, saturate(dot(gbufferData.Normal, viewDir)));
-    float3 indirectSpecular = ssrColor.rgb * ssrColor.a;
-    lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular;
+    float3 indirectSpecular = ssrColor.rgb;
+    lighting = ReplaceIndirectContribution(lighting, SRV_IndirectSpecular[pixelCoord].rgb, (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular, ssrColor.a);
 #endif
 
     UAV_SceneColor[pixelCoord] = float4(max(0, lighting), 1);

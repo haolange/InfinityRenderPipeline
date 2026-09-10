@@ -8,6 +8,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public struct MeshInstanceRecord
     {
         public TransformId transform;
+        public FMeshBakedLighting bakedLighting;
         public FBound worldBounds;
         public int layerMask;
         public uint renderingLayerMask;
@@ -24,7 +25,6 @@ namespace InfinityTech.Rendering.MeshPipeline
     public struct TransformRecord
     {
         public float4x4 current;
-        public float4x4 previous;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -36,8 +36,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public EPassEligibility eligibility;
         public int renderQueue;
         public int priority;
-        public int meshUnityId;
-        public int materialUnityId;
+        public ulong meshUnityId;
+        public ulong materialUnityId;
         public int sectionIndex;
         /// <summary>
         /// Draw-level static / batching flags (e.g. 1 = Static mobility). Feeds MeshPassDrawCacheKey.
@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     [StructLayout(LayoutKind.Sequential)]
     public struct MeshSectionRecord
     {
-        public int meshUnityId;
+        public ulong meshUnityId;
         public int sectionIndex;
         public EGeometrySourceKind geometrySource;
         public int refCount;
@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     [StructLayout(LayoutKind.Sequential)]
     public struct MaterialDataRecord
     {
-        public int materialUnityId;
+        public ulong materialUnityId;
         public int renderQueue;
         public uint revision;
         public int refCount;

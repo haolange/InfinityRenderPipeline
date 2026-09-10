@@ -26,15 +26,18 @@ namespace InfinityTech.Rendering.LightPipeline
         public Vector4 atlasPixelRect;
         public Vector4 atlasUVRect;
         public Matrix4x4 shadowMatrix;
+        public Vector4 casterBias;
         public ShadowSplitData splitData;
         public bool valid;
     }
 
     internal struct FCascadeShadowSlice
     {
+        public Matrix4x4 cullingMatrix;
         public Matrix4x4 shadowMatrix;
         public Vector4 atlasPixelRect;
         public Vector4 atlasUVRect;
+        public Vector4 casterBias;
         public ShadowSplitData splitData;
         public bool valid;
     }
@@ -47,6 +50,7 @@ namespace InfinityTech.Rendering.LightPipeline
     internal sealed class ShadowAllocator
     {
         public const int CascadeCount = 4;
+        internal static readonly Vector3 DefaultCascadeRatios = new Vector3(0.067f, 0.2f, 0.467f);
 
         public int CascadeVisibleLightIndex { get; private set; } = -1;
         public int CascadeRecordIndex { get; private set; } = -1;
@@ -54,6 +58,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public Vector4 CascadeSplitDistances { get; private set; }
         public readonly FCascadeShadowSlice[] CascadeSlices = new FCascadeShadowSlice[CascadeCount];
         public readonly Matrix4x4[] CascadeMatrices = new Matrix4x4[CascadeCount];
+        public readonly Vector4[] CascadeSpheres = new Vector4[CascadeCount];
 
         public int LocalSliceCount { get; private set; }
         public FLocalShadowSlice[] LocalSlices = Array.Empty<FLocalShadowSlice>();
@@ -84,6 +89,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 CascadeSlices[i] = default;
                 CascadeMatrices[i] = Matrix4x4.identity;
+                CascadeSpheres[i] = Vector4.zero;
             }
         }
 
@@ -115,10 +121,8 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             int halfRes = cascadeRes;
             Vector3 ratios = settings.cascadeRatios;
-            if (ratios.x <= 0.0f)
-            {
-                ratios = new Vector3(0.067f, 0.2f, 0.467f);
-            }
+            if (!(ratios.x > 0 && ratios.x < ratios.y && ratios.y < ratios.z && ratios.z < 1))
+                throw new ArgumentOutOfRangeException(nameof(settings.cascadeRatios), "Cascade ratios must be increasing within (0, 1).");
 
             for (int i = 0; i < records.Length; ++i)
             {
@@ -135,11 +139,6 @@ namespace InfinityTech.Rendering.LightPipeline
                     continue;
                 }
 
-                if (!cullingResults.GetShadowCasterBounds(record.visibleLightIndex, out _))
-                {
-                    continue;
-                }
-
                 CascadeVisibleLightIndex = record.visibleLightIndex;
                 CascadeRecordIndex = i;
                 Vector4 splits = Vector4.zero;
@@ -152,6 +151,8 @@ namespace InfinityTech.Rendering.LightPipeline
                     slice.atlasPixelRect = new Vector4(col * halfRes, row * halfRes, halfRes, halfRes);
                     slice.atlasUVRect = new Vector4(col * 0.5f, row * 0.5f, 0.5f, 0.5f);
                     slice.shadowMatrix = Matrix4x4.identity;
+                    slice.cullingMatrix = Matrix4x4.identity;
+                    slice.casterBias = Vector4.zero;
                     slice.splitData = default;
                     slice.valid = cullingResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(
                         record.visibleLightIndex,
@@ -165,13 +166,19 @@ namespace InfinityTech.Rendering.LightPipeline
                         out slice.splitData);
                     if (slice.valid)
                     {
-                        slice.shadowMatrix = MakeShadowMatrix(projMatrix, viewMatrix, invertPointView: false);
+                        float texelSize = 2f / (Mathf.Abs(projMatrix.m00) * halfRes);
+                        slice.casterBias = new Vector4(-light.shadowBias * texelSize, -light.shadowNormalBias * texelSize, 0, 0);
+                        slice.cullingMatrix = projMatrix * viewMatrix;
+                        slice.shadowMatrix = MakeShadowMatrix(projMatrix, viewMatrix);
+                        Vector4 sphere = slice.splitData.cullingSphere;
+                        sphere.w *= sphere.w;
+                        CascadeSpheres[cascade] = sphere;
+                        allocated++;
                     }
 
                     CascadeSlices[cascade] = slice;
                     CascadeMatrices[cascade] = slice.shadowMatrix;
-                    splits[cascade] = CascadeSplit(cascade, settings.shadowDistance);
-                    allocated++;
+                    splits[cascade] = (cascade < 3 ? ratios[cascade] : 1f) * settings.shadowDistance;
                 }
 
                 CascadeAllocatedCount = allocated;
@@ -183,12 +190,6 @@ namespace InfinityTech.Rendering.LightPipeline
                 records[i] = record;
                 return;
             }
-        }
-
-        static float CascadeSplit(int cascade, float shadowDistance)
-        {
-            float[] ratios = { 0.067f, 0.2f, 0.467f, 1.0f };
-            return ratios[cascade] * shadowDistance;
         }
 
         void AllocateLocal(
@@ -317,6 +318,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     local.atlasPixelRect = new Vector4(x, y, tileResolution, tileResolution);
                     local.atlasUVRect = new Vector4(x / localRes, y / localRes, (float)tileResolution / localRes, (float)tileResolution / localRes);
                     local.shadowMatrix = Matrix4x4.identity;
+                    local.casterBias = Vector4.zero;
                     local.splitData = default;
                     local.valid = false;
 
@@ -326,7 +328,9 @@ namespace InfinityTech.Rendering.LightPipeline
                             visibleIndex, out Matrix4x4 viewMatrix, out Matrix4x4 projMatrix, out local.splitData);
                         if (local.valid)
                         {
-                            local.shadowMatrix = MakeShadowMatrix(projMatrix, viewMatrix, invertPointView: false);
+                            float texelSize = 2f / (Mathf.Abs(projMatrix.m00) * tileResolution);
+                            local.casterBias = new Vector4(-visible.light.shadowBias * texelSize, -visible.light.shadowNormalBias * texelSize, 0, 0);
+                            local.shadowMatrix = MakeShadowMatrix(projMatrix, viewMatrix);
                         }
                     }
                     else
@@ -336,7 +340,9 @@ namespace InfinityTech.Rendering.LightPipeline
                             out Matrix4x4 viewMatrix, out Matrix4x4 projMatrix, out local.splitData);
                         if (local.valid)
                         {
-                            local.shadowMatrix = MakeShadowMatrix(projMatrix, viewMatrix, invertPointView: false);
+                            float texelSize = 2f / (Mathf.Abs(projMatrix.m00) * tileResolution);
+                            local.casterBias = new Vector4(-visible.light.shadowBias * texelSize, -visible.light.shadowNormalBias * texelSize, 0, 0);
+                            local.shadowMatrix = MakeShadowMatrix(projMatrix, viewMatrix);
                         }
                     }
 
@@ -358,18 +364,7 @@ namespace InfinityTech.Rendering.LightPipeline
             recordIndices.Dispose();
         }
 
-        static Matrix4x4 MakeShadowMatrix(Matrix4x4 projMatrix, Matrix4x4 viewMatrix, bool invertPointView)
-        {
-            if (invertPointView)
-            {
-                viewMatrix.m10 = -viewMatrix.m10;
-                viewMatrix.m11 = -viewMatrix.m11;
-                viewMatrix.m12 = -viewMatrix.m12;
-                viewMatrix.m13 = -viewMatrix.m13;
-            }
-
-            return GL.GetGPUProjectionMatrix(projMatrix, true) * viewMatrix;
-        }
+        static Matrix4x4 MakeShadowMatrix(Matrix4x4 projection, Matrix4x4 view) => GL.GetGPUProjectionMatrix(projection, true) * view;
 
         void EnsureLocalCapacity(int sliceCount)
         {

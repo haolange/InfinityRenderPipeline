@@ -26,6 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct TranslucentColorPassData
         {
             public RendererList rendererList;
+            public RGBufferRef nativeVertices;
             public bool bindFog;
             public bool bindAerial;
             public bool bindPyramid;
@@ -127,7 +128,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.renderQueueRange = InfinityRenderQueue.k_RenderQueue_AllTransparent;
                 rendererListDesc.sortingCriteria = SortingCriteria.CommonTransparent;
                 rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
+                rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RendererList rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
@@ -138,10 +139,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(sceneColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(reactiveMask, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(motionTexture, 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer), 3, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref TranslucentColorPassData passData = ref passRef.GetPassData<TranslucentColorPassData>();
                 passData.rendererList = rendererList;
+                passData.nativeVertices = passRef.ReadBuffer(m_RGScoper.QueryBuffer(InfinityShaderIDs.NativePreviousVertices));
                 passData.bindFog = hasFog;
                 passData.bindAerial = hasAerial;
                 passData.bindPyramid = hasPyramid;
@@ -167,6 +170,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
+                    cmdEncoder.SetGlobalBuffer(InfinityShaderIDs.NativePreviousVertices, passData.nativeVertices);
                     cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_MaxDistanceID, passData.fogMaxDistance);
                     cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_AerialDistanceID, passData.aerialDistance);
                     if (passData.bindFog)

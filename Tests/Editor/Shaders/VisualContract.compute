@@ -1,0 +1,55 @@
+#pragma kernel TraceContract
+#pragma kernel MixedShadowContract
+#pragma kernel EnergyContract
+#pragma kernel ReceiverPlaneContract
+#pragma kernel MeshNormalContract
+#include "../../../Shaders/ShaderLibrary/GPUScene.hlsl"
+#include "../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../../Shaders/ShaderLibrary/ShadowSampling.hlsl"
+#include "../../../Shaders/ShaderLibrary/IndirectComposition.hlsl"
+Texture2D DepthPyramid;
+Texture2D<float> ShadowRamp;
+float4x4 Projection;
+float4 Origin, Direction;
+float RayDistance, ShadowStrength;
+RWStructuredBuffer<float4> Results;
+[numthreads(1, 1, 1)]
+void TraceContract(uint3 id : SV_DispatchThreadID)
+{
+    float3 hit;
+    bool valid = TraceScreenSpaceRay(Origin.xyz, Direction.xyz, RayDistance, 0.01, 64, 0, Projection, DepthPyramid, hit);
+    Results[0] = float4(hit, valid ? 1 : 0);
+}
+[numthreads(1, 1, 1)]
+void MixedShadowContract(uint3 id : SV_DispatchThreadID)
+{
+    FLightRecord light = (FLightRecord)0;
+    light.flags = 8;
+    light.shape.z = ShadowStrength;
+    light.bakedOcclusionChannel = id.x % 4;
+    float distance = id.x < 4 ? 50 : id.x < 8 ? 95 : 100;
+    Results[id.x] = MixBakedAndRealtimeShadow(light, 0.6, float4(0.1, 0.2, 0.3, 0.4), distance);
+}
+[numthreads(1, 1, 1)]
+void EnergyContract(uint3 id : SV_DispatchThreadID)
+{
+    float confidence = id.x * 0.5;
+    float3 direct = float3(1, 2, 3), existing = float3(0.2, 0.4, 0.6);
+    Results[id.x] = float4(ReplaceIndirectContribution(direct + existing, existing, existing * confidence, confidence), 1);
+}
+
+[numthreads(1, 1, 1)]
+void ReceiverPlaneContract(uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = float2(0.511, 0.507);
+    float z = 0.4 + 0.2 * uv.x + 0.1 * uv.y;
+    Results[id.x] = SampleShadowPCF3x3(ShadowRamp, uv, z, 1.0 / 64,
+        float4(0, 0, 1, 1), id.x, float2(0.2, 0.1));
+}
+
+float4x4 ObjectToWorld;
+[numthreads(1, 1, 1)]
+void MeshNormalContract(uint3 id : SV_DispatchThreadID)
+{
+    Results[0] = float4(MeshNormalToWorld(ObjectToWorld, normalize(float3(1, 2, 3))), MeshTransformSign(ObjectToWorld));
+}

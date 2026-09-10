@@ -88,8 +88,15 @@ namespace InfinityTech.Rendering.RenderGraph
                 && draws.index < m_Records.Count;
         }
 
+        static void ValidateMotionInput(in MeshDrawRequest request)
+        {
+            if (request.lightModeTag == "MotionPass" && request.previousTransforms == null)
+                throw new System.InvalidOperationException("Motion draws require the selected view's previous-transform producer.");
+        }
+
         public RGDrawListRef Declare(MeshDrawPipeline pipeline, in MeshDrawRequest request, in MeshViewCullingResult culling)
         {
+            ValidateMotionInput(request);
             // Value-copy path: first record owns NativeArrays; later declares sharing the same arrays must not double-free.
             // Prefer Declare(..., MeshVisibilityHandle) for shared visibility.
             bool owns = culling.isValid;
@@ -134,6 +141,7 @@ namespace InfinityTech.Rendering.RenderGraph
             MeshVisibilityHandle visibilityHandle,
             MeshVisibilityShare visibilityShare)
         {
+            ValidateMotionInput(request);
             MeshViewCullingResult culling = default;
             if (visibilityShare != null && visibilityHandle.IsValid)
             {
@@ -334,11 +342,11 @@ namespace InfinityTech.Rendering.RenderGraph
                     record.request.shaderPassIndex,
                     record.gpuPayload,
                     record.gpuStaging,
-                    record.request.lightModeTag);
+                    record.request.lightModeTag, record.request.previousTransforms);
                 return;
             }
 
-            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.request.shaderPassIndex, record.cpuIndexBuffer, record.request.lightModeTag);
+            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.request.shaderPassIndex, record.cpuIndexBuffer, record.request.lightModeTag, record.request.previousTransforms);
         }
 
         /// <summary>

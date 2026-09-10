@@ -48,6 +48,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public interface IRasterCommands
     {
+        void SetKeyword(GlobalKeyword keyword, bool value);
         void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data);
         void SetViewport(in Rect pixelRect);
         void SetGlobalFloat(int nameID, float value);
@@ -56,6 +57,8 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetGlobalBuffer(int nameID, GraphicsBuffer value);
         void SetGlobalInt(int nameID, int value);
         void SetGlobalVector(int nameID, Vector4 value);
+        void SetGlobalVectorArray(int nameID, Vector4[] values);
+        void SetGlobalMatrixArray(int nameID, Matrix4x4[] values);
         void SetGlobalTexture(int nameID, RenderTargetIdentifier value);
         void DrawMesh(Mesh mesh, in Matrix4x4 matrix, Material material, in int submeshIndex, in int shaderPass);
         void DrawRendererList(in RendererList rendererList);
@@ -66,6 +69,9 @@ namespace InfinityTech.Rendering.RenderGraph
     public readonly struct CommandBufferCommands : ITransferCommands, IComputeCommands, IRaytracingCommands, IRasterCommands
     {
         readonly CommandBuffer m_CommandBuffer;
+        public void SetKeyword(GlobalKeyword keyword, bool value) => m_CommandBuffer.SetKeyword(keyword, value);
+        public void SetGlobalVectorArray(int nameID, Vector4[] values) => m_CommandBuffer.SetGlobalVectorArray(nameID, values);
+        public void SetGlobalMatrixArray(int nameID, Matrix4x4[] values) => m_CommandBuffer.SetGlobalMatrixArray(nameID, values);
 
         public void SetGlobalBuffer(int nameID, RGBufferRef value) => value.BindGlobal(m_CommandBuffer, nameID);
         public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferRef value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);

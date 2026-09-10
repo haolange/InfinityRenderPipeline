@@ -4,19 +4,18 @@
 #define BLUR_RADIUS 8
 
 #include "Common.hlsl"
-#include "UnityCG.cginc"
 
 void GetAO_Depth(float2 sampleUV, inout float occlusion, inout float depth)
 {
-	depth = LinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, sampleUV, 0).r);
+	depth = ScreenSpaceLinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, sampleUV, 0).r);
 	occlusion = SRV_OcclusionTexture.SampleLevel(Global_bilinear_clamp_sampler, sampleUV, 0).r;
 }
 
-float CrossBilateralWeight(float radius, float sampleDepth, float sceneDepth) 
+float CrossBilateralWeight(float radius, float sampleDepth, float sceneDepth)
 {
 	float blurSigma = (float)BLUR_RADIUS * 0.5;
 	float blurFalloff = 1 / (2 * blurSigma * blurSigma);
-    float edgeStop = (sceneDepth - sampleDepth) * _ProjectionParams.z * Sharpeness;
+    float edgeStop = (sceneDepth - sampleDepth) * Sharpeness / max(0.01 * sceneDepth, 0.001);
 	return exp2(-radius * radius * blurFalloff - edgeStop * edgeStop);
 }
 
@@ -35,7 +34,7 @@ void ProcessRadius(float2 screenUV, float2 deltaUV, float sceneDepth, inout floa
 	float2 sampleUV = 0;
 
 	[unroll]
-	for (; radius <= BLUR_RADIUS / 2; radius += 1) 
+	for (; radius <= BLUR_RADIUS / 2; radius += 1)
 	{
 		sampleUV = screenUV + radius * deltaUV;
 		GetAO_Depth(sampleUV, occlusion, sampleDepth);
@@ -43,7 +42,7 @@ void ProcessRadius(float2 screenUV, float2 deltaUV, float sceneDepth, inout floa
 	}
 
 	[unroll]
-	for (; radius <= BLUR_RADIUS; radius += 2) 
+	for (; radius <= BLUR_RADIUS; radius += 2)
 	{
 		sampleUV = screenUV + (radius + 0.5f) * deltaUV;
 		GetAO_Depth(sampleUV, occlusion, sampleDepth);
@@ -57,7 +56,7 @@ float BilateralBlur(float2 screenUV, float2 deltaUV)
 	float totalWeight = 1;
 	float totalOcclusion;
 	GetAO_Depth(screenUV, totalOcclusion, sceneDepth);
-		
+
 	ProcessRadius(screenUV, -deltaUV, sceneDepth, totalOcclusion, totalWeight);
 	ProcessRadius(screenUV, deltaUV, sceneDepth, totalOcclusion, totalWeight);
 

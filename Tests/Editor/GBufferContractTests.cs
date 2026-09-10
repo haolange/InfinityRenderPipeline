@@ -44,6 +44,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             RunAlbedoFixture(fixtureId: 3, "checkerboard boundary texels", requireBothParities: true);
         }
 
+        [TestCase(4)]
+        [TestCase(5)]
+        [TestCase(6)]
+        public void GBufferContract_SilhouetteDoesNotImportClearChroma(int fixture)
+        {
+            RunAlbedoFixture(fixture, "dark diagonal / saturated thin pole against clear pixels", requireBothParities: true);
+        }
+
         [Test]
         public void GBufferContract_BestFitNormal_AngularError()
         {
@@ -186,6 +194,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         internal static Vector3 ExpectedAlbedo(int fixtureId, int x, int y, int width, int height)
         {
+            if (fixtureId == 6) return new Vector3(0.4f, 0.1f, 0.03f);
+            if (fixtureId == 4) return new Vector3(0.03f, 0.02f, 0.01f);
+            if (fixtureId == 5) return new Vector3(0.8f, 0.05f, 0.02f);
             if (fixtureId == 0)
             {
                 return new Vector3(0.18f, 0.18f, 0.18f);
@@ -204,6 +215,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Material m_Material;
             readonly ComputeShader m_Compute;
             readonly int m_Kernel;
+            readonly int m_FixtureId;
             readonly Texture m_PreviousLut;
             readonly RenderTexture m_GBufferA;
             readonly RenderTexture m_GBufferB;
@@ -217,6 +229,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public GBufferContractGpuRun(Shader raster, ComputeShader compute, Texture2D lut, int fixtureId, Vector3 normal)
             {
                 m_Compute = compute;
+                m_FixtureId = fixtureId;
                 m_Kernel = compute.FindKernel("DecodeGBufferContract");
                 m_Material = new Material(raster)
                 {
@@ -251,6 +264,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 cmd.SetRenderTarget(new RenderTargetIdentifier[] { m_GBufferA, m_GBufferB, m_GBufferC }, m_Depth);
                 cmd.ClearRenderTarget(true, true, Color.clear);
                 cmd.DrawProcedural(Matrix4x4.identity, m_Material, 0, MeshTopology.Triangles, 3, 1);
+                if (m_FixtureId == 6)
+                {
+                    // RGB zero is a legal packed diagonal normal, not proof of absent geometry.
+                    cmd.SetRenderTarget(m_GBufferB); cmd.ClearRenderTarget(false, true, Color.clear);
+                }
 
                 cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureA", m_GBufferA);
                 cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureB", m_GBufferB);
@@ -288,6 +306,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             continue;
                         }
 
+                        if (fixtureId == 4 && x > y) continue;
+                        if (fixtureId == 5 && x != k_Width / 2) continue;
                         Vector3 expected = ExpectedAlbedo(fixtureId, x, y, k_Width, k_Height);
                         Color pixel = m_AlbedoPixels[y * k_Width + x];
                         int expectedLayer = (x & 3) == 0 ? 1 : ((x & 3) == 1 ? 2 : ((x & 3) == 2 ? 128 : 255));

@@ -17,26 +17,24 @@ void OcclusionTrace(uint3 id : SV_DispatchThreadID)
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
 	uint2 PixelPosition = uint2(ScreenUV * Resolution.xy);
 
-	float SceneDepth = SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (float2(-0.5, -0.5) * Resolution.zw), 0).r;
-	SceneDepth = max(SceneDepth, SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (float2(0.5, -0.5) * Resolution.zw), 0).r);
-	SceneDepth = max(SceneDepth, SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (float2(-0.5, 0.5) * Resolution.zw), 0).r);
-	SceneDepth = max(SceneDepth, SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (float2(0.5, 0.5) * Resolution.zw), 0).r);
+    float SceneDepth = SRV_DepthTexture.Load(int3(id.xy, 0)).r;
+    float4 normalSample = SRV_NormalTexture.Load(int3(id.xy, 0));
+    uint sourceOffset = (uint)round(normalSample.a * 8);
+    float2 sourceUV = (id.xy * 2 + uint2(sourceOffset % 3, sourceOffset / 3) + 0.5) * UpsampleSize.zw;
 
-    if (SceneDepth <= 1e-7) 
+    if (ScreenSpaceIsFarDepth(SceneDepth))
     {
         UAV_OcclusionTexture[id.xy] = 1;
         return;
     }
 
-	float3 ScreenPos = GetScreenSpacePos(ScreenUV, SceneDepth);
-	float3 WorldPos = GetWorldSpacePos(ScreenPos, Matrix_InvViewProj);
-	float3 ViewPos = GetViewSpacePosInvZ(ScreenPos, Matrix_InvProj);
-	float3 ViewDir = GetViewDir(WorldPos, _WorldSpaceCameraPos);
-	float3 WorldNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV, 0).xyz * 2 - 1;
-    float3 ViewNormal = mul((float3x3)Matrix_WorldToView, WorldNormal);
-    ViewNormal.z = -ViewNormal.z;
+	float3 ScreenPos = GetScreenSpacePos(sourceUV, SceneDepth);
+	float3 ViewPos = GetViewSpacePos(ScreenPos, Matrix_InvProj);
 
-    float Occlusion = GTAO(NumRay, NumStep, Radius, Power, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, normalize(0 - ViewPos), ViewNormal, Resolution, Matrix_InvProj, SRV_DepthTexture, Global_point_clamp_sampler);
+	float3 WorldNormal = normalize(normalSample.xyz * 2 - 1);
+    float3 ViewNormal = mul((float3x3)Matrix_WorldToView, WorldNormal);
+
+    float Occlusion = GTAO(NumRay, NumStep, Radius, Power, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, ScreenSpaceViewDirection(ViewPos), ViewNormal, Resolution, Matrix_InvProj, SRV_DepthTexture, Global_point_clamp_sampler);
     UAV_OcclusionTexture[id.xy] = lerp(1, Occlusion, Intensity);
 }
 
@@ -63,38 +61,24 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
 {
     if (any(id.xy >= (uint2)Resolution.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
-    float2 Velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, ScreenUV, 0);
+    float2 sourceUV = HalfResSourceUV(ScreenUV);
+    float2 Velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, sourceUV, 0);
 
-    float TotalWeight = 0;
-    float SampleWeights[9];
     float SampleColors[9];
 
     [unroll]
-    for(uint i = 0; i < 9; i++) 
+    for(uint i = 0; i < 9; i++)
     {
         SampleColors[i] = SRV_OcclusionTexture.SampleLevel(Global_point_clamp_sampler, ScreenUV + (SampleOffset[i] * Resolution.zw), 0);
     }
 
-    #if 0
-        [unroll]
-        for(uint j = 0; j < 9; j++) 
-        {
-            SampleWeights[j] = HdrWeight4(SampleColors[j], 5);
-        }
 
-        [unroll]
-        for(uint k = 0; k < 9; k++) 
-        {
-            TotalWeight += SampleWeights[k];
-        }  
-        SampleColors[4] = (SampleColors[0] * SampleWeights[0] + SampleColors[1] * SampleWeights[1] + SampleColors[2] * SampleWeights[2] +  SampleColors[3] * SampleWeights[3] + SampleColors[4] * SampleWeights[4] + SampleColors[5] * SampleWeights[5] +  SampleColors[6] * SampleWeights[6] + SampleColors[7] * SampleWeights[7] + SampleColors[8] * SampleWeights[8]) / TotalWeight;
-    #endif
 
-    float m1 = 0; 
+    float m1 = 0;
     float m2 = 0;
 
     [unroll]
-    for(uint x = 0; x < 9; x++) 
+    for(uint x = 0; x < 9; x++)
     {
         m1 += SampleColors[x];
         m2 += SampleColors[x] * SampleColors[x];
@@ -107,57 +91,46 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     float MaxColor = mean + TemporalScale * stddev;
 
     float CurrColor = SampleColors[4];
-    float2 HistoryUV = ScreenUV - Velocity;
+    float currentDepth = SRV_DepthTexture.Load(int3(id.xy, 0)).r;
+    float2 HistoryUV; float expectedHistoryDepth;
+    ReprojectSurface(sourceUV, currentDepth, Velocity, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, HistoryUV, expectedHistoryDepth);
     float PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, HistoryUV, 0);
     MinColor = min(MinColor, CurrColor);
     MaxColor = max(MaxColor, CurrColor);
     PrevColor = clamp(PrevColor, MinColor, MaxColor);
 
-    float CurrDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, ScreenUV, 0).r;
-    float HistDepth = SRV_HistoryDepthTexture.SampleLevel(Global_point_clamp_sampler, HistoryUV, 0).r;
-    float CurrLinear = LinearEyeDepth(CurrDepth);
-    float HistLinear = LinearEyeDepth(HistDepth);
-    float DepthReject = 1.0 - smoothstep(0.02, 0.1, abs(CurrLinear - HistLinear) / max(CurrLinear, 1e-2));
+    float DepthReject = HistoryDepthConfidence(SRV_HistoryDepthTexture, HistoryUV, expectedHistoryDepth, 0);
 
 	float VelocityWeight = clamp(lerp(TemporalWeight, 0.0, length(Velocity) * 200.0), 0.0, TemporalWeight) * DepthReject;
-    UAV_AccmulateTexture[id.xy] = lerp(CurrColor, PrevColor, VelocityWeight);
+    if (any(HistoryUV < 0) || any(HistoryUV > 1)) VelocityWeight = 0;
+    UAV_AccmulateTexture[id.xy] = saturate(lerp(CurrColor, PrevColor, VelocityWeight));
 }
 
 RWTexture2D<float> UAV_UpsampleTexture;
-static const int2 UpsampleOffset[4] = { int2(0, 1), int2(1, 0), int2(-1, 0), int2(0, -1) };
 [numthreads(16, 16, 1)]
 void OcclusionUpsample(uint3 id : SV_DispatchThreadID)
 {
     if (any(id.xy >= (uint2)UpsampleSize.xy)) return;
-    float2 ScreenUV = (id.xy + 0.5) * UpsampleSize.zw;			
-	float TopLeft_Color = SRV_OcclusionTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV, 0).r;
-
-    float DepthWeights[4];
-	float SceneDepth = LinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV, 0).r);
+    float2 uv = (id.xy + 0.5) * UpsampleSize.zw;
+    float centerDepth = ScreenSpaceLinearEyeDepth(SRV_DepthTexture.Load(int3(id.xy, 0)).r);
+    float3 normal = normalize(SRV_NormalTexture.Load(int3(id.xy, 0)).xyz * 2 - 1);
+    float2 lowPosition = uv * Resolution.xy - 0.5;
+    int2 basePixel = (int2)floor(lowPosition);
+    float2 fraction = frac(lowPosition);
+    float total = 0, weightSum = 0;
     [unroll]
-    for(int j = 0; j < 4; ++j) 
-    {
-        float OffsetDepth = LinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (UpsampleOffset[j] * UpsampleSize.zw), 0).r);
-        DepthWeights[j] = 1 / (0.1 + abs(SceneDepth - OffsetDepth));
-    }
-
-    float NormalWeights[4];
-	float3 WorldNomral = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV, 0).xyz * 2 - 1;
+    for (int y = 0; y < 2; y++)
     [unroll]
-    for(int i = 0; i < 4; ++i) 
+    for (int x = 0; x < 2; x++)
     {
-        float3 OffsetNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (UpsampleOffset[i] * UpsampleSize.zw), 0).xyz * 2 - 1;
-        NormalWeights[i] = pow(saturate(dot(OffsetNormal, WorldNomral)), 6);
+        int2 pixel = clamp(basePixel + int2(x, y), 0, (int2)Resolution.xy - 1);
+        float depth = ScreenSpaceLinearEyeDepth(SRV_HalfResDepthTexture.Load(int3(pixel, 0)).r);
+        float3 lowNormal = normalize(SRV_HalfResNormalTexture.Load(int3(pixel, 0)).xyz * 2 - 1);
+        float bilinear = (x == 0 ? 1 - fraction.x : fraction.x) * (y == 0 ? 1 - fraction.y : fraction.y);
+        float weight = bilinear * exp(-abs(depth - centerDepth) / max(0.01 * centerDepth, 0.001)) * pow(saturate(dot(normal, lowNormal)), 8);
+        total += SRV_OcclusionTexture.Load(int3(pixel, 0)).r * weight;
+        weightSum += weight;
     }
-
-    float WeightSum = 0;
-    float OcclusionSum = 0;
-    [unroll]        
-    for(int k = 0; k < 4; ++k) 
-    {
-        float Weight = DepthWeights[k] * NormalWeights[k];
-        WeightSum += Weight;
-        OcclusionSum += SRV_OcclusionTexture.SampleLevel(Global_bilinear_clamp_sampler, ScreenUV + (UpsampleOffset[k] * Resolution.zw), 0).r * Weight;
-    }
-    UAV_UpsampleTexture[id.xy] = WeightSum > 0 ? OcclusionSum / WeightSum : TopLeft_Color;
+    // No compatible surface sample means no supported occlusion contribution.
+    UAV_UpsampleTexture[id.xy] = weightSum > 1e-6 ? saturate(total / weightSum) : 1;
 }

@@ -62,16 +62,10 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public TransformId CreateTransform(in float4x4 current)
         {
-            return CreateTransform(current, current);
-        }
-
-        public TransformId CreateTransform(in float4x4 current, in float4x4 previous)
-        {
             ThrowIfClosed();
             TransformId id = m_Scene.AllocTransform(new TransformRecord
             {
-                current = current,
-                previous = previous
+                current = current
             });
             Push(new MeshSceneUndoEntry
             {
@@ -98,32 +92,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 transformRecord = record
             });
 
-            record.previous = record.current;
             record.current = current;
             m_Scene.WriteTransform(id, record);
-        }
-
-        public void SetTransform(TransformId id, in float4x4 current, in float4x4 previous)
-        {
-            ThrowIfClosed();
-            if (!m_Scene.TryGetTransform(id, out TransformRecord previousRecord))
-            {
-                return;
-            }
-
-            Push(new MeshSceneUndoEntry
-            {
-                op = EMeshSceneUndoOp.RestoreTransformRecord,
-                index = id.Index,
-                generation = id.Generation,
-                transformRecord = previousRecord
-            });
-
-            m_Scene.WriteTransform(id, new TransformRecord
-            {
-                current = current,
-                previous = previous
-            });
         }
 
         public MeshInstanceId CreateInstance(
@@ -216,6 +186,17 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Scene.SetInstanceFlags(id, flags);
         }
 
+        public void SetInstanceBakedLighting(MeshInstanceId id, in FMeshBakedLighting data)
+        {
+            ThrowIfClosed();
+            if (!m_Scene.TryGetInstance(id, out MeshInstanceRecord previous))
+                throw new System.ArgumentException("Baked lighting requires a live instance.");
+            if (previous.bakedLighting.Equals(data)) return;
+            Push(new MeshSceneUndoEntry { op = EMeshSceneUndoOp.RestoreInstanceRecord,
+                index = id.Index, generation = id.Generation, instanceRecord = previous });
+            m_Scene.SetInstanceBakedLighting(id, data);
+        }
+
         public void SetInstanceRendering(
             MeshInstanceId id,
             uint renderingLayerMask,
@@ -248,9 +229,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public MeshDrawId CreateDraw(
             MeshInstanceId instance,
-            int meshUnityId,
+            ulong meshUnityId,
             int sectionIndex,
-            int materialUnityId,
+            ulong materialUnityId,
             EPassEligibility eligibility,
             int renderQueue,
             int priority,
@@ -338,7 +319,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return drawId;
         }
 
-        public void SetMaterial(MeshDrawId drawId, int materialUnityId, int renderQueue)
+        public void SetMaterial(MeshDrawId drawId, ulong materialUnityId, int renderQueue)
         {
             ThrowIfClosed();
             if (!m_Scene.TryGetDraw(drawId, out MeshDrawRecord previousDraw))

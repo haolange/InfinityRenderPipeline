@@ -1,216 +1,160 @@
 using System;
 using UnityEngine;
-using Unity.Mathematics;
 using UnityEngine.Rendering;
-using InfinityTech.Rendering.Feature;
+using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
-using UnityEngine.Experimental.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
 {
     internal static class AntiAliasingUtilityData
     {
-        internal static string HistoryDepthTextureName = "HistoryDepthTexture";
-        internal static string HistoryColorTextureName = "HistoryColorTexture";
-        internal static string AccmulateTextureName = "AccmulateTexture";
-        internal static string TAAConfidenceTextureName = "TAAConfidenceTexture";
-        internal static int HistoryDepthTextureID = Shader.PropertyToID("HistoryDepthTexture");
-        internal static int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
+        internal static readonly int HistoryColorTextureID = Shader.PropertyToID("HistoryColorTexture");
+        internal static readonly int HistoryDepthTextureID = Shader.PropertyToID("HistoryDepthTexture");
     }
-
     public partial class InfinityRenderPipeline
     {
         struct AntiAliasingPassData
         {
-            public float4 resolution;
-            public float resetBlend;
-            public bool writeConfidence;
-            public int kernelIndex;
-            public ComputeShader taaShader;
-            public RGTextureRef depthTexture;
-            public RGTextureRef motionTexture;
-            public RGTextureRef historyDepthTexture;
-            public RGTextureRef historyColorTexture;
-            public RGTextureRef aliasingColorTexture;
-            public RGTextureRef reactiveMaskTexture;
-            public RGTextureRef accmulateColorTexture;
-            public RGTextureRef confidenceTexture;
+            public Vector4 resolution, depthParameters, jitter;
+            public bool historyValid, diagnostics;
+            public int kernel;
+            public ComputeShader shader;
+            public RGTextureRef input, motion, metadata, reactive, historyColor, historyDepth;
+            public RGTextureRef accumulation, temporalDepth, confidence, reprojection;
+            public CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
         }
+        struct TemporalSharpenPassData
+        {
+            public ComputeShader shader;
+            public int kernel;
+            public Vector4 resolution;
+            public RGTextureRef source, output;
+        }
+        struct CopyTemporalHistoryPassData
+        {
+            public RGTextureRef source, destination;
+        }
+        static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false)
+            => new TextureDescriptor(width, height) { name = name, dimension = TextureDimension.Tex2D,
+                colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
+        static TextureDescriptor TemporalDepthDescriptor(int width, int height, string name, bool writable = false)
+            => new TextureDescriptor(width, height) { name = name, dimension = TextureDimension.Tex2D,
+                colorFormat = GraphicsFormat.R32_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
 
-        void ComputeAntiAliasing(RenderContext renderContext, Camera camera, HistoryCache historyCache, CameraUniform cameraUniform)
+        internal static Vector2 ProjectionJitterUV(Matrix4x4 jittered, Matrix4x4 unjittered)
+        {
+            Vector4 point = new Vector4(0, 0, -1, 1);
+            Vector4 a = jittered * point, b = unjittered * point;
+            return new Vector2(a.x / a.w - b.x / b.w, a.y / a.w - b.y / b.w) * 0.5f;
+        }
+        void ComputeAntiAliasing(RenderContext context, Camera camera, HistoryCache history, CameraUniform uniform)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.TAA);
-
-            if (pipelineAsset.taaShader == null)
-            {
-                throw new InvalidOperationException("InfinityRP: TAA path is active but taaShader is not assigned.");
-            }
-
-            TextureDescriptor historyDepthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryDepthTextureName, depthBufferBits = EDepthBits.Depth32, enableRandomWrite = false };
-            TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.HistoryColorTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = false };
-            TextureDescriptor accmulateDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight) { dimension = TextureDimension.Tex2D, name = AntiAliasingUtilityData.AccmulateTextureName, colorFormat = GraphicsFormat.B10G11R11_UFloatPack32, depthBufferBits = EDepthBits.None, enableRandomWrite = true };
-
-            RGTextureRef historyDepthTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthDescriptor, out bool historyDepthCreated));
-            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyColorCreated));
-
-            m_RGScoper.RegisterTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthTexture);
-            m_RGScoper.RegisterTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorTexture);
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
-            RGTextureRef aliasingColorTexture = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            RGTextureRef reactiveMaskTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer);
-            RGTextureRef accmulateColorTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, accmulateDescriptor);
-
-            bool writeConfidence = pipelineAsset.debugView != EDebugView.None ||
+            ComputeShader shader = pipelineAsset.taaShader;
+            if (shader == null || !shader.HasKernel("Main") || !shader.HasKernel("MainDebug") || !shader.HasKernel("Sharpen"))
+                throw new InvalidOperationException("TAA requires its accumulation, diagnostics and sharpen kernels.");
+            var depthSource = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            var depthDescription = m_RGBuilder.GetTextureDescriptor(depthSource);
+            int width = depthDescription.width, height = depthDescription.height;
+            var colorDescriptor = TemporalColorDescriptor(width, height, "HistoryColorTexture");
+            var depthDescriptor = TemporalDepthDescriptor(width, height, "HistoryDepthTexture");
+            var historyColor = m_RGBuilder.ImportTexture(history.GetTexture(AntiAliasingUtilityData.HistoryColorTextureID, colorDescriptor, out bool colorCreated));
+            var historyDepth = m_RGBuilder.ImportTexture(history.GetTexture(AntiAliasingUtilityData.HistoryDepthTextureID, depthDescriptor, out bool depthCreated));
+            var accumulation = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAAccumulationBuffer, TemporalColorDescriptor(width, height, "TAAAccumulation", true));
+            var temporalDepth = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAADepthBuffer, TemporalDepthDescriptor(width, height, "TAASurfaceDepth", true));
+            var input = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
+            bool diagnostics = pipelineAsset.debugView != EDebugView.None ||
                 (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
-            int kernelIndex = pipelineAsset.taaShader.FindKernel("Main");
-            RGTextureRef confidenceTexture = default;
-            if (writeConfidence)
+            RGTextureRef confidence = default, reprojection = default;
+            if (diagnostics)
             {
-                if (!pipelineAsset.taaShader.HasKernel("MainDebug"))
-                {
-                    throw new InvalidOperationException("InfinityRP: DebugView is active but taaShader kernel MainDebug is missing.");
-                }
-
-                kernelIndex = pipelineAsset.taaShader.FindKernel("MainDebug");
-                TextureDescriptor confidenceDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
-                {
-                    dimension = TextureDimension.Tex2D,
-                    name = AntiAliasingUtilityData.TAAConfidenceTextureName,
-                    colorFormat = GraphicsFormat.R8_UNorm,
-                    depthBufferBits = EDepthBits.None,
-                    enableRandomWrite = true,
-                    filterMode = FilterMode.Point,
-                    wrapMode = TextureWrapMode.Clamp
-                };
-                confidenceTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, confidenceDescriptor);
+                var descriptor = TemporalColorDescriptor(width, height, "TAADiagnostics", true);
+                descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
+                confidence = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAConfidenceBuffer, descriptor);
+                descriptor.name = "TAAReprojection";
+                reprojection = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAReprojectionBuffer, descriptor);
             }
-
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
+            using (var pass = m_RGBuilder.AddComputePass<AntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAntiAliasing)))
             {
-                ref AntiAliasingPassData passData = ref passRef.GetPassData<AntiAliasingPassData>();
-                passData.resolution = new float4(camera.pixelWidth, camera.pixelHeight, 1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
-                bool resetHistory = cameraUniform.historyReset || historyColorCreated || historyDepthCreated;
-                passData.resetBlend = ScreenSpaceHistoryUtility.RampTemporalWeight(1.0f, ref m_ActiveFrameState.taaValidFrames, resetHistory);
-                passData.writeConfidence = writeConfidence;
-                passData.kernelIndex = kernelIndex;
-                passData.taaShader = pipelineAsset.taaShader;
-                passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.motionTexture = passRef.ReadTexture(motionTexture);
-                passData.historyDepthTexture = passRef.ReadTexture(historyDepthTexture);
-                passData.historyColorTexture = passRef.ReadTexture(historyColorTexture);
-                passData.aliasingColorTexture = passRef.ReadTexture(aliasingColorTexture);
-                passData.reactiveMaskTexture = passRef.ReadTexture(reactiveMaskTexture);
-                passData.accmulateColorTexture = passRef.WriteTexture(accmulateColorTexture);
-                if (writeConfidence)
+                ref var data = ref pass.GetPassData<AntiAliasingPassData>();
+                data.shader = shader; data.kernel = shader.FindKernel(diagnostics ? "MainDebug" : "Main");
+                data.resolution = new Vector4(width, height, 1f / width, 1f / height);
+                data.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
+                Vector2 currentJitter = ProjectionJitterUV(uniform.matrix_FlipYJitterProj, uniform.matrix_FlipYProj);
+                data.jitter = new Vector4(currentJitter.x, currentJitter.y, uniform.previousJitterUV.x, uniform.previousJitterUV.y);
+                data.historyValid = !uniform.historyReset && !colorCreated && !depthCreated;
+                data.diagnostics = diagnostics;
+                data.input = pass.ReadTexture(input);
+                data.motion = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
+                data.metadata = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
+                data.reactive = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ReactiveMaskBuffer));
+                data.historyColor = pass.ReadTexture(historyColor); data.historyDepth = pass.ReadTexture(historyDepth);
+                data.accumulation = pass.WriteTexture(accumulation); data.temporalDepth = pass.WriteTexture(temporalDepth);
+                if (diagnostics) { data.confidence = pass.WriteTexture(confidence); data.reprojection = pass.WriteTexture(reprojection); }
+                data.inputSnapshot = PrepareStageSnapshot(pass, "TAAInput", input);
+                data.historyColorSnapshot = PrepareStageSnapshot(pass, "TAAHistoryColor", historyColor, colorDescriptor);
+                data.historyDepthSnapshot = PrepareStageSnapshot(pass, "TAAHistoryDepth", historyDepth, depthDescriptor);
+                pass.SetExecuteFunc((in AntiAliasingPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
                 {
-                    passData.confidenceTexture = passRef.WriteTexture(confidenceTexture);
-                }
-
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in AntiAliasingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    TemporalAAInputData taaInputData;
+                    data.inputSnapshot.Record(commands, data.input);
+                    data.historyColorSnapshot.Record(commands, data.historyColor);
+                    data.historyDepthSnapshot.Record(commands, data.historyDepth);
+                    int kernel = data.kernel; var shader = data.shader;
+                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("TAA_Resolution"), data.resolution);
+                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("ScreenSpaceDepthParams"), data.depthParameters);
+                    commands.SetComputeVectorParam(shader, Shader.PropertyToID("TAA_JitterUV"), data.jitter);
+                    commands.SetComputeFloatParam(shader, Shader.PropertyToID("TAA_ResetBlend"), data.historyValid ? 1 : 0);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_AliasingColorTexture"), data.input);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_HistoryColorTexture"), data.historyColor);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_HistoryDepthTexture"), data.historyDepth);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_MotionTexture"), data.motion);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_MotionMetadata"), data.metadata);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("SRV_ReactiveMaskTexture"), data.reactive);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_AccumulateColorTexture"), data.accumulation);
+                    commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TemporalDepthTexture"), data.temporalDepth);
+                    if (data.diagnostics)
                     {
-                        taaInputData.resolution = passData.resolution;
-                        taaInputData.depthTexture = passData.depthTexture;
-                        taaInputData.motionTexture = passData.motionTexture;
-                        taaInputData.historyDepthTexture = passData.historyDepthTexture;
-                        taaInputData.historyColorTexture = passData.historyColorTexture;
-                        taaInputData.aliasingColorTexture = passData.aliasingColorTexture;
-                        taaInputData.reactiveMaskTexture = passData.reactiveMaskTexture;
+                        commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TAADiagnostics"), data.confidence);
+                        commands.SetComputeTextureParam(shader, kernel, Shader.PropertyToID("UAV_TAAReprojection"), data.reprojection);
                     }
-                    TemporalAAOutputData taaOutputData;
-                    {
-                        taaOutputData.accmulateColorTexture = passData.accmulateColorTexture;
-                    }
-                    TemporalAAParameter taaParameter = new TemporalAAParameter(0.97f, 0.95f, 200, 1.25f, 0.35f, passData.resetBlend);
-
-                    TemporalAntiAliasingGenerator temporalAAGenerator = objectPool.Get<TemporalAntiAliasingGenerator>();
-                    if (passData.writeConfidence)
-                    {
-                        temporalAAGenerator.DispatchDebug(cmdEncoder, passData.taaShader, passData.kernelIndex, taaParameter, taaInputData, taaOutputData, passData.confidenceTexture);
-                    }
-                    else
-                    {
-                        temporalAAGenerator.Dispatch(cmdEncoder, passData.taaShader, taaParameter, taaInputData, taaOutputData);
-                    }
-                    objectPool.Release(temporalAAGenerator);
+                    commands.DispatchCompute(shader, kernel, ((int)data.resolution.x + 7) / 8, ((int)data.resolution.y + 7) / 8, 1);
                 });
             }
-
+            var output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.AntiAliasingBuffer, TemporalColorDescriptor(width, height, "TAASharpened", true));
+            using (var pass = m_RGBuilder.AddComputePass<TemporalSharpenPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeTemporalSharpen)))
+            {
+                ref var data = ref pass.GetPassData<TemporalSharpenPassData>();
+                data.shader = shader; data.kernel = shader.FindKernel("Sharpen");
+                data.resolution = new Vector4(width, height, 1f / width, 1f / height);
+                data.source = pass.ReadTexture(accumulation); data.output = pass.WriteTexture(output);
+                pass.SetExecuteFunc((in TemporalSharpenPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
+                {
+                    commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("TAA_Resolution"), data.resolution);
+                    commands.SetComputeFloatParam(data.shader, Shader.PropertyToID("TAA_Sharpness"), 0.35f);
+                    commands.SetComputeTextureParam(data.shader, data.kernel, Shader.PropertyToID("SRV_AliasingColorTexture"), data.source);
+                    commands.SetComputeTextureParam(data.shader, data.kernel, Shader.PropertyToID("UAV_AccumulateColorTexture"), data.output);
+                    commands.DispatchCompute(data.shader, data.kernel, ((int)data.resolution.x + 7) / 8, ((int)data.resolution.y + 7) / 8, 1);
+                });
+            }
             MarkFeatureProduced(EFrameFeature.TAA);
         }
-
-        struct CopyHistoryAntiAliasingPassData
+        void CopyHistoryAntiAliasing(RenderContext context, HistoryCache history, Camera camera)
+            => CopyTemporalHistory(history, InfinityShaderIDs.TAAAccumulationBuffer, AntiAliasingUtilityData.HistoryColorTextureID, CustomSamplerId.CopyHistoryAntiAliasing);
+        void CopyHistoryDepth(RenderContext context, HistoryCache history, Camera camera)
+            => CopyTemporalHistory(history, InfinityShaderIDs.TAADepthBuffer, AntiAliasingUtilityData.HistoryDepthTextureID, CustomSamplerId.CopyHistoryDepth);
+        void CopyTemporalHistory(HistoryCache history, int sourceId, int historyId, CustomSamplerId sampler)
         {
-            public RGTextureRef historyColorTexture;
-            public RGTextureRef accmulateColorTexture;
-        }
-
-        void CopyHistoryAntiAliasing(RenderContext renderContext, HistoryCache historyCache, Camera camera)
-        {
-            TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
+            var source = m_RGScoper.QueryTexture(sourceId);
+            var descriptor = m_RGBuilder.GetTextureDescriptor(source);
+            descriptor.enableRandomWrite = false;
+            var destination = m_RGBuilder.ImportTexture(history.GetWriteTexture(historyId, descriptor));
+            history.MarkProduced(historyId);
+            using (var pass = m_RGBuilder.AddTransferPass<CopyTemporalHistoryPassData>(ProfilingSampler.Get(sampler)))
             {
-                dimension = TextureDimension.Tex2D,
-                name = AntiAliasingUtilityData.HistoryColorTextureName,
-                colorFormat = GraphicsFormat.B10G11R11_UFloatPack32,
-                depthBufferBits = EDepthBits.None,
-                enableRandomWrite = false
-            };
-            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryColorTextureID, historyColorDescriptor));
-            RGTextureRef accmulateColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.AntiAliasingBuffer);
-            historyCache.MarkProduced(AntiAliasingUtilityData.HistoryColorTextureID);
-
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryAntiAliasingPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryAntiAliasing)))
-            {
-                passRef.ReadTexture(accmulateColorTexture);
-                passRef.WriteTexture(historyColorTexture);
-
-                ref CopyHistoryAntiAliasingPassData passData = ref passRef.GetPassData<CopyHistoryAntiAliasingPassData>();
-                passData.accmulateColorTexture = accmulateColorTexture;
-                passData.historyColorTexture = historyColorTexture;
-
-                passRef.SetExecuteFunc((in CopyHistoryAntiAliasingPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    cmdEncoder.CopyTexture(passData.accmulateColorTexture, passData.historyColorTexture);
-                });
-            }
-        }
-
-        struct CopyHistoryDepthPassData
-        {
-            public RGTextureRef depthTexture;
-            public RGTextureRef historyDepthTexture;
-        }
-
-        void CopyHistoryDepth(RenderContext renderContext, HistoryCache historyCache, Camera camera)
-        {
-            TextureDescriptor historyDepthDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
-            {
-                dimension = TextureDimension.Tex2D,
-                name = AntiAliasingUtilityData.HistoryDepthTextureName,
-                depthBufferBits = EDepthBits.Depth32,
-                enableRandomWrite = false
-            };
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef historyDepthTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(AntiAliasingUtilityData.HistoryDepthTextureID, historyDepthDescriptor));
-            historyCache.MarkProduced(AntiAliasingUtilityData.HistoryDepthTextureID);
-
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryDepthPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryDepth)))
-            {
-                passRef.ReadTexture(depthTexture);
-                passRef.WriteTexture(historyDepthTexture);
-
-                ref CopyHistoryDepthPassData passData = ref passRef.GetPassData<CopyHistoryDepthPassData>();
-                passData.depthTexture = depthTexture;
-                passData.historyDepthTexture = historyDepthTexture;
-
-                passRef.SetExecuteFunc((in CopyHistoryDepthPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    cmdEncoder.CopyTexture(passData.depthTexture, passData.historyDepthTexture);
-                });
+                ref var data = ref pass.GetPassData<CopyTemporalHistoryPassData>();
+                data.source = pass.ReadTexture(source); data.destination = pass.WriteTexture(destination);
+                pass.SetExecuteFunc((in CopyTemporalHistoryPassData data, in RGTransferEncoder commands, RGObjectPool pool) => commands.CopyTexture(data.source, data.destination));
             }
         }
     }

@@ -31,6 +31,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 cameraViewProj;
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
+            public Vector4[] casterBias, casterLight;
             public RendererList[] rendererLists;
             public RGDrawListRef[] draws;
         }
@@ -50,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.name = LocalShadowPassUtilityData.TextureName;
                 shadowMapDsc.dimension = TextureDimension.Tex2D;
                 shadowMapDsc.colorFormat = GraphicsFormat.None;
-                shadowMapDsc.depthBufferBits = EDepthBits.Depth16;
+                shadowMapDsc.depthBufferBits = EDepthBits.Depth32;
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
@@ -88,7 +89,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int lightIdx = local.visibleLightIndex;
                 VisibleLight visibleLight = cullingResults.visibleLights[lightIdx];
                 Light shadowLight = visibleLight.light;
-                int lightInstanceId = UnityEntityId.ToInt32(shadowLight);
+                ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
 
@@ -97,14 +98,15 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowDrawingSettings.splitIndex = local.face;
                 rendererLists[slice] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
 
-                ulong viewKey = MeshVisibilityShare.MakeLocalShadowViewKey(lightInstanceId, local.face);
-                GeometryUtility.CalculateFrustumPlanes(local.shadowMatrix, shadowPlanes);
+                ulong viewKey = lightInstanceId;
+                shadowPlanes = new Plane[local.splitData.cullingPlaneCount];
+                for (int plane = 0; plane < shadowPlanes.Length; plane++) shadowPlanes[plane] = local.splitData.GetCullingPlane(plane);
                 MeshVisibilityHandle localVis = m_VisibilityShare.Acquire(
                     meshScene,
                     viewKey,
                     shadowPlanes,
                     MeshVisibilityShare.PolicyLocalShadow,
-                    enable: true);
+                    enable: true, subviewIndex: local.face);
 
                 MeshFilterProgram shadowFilter = BuiltinMeshesPasses.Shadow.defaultFilter;
                 shadowFilter.layerMask = shadowLight.cullingMask;
@@ -114,7 +116,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     filter = shadowFilter,
                     sort = BuiltinMeshesPasses.Shadow.defaultSort,
-                    backendPolicy = EMeshBackendPolicy.Auto,
+                    backendPolicy = RenderCaptureService.BackendFor(camera),
                     shaderPassIndex = BuiltinMeshesPasses.Shadow.shaderPassIndex,
                     lightModeTag = BuiltinMeshesPasses.Shadow.lightModeTag,
                     viewPosition = lightPosition,
@@ -137,6 +139,15 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.cameraViewProj = cameraViewProj;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
+                    passData.casterBias = new Vector4[matrixCount];
+                    passData.casterLight = new Vector4[matrixCount];
+                    for (int i = 0; i < sliceCount; i++)
+                    {
+                        var local = allocator.LocalSlices[i];
+                        passData.casterBias[i] = local.casterBias;
+                        Vector3 position = cullingResults.visibleLights[local.visibleLightIndex].light.transform.position;
+                        passData.casterLight[i] = new Vector4(position.x, position.y, position.z, 1);
+                    }
                     passData.rendererLists = rendererLists;
                     passData.draws = new RGDrawListRef[matrixCount];
                     for (int slice = 0; slice < matrixCount; ++slice)
@@ -162,7 +173,9 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.BeginSample(faceMarker);
                         Vector4 rect = passData.tileRects[slice];
                         cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
-                        cmdEncoder.SetGlobalDepthBias(1.0f, 2.5f);
+                        cmdEncoder.SetGlobalDepthBias(0, 0);
+                        cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ShadowCasterBias"), passData.casterBias[slice]);
+                        cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ShadowCasterLight"), passData.casterLight[slice]);
                         cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, passData.shadowMatrices[slice]);
 
                         if (passData.draws != null && slice < passData.draws.Length && passData.draws[slice].IsValid)

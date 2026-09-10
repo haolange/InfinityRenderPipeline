@@ -29,9 +29,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if(GraphicsTasks.Count == 0) { return; }
 
-            for (int i = 0; i < GraphicsTasks.Count; ++i) 
+            for (int i = 0; i < GraphicsTasks.Count; ++i)
             {
-                if (GraphicsTasks[i] != null) 
+                if (GraphicsTasks[i] != null)
                 {
                     GraphicsTasks[i](renderContext);
                     GraphicsTasks[i] = null;
@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
         private List<MeshComponent> m_StaticMeshList;
         private List<MeshComponent> m_DynamicMeshList;
         private int m_WorldDecalCount;
-        private Dictionary<int, LightComponent> m_LightList;
+        private Dictionary<ulong, LightComponent> m_LightList;
 
         internal LightContext lightContext;
         private MeshScene m_MeshScene;
@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
         public RenderContext()
         {
             m_ViewList = new List<CameraComponent>(16);
-            m_LightList = new Dictionary<int, LightComponent>(64);
+            m_LightList = new Dictionary<ulong, LightComponent>(64);
             m_TerrainList = new List<TerrainComponent>(32);
             m_StaticMeshList = new List<MeshComponent>(8192);
             m_DynamicMeshList = new List<MeshComponent>(8192);
@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             return m_ViewList;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClearWorldView()
         {
@@ -126,19 +126,19 @@ namespace InfinityTech.Rendering.Pipeline
 
         #region WorldLight
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldLight(in int id, LightComponent lightComponent)
+        public void AddWorldLight(in ulong id, LightComponent lightComponent)
         {
             m_LightList.TryAdd(id, lightComponent);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldLight(in int id)
+        public void RemoveWorldLight(in ulong id)
         {
             m_LightList.Remove(id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Dictionary<int, LightComponent> GetWorldLight()
+        public Dictionary<ulong, LightComponent> GetWorldLight()
         {
             return m_LightList;
         }
@@ -221,6 +221,8 @@ namespace InfinityTech.Rendering.Pipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InvokeWorldDynamicMeshUpdate()
         {
+            // Static geometry can change lightmap assignments or probe lighting without moving.
+            for (int i = 0; i < m_StaticMeshList.Count; i++) m_StaticMeshList[i].RefreshBakedLighting();
             if (m_DynamicMeshList.Count == 0) { return; }
 
             for (int i = 0; i < m_DynamicMeshList.Count; ++i)

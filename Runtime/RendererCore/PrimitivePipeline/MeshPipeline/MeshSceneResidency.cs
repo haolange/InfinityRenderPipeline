@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
     /// GPU residency for MeshScene transform + bounds tables. Uploads dirty ranges every Update().
-    /// Transform / PreviousTransform are transform-indexed.
+    /// Current transforms are transform-indexed; previous poses are owned by each camera history.
     /// Bounds + InstanceTransformIndex are instance-indexed so GPU cull can sample per instance
     /// while compact remaps to TransformId.Index for shading.
     /// </summary>
@@ -19,8 +19,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly ProfilingSampler m_ProfileSampler;
 
         private FBufferRef m_TransformBuffer;
-        private FBufferRef m_PreviousTransformBuffer;
         private FBufferRef m_RenderingLayerBuffer;
+        private FBufferRef m_BakedLightingBuffer;
         private FBufferRef m_BoundsCenterBuffer;
         private FBufferRef m_BoundsExtentBuffer;
         private FBufferRef m_InstanceTransformIndexBuffer;
@@ -30,15 +30,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         private bool m_HasInstanceBuffer;
 
         public FBufferRef TransformBuffer => m_TransformBuffer;
-        public FBufferRef PreviousTransformBuffer => m_PreviousTransformBuffer;
         public FBufferRef RenderingLayerBuffer => m_RenderingLayerBuffer;
+        public FBufferRef BakedLightingBuffer => m_BakedLightingBuffer;
         public FBufferRef BoundsCenterBuffer => m_BoundsCenterBuffer;
         public FBufferRef BoundsExtentBuffer => m_BoundsExtentBuffer;
         public FBufferRef InstanceTransformIndexBuffer => m_InstanceTransformIndexBuffer;
         public int TransformCapacity => m_TransformBufferCapacity;
         public int InstanceCapacity => m_InstanceBufferCapacity;
-        /// <summary>Max of transform/instance GPU capacities (legacy accessor).</summary>
-        public int Capacity => math.max(m_TransformBufferCapacity, m_InstanceBufferCapacity);
         public MeshScene Scene => m_Scene;
 
         public MeshSceneResidency(ResourcePool resourcePool, MeshScene scene)
@@ -71,14 +69,14 @@ namespace InfinityTech.Rendering.MeshPipeline
                     if (m_HasTransformBuffer)
                     {
                         m_ResourcePool.ReleaseBuffer(m_TransformBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_PreviousTransformBuffer);
                         m_ResourcePool.ReleaseBuffer(m_RenderingLayerBuffer);
+                        m_ResourcePool.ReleaseBuffer(m_BakedLightingBuffer);
                     }
 
                     m_TransformBufferCapacity = neededTransforms;
                     m_TransformBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, Marshal.SizeOf<float4x4>()));
-                    m_PreviousTransformBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, Marshal.SizeOf<float4x4>()));
                     m_RenderingLayerBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, sizeof(uint)));
+                    m_BakedLightingBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, Marshal.SizeOf<FMeshBakedLighting>()));
                     m_HasTransformBuffer = true;
 
                     UploadTransformRange(0, m_Scene.TransformHighWater);
@@ -141,27 +139,27 @@ namespace InfinityTech.Rendering.MeshPipeline
             var transforms = m_Scene.GetTransforms();
             int count = exclusiveEnd - begin;
             var currentMatrices = new NativeArray<float4x4>(count, Allocator.Temp);
-            var previousMatrices = new NativeArray<float4x4>(count, Allocator.Temp);
             var layers = new NativeArray<uint>(count, Allocator.Temp);
+            var baked = new NativeArray<FMeshBakedLighting>(count, Allocator.Temp);
             try
             {
                 for (int i = begin; i < exclusiveEnd; ++i)
                 {
                     TransformRecord transform = transforms[i];
                     currentMatrices[i - begin] = transform.current;
-                    previousMatrices[i - begin] = transform.previous;
                     layers[i - begin] = m_Scene.GetTransformRenderingLayer(i);
+                    baked[i - begin] = m_Scene.GetTransformBakedLighting(i);
                 }
 
                 m_TransformBuffer.buffer.SetData(currentMatrices, 0, begin, count);
-                m_PreviousTransformBuffer.buffer.SetData(previousMatrices, 0, begin, count);
                 m_RenderingLayerBuffer.buffer.SetData(layers, 0, begin, count);
+                m_BakedLightingBuffer.buffer.SetData(baked, 0, begin, count);
             }
             finally
             {
                 currentMatrices.Dispose();
-                previousMatrices.Dispose();
                 layers.Dispose();
+                baked.Dispose();
             }
         }
 
@@ -226,8 +224,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (m_HasTransformBuffer)
             {
                 m_ResourcePool.ReleaseBuffer(m_TransformBuffer);
-                m_ResourcePool.ReleaseBuffer(m_PreviousTransformBuffer);
                 m_ResourcePool.ReleaseBuffer(m_RenderingLayerBuffer);
+                        m_ResourcePool.ReleaseBuffer(m_BakedLightingBuffer);
                 m_HasTransformBuffer = false;
                 m_TransformBufferCapacity = 0;
             }

@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 filter = depthFilter,
                 sort = BuiltinMeshesPasses.Depth.defaultSort,
-                backendPolicy = EMeshBackendPolicy.Auto,
+                backendPolicy = RenderCaptureService.BackendFor(camera),
                 shaderPassIndex = BuiltinMeshesPasses.Depth.shaderPassIndex,
                 lightModeTag = BuiltinMeshesPasses.Depth.lightModeTag,
                 viewPosition = camera.transform.position,

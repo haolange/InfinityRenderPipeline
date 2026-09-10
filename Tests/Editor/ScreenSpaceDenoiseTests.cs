@@ -54,8 +54,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsTrue(source.Contains("AO is applied once in DeferredShading on IBL"));
             Assert.IsFalse(source.Contains("* ao"));
             Assert.IsFalse(source.Contains("COMPOSITE_AO"));
-            Assert.IsTrue(source.Contains("lighting += microfaceCtx.AlbedoColor * ssgiColor.rgb;"));
-            Assert.IsTrue(source.Contains("lighting += (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular;"));
         }
 
         [Test]

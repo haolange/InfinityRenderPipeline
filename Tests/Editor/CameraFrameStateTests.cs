@@ -9,6 +9,31 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class CameraFrameStateTests
     {
         [Test]
+        public void CameraUniform_ResetSeedsFinitePreviousProjectionWithoutCommittingHistory()
+        {
+            var go = new GameObject("FreshCameraHistory");
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                camera.transform.SetPositionAndRotation(new Vector3(2, 4, -8), Quaternion.Euler(13, 27, 0));
+                var data = new CameraUniform();
+                data.UpdateCurrFrameData(camera);
+                Assert.IsTrue(data.historyReset);
+                Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
+                Assert.AreEqual(data.matrix_ViewFlipYJitterProj, data.matrix_LastViewFlipYJitterProj);
+                data.UpdateCurrFrameData(camera);
+                Assert.IsTrue(data.historyReset, "A preparation is not a successful history commit.");
+                data.Commit();
+                data.UpdateCurrFrameData(camera);
+                Assert.IsFalse(data.historyReset);
+                data.UpdateCurrFrameData(camera, true);
+                Assert.IsTrue(data.historyReset);
+                Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
         public void FrameFeatureSet_RequestProduceReset_Works()
         {
             var features = new FrameFeatureSet();
@@ -98,22 +123,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void ShouldForceHistoryReset_NewStateOrFrameGap()
         {
-            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: true, lastSeenFrame: 0, frameCount: 1));
-            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 12));
-            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 11));
-            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 10));
+            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: true, lastSeenFrame: 0, frameCount: 1, cameraType: CameraType.Game));
+            Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 12, cameraType: CameraType.Game));
+            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 11, cameraType: CameraType.Game));
+            Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(newlyCreated: false, lastSeenFrame: 10, frameCount: 10, cameraType: CameraType.Game));
         }
 
         [Test]
-        public void RecycleThreshold_SceneView120_Game8()
+        public void Recycle_OnlyInactiveGameViewsExpire()
         {
-            Assert.AreEqual(120, CameraFrameState.UnseenFramesToRecycle(CameraType.SceneView));
-            Assert.AreEqual(8, CameraFrameState.UnseenFramesToRecycle(CameraType.Game));
-            Assert.AreEqual(8, CameraFrameState.UnseenFramesToRecycle(CameraType.Preview));
-            Assert.AreEqual(8, CameraFrameState.UnseenFramesToRecycle(CameraType.Reflection));
 
             Assert.IsFalse(CameraFrameState.ShouldRecycle(0, 120, CameraType.SceneView));
-            Assert.IsTrue(CameraFrameState.ShouldRecycle(0, 121, CameraType.SceneView));
+            Assert.IsFalse(CameraFrameState.ShouldRecycle(0, 121, CameraType.SceneView));
             Assert.IsFalse(CameraFrameState.ShouldRecycle(0, 8, CameraType.Game));
             Assert.IsTrue(CameraFrameState.ShouldRecycle(0, 9, CameraType.Game));
         }

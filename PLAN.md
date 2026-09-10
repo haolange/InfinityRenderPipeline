@@ -282,3 +282,111 @@ N01 final Terra PASS: `N01-20260906T134157Z/N01-final-verdict.json`. N02 impleme
 
 - N06.b.2 material migration Terra PASS: `N06-batch-20260908T021600/n06b2-terra-verdict.json`, SHA256 `5f7c1a1b924dd021a9afa96982699d84df46d775f63793b4f04cd0ecb296bbef`. Exact disabled-pass changes and preserved effective locking value accepted; no rendered route claim.
 - N06 native Light schema retirement Terra PASS: `N06-batch-20260908T021600/n06-light-schema-terra-verdict.json`, SHA256 `2885ab27f35021a2d2fd40c5b58f3674830234aba21a9ad7a31036eedd86e012`. Apply run `light-schema-retirement-20260907T1835186669160Z-0f94606112894c7dbe712d2b618a3a5b` and separate `light-schema-retirement-20260907T1840150859840Z-ec3001f8d1324eb6b77d331c3bbd3984` prove all nine targets, exact non-retired native values/references, metadata, second-save and no-op. Main reloaded the clean externally modified Spazon scene and inspected the archived Editor image; geometry and textured figure remain present. N06 full rendering/Metal/Player gates remain open.
+
+## N03.I — Unity development interaction replacement (2026-09-09)
+
+User authorized replacing the interaction model, deleting superseded automation rather than retaining a CLI/script/UI fallback chain. User is downloading Unity 6000.6.0f1 after removing 6000.5.3f1. The new Editor is an external prerequisite; earlier rendering receipts do not prove Unity 6.6 compatibility.
+
+| Child | Status | Work | Independent acceptance |
+|---|---|---|---|
+| N03.I1 | passed | Audit official CLI/package source, classify existing operations, define one command surface and deletion gates | Installed CLI/version and bridge manifest delta confirmed; screenshot limitations source-proven; no unverified capability claimed; migration backup preserved |
+| N03.I2 | pending: Editor download | Resolve/load 6000.6.0f1 and pinned bridge; isolate command adapter from shipping Runtime; expose noninteractive typed validation commands | Correct project/PID, fresh compile, explicit version/dependency receipts; query has zero source writes; errors preserved; no dialog-dependent commands |
+| N03.I3 | pending: I2 | Exercise refresh, Play, XML tests, normal RG capture, frame tree, build and development Player commands | Actual results and cancellation/drain evidence; no extra Render/target replacement; capture origin distinguished from actual window; Terra PASS |
+| N03.I4 | pending: I3 | Remove replaced UI-driving scripts/menu facades and completed one-off tools after dependency closure; synchronize docs | No active references to retired paths, single implementation per operation, fresh compile/tests and required image evidence; Terra PASS |
+
+Default: keep Unity CLI 1.0.0-beta.6 and pin com.unity.pipeline 0.6.0-exp.1 while assessing the new Editor. Reason: avoid conflating CLI upgrades with Editor migration. Risk: experimental bridge/API and new Editor compatibility remain untested. Rollback: remove only the added manifest dependency using the exact before/after receipt; never restore an entire manifest over intervening user changes. Historical evidence stays immutable.
+
+Current evidence: CLI package installation succeeded; no Editor process or EditorInstance.json exists; the prior Editor application is absent and `unity editors --installed` reports no entries. Live verification is blocked by the user-managed download, not by a rendering failure. Bridge source was fetched from the official UPM registry and its SHA-1 matches the registry tarball. Persistent preparation evidence: `cli-interaction-20260909` under the established validation root (before manifest/lock, after manifest, upstream screenshot source and preparation receipt). See Docs/Unity-Development-Interaction.md for the source-grounded capability map. No legacy script deletion is accepted yet.
+
+- N03.I1 Terra scoped PASS: `cli-interaction-20260909/terra-preparation.json`. Confirmed dependency-only manifest delta, unchanged package lock, official tarball hash and screenshot contract limitation; documentation does not claim live readiness. I2–I4 remain pending the downloaded Editor and actual replacement validation. This is not full interaction-refactor acceptance.
+
+## N03.J — Unity 6.6 package warning and compile recovery (2026-09-09)
+
+- Status: passed; independent Terra receipt `jobs-retirement-20260909/terra-verdict.json`.
+- User screenshot identifies deprecated Jobs 0.70.0-preview.7. Installed package metadata and Collections changelog confirm its implementation merged into Collections 1.4.0; current Collections is 6.6.0. The old Jobs package contains an empty assembly.
+- Remove com.unity.jobs from both Example manifest and Infinity package dependencies, and remove the empty Unity.Jobs assembly reference. Retain actual Unity.Jobs namespace usage and Unity.Collections dependency. UPM owns lock regeneration; never delete PackageCache to hide a warning.
+- Also correct the observed Unity 6.6 CS0619 in AssemblyMigrationPreflight: normalize JSON raw object IDs as ulong and construct EntityId through FromULong, preserving full identity rather than casting through int.
+- Preserve all existing importer .meta changes made during the user's Editor upgrade. No broader package upgrades are part of this warning fix.
+- Gate: UPM resolves no Jobs entry or dependency parent, live fresh Editor compile has no new error, 64-bit object-reference conversion compiles without narrowing or compatibility casts (migration execution needs its own source/copy gate), screenshot no deprecated Jobs warning, independent Terra PASS. Do not upgrade historical 6.5 test evidence to a 6.6 pass.
+- Backups: sibling InfinityRP-Validation/jobs-retirement-20260909; current Editor PID 38507 / Unity 6000.6.0f1. CLI bridge currently unreachable; one explicit Editor refresh is needed to load corrected scripts.
+
+- N03.J candidate: `jobs-retirement-20260909/candidate.json`. Actual Unity 6000.6.0f1 XML run `editor-tests-20260909T1405255548260Z-917d4ae57e7f4d319f828343af40e030` passed216/216, zero failed/skipped. Root inspected Package Manager: Jobs and its warning are absent, as is the Errors and Warnings category. The independent Pipeline Server port-bind failure remains N03.I; do not report CLI cutover as passed.
+
+## N03.I2a — CLI listener recovery
+
+Status: passed (Terra: `cli-listener-fix-20260909/terra-verdict.json`). Same-Editor probe on6000.6.0f1 proves numeric loopback succeeds and the official wildcard HttpListener prefix fails. Corrected only the listener prefix in a canonical embedded Example bridge0.6.0-exp.1; no Cache patch or authentication changes. Temporary probe removed. Real CLI status/eval succeeded, CLI recompile completed without errors and post-reload eval reconnected; lsof loopback-only and unauthenticated401 confirmed. Evidence cli-listener-fix-20260909. Independent Terra gate: verify exact upstream source delta, probe/reload/command receipts, actual read-only connection and unchanged security checks. This unlocks normal CLI use, not full N03.I custom adapter/retirement or rendering acceptance.
+
+
+## Visual repair wave — 2026-09-09 (user approved)
+
+Scope: CSM, HiZ/SSR/SSGI/GTAO, static lightmaps and Shadowmask/DistanceShadowmask across native Renderer and Mesh CPU/GPU. No Enlighten, route bypass, scene rebake or exposure compensation. Existing dirty working tree preserved; baseline hashes/diff: /private/tmp/infinity-visual-20260909.
+
+| Stage | State | Closure |
+|---|---|---|
+| V1 baseline / CLI diagnostics | passed (Editor scope) | Original failures retained; normal RG raw data and326/326 Frame Debugger payloads; actual-window liveness. Astra low independent verdict. |
+| V2 shadow contract | passed (Editor scope) | Final captured sphere crossings0→1→2→3, all four cascades/far exit, Hard/PCF/strength/layers and native/Mesh CPU/GPU parity; stripe fix raw/image proof. |
+| V3 screen-space contract | passed (Editor scope) | HiZ CPU/GPU references; six motion/history cases; current108 finite outputs,3,947,642 coherent SSR hits, metadata clear owner repaired and independently rechecked. |
+| V4 baked lighting | passed (Editor scope) | Directional/non-directional/ST sets, mask channels, Baked Indirect and nontrivial Probe supplements; native/CPU/GPU raw and actual windows independently pass. |
+| V5 integrated acceptance | passed (Editor scope) | Final full XML241/241,0failed/skipped; independent Astra low six-gate PASS; original scene/camera/11maps restored,0outstanding,ratio1. No macOS build or Player run per user. |
+
+Closure receipt: `/Volumes/DataDisk/Projects/Unity/InfinityRP-Validation/visual-repair-20260909` (compressed original raw evidence, failures, manifests, XML and independent verdict). Working originals remain `/private/tmp/infinity-visual-20260909`. User explicitly replaced subsequent Terra work with Astra low; `astra-independent-verdict.json` SHA256 `5de812d4e8d560fda6a7effa750e68ba379c9b9ef2d93816c3bd4bc5a623ee32`. This is the visual repair wave's Editor Metal scope only, not closure of unrelated N00–N15 work or any untested Player/platform gate.
+
+The final acceptance found and closed an attachment-owner defect: native/fallback clears ignored descriptor clearColor. Failed `acceptance-stages` metadata and the interrupted `editor-tests-final` GPU-wait run remain unchanged; replacement `acceptance-stages-02`, targeted clear GPU test and `editor-tests-final-02` prove closure. Separate consumer-audited cleanup removed deprecated no-sort overloads and the final stale retired capture menu reference. No hit-record compression, branch, commit, native asset save/rebake/migration, effect disabling or exposure compensation.
+
+## TAA and idle-crash wave — 2026-09-10 (approved)
+
+Scope: Game and SceneView motion/history/aliasing/color/sharpen plus native idle crash investigation. No macOS build, branch, engine upgrade, Library deletion, asset migration or rebake. Astra low independently accepts complete candidates. Evidence /private/tmp/infinity-taa-20260910; prior visual-wave receipts remain scoped and unchanged.
+
+| Gate | State | Pass condition and current evidence |
+|---|---|---|
+| Motion/reprojection | scoped PASS | Candidate02 Game05/Scene05 CPU references, opaque CPU/GPU routes, 176 independent sparse Native rigid/skinned/T0/T1/T2 rows; astra-independent-review-02.md. Custom Mesh translucent N11 excluded explicitly. |
+| History rejection | scoped PASS | Final Game/Scene seven phases complete/restored/drained; 62 independent exact history pairs; orthographic static/rotation/stop sky checks. |
+| Color/sharpen | scoped PASS | GPU TAA/GBuffer tests, unsharpened history ownership and bounded output; independent candidate02 review. |
+| Enlarged visual | scoped PASS | Actual Game1x/10x, Scene1x and integer zoom stop sequences; finite64-frame Spazon reference error0.5420/edge0.9398/variation0.0428. |
+| Idle stability | BLOCKED / cause UNKNOWN | B02 ProcessExited at230.147627s/1800s remains a real failure. Candidate03 A/B each completed1801s without reproduction; this does not establish the original cause. Minimal ExFAT control is separate. |
+| Integration | blocked by original crash attribution | Candidate03 final XML264/264, lighting CPU/GPU, Game/Scene normal frames and restoration pass. Astra review03 confirms rendering scope but withholds full two-plan PASS. Main upload remains pending this completion condition. |
+
+Baseline: SceneView16frames/96outputs, Game16frames/96outputs, old Game motion6phases restored. Capture-only extensions loaded before algorithm change. CPU step-edge experiment distinguishes stable resolved-color coordinates from jittered depth-history coordinates; this is a contract refinement, not GPU acceptance. The fresh wave receipts below supersede baseline hypotheses, without changing the original failures.
+
+Current evidence is staged at `/private/tmp/infinity-taa-20260910`, with a durable seed under `/Volumes/DataDisk/Projects/Unity/InfinityRP-Validation/TAA-20260910-052410`. Seed copying is not candidate freeze or acceptance. `tests-integrated-02` was 256/256 before the final instance-aware Native motion and per-view Mesh history changes; it is not final XML.
+
+Original failures remain separate: `tests-reference-01/02`, `tests-sharp-hue-01`, `tests-gbuffer-edge-01`, `tests-mesh-motion-01`, invalid fixture01 Mesh mobility and invalid first transparent fixture route. `crash-scene-return-043209` preserves the owned validation crash: Close called inside SceneView rendering, then active RT release, destroyed Camera and native outline crash. It does not attribute the earlier idle AssetDatabase crash.
+
+Scope clarification pending from user: custom Mesh T0/T1/T2 shaders exist but the current translucent RG passes submit only Unity Renderer. Native T0/T1/T2 perspective/orthographic motion is verified; missing custom Mesh translucent submission and cross-owner sorting remain N11 unless the user adds that integration to this wave. Do not relabel missing draws as successful TAA output or retire valid unintegrated shader assets as legacy.
+
+Candidate checkpoint 2026-09-10 06:46: current source frozen for independent acceptance; full review packet in evidence REVIEW.md. Archive seed is not the final durable manifest. No macOS Player build was performed.
+
+### Candidate 02 — 2026-09-10 08:10
+
+Candidate 01 independently FAILED (orthographic sky validity; sparse Native motion proof). Its source/FAIL/partial idle records remain immutable. Candidate 02 fixes per-view Native rigid/deformed history, scale compensation and same-frame proxy-task ordering. Replaced Native previous-data consumers were retired only after equivalent ownership and GPU proof.
+
+Current self-test: `tests-integrated-08` **264/264**, zero skipped; `motion-game-05` and `motion-scene-05` seven phases each complete/restored/zero outstanding and finite outputs. Native/Mesh opaque CPU/GPU and Native T0/T1/T2 rigid/skinned projection checks pass in the documented fixture scope. Current 1x/10x and stop-sequence images inspected. Five fresh lighting scenarios x two backends pass. `candidate-02-*state.json` records EditMode/unpaused/background=false, one SceneView, Spazon clean and 11 lightmaps. Full packet: `/private/tmp/infinity-taa-20260910/REVIEW-02.md`.
+
+Remaining: Astra-low re-acceptance, a new complete post-work 1800s idle observation, durable evidence checksum closure. `idle-track-b-interrupted.json` does not satisfy the observation. Original AssetDatabase idle crash remains unassigned. No macOS build. Custom Mesh transparent integration remains the explicit pending N11 scope question; no missing draw is claimed PASS.
+
+### Candidate 02 terminal stability failure — 2026-09-10
+
+Astra-low review02 found no new rendering blocker but returned overall FAIL: idle B02 exited after230.147627s/1800s. Main Unity PID55948 crashed in SourceAssetDBReadTxn/EditorResources.Load; original AssetDatabase idle failure signature recurred. Cause remains UNKNOWN, distinct from the fixed owned SceneView-close defect. Preserve crash-idle-b02 and database-before-recovery snapshots. Rendering source remains frozen; next work is causal investigation, required idle reruns, archive integrity and final integration/independent verdict. No macOS build.
+
+
+### Candidate 03 — final rendering regression and bounded idle observations
+
+Rendering source is unchanged from candidate02 except a proved CRCRLF-to-LF formatting correction in MeshPassDrawCache.cs. All858 source/meta hashes are frozen in candidate03-source.json; independent review03 reconstructed the prior file hash to verify that delta.
+
+Current evidence is under `InfinityRP-Validation/TAA-20260910-052410/final-candidate03`: full Editor XML264/264 (zero failed/skipped), Game and visible SceneView seven-phase captures,62 bit-exact consecutive history pairs, two object-motion projection fixtures and five lighting scenarios across CPU/GPU. Screen-space capture has108 finite outputs,33 HiZ mip comparisons and3,938,612 coherent SSR hits. Actual Game1x/10x, Scene1x and integer-zoom stop sequences were inspected. Original hidden-Scene viewport failure and analysis/CLI attempt failures remain preserved alongside successful replacement receipts.
+
+The same recovered Editor PID7225 completed startup idle A for1801.362280541 seconds and post-render/capture/Play idle B for1801.549905625 seconds, with181 alive samples each. Final state was Spazon clean,11 lightmaps, one SceneView, EditMode/unpaused/background=false, MatrixDuplicateRatio1 and zero outstanding captures. It then exited normally. These are bounded no-reproduction results, not a causal fix for the previously repeated idle SourceAssetDB crash.
+
+Separate startup recovery is causally established: the same-version empty project reproduces UDS `stoull` with the original AppleDouble `._UDSData_3.bin` sidecar and starts after removing only that sidecar. The original project's4KB sidecar was quarantined with a verified backup; its actual461,996,998-byte UDSData_3.bin hash stayed unchanged. No Library reset or engine upgrade occurred. This startup parser defect does not explain the original idle fault.
+
+`astra-independent-review-03.md` confirms scoped rendering acceptance and both observation durations, but full two-plan acceptance is **BLOCKED** by original idle attribution. The same-version empty-project ExFAT control completed1801.332s/181 alive samples after a322,674,458,048-byte read, with no native crash or MDB_BAD_RSLOT marker, then exited normally. This negative control does not establish the original cause; source stays frozen. Structured main submission is prepared but no stage, commit or push has occurred. No macOS build or Player acceptance.
+
+
+### Startup recurrence — 2026-09-10 12:28
+
+Original-project PID52368 aborted before managed project code with UDS stoull again. New AppleDouble ._UDSData_4.bin confirms that the prior single-sidecar quarantine was only a temporary recovery, not a durable startup fix. Preserve fresh evidence at /private/tmp/infinity-startup-20260910-122854. Same-version APFS control preserves data and provenance metadata without ._ files. Two startup/normal-exit cycles pass, including reopening freshly generated UDSData_5.bin; original-project storage relocation remains pending explicit location approval. No engine/signature change, Library deletion or rendering workaround. This startup gate is reopened separately from the UNKNOWN idle SourceAssetDB cause.
+
+
+### Explicit current-change-list submission — 2026-09-10
+
+User explicitly requested committing and uploading the current local change list to main. This supersedes the earlier completion-conditioned upload timing; it does not close failed acceptance gates. Include existing importer metadata and documentation as local changes, with no asset rewrite during submission. Original-path startup recovery remains temporary: newly generated ._UDSData_5.bin reproduced the trigger. Installed engine remains unmodified; durable startup fix and idle attribution stay open. The commit message must separate implemented rendering behavior, previously recorded Editor tests, and these unresolved native Editor failures. No macOS build.

@@ -78,6 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int localLightCount;
             public int cascadeCount;
             public Matrix4x4[] cascadeMatrices;
+            public Vector4[] cascadeSpheres;
             public Vector4 cascadeSplitDistances;
             public Vector4 cascadeShadowMapSize;
             public Vector4 localShadowMapSize;
@@ -193,7 +194,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
                 passData.localLightCount = renderContext.lightContext.LocalLightCount;
                 passData.cascadeCount = m_ActiveCascadeCount;
-                passData.cascadeMatrices = m_ActiveCascadeMatrices;
+                passData.cascadeMatrices = (Matrix4x4[])m_ActiveCascadeMatrices.Clone();
+                passData.cascadeSpheres = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeSpheres.Clone();
                 passData.cascadeSplitDistances = m_ActiveCascadeSplitDistances;
                 passData.cascadeShadowMapSize = new Vector4(
                     pipelineAsset.cascadeShadowMapResolution,
@@ -263,6 +265,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
                     cmdEncoder.SetComputeIntParam(shader, LightShaderIDs.LocalLightCount, passData.localLightCount);
                     cmdEncoder.SetComputeIntParam(shader, CascadeShadowPassUtilityData.CascadeCountID, passData.cascadeCount);
+                    cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeSpheresID, passData.cascadeSpheres);
                     cmdEncoder.SetComputeMatrixArrayParam(shader, CascadeShadowPassUtilityData.CascadeMatricesID, passData.cascadeMatrices);
                     cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeSplitDistancesID, passData.cascadeSplitDistances);
                     cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeShadowMapSizeID, passData.cascadeShadowMapSize);

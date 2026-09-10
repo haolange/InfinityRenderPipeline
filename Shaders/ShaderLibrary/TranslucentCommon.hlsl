@@ -56,13 +56,6 @@ float TranslucentReactive(float alpha)
     return saturate(alpha);
 }
 
-float2 TranslucentMotion(float4 clipPos, float4 clipPosOld)
-{
-    float2 hPos = clipPos.xy / max(clipPos.w, 1e-6);
-    float2 hPosOld = clipPosOld.xy / max(clipPosOld.w, 1e-6);
-    float2 ndcPos = (hPos + 1.0) * 0.5;
-    float2 ndcPosOld = (hPosOld + 1.0) * 0.5;
-    return ndcPos - ndcPosOld;
-}
+
 
 #endif
