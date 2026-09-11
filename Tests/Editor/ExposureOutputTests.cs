@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.PostProcess;
+using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -33,13 +34,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 exposure.active = true;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(exposure));
+                Assert.IsTrue(VolumeComponentActive(exposure));
                 Assert.AreEqual(0.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
                 Assert.AreEqual(1.0f, ExposureUtility.ResolveManualMultiplier(exposure));
                 Assert.IsFalse(ExposureUtility.ShouldRecordAuto(exposure));
 
                 exposure.evCompensation.overrideState = true;
-                Assert.IsTrue(GraphicsUtility.VolumeHasOverrides(exposure));
+                Assert.IsTrue(VolumeComponentActive(exposure));
                 exposure.evCompensation.value = 1.0f;
                 Assert.AreEqual(1.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
                 Assert.AreEqual(2.0f, ExposureUtility.ResolveManualMultiplier(exposure), 1e-6f);
@@ -50,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(1.0f, ExposureUtility.ResolveManualMultiplier(exposure));
 
                 exposure.active = false;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(exposure));
+                Assert.IsFalse(VolumeComponentActive(exposure));
                 Assert.IsTrue(ExposureUtility.ShouldRecordAuto(exposure));
                 exposure.evCompensation.overrideState = false;
                 Assert.AreEqual(1.0f, ExposureUtility.ResolveCpuEvCompensation(exposure));
@@ -62,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void BloomVignetteGrain_VolumeHasOverrides_RequiresActiveAndOverrideState()
+        public void BloomVignetteGrain_IsActive_RequiresIntensity()
         {
             Bloom bloom = ScriptableObject.CreateInstance<Bloom>();
             Vignette vignette = ScriptableObject.CreateInstance<Vignette>();
@@ -72,16 +73,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 bloom.active = true;
                 vignette.active = true;
                 grain.active = true;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(bloom));
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(vignette));
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(grain));
+                Assert.IsFalse(VolumeComponentActive(bloom));
+                Assert.IsFalse(VolumeComponentActive(vignette));
+                Assert.IsFalse(VolumeComponentActive(grain));
 
-                bloom.intensity.overrideState = true;
-                vignette.intensity.overrideState = true;
-                grain.intensity.overrideState = true;
-                Assert.IsTrue(GraphicsUtility.VolumeHasOverrides(bloom));
-                Assert.IsTrue(GraphicsUtility.VolumeHasOverrides(vignette));
-                Assert.IsTrue(GraphicsUtility.VolumeHasOverrides(grain));
+                bloom.intensity.value = 0.25f;
+                vignette.intensity.value = 0.25f;
+                grain.intensity.value = 0.25f;
+                Assert.IsTrue(VolumeComponentActive(bloom));
+                Assert.IsTrue(VolumeComponentActive(vignette));
+                Assert.IsTrue(VolumeComponentActive(grain));
             }
             finally
             {

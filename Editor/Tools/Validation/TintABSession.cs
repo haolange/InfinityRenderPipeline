@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Editor.Validation
     // Explicit Play-only diagnostic. This never saves assets or renders an extra camera frame.
     public static class TintABSession
     {
-        const string k_Menu = "Infinity/Validation/Tint A-B/Start or Next Phase";
+        const string k_Menu = "Window/Infinity/Tint A-B/Start or Next Phase";
         const int k_WarmupFrames = 120;
         static Session s_Session;
 
@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             catch (Exception error) { Abort(error); }
         }
 
-        [MenuItem("Infinity/Validation/Tint A-B/Observe Source Only", false, 72)]
+        [MenuItem("Window/Infinity/Tint A-B/Observe Source Only", false, 72)]
         public static void ObserveSourceOnly()
         {
             if (s_Session != null) { Debug.LogError("End the current Tint diagnostic before observing the source."); return; }
@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             catch (Exception error) { Abort(error); }
         }
 
-        [MenuItem("Infinity/Validation/Tint A-B/End and Restore", false, 71)]
+        [MenuItem("Window/Infinity/Tint A-B/End and Restore", false, 71)]
         public static void EndAndRestore() => Stop("explicit end", false);
 
         static void Stop(string reason, bool failed)
@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 if (m_Camera.targetTexture != null) throw new InvalidOperationException("MainCamera already has a targetTexture; window ROI contract is ambiguous.");
                 m_Width = m_Camera.pixelWidth;
                 m_Height = m_Camera.pixelHeight;
-                CameraComponent cameraComponent = m_Camera.GetComponent<CameraComponent>();
+                InfinityAdditionalCameraData cameraComponent = m_Camera.GetComponent<InfinityAdditionalCameraData>();
                 int mask = cameraComponent != null ? cameraComponent.volumeLayerMask.value : ~0;
                 int layer = 0;
                 while (layer < 32 && (mask & (1 << layer)) == 0) ++layer;

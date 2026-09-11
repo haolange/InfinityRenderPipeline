@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string MaterialDirectory = SceneDirectory + "/OutputMaterials";
         const string VolumeProfilePath = SceneDirectory + "/Validation_Output_Volume.asset";
 
-        [MenuItem("Infinity/Validation/Create Output Fixture", false, 59)]
+        [MenuItem("Window/Infinity/Create Output Fixture", false, 59)]
         public static void Create()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.0f, 0.0f, 0.0f, 1.0f);
             camera.fieldOfView = 40.0f;
-            cameraGo.AddComponent<CameraComponent>();
+            cameraGo.AddComponent<InfinityAdditionalCameraData>();
             ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);

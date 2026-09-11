@@ -22,6 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int FilmShoulderID = Shader.PropertyToID("FilmShoulder");
         internal static int FilmBlackClipID = Shader.PropertyToID("FilmBlackClip");
         internal static int FilmWhiteClipID = Shader.PropertyToID("FilmWhiteClip");
+        internal static int FilmEnabledID = Shader.PropertyToID("FilmEnabled");
 
         internal static int ColorSaturationID = Shader.PropertyToID("ColorSaturation");
         internal static int ColorContrastID = Shader.PropertyToID("ColorContrast");
@@ -73,6 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
         public float FilmShoulder;
         public float FilmBlackClip;
         public float FilmWhiteClip;
+        public float FilmEnabled;
 
         public float4 ColorSaturation;
         public float4 ColorContrast;
@@ -124,6 +126,7 @@ namespace InfinityTech.Rendering.Pipeline
                 && FilmShoulder.Equals(other.FilmShoulder)
                 && FilmBlackClip.Equals(other.FilmBlackClip)
                 && FilmWhiteClip.Equals(other.FilmWhiteClip)
+                && FilmEnabled.Equals(other.FilmEnabled)
                 && ColorSaturation.Equals(other.ColorSaturation)
                 && ColorContrast.Equals(other.ColorContrast)
                 && ColorGamma.Equals(other.ColorGamma)
@@ -178,11 +181,23 @@ namespace InfinityTech.Rendering.Pipeline
 
         static void ApplyFilmTonemap(ref CombineLutParameterDescriptor descriptor, FilmTonemap film)
         {
-            descriptor.FilmSlope = film.Slop.value;
-            descriptor.FilmToe = film.Toe.value;
-            descriptor.FilmShoulder = film.Shoulder.value;
-            descriptor.FilmBlackClip = film.BlackClip.value;
-            descriptor.FilmWhiteClip = film.WhiteClip.value;
+            if (!film.IsActive())
+            {
+                descriptor.FilmEnabled = 0.0f;
+                descriptor.FilmSlope = 1.0f;
+                descriptor.FilmToe = 0.0f;
+                descriptor.FilmShoulder = 0.0f;
+                descriptor.FilmBlackClip = 0.0f;
+                descriptor.FilmWhiteClip = 0.0f;
+                return;
+            }
+
+            descriptor.FilmEnabled = 1.0f;
+            descriptor.FilmSlope = film.slope.value;
+            descriptor.FilmToe = film.toe.value;
+            descriptor.FilmShoulder = film.shoulder.value;
+            descriptor.FilmBlackClip = film.blackClip.value;
+            descriptor.FilmWhiteClip = film.whiteClip.value;
         }
 
         static void ApplyColorGrading(ref CombineLutParameterDescriptor descriptor, ColorGrading grading)
@@ -228,7 +243,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeCombineLuts(CameraFrameState frameState, in CombineLutParameterDescriptor combineLutParameterDescriptor)
         {
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.combineLUTShader, "MainCS"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.combineLUTShader, "MainCS"))
             {
                 throw new InvalidOperationException("InfinityRP: CombineLUT is required but combineLUTShader kernel MainCS is missing.");
             }
@@ -256,7 +271,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 ref CombineLutPassData passData = ref passRef.GetPassData<CombineLutPassData>();
-                passData.combineLUTShader = pipelineAsset.combineLUTShader;
+                passData.combineLUTShader = shaders.combineLUTShader;
                 passData.combineLookupTexture = passRef.WriteTexture(combineLookupTexture);
                 passData.combineLutParameterDescriptor = combineLutParameterDescriptor;
 
@@ -274,6 +289,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(passData.combineLUTShader, CombineLutPassUtilityData.FilmShoulderID, passData.combineLutParameterDescriptor.FilmShoulder);
                     cmdEncoder.SetComputeFloatParam(passData.combineLUTShader, CombineLutPassUtilityData.FilmBlackClipID, passData.combineLutParameterDescriptor.FilmBlackClip);
                     cmdEncoder.SetComputeFloatParam(passData.combineLUTShader, CombineLutPassUtilityData.FilmWhiteClipID, passData.combineLutParameterDescriptor.FilmWhiteClip);
+                    cmdEncoder.SetComputeFloatParam(passData.combineLUTShader, CombineLutPassUtilityData.FilmEnabledID, passData.combineLutParameterDescriptor.FilmEnabled);
 
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.ColorSaturationID, passData.combineLutParameterDescriptor.ColorSaturation);
                     cmdEncoder.SetComputeVectorParam(passData.combineLUTShader, CombineLutPassUtilityData.ColorContrastID, passData.combineLutParameterDescriptor.ColorContrast);

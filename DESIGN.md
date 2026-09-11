@@ -1,6 +1,6 @@
 # InfinityRP Mesh Drawing Pipeline — Design (as implemented)
 
-> Active delivery is governed by PLAN.md N00–N15. Its new layer, SSS, dimension and output contracts are approved targets, not implemented claims in this historical design. Main agent implements/reviews; Terra verifies task results.
+> Active delivery is governed by PLAN.md U00–U82 (0.4.0 normalization). Historical N00–N15 receipts live in Docs/History. Main agent implements; Grok 4.6 verifies batches.
 
 Status: **code-converged; runtime-unverified** (closure **D / D1–D6**). Editor / GPU / multi-camera / Frame Debugger runs remain `TODO(UNVERIFIED)`.
 Wave C gate **C5** (“CPU Submit ownership + frame buffer release” / “physical resources closed”) is **withdrawn** and **superseded by D1** (frame-end retirement).
@@ -246,9 +246,11 @@ Contracts that stay locked:
 
 Image / Frame Debugger / GPU-Trace results stay `TODO(UNVERIFIED)` until captured. See [Docs/FullRendering-Delivery-Report.md](Docs/FullRendering-Delivery-Report.md).
 
-## 16. Default Volume, Output authority, Gizmo-before-encode
+## 16. Settings layers, Default Volume, Output authority, Gizmo-before-encode
 
-Default Volume values come only from the RP Asset `volumeProfile`. Pipeline creation requires active Exposure, FilmTonemap and ColorGrading with complete parameter overrides and the optional-feature type registry. The constructor calls `VolumeManager.Initialize(asset.volumeProfile, null)` once; disposal deinitializes that manager. Required color/exposure consumers read the resolved camera stack, including default values whose scene override flags CoreRP clears. CombineLUT has no inactive-component constant fallback. Atmosphere remains separately owned by AtmosphericalProfile.
+Project-wide resources and the default Volume profile live on `InfinityRenderPipelineGlobalSettings` (`IRenderPipelineGraphicsSettings` / `IRenderPipelineResources` with `[ResourcePath]`). Per-quality authoring lives on `InfinityRenderPipelineAsset` (features, shadows, `renderScale`, output, optional `qualityVolumeProfile`, diffusion profiles, atmosphere). Per-scene art lives on Volume / Profile. Per-camera / per-light Infinity fields live on additional-data components.
+
+Pipeline creation requires a complete default Volume registry. The constructor calls `VolumeManager.Initialize(defaultProfile, qualityProfile)` once; disposal deinitializes that manager and restores process-global graphics flags captured at construction. Required color/exposure consumers read the resolved camera stack. Optional features record when `IsActive()` is true. CombineLUT has no inactive-component constant fallback. Atmosphere remains separately owned by AtmosphericalProfile.
 
 OutputTransform resolves the backbuffer format in this order (first hit wins; `GraphicsFormat.None` is not a hit):
 
@@ -261,18 +263,35 @@ All missing throws at record time. HDR `HDROutputSettings.graphicsFormat` and `S
 
 Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before OutputTransform, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. OutputTransform remains the single transfer-encoding owner; `DisplayColorBuffer` remains the present source.
 
-## 17. DebugView and SceneView temporal gating
+## 17. DebugView, Rendering Debugger, and SceneView temporal gating
 
-`EDebugView` writes a linear quantity into `PostProcessBuffer` in one compute pass immediately before Gizmo/WireOverlay. It is not a second encoding owner. `TAAConfidenceBuffer` exists only when `debugView != None` or an explicit normal-frame capture requests confidence for this frame. Optional AO/SSR/SSGI views that were not recorded this frame use a dedicated Missing kernel (magenta), never an invalid RT bind.
+`EDebugView` writes a linear quantity into `PostProcessBuffer` in one compute pass immediately before Gizmo/WireOverlay. It is not a second encoding owner. The active view comes from `InfinityDebugDisplaySettings` (Rendering Debugger), not from a serialized RP Asset field. `TAAConfidenceBuffer` exists only when `debugView != None` or an explicit normal-frame capture requests confidence for this frame. Optional AO/SSR/SSGI views that were not recorded this frame use a dedicated Missing kernel (magenta), never an invalid RT bind.
 
-SceneView uses the full pipeline. A new camera state or a skipped frame (`lastSeenFrame` gap > 1) sets `historyReset` and disables jitter that frame. SceneView states recycle after 120 unseen frames so docking the tab does not rebuild history every time. Game recycle stays 8. Preview is unchanged and remains a documented independent defect.
+SceneView uses the full pipeline. Volume selection on SceneView uses the unique active Game camera's additional-data mask/trigger when one exists; otherwise `~0` and the SceneView transform. Preview cameras use the default profile only. A new camera state or a skipped frame (`lastSeenFrame` gap > 1) sets `historyReset` and disables jitter that frame. SceneView states recycle after 120 unseen frames so docking the tab does not rebuild history every time. Game recycle stays 8. Preview temporal gating remains a documented independent defect.
+
+## 18. User-facing integration
+
+| Surface | Owner |
+|---|---|
+| Compute shaders, blit material, BestFit LUT | GlobalSettings `IRenderPipelineResources` |
+| Default Volume profile | GlobalSettings `InfinityDefaultVolumeProfileSettings` |
+| Quality Volume profile, SR `renderScale`, shadows, atmosphere, diffusion profiles | RP Asset |
+| Camera Volume mask/trigger, SR override | `InfinityAdditionalCameraData` |
+| Light layers, weights, volumetric, contact, distance | `InfinityAdditionalLightData` |
+| DebugView / Volume dump / Mesh stats | Rendering Debugger |
+| Screen Space Overlay UI | `DrawUIOverlay` after OutputTransform |
+| Screen Space Camera / World Space UI, particles, lines | Translucent RendererList |
+
+GameObject Camera/Light creation and the Infinity inspectors auto-add additional data with Undo. `GameObject > Create` default materials come from the RP Asset (`defaultMaterial`, `defaultParticleMaterial`, `defaultLineMaterial`, `defaultTerrainMaterial`, `default2DMaterial`).
+
+Hardware ray tracing (`RayTracingShader`) is D3D12/console only. RTAO uses CoreRP `UnifiedRayTracing` (hardware on D3D12, compute BVH on Metal). `SystemInfo.supportsRayTracing` is not a Metal capability claim.
 
 
 ## Rendering integration and serialized-asset authority
 
-The approved N00–N15 delivery graph is authoritative in `PLAN.md`; historical mesh convergence does not imply complete render or platform acceptance. N01 has applied package 0.3.0 and Infinity identities on Unity 6000.5.3f1/CoreRP 17.5.0. The active Editor compiled/reloaded the new assemblies. Seven binary assets received 22 explicit class-identifier updates with exact remaining native-data checks and a separate no-op. Final N01 type verification/independent acceptance passed. N02 subsequently executed 136 passing Editor tests; the first Player build failed on a missing Mac IL2CPP module, so Player acceptance remains open.
+The approved 0.4.0 normalization graph is authoritative in `PLAN.md` (U00–U82). Historical mesh/N00–N15 convergence does not imply complete render or platform acceptance. N01 applied package 0.3.0 and Infinity identities on Unity 6000.5.3f1/CoreRP 17.5.0 (historical). The active Editor compiled/reloaded the new assemblies. Seven binary assets received 22 explicit class-identifier updates with exact remaining native-data checks and a separate no-op. Final N01 type verification/independent acceptance passed. N02 subsequently executed 136 passing Editor tests; the first Player build failed on a missing Mac IL2CPP module, so Player acceptance remains open.
 
-Atmosphere's sole physical/configuration owner is RP Asset → AtmosphericalProfile → AtmosphereParameter.FromProfile. T02c persisted the already effective configuration and removed abandoned serialized fields only after exact loaded-value, parameter-bit, native-delta and idempotence evidence. It did not re-tune the atmosphere or derive new Hillaire values from old fields. Unity Light remains the light-value owner; the Validation scene cleanup removed old LightComponent duplicates and editor show-state, preserving all current native Light fields and references. Layer-route behavior and material import/persistence still require N06 verification.
+Atmosphere's sole physical/configuration owner is RP Asset → AtmosphericalProfile → AtmosphereParameter.FromProfile. T02c persisted the already effective configuration and removed abandoned serialized fields only after exact loaded-value, parameter-bit, native-delta and idempotence evidence. It did not re-tune the atmosphere or derive new Hillaire values from old fields. Unity Light remains the light-value owner; the Validation scene cleanup removed old LightComponent duplicates and editor show-state, preserving all current native Light fields and references. Layer-route behavior and material import/persistence still require U40 verification.
 
 A source schema migration is a targeted persistent-data transaction: immutable current-byte backups and intent precede writes; exact per-object allowed deltas and complete non-target/identity checks follow; a separate no-op verifies persisted idempotence. Old failed evidence remains immutable. Composite acceptance may inherit unchanged parsed-source/copy proofs through exact hashes and reviewed reader equivalence, adding narrowly certified source replacements or explicit source deletions. It must not hide unknown changes or reclassify an unverified platform as passed. Three referenced BoxMatrix LightingSettings changes are approved (Hybrid/SRPBatcher MinBounces 1→2; MeshPipeline Direct/AO Gaussian 1/2→5/5; no Bake) and passed N01.a source migration/independent no-op under Terra verification.
 
@@ -283,7 +302,7 @@ Current Validation scene images are explicit quality failures: sky black bands, 
 
 ### Player Volume component registry (N02 startup correction)
 
-CoreRP 17.5 uses reflection to enumerate Volume types in Editor, but Player derives its type registry exclusively from the global default Profile. Infinity passes its RP Asset `volumeProfile` to `VolumeManager.Initialize(profile, null)`. The asset is registered once as the global default; there is no duplicate custom binding. That Profile contains the three required color/exposure components and all ten consumed optional-feature types. Optional types are present with override flags disabled, preserving the existing off-by-default policy while allowing scene Volume overrides to operate in Player. Pipeline creation rejects an incomplete registry. The explicit migration only appends absent types and retains the existing components and their identities/values. Full N05 parameter/default/LUT convergence is still pending.
+CoreRP 17.6 uses reflection to enumerate Volume types in Editor, but Player derives its type registry exclusively from the global default Profile. Infinity passes the GlobalSettings default profile (and optional RP Asset quality profile) to `VolumeManager.Initialize(defaultProfile, qualityProfile)`. The default profile is registered once; there is no duplicate custom binding. That Profile contains the required color/exposure components and every consumed optional-feature type. Optional features use `IsActive()` rather than override flags. Pipeline creation rejects an incomplete registry. The lossless Validate tool only appends absent types and retains existing components and their identities/values.
 
 
 ### Native SDR display transfer authority (N02 candidate)
@@ -312,7 +331,7 @@ HistoryCache keeps separate committed and pending descriptors and swaps each des
 
 ### Resolved default Volume values
 
-The RP asset profile is registered once as the VolumeManager global default profile, including the complete Player type registry. Exposure, FilmTonemap and ColorGrading are required active components with all parameters overridden in that profile. Their consumers read the resolved per-camera stack values. CoreRP clears stack parameter override flags when applying default values; those flags describe scene overrides and must not gate required exposure. Optional features retain their explicit active/override record gates. CombineLUT has no separate inactive-component default table; exposure remains a pre-LUT multiply.
+The GlobalSettings default profile is registered as the VolumeManager global default profile, including the complete Player type registry. Exposure, FilmTonemap and ColorGrading are required active components. Their consumers read the resolved per-camera stack values. CoreRP clears stack parameter override flags when applying default values; those flags describe scene overrides and must not gate required exposure. Optional features record when `IsActive()` is true. CombineLUT has no separate inactive-component default table; exposure remains a pre-LUT multiply. FilmTonemap `mode == None` skips the film curve.
 
 ### Explicit material route updates
 
@@ -320,7 +339,7 @@ Infinity surface materials declare `_SurfaceRoute` and `_TranslucentStage` on th
 
 ### N06 layer and native light ownership
 
-`LightComponent.shadowLayer` is a validated property over native `Light.renderingLayerMask`; there is no serialized duplicate. Native Light owns physical color/intensity/temperature, geometry and shadow mode. Removed IES/Cookie, per-light indirect, PCSS and duplicate configuration fields have no compatibility storage. The nine explicit scene retirements preserve the previously effective native values and all non-target data; PLAN links their independent receipts.
+`InfinityAdditionalLightData.shadowLayer` is a validated property over native `Light.renderingLayerMask`; there is no serialized duplicate. Native Light owns physical color/intensity/temperature, geometry and shadow mode. Removed IES/Cookie, per-light indirect, PCSS and duplicate configuration fields have no compatibility storage. The nine explicit scene retirements preserve the previously effective native values and all non-target data; PLAN links their independent receipts.
 
 Surface masks are encoded in GBufferC alpha as an eight-bit UNorm value. Unity shaders use native rendering-layer data. Infinity Mesh retains instance records as authority; residency derives a transform-indexed uint layer buffer through the existing exclusive Transform/Instance owner map and uploads it with transform dirty ranges. CPU and GPU submissions bind the same buffer. Surface direct-light masks are independent of caster masks and camera visibility. Runtime high bits are rejected; Everything normalization belongs only to an explicit asset migration. These paths compile and have unit/GPU packing evidence; full rendered parity is still pending.
 

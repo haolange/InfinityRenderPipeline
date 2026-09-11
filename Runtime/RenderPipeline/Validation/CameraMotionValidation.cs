@@ -185,7 +185,7 @@ namespace InfinityTech.Rendering.Pipeline
                 var go = new GameObject("MotionValidationCamera") { hideFlags = HideFlags.DontSave };
                 SceneManager.MoveGameObjectToScene(go, m_Original.gameObject.scene);
                 m_Clone = go.AddComponent<Camera>(); m_Clone.CopyFrom(m_Original); m_Clone.rect = m_Rect;
-                m_Clone.transform.SetPositionAndRotation(m_Position, m_Rotation); go.AddComponent<CameraComponent>();
+                m_Clone.transform.SetPositionAndRotation(m_Position, m_Rotation); go.AddComponent<InfinityAdditionalCameraData>();
                 m_Original.enabled = false; m_Clone.enabled = true;
             }
             if (phase == 5)

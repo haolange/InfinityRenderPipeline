@@ -14,8 +14,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         public static EScreenSpaceMode Resolve(ScreenSpaceReflection reflection, ScreenSpaceIndirectDiffuse indirectDiffuse)
         {
-            bool ssr = GraphicsUtility.VolumeHasOverrides(reflection);
-            bool ssgi = GraphicsUtility.VolumeHasOverrides(indirectDiffuse);
+            bool ssr = GraphicsUtility.VolumeComponentActive(reflection);
+            bool ssgi = GraphicsUtility.VolumeComponentActive(indirectDiffuse);
             if (ssr && ssgi)
             {
                 return EScreenSpaceMode.Both;
@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public static bool ShouldRequestGTAO(ScreenSpaceAmbientOcclusion occlusion)
         {
-            return GraphicsUtility.VolumeHasOverrides(occlusion);
+            return GraphicsUtility.VolumeComponentActive(occlusion);
         }
     }
 }

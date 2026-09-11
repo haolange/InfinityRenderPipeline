@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Editor.Validation
 {
     public static class InfinityValidationMenus
     {
-        const string MenuRoot = "Infinity/Validation/";
+        const string MenuRoot = "Window/Infinity/";
         const string VolumeStackDumpName = "volume-stack-dump.txt";
 
         internal static string ProjectLogsDirectory
@@ -72,15 +72,17 @@ namespace InfinityTech.Rendering.Editor.Validation
             OpenSceneWhenEditMode("Assets/Scene/Validation/Validation_Output.unity", "Validation_Output.unity missing. Run Create Output Fixture first.");
         }
 
-        [MenuItem(MenuRoot + "Ensure Default Volume Profile", false, 49)]
-        public static void EnsureDefaultVolumeProfile()
+        [MenuItem(MenuRoot + "Validate Default Volume Profile", false, 49)]
+        public static void ValidateDefaultVolumeProfile()
         {
-            VolumeProfile profile = DefaultVolumeProfileFactory.EnsureAsset();
+            InfinityRenderPipelineGlobalSettings.Ensure();
+            DefaultVolumeProfileFactory.AssignDefaultToGlobalSettings();
+            VolumeProfile profile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
+            DefaultVolumeProfileFactory.ValidateAndComplete(profile);
             InfinityRenderPipelineAsset pipelineAsset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            DefaultVolumeProfileFactory.AssignToPipeline(pipelineAsset);
             AssetDatabase.SaveAssets();
             RebuildActiveInfinityPipeline(pipelineAsset);
-            Debug.Log($"[InfinityRP][Validation] Default Volume Profile ready: {DefaultVolumeProfileFactory.AssetPath} assigned={(pipelineAsset != null && pipelineAsset.volumeProfile == profile)} customDefaultProfiles={FormatCustomDefaultProfileNames()}");
+            Debug.Log($"[InfinityRP] Default Volume Profile validated: {DefaultVolumeProfileFactory.AssetPath}");
         }
 
         static void RebuildActiveInfinityPipeline(InfinityRenderPipelineAsset pipelineAsset)
@@ -99,7 +101,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 QualitySettings.renderPipeline = qualityPipeline;
             }
 
-            if (CustomDefaultsInclude(pipelineAsset.volumeProfile))
+            if (CustomDefaultsInclude(InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile()))
             {
                 return;
             }
@@ -181,7 +183,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             builder.Append("volumeManagerInitialized=").Append(VolumeManager.instance.isInitialized).AppendLine();
 
             InfinityRenderPipelineAsset pipelineAsset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            VolumeProfile defaultProfile = pipelineAsset != null ? pipelineAsset.volumeProfile : null;
+            VolumeProfile defaultProfile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
             builder.Append("defaultProfile=").Append(defaultProfile != null ? defaultProfile.name : "null").AppendLine();
             builder.Append("globalDefaultProfile=").Append(VolumeManager.instance.globalDefaultProfile != null ? VolumeManager.instance.globalDefaultProfile.name : "null").AppendLine();
             builder.Append("qualityDefaultProfile=").Append(VolumeManager.instance.qualityDefaultProfile != null ? VolumeManager.instance.qualityDefaultProfile.name : "null").AppendLine();
@@ -258,7 +260,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                     continue;
                 }
 
-                CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
+                InfinityAdditionalCameraData cameraComponent = camera.GetComponent<InfinityAdditionalCameraData>();
                 bool isSceneView = camera.cameraType == CameraType.SceneView;
                 if (cameraComponent == null && !isSceneView)
                 {
@@ -536,11 +538,11 @@ namespace InfinityTech.Rendering.Editor.Validation
 
             DecalComponent[] decals = UnityEngine.Object.FindObjectsByType<DecalComponent>();
             builder.Append("decalComponents=").Append(decals.Length).AppendLine();
-            LightComponent[] lights = UnityEngine.Object.FindObjectsByType<LightComponent>();
+            InfinityAdditionalLightData[] lights = UnityEngine.Object.FindObjectsByType<InfinityAdditionalLightData>();
             builder.Append("lightComponents=").Append(lights.Length).AppendLine();
             for (int i = 0; i < lights.Length; ++i)
             {
-                LightComponent light = lights[i];
+                InfinityAdditionalLightData light = lights[i];
                 builder.Append("  light=").Append(light.name);
                 Light unityLight = light.unityLight != null ? light.unityLight : light.GetComponent<Light>();
                 builder.Append(" type=").Append(unityLight != null ? unityLight.type.ToString() : "null");

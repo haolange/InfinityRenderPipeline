@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.SuperResolution);
 
-            if (pipelineAsset.superResolutionShader == null)
+            if (shaders.superResolutionShader == null)
             {
                 throw new InvalidOperationException("InfinityRP: enableSuperResolution is true but superResolutionShader is not assigned.");
             }
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.jitter = jitter;
                 passData.frameIndex = Time.frameCount;
                 passData.sharpness = 0.5f;
-                passData.superResolutionShader = pipelineAsset.superResolutionShader;
+                passData.superResolutionShader = shaders.superResolutionShader;
                 passData.sceneColorTexture = passRef.ReadTexture(lightingTexture);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.motionTexture = passRef.ReadTexture(motionTexture);

@@ -16,7 +16,7 @@
 
         [Header (Normal)]
 		//[NoScaleOffset]g_NormalScaleTable ("BestFitTexture", 2D) = "white" {}
-        [NoScaleOffset]_NomralTexture ("NomralTexture", 2D) = "bump" {}
+        [NoScaleOffset]_NormalTexture ("NormalTexture", 2D) = "bump" {}
         _NormalTile ("NormalTile", Range(0, 100)) = 1
 
         [Header (Iridescence)]
@@ -24,7 +24,7 @@
         _Iridescence_Distance ("Iridescence_Distance", Range(0, 1)) = 1
 
 		[Header(PixelDepthOffset)]
-        _PixelDepthOffsetVaule ("PixelDepthOffsetVaule", Range(-1, 1)) = 0
+        _PixelDepthOffset ("PixelDepthOffset", Range(-1, 1)) = 0
 
 		[Header(Subsurface)]
 		[Toggle(_SUBSURFACE)] _Subsurface ("Subsurface", Float) = 0
@@ -272,7 +272,7 @@
 				float4 _EmissionColor;
 			CBUFFER_END
 			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
+			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
 
 			struct Attributes
 			{
@@ -317,7 +317,7 @@
 				UNITY_SETUP_INSTANCE_ID(In);
 
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
+				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture, In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;
@@ -408,7 +408,7 @@
 				float4 _EmissionColor;
 			CBUFFER_END
 			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
+			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
 
 
 			struct Attributes
@@ -456,7 +456,7 @@
 				UNITY_SETUP_INSTANCE_ID(In);
 
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
+				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture, In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;

@@ -57,7 +57,6 @@ namespace InfinityTech.Rendering.Editor
             public List<ResolvedScript> scripts = new List<ResolvedScript>();
         }
 
-        [MenuItem("Infinity/Validation/Migration/Verify Migrated MonoScript Types")]
         static void VerifyScriptTypes()
         {
             RequireIdle(NewAssembly);
@@ -99,7 +98,6 @@ namespace InfinityTech.Rendering.Editor
             Debug.Log("[InfinityRP] Migrated MonoScript types verified: " + result.scripts.Count + " / " + directory);
         }
 
-        [MenuItem("Infinity/Validation/Migration/Prepare Serialized Infinity Identities")]
         static void Prepare()
         {
             RequireIdle(OldAssembly);
@@ -146,7 +144,6 @@ namespace InfinityTech.Rendering.Editor
             Debug.Log("[InfinityRP] Serialized identity preparation complete: " + manifestPath);
         }
 
-        [MenuItem("Infinity/Validation/Migration/Apply or Verify Serialized Infinity Identities")]
         static void ApplyOrVerify()
         {
             RequireIdle(NewAssembly);
@@ -253,7 +250,6 @@ namespace InfinityTech.Rendering.Editor
             }
         }
 
-        [MenuItem("Infinity/Validation/Migration/Test Serialized Identity Update On Copy")]
         static void TestCopy()
         {
             RequireIdle(NewAssembly);

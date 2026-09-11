@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string MaterialDirectory = SceneDirectory + "/TranslucentMaterials";
         const string VolumeProfilePath = SceneDirectory + "/Validation_Translucent_Volume.asset";
 
-        [MenuItem("Infinity/Validation/Create Translucent Fixture", false, 58)]
+        [MenuItem("Window/Infinity/Create Translucent Fixture", false, 58)]
         public static void Create()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             light.intensity = 2.0f;
             light.shadows = LightShadows.Soft;
             lightGo.transform.rotation = Quaternion.Euler(48.0f, -28.0f, 0.0f);
-            LightComponent lightComponent = lightGo.AddComponent<LightComponent>();
+            InfinityAdditionalLightData lightComponent = lightGo.AddComponent<InfinityAdditionalLightData>();
             RenderSettings.sun = light;
 
             VolumeProfile profile = ScriptableObject.CreateInstance<VolumeProfile>();
@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.cullingMask = ~0;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.10f, 0.12f, 0.16f, 1.0f);
-            cameraGo.AddComponent<CameraComponent>();
+            cameraGo.AddComponent<InfinityAdditionalCameraData>();
             ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);

@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Editor
             public List<MaterialEvidence> materials = new List<MaterialEvidence>();
         }
 
-        [MenuItem("Infinity/Validation/Materials/Inspect Route States")]
+        [MenuItem("Window/Infinity/Materials/Inspect Route States")]
         static void Inspect()
         {
             string root = Path.GetFullPath(Path.Combine(Application.dataPath, "../../InfinityRP-Validation"));

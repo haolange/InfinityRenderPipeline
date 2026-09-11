@@ -3,23 +3,24 @@ using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.PostProcess;
+using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ScreenSpaceDenoiseTests
     {
         [Test]
-        public void VolumeHasOverrides_GatesGTAORequest()
+        public void IsActive_GatesGTAORequest()
         {
             ScreenSpaceAmbientOcclusion ssao = ScriptableObject.CreateInstance<ScreenSpaceAmbientOcclusion>();
             try
             {
                 ssao.active = true;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(ssao));
+                Assert.IsFalse(VolumeComponentActive(ssao));
                 Assert.IsFalse(ScreenSpaceModeUtility.ShouldRequestGTAO(ssao));
 
-                ssao.Intensity.overrideState = true;
-                Assert.IsTrue(GraphicsUtility.VolumeHasOverrides(ssao));
+                ssao.enable.value = true;
+                Assert.IsTrue(VolumeComponentActive(ssao));
                 Assert.IsTrue(ScreenSpaceModeUtility.ShouldRequestGTAO(ssao));
 
                 ssao.active = false;

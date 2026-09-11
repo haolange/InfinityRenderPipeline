@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 
+namespace InfinityTech.Component.Utility
+{
 public class CameraMovement : MonoBehaviour {
 #if UNITY_EDITOR
 	static Texture2D ms_invisibleCursor = null;
@@ -142,4 +144,5 @@ public class CameraMovement : MonoBehaviour {
             Application.targetFrameRate = 60;
         }
     }
+}
 }

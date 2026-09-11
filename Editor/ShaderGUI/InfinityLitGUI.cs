@@ -11,15 +11,25 @@ namespace InfinityTech.Rendering.Editor
 
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
         {
+            Material material = materialEditor.target as Material;
             EditorGUI.BeginChangeCheck();
-            DrawGroup(materialEditor, properties, "Color", true, "_UseAlbedoTex", "_MainTex", "_BaseColor", "_BaseColorTile", "_EmissionColor");
-            DrawGroup(materialEditor, properties, "Microface", true, "_Roughness", "_Reflectance", "_SpecularLevel");
-            DrawGroup(materialEditor, properties, "Normal", true, "_NomralTexture", "_NormalTile");
-            DrawGroup(materialEditor, properties, "Iridescence", false, "_Iridescence", "_Iridescence_Distance");
-            DrawGroup(materialEditor, properties, "PixelDepthOffset", false, "_PixelDepthOffsetVaule");
-            DrawGroup(materialEditor, properties, "Subsurface", false, "_Subsurface", "_SSSProfileIndex", "_SSSThickness");
-            DrawGroup(materialEditor, properties, "SurfaceRoute", true, "_SurfaceRoute", "_TranslucentStage", "_RefractionStrength");
-            DrawGroup(materialEditor, properties, "RenderState", false, "_ZTest", "_ZWrite");
+
+            DrawGroup(materialEditor, properties, "Surface Options", true, "_SurfaceRoute", "_TranslucentStage", "_RefractionStrength");
+            DrawGroup(materialEditor, properties, "Surface Inputs", true,
+                "_UseAlbedoTex", "_MainTex", "_BaseColor", "_BaseColorTile", "_EmissionColor",
+                "_Roughness", "_Reflectance", "_SpecularLevel",
+                "_NormalTexture", "_NomralTexture", "_NormalTile",
+                "_Iridescence", "_Iridescence_Distance",
+                "_PixelDepthOffset", "_PixelDepthOffsetVaule");
+
+            bool subsurface = material != null && material.HasProperty("_Subsurface") && material.GetFloat("_Subsurface") > 0.5f;
+            if (subsurface || SessionState.GetBool(FoldoutPrefix + "Subsurface", false))
+            {
+                DrawGroup(materialEditor, properties, "Subsurface", false, "_Subsurface", "_SSSProfileIndex", "_SSSThickness");
+            }
+
+            DrawGroup(materialEditor, properties, "Advanced / Render State", false, "_ZTest", "_ZWrite");
+
             if (EditorGUI.EndChangeCheck())
                 ApplyTargets(materialEditor);
         }
@@ -27,6 +37,7 @@ namespace InfinityTech.Rendering.Editor
         public override void AssignNewShaderToMaterial(Material material, Shader oldShader, Shader newShader)
         {
             base.AssignNewShaderToMaterial(material, oldShader, newShader);
+            InfinityMaterialMigration.Migrate(material);
             MaterialRouteUtility.ApplyPassState(material);
         }
 
@@ -67,6 +78,7 @@ namespace InfinityTech.Rendering.Editor
             {
                 if (targets[i] is Material material)
                 {
+                    InfinityMaterialMigration.Migrate(material);
                     MaterialRouteUtility.ApplyPassState(material);
                     DirtyMeshComponents(material);
                 }

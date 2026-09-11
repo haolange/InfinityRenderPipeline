@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
         readonly Scene m_Scene;
         readonly Camera m_Camera;
         readonly Light m_Light;
-        readonly LightComponent m_LightExtension;
+        readonly InfinityAdditionalLightData m_LightExtension;
         readonly Transform m_ProbeAnchor;
         static readonly string[] s_Scenarios = { "NonDirectional", "Directional", "Shadowmask", "DistanceNear", "DistanceFar", "ProbeShadowmask", "ProbeDistanceNear", "ProbeDistanceFar", "CasterHard", "CasterPCF", "CasterStrengthHalf", "CasterStrengthZero", "BakedIndirect", "Cascade1", "Cascade2", "Cascade3", "ShadowLayerExcluded", "LightLayerExcluded", "CasterFarExit", "Boundary0Near", "Boundary0Far", "Boundary1Near", "Boundary1Far", "Boundary2Near", "Boundary2Far", "TemporalPerspective", "TemporalOrthographic", "TemporalTranslucentPerspective", "TemporalTranslucentOrthographic" };
         readonly Evidence m_Evidence;
@@ -132,10 +132,10 @@ namespace InfinityTech.Rendering.Pipeline
                 m_Camera.orthographic = true; m_Camera.orthographicSize = 3;
                 m_Camera.nearClipPlane = 0.1f; m_Camera.farClipPlane = 512;
                 m_Camera.transform.SetPositionAndRotation(new Vector3(0, 0, -8), Quaternion.identity);
-                cameraObject.AddComponent<CameraComponent>();
+                cameraObject.AddComponent<InfinityAdditionalCameraData>();
                 GameObject lightObject = Object("FixtureMixedLight");
                 m_Light = lightObject.AddComponent<Light>();
-                m_LightExtension = lightObject.AddComponent<LightComponent>();
+                m_LightExtension = lightObject.AddComponent<InfinityAdditionalLightData>();
                 m_Light.type = LightType.Directional; m_Light.color = Color.white;
                 m_Light.cullingMask = 1 << 31; m_Light.shadows = LightShadows.Soft;
                 m_Light.shadowBias = 0.05f; m_Light.shadowNormalBias = 0.4f;

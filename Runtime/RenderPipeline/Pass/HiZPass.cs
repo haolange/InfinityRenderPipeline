@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.hiZShader, "HiZ_Generation"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.hiZShader, "HiZ_Generation"))
             {
                 return;
             }
@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref HiZPassData passData = ref passRef.GetPassData<HiZPassData>();
                 passData.mipCount = mipCount;
                 passData.depthSize = new int2(width, height);
-                passData.hiZShader = pipelineAsset.hiZShader;
+                passData.hiZShader = shaders.hiZShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.hiZTexture = passRef.WriteTexture(hiZTexture);
 

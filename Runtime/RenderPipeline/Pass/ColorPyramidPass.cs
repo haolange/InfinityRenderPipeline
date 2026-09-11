@@ -95,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.colorPyramidShader, "KMain"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.colorPyramidShader, "KMain"))
             {
                 return;
             }
@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref ColorPyramidPassData passData = ref passRef.GetPassData<ColorPyramidPassData>();
                 passData.mipCount = mipCount;
                 passData.resolution = new int2(width, height);
-                passData.colorPyramidShader = pipelineAsset.colorPyramidShader;
+                passData.colorPyramidShader = shaders.colorPyramidShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passData.colorPyramidTexture = passRef.WriteTexture(colorPyramidTexture);
 

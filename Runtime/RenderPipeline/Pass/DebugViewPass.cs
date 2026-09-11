@@ -48,13 +48,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeDebugView(Camera camera)
         {
-            EDebugView view = pipelineAsset.debugView;
+            EDebugView view = InfinityDebugDisplaySettings.current.debugView;
             if (view == EDebugView.None)
             {
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.debugViewShader, DebugViewPassUtilityData.RequiredKernels))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.debugViewShader, DebugViewPassUtilityData.RequiredKernels))
             {
                 throw new InvalidOperationException("InfinityRP: DebugView is active but debugViewShader is missing required kernels (DebugViewGBuffer/Motion/SceneColor/Optional/Missing).");
             }
@@ -167,7 +167,7 @@ namespace InfinityTech.Rendering.Pipeline
                     throw new InvalidOperationException($"InfinityRP: DebugView '{view}' is not implemented.");
             }
 
-            int kernelIndex = pipelineAsset.debugViewShader.FindKernel(kernelName);
+            int kernelIndex = shaders.debugViewShader.FindKernel(kernelName);
             if (kernelIndex < 0)
             {
                 throw new InvalidOperationException($"InfinityRP: DebugView is active but FindKernel({kernelName}) failed.");
@@ -180,7 +180,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.mode = (int)view;
                 passData.kernelIndex = kernelIndex;
                 passData.bindSet = bindSet;
-                passData.debugViewShader = pipelineAsset.debugViewShader;
+                passData.debugViewShader = shaders.debugViewShader;
                 if (needGBuffer)
                 {
                     passData.gBufferA = passRef.ReadTexture(gBufferA);

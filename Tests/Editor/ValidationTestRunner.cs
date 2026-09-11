@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Tests
             public double seconds;
         }
 
-        [MenuItem("Infinity/Validation/Tests/Run EditMode With XML")]
+        [MenuItem("Window/Infinity/Tests/Run EditMode With XML")]
         static void Run() => RunValidation(null, null);
 
         public static string RunValidation(string outputDirectory, string testFilter)
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Tests
             return runner.m_Directory;
         }
 
-        [MenuItem("Infinity/Validation/Tests/Cancel Active Run")]
+        [MenuItem("Window/Infinity/Tests/Cancel Active Run")]
         public static void Cancel()
         {
             if (s_Current == null) return;

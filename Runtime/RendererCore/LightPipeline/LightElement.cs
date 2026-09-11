@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        public static FLightRecord FromUnityLight(Light light, LightComponent ext, ELightType type, int visibleIndex)
+        public static FLightRecord FromUnityLight(Light light, InfinityAdditionalLightData ext, ELightType type, int visibleIndex)
         {
             FLightRecord record = default;
             Color color = light.color;

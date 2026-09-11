@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string GlobalProfilePath = SceneDirectory + "/Validation_Volume_Global.asset";
         const string LocalProfilePath = SceneDirectory + "/Validation_Volume_Local.asset";
 
-        [MenuItem("Infinity/Validation/Create Volume Fixture", false, 50)]
+        [MenuItem("Window/Infinity/Create Volume Fixture", false, 50)]
         public static void Create()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraA.cullingMask = ~0;
             cameraA.clearFlags = CameraClearFlags.SolidColor;
             cameraA.backgroundColor = new Color(0.42f, 0.36f, 0.30f, 1.0f);
-            CameraComponent cameraAComponent = cameraAGo.AddComponent<CameraComponent>();
+            InfinityAdditionalCameraData cameraAComponent = cameraAGo.AddComponent<InfinityAdditionalCameraData>();
             cameraAComponent.volumeLayerMask = 1 << layerDefault;
 
             GameObject cameraBGo = new GameObject("CameraB");
@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraB.cullingMask = ~0;
             cameraB.clearFlags = CameraClearFlags.SolidColor;
             cameraB.backgroundColor = new Color(0.24f, 0.32f, 0.40f, 1.0f);
-            CameraComponent cameraBComponent = cameraBGo.AddComponent<CameraComponent>();
+            InfinityAdditionalCameraData cameraBComponent = cameraBGo.AddComponent<InfinityAdditionalCameraData>();
             cameraBComponent.volumeLayerMask = (1 << layerDefault) | (1 << layerWater);
             ValidationSceneUtility.EnsureLitLivenessMarker(cameraA);
 

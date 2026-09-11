@@ -37,7 +37,6 @@ namespace InfinityTech.Rendering.Editor
             public string savedCopyHash, secondSaveHash;
         }
 
-        [MenuItem("Infinity/Validation/Migration/Diagnose Atmosphere Effective Profile")]
         public static void Diagnose()
         {
             if (s_Running) throw new InvalidOperationException("Atmosphere diagnosis is already running.");

@@ -128,11 +128,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volFog = ActiveVolumeStack.GetComponent<VolumetricFog>();
-            if (!GraphicsUtility.VolumeHasOverrides(volFog))
+            if (!VolumeComponentActive(volFog))
             {
                 return;
             }
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricFogShader, "ScatterDensity", "Integrate", "Temporal"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.volumetricFogShader, "ScatterDensity", "Integrate", "Temporal"))
             {
                 return;
             }
@@ -214,7 +214,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.emptyTileList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileListBuffer));
                 passData.emptyZBinRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinRangeBuffer));
                 passData.emptyZBinList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinListBuffer));
-                passData.volumetricFogShader = pipelineAsset.volumetricFogShader;
+                passData.volumetricFogShader = shaders.volumetricFogShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);
                 passData.localShadowMap = passRef.ReadTexture(localShadowMap);

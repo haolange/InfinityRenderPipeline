@@ -26,10 +26,10 @@ namespace InfinityTech.Rendering.Editor
             public string[] messages;
         }
 
-        [MenuItem("Infinity/Validation/Build macOS Player")]
+        [MenuItem("Window/Infinity/Build macOS Player")]
         public static void BuildMacOSPlayer() => BuildMacOSPlayer(new[] { "Assets/Scene/Spazon/Scene_Spazon.unity" });
 
-        [MenuItem("Infinity/Validation/Build macOS Fault Fixture Player")]
+        [MenuItem("Window/Infinity/Build macOS Fault Fixture Player")]
         static void BuildFaultFixturePlayer() => BuildMacOSPlayer(new[] {
             "Assets/Scene/Validation/Validation_LocalLights.unity", "Assets/Scene/Spazon/Scene_Spazon.unity" });
 

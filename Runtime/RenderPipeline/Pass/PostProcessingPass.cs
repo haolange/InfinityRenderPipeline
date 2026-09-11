@@ -132,7 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.postProcessingShader, PostProcessingKernelNames))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.postProcessingShader, PostProcessingKernelNames))
             {
                 throw new InvalidOperationException("InfinityRP: Display/PostProcess is required but postProcessingShader kernels are missing.");
             }
@@ -223,20 +223,20 @@ namespace InfinityTech.Rendering.Pipeline
                 state.highPercentile = exposure.highPercentile.value;
             }
 
-            if (GraphicsUtility.VolumeHasOverrides(bloom))
+            if (VolumeComponentActive(bloom))
             {
                 state.bloomThreshold = bloom.threshold.value;
                 state.bloomIntensity = bloom.intensity.value;
                 state.bloomScatter = bloom.scatter.value;
             }
 
-            if (GraphicsUtility.VolumeHasOverrides(vignette))
+            if (VolumeComponentActive(vignette))
             {
                 state.vignetteIntensity = vignette.intensity.value;
             }
             state.vignetteSmoothness = vignette.smoothness.value;
 
-            if (GraphicsUtility.VolumeHasOverrides(filmGrain))
+            if (VolumeComponentActive(filmGrain))
             {
                 state.filmGrainIntensity = filmGrain.intensity.value;
             }
@@ -292,7 +292,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.highPercentile = volumes.highPercentile;
                 passData.adapt = adapt;
                 passData.resetHistory = created ? 1 : 0;
-                passData.postProcessingShader = pipelineAsset.postProcessingShader;
+                passData.postProcessingShader = shaders.postProcessingShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
                 passData.exposureHistory = passRef.ReadTexture(exposureRead);
                 passData.exposureEV = passRef.WriteTexture(exposureWrite);
@@ -347,7 +347,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bloomScatter = volumes.bloomScatter;
                 passData.exposureMultiplier = volumes.exposureMultiplier;
                 passData.autoExposure = volumes.autoExposure;
-                passData.postProcessingShader = pipelineAsset.postProcessingShader;
+                passData.postProcessingShader = shaders.postProcessingShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
                 passData.bloomTexture = passRef.WriteTexture(bloomTexture);
                 passData.exposureEV = passRef.ReadTexture(exposureEV);
@@ -427,10 +427,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.exposureMultiplier = volumes.exposureMultiplier;
                 passData.autoExposure = volumes.autoExposure;
                 passData.frameIndex = Time.frameCount;
-                passData.postProcessingShader = pipelineAsset.postProcessingShader;
+                passData.postProcessingShader = shaders.postProcessingShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
                 passData.hasBloom = volumes.bloomIntensity > 0;
-                passData.kernel = pipelineAsset.postProcessingShader.FindKernel(passData.hasBloom ? "FinalCombine" : "FinalCombineNoBloom");
+                passData.kernel = shaders.postProcessingShader.FindKernel(passData.hasBloom ? "FinalCombine" : "FinalCombineNoBloom");
                 if (passData.hasBloom) passData.bloomTexture = passRef.ReadTexture(bloomTexture);
                 passData.combineLUT = passRef.ReadTexture(combineLUT);
                 passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);

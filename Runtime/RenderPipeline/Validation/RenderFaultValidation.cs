@@ -153,9 +153,9 @@ namespace InfinityTech.Rendering.Pipeline
                 if (m_Primary.worldToCameraMatrix == m_Secondary.worldToCameraMatrix)
                 { Fail("The fixed dual-camera fixture has identical view matrices."); return; }
                 m_Secondary.depth = m_Primary.depth + 1;
-                if (m_Primary.TryGetComponent(out CameraComponent component))
+                if (m_Primary.TryGetComponent(out InfinityAdditionalCameraData component))
                 {
-                    var copy = clone.AddComponent<CameraComponent>();
+                    var copy = clone.AddComponent<InfinityAdditionalCameraData>();
                     copy.volumeLayerMask = component.volumeLayerMask; copy.volumeTrigger = component.volumeTrigger;
                 }
                 m_SecondaryId = m_Secondary.GetHashCode();

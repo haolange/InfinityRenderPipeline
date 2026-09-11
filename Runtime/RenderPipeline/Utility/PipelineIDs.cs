@@ -19,6 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeAtmosphericLUT,
         ComputeZBinningLightList,
         ComputeGroundTruthOcclusion,
+        ComputeRayTracedOcclusion,
         ComputeContactShadow,
         ComputeScreenSpaceReflection,
         ComputeScreenSpaceIndirect,
@@ -57,6 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeDebugView,
         RenderWireOverlay,
         RenderGizmos,
+        RenderUIOverlay,
         Present,
         Max,
     }

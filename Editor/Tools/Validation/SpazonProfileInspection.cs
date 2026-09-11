@@ -26,7 +26,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             public List<Item> objects = new List<Item>();
         }
 
-        [MenuItem("Infinity/Validation/Tint A-B/Inspect Live Profile Dirty State (Read Only)", false, 75)]
         public static void Inspect()
         {
             if (AssetDatabase.AssetPathToGUID(k_Asset) != "6120dfbb55a89ad41877ce889bb04749")

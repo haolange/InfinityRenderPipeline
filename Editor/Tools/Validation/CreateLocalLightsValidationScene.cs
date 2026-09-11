@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string MaterialDirectory = SceneDirectory + "/LocalLightsMaterials";
         const string VolumeProfilePath = SceneDirectory + "/Validation_LocalLights_Volume.asset";
 
-        [MenuItem("Infinity/Validation/Create Local Lights Fixture", false, 55)]
+        [MenuItem("Window/Infinity/Create Local Lights Fixture", false, 55)]
         public static void Create()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             directional.intensity = 1.2f;
             directional.shadows = LightShadows.Soft;
             directionalGo.transform.rotation = Quaternion.Euler(50.0f, -35.0f, 0.0f);
-            LightComponent directionalExt = directionalGo.AddComponent<LightComponent>();
+            InfinityAdditionalLightData directionalExt = directionalGo.AddComponent<InfinityAdditionalLightData>();
             RenderSettings.sun = directional;
 
             GameObject pointGo = new GameObject("Point Light");
@@ -89,7 +89,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             point.range = 8.0f;
             point.shadows = LightShadows.Soft;
             pointGo.transform.position = new Vector3(-2.4f, 2.2f, 0.6f);
-            LightComponent pointExt = pointGo.AddComponent<LightComponent>();
+            InfinityAdditionalLightData pointExt = pointGo.AddComponent<InfinityAdditionalLightData>();
 
             GameObject spotGo = new GameObject("Spot Light");
             Light spot = spotGo.AddComponent<Light>();
@@ -102,7 +102,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             spot.shadows = LightShadows.Soft;
             spotGo.transform.position = new Vector3(2.6f, 3.0f, -1.4f);
             spotGo.transform.LookAt(new Vector3(2.0f, 0.0f, 0.0f));
-            LightComponent spotExt = spotGo.AddComponent<LightComponent>();
+            InfinityAdditionalLightData spotExt = spotGo.AddComponent<InfinityAdditionalLightData>();
 
             GameObject rectGo = new GameObject("Rect Light");
             Light rect = rectGo.AddComponent<Light>();
@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             rect.shadows = LightShadows.None;
             rectGo.transform.position = new Vector3(0.0f, 2.6f, 0.2f);
             rectGo.transform.rotation = Quaternion.Euler(90.0f, 0.0f, 0.0f);
-            LightComponent rectExt = rectGo.AddComponent<LightComponent>();
+            InfinityAdditionalLightData rectExt = rectGo.AddComponent<InfinityAdditionalLightData>();
 
             VolumeProfile volumeProfile = ScriptableObject.CreateInstance<VolumeProfile>();
             VolumetricFog fog = volumeProfile.Add<VolumetricFog>(true);
@@ -137,7 +137,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             camera.cullingMask = ~0;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.12f, 0.13f, 0.16f, 1.0f);
-            cameraGo.AddComponent<CameraComponent>();
+            cameraGo.AddComponent<InfinityAdditionalCameraData>();
             ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);

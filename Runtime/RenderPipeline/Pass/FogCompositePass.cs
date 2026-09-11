@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.fogCompositeShader, "ClearReactiveMask"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.fogCompositeShader, "ClearReactiveMask"))
             {
                 throw new System.InvalidOperationException("InfinityRP: ReactiveMask is required but fogCompositeShader kernel ClearReactiveMask is missing.");
             }
@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref ClearReactiveMaskPassData passData = ref passRef.GetPassData<ClearReactiveMaskPassData>();
                 passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
-                passData.fogCompositeShader = pipelineAsset.fogCompositeShader;
+                passData.fogCompositeShader = shaders.fogCompositeShader;
                 passData.reactiveMask = passRef.WriteTexture(reactiveMask);
 
                 passRef.EnablePassCulling(false);
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.fogCompositeShader, "FogComposite"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.fogCompositeShader, "FogComposite"))
             {
                 throw new System.InvalidOperationException("InfinityRP: Volumetric fog/cloud produced this frame but fogCompositeShader kernel FogComposite is missing.");
             }
@@ -131,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.hasCloud = hasCloud ? 1 : 0;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
-                passData.fogCompositeShader = pipelineAsset.fogCompositeShader;
+                passData.fogCompositeShader = shaders.fogCompositeShader;
                 passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
                 passData.foggedSceneColorTexture = passRef.WriteTexture(foggedSceneColor);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);

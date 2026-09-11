@@ -153,7 +153,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void Initialize()
         {
-            int mask = m_Camera.TryGetComponent(out CameraComponent component) ? component.volumeLayerMask.value : -1;
+            int mask = m_Camera.TryGetComponent(out InfinityAdditionalCameraData component) ? component.volumeLayerMask.value : -1;
             if (mask == 0) throw new InvalidOperationException("Target camera excludes all Volume layers.");
             int layer = 0;
             while ((mask & (1 << layer)) == 0) layer++;

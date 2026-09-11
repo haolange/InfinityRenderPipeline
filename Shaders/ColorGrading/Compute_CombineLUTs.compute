@@ -364,7 +364,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 		
 	// OutputTransform is the single transfer-encoding owner. CombineLUT writes Rec.709
 	// linear graded+tonemapped color. OutputGamut/OutputDevice stay in the CPU key.
-	half3 OutDeviceColor = FilmColorNoGamma;
+	half3 OutDeviceColor = lerp(GradedColor, FilmColorNoGamma, saturate(FilmEnabled));
 
 	OutColor.rgb = OutDeviceColor;
 	OutColor.a = 1;

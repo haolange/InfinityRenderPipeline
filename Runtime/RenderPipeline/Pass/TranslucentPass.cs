@@ -122,13 +122,18 @@ namespace InfinityTech.Rendering.Pipeline
                 ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
                 : 0.0f;
 
-            RendererListDesc rendererListDesc = new RendererListDesc(lightMode, cullingResults, camera);
+            ShaderTagId[] tags = samplerId == CustomSamplerId.RenderTranslucentT2
+                ? new[] { lightMode, new ShaderTagId("SRPDefaultUnlit"), new ShaderTagId() }
+                : new[] { lightMode };
+            RendererListDesc rendererListDesc = new RendererListDesc(tags, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = InfinityRenderQueue.k_RenderQueue_AllTransparent;
                 rendererListDesc.sortingCriteria = SortingCriteria.CommonTransparent;
                 rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.None;
+                rendererListDesc.rendererConfiguration = InfinityDebugDisplaySettings.current.temporal.preferNativeMotionVectors
+                    ? PerObjectData.MotionVectors
+                    : PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RendererList rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);

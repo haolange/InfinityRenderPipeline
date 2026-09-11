@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             TestContext.Progress.WriteLine(output);
         }
 
-        [MenuItem("Infinity/Validation/Run Screen Space Numeric Contracts", false, 66)]
+        [MenuItem("Window/Infinity/Run Screen Space Numeric Contracts", false, 66)]
         public static void RunScreenSpaceNumericFromMenu()
         {
             string output = Path.Combine(Path.GetTempPath(), "InfinityRP-T05a-GPU-menu-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));

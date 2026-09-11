@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.DeferredShading);
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.deferredShadingShader, "DeferredShadingCS"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.deferredShadingShader, "DeferredShadingCS"))
             {
                 throw new System.InvalidOperationException("InfinityRP: Deferred shading is the LightingBuffer producer but deferredShadingShader is missing or kernel DeferredShadingCS is invalid.");
             }
@@ -172,7 +172,7 @@ namespace InfinityTech.Rendering.Pipeline
                     pipelineAsset.localShadowMapResolution,
                     1.0f / pipelineAsset.localShadowMapResolution,
                     1.0f / pipelineAsset.localShadowMapResolution);
-                passData.deferredShadingShader = pipelineAsset.deferredShadingShader;
+                passData.deferredShadingShader = shaders.deferredShadingShader;
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
                 passData.gBufferC = passRef.ReadTexture(gBufferC);

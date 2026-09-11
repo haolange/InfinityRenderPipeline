@@ -9,9 +9,9 @@ namespace InfinityTech.Rendering.Editor
     internal static class PostEffectValidationMenus
     {
         static bool s_ReloadLocked;
-        [MenuItem("Infinity/Validation/Post Effects/Start Controlled Suite")]
+        [MenuItem("Window/Infinity/Post Effects/Start Controlled Suite")]
         static void Start() => Start(true);
-        [MenuItem("Infinity/Validation/Post Effects/Run Automatic Capture Suite")]
+        [MenuItem("Window/Infinity/Post Effects/Run Automatic Capture Suite")]
         static void StartAutomatic() => Start(false);
         static void Start(bool pauseForVisual)
         {
@@ -26,13 +26,13 @@ namespace InfinityTech.Rendering.Editor
             EditorApplication.update -= Pump; EditorApplication.update += Pump;
             Debug.Log("[InfinityRP] Post-effect suite: " + output);
         }
-        [MenuItem("Infinity/Validation/Post Effects/Advance To Next Phase")]
+        [MenuItem("Window/Infinity/Post Effects/Advance To Next Phase")]
         static void Advance()
         {
             if (PostEffectValidation.current == null) throw new InvalidOperationException("No active post-effect suite.");
             PostEffectValidation.current.Advance();
         }
-        [MenuItem("Infinity/Validation/Post Effects/Cancel And Restore")]
+        [MenuItem("Window/Infinity/Post Effects/Cancel And Restore")]
         static void Cancel() => PostEffectValidation.current?.Cancel();
         static void Pump()
         {

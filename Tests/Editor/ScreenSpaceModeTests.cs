@@ -2,25 +2,26 @@ using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.PostProcess;
+using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ScreenSpaceModeTests
     {
         [Test]
-        public void VolumeHasOverrides_RequiresActiveAndOverrideState()
+        public void IsActive_RequiresEnable()
         {
             ScreenSpaceReflection ssr = ScriptableObject.CreateInstance<ScreenSpaceReflection>();
             try
             {
                 ssr.active = true;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(ssr));
+                Assert.IsFalse(VolumeComponentActive(ssr));
 
-                ssr.NumRays.overrideState = true;
-                Assert.IsTrue(GraphicsUtility.VolumeHasOverrides(ssr));
+                ssr.enable.value = true;
+                Assert.IsTrue(VolumeComponentActive(ssr));
 
                 ssr.active = false;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(ssr));
+                Assert.IsFalse(VolumeComponentActive(ssr));
             }
             finally
             {
@@ -54,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 ssr.active = true;
-                ssr.NumRays.overrideState = true;
+                ssr.enable.value = true;
                 ssgi.active = true;
                 Assert.AreEqual(EScreenSpaceMode.SSR, ScreenSpaceModeUtility.Resolve(ssr, ssgi));
             }
@@ -74,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 ssr.active = true;
                 ssgi.active = true;
-                ssgi.NumRays.overrideState = true;
+                ssgi.enable.value = true;
                 Assert.AreEqual(EScreenSpaceMode.SSGI, ScreenSpaceModeUtility.Resolve(ssr, ssgi));
             }
             finally
@@ -92,9 +93,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 ssr.active = true;
-                ssr.MaxRoughness.overrideState = true;
+                ssr.enable.value = true;
                 ssgi.active = true;
-                ssgi.IntensityScale.overrideState = true;
+                ssgi.enable.value = true;
                 Assert.AreEqual(EScreenSpaceMode.Both, ScreenSpaceModeUtility.Resolve(ssr, ssgi));
             }
             finally

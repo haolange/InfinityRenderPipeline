@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly float SunAngleMin = 0.1f / 180.0f * Mathf.PI;
         public static readonly float SunAngleMax = 5.0f / 180.0f * Mathf.PI;
 
-        const string InvalidRangeHint = "Open AtmosphericalProfile Inspector or run Infinity/Validation/Upgrade Atmospherical Profile";
+        const string InvalidRangeHint = "Open AtmosphericalProfile Inspector or run Window/Infinity/Upgrade Atmospherical Profile";
 
         public Vector4 RayleighScatteringPerMeter => (Vector4)rayleighScattering * ScatterPerKmToPerMeter;
         public float MieScatteringPerMeter => mieScattering * ScatterPerKmToPerMeter;
@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Pipeline
                 || aerialPerspectiveSize <= 0 || aerialPerspectiveDistance <= 0.0f
                 || cubemapSize <= 0)
             {
-                throw new InvalidOperationException("InfinityRP: AtmosphericalProfile deserialized invalid or zero fields. Open the profile or run Infinity/Validation/Upgrade Atmospherical Profile.");
+                throw new InvalidOperationException("InfinityRP: AtmosphericalProfile deserialized invalid or zero fields. Open the profile or run Window/Infinity/Upgrade Atmospherical Profile.");
             }
 
             ThrowIfOutOfRange(IsAtmosphereHeightInRange(atmosphereHeight), "atmosphereHeight", "[10000, 120000] m");

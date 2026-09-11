@@ -44,12 +44,11 @@ namespace InfinityTech.Rendering.Pipeline
     {
         private static readonly List<MeshComponent> s_DirtyMeshList = new List<MeshComponent>(256);
 
-        private List<CameraComponent> m_ViewList;
         private List<TerrainComponent> m_TerrainList;
         private List<MeshComponent> m_StaticMeshList;
         private List<MeshComponent> m_DynamicMeshList;
         private int m_WorldDecalCount;
-        private Dictionary<ulong, LightComponent> m_LightList;
+        private Dictionary<ulong, InfinityAdditionalLightData> m_LightList;
 
         internal LightContext lightContext;
         private MeshScene m_MeshScene;
@@ -57,8 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public RenderContext()
         {
-            m_ViewList = new List<CameraComponent>(16);
-            m_LightList = new Dictionary<ulong, LightComponent>(64);
+            m_LightList = new Dictionary<ulong, InfinityAdditionalLightData>(64);
             m_TerrainList = new List<TerrainComponent>(32);
             m_StaticMeshList = new List<MeshComponent>(8192);
             m_DynamicMeshList = new List<MeshComponent>(8192);
@@ -98,35 +96,9 @@ namespace InfinityTech.Rendering.Pipeline
             s_DirtyMeshList.Clear();
         }
 
-        #region WorldView
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldView(CameraComponent viewComponent)
-        {
-            m_ViewList.Add(viewComponent);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveWorldView(CameraComponent viewComponent)
-        {
-            m_ViewList.Remove(viewComponent);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public List<CameraComponent> GetWorldView()
-        {
-            return m_ViewList;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearWorldView()
-        {
-            m_ViewList.Clear();
-        }
-        #endregion //WorldView
-
         #region WorldLight
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddWorldLight(in ulong id, LightComponent lightComponent)
+        public void AddWorldLight(in ulong id, InfinityAdditionalLightData lightComponent)
         {
             m_LightList.TryAdd(id, lightComponent);
         }
@@ -138,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Dictionary<ulong, LightComponent> GetWorldLight()
+        public Dictionary<ulong, InfinityAdditionalLightData> GetWorldLight()
         {
             return m_LightList;
         }
@@ -276,7 +248,6 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Dispose()
         {
-            ClearWorldView();
             ClearWorldLight();
             ClearWorldTerrains();
             ClearWorldStaticMesh();

@@ -57,9 +57,7 @@ namespace InfinityTech.Rendering.Editor
             public List<AssetResult> assets = new List<AssetResult>();
         }
 
-        [MenuItem("Infinity/Validation/Migration/Canonicalize Validation Scene Schemas")]
         public static void ValidationScenes() => Run("Validation");
-        [MenuItem("Infinity/Validation/Migration/Canonicalize BoxMatrix Scene Schemas")]
         public static void BoxScenes() => Run("BoxMatrix");
 
         static void Run(string group)

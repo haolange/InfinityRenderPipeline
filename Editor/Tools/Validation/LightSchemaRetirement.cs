@@ -48,7 +48,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             "minSoftness", "maxSoftness", "shadowType", "shadowLayer", "resolution", "contactShadowLength"
         };
 
-        [MenuItem("Infinity/Validation/Migration/Retire Prepared Light Fields")]
         static void Run()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
@@ -219,7 +218,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             string source = File.ReadAllText(plain).Replace("\r\n", "\n");
             string filtered = Filter(source, asset, false);
             if (Regex.Replace(source, @"\s", "") != Regex.Replace(filtered, @"\s", ""))
-                throw new InvalidDataException("Retired LightComponent fields remain in native source.");
+                throw new InvalidDataException("Retired InfinityAdditionalLightData fields remain in native source.");
         }
 
         static void Dump(string input, string output, bool precise)

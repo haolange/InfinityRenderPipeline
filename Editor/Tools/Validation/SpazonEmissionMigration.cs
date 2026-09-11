@@ -21,7 +21,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             public bool copyProof, secondSave, reloaded, noOp;
         }
 
-        [MenuItem("Infinity/Validation/Migration/Correct Spazon Figure Emission")]
         static void Run()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)

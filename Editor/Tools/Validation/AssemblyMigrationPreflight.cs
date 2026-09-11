@@ -118,7 +118,6 @@ namespace InfinityTech.Rendering.Editor
             public string reportHash;
         }
 
-        [MenuItem("Infinity/Validation/Migration/Run Assembly Preflight")]
         public static void RunPreflight()
         {
             if (s_Active != null) throw new InvalidOperationException("A preflight is already running; use its progress bar or cancel.request file to cancel it.");

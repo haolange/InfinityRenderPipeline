@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.screenSpaceCompositeShader, "ScreenSpaceComposite"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.screenSpaceCompositeShader, "ScreenSpaceComposite"))
             {
                 throw new System.InvalidOperationException("InfinityRP: SSR/SSGI produced this frame but screenSpaceCompositeShader is missing kernel ScreenSpaceComposite.");
             }
@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.hasSSR = hasSSR ? 1 : 0;
                 passData.hasSSGI = hasSSGI ? 1 : 0;
-                passData.compositeShader = pipelineAsset.screenSpaceCompositeShader;
+                passData.compositeShader = shaders.screenSpaceCompositeShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passData.indirectDiffuse = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer));
                 passData.indirectSpecular = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer));

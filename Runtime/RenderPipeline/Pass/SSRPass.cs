@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var ssr = ActiveVolumeStack.GetComponent<ScreenSpaceReflection>();
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssrShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.ssrShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter"))
             {
                 return;
             }
@@ -186,7 +186,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.numSpatial = math.max(1, ssr.SpatialSample.value);
                 passData.runBilateral = runBilateral ? 1 : 0;
                 passData.brdfBias = ssr.BrdfBias.value;
-                passData.fadeness = ssr.Fadeness.value;
+                passData.fadeness = ssr.fade.value;
                 passData.maxRoughness = ssr.MaxRoughness.value;
                 passData.spatialRadius = math.max(1, ssr.SpatialRadius.value);
                 bool resetHistory = m_CameraUniform.historyReset || historyRadianceCreated || historyMomentsCreated || historyDepthNormalCreated;
@@ -206,7 +206,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
-                passData.ssrShader = pipelineAsset.ssrShader;
+                passData.ssrShader = shaders.ssrShader;
                 passData.hiZTexture = passRef.ReadTexture(hiZTexture);
                 passData.colorPyramidTexture = passRef.ReadTexture(colorPyramidTexture);
                 passData.gBufferA = passRef.ReadTexture(gBufferA);

@@ -36,7 +36,8 @@ namespace InfinityTech.Rendering.Pipeline
             typeof(VolumetricFog),
             typeof(VolumetricCloud),
             typeof(ContactShadow),
-            typeof(SubsurfaceScattering)
+            typeof(SubsurfaceScattering),
+            typeof(RayTracingAmbientOcclusion)
         };
 
         internal static System.Collections.Generic.IReadOnlyList<System.Type> OptionalComponentTypes => s_OptionalComponentTypes;
@@ -63,11 +64,13 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (profile.TryGet(out FilmTonemap film))
             {
-                Override(film.Slop, PackagedFilmSlope);
-                Override(film.Toe, PackagedFilmToe);
-                Override(film.Shoulder, PackagedFilmShoulder);
-                Override(film.BlackClip, PackagedFilmBlackClip);
-                Override(film.WhiteClip, PackagedFilmWhiteClip);
+                film.mode.overrideState = true;
+                film.mode.value = EFilmTonemapMode.Film;
+                Override(film.slope, PackagedFilmSlope);
+                Override(film.toe, PackagedFilmToe);
+                Override(film.shoulder, PackagedFilmShoulder);
+                Override(film.blackClip, PackagedFilmBlackClip);
+                Override(film.whiteClip, PackagedFilmWhiteClip);
             }
 
             if (profile.TryGet(out ColorGrading grading))
@@ -103,8 +106,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             for (int i = 0; i < s_OptionalComponentTypes.Length; ++i)
             {
-                if (!profile.TryGet(s_OptionalComponentTypes[i], out VolumeComponent optional) ||
-                    GraphicsUtility.VolumeHasOverrides(optional))
+                if (!profile.TryGet(s_OptionalComponentTypes[i], out VolumeComponent optional) || optional == null)
                 {
                     return false;
                 }
@@ -139,63 +141,77 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
 #if UNITY_EDITOR
-        public static VolumeProfile EnsureAsset()
+        public static bool ValidateAndComplete(VolumeProfile profile)
         {
-            VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(AssetPath);
             if (profile == null)
             {
-                profile = ScriptableObject.CreateInstance<VolumeProfile>();
-                profile.name = AssetName;
-                AssetDatabase.CreateAsset(profile, AssetPath);
+                return false;
             }
 
-            for (int i = profile.components.Count - 1; i >= 0; --i)
+            bool changed = false;
+            if (!profile.TryGet(out Exposure _))
             {
-                VolumeComponent component = profile.components[i];
-                if (component != null)
+                AddDefaultComponent<Exposure>(profile);
+                changed = true;
+            }
+            if (!profile.TryGet(out FilmTonemap _))
+            {
+                AddDefaultComponent<FilmTonemap>(profile);
+                changed = true;
+            }
+            if (!profile.TryGet(out ColorGrading _))
+            {
+                AddDefaultComponent<ColorGrading>(profile);
+                changed = true;
+            }
+
+            foreach (System.Type type in s_OptionalComponentTypes)
+            {
+                if (!profile.TryGet(type, out VolumeComponent existing) || existing == null)
                 {
-                    profile.Remove(component.GetType());
-                    Object.DestroyImmediate(component, true);
-                }
-                else
-                {
-                    profile.components.RemoveAt(i);
+                    AssetDatabase.AddObjectToAsset(profile.Add(type, false), profile);
+                    changed = true;
                 }
             }
 
-            AddDefaultComponent<Exposure>(profile);
-            AddDefaultComponent<FilmTonemap>(profile);
-            AddDefaultComponent<ColorGrading>(profile);
-            foreach (System.Type type in s_OptionalComponentTypes)
-                AssetDatabase.AddObjectToAsset(profile.Add(type, false), profile);
-            ApplyPackagedDefaults(profile);
+            if (changed)
+            {
+                ApplyPackagedDefaults(profile);
+                EditorUtility.SetDirty(profile);
+            }
 
+            return !changed;
+        }
+
+        public static VolumeProfile LoadOrCreatePackagedAsset()
+        {
+            VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(AssetPath);
+            if (profile != null)
+            {
+                ValidateAndComplete(profile);
+                return profile;
+            }
+
+            profile = CreateInMemory();
+            AssetDatabase.CreateAsset(profile, AssetPath);
+            foreach (VolumeComponent component in profile.components)
+            {
+                if (component != null)
+                    AssetDatabase.AddObjectToAsset(component, profile);
+            }
             EditorUtility.SetDirty(profile);
             AssetDatabase.SaveAssets();
             return profile;
         }
 
-        public static void AssignToPipeline(InfinityRenderPipelineAsset pipelineAsset)
+        public static void AssignDefaultToGlobalSettings()
         {
-            if (pipelineAsset == null)
+            VolumeProfile profile = LoadOrCreatePackagedAsset();
+            InfinityRenderPipelineGlobalSettings.Ensure();
+            if (GraphicsSettings.TryGetRenderPipelineSettings(out InfinityDefaultVolumeProfileSettings settings) && settings != null)
             {
-                return;
+                settings.volumeProfile = profile;
             }
-
-            VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(AssetPath);
-            if (profile == null)
-            {
-                profile = EnsureAsset();
-            }
-
-            if (profile == null)
-            {
-                return;
-            }
-
-            pipelineAsset.volumeProfile = profile;
-            EditorUtility.SetDirty(pipelineAsset);
-            AssetDatabase.SaveAssets();
         }
 
         static void AddDefaultComponent<T>(VolumeProfile profile) where T : VolumeComponent

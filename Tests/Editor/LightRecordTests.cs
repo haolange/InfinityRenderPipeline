@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 light.color = new Color(0.5f, 0.25f, 0.1f, 1.0f);
                 light.intensity = 4.0f;
                 light.shadowStrength = 0.35f;
-                LightComponent ext = go.AddComponent<LightComponent>();
+                InfinityAdditionalLightData ext = go.AddComponent<InfinityAdditionalLightData>();
 
                 FLightRecord record = FLightRecordPack.FromUnityLight(light, ext, ELightType.Directional, 0);
                 Assert.AreEqual(2.0f, record.radiance.x, 1e-4f);
@@ -61,15 +61,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void LightComponent_DoesNotOwnColorAsAuthority()
+        public void InfinityAdditionalLightData_DoesNotOwnColorAsAuthority()
         {
-            Assert.IsNull(typeof(LightComponent).GetField("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-            Assert.IsNull(typeof(LightComponent).GetField("intensity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-            Assert.IsNull(typeof(LightComponent).GetField("lightType", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-            Assert.IsNull(typeof(LightComponent).GetMethod("OnGUIChange", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-            Assert.IsNull(typeof(LightComponent).GetMethod("GetLightElement", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-            Assert.IsNull(typeof(LightComponent).GetField("enableShadow", BindingFlags.Instance | BindingFlags.Public));
-            Assert.IsNotNull(typeof(LightComponent).GetField("diffuse", BindingFlags.Instance | BindingFlags.Public));
+            Assert.IsNull(typeof(InfinityAdditionalLightData).GetField("color", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+            Assert.IsNull(typeof(InfinityAdditionalLightData).GetField("intensity", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+            Assert.IsNull(typeof(InfinityAdditionalLightData).GetField("lightType", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+            Assert.IsNull(typeof(InfinityAdditionalLightData).GetMethod("OnGUIChange", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+            Assert.IsNull(typeof(InfinityAdditionalLightData).GetMethod("GetLightElement", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+            Assert.IsNull(typeof(InfinityAdditionalLightData).GetField("enableShadow", BindingFlags.Instance | BindingFlags.Public));
+            Assert.IsNotNull(typeof(InfinityAdditionalLightData).GetField("diffuse", BindingFlags.Instance | BindingFlags.Public));
         }
     }
 }

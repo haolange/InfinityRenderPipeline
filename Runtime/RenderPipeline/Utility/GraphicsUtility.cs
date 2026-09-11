@@ -12,29 +12,19 @@ namespace InfinityTech.Rendering.Pipeline
         // Value the depth buffer actually holds at the far plane when sampled from a shader.
         internal static float SampledFarDepth => SystemInfo.usesReversedZBuffer ? 0.0f : 1.0f;
 
-        internal static bool VolumeHasOverrides(VolumeComponent component)
+        internal static bool VolumeComponentActive(VolumeComponent component)
         {
-            if (component == null || !component.active)
+            if (component == null)
             {
                 return false;
             }
 
-            var parameters = component.parameters;
-            if (parameters == null)
+            if (component is InfinityTech.Rendering.PostProcess.IInfinityVolumeActivity activity)
             {
-                return false;
+                return activity.IsActive();
             }
 
-            for (int i = 0; i < parameters.Count; ++i)
-            {
-                VolumeParameter parameter = parameters[i];
-                if (parameter != null && parameter.overrideState)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return component.active;
         }
 
         internal static bool HasRequiredKernels(ComputeShader shader, params string[] kernelNames)

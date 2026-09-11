@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Display);
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.outputTransformShader, "OutputTransform"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.outputTransformShader, "OutputTransform"))
             {
                 throw new InvalidOperationException("InfinityRP: Display is required but outputTransformShader kernel OutputTransform is missing.");
             }
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.policy = (int)decision.policy;
                 passData.applyRec2020 = decision.outputGamut == OutputTransformUtility.OutputGamutRec2020 ? 1 : 0;
                 passData.nitsScale = OutputTransformPassUtilityData.PaperWhiteNits;
-                passData.outputTransformShader = pipelineAsset.outputTransformShader;
+                passData.outputTransformShader = shaders.outputTransformShader;
                 passData.gradedColor = passRef.ReadTexture(gradedColor);
                 passData.displayColor = passRef.WriteTexture(displayColor);
 

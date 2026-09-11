@@ -25,10 +25,8 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string k_ValidatedCapture = "InfinityRP-T06a1-DirtyInspection-20260905T2058457137530Z/live.json";
         const string k_ValidatedCaptureHash = "64d43efa566829e329b923da268b044fd070ddb734f31391a9241c1aaa1401b5";
 
-        [MenuItem("Infinity/Validation/Tint A-B/Migrate Validated Spazon Source Tint to Zero", false, 73)]
         public static void Migrate() => Run(false);
 
-        [MenuItem("Infinity/Validation/Tint A-B/Migrate Tint with One Post-Save Test Failure", false, 74)]
         public static void MigrateWithPostSaveTestFailure() => Run(true);
 
         static void Run(bool injectPostSaveFailure)

@@ -46,7 +46,6 @@ namespace InfinityTech.Rendering.Editor
             public string error;
         }
 
-        [MenuItem("Infinity/Validation/Migration/Capture Pending Scene Live Copy")]
         public static void Capture()
         {
             if (s_Running) throw new InvalidOperationException("Live scene copy diagnosis is already running.");

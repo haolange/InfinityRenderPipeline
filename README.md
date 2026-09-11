@@ -9,7 +9,9 @@ InfinityRenderPipeline is a graphics research SRP for Unity (InfinityRP).
 - [Docs/MeshPipeline-Baseline.md](Docs/MeshPipeline-Baseline.md) — MeshDraw migration baseline
 - [Docs/MeshPipeline-Delivery-Report.md](Docs/MeshPipeline-Delivery-Report.md) — Closure D (D1–D6)
 - [Docs/FullRendering-Delivery-Report.md](Docs/FullRendering-Delivery-Report.md) — S0–S9 full-rendering delivery
-- [PLAN.md](PLAN.md) — stage table (S0–S9)
+- [PLAN.md](PLAN.md) — active 0.4.0 normalization ledger (U00–U82)
+- [Documentation~/index.md](Documentation~/index.md) — user-facing 0.4.0 docs
+- [Docs/History/PLAN-2026-09-N00-N15.md](Docs/History/PLAN-2026-09-N00-N15.md) — archived N00–N15 receipts
 
 ### Feature
 
@@ -30,7 +32,7 @@ Completed (record path; image quality stays `TODO(UNVERIFIED)` unless a capture 
 
 Out of this delivery:
 
-- Hardware RT (RTAO/RTGI files stay; no RG pass)
+- Hardware RT outside UnifiedRayTracing (D3D12 path remains UNVERIFIED)
 - Baked GI
 - Depth of field
 - Super-resolution expansion
@@ -41,9 +43,9 @@ Out of this delivery:
 ### Mesh Drawing Pipeline (quick start)
 
 1. Add `Mesh Component` to renderable objects (Infinity path). Set `renderingLayer` as **flags** (`ERenderingLayer : byte`, default `LightLayerDefault`) — not an int layer index. Each instance owns exactly one `TransformId` (no shared transforms).
-2. On the pipeline asset, assign **Mesh Draw Pipeline CS** (`Compute_MeshDrawPipeline.compute`) to enable Auto GPU-indirect when supported.
+2. Runtime shaders, including Mesh Draw Pipeline CS, resolve from Infinity Global Settings (`[ResourcePath]`).
 3. Materials should provide Infinity pass tags and, for the instanced path, bind `transformBuffer` / `previousTransformBuffer` / `instanceIndexBuffer` / `instanceIndexOffset` (see `InfinityLit-Instanced.shader`).
-4. LocalShadow / CascadeShadow MeshDraw uses the light’s Unity `cullingMask` plus `LightComponent.shadowLayer` for Infinity casters; Unity MeshRenderers still go through RendererList. Spot or Point lights with shadows enabled are required for LocalShadow.
+4. LocalShadow / CascadeShadow MeshDraw uses the light’s Unity `cullingMask` plus `InfinityAdditionalLightData.shadowLayer` for Infinity casters; Unity MeshRenderers still go through RendererList. Spot or Point lights with shadows enabled are required for LocalShadow.
 5. Run EditMode tests under `Tests/Editor`.
 
 Invariant: one logical instance → one exclusive transform record (`MatrixDuplicateRatio == 1`).

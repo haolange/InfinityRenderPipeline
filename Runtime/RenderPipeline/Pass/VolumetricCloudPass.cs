@@ -124,11 +124,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volCloud = ActiveVolumeStack.GetComponent<VolumetricCloud>();
-            if (!GraphicsUtility.VolumeHasOverrides(volCloud))
+            if (!VolumeComponentActive(volCloud))
             {
                 return;
             }
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricCloudShader, "VolumetricCloudCS"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.volumetricCloudShader, "VolumetricCloudCS"))
             {
                 return;
             }
@@ -211,7 +211,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.emptyTileList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileListBuffer));
                 passData.emptyZBinRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinRangeBuffer));
                 passData.emptyZBinList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinListBuffer));
-                passData.volumetricCloudShader = pipelineAsset.volumetricCloudShader;
+                passData.volumetricCloudShader = shaders.volumetricCloudShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.transmittanceLUT = passRef.ReadTexture(transmittanceLUT);
                 passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);

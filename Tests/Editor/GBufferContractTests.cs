@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.Less(maxAngle, k_NormalAngleTolDeg, $"BestFit decode angular error {maxAngle:F3}° exceeds {k_NormalAngleTolDeg}°.");
         }
 
-        [MenuItem("Infinity/Validation/Run GBuffer Contract Tests", false, 65)]
+        [MenuItem("Window/Infinity/Run GBuffer Contract Tests", false, 65)]
         public static void RunFromMenu()
         {
             var tests = new GBufferContractTests();

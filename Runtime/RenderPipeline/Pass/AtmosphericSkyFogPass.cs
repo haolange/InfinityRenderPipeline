@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderAtmosphericSkyAndFog(RenderContext renderContext, Camera camera)
         {
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.atmosphericLUTShader, "AtmosphereComposite"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.atmosphericLUTShader, "AtmosphereComposite"))
             {
                 throw new System.InvalidOperationException("InfinityRP: Atmosphere is designed on but AtmosphereComposite kernel is missing.");
             }
@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.farDepth = GraphicsUtility.SampledFarDepth;
                 passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
-                passData.atmosphericLUTShader = pipelineAsset.atmosphericLUTShader;
+                passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passRef.WriteTexture(lightingTexture);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);

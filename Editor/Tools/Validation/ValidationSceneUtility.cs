@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             return result != null ? result : throw new System.InvalidOperationException("An active Game camera is required.");
         }
 
-        [MenuItem("Infinity/Validation/Add Liveness Marker", false, 62)]
+        [MenuItem("Window/Infinity/Add Liveness Marker", false, 62)]
         static void AddLivenessMarker()
         {
             Camera camera = RequireActiveGameCamera();

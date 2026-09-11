@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeHalfResDownsample(RenderContext renderContext, Camera camera)
         {
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.halfResDownsampleShader, "HalfResDownsample"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.halfResDownsampleShader, "HalfResDownsample"))
             {
                 return;
             }
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref HalfResDownsamplePassData passData = ref passRef.GetPassData<HalfResDownsamplePassData>();
                 passData.fullResolution = new int2(fullWidth, fullHeight);
                 passData.halfResolution = new int2(halfWidth, halfHeight);
-                passData.halfResShader = pipelineAsset.halfResDownsampleShader;
+                passData.halfResShader = shaders.halfResDownsampleShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.halfResDepthTexture = passRef.WriteTexture(halfResDepthTexture);

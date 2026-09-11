@@ -15,7 +15,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
         _SpecularLevel ("SpecularLevel", Range(0, 1)) = 0.5
 
         [Header (Normal)]
-        [NoScaleOffset]_NomralTexture ("NomralTexture", 2D) = "bump" {}
+        [NoScaleOffset]_NormalTexture ("NormalTexture", 2D) = "bump" {}
         _NormalTile ("NormalTile", Range(0, 100)) = 1
 
         [Header (Iridescence)]
@@ -23,7 +23,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
         _Iridescence_Distance ("Iridescence_Distance", Range(0, 1)) = 1
 
 		[Header(PixelDepthOffset)]
-        _PixelDepthOffsetVaule ("PixelDepthOffsetVaule", Range(-1, 1)) = 0
+        _PixelDepthOffset ("PixelDepthOffset", Range(-1, 1)) = 0
 
 		[Header(Subsurface)]
 		[Toggle(_SUBSURFACE)] _Subsurface ("Subsurface", Float) = 0
@@ -203,7 +203,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float4 _EmissionColor;
 			CBUFFER_END
 			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
+			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
 
 			struct Attributes
 			{
@@ -248,7 +248,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3, out float4 BakedDiffuse : SV_Target4, out float4 BakedOcclusion : SV_Target5)
 			{
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
+				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture, In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;
@@ -338,7 +338,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			CBUFFER_END
 
 			Texture2D _MainTex; SamplerState sampler_MainTex;
-			Texture2D _NomralTexture; SamplerState sampler_NomralTexture;
+			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
 
 			struct Attributes
 			{
@@ -383,7 +383,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			void frag(Varyings In, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2)
 			{
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NomralTexture.Sample(sampler_NomralTexture, In.uv0 * _NormalTile));
+				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture, In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;

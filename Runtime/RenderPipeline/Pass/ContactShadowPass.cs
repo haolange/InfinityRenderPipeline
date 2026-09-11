@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var contactShadowSettings = ActiveVolumeStack.GetComponent<ContactShadow>();
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.contactShadowShader, "ContactShadowCS"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.contactShadowShader, "ContactShadowCS"))
             {
                 return;
             }
@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                passData.contactShadowShader = pipelineAsset.contactShadowShader;
+                passData.contactShadowShader = shaders.contactShadowShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.contactShadowTexture = passRef.WriteTexture(contactShadowTexture);
 

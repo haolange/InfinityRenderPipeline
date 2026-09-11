@@ -85,7 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.zBinningShader, "LightCount", "PrefixSum", "Fill"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.zBinningShader, "LightCount", "PrefixSum", "Fill"))
                 throw new System.InvalidOperationException("Local lights require the LightCount, PrefixSum and Fill ZBin kernels.");
 
             int tileSize = 16;
@@ -157,7 +157,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.farPlane = camera.farClipPlane;
                 passData.matrixView = camera.worldToCameraMatrix;
                 passData.matrixProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
-                passData.zBinningShader = pipelineAsset.zBinningShader;
+                passData.zBinningShader = shaders.zBinningShader;
                 passData.lightBoundsBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightBoundsBuffer));
                 passData.overflowBuffer = passRef.WriteBuffer(m_RGBuilder.ImportBuffer(renderContext.lightContext.ZBinOverflowBuffer, "ZBinOverflow"));
                 m_RGScoper.RegisterBuffer(LightShaderIDs.ZBinOverflowBuffer, passData.overflowBuffer);

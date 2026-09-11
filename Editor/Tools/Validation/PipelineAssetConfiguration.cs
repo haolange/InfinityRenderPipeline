@@ -22,7 +22,6 @@ namespace InfinityTech.Rendering.Editor
             public List<string> changes = new List<string>();
         }
 
-        [MenuItem("Infinity/Validation/Configure Selected Pipeline Compute Shaders")]
         public static void ConfigureSelected()
         {
             var asset = Selection.activeObject as InfinityRenderPipelineAsset;
@@ -68,7 +67,6 @@ namespace InfinityTech.Rendering.Editor
             Debug.Log("[InfinityRP] Explicit pipeline configuration: " + evidence.changes.Count + " changes; " + run);
         }
 
-        [MenuItem("Infinity/Validation/Configure Selected Pipeline Compute Shaders", true)]
         static bool CanConfigureSelected() => Selection.activeObject is InfinityRenderPipelineAsset;
     }
 }

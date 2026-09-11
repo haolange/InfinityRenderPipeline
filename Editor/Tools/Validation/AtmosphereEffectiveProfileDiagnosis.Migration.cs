@@ -24,7 +24,6 @@ namespace InfinityTech.Rendering.Editor
             public int sourceDirtyBefore, sourceDirtyAfter, pipelineDirtyBefore, pipelineDirtyAfter;
         }
 
-        [MenuItem("Infinity/Validation/Migration/Canonicalize Validated Atmosphere Source")]
         public static void CanonicalizeSource()
         {
             if (s_Running) throw new InvalidOperationException("An Atmosphere operation is already running.");

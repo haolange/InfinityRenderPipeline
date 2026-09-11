@@ -7,7 +7,7 @@ namespace InfinityTech.Rendering.Editor.Validation
 {
     internal static class BurstLayoutValidation
     {
-        [MenuItem("Infinity/Validation/Diagnostics/Recompile Burst Jobs")]
+        [MenuItem("Window/Infinity/Diagnostics/Recompile Burst Jobs")]
         static void Recompile()
         {
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())

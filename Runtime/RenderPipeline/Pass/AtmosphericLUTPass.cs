@@ -182,7 +182,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: AtmosphericalProfile is required. Atmosphere lives only on the profile.");
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.atmosphericLUTShader,
+            if (!GraphicsUtility.HasRequiredKernels(shaders.atmosphericLUTShader,
                 "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT",
                 "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite",
                 "AtmosphereSHProject", "AtmosphereSHReduce", "AtmosphereGGXPrefilter"))
@@ -274,7 +274,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.generateIBL = generateIBL ? 1 : 0;
                 passData.ggxMipCount = ggxMipCount;
                 passData.shPartialCount = shPartialCount;
-                passData.atmosphericLUTShader = pipelineAsset.atmosphericLUTShader;
+                passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
 
                 if (generateShared)
                 {

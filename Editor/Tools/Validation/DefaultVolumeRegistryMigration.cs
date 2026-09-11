@@ -23,15 +23,14 @@ namespace InfinityTech.Rendering.Editor
             public List<string> added = new List<string>();
         }
 
-        [MenuItem("Infinity/Validation/Migration/Complete Default Volume Registry")]
+        [MenuItem("Window/Infinity/Migrate/Complete Default Volume Registry")]
         static void Run()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
                 throw new InvalidOperationException("Default Volume migration requires idle EditMode.");
-            var asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            if (asset == null || asset.volumeProfile == null)
-                throw new InvalidOperationException("Active Infinity asset/default profile is required.");
-            VolumeProfile profile = asset.volumeProfile;
+            VolumeProfile profile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
+            if (profile == null)
+                throw new InvalidOperationException("Active Infinity default profile is required.");
             string path = AssetDatabase.GetAssetPath(profile);
             if (string.IsNullOrEmpty(path) || EditorUtility.IsDirty(profile) || profile.components.Any(EditorUtility.IsDirty))
                 throw new InvalidOperationException("Save or resolve existing default-profile edits before migration.");

@@ -54,7 +54,6 @@ namespace InfinityTech.Rendering.Editor
             public List<CheckpointAssetEvidence> assets = new List<CheckpointAssetEvidence>();
         }
 
-        [MenuItem("Infinity/Validation/Migration/Resume Verified Assembly Checkpoint")]
         public static void ResumeCheckpoint()
         {
             if (s_Active != null) throw new InvalidOperationException("A preflight is already running.");

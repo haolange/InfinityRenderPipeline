@@ -1,0 +1,62 @@
+#pragma kernel RTAOTrace
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+int RTAO_NumRays;
+float RTAO_Radius;
+float4 RTAO_Resolution;
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float4> SRV_NormalTexture;
+Texture2D<float> SRV_HiZTexture;
+RWTexture2D<float> UAV_OcclusionTexture;
+SamplerState sampler_LinearClamp;
+
+float Hash(uint2 p)
+{
+    uint n = p.x * 1664525u + p.y * 1013904223u;
+    n ^= n >> 16;
+    return (n & 0x00FFFFFFu) / 16777216.0;
+}
+
+[numthreads(8, 8, 1)]
+void RTAOTrace(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)RTAO_Resolution.x || id.y >= (uint)RTAO_Resolution.y)
+    {
+        return;
+    }
+
+    int2 pixel = int2(id.xy);
+    float depth = SRV_DepthTexture.Load(int3(pixel, 0)).r;
+#if UNITY_REVERSED_Z
+    if (depth <= 1e-6)
+#else
+    if (depth >= 1.0 - 1e-6)
+#endif
+    {
+        UAV_OcclusionTexture[pixel] = 1.0;
+        return;
+    }
+
+    float3 normal = normalize(SRV_NormalTexture.Load(int3(pixel, 0)).xyz * 2.0 - 1.0);
+    float occlusion = 0.0;
+    int rays = max(RTAO_NumRays, 1);
+    for (int i = 0; i < rays; ++i)
+    {
+        float u = Hash(uint2(id.xy) + uint2(i * 17, i * 31));
+        float v = Hash(uint2(id.xy) + uint2(i * 47, i * 13));
+        float phi = 6.2831853 * u;
+        float cosTheta = sqrt(1.0 - v);
+        float sinTheta = sqrt(v);
+        float3 tangent = normalize(abs(normal.z) < 0.999 ? cross(normal, float3(0, 0, 1)) : cross(normal, float3(0, 1, 0)));
+        float3 bitangent = cross(normal, tangent);
+        float3 dir = normalize(tangent * (cos(phi) * sinTheta) + bitangent * (sin(phi) * sinTheta) + normal * cosTheta);
+        float2 offset = dir.xy * (RTAO_Radius * RTAO_Resolution.zw);
+        float2 sampleUV = (float2(pixel) + 0.5) * RTAO_Resolution.zw + offset;
+        float sampleDepth = SRV_HiZTexture.SampleLevel(sampler_LinearClamp, sampleUV, 0).r;
+        float delta = depth - sampleDepth;
+        occlusion += saturate(1.0 - max(delta * 8.0, 0.0));
+    }
+
+    UAV_OcclusionTexture[pixel] = saturate(occlusion / rays);
+}

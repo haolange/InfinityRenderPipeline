@@ -129,7 +129,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>();
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample"))
             {
                 return;
             }
@@ -178,7 +178,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.power = ssao.Power.value;
                 passData.radius = ssao.Radius.value;
                 passData.intensity = ssao.Intensity.value;
-                passData.sharpeness = ssao.Sharpeness.value;
+                passData.sharpeness = ssao.sharpness.value;
                 passData.temporalScale = ssao.TemporalScale.value;
                 bool resetHistory = m_CameraUniform.historyReset || historyAOCreated || historyDepthCreated;
                 passData.temporalWeight = ScreenSpaceHistoryUtility.RampTemporalWeight(ssao.TemporalWeight.value, ref m_ActiveFrameState.gtaoValidFrames, resetHistory);
@@ -201,7 +201,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.matrix_ViewToWorld = m_CameraUniform.matrix_ViewToWorld;
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
-                passData.ssaoShader = pipelineAsset.ssaoShader;
+                passData.ssaoShader = shaders.ssaoShader;
                 passData.halfResDepthTexture = passRef.ReadTexture(halfResDepthTexture);
                 passData.halfResNormalTexture = passRef.ReadTexture(halfResNormalTexture);
                 passData.fullResDepthTexture = passRef.ReadTexture(fullResDepthTexture);

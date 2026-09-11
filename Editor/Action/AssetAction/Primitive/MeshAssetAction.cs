@@ -55,19 +55,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
             }
         }
 
-        [MenuItem("Assets/AssetActions/Primitive/UpdateMeshAssetFromPrefab", priority = 32)]
-        public static void UpdateMeshAssetFromPrefab(MenuCommand menuCommand)
-        {
-            Object activeObject = Selection.activeObject;
-            if (activeObject.GetType() != typeof(MeshAsset)) 
-            {
-                Debug.LogWarning("select asset type is not MeshAsset");
-                return; 
-            }
-
-            MeshAssetWizard meshAssetWizard = ScriptableWizard.DisplayWizard<MeshAssetWizard>("Build MeshAsset", "Build");
-            meshAssetWizard.SetMeshAsset((MeshAsset)activeObject);
-        }
         #endregion //MeshAsset
     }
 }

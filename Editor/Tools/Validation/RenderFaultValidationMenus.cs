@@ -9,7 +9,7 @@ namespace InfinityTech.Rendering.Editor.Validation
     internal static class RenderFaultValidationMenus
     {
         static bool s_Locked;
-        [MenuItem("Infinity/Validation/Faults/Run Dual Camera Suite")]
+        [MenuItem("Window/Infinity/Faults/Run Dual Camera Suite")]
         static void Start()
         {
             if (!EditorApplication.isPlaying || EditorApplication.isCompiling)
@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             EditorApplication.update -= Pump; EditorApplication.update += Pump;
             Debug.Log("[InfinityRP] Fault suite started: " + path);
         }
-        [MenuItem("Infinity/Validation/Faults/Cancel And Drain")]
+        [MenuItem("Window/Infinity/Faults/Cancel And Drain")]
         static void Cancel() => RenderFaultValidation.current?.Cancel();
         static void Pump()
         {

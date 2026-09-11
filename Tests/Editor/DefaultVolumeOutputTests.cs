@@ -6,6 +6,7 @@ using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.PostProcess;
 using Unity.Mathematics;
+using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -22,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 profile.TryGet(out FilmTonemap film);
                 profile.TryGet(out ColorGrading grading);
                 exposure.evCompensation.value = 2.0f;
-                film.Slop.value = 0.7f;
+                film.slope.value = 0.7f;
                 grading.Temp.value = 5200.0f;
                 manager.Initialize(profile, null);
                 manager.Update(manager.stack, null, 0);
@@ -98,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 foreach (Type type in DefaultVolumeProfileFactory.OptionalComponentTypes)
                 {
                     Assert.IsTrue(profile.TryGet(type, out VolumeComponent optional), type.Name);
-                    Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(optional), type.Name);
+                    Assert.IsFalse(VolumeComponentActive(optional), type.Name);
                 }
             }
             finally
@@ -142,7 +143,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(new Vector4(1.0f, 1.0f, 1.0f, 1.0f), grading.ColorGamma.value);
                 Assert.AreEqual(new Vector4(1.0f, 1.0f, 1.0f, 1.0f), grading.ColorGain.value);
                 Assert.AreEqual(new Vector4(0.0f, 0.0f, 0.0f, 0.0f), grading.ColorOffset.value);
-                Assert.IsTrue(film.Slop.overrideState);
+                Assert.IsTrue(film.slope.overrideState);
                 Assert.IsTrue(grading.ExpandGamut.overrideState);
                 Assert.IsTrue(grading.BlueCorrection.overrideState);
             }
@@ -236,7 +237,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 film.active = false;
                 grading.active = false;
                 exposure.active = false;
-                film.Slop.value = 0.1f;
+                film.slope.value = 0.1f;
                 grading.Temp.value = 2000.0f;
 
                 CombineLutParameterDescriptor descriptor = CombineLutParameterUtility.FromVolumeStack(film, grading);
@@ -292,11 +293,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         static void AssertPackagedFilmAndGrade(FilmTonemap film, ColorGrading grading)
         {
-            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmSlope, film.Slop.value);
-            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmToe, film.Toe.value);
-            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmShoulder, film.Shoulder.value);
-            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmBlackClip, film.BlackClip.value);
-            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmWhiteClip, film.WhiteClip.value);
+            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmSlope, film.slope.value);
+            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmToe, film.toe.value);
+            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmShoulder, film.shoulder.value);
+            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmBlackClip, film.blackClip.value);
+            Assert.AreEqual(DefaultVolumeProfileFactory.PackagedFilmWhiteClip, film.whiteClip.value);
             Assert.AreEqual(DefaultVolumeProfileFactory.PackagedWhiteTemp, grading.Temp.value);
             Assert.AreEqual(DefaultVolumeProfileFactory.PackagedWhiteTint, grading.Tint.value);
             Assert.AreEqual(DefaultVolumeProfileFactory.PackagedExpandGamut, grading.ExpandGamut.value);

@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             camera.targetTexture = target;
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            asset.volumeProfile = profile;
+            asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
             var state = new CameraFrameState(43);
@@ -165,7 +165,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             camera.targetTexture = target;
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            asset.volumeProfile = profile;
+            asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
             var state = new CameraFrameState(43);
@@ -242,7 +242,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             camera.targetTexture = target;
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            asset.volumeProfile = profile;
+            asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
             var state = new CameraFrameState(43);
@@ -300,7 +300,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             camera.targetTexture = target;
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
-            asset.volumeProfile = profile;
+            asset.qualityVolumeProfile = profile;
             bool ownsVolumes = !VolumeManager.instance.isInitialized;
             if (ownsVolumes) VolumeManager.instance.Initialize(null, null);
             var state = new CameraFrameState(43);

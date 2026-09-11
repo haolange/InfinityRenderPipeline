@@ -1,6 +1,8 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using InfinityTech.Rendering;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
@@ -34,6 +36,16 @@ namespace InfinityTech.Rendering.Editor
                 EditorGUILayout.PropertyField(m_MaxRadius, new GUIContent("Max Radius"));
             }
             InfinityInspectorGUI.EndFoldout();
+
+            InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
+            if (asset != null && asset.diffusionProfiles != null)
+            {
+                int index = System.Array.IndexOf(asset.diffusionProfiles, target);
+                if (index >= 0)
+                    EditorGUILayout.HelpBox("RP Asset list index: " + index, MessageType.Info);
+                else
+                    EditorGUILayout.HelpBox("This profile is not assigned on the active Infinity RP Asset.", MessageType.Warning);
+            }
 
             serializedObject.ApplyModifiedProperties();
         }

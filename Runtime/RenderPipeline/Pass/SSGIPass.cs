@@ -118,7 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var ssgi = ActiveVolumeStack.GetComponent<ScreenSpaceIndirectDiffuse>();
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.ssgiShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.ssgiShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter"))
             {
                 return;
             }
@@ -195,7 +195,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.matrix_LastViewProj = m_CameraUniform.matrix_LastViewFlipYJitterProj;
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
-                passData.ssgiShader = pipelineAsset.ssgiShader;
+                passData.ssgiShader = shaders.ssgiShader;
                 passData.hiZTexture = passRef.ReadTexture(hiZTexture);
                 passData.colorPyramidTexture = passRef.ReadTexture(colorPyramidTexture);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);

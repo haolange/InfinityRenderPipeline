@@ -85,14 +85,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 Light light = go.AddComponent<Light>();
-                LightComponent extension = go.AddComponent<LightComponent>();
+                InfinityAdditionalLightData extension = go.AddComponent<InfinityAdditionalLightData>();
                 extension.shadowLayer = ERenderingLayer.LightLayer7;
                 Assert.AreEqual(0x80u, light.renderingLayerMask);
                 light.renderingLayerMask = 2;
                 Assert.AreEqual((ERenderingLayer)2, extension.shadowLayer);
                 light.renderingLayerMask = 0x100;
                 Assert.Throws<ArgumentOutOfRangeException>(() => { var invalid = extension.shadowLayer; });
-                Assert.IsNull(typeof(LightComponent).GetField("shadowLayer"));
+                Assert.IsNull(typeof(InfinityAdditionalLightData).GetField("shadowLayer"));
             }
             finally { UnityEngine.Object.DestroyImmediate(go); }
         }

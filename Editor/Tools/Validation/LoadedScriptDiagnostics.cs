@@ -27,7 +27,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             public List<MissingComponent> missing = new List<MissingComponent>();
         }
 
-        [MenuItem("Infinity/Validation/Diagnose Loaded Missing Scripts (Read Only)")]
         static void Diagnose()
         {
             var report = new Report { unity = Application.unityVersion,

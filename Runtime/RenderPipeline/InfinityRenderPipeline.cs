@@ -235,7 +235,14 @@ namespace InfinityTech.Rendering.Pipeline
         private GraphicsBuffer m_DiffusionProfileBuffer;
         private int m_DiffusionProfileCapacity;
         private AtmosphereSharedCache m_AtmosphereSharedCache;
+        SupportedRenderingFeatures m_PreviousSupportedFeatures;
+        string m_PreviousGlobalRenderPipeline;
+        bool m_PreviousLightsUseLinearIntensity;
+        bool m_PreviousLightsUseColorTemperature;
+        bool m_PreviousUseScriptableRenderPipelineBatching;
 
+        internal InfinityRenderPipelineResources resources;
+        internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
         internal RenderContext renderContext;
         internal InfinityRenderPipelineAsset pipelineAsset
         {
@@ -247,15 +254,14 @@ namespace InfinityTech.Rendering.Pipeline
 
         public InfinityRenderPipeline(InfinityRenderPipelineAsset asset)
         {
-            //EditorSceneManager.sceneUnloaded += OnSceneUnloaded;
+            resources = new InfinityRenderPipelineResources();
+            InfinityDebugDisplaySettings.EnsureRegistered();
+            CaptureGraphicsState();
             SetGraphicsSetting();
             QualitySettings.antiAliasing = 0;
             RTHandles.Initialize(Screen.width, Screen.height);
 
-            // Process-global; only the current active Infinity RP Asset may own this.
-            // Switching RP assets recreates the pipeline and resets it.
-            // Player builds derive the component type registry from the global default profile.
-            VolumeManager.instance.Initialize(asset.volumeProfile, null);
+            VolumeManager.instance.Initialize(resources.defaultVolumeProfile, asset.qualityVolumeProfile);
 
             m_UpdateInit = true;
             renderContext = new RenderContext();
@@ -266,7 +272,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_ResourcePool = new ResourcePool();
             m_MeshSceneResidency = new MeshSceneResidency(m_ResourcePool, renderContext.GetMeshScene());
             m_VisibilityShare = new MeshVisibilityShare();
-            MeshDrawGPUBackend.SetShader(asset.meshDrawPipelineCS);
+            MeshDrawGPUBackend.SetShader(shaders.meshDrawPipelineCS);
             m_DepthMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
             m_GBufferMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
             m_ForwardMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
@@ -305,7 +311,8 @@ namespace InfinityTech.Rendering.Pipeline
                     for (int i = 0; i < cameras.Count; ++i)
                     {
                         Camera camera = cameras[i];
-                        CameraComponent cameraComponent = camera.GetComponent<CameraComponent>();
+                        InfinityAdditionalCameraData cameraComponent = camera.GetComponent<InfinityAdditionalCameraData>();
+                        ResolveVolumeSelection(camera, cameras, cameraComponent, out Transform volumeTrigger, out LayerMask volumeLayerMask);
 
                         MeshVisibilityHandle sharedVisibility = MeshVisibilityHandle.Invalid;
                         CullingResults cullingResults;
@@ -337,10 +344,6 @@ namespace InfinityTech.Rendering.Pipeline
                         frameState.atmosphereViewCache.BeginFrame();
                         frameState.combineLutCache.BeginFrame();
 
-                        Transform volumeTrigger = (cameraComponent != null && cameraComponent.volumeTrigger != null)
-                            ? cameraComponent.volumeTrigger
-                            : camera.transform;
-                        LayerMask volumeLayerMask = cameraComponent != null ? cameraComponent.volumeLayerMask : ~0;
                         VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
 
                         // CameraRendering
@@ -529,6 +532,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     // PHASE 4: reserved. VolFog moved after T0 depth so it can use CSM + ZBin.
 
                                     // PHASE 5: screen-space after HiZ / HalfRes (GTAO / Contact only)
+                                    ComputeRayTracedOcclusion(renderContext, camera, historyCache);
                                     ComputeGroundTruthOcclusion(renderContext, camera, historyCache);
                                     CopyHistoryOcclusion(renderContext, historyCache, camera);
                                     ComputeContactShadow(renderContext, camera);
@@ -579,6 +583,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     RenderGizmos(renderContext, camera);
                                 #endif
                                     ComputeOutputTransform(camera, outputDecision);
+                                    RenderUIOverlay(renderContext, camera);
                                     RecordNormalFrameCapture(camera);
                                     frameState.features.EnsureRequiredProducers(pipelineAsset.enableSuperResolution);
                                     RenderPresent(renderContext, camera);
@@ -718,12 +723,85 @@ namespace InfinityTech.Rendering.Pipeline
             return math.log2((float)renderWidth / displayWidth) - 1.0f;
         }
 
+        void CaptureGraphicsState()
+        {
+            m_PreviousSupportedFeatures = SupportedRenderingFeatures.active;
+            m_PreviousGlobalRenderPipeline = Shader.globalRenderPipeline;
+            m_PreviousLightsUseLinearIntensity = GraphicsSettings.lightsUseLinearIntensity;
+            m_PreviousLightsUseColorTemperature = GraphicsSettings.lightsUseColorTemperature;
+            m_PreviousUseScriptableRenderPipelineBatching = GraphicsSettings.useScriptableRenderPipelineBatching;
+        }
+
+        void RestoreGraphicsState()
+        {
+            SupportedRenderingFeatures.active = m_PreviousSupportedFeatures;
+            Shader.globalRenderPipeline = m_PreviousGlobalRenderPipeline;
+            GraphicsSettings.lightsUseLinearIntensity = m_PreviousLightsUseLinearIntensity;
+            GraphicsSettings.lightsUseColorTemperature = m_PreviousLightsUseColorTemperature;
+            GraphicsSettings.useScriptableRenderPipelineBatching = m_PreviousUseScriptableRenderPipelineBatching;
+        }
+
+        static void ResolveVolumeSelection(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask)
+        {
+            if (camera.cameraType == CameraType.Preview)
+            {
+                volumeTrigger = camera.transform;
+                volumeLayerMask = 0;
+                return;
+            }
+
+            InfinityAdditionalCameraData resolved = cameraData;
+            if (camera.cameraType == CameraType.SceneView)
+            {
+                Camera game = FindUniqueActiveGameCamera(cameras);
+                if (game != null)
+                {
+                    resolved = game.GetComponent<InfinityAdditionalCameraData>();
+                }
+            }
+
+            volumeTrigger = (resolved != null && resolved.volumeTrigger != null) ? resolved.volumeTrigger : camera.transform;
+            volumeLayerMask = resolved != null ? resolved.volumeLayerMask : (LayerMask)~0;
+        }
+
+        static Camera FindUniqueActiveGameCamera(List<Camera> cameras)
+        {
+            Camera found = null;
+            for (int i = 0; i < cameras.Count; ++i)
+            {
+                Camera candidate = cameras[i];
+                if (candidate == null || candidate.cameraType != CameraType.Game || !candidate.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                if (found != null)
+                {
+                    return null;
+                }
+
+                found = candidate;
+            }
+
+            return found;
+        }
+
+        public VolumeStack GetVolumeStack(Camera camera)
+        {
+            if (camera == null || !m_CameraStates.TryGetValue(GetCameraID(camera), out CameraFrameState state))
+            {
+                return null;
+            }
+
+            return state.volumeStack;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void SetGraphicsSetting()
         {
             Shader.globalRenderPipeline = "InfinityRenderPipeline";
 
-            GraphicsUtility.m_BlitMaterial = pipelineAsset.blitMaterial;
+            GraphicsUtility.m_BlitMaterial = resources.materials.blitMaterial;
 
             GraphicsSettings.lightsUseLinearIntensity = true;
             GraphicsSettings.lightsUseColorTemperature = true;
@@ -746,7 +824,8 @@ namespace InfinityTech.Rendering.Pipeline
                 editableMaterialRenderQueue = true,
                 enlighten = false,
                 overridesLODBias = true,
-                overridesMaximumLODLevel = true
+                overridesMaximumLODLevel = true,
+                rendersUIOverlay = true
             };
         }
 
@@ -769,7 +848,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ProfilingSampler GetCameraSampler(Camera camera, CameraComponent cameraComponent)
+        ProfilingSampler GetCameraSampler(Camera camera, InfinityAdditionalCameraData cameraComponent)
         {
             if (cameraComponent != null && cameraComponent.viewProfiler != null)
             {
@@ -865,7 +944,13 @@ namespace InfinityTech.Rendering.Pipeline
                 m_DiffusionProfileBuffer = null;
                 m_AtmosphereSharedCache?.Dispose();
                 m_AtmosphereSharedCache = null;
+                RestoreGraphicsState();
             }
+        }
+
+        static bool VolumeComponentActive(VolumeComponent component)
+        {
+            return GraphicsUtility.VolumeComponentActive(component);
         }
 
         VolumeStack ActiveVolumeStack => m_ActiveFrameState.volumeStack;
@@ -936,31 +1021,31 @@ namespace InfinityTech.Rendering.Pipeline
             features.Request(EFrameFeature.Motion);
             features.MarkSupported(EFrameFeature.Motion);
             features.Request(EFrameFeature.DeferredShading);
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.deferredShadingShader, "DeferredShadingCS"))
+            if (GraphicsUtility.HasRequiredKernels(shaders.deferredShadingShader, "DeferredShadingCS"))
             {
                 features.MarkSupported(EFrameFeature.DeferredShading);
             }
 
             features.Request(EFrameFeature.HiZ);
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.hiZShader, "HiZ_Generation"))
+            if (GraphicsUtility.HasRequiredKernels(shaders.hiZShader, "HiZ_Generation"))
             {
                 features.MarkSupported(EFrameFeature.HiZ);
             }
 
             features.Request(EFrameFeature.ColorPyramid);
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.colorPyramidShader, "KMain"))
+            if (GraphicsUtility.HasRequiredKernels(shaders.colorPyramidShader, "KMain"))
             {
                 features.MarkSupported(EFrameFeature.ColorPyramid);
             }
 
             features.Request(EFrameFeature.PostProcess);
             features.Request(EFrameFeature.Display);
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine", "ExposureClear", "ExposureHistogram", "ExposureReduce"))
+            if (GraphicsUtility.HasRequiredKernels(shaders.postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine", "ExposureClear", "ExposureHistogram", "ExposureReduce"))
             {
                 features.MarkSupported(EFrameFeature.PostProcess);
             }
 
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.outputTransformShader, "OutputTransform"))
+            if (GraphicsUtility.HasRequiredKernels(shaders.outputTransformShader, "OutputTransform"))
             {
                 features.MarkSupported(EFrameFeature.Display);
             }
@@ -968,7 +1053,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (pipelineAsset.enableSuperResolution)
             {
                 features.Request(EFrameFeature.SuperResolution);
-                if (pipelineAsset.superResolutionShader != null)
+                if (shaders.superResolutionShader != null)
                 {
                     features.MarkSupported(EFrameFeature.SuperResolution);
                 }
@@ -976,20 +1061,28 @@ namespace InfinityTech.Rendering.Pipeline
             else
             {
                 features.Request(EFrameFeature.TAA);
-                if (pipelineAsset.taaShader != null)
+                if (shaders.taaShader != null)
                 {
                     features.MarkSupported(EFrameFeature.TAA);
                 }
             }
 
-            bool gtaoKernels = GraphicsUtility.HasRequiredKernels(pipelineAsset.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
-            if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels)
+            var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
+            bool rtaoLive = VolumeComponentActive(rtao) && InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders);
+            bool gtaoKernels = GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
+            if (rtaoLive)
+            {
+                features.Request(EFrameFeature.RTAO);
+                features.MarkSupported(EFrameFeature.RTAO);
+            }
+            else if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels)
             {
                 features.Request(EFrameFeature.GTAO);
                 features.MarkSupported(EFrameFeature.GTAO);
             }
 
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.contactShadowShader, "ContactShadowCS"))
+            var contactShadow = stack.GetComponent<ContactShadow>();
+            if (VolumeComponentActive(contactShadow) && GraphicsUtility.HasRequiredKernels(shaders.contactShadowShader, "ContactShadowCS"))
             {
                 features.Request(EFrameFeature.ContactShadow);
                 features.MarkSupported(EFrameFeature.ContactShadow);
@@ -998,10 +1091,10 @@ namespace InfinityTech.Rendering.Pipeline
             EScreenSpaceMode screenSpaceMode = ScreenSpaceModeUtility.Resolve(
                 stack.GetComponent<ScreenSpaceReflection>(),
                 stack.GetComponent<ScreenSpaceIndirectDiffuse>());
-            bool pyramidOk = GraphicsUtility.HasRequiredKernels(pipelineAsset.colorPyramidShader, "KMain");
-            bool compositeOk = GraphicsUtility.HasRequiredKernels(pipelineAsset.screenSpaceCompositeShader, "ScreenSpaceComposite");
-            bool ssrOk = GraphicsUtility.HasRequiredKernels(pipelineAsset.ssrShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
-            bool ssgiOk = GraphicsUtility.HasRequiredKernels(pipelineAsset.ssgiShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
+            bool pyramidOk = GraphicsUtility.HasRequiredKernels(shaders.colorPyramidShader, "KMain");
+            bool compositeOk = GraphicsUtility.HasRequiredKernels(shaders.screenSpaceCompositeShader, "ScreenSpaceComposite");
+            bool ssrOk = GraphicsUtility.HasRequiredKernels(shaders.ssrShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
+            bool ssgiOk = GraphicsUtility.HasRequiredKernels(shaders.ssgiShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
             if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && ssrOk && pyramidOk && compositeOk)
             {
                 features.Request(EFrameFeature.SSR);
@@ -1020,21 +1113,21 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volFog = stack.GetComponent<VolumetricFog>();
-            if (GraphicsUtility.VolumeHasOverrides(volFog))
+            if (VolumeComponentActive(volFog))
             {
                 features.Request(EFrameFeature.VolumetricFog);
             }
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricFogShader, "ScatterDensity", "Integrate", "Temporal"))
+            if (GraphicsUtility.HasRequiredKernels(shaders.volumetricFogShader, "ScatterDensity", "Integrate", "Temporal"))
             {
                 features.MarkSupported(EFrameFeature.VolumetricFog);
             }
 
             var volCloud = stack.GetComponent<VolumetricCloud>();
-            if (GraphicsUtility.VolumeHasOverrides(volCloud))
+            if (VolumeComponentActive(volCloud))
             {
                 features.Request(EFrameFeature.VolumetricCloud);
             }
-            if (GraphicsUtility.HasRequiredKernels(pipelineAsset.volumetricCloudShader, "VolumetricCloudCS"))
+            if (GraphicsUtility.HasRequiredKernels(shaders.volumetricCloudShader, "VolumetricCloudCS"))
             {
                 features.MarkSupported(EFrameFeature.VolumetricCloud);
             }

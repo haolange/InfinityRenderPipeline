@@ -6,7 +6,7 @@ namespace InfinityTech.Rendering.Editor
 {
     internal static class NativeProbeImport
     {
-        [MenuItem("Infinity/Validation/Capture/Import Metal Probe")]
+        [MenuItem("Window/Infinity/Capture/Import Metal Probe")]
         static void Import()
         {
             const string path = "Packages/com.infinity.render-pipeline/Runtime/Plugins/macOS/InfinityCaptureMetal.bundle";

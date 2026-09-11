@@ -178,7 +178,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_Camera = camera;
             m_CameraAssigned = true;
             m_CaptureIndex++;
-            if (camera.pixelWidth != request.width || camera.pixelHeight != request.height || asset.debugView != EDebugView.None)
+            if (camera.pixelWidth != request.width || camera.pixelHeight != request.height || InfinityDebugDisplaySettings.current.debugView != EDebugView.None)
             { Fail("Camera dimensions or normal-beauty DebugView contract changed."); return; }
             if (state.cameraUniform.historyReset) m_Evidence.successfulFrames = 0;
             m_CaptureThisFrame = m_Evidence.successfulFrames >= request.warmupFrames &&
@@ -195,7 +195,8 @@ namespace InfinityTech.Rendering.Pipeline
                     previousJitteredViewProjection = state.cameraUniform.matrix_LastViewFlipYJitterProj,
                     motionViewProjection = state.cameraUniform.matrix_ViewFlipYProj, previousMotionViewProjection = state.cameraUniform.matrix_LastViewFlipYProj });
                 var snapshots = new List<string>();
-                foreach (VolumeComponent component in asset.volumeProfile.components)
+                VolumeProfile defaultProfile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
+                foreach (VolumeComponent component in defaultProfile.components)
                 {
                     VolumeComponent blended = state.volumeStack.GetComponent(component.GetType());
                     if (blended == null) { Fail("Required Volume registry type missing: " + component.GetType().FullName); return; }

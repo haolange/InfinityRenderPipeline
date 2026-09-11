@@ -9,6 +9,7 @@ namespace InfinityTech.Rendering.Pipeline
         Motion,
         HiZ,
         GTAO,
+        RTAO,
         ContactShadow,
         SSR,
         SSGI,

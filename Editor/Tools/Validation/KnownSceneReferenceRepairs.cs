@@ -78,7 +78,6 @@ namespace InfinityTech.Rendering.Editor
             public string activeHandle;
         }
 
-        [MenuItem("Infinity/Validation/Migration/Repair Known References In Active Scene")]
         public static void RepairActiveScene()
         {
             if (s_Running) throw new InvalidOperationException("A known-reference repair is already running.");

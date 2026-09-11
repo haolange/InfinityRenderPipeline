@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.PostProcess;
+using static InfinityTech.Rendering.Pipeline.Tests.VolumeTestUtility;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -37,19 +38,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void VolumetricFog_VolumeHasOverrides_RequiresActiveAndOverrideState()
+        public void VolumetricFog_IsActive_RequiresEnable()
         {
             VolumetricFog fog = ScriptableObject.CreateInstance<VolumetricFog>();
             try
             {
                 fog.active = true;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(fog));
+                Assert.IsFalse(VolumeComponentActive(fog));
 
-                fog.Density.overrideState = true;
-                Assert.IsTrue(GraphicsUtility.VolumeHasOverrides(fog));
+                fog.enable.value = true;
+                Assert.IsTrue(VolumeComponentActive(fog));
 
                 fog.active = false;
-                Assert.IsFalse(GraphicsUtility.VolumeHasOverrides(fog));
+                Assert.IsFalse(VolumeComponentActive(fog));
             }
             finally
             {

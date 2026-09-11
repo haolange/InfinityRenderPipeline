@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Editor
             Camera camera = cameraName == null ? Validation.ValidationSceneUtility.RequireActiveGameCamera() : Camera.allCameras.Single(c => c.cameraType == CameraType.Game && c.isActiveAndEnabled && c.name == cameraName && c.gameObject.scene.name == sceneName);
             s_Evidence = new Evidence { status = "WaitingForFrame", unity = Application.unityVersion,
                 camera = camera.name, cameraEntity = camera.GetEntityId().ToString(), scene = camera.gameObject.scene.name,
-                cameraSampler = camera.GetComponent<InfinityTech.Component.CameraComponent>()?.viewProfiler?.name ?? camera.name };
+                cameraSampler = camera.GetComponent<InfinityTech.Component.InfinityAdditionalCameraData>()?.viewProfiler?.name ?? camera.name };
             s_Deadline = EditorApplication.timeSinceStartup + 30;
             s_EventIndex = 0; s_Selected = false;
             try

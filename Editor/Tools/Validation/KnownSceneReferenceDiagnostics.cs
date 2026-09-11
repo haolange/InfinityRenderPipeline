@@ -37,7 +37,6 @@ namespace InfinityTech.Rendering.Editor
             public string error;
             public string[] dirtyObjects;
         }
-        [MenuItem("Infinity/Validation/Migration/Diagnose Pending Scene Read Only")]
         public static void Diagnose()
         {
             Scene active = SceneManager.GetActiveScene();

@@ -19,7 +19,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             public string nativeSchemaDelta;
         }
 
-        [MenuItem("Infinity/Validation/Materials/Migrate Inspected Pass States")]
         static void Run()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)

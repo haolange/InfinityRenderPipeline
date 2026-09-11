@@ -95,7 +95,9 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
                 rendererListDesc.sortingCriteria = SortingCriteria.CommonOpaque;
                 rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.None;
+                rendererListDesc.rendererConfiguration = InfinityDebugDisplaySettings.current.temporal.preferNativeMotionVectors
+                    ? PerObjectData.MotionVectors
+                    : PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RendererList motionRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);

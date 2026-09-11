@@ -1,6 +1,19 @@
 # Unity development interaction
 
-Status (2026-09-09): the live CLI connection, read-only eval and recompile/reconnect path are now verified on Unity 6000.6.0f1. Full replacement of custom menu/tool entrypoints and rendering validation remains N03.I work; connection readiness is not full rendering acceptance.
+Status (2026-09-12): the live CLI connection, read-only eval and recompile/reconnect path are verified on Unity 6000.6.0f1. Normalization batches compile, test, and capture on the Mac worker. Full replacement of custom menu/tool entrypoints remains U80 work; connection readiness is not full rendering acceptance.
+
+## Mac worker runbook (0.4.0)
+
+Cloud agents do not have Unity. Compile, EditMode XML, Inspector screenshots, normal-frame capture, and Example-project migrations run on the owner's Mac after `cursor worker start`.
+
+1. Confirm one Editor holds InfinityExample: `Library/EditorInstance.json` plus `unity command editor_status --project-path /Volumes/DataDisk/Projects/Unity/InfinityExample --format json`.
+2. Pull the package branch into `InfinityExample/Packages/com.infinity.render-pipeline` (or the file-link the project already uses). Never open a second Editor or `-batchmode` against that project.
+3. Refresh: `unity command recompile --project-path ...` then `recompile_status` until ready. Diagnose only the new `Logs/Editor.log` window.
+4. Tests: `infinity_tests_start` / official test command with XML export. Do not invent a second runner.
+5. Capture: `infinity_capture_start` over the existing RG session. Official `unity screenshot` is forbidden for beauty/TAA/SR/window acceptance.
+6. Example asset migrations take an explicit manifest, write a fresh backup, then exact native delta + second-save + separate no-op receipts under `InfinityExample/intermediate/<task>/<run>/`.
+7. Evidence for the verifier lives under `/Volumes/DataDisk/Projects/Unity/InfinityRP-Validation/normalization-<date>/`. Task intermediates are deleted at task close.
+8. After a batch, the Grok 4.6 verifier worker reads candidate.json + evidence and writes `verdict.json`. It does not edit code.
 
 ## Initial preparation baseline (historical)
 

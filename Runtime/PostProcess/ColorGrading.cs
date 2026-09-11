@@ -1,11 +1,13 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.PostProcess
 {
-    [Serializable, VolumeComponentMenu("Color Grade/ColorGrading")]
-    public class ColorGrading : VolumeComponent
+    [Serializable, VolumeComponentMenu("Post-processing/Color Grading")]
+    [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
+    public class ColorGrading : VolumeComponent, IInfinityVolumeActivity
     {
         [Header("White Balance")]
         public ClampedFloatParameter Temp = new ClampedFloatParameter(6500.0f, 1500.0f, 15000.0f);
@@ -45,5 +47,7 @@ namespace InfinityTech.Rendering.PostProcess
         [Header("Misc")]
         public ClampedFloatParameter BlueCorrection = new ClampedFloatParameter(0.0f, 0.0f, 1.0f);
         public ClampedFloatParameter ExpandGamut = new ClampedFloatParameter(0.0f, 0.0f, 1.0f);
+
+        public bool IsActive() => active;
     }
 }

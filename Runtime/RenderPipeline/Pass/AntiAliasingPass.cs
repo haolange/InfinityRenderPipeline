@@ -51,7 +51,7 @@ namespace InfinityTech.Rendering.Pipeline
         void ComputeAntiAliasing(RenderContext context, Camera camera, HistoryCache history, CameraUniform uniform)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.TAA);
-            ComputeShader shader = pipelineAsset.taaShader;
+            ComputeShader shader = shaders.taaShader;
             if (shader == null || !shader.HasKernel("Main") || !shader.HasKernel("MainDebug") || !shader.HasKernel("Sharpen"))
                 throw new InvalidOperationException("TAA requires its accumulation, diagnostics and sharpen kernels.");
             var depthSource = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
             var accumulation = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAAccumulationBuffer, TemporalColorDescriptor(width, height, "TAAAccumulation", true));
             var temporalDepth = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAADepthBuffer, TemporalDepthDescriptor(width, height, "TAASurfaceDepth", true));
             var input = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            bool diagnostics = pipelineAsset.debugView != EDebugView.None ||
+            bool diagnostics = InfinityDebugDisplaySettings.current.debugView != EDebugView.None ||
                 (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
             RGTextureRef confidence = default, reprojection = default;
             if (diagnostics)

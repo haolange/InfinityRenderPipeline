@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 Validate(scene);
         }
 
-        [MenuItem("Infinity/Validation/Materials/Validate Loaded Scene Layers")]
+        [MenuItem("Window/Infinity/Materials/Validate Loaded Scene Layers")]
         static void ValidateLoaded()
         {
             for (int i = 0; i < SceneManager.sceneCount; ++i) Validate(SceneManager.GetSceneAt(i));

@@ -81,41 +81,19 @@ namespace InfinityTech.Rendering.Pipeline
             distance = records[0].scatterAlbedoDistance.w;
             albedo = new Color(records[0].scatterAlbedoDistance.x, records[0].scatterAlbedoDistance.y, records[0].scatterAlbedoDistance.z, 1.0f);
             maxRadius = records[0].parameters.x;
-            hasOverride = 0;
-            if (volume != null && GraphicsUtility.VolumeHasOverrides(volume))
-            {
-                hasOverride = 1;
-                if (volume.ScatteringDistance.overrideState)
-                {
-                    distance = volume.ScatteringDistance.value;
-                }
-
-                if (volume.SurfaceAlbedo.overrideState)
-                {
-                    albedo = volume.SurfaceAlbedo.value;
-                }
-
-                if (volume.MaxRadius.overrideState)
-                {
-                    maxRadius = volume.MaxRadius.value;
-                }
-            }
+            hasOverride = GraphicsUtility.VolumeComponentActive(volume) ? 1 : 0;
         }
 
         void ComputeBurleySubsurface(RenderContext renderContext, Camera camera)
         {
-            if (!GraphicsUtility.HasRequiredKernels(pipelineAsset.subsurfaceShader, "BurleySubsurfaceCS"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.subsurfaceShader, "BurleySubsurfaceCS"))
             {
                 return;
             }
 
             var sss = ActiveVolumeStack.GetComponent<SubsurfaceScattering>();
             EnsureDiffusionProfileBuffer(pipelineAsset.diffusionProfiles, sss, out int profileCount, out float distance, out Color albedo, out float maxRadius, out int hasOverride);
-            int numSamples = DiffusionProfile.SampleCount(pipelineAsset.subsurfaceQuality);
-            if (sss != null && sss.NumSamples.overrideState)
-            {
-                numSamples = sss.NumSamples.value;
-            }
+            int numSamples = sss != null && GraphicsUtility.VolumeComponentActive(sss) ? sss.numSamples.value : 11;
 
             int width = camera.pixelWidth;
             int height = camera.pixelHeight;
@@ -146,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.profileCount = profileCount;
                 passData.hasOverride = hasOverride;
                 passData.resolution = new int2(width, height);
-                passData.subsurfaceShader = pipelineAsset.subsurfaceShader;
+                passData.subsurfaceShader = shaders.subsurfaceShader;
                 passData.profileBuffer = m_DiffusionProfileBuffer;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
