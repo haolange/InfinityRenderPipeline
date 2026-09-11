@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using UnityEngine;
 using UnityEngine.Rendering;
 #if UNITY_EDITOR
@@ -11,38 +13,39 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR
     [FilePath("ProjectSettings/InfinityRenderPipelineGlobalSettings.asset", FilePathAttribute.Location.ProjectFolder)]
 #endif
-    public sealed class InfinityRenderPipelineGlobalSettings : RenderPipelineGlobalSettings<InfinityRenderPipeline, InfinityRenderPipelineGlobalSettings>
+    [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
+    [DisplayName("Infinity RP")]
+    public sealed class InfinityRenderPipelineGlobalSettings : RenderPipelineGlobalSettings<InfinityRenderPipelineGlobalSettings, InfinityRenderPipeline>
     {
         public const string PackagePath = InfinityRenderPipelineRuntimeShaders.PackagePath;
+        const string AssetPath = "ProjectSettings/InfinityRenderPipelineGlobalSettings.asset";
+
+        [SerializeField]
+        RenderPipelineGraphicsSettingsContainer m_Settings = new();
+
+        protected override List<IRenderPipelineGraphicsSettings> settingsList => m_Settings.settingsList;
 
         public static InfinityRenderPipelineGlobalSettings Ensure()
         {
             InfinityRenderPipelineGlobalSettings settings = GraphicsSettings.GetSettingsForRenderPipeline<InfinityRenderPipeline>() as InfinityRenderPipelineGlobalSettings;
-            if (settings != null)
-            {
-#if UNITY_EDITOR
-                ReloadResources(settings);
-#endif
-                return settings;
-            }
 
 #if UNITY_EDITOR
-            const string path = "ProjectSettings/InfinityRenderPipelineGlobalSettings.asset";
-            settings = AssetDatabase.LoadAssetAtPath<InfinityRenderPipelineGlobalSettings>(path);
-            if (settings == null)
+            if (!RenderPipelineGlobalSettingsUtils.TryEnsure<InfinityRenderPipelineGlobalSettings, InfinityRenderPipeline>(ref settings, AssetPath, canCreateNewAsset: true))
             {
-                settings = CreateInstance<InfinityRenderPipelineGlobalSettings>();
-                settings.name = "InfinityRenderPipelineGlobalSettings";
-                AssetDatabase.CreateAsset(settings, path);
+                throw new InvalidOperationException("InfinityRP: failed to ensure InfinityRenderPipelineGlobalSettings.");
             }
 
-            EditorGraphicsSettings.SetRenderPipelineGlobalSettingsAsset<InfinityRenderPipeline>(settings);
+            EnsureGraphicsSettings(settings);
             ReloadResources(settings);
             EditorUtility.SetDirty(settings);
-            AssetDatabase.SaveAssets();
             return settings;
 #else
-            throw new InvalidOperationException("InfinityRP: InfinityRenderPipelineGlobalSettings is missing from Graphics Settings.");
+            if (settings == null)
+            {
+                throw new InvalidOperationException("InfinityRP: InfinityRenderPipelineGlobalSettings is missing from Graphics Settings.");
+            }
+
+            return settings;
 #endif
         }
 
@@ -65,6 +68,36 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
 #if UNITY_EDITOR
+        public override void Initialize(RenderPipelineGlobalSettings source = null)
+        {
+            EnsureGraphicsSettings(this);
+        }
+
+        static T GetOrCreateGraphicsSettings<T>(InfinityRenderPipelineGlobalSettings data)
+            where T : class, IRenderPipelineGraphicsSettings, new()
+        {
+            if (data.TryGet(typeof(T), out IRenderPipelineGraphicsSettings existing) && existing is T typed)
+            {
+                return typed;
+            }
+
+            T created = new T();
+            data.Add(created);
+            return created;
+        }
+
+        static void EnsureGraphicsSettings(InfinityRenderPipelineGlobalSettings settings)
+        {
+            GetOrCreateGraphicsSettings<InfinityRenderPipelineRuntimeShaders>(settings);
+            GetOrCreateGraphicsSettings<InfinityRenderPipelineRuntimeTextures>(settings);
+            GetOrCreateGraphicsSettings<InfinityRenderPipelineRuntimeMaterials>(settings);
+            InfinityDefaultVolumeProfileSettings profileSettings = GetOrCreateGraphicsSettings<InfinityDefaultVolumeProfileSettings>(settings);
+            if (profileSettings.volumeProfile == null)
+            {
+                profileSettings.volumeProfile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(DefaultVolumeProfileFactory.AssetPath);
+            }
+        }
+
         static void ReloadResources(InfinityRenderPipelineGlobalSettings settings)
         {
             if (settings == null)
@@ -79,13 +112,6 @@ namespace InfinityTech.Rendering.Pipeline
                 ResourceReloader.ReloadAllNullIn(textures, PackagePath);
             if (GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeMaterials materials))
                 ResourceReloader.ReloadAllNullIn(materials, PackagePath);
-
-            if (GraphicsSettings.TryGetRenderPipelineSettings(out InfinityDefaultVolumeProfileSettings profileSettings) &&
-                profileSettings != null &&
-                profileSettings.volumeProfile == null)
-            {
-                profileSettings.volumeProfile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(DefaultVolumeProfileFactory.AssetPath);
-            }
         }
 #endif
     }

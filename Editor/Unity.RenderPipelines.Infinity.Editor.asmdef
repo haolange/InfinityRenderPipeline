@@ -8,7 +8,8 @@
         "Unity.VisualEffectGraph.Editor",
         "Unity.RenderPipelines.Core.Editor",
         "Unity.RenderPipelines.Core.Runtime",
-        "Unity.RenderPipelines.Infinity.Runtime"
+        "Unity.RenderPipelines.Infinity.Runtime",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [
         "Editor"

@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Editor.Cli
                 foreach (VolumeComponent component in profile.components)
                 {
                     if (component == null) continue;
-                    lines.AppendLine(component.GetType().Name + ".active=" + component.active + ",IsActive=" + component.IsActive());
+                    lines.AppendLine(component.GetType().Name + ".active=" + component.active + ",IsActive=" + GraphicsUtility.VolumeComponentActive(component));
                 }
             }
 

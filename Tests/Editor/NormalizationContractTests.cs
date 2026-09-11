@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -131,6 +133,26 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void RayTracingEnvironment_ReportsBackendWithoutThrowing()
         {
             Assert.DoesNotThrow(() => InfinityRayTracingEnvironment.ResolveBackend());
+        }
+
+        [Test]
+        public void GlobalSettings_Uses17_6SettingsThenPipelineTypeArguments()
+        {
+            Type generic = typeof(InfinityRenderPipelineGlobalSettings).BaseType;
+            Assert.IsNotNull(generic);
+            Assert.IsTrue(generic.IsGenericType);
+            Type[] args = generic.GetGenericArguments();
+            Assert.AreEqual(2, args.Length);
+            Assert.AreEqual(typeof(InfinityRenderPipelineGlobalSettings), args[0]);
+            Assert.AreEqual(typeof(InfinityRenderPipeline), args[1]);
+        }
+
+        [Test]
+        public void GlobalSettings_OwnsGraphicsSettingsContainer()
+        {
+            FieldInfo container = typeof(InfinityRenderPipelineGlobalSettings).GetField("m_Settings", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(container);
+            Assert.AreEqual(typeof(RenderPipelineGraphicsSettingsContainer), container.FieldType);
         }
     }
 }

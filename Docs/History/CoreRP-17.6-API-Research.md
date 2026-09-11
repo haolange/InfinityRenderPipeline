@@ -7,12 +7,13 @@ Scope: Unity 6000.6 / CoreRP 17.6 public surfaces InfinityRP copies. HDRP-intern
 ```csharp
 namespace UnityEngine.Rendering
 {
-    public abstract class RenderPipelineGlobalSettings<TRenderPipeline, TGlobalSettings>
-        : RenderPipelineGlobalSettings
+    // Official 17.6 docs: settings type first, pipeline type second.
+    public abstract class RenderPipelineGlobalSettings<TGlobalRenderPipelineSettings, TRenderPipeline>
+        : RenderPipelineGlobalSettings, ISerializationCallbackReceiver
+        where TGlobalRenderPipelineSettings : RenderPipelineGlobalSettings
         where TRenderPipeline : RenderPipeline
-        where TGlobalSettings : RenderPipelineGlobalSettings<TRenderPipeline, TGlobalSettings>
     {
-        public static TGlobalSettings instance { get; }
+        public static TGlobalRenderPipelineSettings instance { get; }
     }
 }
 ```
@@ -29,10 +30,12 @@ Editor asset path:
 Create / bind:
 
 - `GraphicsSettings.GetSettingsForRenderPipeline<InfinityRenderPipeline>()`
-- Editor: create the asset and assign it in Graphics Settings → Infinity RP. `RenderPipelineGlobalSettingsUtils.Ensure<T>(path)` exists in `UnityEditor.Rendering` on 17.x.
+- Editor: `RenderPipelineGlobalSettingsUtils.TryEnsure<TSettings, TPipeline>(ref instance, path, canCreateNewAsset)` in `UnityEditor.Rendering`.
+- Bind: `GraphicsSettings.GetSettingsForRenderPipeline<InfinityRenderPipeline>()` and `EditorGraphicsSettings.SetRenderPipelineGlobalSettingsAsset<InfinityRenderPipeline>(asset)`.
+- Own settings through `RenderPipelineGraphicsSettingsContainer m_Settings` and `protected override List<IRenderPipelineGraphicsSettings> settingsList`. Field name `m_Settings` is required for the Graphics Settings inspector.
 - Player includes the assigned GlobalSettings automatically. Missing settings throw at pipeline construction.
 
-First type argument is the **pipeline class**, not the asset (`InfinityRenderPipeline`).
+First type argument is the **GlobalSettings class**, second is the **pipeline class**. URP: `RenderPipelineGlobalSettings<UniversalRenderPipelineGlobalSettings, UniversalRenderPipeline>`.
 
 ## 2. IRenderPipelineGraphicsSettings / IRenderPipelineResources
 

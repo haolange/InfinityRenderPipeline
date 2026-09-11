@@ -1,6 +1,6 @@
 # U02 protective baseline
 
-Harness: CLI `infinity_normalization_baseline` writes Volume / package / Unity receipts.
+Harness: CLI `infinity_normalization_baseline` writes Volume / package / Unity receipts. The CLI reports Infinity `IsActive` through `GraphicsUtility.VolumeComponentActive`, not a `VolumeComponent.IsActive()` call.
 
 Still required on the Mac worker against InfinityExample (no second Editor):
 

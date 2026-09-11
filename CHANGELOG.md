@@ -8,7 +8,8 @@
 - `InfinityAdditionalCameraData` / `InfinityAdditionalLightData` with dedicated Camera and Light inspectors.
 - Rendering Debugger panels for Rendering, Lighting, Mesh, and Temporal.
 - Film tonemap `mode` (None / Film) and `IsActive()` gating for optional Volumes.
-- Overlay UI pass after OutputTransform (`DrawUIOverlay`).
+- Overlay UI pass after OutputTransform (`CreateUIOverlayRendererList`).
+- GlobalSettings now uses the 17.6 `RenderPipelineGlobalSettings<TSettings, TPipeline>` order and owns resource containers through `settingsList`.
 - `InfinityUnlit` plus default-material slots for Create-menu objects.
 - UnifiedRayTracing-aware RTAO owner and compute visibility pass.
 - Build preprocessor and Infinity shader/compute strippers.

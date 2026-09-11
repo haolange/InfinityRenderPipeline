@@ -8,8 +8,8 @@ For a new local session on the Mac (Unity 6000.6 + InfinityExample). Do not trea
 |---|---|
 | Package repo | `com.infinity.render-pipeline` |
 | Branch | `normalize/v0.4.0` |
-| Last **committed** HEAD | `7af53a9` (0.3.0 rendering work) |
-| 0.4.0 work | **uncommitted working tree on the cloud agent** — commit + push before a local clone can see it |
+| Last **committed** HEAD | `normalize/v0.4.0` `f5119f0` plus follow-up 17.6 signature/ownership fix on the working branch |
+| 0.4.0 work | Surface landed; first 17.6 compile/ownership defects fixed from official docs. Mac compile + U02 still open. |
 | Package target | `0.4.0` / Unity `6000.6` / CoreRP·SG·VFX `17.6` |
 | Ledger | [PLAN.md](../PLAN.md) U00–U82 |
 | Plan file (do not edit) | user-attached InfinityRP Normalization Plan |
@@ -33,15 +33,20 @@ Roles (already approved): main agent = plan / generate / inspect UI; Grok 4.6 = 
 5. Run CLI `infinity_normalization_baseline` (U02 harness). Then existing capture / EditMode XML. Intermediates: `<InfinityExample>/intermediate/<task>/<run>/`. Durable: `/Volumes/DataDisk/Projects/Unity/InfinityRP-Validation/normalization-<date>/`.
 6. Grok 4.6 verifier per PLAN §6. FAIL stays on this branch. No ready PR until PASS.
 
-Likely first compile hits (17.6 signatures still unverified):
+Likely remaining compile hits after the 17.6 signature/ownership pass (still unverified on Mac):
 
-- `EditorGraphicsSettings.SetRenderPipelineGlobalSettingsAsset<InfinityRenderPipeline>`
-- `GraphicsSettings.GetSettingsForRenderPipeline<InfinityRenderPipeline>`
-- `ScriptableRenderContext.CreateUIOverlayRendererList`
-- `IRenderPipelineResources` / `[ResourcePath]` / `isAvailableInPlayerBuild`
+- `RenderPipelineGlobalSettingsUtils.TryEnsure<TSettings, TPipeline>(ref, path, canCreate)` if Editor utils differ from URP 17.6
 - `DebugUI.IntField` / `DebugUI.Value` getter types
-- `VolumeProfile.TryGet(Type, out VolumeComponent)`
+- `IRenderPipelineResources` dual-interface listing if 17.6 already inherits `IRenderPipelineGraphicsSettings`
 - `CameraMovement` namespace change (`InfinityTech.Component.Utility`) breaks Example scenes until scripts reconnect
+- Editor `UnityEngine.UI` asmdef name on the installed ugui package
+
+Fixed from official 17.6 docs / URP source (not yet Mac-compiled):
+
+- Generic order is now `RenderPipelineGlobalSettings<InfinityRenderPipelineGlobalSettings, InfinityRenderPipeline>`
+- `m_Settings` + `settingsList` own the four `IRenderPipelineGraphicsSettings` containers
+- U02 CLI no longer calls missing `VolumeComponent.IsActive()`; it uses `GraphicsUtility.VolumeComponentActive`
+- `CreateUIOverlayRendererList` + `GetSettingsForRenderPipeline<InfinityRenderPipeline>` kept as documented
 
 ## Code that is in the tree
 

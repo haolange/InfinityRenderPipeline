@@ -241,8 +241,10 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_PreviousLightsUseColorTemperature;
         bool m_PreviousUseScriptableRenderPipelineBatching;
 
+        InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
+        public override RenderPipelineGlobalSettings defaultSettings => m_GlobalSettings;
         internal RenderContext renderContext;
         internal InfinityRenderPipelineAsset pipelineAsset
         {
@@ -254,6 +256,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public InfinityRenderPipeline(InfinityRenderPipelineAsset asset)
         {
+            m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Ensure();
             resources = new InfinityRenderPipelineResources();
             InfinityDebugDisplaySettings.EnsureRegistered();
             CaptureGraphicsState();

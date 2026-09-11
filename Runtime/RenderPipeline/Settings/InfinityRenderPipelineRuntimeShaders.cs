@@ -6,13 +6,13 @@ namespace InfinityTech.Rendering.Pipeline
 {
     [Serializable]
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
-    public sealed class InfinityRenderPipelineRuntimeShaders : IRenderPipelineResources
+    public sealed class InfinityRenderPipelineRuntimeShaders : IRenderPipelineResources, IRenderPipelineGraphicsSettings
     {
         public const string PackagePath = "Packages/com.infinity.render-pipeline";
 
         [SerializeField] int m_Version = 1;
         public int version => m_Version;
-        bool IRenderPipelineGraphicsSettings.isAvailableInPlayerBuild => true;
+        public bool isAvailableInPlayerBuild => true;
 
         [ResourcePath("Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute")]
         public ComputeShader meshDrawPipelineCS;

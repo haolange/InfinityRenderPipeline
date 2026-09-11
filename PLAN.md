@@ -33,7 +33,7 @@ Status: pending → implementing → verifying → passed. Failed candidates ret
 | U00 | B0 | — | passed | Ledger, archive, AGENTS/DESIGN/runbook agree with this wave |
 | U01 | B0 | — | passed | CoreRP 17.6 research pack in Docs/History |
 | U02 | B0 | U00 | implementing | Harness `infinity_normalization_baseline` shipped; frame XML/LUT captures TODO(UNVERIFIED) on Mac |
-| U10 | B1 | U00,U01 | implementing | GlobalSettings + ResourcePath containers; fresh-clone resolve TODO(UNVERIFIED) |
+| U10 | B1 | U00,U01 | implementing | GlobalSettings generic order + settingsList ownership fixed from 17.6 docs; Mac compile / fresh-clone resolve TODO(UNVERIFIED) |
 | U11 | B1 | U10 | implementing | RP Asset schema + renderScale + grouped editor; Example receipts TODO(UNVERIFIED) |
 | U12 | B1 | U10 | implementing | Dispose restores graphics state; quality-switch play TODO(UNVERIFIED) |
 | U13 | B1 | U10,U11 | implementing | Build preprocessor + strippers; variant/size evidence TODO(UNVERIFIED) |

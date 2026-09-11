@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         [SerializeField] int m_Version = 1;
         public int version => m_Version;
-        bool IRenderPipelineGraphicsSettings.isAvailableInPlayerBuild => true;
+        public bool isAvailableInPlayerBuild => true;
 
         public VolumeProfile volumeProfile;
     }
