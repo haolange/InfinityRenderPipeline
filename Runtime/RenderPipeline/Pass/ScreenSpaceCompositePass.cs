@@ -60,8 +60,8 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new System.InvalidOperationException("InfinityRP: SSR/SSGI produced this frame but screenSpaceCompositeShader is missing kernel ScreenSpaceComposite.");
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
 
             TextureDescriptor compositeDsc = new TextureDescriptor(width, height);
             compositeDsc.name = ScreenSpaceCompositePassUtilityData.TextureName;

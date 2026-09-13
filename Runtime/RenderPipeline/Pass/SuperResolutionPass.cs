@@ -28,7 +28,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SuperResolutionPassData
         {
-            public int2 resolution;
+            public int2 resolution, inputResolution;
+            public bool resetHistory;
             public float2 jitter;
             public int frameIndex;
             public float sharpness;
@@ -49,8 +50,8 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: enableSuperResolution is true but superResolutionShader is not assigned.");
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.displaySize.x;
+            int height = m_ActiveFrameState.dimensions.displaySize.y;
 
             TextureDescriptor historyColorDescriptor = new TextureDescriptor(width, height)
             {
@@ -60,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
                 depthBufferBits = EDepthBits.None,
                 enableRandomWrite = false
             };
-            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
+            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
             m_RGScoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
 
             TextureDescriptor superResDsc = new TextureDescriptor(width, height);
@@ -81,6 +82,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 ref SuperResolutionPassData passData = ref passRef.GetPassData<SuperResolutionPassData>();
                 passData.resolution = new int2(width, height);
+                passData.inputResolution = m_ActiveFrameState.dimensions.internalSize;
+                passData.resetHistory = m_CameraUniform.historyReset || historyCreated;
                 passData.jitter = jitter;
                 passData.frameIndex = Time.frameCount;
                 passData.sharpness = 0.5f;
@@ -95,6 +98,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in SuperResolutionPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
+                    cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, Shader.PropertyToID("SR_InputResolution"), new Vector4(passData.inputResolution.x, passData.inputResolution.y, 1f / passData.inputResolution.x, 1f / passData.inputResolution.y));
+                    cmdEncoder.SetComputeIntParam(passData.superResolutionShader, Shader.PropertyToID("SR_ResetHistory"), passData.resetHistory ? 1 : 0);
                     cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_JitterID, new Vector4(passData.jitter.x, passData.jitter.y, 0, 0));
                     cmdEncoder.SetComputeIntParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_FrameIndexID, passData.frameIndex);
                     cmdEncoder.SetComputeFloatParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_SharpnessID, passData.sharpness);
@@ -119,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistorySuperResolution(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
-            TextureDescriptor historyColorDescriptor = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight)
+            TextureDescriptor historyColorDescriptor = new TextureDescriptor(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y)
             {
                 dimension = TextureDimension.Tex2D,
                 name = SuperResolutionPassUtilityData.HistoryColorTextureName,

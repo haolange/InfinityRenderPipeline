@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
         private const float HistoryCutPosition = 2.0f;
         private const float HistoryCutAngle = 20.0f;
 
-        internal void UpdateCurrFrameData(Camera camera, bool forceHistoryReset = false)
+        internal void UpdateCurrFrameData(Camera camera, int2 renderSize, bool forceHistoryReset = false)
         {
             if (!m_HasLastView)
             {
@@ -136,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
             matrix_FlipYProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
             bool applyJitter = camera.cameraType == CameraType.Preview || !historyReset;
-            TemporalJitter.CalculateProjectionMatrix(camera, 0.75f, frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: applyJitter);
+            TemporalJitter.CalculateProjectionMatrix(camera, renderSize, 0.75f, frameIndex, ref jitter, ref matrix_JitterProj, ref matrix_FlipYJitterProj, applyJitter: applyJitter);
             matrix_InvProj = matrix_Proj.inverse;
             matrix_InvJitterProj = matrix_JitterProj.inverse;
             matrix_InvFlipYProj = matrix_FlipYProj.inverse;
@@ -180,9 +180,10 @@ namespace InfinityTech.Rendering.Pipeline
             m_HasLastView = true;
         }
 
-        public void SetUniformData(CommandBuffer cmdBuffer, Camera camera)
+        public void SetUniformData(CommandBuffer cmdBuffer, int2 renderSize)
         {
-            float2 resolution = new float2(camera.pixelWidth, camera.pixelHeight);
+            float2 resolution = renderSize;
+            cmdBuffer.SetGlobalVector("_ScreenParams", new Vector4(resolution.x, resolution.y, 1f + 1f / resolution.x, 1f + 1f / resolution.y));
             cmdBuffer.SetGlobalInt(ID_FrameIndex, frameIndex);
             cmdBuffer.SetGlobalInt(ID_LastFrameIndex, lastFrameIndex);
             cmdBuffer.SetGlobalVector(ID_TAAJitter, new float4(jitter.x / resolution.x, jitter.y / resolution.y, lastJitter.x / resolution.x, lastJitter.y / resolution.y));
@@ -241,6 +242,20 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_PreviousLightsUseColorTemperature;
         bool m_PreviousUseScriptableRenderPipelineBatching;
 
+        static InfinityRenderPipeline s_GlobalStateOwner;
+        InfinityRenderPipeline m_PreviousGlobalStateOwner;
+        SupportedRenderingFeatures m_InstalledSupportedFeatures;
+        Material m_PreviousBlitMaterial;
+        Texture m_PreviousBestFitTexture;
+        int m_PreviousAntiAliasing;
+        bool m_InstalledBatching;
+        Material m_InstalledBlitMaterial;
+        Texture m_InstalledBestFitTexture;
+        VolumeProfile m_InstalledQualityProfile;
+        bool m_OwnsVolumeManager;
+        bool m_ResourcesDisposed;
+
+        InfinityRenderPipelineAsset m_PipelineAsset;
         InfinityRenderPipelineGlobalSettings m_GlobalSettings;
         internal InfinityRenderPipelineResources resources;
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
@@ -250,38 +265,52 @@ namespace InfinityTech.Rendering.Pipeline
         {
             get
             {
-                return (InfinityRenderPipelineAsset)GraphicsSettings.currentRenderPipeline;
+                return m_PipelineAsset;
             }
         }
 
         public InfinityRenderPipeline(InfinityRenderPipelineAsset asset)
         {
-            m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Ensure();
+            m_PipelineAsset = asset;
+            m_GlobalSettings = InfinityRenderPipelineGlobalSettings.Require();
             resources = new InfinityRenderPipelineResources();
-            InfinityDebugDisplaySettings.EnsureRegistered();
-            CaptureGraphicsState();
-            SetGraphicsSetting();
-            QualitySettings.antiAliasing = 0;
-            RTHandles.Initialize(Screen.width, Screen.height);
+            if (asset == null || asset.atmosphericalProfile == null)
+                throw new ArgumentException("InfinityRP requires a pipeline asset with AtmosphericalProfile.", nameof(asset));
+            try
+            {
+                InfinityDebugDisplaySettings.EnsureRegistered();
+                CaptureGraphicsState();
+                SetGraphicsSetting();
+                QualitySettings.antiAliasing = 0;
+                RTHandles.Initialize(Screen.width, Screen.height);
 
-            VolumeManager.instance.Initialize(resources.defaultVolumeProfile, asset.qualityVolumeProfile);
+                m_InstalledQualityProfile = asset.qualityVolumeProfile;
+                VolumeManager.instance.Initialize(resources.defaultVolumeProfile, m_InstalledQualityProfile);
+                m_OwnsVolumeManager = true;
 
-            m_UpdateInit = true;
-            renderContext = new RenderContext();
-            m_RGBuilder = new RGBuilder("RenderGraph");
-            m_RGScoper = new RGScoper(m_RGBuilder);
-            m_CameraStates = new Dictionary<int, CameraFrameState>();
-            m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
-            m_ResourcePool = new ResourcePool();
-            m_MeshSceneResidency = new MeshSceneResidency(m_ResourcePool, renderContext.GetMeshScene());
-            m_VisibilityShare = new MeshVisibilityShare();
-            MeshDrawGPUBackend.SetShader(shaders.meshDrawPipelineCS);
-            m_DepthMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-            m_GBufferMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-            m_ForwardMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-            m_MotionMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-            m_ShadowMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-            m_AtmosphereSharedCache = new AtmosphereSharedCache();
+                m_UpdateInit = true;
+                renderContext = new RenderContext();
+                m_RGBuilder = new RGBuilder("RenderGraph");
+                m_RGScoper = new RGScoper(m_RGBuilder);
+                m_CameraStates = new Dictionary<int, CameraFrameState>();
+                m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
+                m_ResourcePool = new ResourcePool();
+                m_MeshSceneResidency = new MeshSceneResidency(m_ResourcePool, renderContext.GetMeshScene());
+                m_VisibilityShare = new MeshVisibilityShare();
+                MeshDrawGPUBackend.SetShader(shaders.meshDrawPipelineCS);
+                m_DepthMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+                m_GBufferMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+                m_ForwardMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+                m_MotionMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+                m_ShadowMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
+                m_AtmosphereSharedCache = new AtmosphereSharedCache();
+            }
+            catch (Exception constructionFailure)
+            {
+                try { ReleaseOwnedResources(); }
+                catch (Exception cleanupFailure) { throw new AggregateException(constructionFailure, cleanupFailure); }
+                throw;
+            }
         }
 
         protected override void Render(ScriptableRenderContext scriptableRenderContext, List<Camera> cameras)
@@ -333,33 +362,36 @@ namespace InfinityTech.Rendering.Pipeline
                         frameState.preparedThisRender = true;
                         frameState.cameraType = camera.cameraType;
                         frameState.executeSucceeded = false;
-                        if (frameState.pixelWidth != camera.pixelWidth || frameState.pixelHeight != camera.pixelHeight)
-                        {
-                            forceHistoryReset = true;
-                            frameState.descriptorGeneration++;
-                            frameState.pixelWidth = camera.pixelWidth;
-                            frameState.pixelHeight = camera.pixelHeight;
-                        }
-
-                        CameraUniform cameraUniform = frameState.cameraUniform;
-                        HistoryCache historyCache = frameState.historyCache;
-                        historyCache.BeginFrame();
-                        frameState.atmosphereViewCache.BeginFrame();
-                        frameState.combineLutCache.BeginFrame();
-
-                        VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
-
-                        // CameraRendering
-                        cameraUniform.UpdateCurrFrameData(camera, forceHistoryReset);
-                        m_CameraUniform = cameraUniform;
-                        m_ActiveFrameState = frameState;
-                        RenderCaptureService.current?.PrepareCamera(camera, frameState, pipelineAsset);
-                        RenderFaultValidation.BeforeCamera(camera, frameState);
                         using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
                         {
                             BeginCameraRendering(scriptableRenderContext, camera);
                             try
                             {
+                            CameraDimensionDescriptor dimensions = CameraDimensionDescriptor.FromCamera(camera, pipelineAsset, cameraComponent);
+                            if (math.any(frameState.dimensions.displaySize != dimensions.displaySize) || math.any(frameState.dimensions.internalSize != dimensions.internalSize) || frameState.dimensions.superResolution != dimensions.superResolution)
+                            {
+                                forceHistoryReset = true;
+                                frameState.descriptorGeneration++;
+
+                            }
+
+                            frameState.dimensions = dimensions;
+                            frameState.postProcessingEnabled = CoreUtils.ArePostProcessesEnabled(camera);
+                            frameState.sceneLightingEnabled = !CoreUtils.IsSceneLightingDisabled(camera);
+                            CameraUniform cameraUniform = frameState.cameraUniform;
+                            HistoryCache historyCache = frameState.historyCache;
+                            historyCache.BeginFrame();
+                            frameState.atmosphereViewCache.BeginFrame();
+                            frameState.combineLutCache.BeginFrame();
+
+                            VolumeManager.instance.Update(frameState.volumeStack, volumeTrigger, volumeLayerMask);
+
+                            // CameraRendering
+                            cameraUniform.UpdateCurrFrameData(camera, dimensions.internalSize, forceHistoryReset);
+                            m_CameraUniform = cameraUniform;
+                            m_ActiveFrameState = frameState;
+                            RenderCaptureService.current?.PrepareCamera(camera, frameState, pipelineAsset);
+                            RenderFaultValidation.BeforeCamera(camera, frameState);
                             ConfigureFrameFeatures(frameState);
                             if (ShouldRecordFeature(EFrameFeature.Motion)) frameState.nativeMotionHistory.Prepare();
                             // Declare camera outputs before Unity camera setup and culling.
@@ -374,7 +406,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 }
                                 #endif
 
-                                cameraUniform.SetUniformData(cmdBuffer, camera);
+                                cameraUniform.SetUniformData(cmdBuffer, dimensions.internalSize);
                                 scriptableRenderContext.SetupCameraProperties(camera);
                                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                                 cmdBuffer.Clear();
@@ -406,7 +438,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProcessLOD)))
                                 {
                                     List<TerrainComponent> terrains = renderContext.GetWorldTerrains();
-                                    float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
+                                    float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, dimensions.internalSize.x, dimensions.internalSize.y, camera.nearClipPlane, camera.farClipPlane);
                                     for(int j = 0; j < terrains.Count; ++j)
                                     {
                                         TerrainComponent terrain = terrains[j];
@@ -489,7 +521,7 @@ namespace InfinityTech.Rendering.Pipeline
                             frameState.hasResolvedBackbufferFormat = outputDecision.backbufferFormat != UnityEngine.Experimental.Rendering.GraphicsFormat.None;
                             if (!frameState.loggedOutputDecision)
                             {
-                                Debug.Log($"[InfinityRP] OutputTransform camera={camera.name} type={camera.cameraType} format={outputDecision.backbufferFormat} colorSpace={outputDecision.colorSpace} policy={outputDecision.policy} authority={(outputDecision.displayTransferAuthority ? "DisplayTransferCapability" : "TextureFormat")}");
+                                Debug.Log($"[InfinityRP] Present camera={camera.name} type={camera.cameraType} format={outputDecision.backbufferFormat} colorSpace={outputDecision.colorSpace} policy={outputDecision.policy} authority={(outputDecision.displayTransferAuthority ? "DisplayTransferCapability" : "TextureFormat")}");
                                 frameState.loggedOutputDecision = true;
                             }
                             combineLutParameterDescriptor.OutputGamut = outputDecision.outputGamut;
@@ -569,7 +601,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     RenderTranslucentT2(renderContext, camera, cullingResults);
 
                                     // PHASE 8: temporal resolve + post (TAA after fog/translucents)
-                                    if (pipelineAsset.enableSuperResolution)
+                                    if (frameState.dimensions.superResolution)
                                     {
                                         ComputeSuperResolution(renderContext, camera, historyCache, cameraUniform.jitter);
                                         CopyHistorySuperResolution(renderContext, historyCache, camera);
@@ -581,15 +613,19 @@ namespace InfinityTech.Rendering.Pipeline
                                         CopyHistoryDepth(renderContext, historyCache, camera);
                                     }
                                     ComputePostProcessing(renderContext, camera, frameState);
+                                    ComputeDebugView(camera);
                                 #if UNITY_EDITOR
+                                    ResolveDisplayDepth();
                                     RenderWireOverlay(renderContext, camera);
                                     RenderGizmos(renderContext, camera);
                                 #endif
-                                    ComputeOutputTransform(camera, outputDecision);
+                                    ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Display);
+                                    m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer));
+                                    MarkFeatureProduced(EFrameFeature.Display);
                                     RenderUIOverlay(renderContext, camera);
                                     RecordNormalFrameCapture(camera);
-                                    frameState.features.EnsureRequiredProducers(pipelineAsset.enableSuperResolution);
-                                    RenderPresent(renderContext, camera);
+                                    frameState.features.EnsureRequiredProducers(frameState.dimensions.superResolution);
+                                    RenderPresent(renderContext, camera, outputDecision);
                                 }
 
                                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
@@ -728,20 +764,38 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CaptureGraphicsState()
         {
+            m_PreviousGlobalStateOwner = s_GlobalStateOwner;
             m_PreviousSupportedFeatures = SupportedRenderingFeatures.active;
             m_PreviousGlobalRenderPipeline = Shader.globalRenderPipeline;
             m_PreviousLightsUseLinearIntensity = GraphicsSettings.lightsUseLinearIntensity;
             m_PreviousLightsUseColorTemperature = GraphicsSettings.lightsUseColorTemperature;
             m_PreviousUseScriptableRenderPipelineBatching = GraphicsSettings.useScriptableRenderPipelineBatching;
+            m_PreviousAntiAliasing = QualitySettings.antiAliasing;
+            m_PreviousBlitMaterial = GraphicsUtility.m_BlitMaterial;
+            m_PreviousBestFitTexture = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
         }
 
         void RestoreGraphicsState()
         {
+            if (s_GlobalStateOwner != this) return;
+            s_GlobalStateOwner = m_PreviousGlobalStateOwner != null && !m_PreviousGlobalStateOwner.m_ResourcesDisposed ? m_PreviousGlobalStateOwner : null;
+            // A replacement pipeline may have already installed its own global state.
+            if (!ReferenceEquals(SupportedRenderingFeatures.active, m_InstalledSupportedFeatures)) return;
             SupportedRenderingFeatures.active = m_PreviousSupportedFeatures;
-            Shader.globalRenderPipeline = m_PreviousGlobalRenderPipeline;
-            GraphicsSettings.lightsUseLinearIntensity = m_PreviousLightsUseLinearIntensity;
-            GraphicsSettings.lightsUseColorTemperature = m_PreviousLightsUseColorTemperature;
-            GraphicsSettings.useScriptableRenderPipelineBatching = m_PreviousUseScriptableRenderPipelineBatching;
+            if (Shader.globalRenderPipeline == "InfinityRenderPipeline")
+                Shader.globalRenderPipeline = m_PreviousGlobalRenderPipeline;
+            if (GraphicsSettings.lightsUseLinearIntensity)
+                GraphicsSettings.lightsUseLinearIntensity = m_PreviousLightsUseLinearIntensity;
+            if (GraphicsSettings.lightsUseColorTemperature)
+                GraphicsSettings.lightsUseColorTemperature = m_PreviousLightsUseColorTemperature;
+            if (GraphicsSettings.useScriptableRenderPipelineBatching == m_InstalledBatching)
+                GraphicsSettings.useScriptableRenderPipelineBatching = m_PreviousUseScriptableRenderPipelineBatching;
+            if (QualitySettings.antiAliasing == 0)
+                QualitySettings.antiAliasing = m_PreviousAntiAliasing;
+            if (GraphicsUtility.m_BlitMaterial == m_InstalledBlitMaterial)
+                GraphicsUtility.m_BlitMaterial = m_PreviousBlitMaterial;
+            if (Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
+                Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousBestFitTexture);
         }
 
         static void ResolveVolumeSelection(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask)
@@ -802,15 +856,11 @@ namespace InfinityTech.Rendering.Pipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void SetGraphicsSetting()
         {
-            Shader.globalRenderPipeline = "InfinityRenderPipeline";
-
-            GraphicsUtility.m_BlitMaterial = resources.materials.blitMaterial;
-
-            GraphicsSettings.lightsUseLinearIntensity = true;
-            GraphicsSettings.lightsUseColorTemperature = true;
-            GraphicsSettings.useScriptableRenderPipelineBatching = pipelineAsset.enableSRPBatch;
-
-            SupportedRenderingFeatures.active = new SupportedRenderingFeatures()
+            // Resolve dependencies and allocate the feature declaration before any global write.
+            m_InstalledBatching = m_PipelineAsset.enableSRPBatch;
+            m_InstalledBlitMaterial = resources.materials.blitMaterial;
+            m_InstalledBestFitTexture = resources.textures.bestFitNormalTexture;
+            var installedFeatures = new SupportedRenderingFeatures()
             {
                 reflectionProbeModes = SupportedRenderingFeatures.ReflectionProbeModes.Rotation,
                 defaultMixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly,
@@ -830,6 +880,17 @@ namespace InfinityTech.Rendering.Pipeline
                 overridesMaximumLODLevel = true,
                 rendersUIOverlay = true
             };
+            m_InstalledSupportedFeatures = installedFeatures;
+            s_GlobalStateOwner = this;
+            SupportedRenderingFeatures.active = installedFeatures;
+            Shader.globalRenderPipeline = "InfinityRenderPipeline";
+
+            GraphicsUtility.m_BlitMaterial = m_InstalledBlitMaterial;
+
+            GraphicsSettings.lightsUseLinearIntensity = true;
+            GraphicsSettings.lightsUseColorTemperature = true;
+            GraphicsSettings.useScriptableRenderPipelineBatching = m_InstalledBatching;
+            Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_InstalledBestFitTexture);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -919,36 +980,50 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            if (disposing)
+            if (disposing) ReleaseOwnedResources();
+        }
+
+        void ReleaseOwnedResources()
+        {
+            if (m_ResourcesDisposed) return;
+            m_ResourcesDisposed = true;
+            var failures = new List<Exception>();
+            void Release(Action action)
             {
-                RenderCaptureService.current?.Cancel("PipelineDisposed");
-                //EditorSceneManager.sceneUnloaded -= OnSceneUnloaded;
-                renderContext.Dispose();
-                m_DepthMeshProcessor?.Dispose();
-                m_GBufferMeshProcessor?.Dispose();
-                m_ForwardMeshProcessor?.Dispose();
-                m_MotionMeshProcessor?.Dispose();
-                m_ShadowMeshProcessor?.Dispose();
-                MeshDrawGPUBackend.Dispose();
-                m_VisibilityShare?.Dispose();
-                m_MeshSceneResidency.Dispose();
-                m_RGScoper.Dispose();
-                m_RGBuilder.Dispose();
-                m_ResourcePool.Dispose();
-                foreach (KeyValuePair<int, CameraFrameState> pair in m_CameraStates)
-                {
-                    pair.Value.Dispose();
-                }
-                m_CameraStates.Clear();
-                m_CameraSamplers.Clear();
-                VolumeManager.instance.SetCustomDefaultProfiles(null);
-                VolumeManager.instance.Deinitialize();
-                m_DiffusionProfileBuffer?.Release();
-                m_DiffusionProfileBuffer = null;
-                m_AtmosphereSharedCache?.Dispose();
-                m_AtmosphereSharedCache = null;
-                RestoreGraphicsState();
+                try { action(); }
+                catch (Exception error) { failures.Add(error); }
             }
+            bool ownsSharedResources = s_GlobalStateOwner == this;
+            if (ownsSharedResources) Release(() => RenderCaptureService.current?.Cancel("PipelineDisposed"));
+            Release(() => renderContext?.Dispose());
+            Release(() => m_DepthMeshProcessor?.Dispose());
+            Release(() => m_GBufferMeshProcessor?.Dispose());
+            Release(() => m_ForwardMeshProcessor?.Dispose());
+            Release(() => m_MotionMeshProcessor?.Dispose());
+            Release(() => m_ShadowMeshProcessor?.Dispose());
+            if (ownsSharedResources) Release(MeshDrawGPUBackend.Dispose);
+            Release(() => m_VisibilityShare?.Dispose());
+            Release(() => m_MeshSceneResidency?.Dispose());
+            Release(() => m_RGScoper?.Dispose());
+            Release(() => m_RGBuilder?.Dispose());
+            Release(() => m_ResourcePool?.Dispose());
+            if (m_CameraStates != null)
+            {
+                foreach (CameraFrameState state in m_CameraStates.Values) Release(state.Dispose);
+                m_CameraStates.Clear();
+            }
+            m_CameraSamplers?.Clear();
+            if (ownsSharedResources && m_OwnsVolumeManager &&
+                ReferenceEquals(VolumeManager.instance.globalDefaultProfile, resources.defaultVolumeProfile) &&
+                ReferenceEquals(VolumeManager.instance.qualityDefaultProfile, m_InstalledQualityProfile)) Release(VolumeManager.instance.Deinitialize);
+            m_OwnsVolumeManager = false;
+            Release(() => m_DiffusionProfileBuffer?.Release());
+            m_DiffusionProfileBuffer = null;
+            Release(() => m_AtmosphereSharedCache?.Dispose());
+            m_AtmosphereSharedCache = null;
+            if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
+            Release(RestoreGraphicsState);
+            if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);
         }
 
         static bool VolumeComponentActive(VolumeComponent component)
@@ -1048,12 +1123,12 @@ namespace InfinityTech.Rendering.Pipeline
                 features.MarkSupported(EFrameFeature.PostProcess);
             }
 
-            if (GraphicsUtility.HasRequiredKernels(shaders.outputTransformShader, "OutputTransform"))
+            if (GraphicsUtility.BlitMaterial != null && GraphicsUtility.BlitMaterial.FindPass("Present") >= 0)
             {
                 features.MarkSupported(EFrameFeature.Display);
             }
 
-            if (pipelineAsset.enableSuperResolution)
+            if (frameState.dimensions.superResolution)
             {
                 features.Request(EFrameFeature.SuperResolution);
                 if (shaders.superResolutionShader != null)
@@ -1071,17 +1146,32 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
-            bool rtaoLive = VolumeComponentActive(rtao) && InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders);
+            InfinityRayTracingEnvironment rayEnv = InfinityRayTracingEnvironment.EnsureOwned();
+            rayEnv.SyncGeometry(renderContext.GetMeshScene());
+            bool rtaoLive = VolumeComponentActive(rtao) && InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders) && rayEnv.InstanceCount > 0;
             bool gtaoKernels = GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
             if (rtaoLive)
             {
                 features.Request(EFrameFeature.RTAO);
                 features.MarkSupported(EFrameFeature.RTAO);
+                InfinityRayTracingEnvironment.ReportBlockReason(string.Empty);
             }
-            else if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels)
+            else
             {
-                features.Request(EFrameFeature.GTAO);
-                features.MarkSupported(EFrameFeature.GTAO);
+                if (!VolumeComponentActive(rtao))
+                {
+                    InfinityRayTracingEnvironment.ReportBlockReason("RTAO Volume is inactive.");
+                }
+                else if (rayEnv.InstanceCount == 0 && string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason))
+                {
+                    InfinityRayTracingEnvironment.ReportBlockReason("URT accel has no mesh instances.");
+                }
+
+                if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels)
+                {
+                    features.Request(EFrameFeature.GTAO);
+                    features.MarkSupported(EFrameFeature.GTAO);
+                }
             }
 
             var contactShadow = stack.GetComponent<ContactShadow>();

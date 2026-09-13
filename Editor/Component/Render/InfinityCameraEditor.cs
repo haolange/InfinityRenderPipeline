@@ -85,15 +85,6 @@ namespace InfinityTech.Component.Editor
             m_Additional.ApplyModifiedProperties();
         }
 
-        [MenuItem("GameObject/Camera", false, 10)]
-        static void CreateCamera(MenuCommand command)
-        {
-            var go = new GameObject("Camera");
-            var camera = go.AddComponent<Camera>();
-            InfinityAdditionalCameraData.GetOrCreate(camera, true);
-            GameObjectUtility.SetParentAndAlign(go, command.context as GameObject);
-            Undo.RegisterCreatedObjectUndo(go, "Create Camera");
-            Selection.activeGameObject = go;
-        }
+
     }
 }

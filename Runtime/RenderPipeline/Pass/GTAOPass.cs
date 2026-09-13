@@ -134,8 +134,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int fullWidth = camera.pixelWidth;
-            int fullHeight = camera.pixelHeight;
+            int fullWidth = m_ActiveFrameState.dimensions.internalSize.x;
+            int fullHeight = m_ActiveFrameState.dimensions.internalSize.y;
             int halfWidth = Mathf.Max(1, fullWidth >> 1);
             int halfHeight = Mathf.Max(1, fullHeight >> 1);
 
@@ -329,8 +329,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int halfWidth = Mathf.Max(1, camera.pixelWidth >> 1);
-            int halfHeight = Mathf.Max(1, camera.pixelHeight >> 1);
+            int halfWidth = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.x >> 1);
+            int halfHeight = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.y >> 1);
 
             TextureDescriptor historyAODsc = CreateGTAOHistoryAODescriptor(halfWidth, halfHeight);
             RGTextureRef historyAOTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryOcclusionBuffer, historyAODsc));

@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         [MenuItem("Window/Infinity/Diagnostics/Recompile Burst Jobs")]
         static void Recompile()
         {
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (Assembly assembly in UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies())
             {
                 if (assembly.GetName().Name != "Unity.Burst") continue;
                 Type compiler = assembly.GetType("Unity.Burst.BurstCompiler", true);

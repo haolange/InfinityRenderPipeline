@@ -52,11 +52,11 @@ namespace InfinityTech.Rendering.Pipeline
             var contactShadowSettings = ActiveVolumeStack.GetComponent<ContactShadow>();
             if (!GraphicsUtility.HasRequiredKernels(shaders.contactShadowShader, "ContactShadowCS"))
             {
-                return;
+                throw new System.InvalidOperationException("InfinityRP: ContactShadow is recorded but contactShadowShader kernel ContactShadowCS is missing.");
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
 
             TextureDescriptor contactShadowDsc = new TextureDescriptor(width, height);
             {

@@ -168,9 +168,9 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
+        public RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in TextureDescriptor descriptor, in int shaderProperty = 0)
         {
-            return m_Resources.ImportBackbuffer(backBuffer, shaderProperty);
+            return m_Resources.ImportBackbuffer(backBuffer, descriptor, shaderProperty);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1210,6 +1210,14 @@ namespace InfinityTech.Rendering.RenderGraph
                 else
                 {
                     SetRenderTarget(ref graphContext, passCompileInfo);
+                }
+                graphContext.cmdBuffer.DisableScissorRect();
+                RGTextureRef viewportTarget = pass.colorBufferMaxIndex >= 0 ? pass.colorBuffers[0] : pass.depthBuffer;
+                if (viewportTarget.IsValid())
+                {
+                    RenderTexture target = m_Resources.GetTexture(viewportTarget).rt;
+                    if (target != null)
+                        graphContext.cmdBuffer.SetViewport(new Rect(0, 0, target.width, target.height));
                 }
             }
         }

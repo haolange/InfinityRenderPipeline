@@ -181,18 +181,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         static void ApplyFilmTonemap(ref CombineLutParameterDescriptor descriptor, FilmTonemap film)
         {
-            if (!film.IsActive())
-            {
-                descriptor.FilmEnabled = 0.0f;
-                descriptor.FilmSlope = 1.0f;
-                descriptor.FilmToe = 0.0f;
-                descriptor.FilmShoulder = 0.0f;
-                descriptor.FilmBlackClip = 0.0f;
-                descriptor.FilmWhiteClip = 0.0f;
-                return;
-            }
-
-            descriptor.FilmEnabled = 1.0f;
+            descriptor.FilmEnabled = film.IsActive() ? 1.0f : 0.0f;
             descriptor.FilmSlope = film.slope.value;
             descriptor.FilmToe = film.toe.value;
             descriptor.FilmShoulder = film.shoulder.value;

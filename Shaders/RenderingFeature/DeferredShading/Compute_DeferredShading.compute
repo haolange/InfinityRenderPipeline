@@ -1,5 +1,6 @@
 #pragma kernel DeferredShadingCS
 #pragma multi_compile_local _ DEFERRED_AO
+#pragma multi_compile_local _ DEFERRED_CONTACT_SHADOW
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
@@ -30,7 +31,9 @@ Texture2D<float> SRV_DepthTexture;
 #if defined(DEFERRED_AO)
 Texture2D<float> SRV_OcclusionTexture;
 #endif
+#if defined(DEFERRED_CONTACT_SHADOW)
 Texture2D<float> SRV_ContactShadowTexture;
+#endif
 
 Texture2D<float4> SRV_BakedDiffuse, SRV_BakedOcclusion;
 RWTexture2D<float4> UAV_IndirectDiffuse, UAV_IndirectSpecular;
@@ -84,7 +87,11 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 #else
     float ao = 1.0;
 #endif
+#if defined(DEFERRED_CONTACT_SHADOW)
     float contactShadow = SRV_ContactShadowTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+#else
+    float contactShadow = 1.0;
+#endif
     float4 bakedMask = 1 - SRV_BakedOcclusion[pixelCoord];
     float3 lighting = 0;
 

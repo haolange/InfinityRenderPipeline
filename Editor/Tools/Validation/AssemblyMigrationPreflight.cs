@@ -876,7 +876,7 @@ namespace InfinityTech.Rendering.Editor
                     if (separator < 0) throw new InvalidDataException("Unrecognized persisted assembly identity: " + identity);
                     assembly = identity.Substring(0, separator); name = identity.Substring(separator + 1);
                 }
-                resolved = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(value => value.GetName().Name == assembly)?.GetType(name, false);
+                resolved = UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies().FirstOrDefault(value => value.GetName().Name == assembly)?.GetType(name, false);
             }
             if (resolved == null) throw new InvalidDataException("Unresolved persisted assembly identity: " + identity);
             RecordTypeMapping(resolved, record, true);

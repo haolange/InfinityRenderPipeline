@@ -54,16 +54,42 @@ namespace InfinityTech.Rendering.Pipeline
         [System.NonSerialized] public InfinityRenderPipeline renderPipeline;
 
         public override Shader defaultShader => m_DefaultShader != null ? m_DefaultShader : ResolveMaterials()?.defaultLitShader;
-        public override Material defaultMaterial => m_DefaultMaterial;
-        public override Material defaultParticleMaterial => m_DefaultParticleMaterial != null ? m_DefaultParticleMaterial : defaultMaterial;
-        public override Material defaultLineMaterial => m_DefaultLineMaterial != null ? m_DefaultLineMaterial : defaultMaterial;
-        public override Material defaultTerrainMaterial => m_DefaultTerrainMaterial != null ? m_DefaultTerrainMaterial : defaultMaterial;
-        public override Material default2DMaterial => m_Default2DMaterial != null ? m_Default2DMaterial : defaultMaterial;
+        public override Material defaultMaterial => m_DefaultMaterial != null ? m_DefaultMaterial : ResolveUnlitMaterial();
+        public override Material defaultParticleMaterial => m_DefaultParticleMaterial != null ? m_DefaultParticleMaterial : ResolveUnlitMaterial();
+        public override Material defaultLineMaterial => m_DefaultLineMaterial != null ? m_DefaultLineMaterial : ResolveUnlitMaterial();
+        public override Material defaultTerrainMaterial => m_DefaultTerrainMaterial != null ? m_DefaultTerrainMaterial : ResolveUnlitMaterial();
+        public override Material default2DMaterial => m_Default2DMaterial != null ? m_Default2DMaterial : ResolveUnlitMaterial();
+
+        static Material ResolveUnlitMaterial()
+        {
+            InfinityRenderPipelineRuntimeMaterials materials = ResolveMaterials();
+            if (materials != null && materials.defaultUnlitMaterial != null)
+            {
+                return materials.defaultUnlitMaterial;
+            }
+
+            throw new InvalidOperationException("InfinityRP: default Unlit material is required on GlobalSettings RuntimeMaterials.");
+        }
 
         static InfinityRenderPipelineRuntimeMaterials ResolveMaterials()
         {
             GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeMaterials materials);
             return materials;
+        }
+
+#if UNITY_EDITOR
+        internal void RequestEditorRecreation()
+        {
+            // Use Unity's normal RP asset validation lifecycle after an explicit settings edit.
+            base.OnValidate();
+        }
+#endif
+
+        protected override bool requiresCompatibleRenderPipelineGlobalSettings => true;
+
+        protected override void EnsureGlobalSettings()
+        {
+            InfinityRenderPipelineGlobalSettings.Require();
         }
 
         protected override RenderPipeline CreatePipeline()
@@ -73,18 +99,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: AtmosphericalProfile is required on the pipeline asset. Atmosphere lives only on the profile.");
             }
 
-            VolumeProfile defaultProfile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
-            if (!DefaultVolumeProfileFactory.HasRequiredDefaultComponents(defaultProfile))
-            {
-                throw new InvalidOperationException("InfinityRP: default Volume profile must include required exposure/film/grading values and the complete optional-feature type registry.");
-            }
-
             renderPipeline = new InfinityRenderPipeline(this);
-            InfinityRenderPipelineRuntimeTextures textures;
-            if (GraphicsSettings.TryGetRenderPipelineSettings(out textures) && textures != null && textures.bestFitNormalTexture != null)
-            {
-                Shader.SetGlobalTexture("g_BestFitNormal_LUT", textures.bestFitNormalTexture);
-            }
             return renderPipeline;
         }
 

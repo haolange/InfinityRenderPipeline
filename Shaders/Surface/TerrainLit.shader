@@ -47,7 +47,7 @@ Shader "InfinityPipeline/TerrainLit"
 	
     SubShader
     {
-        Tags{ "Queue" = "Geometry-100" "RenderType" = "Opaque" "RenderPipeline" = "InfinityPipeline" "IgnoreProjector" = "false" "TerrainCompatible" = "True"}
+        Tags{ "Queue" = "Geometry-100" "RenderType" = "Opaque" "RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "false" "TerrainCompatible" = "True"}
 
         Pass
         {

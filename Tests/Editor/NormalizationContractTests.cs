@@ -31,8 +31,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                Object.DestroyImmediate(ssr);
-                Object.DestroyImmediate(ssao);
+                UnityEngine.Object.DestroyImmediate(ssr);
+                UnityEngine.Object.DestroyImmediate(ssao);
             }
         }
 
@@ -59,9 +59,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                Object.DestroyImmediate(bloom);
-                Object.DestroyImmediate(vignette);
-                Object.DestroyImmediate(grain);
+                UnityEngine.Object.DestroyImmediate(bloom);
+                UnityEngine.Object.DestroyImmediate(vignette);
+                UnityEngine.Object.DestroyImmediate(grain);
             }
         }
 
@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                Object.DestroyImmediate(film);
+                UnityEngine.Object.DestroyImmediate(film);
             }
         }
 
@@ -103,11 +103,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 camera.cameraType = CameraType.SceneView;
                 CameraDimensionDescriptor scene = CameraDimensionDescriptor.FromCamera(camera, asset, null);
                 Assert.IsFalse(scene.superResolution);
-                Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(cameraObject);
             }
             finally
             {
-                Object.DestroyImmediate(asset);
+                UnityEngine.Object.DestroyImmediate(asset);
             }
         }
 
@@ -125,7 +125,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
-                Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(cameraObject);
             }
         }
 

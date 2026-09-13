@@ -243,14 +243,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1, 1)]
         [TestCase(17, 13)]
         [TestCase(1919, 1079)]
-        public void ProductionOutputTransform_GrayTransferAndBoundary(int width, int height)
+        public void ProductionPresent_GrayTransferAndBoundary(int width, int height)
         {
-            Assert.IsTrue(SystemInfo.supportsComputeShaders && SystemInfo.supportsAsyncGPUReadback);
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/RenderingFeature/OutputTransform/Compute_OutputTransform.compute");
+            Assert.IsTrue(SystemInfo.supportsAsyncGPUReadback);
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(k_Root + "Shaders/Utility/DrawFullScreen.shader");
             Assert.IsNotNull(shader);
+            var material = new Material(shader);
+            int pass = material.FindPass("Present");
+            Assert.GreaterOrEqual(pass, 0);
             var input = new Texture2D(width, height, TextureFormat.RGBAFloat, false, true);
-            var target = new RenderTexture(width + 7, height + 7, 0, RenderTextureFormat.ARGBFloat)
-                { enableRandomWrite = true };
+            var target = new RenderTexture(width + 7, height + 7, 0, RenderTextureFormat.ARGBFloat);
             try
             {
                 var pixels = new Color[width * height];
@@ -262,22 +264,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 input.SetPixels(pixels); input.Apply(false, false);
                 Assert.IsTrue(target.Create());
-                int kernel = shader.FindKernel("OutputTransform");
-                shader.SetTexture(kernel, "SRV_GradedColor", input);
-                shader.SetTexture(kernel, "UAV_DisplayColor", target);
-                shader.SetVector("OT_Resolution", new Vector4(width, height, 1f / width, 1f / height));
-                shader.SetInt("OT_ApplyRec2020", 0);
-                shader.SetFloat("OT_NitsScale", 100);
+                material.SetTexture("_MainTex", input);
+                material.SetVector("_ScaleBais", new Vector4(1, 1, 0, 0));
                 for (int policy = 0; policy <= 4; policy++)
                 {
                     using (var commands = new CommandBuffer())
                     {
                         commands.SetRenderTarget(target);
                         commands.ClearRenderTarget(false, true, new Color(-7, -7, -7, -7));
+                        commands.SetViewport(new Rect(0, 0, width, height));
+                        material.SetVector("_InfinityOutputTransfer", new Vector4(policy, 0, 100, 0));
+                        commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, material, 0, pass);
                         Graphics.ExecuteCommandBuffer(commands);
                     }
-                    shader.SetInt("OT_Policy", policy);
-                    shader.Dispatch(kernel, (width + 7) / 8, (height + 7) / 8, 1);
                     float[] values = Read(target, "output-" + width + "x" + height + "-" + policy,
                         "Known linear Rec709 ramp 0/0.001/0.0031308/0.18/0.5/1/4; 1x1 uses 0.18. Padding sentinel -7. Hardware policy readback is pre-encoding linear, not backbuffer.");
                     for (int y = 0; y < height + 7; y++)
@@ -300,6 +299,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
                 UnityEngine.Object.DestroyImmediate(input);
+                UnityEngine.Object.DestroyImmediate(material);
             }
         }
 
@@ -314,9 +314,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var request = AsyncGPUReadback.Request(target, 0);
             request.WaitForCompletion();
             Assert.IsTrue(request.done && !request.hasError, "Raw GPU readback failed.");
-            string run = Path.GetFullPath(Path.Combine(Application.dataPath, "../../InfinityRP-Validation",
-                "color-gpu-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + label));
-            Directory.CreateDirectory(run);
             using var raw = new MemoryStream();
             for (int layer = 0; layer < request.layerCount; layer++)
             {
@@ -324,9 +321,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 raw.Write(layerBytes, 0, layerBytes.Length);
             }
             byte[] bytes = raw.ToArray();
-            File.WriteAllBytes(Path.Combine(run, "raw.bin"), bytes);
-            File.WriteAllText(Path.Combine(run, "fixture.txt"), $"Unity={Application.unityVersion}\nGPU={SystemInfo.graphicsDeviceName}\nAPI={SystemInfo.graphicsDeviceType}\nFormat={target.graphicsFormat}\nSize={target.width}x{target.height}x{target.volumeDepth}\n{input}\n");
-            TestContext.Progress.WriteLine(run);
+            TestContext.Progress.WriteLine($"{label}: {target.width}x{target.height}x{target.volumeDepth}, {target.graphicsFormat}. {input}");
             int scalarBytes = target.graphicsFormat == GraphicsFormat.R16G16B16A16_SFloat ? 2 : 4;
             Assert.AreEqual(target.width * target.height * target.volumeDepth * 4 * scalarBytes, bytes.Length,
                 "Readback must include every RGBA voxel, not only the first layer.");
@@ -334,7 +329,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (scalarBytes == 4) Buffer.BlockCopy(bytes, 0, values, 0, bytes.Length);
             else for (int i = 0; i < values.Length; i++) values[i] = Mathf.HalfToFloat(BitConverter.ToUInt16(bytes, i * 2));
             for (int i = 0; i < values.Length; i++)
-                if (float.IsNaN(values[i]) || float.IsInfinity(values[i])) Assert.Fail("Raw NaN/Inf at " + i + ": " + run);
+                if (float.IsNaN(values[i]) || float.IsInfinity(values[i])) Assert.Fail("Raw NaN/Inf at " + i + ": " + label);
             return values;
         }
     }

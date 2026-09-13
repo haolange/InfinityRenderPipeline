@@ -6,7 +6,8 @@
         "Unity.Collections",
         "Unity.Mathematics",
         "Unity.VisualEffectGraph.Runtime",
-        "Unity.RenderPipelines.Core.Runtime"
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.UnifiedRayTracing.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

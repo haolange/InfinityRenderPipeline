@@ -74,13 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute")]
         public ComputeShader postProcessingShader;
 
-        [ResourcePath("Shaders/RenderingFeature/OutputTransform/Compute_OutputTransform.compute")]
-        public ComputeShader outputTransformShader;
-
         [ResourcePath("Shaders/RenderingFeature/DebugView/Compute_DebugView.compute")]
         public ComputeShader debugViewShader;
-
-        [ResourcePath("Shaders/RenderingFeature/RayTracing/Compute_RayTracedAmbientOcclusion.compute")]
-        public ComputeShader rtaoShader;
     }
 }

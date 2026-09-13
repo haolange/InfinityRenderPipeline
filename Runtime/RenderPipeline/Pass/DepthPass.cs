@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderDepth(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Depth);
-            TextureDescriptor depthTextureDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
+            TextureDescriptor depthTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
             {
                 depthTextureDsc.name = DepthPassUtilityData.TextureName;
                 depthTextureDsc.dimension = TextureDimension.Tex2D;

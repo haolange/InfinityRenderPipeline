@@ -30,8 +30,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
 
             TextureDescriptor dBufferADsc = new TextureDescriptor(width, height);
             {

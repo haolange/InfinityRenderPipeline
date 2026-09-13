@@ -347,7 +347,7 @@ namespace InfinityTech.Rendering.RenderGraph
         // The backbuffer has no owning RenderTexture, so it can only be bound as a RenderTargetIdentifier.
         // Imported resources skip Create/Release, which keeps the single RTHandle wrapper valid across frames.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in int shaderProperty = 0)
+        internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in TextureDescriptor descriptor, in int shaderProperty = 0)
         {
             // RTHandle.SetTexture is internal to CoreRP, so rebinding is done by reallocating on identifier change.
             if (m_Backbuffer == null || !m_BackbufferIdentifier.Equals(backBuffer))
@@ -363,6 +363,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
             int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Texture], out RGTexture texResource);
             texResource.resource = m_Backbuffer;
+            texResource.descriptor = descriptor;
             texResource.imported = true;
             texResource.shaderProperty = shaderProperty;
             return new RGTextureRef(newHandle);

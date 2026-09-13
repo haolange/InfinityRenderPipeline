@@ -21,12 +21,12 @@ Completed (record path; image quality stays `TODO(UNVERIFIED)` unless a capture 
 - TemporalAA (jitter-free motion, direct-texel history)
 - RenderGraph (custom RGBuilder + async compute hooks)
 - Screen-space GI / reflection (RayMarch → Spatial → Temporal → Bilateral + Composite)
-- Ground-truth ambient occlusion (Trace → SpatialX/Y → Temporal → Upsample)
+- Ground-truth ambient occlusion (Trace → SpatialX/Y → Temporal → Upsample); RTAO records UnifiedRayTracing visibility when the Volume is active, otherwise GTAO owns AO
 - Atmosphere LUT + IBL (Profile-only; Shared / View / IBL caches)
 - Z-Binning tile / z-bin light lists
 - Volumetric fog and cloud (after T0 depth) + FogComposite
 - Translucent T0 / T1 refraction / T2
-- Exposure / Bloom / CombineLUT / Vignette / FilmGrain / OutputTransform
+- Exposure / Bloom / CombineLUT / Vignette / FilmGrain / final Present encoding
 - Instanced terrain / runtime virtual texture / foliage systems (separate from MeshScene)
 - **Mesh Drawing Pipeline** — `MeshScene` SoA + RDG `RGDrawListRef` + CPU/GPU backends (per-payload indirect, Auto fallback); Motion / CascadeShadow / LocalShadow (Spot + Point **6-face**) MeshDraw; instance-indexed GPU cull (compact → transform); exclusive TransformId 1:1 ownership; shared `renderingLayer` (`ERenderingLayer : byte` flags); shadow MeshDraw uses `light.cullingMask` + `shadowLayer`; no HZB / GPU radix sort / full GPU LOD in this closed slice
 

@@ -233,14 +233,14 @@ Phase 7  TranslucentDepth → VolCloud (+ history) → VolFog (+ history)
          → T0 → ColorPyramid → T1 → T2
 Phase 8  TAA or SuperResolution (+ history) → Post (Exposure → Bloom → CombineLUT
          → Vignette → FilmGrain) → DebugView → Gizmo/WireOverlay (linear PostProcessBuffer)
-         → OutputTransform → DisplayColorBuffer → Present
+         → DisplayColorBuffer (display-linear) → Game-display UIOverlay → Present (transfer encoding)
 ```
 
 Contracts that stay locked:
 
 - Atmosphere lives only on `AtmosphericalProfile`. Volume does not override it.
 - History lives only in `HistoryCache`. CopyHistory is Transfer `CopyTexture` after the producer.
-- `DisplayColorBuffer` is the present source. OutputTransform is the single transfer-encoding owner.
+- `DisplayColorBuffer` is display-linear and is the sole Present source. Final Present owns transfer encoding.
 - Present stays Raster. Gizmo / WireOverlay / Present disable native RP for API reasons only.
 - Hardware RT, Baked GI, DOF, SR expansion, XR, MSAA, and dynamic resolution are out of this delivery.
 
@@ -252,7 +252,7 @@ Project-wide resources and the default Volume profile live on `InfinityRenderPip
 
 Pipeline creation requires a complete default Volume registry. The constructor calls `VolumeManager.Initialize(defaultProfile, qualityProfile)` once; disposal deinitializes that manager and restores process-global graphics flags captured at construction. Required color/exposure consumers read the resolved camera stack. Optional features record when `IsActive()` is true. CombineLUT has no inactive-component constant fallback. Atmosphere remains separately owned by AtmosphericalProfile.
 
-OutputTransform resolves the backbuffer format in this order (first hit wins; `GraphicsFormat.None` is not a hit):
+The Present output decision resolves the target format in this order (first hit wins; `GraphicsFormat.None` is not a hit):
 
 1. `camera.targetTexture.graphicsFormat`
 2. `camera.activeTexture.graphicsFormat`
@@ -261,7 +261,7 @@ OutputTransform resolves the backbuffer format in this order (first hit wins; `G
 
 All missing throws at record time. HDR `HDROutputSettings.graphicsFormat` and `SystemInfo.GetGraphicsFormat(DefaultFormat.LDR)` are not authorities.
 
-Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before OutputTransform, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. OutputTransform remains the single transfer-encoding owner; `DisplayColorBuffer` remains the present source.
+Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before final Present, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. Present remains the single transfer-encoding owner; `DisplayColorBuffer` remains the present source.
 
 ## 17. DebugView, Rendering Debugger, and SceneView temporal gating
 
@@ -279,12 +279,12 @@ SceneView uses the full pipeline. Volume selection on SceneView uses the unique 
 | Camera Volume mask/trigger, SR override | `InfinityAdditionalCameraData` |
 | Light layers, weights, volumetric, contact, distance | `InfinityAdditionalLightData` |
 | DebugView / Volume dump / Mesh stats | Rendering Debugger |
-| Screen Space Overlay UI | `DrawUIOverlay` after OutputTransform |
+| Screen Space Overlay UI | `CreateUIOverlayRendererList` on display-linear color before Present, only for Game cameras without a target texture |
 | Screen Space Camera / World Space UI, particles, lines | Translucent RendererList |
 
 GameObject Camera/Light creation and the Infinity inspectors auto-add additional data with Undo. `GameObject > Create` default materials come from the RP Asset (`defaultMaterial`, `defaultParticleMaterial`, `defaultLineMaterial`, `defaultTerrainMaterial`, `default2DMaterial`).
 
-Hardware ray tracing (`RayTracingShader`) is D3D12/console only. RTAO uses CoreRP `UnifiedRayTracing` (hardware on D3D12, compute BVH on Metal). `SystemInfo.supportsRayTracing` is not a Metal capability claim.
+Hardware ray tracing (`RayTracingShader`) is D3D12/console only. RTAO records a UnifiedRayTracing visibility pass (`VisibilityRTAO.urtshader` + `IRayTracingAccelStruct`) when the Volume is active and the context/accel/shader are ready. Otherwise it does not record and GTAO owns AO. `SystemInfo.supportsRayTracing` is not a Metal capability claim; Metal uses the URT compute backend. Player shader load and D3D12 hardware remain `TODO(UNVERIFIED)`.
 
 
 ## Rendering integration and serialized-asset authority
@@ -307,7 +307,7 @@ CoreRP 17.6 uses reflection to enumerate Volume types in Editor, but Player deri
 
 ### Native SDR display transfer authority (N02 candidate)
 
-A Player camera targeting a native Display need not expose a RenderTexture. Its sRGB conversion requirement comes from that target display's `requiresSrgbBlitToBackbuffer`, not from a guessed default texture format. Output decisions retain `backbufferFormat=None` and `displayTransferAuthority=true` when only this transfer capability is known. Linear projects use hardware conversion when the display supports it, otherwise OutputTransform performs LinearToSRGB. Camera RenderTexture and Editor surfaces retain their observed texture-format path. Missing or invalid RG texture resources still fail; an unknown native display pixel format is tracked separately from a valid display transfer decision. Native Metal pixel-format capture passed N03; full output image contracts remain N05 work.
+A Player camera targeting a native Display need not expose a RenderTexture. Its sRGB conversion requirement comes from that target display's `requiresSrgbBlitToBackbuffer`, not from a guessed default texture format. Output decisions retain `backbufferFormat=None` and `displayTransferAuthority=true` when only this transfer capability is known. Linear projects use hardware conversion when the display supports it, otherwise Present performs LinearToSRGB. Camera RenderTexture and Editor surfaces retain their observed texture-format path. Missing or invalid RG texture resources still fail; an unknown native display pixel format is tracked separately from a valid display transfer decision. Native Metal pixel-format capture passed N03; full output image contracts remain N05 work.
 
 ## Normal-frame capture ownership
 

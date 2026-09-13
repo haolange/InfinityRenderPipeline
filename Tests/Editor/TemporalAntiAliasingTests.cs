@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 Camera camera = go.AddComponent<Camera>();
                 frameState = new CameraFrameState(7);
-                frameState.cameraUniform.UpdateCurrFrameData(camera);
+                frameState.cameraUniform.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
 
                 Assert.IsTrue(frameState.cameraUniform.historyReset);
                 Assert.AreEqual(0.0f, frameState.cameraUniform.jitter.x);
@@ -46,15 +46,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 Camera camera = go.AddComponent<Camera>();
                 CameraUniform uniform = new CameraUniform();
-                uniform.UpdateCurrFrameData(camera);
+                uniform.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
                 uniform.Commit();
 
                 Assert.IsFalse(CameraFrameState.ShouldForceHistoryReset(false, 10, 11, cameraType: CameraType.Game));
-                uniform.UpdateCurrFrameData(camera, forceHistoryReset: false);
+                uniform.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight), forceHistoryReset: false);
                 Assert.IsFalse(uniform.historyReset);
 
                 Assert.IsTrue(CameraFrameState.ShouldForceHistoryReset(false, 10, 12, cameraType: CameraType.Game));
-                uniform.UpdateCurrFrameData(camera, forceHistoryReset: true);
+                uniform.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight), forceHistoryReset: true);
                 Assert.IsTrue(uniform.historyReset);
                 Assert.AreEqual(0.0f, uniform.jitter.x);
                 Assert.AreEqual(0.0f, uniform.jitter.y);

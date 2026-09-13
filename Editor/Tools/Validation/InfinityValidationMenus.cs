@@ -75,73 +75,11 @@ namespace InfinityTech.Rendering.Editor.Validation
         [MenuItem(MenuRoot + "Validate Default Volume Profile", false, 49)]
         public static void ValidateDefaultVolumeProfile()
         {
-            InfinityRenderPipelineGlobalSettings.Ensure();
-            DefaultVolumeProfileFactory.AssignDefaultToGlobalSettings();
+            InfinityRenderPipelineGlobalSettings.Require();
             VolumeProfile profile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
-            DefaultVolumeProfileFactory.ValidateAndComplete(profile);
-            InfinityRenderPipelineAsset pipelineAsset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            AssetDatabase.SaveAssets();
-            RebuildActiveInfinityPipeline(pipelineAsset);
-            Debug.Log($"[InfinityRP] Default Volume Profile validated: {DefaultVolumeProfileFactory.AssetPath}");
-        }
-
-        static void RebuildActiveInfinityPipeline(InfinityRenderPipelineAsset pipelineAsset)
-        {
-            if (pipelineAsset == null)
-            {
-                return;
-            }
-
-            RenderPipelineAsset defaultPipeline = GraphicsSettings.defaultRenderPipeline ?? pipelineAsset;
-            RenderPipelineAsset qualityPipeline = QualitySettings.renderPipeline;
-
-            GraphicsSettings.defaultRenderPipeline = defaultPipeline;
-            if (qualityPipeline != null)
-            {
-                QualitySettings.renderPipeline = qualityPipeline;
-            }
-
-            if (CustomDefaultsInclude(InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile()))
-            {
-                return;
-            }
-
-            try
-            {
-                if (qualityPipeline != null)
-                {
-                    QualitySettings.renderPipeline = null;
-                }
-
-                GraphicsSettings.defaultRenderPipeline = null;
-            }
-            finally
-            {
-                GraphicsSettings.defaultRenderPipeline = defaultPipeline;
-                if (qualityPipeline != null)
-                {
-                    QualitySettings.renderPipeline = qualityPipeline;
-                }
-            }
-        }
-
-        static bool CustomDefaultsInclude(VolumeProfile profile)
-        {
-            if (profile == null || !VolumeManager.instance.isInitialized ||
-                VolumeManager.instance.customDefaultProfiles == null)
-            {
-                return false;
-            }
-
-            for (int i = 0; i < VolumeManager.instance.customDefaultProfiles.Count; ++i)
-            {
-                if (VolumeManager.instance.customDefaultProfiles[i] == profile)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            if (!DefaultVolumeProfileFactory.HasRequiredDefaultComponents(profile))
+                throw new InvalidOperationException("InfinityRP: default profile is incomplete or required overrides are disabled. Use Graphics Settings for explicit authoring.");
+            Debug.Log($"[InfinityRP] Default Volume Profile is valid: {AssetDatabase.GetAssetPath(profile)}");
         }
 
         static string FormatCustomDefaultProfileNames()
@@ -172,7 +110,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         {
             if (!VolumeManager.instance.isInitialized)
             {
-                VolumeManager.instance.Initialize(null, null);
+                throw new InvalidOperationException("InfinityRP: no initialized VolumeManager to inspect.");
             }
 
             StringBuilder builder = new StringBuilder();
@@ -367,91 +305,6 @@ namespace InfinityTech.Rendering.Editor.Validation
             Debug.Log("[InfinityRP][Validation] Play=off");
         }
 
-        [MenuItem(MenuRoot + "Upgrade Atmospherical Profile", false, 57)]
-        public static void UpgradeAtmosphericalProfile()
-        {
-            InfinityRenderPipelineAsset asset = GraphicsSettings.currentRenderPipeline as InfinityRenderPipelineAsset;
-            if (asset == null)
-            {
-                throw new InvalidOperationException("InfinityRP Validation: current render pipeline is not InfinityRenderPipelineAsset.");
-            }
-
-            HashSet<AtmosphericalProfile> profiles = new HashSet<AtmosphericalProfile>();
-            string[] guids = AssetDatabase.FindAssets("t:AtmosphericalProfile", new[] { "Assets" });
-            for (int i = 0; i < guids.Length; ++i)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                AtmosphericalProfile found = AssetDatabase.LoadAssetAtPath<AtmosphericalProfile>(path);
-                if (found != null)
-                {
-                    profiles.Add(found);
-                }
-            }
-
-            if (asset.atmosphericalProfile != null)
-            {
-                profiles.Add(asset.atmosphericalProfile);
-            }
-
-            if (profiles.Count == 0)
-            {
-                const string profilePath = "Assets/Profile/AtmosphericalProfile.asset";
-                Directory.CreateDirectory(Path.Combine(Application.dataPath, "Profile"));
-                AtmosphericalProfile created = ScriptableObject.CreateInstance<AtmosphericalProfile>();
-                created.ResetToEarth();
-                AssetDatabase.CreateAsset(created, profilePath);
-                profiles.Add(created);
-            }
-
-            bool anyChanged = false;
-            foreach (AtmosphericalProfile profile in profiles)
-            {
-                List<string> changedFields = new List<string>();
-                Undo.RecordObject(profile, "Upgrade Atmospherical Profile");
-                bool changed = profile.UpgradeOutOfRangeToEarth(changedFields);
-                string assetPath = AssetDatabase.GetAssetPath(profile);
-                if (string.IsNullOrEmpty(assetPath))
-                {
-                    assetPath = profile.name;
-                }
-
-                if (changed)
-                {
-                    EditorUtility.SetDirty(profile);
-                    anyChanged = true;
-                    Debug.Log($"[InfinityRP][Validation] {assetPath} upgraded: {string.Join(", ", changedFields)}");
-                }
-                else
-                {
-                    Debug.Log($"[InfinityRP][Validation] {assetPath} already within Earth physical ranges.");
-                }
-            }
-
-            if (asset.atmosphericalProfile == null)
-            {
-                AtmosphericalProfile assign = null;
-                foreach (AtmosphericalProfile profile in profiles)
-                {
-                    assign = profile;
-                    break;
-                }
-
-                if (assign != null)
-                {
-                    Undo.RecordObject(asset, "Assign Atmospherical Profile");
-                    asset.atmosphericalProfile = assign;
-                    EditorUtility.SetDirty(asset);
-                    anyChanged = true;
-                }
-            }
-
-            AssetDatabase.SaveAssets();
-            if (!anyChanged)
-            {
-                Debug.Log("[InfinityRP][Validation] AtmosphericalProfile upgrade complete. No out-of-range fields.");
-            }
-        }
-
         [MenuItem(MenuRoot + "Dump Local Lights State", false, 56)]
         public static void DumpLocalLightsState()
         {
@@ -544,11 +397,11 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 InfinityAdditionalLightData light = lights[i];
                 builder.Append("  light=").Append(light.name);
-                Light unityLight = light.unityLight != null ? light.unityLight : light.GetComponent<Light>();
-                builder.Append(" type=").Append(unityLight != null ? unityLight.type.ToString() : "null");
-                builder.Append(" intensity=").Append(unityLight != null ? unityLight.intensity.ToString() : "null");
-                builder.Append(" shadows=").Append(unityLight != null ? unityLight.shadows.ToString() : "null");
-                builder.Append(" unityLight=").Append(unityLight != null);
+                Light attached = light.attachedLight != null ? light.attachedLight : light.GetComponent<Light>();
+                builder.Append(" type=").Append(attached != null ? attached.type.ToString() : "null");
+                builder.Append(" intensity=").Append(attached != null ? attached.intensity.ToString() : "null");
+                builder.Append(" shadows=").Append(attached != null ? attached.shadows.ToString() : "null");
+                builder.Append(" attachedLight=").Append(attached != null);
                 builder.Append(" enabled=").Append(light.isActiveAndEnabled);
                 builder.AppendLine();
             }

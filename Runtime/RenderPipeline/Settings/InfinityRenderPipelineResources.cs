@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public InfinityRenderPipelineResources()
         {
-            InfinityRenderPipelineGlobalSettings.Ensure();
+            InfinityRenderPipelineGlobalSettings.Require();
 
             if (!GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeShaders resolvedShaders) || resolvedShaders == null)
                 throw new InvalidOperationException("InfinityRP: RuntimeShaders are not registered on GlobalSettings.");
@@ -26,6 +26,12 @@ namespace InfinityTech.Rendering.Pipeline
             textures = resolvedTextures;
             materials = resolvedMaterials;
             defaultVolumeProfile = InfinityRenderPipelineGlobalSettings.ResolveDefaultVolumeProfile();
+            if (textures.bestFitNormalTexture == null)
+                throw new InvalidOperationException("InfinityRP: GlobalSettings RuntimeTextures.bestFitNormalTexture is required.");
+            if (materials.blitMaterial == null)
+                throw new InvalidOperationException("InfinityRP: GlobalSettings RuntimeMaterials.blitMaterial is required.");
+            if (!DefaultVolumeProfileFactory.HasRequiredDefaultComponents(defaultVolumeProfile))
+                throw new InvalidOperationException("InfinityRP: default Volume profile is incomplete or its required component overrides are disabled.");
         }
     }
 }

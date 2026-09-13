@@ -10,11 +10,12 @@ namespace InfinityTech.Rendering.Pipeline
         struct UIOverlayPassData
         {
             public RendererList rendererList;
+            public Vector4 screenParams;
         }
 
         void RenderUIOverlay(RenderContext renderContext, Camera camera)
         {
-            if (camera.cameraType != CameraType.Game && camera.cameraType != CameraType.SceneView)
+            if (camera.cameraType != CameraType.Game || camera.targetTexture != null)
             {
                 return;
             }
@@ -29,8 +30,11 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref UIOverlayPassData passData = ref passRef.GetPassData<UIOverlayPassData>();
                 passData.rendererList = overlay;
+                var size = m_ActiveFrameState.dimensions.displaySize;
+                passData.screenParams = new Vector4(size.x, size.y, 1f + 1f / size.x, 1f + 1f / size.y);
                 passRef.SetExecuteFunc((in UIOverlayPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
+                    cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }

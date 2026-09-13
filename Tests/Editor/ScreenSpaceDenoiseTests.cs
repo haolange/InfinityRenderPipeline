@@ -75,6 +75,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             string source = File.ReadAllText(passPath);
             Assert.IsTrue(source.Contains("TryQueryTexture(InfinityShaderIDs.OcclusionBuffer"));
             Assert.IsFalse(source.Contains("QueryTexture(InfinityShaderIDs.OcclusionBuffer)"));
+            Assert.IsTrue(source.Contains("TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer"));
+            Assert.IsFalse(source.Contains("QueryTexture(InfinityShaderIDs.ContactShadowBuffer)"));
         }
 
         [Test]

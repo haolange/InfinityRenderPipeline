@@ -1,6 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Component;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Pipeline;
 
@@ -13,19 +14,14 @@ namespace InfinityTech.Component.Editor
     {
         SerializedObject m_Additional;
 
-        void OnEnable() => BindAdditional();
+        void OnEnable() => EnsureAdditional();
 
-        void BindAdditional()
+        void EnsureAdditional()
         {
             var extras = new Object[targets.Length];
             for (int i = 0; i < targets.Length; ++i)
             {
-                extras[i] = ((Light)targets[i]).GetComponent<InfinityAdditionalLightData>();
-                if (extras[i] == null)
-                {
-                    m_Additional = null;
-                    return;
-                }
+                extras[i] = InfinityAdditionalLightData.GetOrCreate((Light)targets[i], true);
             }
             m_Additional = new SerializedObject(extras);
         }
@@ -76,18 +72,7 @@ namespace InfinityTech.Component.Editor
             serializedObject.ApplyModifiedProperties();
 
             if (m_Additional == null)
-            {
-                if (GUILayout.Button("Add Infinity Light Settings"))
-                {
-                    foreach (Object item in targets)
-                    {
-                        InfinityAdditionalLightData.GetOrCreate((Light)item, true);
-                    }
-                    BindAdditional();
-                }
-                return;
-            }
-
+                EnsureAdditional();
             m_Additional.Update();
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Infinity", EditorStyles.boldLabel);

@@ -3,6 +3,7 @@
   "references": [
     "Unity.RenderPipelines.Infinity.Runtime",
     "Unity.RenderPipelines.Infinity.Editor",
+    "Unity.RenderPipelines.Core.Runtime",
     "Unity.Pipeline",
     "Unity.Pipeline.Editor"
   ],

@@ -1,0 +1,78 @@
+#pragma only_renderers d3d11 vulkan metal glcore
+
+#define UNIFIED_RT_GROUP_SIZE_X 8
+#define UNIFIED_RT_GROUP_SIZE_Y 8
+#define UNIFIED_RT_RAYGEN_FUNC RTAOTrace
+
+#include "Packages/com.unity.render-pipelines.core/Runtime/UnifiedRayTracing/TraceRayAndQueryHit.hlsl"
+
+UNIFIED_RT_DECLARE_ACCEL_STRUCT(g_SceneAccelStruct);
+
+Texture2D<float> SRV_DepthTexture;
+Texture2D<float4> SRV_NormalTexture;
+Texture2D<float4> SRV_GBufferTextureC;
+RWTexture2D<float> UAV_OcclusionTexture;
+
+float4 RTAO_Resolution;
+int RTAO_NumRays;
+float RTAO_Radius;
+float4x4 Matrix_InvViewFlipYJitterProj;
+
+float Hash21(uint2 p)
+{
+    uint n = p.x * 1973u + p.y * 9277u + 26699u;
+    n = (n << 13u) ^ n;
+    return float((n * (n * n * 15731u + 789221u) + 1376312589u) & 0x7fffffffu) / 2147483648.0;
+}
+
+float3 CosineHemisphere(float2 u, float3 n)
+{
+    float r = sqrt(u.x);
+    float phi = 6.2831853 * u.y;
+    float3 t = abs(n.z) < 0.999 ? float3(0, 0, 1) : float3(1, 0, 0);
+    float3 b = normalize(cross(t, n));
+    t = cross(n, b);
+    return normalize(t * (r * cos(phi)) + b * (r * sin(phi)) + n * sqrt(max(0.0, 1.0 - u.x)));
+}
+
+void RTAOTrace(UnifiedRT::DispatchInfo dispatchInfo)
+{
+    uint2 id = dispatchInfo.dispatchThreadID.xy;
+    uint2 size = uint2((uint)RTAO_Resolution.x, (uint)RTAO_Resolution.y);
+    if (any(id >= size))
+        return;
+
+    float depth = SRV_DepthTexture[id].r;
+    uint packedC = (uint)(SRV_GBufferTextureC[id].r * 255.0 + 0.5);
+    bool valid = (packedC & (4u << 4)) != 0;
+    if (depth == 0.0 || !valid)
+    {
+        UAV_OcclusionTexture[id] = 1.0;
+        return;
+    }
+
+    float2 uv = (float2(id) + 0.5) * RTAO_Resolution.zw;
+    float4 clip = float4(uv * 2.0 - 1.0, depth, 1.0);
+    float4 worldH = mul(Matrix_InvViewFlipYJitterProj, clip);
+    float3 worldPos = worldH.xyz / max(worldH.w, 1e-6);
+    float3 normal = normalize(SRV_NormalTexture[id].xyz * 2.0 - 1.0);
+
+    UnifiedRT::RayTracingAccelStruct accel = UNIFIED_RT_GET_ACCEL_STRUCT(g_SceneAccelStruct);
+    int rays = max(1, RTAO_NumRays);
+    float occluded = 0.0;
+    for (int i = 0; i < rays; ++i)
+    {
+        float2 u = float2(
+            Hash21(id + uint2((uint)i * 17u, 3u)),
+            Hash21(id + uint2(5u, (uint)i * 29u)));
+        UnifiedRT::Ray ray;
+        ray.origin = worldPos + normal * 0.002;
+        ray.direction = CosineHemisphere(u, normal);
+        ray.tMin = 0.0;
+        ray.tMax = RTAO_Radius;
+        if (UnifiedRT::TraceRayAnyHit(dispatchInfo, accel, 0xFFu, ray, 0u))
+            occluded += 1.0;
+    }
+
+    UAV_OcclusionTexture[id] = 1.0 - (occluded / (float)rays);
+}

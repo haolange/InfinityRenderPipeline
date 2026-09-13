@@ -17,16 +17,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var camera = go.AddComponent<Camera>();
                 camera.transform.SetPositionAndRotation(new Vector3(2, 4, -8), Quaternion.Euler(13, 27, 0));
                 var data = new CameraUniform();
-                data.UpdateCurrFrameData(camera);
+                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
                 Assert.IsTrue(data.historyReset);
                 Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
                 Assert.AreEqual(data.matrix_ViewFlipYJitterProj, data.matrix_LastViewFlipYJitterProj);
-                data.UpdateCurrFrameData(camera);
+                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
                 Assert.IsTrue(data.historyReset, "A preparation is not a successful history commit.");
                 data.Commit();
-                data.UpdateCurrFrameData(camera);
+                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight));
                 Assert.IsFalse(data.historyReset);
-                data.UpdateCurrFrameData(camera, true);
+                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(camera.pixelWidth, camera.pixelHeight), true);
                 Assert.IsTrue(data.historyReset);
                 Assert.AreEqual(data.matrix_ViewProj, data.matrix_LastViewProj);
             }

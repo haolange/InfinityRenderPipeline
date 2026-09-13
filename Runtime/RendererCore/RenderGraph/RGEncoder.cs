@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.UnifiedRayTracing;
 using System.Collections.Generic;
 using InfinityTech.Rendering.Pipeline;
 
@@ -621,6 +622,46 @@ namespace InfinityTech.Rendering.RenderGraph
         public void DispatchRays(RayTracingShader rayTracingShader, string rayGenName, GraphicsBuffer argsBuffer, in uint argsOffset, Camera camera)
         {
             m_CommandBuffer.DispatchRays(rayTracingShader, rayGenName, argsBuffer, argsOffset, camera);
+        }
+
+        public void BuildUnifiedAccel(IRayTracingAccelStruct accel, GraphicsBuffer scratch)
+        {
+            accel.Build(m_CommandBuffer, scratch);
+        }
+
+        public void SetUnifiedAccelerationStructure(IRayTracingShader shader, string name, IRayTracingAccelStruct accel)
+        {
+            shader.SetAccelerationStructure(m_CommandBuffer, name, accel);
+        }
+
+        public void SetUnifiedInt(IRayTracingShader shader, int nameID, int val)
+        {
+            shader.SetIntParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedFloat(IRayTracingShader shader, int nameID, float val)
+        {
+            shader.SetFloatParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedVector(IRayTracingShader shader, int nameID, Vector4 val)
+        {
+            shader.SetVectorParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedMatrix(IRayTracingShader shader, int nameID, Matrix4x4 val)
+        {
+            shader.SetMatrixParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedTexture(IRayTracingShader shader, int nameID, RenderTargetIdentifier rt)
+        {
+            shader.SetTextureParam(m_CommandBuffer, nameID, rt);
+        }
+
+        public void DispatchUnified(IRayTracingShader shader, GraphicsBuffer scratch, uint width, uint height, uint depth)
+        {
+            shader.Dispatch(m_CommandBuffer, scratch, width, height, depth);
         }
     }
 

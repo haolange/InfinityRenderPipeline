@@ -5,7 +5,7 @@ using InfinityTech.Rendering.PostProcess;
 
 namespace InfinityTech.Rendering.Editor
 {
-    [VolumeComponentEditor(typeof(ColorGrading))]
+    [CustomEditor(typeof(ColorGrading))]
     sealed class ColorGradingEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Temp;
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(FilmTonemap))]
+    [CustomEditor(typeof(FilmTonemap))]
     sealed class FilmTonemapEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Mode, m_Slope, m_Toe, m_Shoulder, m_Black, m_White;
@@ -93,7 +93,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(Exposure))]
+    [CustomEditor(typeof(Exposure))]
     sealed class ExposureEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Mode, m_Ev, m_Adapt, m_Low, m_High;
@@ -119,7 +119,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(SubsurfaceScattering))]
+    [CustomEditor(typeof(SubsurfaceScattering))]
     sealed class SubsurfaceScatteringEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_Samples;
@@ -139,7 +139,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(RayTracingAmbientOcclusion))]
+    [CustomEditor(typeof(RayTracingAmbientOcclusion))]
     sealed class RayTracingAmbientOcclusionEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_Radius, m_Rays;
@@ -162,7 +162,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(Bloom))]
+    [CustomEditor(typeof(Bloom))]
     sealed class BloomEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Threshold, m_Intensity, m_Scatter;
@@ -181,7 +181,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(Vignette))]
+    [CustomEditor(typeof(Vignette))]
     sealed class VignetteEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Intensity, m_Smoothness;
@@ -198,7 +198,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(FilmGrain))]
+    [CustomEditor(typeof(FilmGrain))]
     sealed class FilmGrainEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Intensity, m_Response;
@@ -215,7 +215,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(ScreenSpaceReflection))]
+    [CustomEditor(typeof(ScreenSpaceReflection))]
     sealed class ScreenSpaceReflectionEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_NumRays, m_NumSteps, m_Bias, m_Fade, m_Roughness;
@@ -239,7 +239,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(ScreenSpaceIndirectDiffuse))]
+    [CustomEditor(typeof(ScreenSpaceIndirectDiffuse))]
     sealed class ScreenSpaceIndirectDiffuseEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_NumRays, m_Intensity;
@@ -260,7 +260,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(ScreenSpaceAmbientOcclusion))]
+    [CustomEditor(typeof(ScreenSpaceAmbientOcclusion))]
     sealed class ScreenSpaceAmbientOcclusionEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_Rays, m_Steps, m_Power, m_Radius, m_Intensity, m_Sharpness;
@@ -282,7 +282,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(VolumetricFog))]
+    [CustomEditor(typeof(VolumetricFog))]
     sealed class VolumetricFogEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_Density, m_Height, m_Falloff, m_Albedo, m_Aniso, m_Ambient, m_Slices, m_Distance, m_Temporal;
@@ -308,7 +308,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(VolumetricCloud))]
+    [CustomEditor(typeof(VolumetricCloud))]
     sealed class VolumetricCloudEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_Bottom, m_Thickness, m_Density, m_Shape, m_Erosion, m_Aniso, m_Silver, m_Spread, m_Ambient, m_Primary, m_Light, m_Temporal;
@@ -337,7 +337,7 @@ namespace InfinityTech.Rendering.Editor
         }
     }
 
-    [VolumeComponentEditor(typeof(ContactShadow))]
+    [CustomEditor(typeof(ContactShadow))]
     sealed class ContactShadowEditor : VolumeComponentEditor
     {
         SerializedDataParameter m_Enable, m_Steps, m_Distance, m_Thickness, m_Intensity, m_Fade;

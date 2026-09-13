@@ -173,10 +173,17 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException($"InfinityRP: DebugView is active but FindKernel({kernelName}) failed.");
             }
 
+            var debugDescriptor = m_RGBuilder.GetTextureDescriptor(postProcessTexture);
+            debugDescriptor.name = "DebugDisplayTexture";
+            debugDescriptor.colorFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat;
+            debugDescriptor.enableRandomWrite = true;
+            m_RGScoper.MoveTexture(InfinityShaderIDs.PostProcessBuffer, InfinityShaderIDs.PreDebugColorBuffer);
+            postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
+
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
             {
                 ref DebugViewPassData passData = ref passRef.GetPassData<DebugViewPassData>();
-                passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
+                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.mode = (int)view;
                 passData.kernelIndex = kernelIndex;
                 passData.bindSet = bindSet;
@@ -203,7 +210,6 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.optionalTexture = passRef.ReadTexture(optionalTexture);
                 }
 
-                passRef.ReadTexture(postProcessTexture);
                 passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);
 
                 passRef.EnablePassCulling(false);

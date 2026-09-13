@@ -57,6 +57,11 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
+        struct PostBypassPassData
+        {
+            public RGTextureRef source, output;
+        }
+
         struct BloomPassData
         {
             public int2 resolution;
@@ -144,16 +149,36 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: PostProcess has no scene color input (AntiAliasing/SuperResolution/FoggedSceneColor).");
             }
 
+            if (!frameState.postProcessingEnabled)
+            {
+                var descriptor = m_RGBuilder.GetTextureDescriptor(sceneColorTexture);
+                descriptor.name = "PostProcessTexture";
+                RGTextureRef output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, descriptor);
+                using (var pass = m_RGBuilder.AddTransferPass<PostBypassPassData>(ProfilingSampler.Get(CustomSamplerId.CopyPostProcessInput)))
+                {
+                    ref var data = ref pass.GetPassData<PostBypassPassData>();
+                    data.source = pass.ReadTexture(sceneColorTexture);
+                    data.output = pass.WriteTexture(output);
+                    pass.SetExecuteFunc((in PostBypassPassData data, in RGTransferEncoder commands, RGObjectPool pool) =>
+                    {
+                        commands.CopyTexture(data.source, data.output);
+                    });
+                }
+                frameState.exposureState.evCompensation = 0;
+                MarkFeatureProduced(EFrameFeature.PostProcess);
+                return;
+            }
+
             if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.CombineLookupTexture, out RGTextureRef combineLUT))
             {
                 throw new InvalidOperationException("InfinityRP: PostProcess requires CombineLookupTexture.");
             }
 
             PostVolumeState volumes = ResolvePostVolumeState(frameState);
-            frameState.exposureState.evCompensation = ExposureUtility.ResolveCpuEvCompensation(frameState.volumeStack.GetComponent<Exposure>());
+            frameState.exposureState.evCompensation = frameState.sceneLightingEnabled ? ExposureUtility.ResolveCpuEvCompensation(frameState.volumeStack.GetComponent<Exposure>()) : 0;
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.displaySize.x;
+            int height = m_ActiveFrameState.dimensions.displaySize.y;
 
             TextureDescriptor postProcessDsc = new TextureDescriptor(width, height);
             postProcessDsc.name = PostProcessingPassUtilityData.TextureName;
@@ -201,7 +226,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             MarkFeatureProduced(EFrameFeature.PostProcess);
-            ComputeDebugView(camera);
         }
 
         static PostVolumeState ResolvePostVolumeState(CameraFrameState frameState)
@@ -213,8 +237,8 @@ namespace InfinityTech.Rendering.Pipeline
             FilmGrain filmGrain = stack.GetComponent<FilmGrain>();
 
             PostVolumeState state = default;
-            state.recordAutoExposure = ExposureUtility.ShouldRecordAuto(exposure);
-            state.exposureMultiplier = ExposureUtility.EvToMultiplier(ExposureUtility.ResolveCpuEvCompensation(exposure));
+            state.recordAutoExposure = frameState.sceneLightingEnabled && ExposureUtility.ShouldRecordAuto(exposure);
+            state.exposureMultiplier = frameState.sceneLightingEnabled ? ExposureUtility.EvToMultiplier(ExposureUtility.ResolveCpuEvCompensation(exposure)) : 1;
             state.autoExposure = state.recordAutoExposure ? 1.0f : 0.0f;
             if (state.recordAutoExposure)
             {
@@ -287,7 +311,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ExposurePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeExposure)))
             {
                 ref ExposurePassData passData = ref passRef.GetPassData<ExposurePassData>();
-                passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
+                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.lowPercentile = volumes.lowPercentile;
                 passData.highPercentile = volumes.highPercentile;
                 passData.adapt = adapt;
@@ -342,7 +366,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<BloomPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBloom)))
             {
                 ref BloomPassData passData = ref passRef.GetPassData<BloomPassData>();
-                passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
+                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.bloomThreshold = volumes.bloomThreshold;
                 passData.bloomScatter = volumes.bloomScatter;
                 passData.exposureMultiplier = volumes.exposureMultiplier;
@@ -418,7 +442,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<PostCombinePassData>(ProfilingSampler.Get(CustomSamplerId.ComputePostCombine)))
             {
                 ref PostCombinePassData passData = ref passRef.GetPassData<PostCombinePassData>();
-                passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
+                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.bloomIntensity = volumes.bloomIntensity;
                 passData.vignetteIntensity = volumes.vignetteIntensity;
                 passData.vignetteSmoothness = volumes.vignetteSmoothness;

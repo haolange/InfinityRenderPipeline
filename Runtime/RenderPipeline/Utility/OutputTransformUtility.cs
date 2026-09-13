@@ -23,15 +23,13 @@ namespace InfinityTech.Rendering.Pipeline
 
     public enum EOutputEncodePolicy
     {
-        // Shader LinearToSRGB into a non-sRGB UNORM DisplayColorBuffer. Present copies bits.
-        // Used when the backbuffer will not hardware-encode (Gamma color space or linear UNORM target).
+        // Transfer is applied only by the final Present draw.
         ShaderLinearToSRGB = 0,
-        // Write linear Rec.709 into a float DisplayColorBuffer. Present samples linear and the
-        // sRGB backbuffer hardware-encodes exactly once. Metal Game view in Linear color space.
         HardwareSRGB = 1,
         ShaderPQRec2020 = 2,
         ShaderHLGRec2020 = 3,
-        ShaderScRGBLinear = 4
+        ShaderScRGBLinear = 4,
+        LinearTarget = 5
     }
 
     public struct OutputTransformDecision
@@ -157,7 +155,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             // Single-encode SDR:
             // Linear color space + sRGB backbuffer → write linear, hardware encodes on Present.
-            // Otherwise the shader encodes LinearToSRGB into UNORM and Present copies bits.
+            // Otherwise Present encodes LinearToSRGB for the display target.
             bool hardwareSrgb = colorSpace == ColorSpace.Linear && GraphicsFormatUtility.IsSRGBFormat(backbufferFormat);
             return hardwareSrgb ? EOutputEncodePolicy.HardwareSRGB : EOutputEncodePolicy.ShaderLinearToSRGB;
         }
@@ -167,7 +165,7 @@ namespace InfinityTech.Rendering.Pipeline
             switch (policy)
             {
                 case EOutputEncodePolicy.ShaderLinearToSRGB:
-                    return GraphicsFormat.R8G8B8A8_UNorm;
+                case EOutputEncodePolicy.LinearTarget:
                 case EOutputEncodePolicy.HardwareSRGB:
                 case EOutputEncodePolicy.ShaderPQRec2020:
                 case EOutputEncodePolicy.ShaderHLGRec2020:
@@ -293,16 +291,25 @@ namespace InfinityTech.Rendering.Pipeline
                 return ResolveSdrDisplay(QualitySettings.activeColorSpace,
                     displays[displayIndex].requiresSrgbBlitToBackbuffer);
             }
+            bool textureTarget = camera != null && (camera.cameraType == CameraType.SceneView || camera.cameraType == CameraType.Preview || camera.targetTexture != null);
             // SDR never queries HDROutputSettings. Accessing .main when Player Settings HDR is off
             // logs InvalidOperationException every frame even if the caller catches it.
             bool hdrAvailable = false;
             ColorGamut gamut = ColorGamut.sRGB;
-            if (mode == EOutputMode.HDR)
+            if (mode == EOutputMode.HDR && !textureTarget)
             {
                 TryReadHdrOutput(out hdrAvailable, out gamut);
             }
 
-            GraphicsFormat backbufferFormat = ResolveBackbufferFormat(camera, mode, hdrAvailable, hasLastKnownFormat, lastKnownFormat);
+            GraphicsFormat backbufferFormat = ResolveBackbufferFormat(camera, textureTarget ? EOutputMode.SDR : mode, hdrAvailable, hasLastKnownFormat, lastKnownFormat);
+            if (textureTarget)
+            {
+                OutputTransformDecision targetDecision = Resolve(EOutputMode.SDR, encoding, false, backbufferFormat, QualitySettings.activeColorSpace, ColorGamut.sRGB);
+                targetDecision.policy = GraphicsFormatUtility.IsSRGBFormat(backbufferFormat)
+                    ? EOutputEncodePolicy.HardwareSRGB : EOutputEncodePolicy.LinearTarget;
+                targetDecision.displayFormat = ResolveDisplayFormat(targetDecision.policy);
+                return targetDecision;
+            }
             return Resolve(mode, encoding, hdrAvailable, backbufferFormat, QualitySettings.activeColorSpace, gamut);
         }
 

@@ -26,8 +26,9 @@ namespace InfinityTech.Rendering.Pipeline
         public int descriptorGeneration;
         public int lastSeenFrame;
         public CameraType cameraType;
-        public int pixelWidth;
-        public int pixelHeight;
+        public CameraDimensionDescriptor dimensions;
+        public bool postProcessingEnabled = true;
+        public bool sceneLightingEnabled = true;
         public GraphicsFormat colorFormat;
         public AtmosphereViewCache atmosphereViewCache;
         public CombineLutCache combineLutCache;

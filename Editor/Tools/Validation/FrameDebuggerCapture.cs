@@ -70,8 +70,11 @@ namespace InfinityTech.Rendering.Editor
                 AssemblyReloadEvents.beforeAssemblyReload += Abort;
                 if (!s_WasEnabled)
                 {
-                    EditorApplication.isPaused = true;
-                    RequireMethod("SetEnabled").Invoke(null, new object[] { true, s_ProfilerGuid });
+                    // Unity 6.6 FrameDebugger.enabled is read-only. SetEnabled(guid)
+                    // without the Frame Debugger window produces count=0. Open the
+                    // window and EnableFrameDebugger first; that also pauses Play
+                    // after the next recorded frame.
+                    EnableViaWindow();
                     typeof(EditorApplication).GetMethod("SetSceneRepaintDirty", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).Invoke(null, null);
                 }
             }
@@ -222,9 +225,37 @@ namespace InfinityTech.Rendering.Editor
             !string.IsNullOrEmpty(path) && (path == cameraScope || path.StartsWith(cameraScope + "/", StringComparison.Ordinal));
         static MethodInfo RequireMethod(string name) => s_Utility.GetMethod(name, Static) ?? throw new MissingMethodException(s_Utility.FullName, name);
         static object Read(object data, string name) => (data.GetType().GetField(name, Instance) ?? throw new MissingFieldException(data.GetType().FullName, name)).GetValue(data);
+        static void EnableViaWindow()
+        {
+            Type windowType = null;
+            foreach (Assembly assembly in UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies())
+            {
+                windowType = assembly.GetType("UnityEditor.FrameDebuggerWindow", false);
+                if (windowType != null)
+                    break;
+            }
+
+            if (windowType == null)
+            {
+                RequireMethod("SetEnabled").Invoke(null, new object[] { true, s_ProfilerGuid });
+                return;
+            }
+
+            MethodInfo open = windowType.GetMethod("OpenWindow", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            object window = open != null ? open.Invoke(null, null) : null;
+            MethodInfo enable = windowType.GetMethod("EnableFrameDebugger", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (window == null || enable == null)
+            {
+                RequireMethod("SetEnabled").Invoke(null, new object[] { true, s_ProfilerGuid });
+                return;
+            }
+
+            enable.Invoke(window, null);
+        }
+
         static Type FindType(string name)
         {
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (Assembly assembly in UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies())
             {
                 Type type = assembly.GetType(name, false);
                 if (type != null) return type;

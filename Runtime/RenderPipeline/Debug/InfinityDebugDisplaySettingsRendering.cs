@@ -31,12 +31,14 @@ namespace InfinityTech.Rendering.Pipeline
         public int lastDirectionalCount;
         public int lastLocalCount;
         public ERayTracingBackend rayTracingBackend;
+        public string rtaoBlockReason = "URT context is not created.";
 
         public void Reset()
         {
             lastDirectionalCount = 0;
             lastLocalCount = 0;
             rayTracingBackend = ERayTracingBackend.Unavailable;
+            rtaoBlockReason = "URT context is not created.";
         }
     }
 

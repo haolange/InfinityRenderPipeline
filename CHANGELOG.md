@@ -11,8 +11,8 @@
 - Overlay UI pass after OutputTransform (`CreateUIOverlayRendererList`).
 - GlobalSettings now uses the 17.6 `RenderPipelineGlobalSettings<TSettings, TPipeline>` order and owns resource containers through `settingsList`.
 - `InfinityUnlit` plus default-material slots for Create-menu objects.
-- UnifiedRayTracing-aware RTAO owner and compute visibility pass.
-- Build preprocessor and Infinity shader/compute strippers.
+- RTAO Volume records UnifiedRayTracing visibility when the backend and accel are ready; otherwise it does not record (no HiZ stand-in).
+- U13 shader stripper (`Editor/ShaderStripper/`): `IPreprocessBuildWithReport` + Infinity `IPreprocessShaders` / `IPreprocessComputeShaders`. Strips URP/HDRP package shaders and non-Infinity `RenderPipeline` tags, plus unused Infinity LightModes. Infinity compute variants are counted, not stripped.
 - `Documentation~/` getting-started set.
 
 ### Changed

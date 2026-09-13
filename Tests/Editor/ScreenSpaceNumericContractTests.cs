@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ScreenSpaceNumericContract_ProductionKernels(int width, int height)
         {
             RequireGpu();
-            string output = Path.Combine(Path.GetTempPath(), "InfinityRP-T05a-GPU-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));
+            string output = InfinityTech.Rendering.Tests.ValidationTestRunner.CreateArtifactDirectory("screen-space-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));
             Directory.CreateDirectory(output);
             using (var fixture = new ScreenSpaceNumericGpuRun(width, height, output))
             {
@@ -33,9 +33,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [MenuItem("Window/Infinity/Run Screen Space Numeric Contracts", false, 66)]
         public static void RunScreenSpaceNumericFromMenu()
         {
-            string output = Path.Combine(Path.GetTempPath(), "InfinityRP-T05a-GPU-menu-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));
+            string output = InfinityTech.Rendering.Tests.ValidationTestRunner.CreateArtifactDirectory("screen-space-menu-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));
             Directory.CreateDirectory(output);
-            File.WriteAllText(Path.Combine(Path.GetTempPath(), "InfinityRP-T05a-GPU-latest.txt"), output);
             var log = new StringBuilder();
             int passed = 0, failed = 0;
             foreach (Vector2Int size in new[] { new Vector2Int(17, 19), new Vector2Int(32, 32), Vector2Int.one })

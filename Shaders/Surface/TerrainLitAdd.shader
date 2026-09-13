@@ -43,7 +43,7 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
 	
     SubShader
     {
-        Tags{ "Queue" = "Geometry-99" "RenderType" = "Opaque" "RenderPipeline" = "InfinityPipeline" "IgnoreProjector" = "false" }
+        Tags{ "Queue" = "Geometry-99" "RenderType" = "Opaque" "RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "false" }
 
         Pass
         {

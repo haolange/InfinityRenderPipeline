@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new System.InvalidOperationException("InfinityRP: ReactiveMask is required but fogCompositeShader kernel ClearReactiveMask is missing.");
             }
 
-            TextureDescriptor maskDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
+            TextureDescriptor maskDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
             maskDsc.name = FogCompositePassUtilityData.ReactiveMaskName;
             maskDsc.dimension = TextureDimension.Tex2D;
             maskDsc.colorFormat = GraphicsFormat.R8_UNorm;
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ClearReactiveMaskPassData>(ProfilingSampler.Get(CustomSamplerId.ClearReactiveMask)))
             {
                 ref ClearReactiveMaskPassData passData = ref passRef.GetPassData<ClearReactiveMaskPassData>();
-                passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
+                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
                 passData.fogCompositeShader = shaders.fogCompositeShader;
                 passData.reactiveMask = passRef.WriteTexture(reactiveMask);
 
@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.Pipeline
             var volFog = ActiveVolumeStack.GetComponent<InfinityTech.Rendering.PostProcess.VolumetricFog>();
             maxDistance = volFog.MaxDistance.value;
 
-            TextureDescriptor foggedDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
+            TextureDescriptor foggedDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
             foggedDsc.name = "FoggedSceneColor";
             foggedDsc.dimension = TextureDimension.Tex2D;
             foggedDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
@@ -125,7 +125,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite)))
             {
                 ref FogCompositePassData passData = ref passRef.GetPassData<FogCompositePassData>();
-                passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
+                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
                 passData.maxDistance = maxDistance;
                 passData.hasFog = hasFog ? 1 : 0;
                 passData.hasCloud = hasCloud ? 1 : 0;

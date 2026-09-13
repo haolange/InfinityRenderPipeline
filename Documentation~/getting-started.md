@@ -5,6 +5,6 @@
 3. Open Project Settings > Graphics > Infinity RP. Global Settings auto-create in the Editor and load runtime shaders through `[ResourcePath]`.
 4. Confirm the default Volume profile is assigned on Global Settings. Optional quality overrides live on the RP Asset.
 5. Create objects from `GameObject > Camera` / Light. Infinity additional-data components are added with Undo.
-6. Use `Window > Analysis > Rendering Debugger` for Infinity panels, and `Window > Infinity` for remaining validation entry points.
+6. Use `Window > Analysis > Rendering Debugger` for Infinity panels, and `Window > Infinity` for remaining validation entry points (fixtures, dumps, Validate Default Volume Profile). One-off migrate menus are retired.
 
-Example-project asset migrations still use the backup / exact-delta / second-save / no-op protocol on the Mac worker.
+Example-project asset writes still use the backup / exact-delta / second-save / no-op protocol. Do not migrate on Editor load.

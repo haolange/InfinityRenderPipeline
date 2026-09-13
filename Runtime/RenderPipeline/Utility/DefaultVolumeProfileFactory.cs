@@ -141,84 +141,49 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
 #if UNITY_EDITOR
-        public static bool ValidateAndComplete(VolumeProfile profile)
+        // Explicit authoring operation. Existing components, values and flags are untouched.
+        // Returns the number of added components; validation does not save assets.
+        public static int ValidateAndComplete(VolumeProfile profile)
         {
             if (profile == null)
-            {
-                return false;
-            }
+                throw new System.ArgumentNullException(nameof(profile));
 
-            bool changed = false;
-            if (!profile.TryGet(out Exposure _))
+            VolumeProfile defaults = CreateInMemory();
+            int added = 0;
+            try
             {
-                AddDefaultComponent<Exposure>(profile);
-                changed = true;
-            }
-            if (!profile.TryGet(out FilmTonemap _))
-            {
-                AddDefaultComponent<FilmTonemap>(profile);
-                changed = true;
-            }
-            if (!profile.TryGet(out ColorGrading _))
-            {
-                AddDefaultComponent<ColorGrading>(profile);
-                changed = true;
-            }
-
-            foreach (System.Type type in s_OptionalComponentTypes)
-            {
-                if (!profile.TryGet(type, out VolumeComponent existing) || existing == null)
+                foreach (VolumeComponent template in defaults.components)
                 {
-                    AssetDatabase.AddObjectToAsset(profile.Add(type, false), profile);
-                    changed = true;
+                    if (profile.TryGet(template.GetType(), out VolumeComponent existing) && existing != null)
+                        continue;
+
+                    if (added == 0)
+                        Undo.RegisterCompleteObjectUndo(profile, "Complete default Volume profile");
+                    VolumeComponent component = profile.Add(template.GetType(), false);
+                    EditorUtility.CopySerialized(template, component);
+                    component.name = template.GetType().Name;
+                    if (EditorUtility.IsPersistent(profile))
+                        AssetDatabase.AddObjectToAsset(component, profile);
+                    Undo.RegisterCreatedObjectUndo(component, "Complete default Volume profile");
+                    EditorUtility.SetDirty(component);
+                    added++;
                 }
+                if (added > 0)
+                {
+                    EditorUtility.SetDirty(profile);
+                    if (VolumeManager.instance.isInitialized)
+                        VolumeManager.instance.OnVolumeProfileChanged(profile);
+                }
+                return added;
             }
-
-            if (changed)
+            finally
             {
-                ApplyPackagedDefaults(profile);
-                EditorUtility.SetDirty(profile);
-            }
-
-            return !changed;
-        }
-
-        public static VolumeProfile LoadOrCreatePackagedAsset()
-        {
-            VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(AssetPath);
-            if (profile != null)
-            {
-                ValidateAndComplete(profile);
-                return profile;
-            }
-
-            profile = CreateInMemory();
-            AssetDatabase.CreateAsset(profile, AssetPath);
-            foreach (VolumeComponent component in profile.components)
-            {
-                if (component != null)
-                    AssetDatabase.AddObjectToAsset(component, profile);
-            }
-            EditorUtility.SetDirty(profile);
-            AssetDatabase.SaveAssets();
-            return profile;
-        }
-
-        public static void AssignDefaultToGlobalSettings()
-        {
-            VolumeProfile profile = LoadOrCreatePackagedAsset();
-            InfinityRenderPipelineGlobalSettings.Ensure();
-            if (GraphicsSettings.TryGetRenderPipelineSettings(out InfinityDefaultVolumeProfileSettings settings) && settings != null)
-            {
-                settings.volumeProfile = profile;
+                foreach (VolumeComponent component in defaults.components)
+                    Object.DestroyImmediate(component);
+                Object.DestroyImmediate(defaults);
             }
         }
 
-        static void AddDefaultComponent<T>(VolumeProfile profile) where T : VolumeComponent
-        {
-            T component = profile.Add<T>(true);
-            AssetDatabase.AddObjectToAsset(component, profile);
-        }
 #endif
     }
 }

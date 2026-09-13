@@ -179,6 +179,61 @@
 
 			ENDHLSL
 		}
+        Pass
+        {
+            Name "Present"
+            ZTest Always ZWrite Off Blend Off Cull Off
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "../ShaderLibrary/Common.hlsl"
+            #include "../ShaderLibrary/OutputTransform.hlsl"
+            float4 _ScaleBais;
+            float4 _InfinityOutputTransfer;
+            Texture2D<float4> _MainTex;
+            struct Attributes { float4 vertex : POSITION; };
+            struct Varyings { float2 uv : TEXCOORD0; float4 position : SV_POSITION; };
+            Varyings vert(Attributes v)
+            {
+                Varyings o;
+                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
+                o.uv = ((v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
+                return o;
+            }
+            float4 frag(Varyings i) : SV_Target
+            {
+                float4 color = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, i.uv, 0);
+                return float4(InfinityEncodeOutput(color.rgb, (int)_InfinityOutputTransfer.x,
+                    (int)_InfinityOutputTransfer.y, _InfinityOutputTransfer.z), color.a);
+            }
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "UpscaleDepth"
+            ZTest Always ZWrite On ColorMask 0 Cull Off
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "../ShaderLibrary/Common.hlsl"
+            Texture2D<float> _InfinitySourceDepth;
+            struct Attributes { float4 vertex : POSITION; };
+            struct Varyings { float2 uv : TEXCOORD0; float4 position : SV_POSITION; };
+            Varyings vert(Attributes v)
+            {
+                Varyings o;
+                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
+                o.uv = (v.vertex.xy + 1) * 0.5;
+                return o;
+            }
+            float frag(Varyings i) : SV_Depth
+            {
+                return _InfinitySourceDepth.SampleLevel(Global_point_clamp_sampler, i.uv, 0);
+            }
+            ENDHLSL
+        }
     }
 	Fallback Off
 }

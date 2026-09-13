@@ -1,6 +1,6 @@
 # InfinityRP 0.4.0 local handoff
 
-For a new local session on the Mac (Unity 6000.6 + InfinityExample). Do not treat this wave as verifier-passed.
+For a new local session on the Mac (Unity 6000.6 + InfinityExample). P0–B7 have Grok 4.6 PASS receipts under `/Volumes/DataDisk/Projects/Unity/InfinityRP-Validation/normalization-20260912/`. B8 closes menus, Player, U02 compare, and intermediate cleanup.
 
 ## Snapshot
 
@@ -8,8 +8,8 @@ For a new local session on the Mac (Unity 6000.6 + InfinityExample). Do not trea
 |---|---|
 | Package repo | `com.infinity.render-pipeline` |
 | Branch | `normalize/v0.4.0` |
-| Last **committed** HEAD | `normalize/v0.4.0` `f5119f0` plus follow-up 17.6 signature/ownership fix on the working branch |
-| 0.4.0 work | Surface landed; first 17.6 compile/ownership defects fixed from official docs. Mac compile + U02 still open. |
+| Last **committed** HEAD | `3b76f37` (`f5119f0` + 17.6 GlobalSettings signature). Working tree dirty from local closeout. |
+| 0.4.0 work | Local P0–B7 Grok PASS on 2026-09-12. B8 strips one-off menus, Player, U02 compare, intermediate cleanup. |
 | Package target | `0.4.0` / Unity `6000.6` / CoreRP·SG·VFX `17.6` |
 | Ledger | [PLAN.md](../PLAN.md) U00–U82 |
 | Plan file (do not edit) | user-attached InfinityRP Normalization Plan |
@@ -58,15 +58,15 @@ Fixed from official 17.6 docs / URP source (not yet Mac-compiled):
 
 **B3** All Volumes `[SupportedOnRenderPipeline]`. Optional features `enable` + `IInfinityVolumeActivity.IsActive()` (not `overrideState`). Film `mode` None/Film. SSS Volume = `numSamples` only. `VolumeHasOverrides` / `EnsureAsset` deleted. Dedicated Volume editors. Debugger panels (Rendering / Lighting / Mesh / Temporal). DebugView reads runtime settings only.
 
-**B4** LitGUI blocks. Shader rename `_NomralTexture` → `_NormalTexture`, `_PixelDepthOffsetVaule` → `_PixelDepthOffset` + `Window/Infinity/Migrate/Lit Material Property Names`. `InfinityUnlit` + T2 `SRPDefaultUnlit` / untagged. DiffusionProfile index / missing-slot warnings.
+**B4** LitGUI blocks. Shader rename `_NomralTexture` → `_NormalTexture`, `_PixelDepthOffsetVaule` → `_PixelDepthOffset` via `InfinityMaterialMigration` (Example YAML byte gate passed; migrate menu retired in B8). `InfinityUnlit` + T2 `SRPDefaultUnlit` / untagged. DiffusionProfile index / missing-slot warnings.
 
 **B5** `rendersUIOverlay`. Raster UIOverlay after OutputTransform on `DisplayColorBuffer`. `Window/Infinity/Create UI Fixture` → `Assets/Scene/Validation/Validation_UI.unity` (uGUI; add TMP on the Mac fixture if needed).
 
 **B6** Custom `NativeViewMotionHistory` **kept**. `preferNativeMotionVectors` is A/B only. Two-pass TAA **kept**. `fuseTemporalSharpen` reserved, default false. Decision: [Docs/History/U60-U61-Experiment.md](History/U60-U61-Experiment.md).
 
-**B7** `InfinityRayTracingEnvironment` reports UnifiedRayTracing backend. RTAO compute `RTAOTrace` writes `OcclusionBuffer` when Volume active **and** `enableRayTrace`. SSAO is the other AO owner. Old `.raytrace` deleted. RTAO Volume GUID reused (`3860ad677b4fe544fa9e0b844ea99d10`).
+**B7** `InfinityRayTracingEnvironment` + `VisibilityRTAO.urtshader` + `IRayTracingAccelStruct`. RTAO records only when Volume active, URT ready, and accel has instances. Metal Compute frame captured. HiZ stand-in and `RayTracing*Generator` deleted. Player shader load / D3D12 remain `TODO(UNVERIFIED)`.
 
-**B8** Menus under `Window/Infinity`. Completed one-off migration MenuItems stripped (classes remain). `package.json` 0.4.0. `CHANGELOG.md`. `Documentation~/`.
+**B8** One-off Migrate/Upgrade menus stripped. `Window/Infinity` validation + CLI remain. `package.json` 0.4.0 / 6000.6 / 17.6. `CHANGELOG.md`. `Documentation~/`.
 
 ## Contracts the new session must not break
 

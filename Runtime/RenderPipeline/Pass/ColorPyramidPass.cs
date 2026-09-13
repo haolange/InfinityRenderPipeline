@@ -100,8 +100,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
             int mipCount = PyramidMipBatch.MipCount(width, height);
 
             TextureDescriptor colorPyramidDsc = CreateColorPyramidDescriptor(width, height, ColorPyramidPassUtilityData.TextureName);

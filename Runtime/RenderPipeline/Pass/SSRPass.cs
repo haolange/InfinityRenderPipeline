@@ -134,8 +134,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
             GraphicsFormat format = GraphicsFormat.R16G16B16A16_SFloat;
 
             RGTextureRef radianceTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRadianceBuffer, ScreenSpaceHistoryUtility.CreateRadianceDescriptor(width, height, SSRPassUtilityData.RadianceName));

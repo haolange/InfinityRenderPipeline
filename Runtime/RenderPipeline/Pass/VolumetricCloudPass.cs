@@ -133,8 +133,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
             int cloudWidth = Mathf.Max(1, width >> 1);
             int cloudHeight = Mathf.Max(1, height >> 1);
 
@@ -307,8 +307,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int cloudWidth = Mathf.Max(1, camera.pixelWidth >> 1);
-            int cloudHeight = Mathf.Max(1, camera.pixelHeight >> 1);
+            int cloudWidth = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.x >> 1);
+            int cloudHeight = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.y >> 1);
             TextureDescriptor historyDsc = CreateVolumetricCloudDescriptor(cloudWidth, cloudHeight, VolumetricCloudPassUtilityData.HistoryTextureName, false);
             RGTextureRef history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricCloudBuffer);

@@ -121,8 +121,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Run(nameof(GBufferContract_RasterComputeRoundtrip_CheckerboardBoundaryTexels), tests.GBufferContract_RasterComputeRoundtrip_CheckerboardBoundaryTexels);
             Run(nameof(GBufferContract_BestFitNormal_AngularError), tests.GBufferContract_BestFitNormal_AngularError);
 
-            string projectRoot = Path.GetDirectoryName(Application.dataPath);
-            string path = Path.Combine(projectRoot, "Logs", "gbuffer-contract-tests.txt");
+            string directory = InfinityTech.Rendering.Tests.ValidationTestRunner.CreateArtifactDirectory("gbuffer-contract-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));
+            string path = Path.Combine(directory, "results.txt");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             File.WriteAllText(path, $"passed={passed} ignored={ignored} failed={failed}\n{log}");
             Debug.Log($"GBuffer contract tests: passed={passed} ignored={ignored} failed={failed}\n{log}");
@@ -184,9 +184,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         static Texture2D LoadBestFitLut()
         {
-            if (GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset asset && asset.bestFitNormalTexture != null)
+            if (GraphicsSettings.TryGetRenderPipelineSettings(out InfinityRenderPipelineRuntimeTextures textures) &&
+                textures != null && textures.bestFitNormalTexture != null)
             {
-                return asset.bestFitNormalTexture;
+                return textures.bestFitNormalTexture;
             }
 
             return AssetDatabase.LoadAssetAtPath<Texture2D>(k_BestFitPath);

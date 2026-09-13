@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Feature
 
     internal static class TemporalJitter
     {
-        public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
+        public static void GetJitteredPerspectiveProjectionMatrix(Camera camera, int2 renderSize, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
         {
             float near = camera.nearClipPlane;
             float far = camera.farClipPlane;
@@ -34,8 +34,8 @@ namespace InfinityTech.Rendering.Feature
             float vertical = Mathf.Tan(0.5f * Mathf.Deg2Rad * camera.fieldOfView) * near;
             float horizontal = vertical * camera.aspect;
 
-            offset.x *= horizontal / (0.5f * camera.pixelWidth);
-            offset.y *= vertical / (0.5f * camera.pixelHeight);
+            offset.x *= horizontal / (0.5f * renderSize.x);
+            offset.y *= vertical / (0.5f * renderSize.y);
 
             proj = camera.projectionMatrix;
 
@@ -47,13 +47,13 @@ namespace InfinityTech.Rendering.Feature
             projFlipY = GL.GetGPUProjectionMatrix(jitteredProj, false);
         }
 
-        public static void GetJitteredOrthographicProjectionMatrix(Camera camera, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
+        public static void GetJitteredOrthographicProjectionMatrix(Camera camera, int2 renderSize, float2 offset, ref Matrix4x4 proj, ref Matrix4x4 projFlipY)
         {
             float vertical = camera.orthographicSize;
             float horizontal = vertical * camera.aspect;
 
-            offset.x *= horizontal / (0.5f * camera.pixelWidth);
-            offset.y *= vertical / (0.5f * camera.pixelHeight);
+            offset.x *= horizontal / (0.5f * renderSize.x);
+            offset.y *= vertical / (0.5f * renderSize.y);
 
             float left = offset.x - horizontal;
             float right = offset.x + horizontal;
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Feature
             projFlipY = GL.GetGPUProjectionMatrix(jitteredProj, false);
         }
 
-        public static void CalculateProjectionMatrix(Camera camera, in float jitterSpread, int frameIndex, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY, bool applyJitter = true)
+        public static void CalculateProjectionMatrix(Camera camera, int2 renderSize, in float jitterSpread, int frameIndex, ref float2 jitter, ref Matrix4x4 proj, ref Matrix4x4 projFlipY, bool applyJitter = true)
         {
             if (!applyJitter || jitterSpread <= 0.0f)
             {
@@ -83,11 +83,11 @@ namespace InfinityTech.Rendering.Feature
 
             if (camera.orthographic)
             {
-                GetJitteredOrthographicProjectionMatrix(camera, jitter, ref proj, ref projFlipY);
+                GetJitteredOrthographicProjectionMatrix(camera, renderSize, jitter, ref proj, ref projFlipY);
             } 
             else
             {
-                GetJitteredPerspectiveProjectionMatrix(camera, jitter, ref proj, ref projFlipY);
+                GetJitteredPerspectiveProjectionMatrix(camera, renderSize, jitter, ref proj, ref projFlipY);
             }
         }
     }

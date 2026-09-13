@@ -89,8 +89,8 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new System.InvalidOperationException("Local lights require the LightCount, PrefixSum and Fill ZBin kernels.");
 
             int tileSize = 16;
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
             int numTilesX = Mathf.CeilToInt((float)width / tileSize);
             int numTilesY = Mathf.CeilToInt((float)height / tileSize);
             int numTiles = numTilesX * numTilesY;

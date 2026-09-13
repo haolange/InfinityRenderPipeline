@@ -20,5 +20,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         [ResourcePath("Shaders/Surface/InfinityUnlit.shader")]
         public Shader defaultUnlitShader;
+
+        [ResourcePath("Runtime/Resources/Materials/M_DefaultUnlit.mat")]
+        public Material defaultUnlitMaterial;
     }
 }

@@ -55,6 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
         [Serializable] internal sealed class BufferEvidence
         {
             public string semantic, producer, sourceQueue, queue = "Graphics", format, file, error;
+            public string colorSpace, transferEncoding;
             public int width, height, layers, samples, producerFrame, completionFrame, submissionFrame, sourceMip, captureIndex;
             public long bytes;
             public string resourceKind = "Texture", bufferTarget;
@@ -75,7 +76,14 @@ namespace InfinityTech.Rendering.Pipeline
         }
         [Serializable] sealed class CameraEvidence
         {
-            public int frame, width, height, captureIndex;
+            public int frame, width, height, captureIndex, internalWidth, internalHeight;
+            public Rect presentViewport;
+            public string outputPolicy, outputTargetFormat;
+            public string presentTarget, targetTexture, activeTexture;
+            public int sourceWidth, sourceHeight, targetWidth, targetHeight;
+            public Vector4 presentScaleBias;
+            public bool presentExecuted;
+            public bool postProcessingEnabled, sceneLightingEnabled;
             public string cameraType, motionPhase;
             public double gameTime, realtime;
             public Vector2 currentJitterUV, previousJitterUV;
@@ -189,6 +197,8 @@ namespace InfinityTech.Rendering.Pipeline
                 m_Evidence.frames.Add(new CameraEvidence { gameTime = Time.timeAsDouble, realtime = Time.realtimeSinceStartupAsDouble, frame = Time.frameCount, captureIndex = m_CaptureIndex, cameraType = camera.cameraType.ToString(), motionPhase = CameraMotionValidation.current?.CurrentPhase,
                     currentJitterUV = InfinityRenderPipeline.ProjectionJitterUV(state.cameraUniform.matrix_FlipYJitterProj, state.cameraUniform.matrix_FlipYProj), previousJitterUV = state.cameraUniform.previousJitterUV, width = camera.pixelWidth, height = camera.pixelHeight,
                     entity = camera.GetEntityId().ToString(), historyReset = state.cameraUniform.historyReset,
+                    postProcessingEnabled = state.postProcessingEnabled, sceneLightingEnabled = state.sceneLightingEnabled,
+                    internalWidth = state.dimensions.internalSize.x, internalHeight = state.dimensions.internalSize.y, presentViewport = state.dimensions.outputViewport,
                     position = camera.transform.position, rotation = camera.transform.rotation, view = camera.worldToCameraMatrix,
                     projection = camera.projectionMatrix, jitteredViewProjection = state.cameraUniform.matrix_ViewFlipYJitterProj,
                     inverseJitteredViewProjection = state.cameraUniform.matrix_InvViewFlipYJitterProj,
@@ -231,6 +241,8 @@ namespace InfinityTech.Rendering.Pipeline
             if (texture == null || !texture.IsCreated()) { RTHandles.Release(handle); throw new InvalidOperationException("Capture staging allocation failed."); }
             GraphicsFormat readbackFormat = descriptor.depthBufferBits == EDepthBits.None ? texture.graphicsFormat : texture.depthStencilFormat;
             var evidence = new BufferEvidence { semantic = semantic, producer = producer, format = readbackFormat.ToString(),
+                colorSpace = semantic == "DisplayColor" || semantic == "PostProcess" ? "DisplayLinear-Rec709" : "SemanticData",
+                transferEncoding = semantic == "DisplayColor" || semantic == "PostProcess" ? "Linear; final target transfer belongs to Present" : "None",
                 width = texture.width, height = texture.height, layers = texture.volumeDepth, samples = texture.antiAliasing,
                 producerFrame = Time.frameCount, captureIndex = m_CaptureIndex, historyReset = historyReset, sourceDescriptor = descriptor,
                 sourceRoi = ScaleRoi(descriptor.width, descriptor.height) };
@@ -239,6 +251,33 @@ namespace InfinityTech.Rendering.Pipeline
             m_DidCapture = true;
             Save();
             return staging;
+        }
+
+        internal void RecordPresent(Camera camera, string target, in Rect viewport, in Vector4 scaleBias, int width, int height, bool executed)
+        {
+            if (!m_CaptureThisFrame || m_Evidence.frames.Count == 0) return;
+            CameraEvidence frame = m_Evidence.frames[m_Evidence.frames.Count - 1];
+            frame.presentTarget = target;
+            frame.presentViewport = viewport;
+            frame.presentScaleBias = scaleBias;
+            frame.sourceWidth = width;
+            frame.sourceHeight = height;
+            frame.presentExecuted = executed;
+            if (camera != null)
+            {
+                frame.targetTexture = camera.targetTexture == null ? "null" : camera.targetTexture.GetEntityId().ToString();
+                frame.activeTexture = camera.activeTexture == null ? "null" : camera.activeTexture.GetEntityId().ToString();
+                var texture = camera.targetTexture != null ? camera.targetTexture : camera.activeTexture;
+                if (texture != null) { frame.targetWidth = texture.width; frame.targetHeight = texture.height; }
+            }
+        }
+
+        internal void RecordOutputDecision(in OutputTransformDecision decision)
+        {
+            if (!m_CaptureThisFrame || m_Evidence.frames.Count == 0) return;
+            CameraEvidence frame = m_Evidence.frames[m_Evidence.frames.Count - 1];
+            frame.outputPolicy = decision.policy.ToString();
+            frame.outputTargetFormat = decision.backbufferFormat.ToString();
         }
 
         RectInt ScaleRoi(int width, int height)

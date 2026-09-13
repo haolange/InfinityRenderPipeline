@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RenderTranslucentDepth(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
         {
-            TextureDescriptor translucentDepthDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
+            TextureDescriptor translucentDepthDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
             {
                 translucentDepthDsc.name = TranslucentPassUtilityData.DepthTextureName;
                 translucentDepthDsc.dimension = TextureDimension.Tex2D;

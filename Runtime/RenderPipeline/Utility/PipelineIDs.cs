@@ -54,11 +54,12 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeBloom,
         ComputePostCombine,
         ComputeExposure,
-        ComputeOutputTransform,
         ComputeDebugView,
         RenderWireOverlay,
         RenderGizmos,
         RenderUIOverlay,
+        CopyPostProcessInput,
+        ResolveDisplayDepth,
         Present,
         Max,
     }
@@ -91,6 +92,8 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly int BakedOcclusionBuffer = Shader.PropertyToID("BakedOcclusionBuffer");
         public static readonly int IndirectDiffuseBuffer = Shader.PropertyToID("IndirectDiffuseBuffer");
         public static readonly int IndirectSpecularBuffer = Shader.PropertyToID("IndirectSpecularBuffer");
+        public static int PreDebugColorBuffer = Shader.PropertyToID("_PreDebugColorTexture");
+        public static int DisplayDepthBuffer = Shader.PropertyToID("_DisplayDepthTexture");
         public static int DepthBuffer = Shader.PropertyToID("_DepthTexture");
         public static int HiZBuffer = Shader.PropertyToID("_HiZTexture");
         public static int HalfResDepthBuffer = Shader.PropertyToID("_HalfResDepthTexture");

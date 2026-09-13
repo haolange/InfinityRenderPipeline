@@ -21,6 +21,16 @@ namespace InfinityTech.Rendering.Tests
             public double seconds;
         }
 
+        internal static string ArtifactRoot => s_Current != null ? s_Current.m_Directory : Path.GetFullPath(Path.Combine(Application.dataPath, "../intermediate/editor-tests"));
+
+        internal static string CreateArtifactDirectory(string name)
+        {
+            if (Path.GetFileName(name) != name) throw new ArgumentException("Artifact name must be a single path segment.", nameof(name));
+            string directory = Path.Combine(ArtifactRoot, name);
+            Directory.CreateDirectory(directory);
+            return directory;
+        }
+
         [MenuItem("Window/Infinity/Tests/Run EditMode With XML")]
         static void Run() => RunValidation(null, null);
 
@@ -29,7 +39,7 @@ namespace InfinityTech.Rendering.Tests
             if (s_Current != null || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
                 throw new InvalidOperationException("Use an idle EditMode editor with no active validation test run.");
             var runner = new ValidationTestRunner();
-            runner.m_Directory = outputDirectory == null ? Path.GetFullPath(Path.Combine(Application.dataPath, "../../InfinityRP-Validation",
+            runner.m_Directory = outputDirectory == null ? Path.GetFullPath(Path.Combine(Application.dataPath, "../intermediate/editor-tests",
                 "editor-tests-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N"))) : Path.GetFullPath(outputDirectory);
             if (Directory.Exists(runner.m_Directory)) throw new ArgumentException("Test evidence directory must be new.");
             s_Current = runner;

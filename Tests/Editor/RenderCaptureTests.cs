@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void CancelBeforeCamera_PersistsTerminalStateAndImmutableRequest()
         {
-            string directory = Path.Combine(Path.GetTempPath(), "InfinityCaptureTest-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
             try
             {
                 RenderCaptureRequest request = Request(directory);
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [UnityTest]
         public IEnumerator MissingCamera_TimesOutWithoutResources()
         {
-            string directory = Path.Combine(Path.GetTempPath(), "InfinityCaptureTest-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
             try
             {
                 RenderCaptureRequest request = Request(directory);
@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void EvidenceWriteFailure_StopsSessionWithoutMaskingOriginalFailure()
         {
-            string directory = Path.Combine(Path.GetTempPath(), "InfinityCaptureTest-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
             try
             {
                 var session = new RenderCaptureSession(Request(directory));
@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [UnityTest]
         public IEnumerator CancelQueuedReadback_RetainsStagingUntilSubmissionAndCallback()
         {
-            string directory = Path.Combine(Path.GetTempPath(), "InfinityCaptureTest-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
             var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
             scene.name = "CaptureLifecycle-" + Guid.NewGuid().ToString("N");
             var cameraObject = new GameObject("CaptureLifecycleCamera");
@@ -153,7 +153,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void AbandonedCaptureCommands_DoNotLatchQueuedOwnership()
         {
-            string directory = Path.Combine(Path.GetTempPath(), "InfinityCaptureTest-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
             var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
             scene.name = "CaptureLifecycle-" + Guid.NewGuid().ToString("N");
             var cameraObject = new GameObject("CaptureLifecycleCamera");
@@ -230,7 +230,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void UncertainQueue_HoldsStagingUntilSubmittedReadbackDrain()
         {
-            string directory = Path.Combine(Path.GetTempPath(), "InfinityCaptureTest-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
             var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
             scene.name = "CaptureLifecycle-" + Guid.NewGuid().ToString("N");
             var cameraObject = new GameObject("CaptureLifecycleCamera");
@@ -288,7 +288,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [UnityTest]
         public IEnumerator CounterReadback_PreservesNonzeroFailureAndRetiresAfterSubmit()
         {
-            string directory = Path.Combine(Path.GetTempPath(), "InfinityCaptureTest-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
             var scene = UnityEditor.SceneManagement.EditorSceneManager.NewPreviewScene();
             scene.name = "CaptureLifecycle-" + Guid.NewGuid().ToString("N");
             var cameraObject = new GameObject("CaptureLifecycleCamera");

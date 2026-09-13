@@ -19,6 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int SRV_OcclusionTextureID = Shader.PropertyToID("SRV_OcclusionTexture");
         internal const string AOKeyword = "DEFERRED_AO";
+        internal const string ContactShadowKeyword = "DEFERRED_CONTACT_SHADOW";
         internal static int SRV_ContactShadowTextureID = Shader.PropertyToID("SRV_ContactShadowTexture");
         internal static int SRV_CascadeShadowMapID = Shader.PropertyToID("SRV_CascadeShadowMap");
         internal static int SRV_LocalShadowMapID = Shader.PropertyToID("SRV_LocalShadowMap");
@@ -51,6 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public int hasAO;
+            public int hasContactShadow;
             public int directionalLightCount;
             public int localLightCount;
             public RGBufferRef lightRecordBuffer;
@@ -96,8 +98,8 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new System.InvalidOperationException("InfinityRP: Deferred shading is the LightingBuffer producer but deferredShadingShader is missing or kernel DeferredShadingCS is invalid.");
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
             int tileSize = 16;
 
             RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
@@ -106,12 +108,16 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             bool hasAO = m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureRef occlusionTexture);
-            if (ShouldRecordFeature(EFrameFeature.GTAO) && !hasAO)
+            if ((ShouldRecordFeature(EFrameFeature.GTAO) || ShouldRecordFeature(EFrameFeature.RTAO)) && !hasAO)
             {
-                throw new System.InvalidOperationException("InfinityRP: GTAO is recorded this frame but OcclusionBuffer is not registered.");
+                throw new System.InvalidOperationException("InfinityRP: AO is recorded this frame but OcclusionBuffer is not registered.");
             }
 
-            RGTextureRef contactShadowTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.ContactShadowBuffer);
+            bool hasContactShadow = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureRef contactShadowTexture);
+            if (ShouldRecordFeature(EFrameFeature.ContactShadow) && !hasContactShadow)
+            {
+                throw new System.InvalidOperationException("InfinityRP: ContactShadow is recorded this frame but ContactShadowBuffer is not registered.");
+            }
             RGTextureRef cascadeShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap);
             RGTextureRef localShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.LocalShadowMap);
             RGTextureRef atmosphereGGXPrefilter = m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter);
@@ -154,6 +160,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.hasAO = hasAO ? 1 : 0;
+                passData.hasContactShadow = hasContactShadow ? 1 : 0;
                 passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
                 passData.localLightCount = renderContext.lightContext.LocalLightCount;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
@@ -181,7 +188,10 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.occlusionTexture = passRef.ReadTexture(occlusionTexture);
                 }
-                passData.contactShadowTexture = passRef.ReadTexture(contactShadowTexture);
+                if (hasContactShadow)
+                {
+                    passData.contactShadowTexture = passRef.ReadTexture(contactShadowTexture);
+                }
                 passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);
                 passData.localShadowMap = passRef.ReadTexture(localShadowMap);
                 passData.lightingTexture = passRef.WriteTexture(lightingTexture);
@@ -236,7 +246,11 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_OcclusionTextureID, passData.occlusionTexture);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_ContactShadowTextureID, passData.contactShadowTexture);
+                    shader.SetKeyword(new LocalKeyword(shader, DeferredShadingPassUtilityData.ContactShadowKeyword), passData.hasContactShadow != 0);
+                    if (passData.hasContactShadow != 0)
+                    {
+                        cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_ContactShadowTextureID, passData.contactShadowTexture);
+                    }
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_CascadeShadowMapID, passData.cascadeShadowMap);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowMapID, passData.localShadowMap);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);

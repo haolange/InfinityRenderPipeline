@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.UnifiedRayTracing;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
@@ -44,6 +45,14 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetRayTracingMatrixParam(RayTracingShader rayTracingShader, int nameID, Matrix4x4 val);
         void SetRayTracingTextureParam(RayTracingShader rayTracingShader, int nameID, RenderTargetIdentifier rt);
         void DispatchRays(RayTracingShader rayTracingShader, string rayGenName, in uint width, in uint height, in uint depth, Camera camera);
+        void BuildUnifiedAccel(IRayTracingAccelStruct accel, GraphicsBuffer scratch);
+        void SetUnifiedAccelerationStructure(IRayTracingShader shader, string name, IRayTracingAccelStruct accel);
+        void SetUnifiedInt(IRayTracingShader shader, int nameID, int val);
+        void SetUnifiedFloat(IRayTracingShader shader, int nameID, float val);
+        void SetUnifiedVector(IRayTracingShader shader, int nameID, Vector4 val);
+        void SetUnifiedMatrix(IRayTracingShader shader, int nameID, Matrix4x4 val);
+        void SetUnifiedTexture(IRayTracingShader shader, int nameID, RenderTargetIdentifier rt);
+        void DispatchUnified(IRayTracingShader shader, GraphicsBuffer scratch, uint width, uint height, uint depth);
     }
 
     public interface IRasterCommands
@@ -227,6 +236,46 @@ namespace InfinityTech.Rendering.RenderGraph
         public void DispatchRays(RayTracingShader rayTracingShader, string rayGenName, in uint width, in uint height, in uint depth, Camera camera)
         {
             m_CommandBuffer.DispatchRays(rayTracingShader, rayGenName, width, height, depth, camera);
+        }
+
+        public void BuildUnifiedAccel(IRayTracingAccelStruct accel, GraphicsBuffer scratch)
+        {
+            accel.Build(m_CommandBuffer, scratch);
+        }
+
+        public void SetUnifiedAccelerationStructure(IRayTracingShader shader, string name, IRayTracingAccelStruct accel)
+        {
+            shader.SetAccelerationStructure(m_CommandBuffer, name, accel);
+        }
+
+        public void SetUnifiedInt(IRayTracingShader shader, int nameID, int val)
+        {
+            shader.SetIntParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedFloat(IRayTracingShader shader, int nameID, float val)
+        {
+            shader.SetFloatParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedVector(IRayTracingShader shader, int nameID, Vector4 val)
+        {
+            shader.SetVectorParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedMatrix(IRayTracingShader shader, int nameID, Matrix4x4 val)
+        {
+            shader.SetMatrixParam(m_CommandBuffer, nameID, val);
+        }
+
+        public void SetUnifiedTexture(IRayTracingShader shader, int nameID, RenderTargetIdentifier rt)
+        {
+            shader.SetTextureParam(m_CommandBuffer, nameID, rt);
+        }
+
+        public void DispatchUnified(IRayTracingShader shader, GraphicsBuffer scratch, uint width, uint height, uint depth)
+        {
+            shader.Dispatch(m_CommandBuffer, scratch, width, height, depth);
         }
 
         public void SetViewport(in Rect pixelRect)

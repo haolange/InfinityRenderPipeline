@@ -17,42 +17,121 @@ namespace InfinityTech.Rendering.Editor
                 return false;
             }
 
-            bool changed = false;
-            if (material.HasProperty(OldNormal) && material.HasProperty(NewNormal))
-            {
-                material.SetTexture(NewNormal, material.GetTexture(OldNormal));
-                changed = true;
-            }
-
-            if (material.HasProperty(OldPdo) && material.HasProperty(NewPdo))
-            {
-                material.SetFloat(NewPdo, material.GetFloat(OldPdo));
-                changed = true;
-            }
-
+            SerializedObject so = new SerializedObject(material);
+            bool changed = CopySavedTexture(so, OldNormal, NewNormal);
+            changed |= CopySavedFloat(so, OldPdo, NewPdo);
             if (changed)
             {
+                so.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(material);
             }
 
             return changed;
         }
 
-        [MenuItem("Window/Infinity/Migrate/Lit Material Property Names")]
-        static void MigrateSelected()
+        static bool CopySavedTexture(SerializedObject so, string from, string to)
         {
-            int count = 0;
-            Object[] materials = Selection.GetFiltered(typeof(Material), SelectionMode.DeepAssets);
-            for (int i = 0; i < materials.Length; ++i)
+            SerializedProperty list = so.FindProperty("m_SavedProperties.m_TexEnvs");
+            SerializedProperty src = FindNamed(list, from);
+            if (src == null)
             {
-                if (Migrate(materials[i] as Material))
+                return false;
+            }
+
+            SerializedProperty srcSecond = src.FindPropertyRelative("second");
+            Object texture = srcSecond.FindPropertyRelative("m_Texture").objectReferenceValue;
+            Vector2 scale = srcSecond.FindPropertyRelative("m_Scale").vector2Value;
+            Vector2 offset = srcSecond.FindPropertyRelative("m_Offset").vector2Value;
+
+            SerializedProperty dst = FindNamed(list, to);
+            if (dst == null)
+            {
+                dst = AppendNamed(list, to);
+            }
+
+            SerializedProperty dstSecond = dst.FindPropertyRelative("second");
+            SerializedProperty dstTexture = dstSecond.FindPropertyRelative("m_Texture");
+            SerializedProperty dstScale = dstSecond.FindPropertyRelative("m_Scale");
+            SerializedProperty dstOffset = dstSecond.FindPropertyRelative("m_Offset");
+            bool changed = dstTexture.objectReferenceValue != texture ||
+                dstScale.vector2Value != scale ||
+                dstOffset.vector2Value != offset;
+            dstTexture.objectReferenceValue = texture;
+            dstScale.vector2Value = scale;
+            dstOffset.vector2Value = offset;
+            changed |= RemoveNamed(list, from);
+            return changed;
+        }
+
+        static bool CopySavedFloat(SerializedObject so, string from, string to)
+        {
+            SerializedProperty list = so.FindProperty("m_SavedProperties.m_Floats");
+            SerializedProperty src = FindNamed(list, from);
+            if (src == null)
+            {
+                return false;
+            }
+
+            float value = src.FindPropertyRelative("second").floatValue;
+            SerializedProperty dst = FindNamed(list, to);
+            if (dst == null)
+            {
+                dst = AppendNamed(list, to);
+            }
+
+            SerializedProperty dstValue = dst.FindPropertyRelative("second");
+            bool changed = !Mathf.Approximately(dstValue.floatValue, value);
+            dstValue.floatValue = value;
+            changed |= RemoveNamed(list, from);
+            return changed;
+        }
+
+        static SerializedProperty AppendNamed(SerializedProperty list, string name)
+        {
+            list.arraySize++;
+            SerializedProperty entry = list.GetArrayElementAtIndex(list.arraySize - 1);
+            entry.FindPropertyRelative("first").stringValue = name;
+            return entry;
+        }
+
+        static bool RemoveNamed(SerializedProperty list, string name)
+        {
+            if (list == null || !list.isArray)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < list.arraySize; ++i)
+            {
+                SerializedProperty first = list.GetArrayElementAtIndex(i).FindPropertyRelative("first");
+                if (first != null && first.stringValue == name)
                 {
-                    count++;
+                    list.DeleteArrayElementAtIndex(i);
+                    return true;
                 }
             }
 
-            AssetDatabase.SaveAssets();
-            Debug.Log("[InfinityRP] Migrated " + count + " materials (_NormalTexture / _PixelDepthOffset).");
+            return false;
+        }
+
+        static SerializedProperty FindNamed(SerializedProperty list, string name)
+        {
+            if (list == null || !list.isArray)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < list.arraySize; ++i)
+            {
+                SerializedProperty entry = list.GetArrayElementAtIndex(i);
+                SerializedProperty first = entry.FindPropertyRelative("first");
+                if (first != null && first.stringValue == name)
+                {
+                    return entry;
+                }
+            }
+
+            return null;
         }
     }
 }

@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.farDepth = GraphicsUtility.SampledFarDepth;
-                passData.resolution = new int2(camera.pixelWidth, camera.pixelHeight);
+                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
                 passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passRef.WriteTexture(lightingTexture);

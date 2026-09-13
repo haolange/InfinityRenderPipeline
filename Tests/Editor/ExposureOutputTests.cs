@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void OutputCapability_SDR_OnUnorm_UsesShaderEncode()
+        public void OutputCapability_SDR_OnUnorm_EncodesAtPresentWithLinearIntermediate()
         {
             OutputTransformDecision decision = OutputTransformUtility.Resolve(
                 EOutputMode.SDR,
@@ -156,7 +156,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 ColorGamut.sRGB);
 
             Assert.AreEqual(EOutputEncodePolicy.ShaderLinearToSRGB, decision.policy);
-            Assert.AreEqual(GraphicsFormat.R8G8B8A8_UNorm, decision.displayFormat);
+            Assert.AreEqual(GraphicsFormat.R16G16B16A16_SFloat, decision.displayFormat);
         }
 
         [Test]

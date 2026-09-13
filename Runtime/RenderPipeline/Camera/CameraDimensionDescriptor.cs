@@ -17,12 +17,15 @@ namespace InfinityTech.Rendering.Pipeline
         public readonly int2 internalSize;
         public readonly float renderScale;
         public readonly bool superResolution;
+        public readonly Rect outputViewport;
+        public bool downscaled => math.any(internalSize != displaySize);
 
-        public CameraDimensionDescriptor(int2 displaySize, float renderScale, bool superResolution)
+        public CameraDimensionDescriptor(int2 displaySize, float renderScale, bool superResolution, Rect outputViewport)
         {
             this.displaySize = new int2(math.max(1, displaySize.x), math.max(1, displaySize.y));
-            this.renderScale = math.clamp(renderScale, 0.5f, 1.0f);
-            this.superResolution = superResolution && this.renderScale < 0.999f;
+            this.renderScale = superResolution ? math.clamp(renderScale, 0.5f, 1.0f) : 1.0f;
+            this.superResolution = superResolution;
+            this.outputViewport = outputViewport;
             if (this.superResolution)
             {
                 internalSize = new int2(
@@ -49,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             float scale = asset != null ? asset.renderScale : 1.0f;
-            return new CameraDimensionDescriptor(new int2(camera.pixelWidth, camera.pixelHeight), scale, srEnabled);
+            return new CameraDimensionDescriptor(new int2(camera.pixelWidth, camera.pixelHeight), scale, srEnabled, camera.pixelRect);
         }
     }
 }

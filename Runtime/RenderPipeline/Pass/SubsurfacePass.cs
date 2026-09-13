@@ -63,17 +63,9 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var records = new FDiffusionProfileRecord[uploadCount];
-            if (profileCount == 0)
+            for (int i = 0; i < profileCount; ++i)
             {
-                records[0].scatterAlbedoDistance = new Vector4(0.8f, 0.4f, 0.3f, 1.0f);
-                records[0].parameters = new Vector4(5.0f, 0.0f, 0.0f, 0.0f);
-            }
-            else
-            {
-                for (int i = 0; i < profileCount; ++i)
-                {
-                    records[i] = profiles[i] != null ? profiles[i].ToRecord() : default;
-                }
+                records[i] = profiles[i] != null ? profiles[i].ToRecord() : default;
             }
 
             m_DiffusionProfileBuffer.SetData(records);
@@ -86,17 +78,38 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeBurleySubsurface(RenderContext renderContext, Camera camera)
         {
+            var sss = ActiveVolumeStack.GetComponent<SubsurfaceScattering>();
+            if (!VolumeComponentActive(sss))
+            {
+                return;
+            }
+
             if (!GraphicsUtility.HasRequiredKernels(shaders.subsurfaceShader, "BurleySubsurfaceCS"))
             {
                 return;
             }
 
-            var sss = ActiveVolumeStack.GetComponent<SubsurfaceScattering>();
-            EnsureDiffusionProfileBuffer(pipelineAsset.diffusionProfiles, sss, out int profileCount, out float distance, out Color albedo, out float maxRadius, out int hasOverride);
-            int numSamples = sss != null && GraphicsUtility.VolumeComponentActive(sss) ? sss.numSamples.value : 11;
+            DiffusionProfile[] profiles = pipelineAsset.diffusionProfiles;
+            int liveProfiles = 0;
+            if (profiles != null)
+            {
+                for (int i = 0; i < profiles.Length; ++i)
+                {
+                    if (profiles[i] != null)
+                        liveProfiles++;
+                }
+            }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            if (liveProfiles == 0)
+            {
+                return;
+            }
+
+            EnsureDiffusionProfileBuffer(profiles, sss, out int profileCount, out float distance, out Color albedo, out float maxRadius, out int hasOverride);
+            int numSamples = sss.numSamples.value;
+
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
 
             TextureDescriptor subsurfaceTextureDsc = new TextureDescriptor(width, height);
             {

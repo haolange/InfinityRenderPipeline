@@ -137,8 +137,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int width = camera.pixelWidth;
-            int height = camera.pixelHeight;
+            int width = m_ActiveFrameState.dimensions.internalSize.x;
+            int height = m_ActiveFrameState.dimensions.internalSize.y;
             int depthSlices = volFog.DepthSlices.value;
             int froxelWidth = Mathf.CeilToInt(width / 8.0f);
             int froxelHeight = Mathf.CeilToInt(height / 8.0f);
@@ -338,8 +338,8 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volFog = ActiveVolumeStack.GetComponent<VolumetricFog>();
-            int froxelWidth = Mathf.CeilToInt(camera.pixelWidth / 8.0f);
-            int froxelHeight = Mathf.CeilToInt(camera.pixelHeight / 8.0f);
+            int froxelWidth = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.x / 8.0f);
+            int froxelHeight = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.y / 8.0f);
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, volFog.DepthSlices.value, VolumetricFogPassUtilityData.HistoryTextureName, false);
             RGTextureRef history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricFogBuffer);

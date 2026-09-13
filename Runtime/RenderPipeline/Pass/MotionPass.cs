@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.SetBufferData((ComputeBuffer)data.buffer, data.vertices, 0, 0, data.vertices.Length));
             }
 
-            TextureDescriptor motionTextureDsc = new TextureDescriptor(camera.pixelWidth, camera.pixelHeight);
+            TextureDescriptor motionTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
             {
                 motionTextureDsc.name = MotionPassUtilityData.MotionTextureName;
                 motionTextureDsc.dimension = TextureDimension.Tex2D;
