@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             var scene = new MeshScene(16);
             var pool = new ResourcePool();
-            var residency = new MeshSceneResidency(pool, scene);
+            var residency = new GpuScene(pool, scene);
             try
             {
                 TransformId transform;

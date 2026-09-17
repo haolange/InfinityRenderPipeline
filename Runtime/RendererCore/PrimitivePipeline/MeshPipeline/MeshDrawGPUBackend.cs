@@ -441,7 +441,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static bool PrepareIndirect(
             CommandBuffer cmdBuffer,
             in PassView drawList,
-            MeshSceneResidency residency,
+            GpuScene residency,
             ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
@@ -507,7 +507,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             CommandBuffer cmdBuffer,
             in PassView drawList,
             int shaderPassIndex,
-            MeshSceneResidency residency,
+            GpuScene residency,
             MaterialPropertyBlock propertyBlock,
             ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
@@ -539,7 +539,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             CommandBuffer cmdBuffer,
             in PassView drawList,
             int shaderPassIndex,
-            MeshSceneResidency residency,
+            GpuScene residency,
             MaterialPropertyBlock propertyBlock,
             ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
@@ -557,7 +557,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private static bool CanPrepareIndirect(
             CommandBuffer cmdBuffer,
             in PassView drawList,
-            MeshSceneResidency residency,
+            GpuScene residency,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging)
         {
@@ -627,7 +627,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private static bool PrepareBatch(
             CommandBuffer cmdBuffer,
-            MeshSceneResidency residency,
+            GpuScene residency,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             int commandBegin,
@@ -744,7 +744,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             CommandBuffer cmdBuffer,
             in PassView drawList,
             int shaderPassIndex,
-            MeshSceneResidency residency,
+            GpuScene residency,
             MaterialPropertyBlock propertyBlock,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,

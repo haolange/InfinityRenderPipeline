@@ -55,11 +55,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         private int m_SectionCount;
         private int m_MaterialCount;
 
-        private int m_TransformDirtyBegin;
-        private int m_TransformDirtyEnd;
-
-        private int m_BoundsDirtyBegin;
-        private int m_BoundsDirtyEnd;
+        private DirtyPageBitmap m_TransformDirtyPages;
+        private DirtyPageBitmap m_BoundsDirtyPages;
 
         private MeshSceneUpdate m_ActiveUpdate;
         private bool m_InTransaction;
@@ -104,13 +101,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// </summary>
         public float MatrixDuplicateRatio => (float)m_TransformCount / math.max(1, m_LogicalInstanceCount);
 
-        public bool HasTransformDirtyRange => m_TransformDirtyBegin <= m_TransformDirtyEnd;
-        public int TransformDirtyBegin => m_TransformDirtyBegin;
-        public int TransformDirtyEnd => m_TransformDirtyEnd;
+        public bool HasTransformDirtyRange => m_TransformDirtyPages.Any;
+        public int TransformDirtyBegin => m_TransformDirtyPages.FirstDirtySlot;
+        public int TransformDirtyEnd => m_TransformDirtyPages.LastDirtySlot;
 
-        public bool HasBoundsDirtyRange => m_BoundsDirtyBegin <= m_BoundsDirtyEnd;
-        public int BoundsDirtyBegin => m_BoundsDirtyBegin;
-        public int BoundsDirtyEnd => m_BoundsDirtyEnd;
+        public bool HasBoundsDirtyRange => m_BoundsDirtyPages.Any;
+        public int BoundsDirtyBegin => m_BoundsDirtyPages.FirstDirtySlot;
+        public int BoundsDirtyEnd => m_BoundsDirtyPages.LastDirtySlot;
 
         public MeshScene(int initialCapacity = k_DefaultCapacity)
         {
@@ -145,6 +142,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_MaterialGenerations = new NativeArray<uint>(m_MaterialCapacity, Allocator.Persistent);
             m_MaterialFreeList = new NativeList<int>(m_MaterialCapacity, Allocator.Persistent);
 
+            m_TransformDirtyPages.Init();
+            m_BoundsDirtyPages.Init();
             ClearTransformDirtyRange();
             ClearBoundsDirtyRange();
             m_IsCreated = true;
@@ -209,10 +208,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             StructuralRevision = snapshot.StructuralRevision;
             ContentRevision = snapshot.ContentRevision;
             VisibilityRevision = snapshot.VisibilityRevision;
-            m_TransformDirtyBegin = snapshot.TransformDirtyBegin;
-            m_TransformDirtyEnd = snapshot.TransformDirtyEnd;
-            m_BoundsDirtyBegin = snapshot.BoundsDirtyBegin;
-            m_BoundsDirtyEnd = snapshot.BoundsDirtyEnd;
+            m_TransformDirtyPages.Restore(snapshot.TransformDirtyPages);
+            m_BoundsDirtyPages.Restore(snapshot.BoundsDirtyPages);
         }
 
         public void EnsureCapacity(int instanceCapacity, int transformCapacity, int drawCapacity)
@@ -392,10 +389,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 StructuralRevision = StructuralRevision,
                 ContentRevision = ContentRevision,
                 VisibilityRevision = VisibilityRevision,
-                TransformDirtyBegin = m_TransformDirtyBegin,
-                TransformDirtyEnd = m_TransformDirtyEnd,
-                BoundsDirtyBegin = m_BoundsDirtyBegin,
-                BoundsDirtyEnd = m_BoundsDirtyEnd
+                TransformDirtyPages = m_TransformDirtyPages.CopyWords(),
+                BoundsDirtyPages = m_BoundsDirtyPages.CopyWords()
             };
         }
 
@@ -959,26 +954,32 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void ClearTransformDirtyRange()
         {
-            m_TransformDirtyBegin = int.MaxValue;
-            m_TransformDirtyEnd = -1;
+            m_TransformDirtyPages.Clear();
         }
 
         public void ClearBoundsDirtyRange()
         {
-            m_BoundsDirtyBegin = int.MaxValue;
-            m_BoundsDirtyEnd = -1;
+            m_BoundsDirtyPages.Clear();
+        }
+
+        internal void CollectTransformDirtyRuns(NativeList<int2> runs)
+        {
+            m_TransformDirtyPages.CollectMergedRuns(runs, m_TransformHighWater);
+        }
+
+        internal void CollectBoundsDirtyRuns(NativeList<int2> runs)
+        {
+            m_BoundsDirtyPages.CollectMergedRuns(runs, m_InstanceHighWater);
         }
 
         private void MarkTransformDirty(int index)
         {
-            m_TransformDirtyBegin = math.min(m_TransformDirtyBegin, index);
-            m_TransformDirtyEnd = math.max(m_TransformDirtyEnd, index);
+            m_TransformDirtyPages.Mark(index);
         }
 
         private void MarkBoundsDirty(int instanceIndex)
         {
-            m_BoundsDirtyBegin = math.min(m_BoundsDirtyBegin, instanceIndex);
-            m_BoundsDirtyEnd = math.max(m_BoundsDirtyEnd, instanceIndex);
+            m_BoundsDirtyPages.Mark(instanceIndex);
         }
 
         private void AddSectionRef(MeshSectionId id)
@@ -1330,6 +1331,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (m_Materials.IsCreated) m_Materials.Dispose();
             if (m_MaterialGenerations.IsCreated) m_MaterialGenerations.Dispose();
             if (m_MaterialFreeList.IsCreated) m_MaterialFreeList.Dispose();
+
+            m_TransformDirtyPages.Dispose();
+            m_BoundsDirtyPages.Dispose();
 
             m_IsCreated = false;
         }

@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public class MeshDrawPipeline
     {
         private readonly MeshScene m_Scene;
-        private readonly MeshSceneResidency m_Residency;
+        private readonly GpuScene m_Residency;
         private readonly ResourcePool m_ResourcePool;
         private readonly ProfilingSampler m_DrawProfiler;
         private readonly MaterialPropertyBlock m_PropertyBlock;
@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public PassBinStore PassBins => m_PassBins;
         internal MeshCandidateTableStore CandidateTables => m_CandidateTables;
 
-        public MeshDrawPipeline(MeshScene scene, MeshSceneResidency residency, ResourcePool resourcePool, PassRegistry registry)
+        public MeshDrawPipeline(MeshScene scene, GpuScene residency, ResourcePool resourcePool, PassRegistry registry)
         {
             m_Scene = scene;
             m_Residency = residency;

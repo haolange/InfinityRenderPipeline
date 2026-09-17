@@ -7,13 +7,15 @@ using InfinityTech.Rendering.GPUResource;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
-    /// GPU residency for MeshScene transform + bounds tables. Uploads dirty ranges every Update().
-    /// Current transforms are transform-indexed; previous poses are owned by each camera history.
+    /// Resident GPU tables for MeshScene. Uploads dirty pages every Update().
+    /// Current transforms are transform-indexed; previous poses stay on per-camera history.
     /// Bounds + InstanceTransformIndex are instance-indexed so GPU cull can sample per instance
     /// while compact remaps to TransformId.Index for shading.
     /// </summary>
-    public class MeshSceneResidency
+    public class GpuScene
     {
+        public const int DirtyPageSize = DirtyPageBitmap.PageSize;
+
         private readonly MeshScene m_Scene;
         private readonly ResourcePool m_ResourcePool;
         private readonly ProfilingSampler m_ProfileSampler;
@@ -45,11 +47,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int InstanceCapacity => m_InstanceBufferCapacity;
         public MeshScene Scene => m_Scene;
 
-        public MeshSceneResidency(ResourcePool resourcePool, MeshScene scene)
+        public GpuScene(ResourcePool resourcePool, MeshScene scene)
         {
             m_Scene = scene;
             m_ResourcePool = resourcePool;
-            m_ProfileSampler = new ProfilingSampler("UpdateMeshSceneResidency");
+            m_ProfileSampler = new ProfilingSampler("UpdateGpuScene");
             m_TransformBufferCapacity = 0;
             m_InstanceBufferCapacity = 0;
             m_HasTransformBuffer = false;
@@ -110,7 +112,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_InstanceRenderingLayerBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
                     m_HasInstanceBuffer = true;
 
-                    UploadBoundsFromInstances(fullRebuild: true);
+                    UploadBoundsRange(0, m_Scene.InstanceHighWater);
                     m_Scene.ClearBoundsDirtyRange();
                 }
 
@@ -119,22 +121,35 @@ namespace InfinityTech.Rendering.MeshPipeline
                     return;
                 }
 
-                if (!recreateTransforms && m_Scene.HasTransformDirtyRange)
+                var runs = new NativeList<int2>(8, Allocator.Temp);
+                try
                 {
-                    int begin = m_Scene.TransformDirtyBegin;
-                    int end = m_Scene.TransformDirtyEnd;
-                    if (begin <= end)
+                    if (!recreateTransforms && m_Scene.HasTransformDirtyRange)
                     {
-                        UploadTransformRange(begin, end + 1);
+                        m_Scene.CollectTransformDirtyRuns(runs);
+                        for (int i = 0; i < runs.Length; ++i)
+                        {
+                            UploadTransformRange(runs[i].x, runs[i].y);
+                        }
+
+                        m_Scene.ClearTransformDirtyRange();
                     }
 
-                    m_Scene.ClearTransformDirtyRange();
-                }
+                    if (!recreateInstances && m_Scene.HasBoundsDirtyRange)
+                    {
+                        runs.Clear();
+                        m_Scene.CollectBoundsDirtyRuns(runs);
+                        for (int i = 0; i < runs.Length; ++i)
+                        {
+                            UploadBoundsRange(runs[i].x, runs[i].y);
+                        }
 
-                if (!recreateInstances && m_Scene.HasBoundsDirtyRange)
+                        m_Scene.ClearBoundsDirtyRange();
+                    }
+                }
+                finally
                 {
-                    UploadBoundsFromInstances(fullRebuild: false);
-                    m_Scene.ClearBoundsDirtyRange();
+                    runs.Dispose();
                 }
             }
         }
@@ -166,6 +181,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_TransformBuffer.buffer.SetData(currentMatrices, 0, begin, count);
                 m_RenderingLayerBuffer.buffer.SetData(layers, 0, begin, count);
                 m_BakedLightingBuffer.buffer.SetData(baked, 0, begin, count);
+                AccountUpload(count, Marshal.SizeOf<float4x4>() + sizeof(uint) + Marshal.SizeOf<FMeshBakedLighting>());
             }
             finally
             {
@@ -175,18 +191,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        private void UploadBoundsFromInstances(bool fullRebuild)
+        private void UploadBoundsRange(int begin, int exclusiveEnd)
         {
-            int instanceCount = math.max(1, m_Scene.InstanceHighWater);
-            int begin = fullRebuild ? 0 : math.max(0, m_Scene.BoundsDirtyBegin);
-            int endInclusive = fullRebuild ? instanceCount - 1 : m_Scene.BoundsDirtyEnd;
-            endInclusive = math.min(endInclusive, instanceCount - 1);
-            if (endInclusive < begin)
+            begin = math.max(0, begin);
+            exclusiveEnd = math.min(exclusiveEnd, m_Scene.InstanceHighWater);
+            if (exclusiveEnd <= begin)
             {
                 return;
             }
 
-            int count = endInclusive - begin + 1;
+            int count = exclusiveEnd - begin;
             var centers = new NativeArray<float4>(count, Allocator.Temp);
             var extents = new NativeArray<float4>(count, Allocator.Temp);
             var transformIndices = new NativeArray<uint>(count, Allocator.Temp);
@@ -196,7 +210,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 var instances = m_Scene.GetInstances();
-                for (int i = begin; i <= endInclusive; ++i)
+                for (int i = begin; i < exclusiveEnd; ++i)
                 {
                     int local = i - begin;
                     if (!m_Scene.IsInstanceSlotLive(i))
@@ -225,6 +239,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_InstanceFlagsBuffer.buffer.SetData(flags, 0, begin, count);
                 m_InstanceLayerMaskBuffer.buffer.SetData(layerMasks, 0, begin, count);
                 m_InstanceRenderingLayerBuffer.buffer.SetData(renderingLayers, 0, begin, count);
+                AccountUpload(count, Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 4);
             }
             finally
             {
@@ -237,8 +252,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
+        static void AccountUpload(int slots, int bytesPerSlot)
+        {
+            MeshPipelineDiagnostics.GpuSceneUploadedSlots += slots;
+            MeshPipelineDiagnostics.GpuSceneUploadedBytes += slots * bytesPerSlot;
+        }
+
         /// <summary>
-        /// End-of-frame hook. Keeps persistent buffers alive so dirty-range
+        /// End-of-frame hook. Keeps persistent buffers alive so dirty-page
         /// uploads remain valid across frames. Use <see cref="Dispose"/> to release GPU memory.
         /// </summary>
         public void Clear()
@@ -252,7 +273,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 m_ResourcePool.ReleaseBuffer(m_TransformBuffer);
                 m_ResourcePool.ReleaseBuffer(m_RenderingLayerBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_BakedLightingBuffer);
+                m_ResourcePool.ReleaseBuffer(m_BakedLightingBuffer);
                 m_HasTransformBuffer = false;
                 m_TransformBufferCapacity = 0;
             }

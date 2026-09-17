@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     public sealed class MeshWorld : IDisposable
     {
         private readonly MeshScene m_Scene;
-        private readonly MeshSceneResidency m_Residency;
+        private readonly GpuScene m_Residency;
         private readonly MeshVisibilityShare m_VisibilityShare;
         private readonly MeshDrawPipeline m_Processor;
         private readonly PassRegistry m_Registry;
@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private bool m_Disposed;
 
         public MeshScene Scene => m_Scene;
-        public MeshSceneResidency Residency => m_Residency;
+        public GpuScene Residency => m_Residency;
         public MeshVisibilityShare VisibilityShare => m_VisibilityShare;
         public MeshDrawPipeline Processor => m_Processor;
         public PassRegistry Registry => m_Registry;
@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new ArgumentNullException(nameof(resourcePool));
             }
 
-            m_Residency = new MeshSceneResidency(resourcePool, m_Scene);
+            m_Residency = new GpuScene(resourcePool, m_Scene);
             m_VisibilityShare = new MeshVisibilityShare();
             m_Registry = new PassRegistry();
             m_Processor = new MeshDrawPipeline(m_Scene, m_Residency, resourcePool, m_Registry);
