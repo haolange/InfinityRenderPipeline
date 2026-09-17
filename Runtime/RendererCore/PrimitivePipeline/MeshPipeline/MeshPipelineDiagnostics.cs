@@ -19,6 +19,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static int LocalShadowBudgetDropped;
         public static int VisibilityProductionsPerFrame;
         public static int PassBinRebuilds;
+        public static int CompactDispatchesPerFrame;
+        public static int CandidateUploadsBytes;
 
         public struct SnapshotData
         {
@@ -34,6 +36,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             public int LocalShadowBudgetDropped;
             public int VisibilityProductionsPerFrame;
             public int PassBinRebuilds;
+            public int CompactDispatchesPerFrame;
+            public int CandidateUploadsBytes;
         }
 
         public static SnapshotData Snapshot()
@@ -51,7 +55,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 GpuOverflowCount = GpuOverflowCount,
                 LocalShadowBudgetDropped = LocalShadowBudgetDropped,
                 VisibilityProductionsPerFrame = VisibilityProductionsPerFrame,
-                PassBinRebuilds = PassBinRebuilds
+                PassBinRebuilds = PassBinRebuilds,
+                CompactDispatchesPerFrame = CompactDispatchesPerFrame,
+                CandidateUploadsBytes = CandidateUploadsBytes
             };
         }
 
@@ -69,6 +75,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             LocalShadowBudgetDropped = 0;
             VisibilityProductionsPerFrame = 0;
             PassBinRebuilds = 0;
+            CompactDispatchesPerFrame = 0;
+            CandidateUploadsBytes = 0;
         }
 
         public static void PublishFromScene(MeshScene scene)

@@ -9,6 +9,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// <summary>
     /// Single Mesh Drawing world: scene, GPU residency, pass registry, visibility intern, one processor.
     /// RenderGraph talks only to this object via Create / Use / Draw.
+    /// CandidateTable uploads stay on PassBin epoch, not per-frame.
     /// </summary>
     public sealed class MeshWorld : IDisposable
     {
@@ -49,6 +50,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_ActiveCamera = camera;
             m_PreviousTransforms.Clear();
             MeshPipelineDiagnostics.VisibilityProductionsPerFrame = 0;
+            MeshPipelineDiagnostics.CompactDispatchesPerFrame = 0;
+            MeshPipelineDiagnostics.CandidateUploadsBytes = 0;
             m_GpuVisibility.BeginCamera();
             if (m_Scene != null)
             {

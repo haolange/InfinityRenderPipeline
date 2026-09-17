@@ -2,53 +2,46 @@
 // Platform fallback (CPU side):
 // - No compute → CpuDirect
 // - Compute without indirect → CpuDirect procedural
-// - Indirect → compact candidates + BuildIndirectArgs + DrawMeshInstancedIndirect
+// - Indirect → one Compact over CandidateTable + BuildIndirectArgs + DrawMeshInstancedIndirect
 // Never read back visible counts on the submitting frame.
 //
 // Index semantics:
-// - CandidateIndices / Cull domain: instance indices (MeshInstanceId.Index / InstanceHighWater)
-// - CompactedIndices (shader InstanceIndexBuffer): transform indices (TransformId.Index)
+// - CandidateTable / Cull domain: instance indices (MeshInstanceId.Index / InstanceHighWater)
+// - ShadingIndices (shader InstanceIndexBuffer): transform indices (TransformId.Index)
 
-#pragma kernel CullInstances
-#pragma kernel ClearCommandCounts
-#pragma kernel CompactCommandInstances
-#pragma kernel PrefixSumCommands
-#pragma kernel ScatterVisibleInstances
+#pragma kernel CullFrustum
+#pragma kernel ClearCounts
+#pragma kernel Compact
 #pragma kernel BuildIndirectArgs
 
 uint _InstanceCount;
 uint _CommandCount;
 uint _CandidateCount;
-uint _CommandIndex;
+uint _CommandBegin;
 uint _CandidateOffset;
 uint _CandidateSpan;
 float4 _FrustumPlanes[6];
 
-StructuredBuffer<float4> _InstanceBoundsCenter; // xyz = center (instance-indexed)
-StructuredBuffer<float4> _InstanceBoundsExtent; // xyz = extent (instance-indexed)
-StructuredBuffer<uint> _InstanceTransformIndex; // TransformId.Index per instance slot
+StructuredBuffer<float4> _InstanceBoundsCenter;
+StructuredBuffer<float4> _InstanceBoundsExtent;
+StructuredBuffer<uint> _InstanceToTransform;
 StructuredBuffer<uint> _InstanceFlags;
 StructuredBuffer<uint> _InstanceLayerMask;
 StructuredBuffer<uint> _InstanceRenderingLayer;
 uint _ViewLayerMask;
 uint _ViewRenderingLayerMask;
 uint _FilterRenderingLayers;
-RWStructuredBuffer<uint> _InstanceVisibility;   // 0/1 per instance slot (shared per view)
+RWStructuredBuffer<uint> _Visibility;
 
-// Command meta: indexCount, startIndex, baseVertex, candidateOffset
 StructuredBuffer<uint> _CommandMeta;
-// Command candidate spans: offset, count (packed uint2 in two arrays)
-StructuredBuffer<uint> _CommandCandidateOffsets;
-StructuredBuffer<uint> _CommandCandidateCounts;
-
-StructuredBuffer<uint> _CandidateIndices;       // instance indices (CPU filter upper bound)
-RWStructuredBuffer<uint> _CompactedIndices;     // compacted transform indices for shading
-RWStructuredBuffer<uint> _VisibleCounts;        // instanceCount per command
-RWStructuredBuffer<uint> _CommandInstanceOffsets;
-RWStructuredBuffer<uint> _IndirectArgs;         // 5 uints per command
+StructuredBuffer<uint2> _CandidateTable;
+RWStructuredBuffer<uint> _ShadingIndices;
+RWStructuredBuffer<uint> _VisibleCounts;
+RWStructuredBuffer<uint> _IndirectArgs;
 
 bool FrustumCullAABB(float3 center, float3 extent)
 {
+    bool culled = false;
     [unroll]
     for (int i = 0; i < 6; ++i)
     {
@@ -58,14 +51,15 @@ bool FrustumCullAABB(float3 center, float3 extent)
         float radius = dot(extent, abs(n));
         if (distance + radius < 0.0f)
         {
-            return true;
+            culled = true;
         }
     }
-    return false;
+
+    return culled;
 }
 
 [numthreads(64, 1, 1)]
-void CullInstances(uint3 id : SV_DispatchThreadID)
+void CullFrustum(uint3 id : SV_DispatchThreadID)
 {
     uint instanceIndex = id.x;
     if (instanceIndex >= _InstanceCount)
@@ -76,29 +70,29 @@ void CullInstances(uint3 id : SV_DispatchThreadID)
     uint flags = _InstanceFlags[instanceIndex];
     if ((flags & 4u) == 0u)
     {
-        _InstanceVisibility[instanceIndex] = 0u;
+        _Visibility[instanceIndex] = 0u;
         return;
     }
 
     if ((_InstanceLayerMask[instanceIndex] & _ViewLayerMask) == 0u)
     {
-        _InstanceVisibility[instanceIndex] = 0u;
+        _Visibility[instanceIndex] = 0u;
         return;
     }
 
     if (_FilterRenderingLayers != 0u && (_InstanceRenderingLayer[instanceIndex] & _ViewRenderingLayerMask) == 0u)
     {
-        _InstanceVisibility[instanceIndex] = 0u;
+        _Visibility[instanceIndex] = 0u;
         return;
     }
 
     float3 center = _InstanceBoundsCenter[instanceIndex].xyz;
     float3 extent = _InstanceBoundsExtent[instanceIndex].xyz;
-    _InstanceVisibility[instanceIndex] = FrustumCullAABB(center, extent) ? 0u : 1u;
+    _Visibility[instanceIndex] = FrustumCullAABB(center, extent) ? 0u : 1u;
 }
 
 [numthreads(64, 1, 1)]
-void ClearCommandCounts(uint3 id : SV_DispatchThreadID)
+void ClearCounts(uint3 id : SV_DispatchThreadID)
 {
     uint commandIndex = id.x;
     if (commandIndex >= _CommandCount)
@@ -107,8 +101,6 @@ void ClearCommandCounts(uint3 id : SV_DispatchThreadID)
     }
 
     _VisibleCounts[commandIndex] = 0u;
-    _CommandInstanceOffsets[commandIndex] = 0u;
-
     uint argsBase = commandIndex * 5u;
     _IndirectArgs[argsBase + 0u] = 0u;
     _IndirectArgs[argsBase + 1u] = 0u;
@@ -117,72 +109,43 @@ void ClearCommandCounts(uint3 id : SV_DispatchThreadID)
     _IndirectArgs[argsBase + 4u] = 0u;
 }
 
-// One dispatch per command (or chunk): compact candidates that pass GPU frustum / visibility.
-// Candidates are instance indices; compacted output is transform indices for matrix lookup.
 [numthreads(64, 1, 1)]
-void CompactCommandInstances(uint3 id : SV_DispatchThreadID)
+void Compact(uint3 id : SV_DispatchThreadID)
 {
-    uint localIndex = id.x;
-    if (localIndex >= _CandidateSpan)
+    if (id.x >= _CandidateSpan)
     {
         return;
     }
 
-    uint candidateIndex = _CandidateOffset + localIndex;
+    uint candidateIndex = _CandidateOffset + id.x;
     if (candidateIndex >= _CandidateCount)
     {
         return;
     }
 
-    uint instanceIndex = _CandidateIndices[candidateIndex];
-    if (instanceIndex >= _InstanceCount)
+    uint2 candidate = _CandidateTable[candidateIndex];
+    uint instanceIndex = candidate.x;
+    uint commandId = candidate.y;
+    if (instanceIndex >= _InstanceCount || commandId < _CommandBegin)
     {
         return;
     }
 
-    // Visibility bits authored by CullInstances (resident bounds + frustum).
-    if (_InstanceVisibility[instanceIndex] == 0u)
+    uint localCommand = commandId - _CommandBegin;
+    if (localCommand >= _CommandCount)
+    {
+        return;
+    }
+
+    if (_Visibility[instanceIndex] == 0u)
     {
         return;
     }
 
     uint slot;
-    InterlockedAdd(_VisibleCounts[_CommandIndex], 1u, slot);
-    uint baseOffset = _CommandCandidateOffsets[_CommandIndex];
-    _CompactedIndices[baseOffset + slot] = _InstanceTransformIndex[instanceIndex];
-}
-
-// Inclusive/exclusive prefix: offsets[i] = sum(counts[0..i))
-[numthreads(64, 1, 1)]
-void PrefixSumCommands(uint3 id : SV_DispatchThreadID)
-{
-    // Single-threaded prefix on thread 0 (command counts are modest / MaxCommands).
-    if (id.x != 0u)
-    {
-        return;
-    }
-
-    uint running = 0u;
-    for (uint i = 0u; i < _CommandCount; ++i)
-    {
-        _CommandInstanceOffsets[i] = running;
-        running += _VisibleCounts[i];
-    }
-}
-
-// Optional remap when compacted indices were written at candidate base; rewrite draw offsets.
-[numthreads(64, 1, 1)]
-void ScatterVisibleInstances(uint3 id : SV_DispatchThreadID)
-{
-    uint commandIndex = id.x;
-    if (commandIndex >= _CommandCount)
-    {
-        return;
-    }
-
-    // CompactCommandInstances already writes into candidate-base slots which match CPU span layout.
-    // Scatter keeps offsets consistent for shaders that read CommandInstanceOffsets.
-    _CommandInstanceOffsets[commandIndex] = _CommandCandidateOffsets[commandIndex];
+    InterlockedAdd(_VisibleCounts[localCommand], 1u, slot);
+    uint baseOffset = _CommandMeta[localCommand * 4u + 3u];
+    _ShadingIndices[baseOffset + slot] = _InstanceToTransform[instanceIndex];
 }
 
 [numthreads(64, 1, 1)]
@@ -199,8 +162,6 @@ void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
     uint startIndex = _CommandMeta[metaBase + 1u];
     uint baseVertex = _CommandMeta[metaBase + 2u];
     uint instanceCount = _VisibleCounts[commandIndex];
-
-    // args = (indexCount, instanceCount, startIndex, baseVertex, startInstance)
     uint argsBase = commandIndex * 5u;
     _IndirectArgs[argsBase + 0u] = indexCount;
     _IndirectArgs[argsBase + 1u] = instanceCount;
@@ -208,4 +169,3 @@ void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
     _IndirectArgs[argsBase + 3u] = baseVertex;
     _IndirectArgs[argsBase + 4u] = 0u;
 }
-

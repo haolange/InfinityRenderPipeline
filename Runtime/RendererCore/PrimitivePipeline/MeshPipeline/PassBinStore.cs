@@ -84,6 +84,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             return m_Passes[(int)passId].memberDrawIndices.AsArray();
         }
 
+        public int GetBuiltEpoch(MeshPassId passId)
+        {
+            EnsureRebuilt(passId);
+            return m_Passes[(int)passId].builtEpoch;
+        }
+
         public void EnsureRebuilt(MeshPassId passId)
         {
             int index = (int)passId;

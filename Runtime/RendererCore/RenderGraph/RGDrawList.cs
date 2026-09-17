@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public ERGDrawListCompileState state;
         public EMeshBackendPolicy selectedBackend;
         public MeshDrawExtract extract;
-        public MeshDrawList resolvedList;
+        public PassView resolvedList;
         public MeshDrawGpuStaging gpuStaging;
         public MeshDrawGpuPayload gpuPayload;
         public FBufferRef cpuIndexBuffer;
@@ -139,7 +139,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 state = ERGDrawListCompileState.Declared,
                 selectedBackend = EMeshBackendPolicy.CpuDirect,
                 extract = default,
-                resolvedList = MeshDrawList.Invalid,
+                resolvedList = PassView.Invalid,
                 gpuStaging = null,
                 gpuPayload = null,
                 hasSideEffect = false
@@ -180,7 +180,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 state = ERGDrawListCompileState.Declared,
                 selectedBackend = EMeshBackendPolicy.CpuDirect,
                 extract = default,
-                resolvedList = MeshDrawList.Invalid,
+                resolvedList = PassView.Invalid,
                 gpuStaging = null,
                 gpuPayload = null,
                 hasSideEffect = false
@@ -283,9 +283,9 @@ namespace InfinityTech.Rendering.RenderGraph
                 record.resolvedList = record.pipeline.Resolve(ref record.extract);
                 if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect)
                 {
-                    // Overflow splits into multiple Submit batches; single-command overflow falls back to CpuDirect.
                     int boundsCount = record.pipeline.GetBoundsCullCount();
-                    record.gpuStaging = MeshDrawGPUBackend.CreateStaging(record.resolvedList, record.culling, boundsCount);
+                    record.resolvedList = record.pipeline.CandidateTables.BuildPassView(record.passId);
+                    record.gpuStaging = record.pipeline.CandidateTables.CreateStaging(record.passId, record.culling, boundsCount);
                     if (record.gpuStaging != null)
                     {
                         MeshDrawGPUBackend.ComputePayloadBudget(
@@ -303,12 +303,14 @@ namespace InfinityTech.Rendering.RenderGraph
                         {
                             record.gpuStaging = null;
                             record.selectedBackend = EMeshBackendPolicy.CpuDirect;
+                            record.resolvedList = record.pipeline.Resolve(ref record.extract);
                             MeshPipelineDiagnostics.GpuOverflowCount++;
                         }
                     }
                     else
                     {
                         record.selectedBackend = EMeshBackendPolicy.CpuDirect;
+                        record.resolvedList = record.pipeline.Resolve(ref record.extract);
                         MeshPipelineDiagnostics.GpuOverflowCount++;
                     }
                 }
@@ -334,13 +336,18 @@ namespace InfinityTech.Rendering.RenderGraph
             if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect
                 && record.gpuPayload != null
                 && record.gpuStaging != null
-                && record.pipeline.PrepareGpu(cmdBuffer, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.view))
+                && record.pipeline.PrepareGpu(cmdBuffer, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.view, record.passId))
             {
                 m_Records[draws.index] = record;
                 return;
             }
 
             record.selectedBackend = EMeshBackendPolicy.CpuDirect;
+            if (!record.resolvedList.isValid || !record.resolvedList.instanceIndices.IsCreated)
+            {
+                record.resolvedList = record.pipeline.Resolve(ref record.extract);
+            }
+
             record.cpuIndexBuffer = record.pipeline.PrepareCpuDirect(cmdBuffer, record.resolvedList);
             m_Records[draws.index] = record;
         }
@@ -414,7 +421,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 // Moves frame-rented CPU buffers into the retirement queue (not pool Return).
                 record.pipeline?.ReleaseFrameBuffers();
 
-                record.resolvedList = MeshDrawList.Invalid;
+                record.resolvedList = PassView.Invalid;
                 record.state = ERGDrawListCompileState.Released;
                 m_Records[i] = record;
             }

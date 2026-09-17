@@ -22,11 +22,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly ProfilingSampler m_DrawProfiler;
         private readonly MaterialPropertyBlock m_PropertyBlock;
         private readonly PassBinStore m_PassBins;
+        private readonly MeshCandidateTableStore m_CandidateTables;
         private readonly uint m_PlatformFeatureKey;
         private readonly List<FBufferRef> m_FrameRentedBuffers = new List<FBufferRef>(8);
         private readonly List<FBufferRef> m_RetiredBuffers = new List<FBufferRef>(8);
 
         public PassBinStore PassBins => m_PassBins;
+        internal MeshCandidateTableStore CandidateTables => m_CandidateTables;
 
         public MeshDrawPipeline(MeshScene scene, MeshSceneResidency residency, ResourcePool resourcePool, PassRegistry registry)
         {
@@ -37,6 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PropertyBlock = new MaterialPropertyBlock();
             m_PlatformFeatureKey = MeshDrawGPUBackend.SupportsIndirect ? 1u : 0u;
             m_PassBins = new PassBinStore(scene, registry, m_PlatformFeatureKey);
+            m_CandidateTables = new MeshCandidateTableStore(scene, m_PassBins);
         }
 
         public MeshDrawExtract Extract(MeshPassId passId, in MeshViewCullingResult culling)
@@ -77,14 +80,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             return extract;
         }
 
-        public MeshDrawList Resolve(ref MeshDrawExtract extract)
+        public PassView Resolve(ref MeshDrawExtract extract)
         {
             if (!extract.isCreated)
             {
-                return MeshDrawList.Invalid;
+                return PassView.Invalid;
             }
 
-            return new MeshDrawList
+            return new PassView
             {
                 isValid = true,
                 commands = extract.drawCommands.AsArray(),
@@ -100,13 +103,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// Temporary instance-index buffers are retired by <see cref="ReleaseFrameBuffers"/> and physically
         /// returned by <see cref="FlushRetiredBuffers"/> after <c>ScriptableRenderContext.Submit</c>.
         /// </summary>
-        public void Submit(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, string lightModeTag = null)
+        public void Submit(CommandBuffer cmdBuffer, in PassView drawList, int shaderPassIndex, string lightModeTag = null)
         {
             FBufferRef indexBuffer = PrepareCpuDirect(cmdBuffer, drawList);
             SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex, indexBuffer, lightModeTag);
         }
 
-        internal FBufferRef PrepareCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList)
+        internal FBufferRef PrepareCpuDirect(CommandBuffer cmdBuffer, in PassView drawList)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
                 || m_Residency.TransformBuffer.buffer == null)
@@ -123,11 +126,12 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal bool PrepareGpu(
             CommandBuffer cmdBuffer,
-            in MeshDrawList drawList,
+            in PassView drawList,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             MeshWorld world,
-            in MeshView view)
+            in MeshView view,
+            MeshPassId passId)
         {
             if (!MeshDrawGPUBackend.SupportsIndirect || payload == null || staging == null)
             {
@@ -135,12 +139,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return false;
             }
 
-            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, m_DrawProfiler, payload, staging, world, view);
+            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, m_DrawProfiler, payload, staging, world, view, passId, m_CandidateTables);
         }
 
         internal void SubmitGpu(
             CommandBuffer cmdBuffer,
-            in MeshDrawList drawList,
+            in PassView drawList,
             int shaderPassIndex,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
@@ -201,10 +205,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             ReleaseFrameBuffers();
             FlushRetiredBuffers();
+            m_CandidateTables.Dispose();
             m_PassBins.Dispose();
         }
 
-        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, FBufferRef indexBufferRef, string lightModeTag = null, ComputeBuffer previousTransforms = null)
+        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in PassView drawList, int shaderPassIndex, FBufferRef indexBufferRef, string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
                 || indexBufferRef.buffer == null

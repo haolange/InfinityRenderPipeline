@@ -25,18 +25,18 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }
 
-    public struct MeshDrawList
+    public struct PassView
     {
         public NativeArray<MeshDrawCommand> commands;
         /// <summary>TransformId.Index per visible draw — CPU Submit / shading matrix lookup.</summary>
         public NativeArray<int> instanceIndices;
-        /// <summary>MeshInstanceId.Index per visible draw — GPU cull candidate stream.</summary>
+        /// <summary>MeshInstanceId.Index per visible draw — leftover CPU extract stream.</summary>
         public NativeArray<int> instanceSlotIndices;
         public int commandCount;
         public int instanceCount;
         public bool isValid;
 
-        public static MeshDrawList Invalid => default;
+        public static PassView Invalid => default;
     }
 
     public struct MeshDrawCommand
