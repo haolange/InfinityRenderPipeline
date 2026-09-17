@@ -215,16 +215,10 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private bool m_UpdateInit;
-        private MeshSceneResidency m_MeshSceneResidency;
-        private MeshVisibilityShare m_VisibilityShare;
+        private MeshWorld m_MeshWorld;
         private RGScoper m_RGScoper;
         private RGBuilder m_RGBuilder;
         private ResourcePool m_ResourcePool;
-        private MeshDrawPipeline m_DepthMeshProcessor;
-        private MeshDrawPipeline m_GBufferMeshProcessor;
-        private MeshDrawPipeline m_ForwardMeshProcessor;
-        private MeshDrawPipeline m_MotionMeshProcessor;
-        private MeshDrawPipeline m_ShadowMeshProcessor;
         private Dictionary<int, CameraFrameState> m_CameraStates;
         private readonly List<int> m_CameraStateRecycleIds = new List<int>(8);
         private Dictionary<int, ProfilingSampler> m_CameraSamplers;
@@ -295,14 +289,9 @@ namespace InfinityTech.Rendering.Pipeline
                 m_CameraStates = new Dictionary<int, CameraFrameState>();
                 m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
                 m_ResourcePool = new ResourcePool();
-                m_MeshSceneResidency = new MeshSceneResidency(m_ResourcePool, renderContext.GetMeshScene());
-                m_VisibilityShare = new MeshVisibilityShare();
+                m_MeshWorld = new MeshWorld(renderContext.GetMeshScene(), m_ResourcePool);
+                m_RGBuilder.SetMeshWorld(m_MeshWorld);
                 MeshDrawGPUBackend.SetShader(shaders.meshDrawPipelineCS);
-                m_DepthMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-                m_GBufferMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-                m_ForwardMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-                m_MotionMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
-                m_ShadowMeshProcessor = new MeshDrawPipeline(renderContext.GetMeshScene(), m_MeshSceneResidency, m_ResourcePool);
                 m_AtmosphereSharedCache = new AtmosphereSharedCache();
             }
             catch (Exception constructionFailure)
@@ -327,7 +316,7 @@ namespace InfinityTech.Rendering.Pipeline
                 CameraMotionValidation.Tick();
 
                 InvokeProxyUpdate();
-                m_MeshSceneResidency.Update();
+                m_MeshWorld.UpdateResidency();
                 CommandBuffer cmdBuffer = CommandBufferPool.Get();
                 cmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.None);
                 cmdBuffer.Clear();
@@ -346,7 +335,7 @@ namespace InfinityTech.Rendering.Pipeline
                         InfinityAdditionalCameraData cameraComponent = camera.GetComponent<InfinityAdditionalCameraData>();
                         ResolveVolumeSelection(camera, cameras, cameraComponent, out Transform volumeTrigger, out LayerMask volumeLayerMask);
 
-                        MeshVisibilityHandle sharedVisibility = MeshVisibilityHandle.Invalid;
+                        MeshView mainView = default;
                         CullingResults cullingResults;
 
                         int cameraId = GetCameraID(camera);
@@ -422,16 +411,8 @@ namespace InfinityTech.Rendering.Pipeline
                                     cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
                                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
-                                    MeshScene meshScene = renderContext.GetMeshScene();
-                                    m_VisibilityShare.BeginFrame(meshScene.VisibilityRevision);
-                                    ulong viewKey = MeshVisibilityShare.MakeCameraViewKey(camera);
-                                    // Main camera frustum: Depth/GBuffer/Forward/Motion share one Cull.
-                                    sharedVisibility = m_VisibilityShare.Acquire(
-                                        meshScene,
-                                        viewKey,
-                                        ref cullingParameters,
-                                        MeshVisibilityShare.PolicyMainFrustum,
-                                        isSceneView);
+                                    m_MeshWorld.BeginCamera(camera);
+                                    mainView = MeshView.FromCamera(camera, ref cullingParameters);
                                 }
 
                                 // ProcessLOD
@@ -547,10 +528,10 @@ namespace InfinityTech.Rendering.Pipeline
                                     ComputeAtmosphericLUT(renderContext, camera);
 
                                     // PHASE 1: geometry raster (shared depth attachment chain).
-                                    RenderDepth(renderContext, camera, sharedVisibility, cullingResults);
+                                    RenderDepth(renderContext, camera, mainView);
                                     RenderDBuffer(renderContext, camera, cullingResults);
-                                    RenderGBuffer(renderContext, camera, sharedVisibility, cullingResults);
-                                    RenderMotion(renderContext, camera, sharedVisibility, cullingResults);
+                                    RenderGBuffer(renderContext, camera, mainView);
+                                    RenderMotion(renderContext, camera, mainView);
 
                                     // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
                                     ComputeHiZ(renderContext, camera);
@@ -574,7 +555,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                                     // PHASE 6: DeferredBase → Forward → OpaqueLightingPyramid → SSR/SSGI → Composite → OpaqueSceneColor
                                     ComputeDeferredShading(renderContext, camera);
-                                    RenderForward(renderContext, camera, sharedVisibility, cullingResults);
+                                    RenderForward(renderContext, camera, mainView);
                                     ComputeBurleySubsurface(renderContext, camera);
                                     RenderAtmosphericSkyAndFog(renderContext, camera);
                                     RecordLightingCapture();
@@ -655,8 +636,6 @@ namespace InfinityTech.Rendering.Pipeline
                                 // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
                                 m_RGBuilder.ClearRecordedGraph();
                                 m_ShadowCasterSplits.Clear();
-                                m_VisibilityShare.Release(sharedVisibility);
-                                sharedVisibility = MeshVisibilityHandle.Invalid;
                                 m_ActiveFrameState = null;
                             }
                             EndCameraRendering(scriptableRenderContext, camera);
@@ -709,7 +688,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         m_ActiveFrameState = null;
                         m_RGScoper.Clear();
-                        try { m_MeshSceneResidency.Clear(); }
+                        try { m_MeshWorld?.ClearResidency(); }
                         catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
                         try { cmdBuffer.Clear(); }
                         catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
@@ -748,12 +727,7 @@ namespace InfinityTech.Rendering.Pipeline
                 state.atmosphereViewCache.FlushRetired();
                 state.combineLutCache.FlushRetired();
             }
-            MeshDrawGPUBackend.FlushRetiredPayloads();
-            m_DepthMeshProcessor?.FlushRetiredBuffers();
-            m_GBufferMeshProcessor?.FlushRetiredBuffers();
-            m_ForwardMeshProcessor?.FlushRetiredBuffers();
-            m_MotionMeshProcessor?.FlushRetiredBuffers();
-            m_ShadowMeshProcessor?.FlushRetiredBuffers();
+            m_MeshWorld?.FlushRetired();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -996,14 +970,8 @@ namespace InfinityTech.Rendering.Pipeline
             bool ownsSharedResources = s_GlobalStateOwner == this;
             if (ownsSharedResources) Release(() => RenderCaptureService.current?.Cancel("PipelineDisposed"));
             Release(() => renderContext?.Dispose());
-            Release(() => m_DepthMeshProcessor?.Dispose());
-            Release(() => m_GBufferMeshProcessor?.Dispose());
-            Release(() => m_ForwardMeshProcessor?.Dispose());
-            Release(() => m_MotionMeshProcessor?.Dispose());
-            Release(() => m_ShadowMeshProcessor?.Dispose());
+            Release(() => m_MeshWorld?.Dispose());
             if (ownsSharedResources) Release(MeshDrawGPUBackend.Dispose);
-            Release(() => m_VisibilityShare?.Dispose());
-            Release(() => m_MeshSceneResidency?.Dispose());
             Release(() => m_RGScoper?.Dispose());
             Release(() => m_RGBuilder?.Dispose());
             Release(() => m_ResourcePool?.Dispose());

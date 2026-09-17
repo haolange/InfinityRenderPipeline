@@ -151,6 +151,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshFilterProgram defaultFilter;
         public MeshSortPlan defaultSort;
         public EPassEligibility eligibility;
+        public EPassEligibility requiredEligibility;
+        public int renderQueueMin;
+        public int renderQueueMax;
+        public EMeshSortPolicy sortPolicy;
+        public bool filterRenderingLayers;
+        public bool excludeCameraMotionOnly;
     }
 
     public static class BuiltinMeshesPasses
@@ -161,8 +167,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             shaderPassIndex = 1,
             lightModeTag = "DepthPass",
             eligibility = EPassEligibility.Depth,
+            requiredEligibility = EPassEligibility.Depth,
+            renderQueueMin = 0,
+            renderQueueMax = 2999,
+            sortPolicy = EMeshSortPolicy.None,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Depth),
             // Distance: decimeter scale (10) — camera-range resolution without early 16-bit saturation.
+            // Phase 1 keeps this sort so the seam cut does not change batch order.
             defaultSort = MeshSortPlan.Create(
                 new MeshSortField(EMeshSortSemantic.Distance, ESortDirection.Ascending, quantizeScale: 10f),
                 new MeshSortField(EMeshSortSemantic.Material),
@@ -176,6 +187,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             shaderPassIndex = 2,
             lightModeTag = "GBufferPass",
             eligibility = EPassEligibility.GBuffer,
+            requiredEligibility = EPassEligibility.GBuffer,
+            renderQueueMin = 0,
+            renderQueueMax = 2999,
+            sortPolicy = EMeshSortPolicy.StructuralMaterialOrder,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.GBuffer),
             defaultSort = MeshSortPlan.Create(
                 new MeshSortField(EMeshSortSemantic.RenderQueue),
@@ -190,6 +205,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             shaderPassIndex = 3,
             lightModeTag = "ForwardPass",
             eligibility = EPassEligibility.Forward,
+            requiredEligibility = EPassEligibility.Forward,
+            renderQueueMin = 0,
+            renderQueueMax = 2999,
+            sortPolicy = EMeshSortPolicy.StructuralMaterialOrder,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Forward),
             defaultSort = MeshSortPlan.Create(
                 new MeshSortField(EMeshSortSemantic.RenderQueue),
@@ -204,6 +223,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             shaderPassIndex = 4,
             lightModeTag = "MotionPass",
             eligibility = EPassEligibility.Motion,
+            requiredEligibility = EPassEligibility.Motion,
+            renderQueueMin = 0,
+            renderQueueMax = 2999,
+            sortPolicy = EMeshSortPolicy.None,
+            excludeCameraMotionOnly = true,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Motion, ~0, excludeCameraMotionOnly: true),
             // Distance: decimeter scale (10) — matches Depth camera-range quantization.
             defaultSort = MeshSortPlan.Create(
@@ -219,6 +243,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             shaderPassIndex = 0,
             lightModeTag = "ShadowPass",
             eligibility = EPassEligibility.Shadow,
+            requiredEligibility = EPassEligibility.Shadow,
+            renderQueueMin = 0,
+            renderQueueMax = 2999,
+            sortPolicy = EMeshSortPolicy.None,
+            filterRenderingLayers = true,
             defaultFilter = new MeshFilterProgram(0, 2999, EPassEligibility.Shadow, filterRenderingLayers: true),
             // Distance: meter scale (1) — coarser bins for cascade / large-world ranges.
             defaultSort = MeshSortPlan.Create(
@@ -227,5 +256,31 @@ namespace InfinityTech.Rendering.MeshPipeline
                 new MeshSortField(EMeshSortSemantic.Mesh),
                 new MeshSortField(EMeshSortSemantic.StableDrawId))
         };
+
+        public static readonly MeshPassDefinition TranslucentDepth = CreateTranslucent(
+            "TranslucentDepth", "TranslucentDepthPass", shaderPassIndex: 0);
+        public static readonly MeshPassDefinition TranslucentT0 = CreateTranslucent(
+            "TranslucentT0", "TranslucentT0Pass", shaderPassIndex: 0);
+        public static readonly MeshPassDefinition TranslucentT1 = CreateTranslucent(
+            "TranslucentT1", "TranslucentT1Pass", shaderPassIndex: 0);
+        public static readonly MeshPassDefinition TranslucentT2 = CreateTranslucent(
+            "TranslucentT2", "TranslucentT2Pass", shaderPassIndex: 0);
+
+        static MeshPassDefinition CreateTranslucent(string name, string lightModeTag, int shaderPassIndex)
+        {
+            return new MeshPassDefinition
+            {
+                name = name,
+                shaderPassIndex = shaderPassIndex,
+                lightModeTag = lightModeTag,
+                eligibility = EPassEligibility.Transparent,
+                requiredEligibility = EPassEligibility.Transparent,
+                renderQueueMin = 3000,
+                renderQueueMax = 5000,
+                sortPolicy = EMeshSortPolicy.None,
+                defaultFilter = new MeshFilterProgram(3000, 5000, EPassEligibility.Transparent),
+                defaultSort = default
+            };
+        }
     }
 }

@@ -2,7 +2,6 @@ using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
-using InfinityTech.Component;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
@@ -32,14 +31,12 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
-            public RendererList[] rendererLists;
             public RGDrawListRef[] draws;
         }
 
         void RenderLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
         {
             int shadowMapResolution = pipelineAsset.localShadowMapResolution;
-            MeshScene meshScene = renderContext.GetMeshScene();
             Matrix4x4 cameraViewProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) * camera.worldToCameraMatrix;
             Plane[] shadowPlanes = new Plane[6];
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
@@ -59,7 +56,6 @@ namespace InfinityTech.Rendering.Pipeline
 
             Matrix4x4[] shadowMatrices = new Matrix4x4[matrixCount];
             Vector4[] tileRects = new Vector4[matrixCount];
-            RendererList[] rendererLists = new RendererList[matrixCount];
             RGDrawListRef[] sliceDraws = new RGDrawListRef[matrixCount];
             for (int i = 0; i < matrixCount; ++i)
             {
@@ -93,37 +89,16 @@ namespace InfinityTech.Rendering.Pipeline
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
 
-                ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
-                shadowDrawingSettings.useRenderingLayerMaskTest = true;
-                shadowDrawingSettings.splitIndex = local.face;
-                rendererLists[slice] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
-
-                ulong viewKey = lightInstanceId;
                 shadowPlanes = new Plane[local.splitData.cullingPlaneCount];
                 for (int plane = 0; plane < shadowPlanes.Length; plane++) shadowPlanes[plane] = local.splitData.GetCullingPlane(plane);
-                MeshVisibilityHandle localVis = m_VisibilityShare.Acquire(
-                    meshScene,
-                    viewKey,
+                MeshView localView = MeshView.FromLocalShadow(
+                    lightInstanceId,
                     shadowPlanes,
-                    MeshVisibilityShare.PolicyLocalShadow,
-                    enable: true, subviewIndex: local.face);
-
-                MeshFilterProgram shadowFilter = BuiltinMeshesPasses.Shadow.defaultFilter;
-                shadowFilter.layerMask = shadowLight.cullingMask;
-                shadowFilter.renderingLayerMask = shadowRenderingLayerMask;
-                    shadowFilter.filterRenderingLayers = true;
-                var shadowRequest = new MeshDrawRequest
-                {
-                    filter = shadowFilter,
-                    sort = BuiltinMeshesPasses.Shadow.defaultSort,
-                    backendPolicy = RenderCaptureService.BackendFor(camera),
-                    shaderPassIndex = BuiltinMeshesPasses.Shadow.shaderPassIndex,
-                    lightModeTag = BuiltinMeshesPasses.Shadow.lightModeTag,
-                    viewPosition = lightPosition,
-                    viewKey = viewKey
-                };
-                sliceDraws[slice] = m_RGBuilder.DeclareDrawList(m_ShadowMeshProcessor, shadowRequest, localVis, m_VisibilityShare);
-                m_VisibilityShare.Release(localVis);
+                    lightPosition,
+                    shadowLight.cullingMask,
+                    shadowRenderingLayerMask,
+                    local.face);
+                sliceDraws[slice] = m_RGBuilder.CreateDrawList(localView, MeshPassId.Shadow);
             }
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RenderLocalShadow)))
@@ -148,7 +123,6 @@ namespace InfinityTech.Rendering.Pipeline
                         Vector3 position = cullingResults.visibleLights[local.visibleLightIndex].light.transform.position;
                         passData.casterLight[i] = new Vector4(position.x, position.y, position.z, 1);
                     }
-                    passData.rendererLists = rendererLists;
                     passData.draws = new RGDrawListRef[matrixCount];
                     for (int slice = 0; slice < matrixCount; ++slice)
                     {
@@ -181,11 +155,6 @@ namespace InfinityTech.Rendering.Pipeline
                         if (passData.draws != null && slice < passData.draws.Length && passData.draws[slice].IsValid)
                         {
                             cmdEncoder.Draw(passData.draws[slice]);
-                        }
-
-                        if (passData.rendererLists != null && slice < passData.rendererLists.Length && passData.rendererLists[slice].isValid)
-                        {
-                            cmdEncoder.DrawRendererList(passData.rendererLists[slice]);
                         }
 
                         cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);

@@ -96,6 +96,7 @@ namespace InfinityTech.Rendering.RenderGraph
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
         RGDrawListContext m_DrawListRecords = new RGDrawListContext();
+        MeshWorld m_MeshWorld;
 
         public RGBuilder(string name)
         {
@@ -110,26 +111,37 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        /// <summary>
-        /// Declare an immutable DrawList request. Does not Schedule or allocate TempJob memory.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGDrawListRef DeclareDrawList(MeshDrawPipeline pipeline, in MeshDrawRequest request, in MeshViewCullingResult culling)
+        public void SetMeshWorld(MeshWorld meshWorld)
         {
-            return m_DrawListRecords.Declare(pipeline, request, culling);
+            m_MeshWorld = meshWorld;
         }
 
         /// <summary>
-        /// Declare a DrawList that shares ref-counted visibility from <see cref="MeshVisibilityShare"/>.
+        /// Record a DrawList for one (view, pass). Does not Schedule or allocate TempJob memory.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGDrawListRef DeclareDrawList(
-            MeshDrawPipeline pipeline,
-            in MeshDrawRequest request,
-            MeshVisibilityHandle visibilityHandle,
-            MeshVisibilityShare visibilityShare)
+        public RGDrawListRef CreateDrawList(in MeshView view, MeshPassId passId)
         {
-            return m_DrawListRecords.Declare(pipeline, request, visibilityHandle, visibilityShare);
+            if (m_MeshWorld == null)
+            {
+                throw new InvalidOperationException("CreateDrawList requires MeshWorld.");
+            }
+
+            MeshDrawRequest request = m_MeshWorld.BuildRequest(view, passId);
+            MeshVisibilityHandle handle = m_MeshWorld.AcquireVisibility(view);
+            RGDrawListRef draws = m_DrawListRecords.Declare(
+                m_MeshWorld.Processor,
+                request,
+                handle,
+                m_MeshWorld.VisibilityShare,
+                view,
+                passId);
+            if (handle.IsValid)
+            {
+                m_MeshWorld.VisibilityShare.Release(handle);
+            }
+
+            return draws;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

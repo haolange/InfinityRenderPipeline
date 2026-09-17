@@ -1,11 +1,9 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Core;
 using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
-using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -33,7 +31,6 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct ObjectMotionPassData
         {
-            public RendererList rendererList;
             public RGDrawListRef draws;
             public RGBufferRef nativeVertices;
         }
@@ -43,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
         }
 
-        void RenderMotion(RenderContext renderContext, Camera camera, MeshVisibilityHandle visibility, in CullingResults cullingResults)
+        void RenderMotion(RenderContext renderContext, Camera camera, in MeshView view)
         {
             if (!ShouldRecordFeature(EFrameFeature.Motion))
             {
@@ -89,34 +86,8 @@ namespace InfinityTech.Rendering.Pipeline
             motionTextureDsc.clearColor = Color.clear;
             RGTextureRef motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
-            {
-                rendererListDesc.layerMask = camera.cullingMask;
-                rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
-                rendererListDesc.sortingCriteria = SortingCriteria.CommonOpaque;
-                rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = InfinityDebugDisplaySettings.current.temporal.preferNativeMotionVectors
-                    ? PerObjectData.MotionVectors
-                    : PerObjectData.None;
-                rendererListDesc.excludeObjectMotionVectors = false;
-            }
-            RendererList motionRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
-
-            MeshFilterProgram motionFilter = BuiltinMeshesPasses.Motion.defaultFilter;
-            motionFilter.layerMask = camera.cullingMask;
-            motionFilter.renderingLayerMask = (uint)ERenderingLayer.Everything;
-            var motionRequest = new MeshDrawRequest
-            {
-                filter = motionFilter,
-                sort = BuiltinMeshesPasses.Motion.defaultSort,
-                backendPolicy = RenderCaptureService.BackendFor(camera),
-                shaderPassIndex = BuiltinMeshesPasses.Motion.shaderPassIndex,
-                lightModeTag = BuiltinMeshesPasses.Motion.lightModeTag,
-                viewPosition = camera.transform.position,
-                viewKey = UnityEntityId.ToUInt64(camera),
-                previousTransforms = previousTransforms.buffer
-            };
-            RGDrawListRef motionDraws = m_RGBuilder.DeclareDrawList(m_MotionMeshProcessor, motionRequest, visibility, m_VisibilityShare);
+            m_MeshWorld.BindPreviousTransforms(view.viewKey, previousTransforms.buffer);
+            RGDrawListRef motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Motion);
 
             //Add ObjectMotionPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderObjectMotion)))
@@ -131,7 +102,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref ObjectMotionPassData passData = ref passRef.GetPassData<ObjectMotionPassData>();
                 {
-                    passData.rendererList = motionRendererList;
                     passData.draws = passRef.UseDrawList(motionDraws);
                     passData.nativeVertices = passRef.ReadBuffer(nativeVertexInput);
                 }
@@ -139,12 +109,8 @@ namespace InfinityTech.Rendering.Pipeline
                 //Execute Phase
                 passRef.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    //MeshDrawPipeline
                     cmdEncoder.Draw(passData.draws);
-
-                    //UnityDrawPipeline
                     cmdEncoder.SetGlobalBuffer(InfinityShaderIDs.NativePreviousVertices, passData.nativeVertices);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
 

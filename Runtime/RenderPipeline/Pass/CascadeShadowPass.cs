@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
-using InfinityTech.Component;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
@@ -38,7 +37,6 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 cascadeSplitDistances;
             public Vector4[] casterBias;
             public Vector4 casterLight;
-            public RendererList[] rendererLists;
             public RGDrawListRef[] draws;
         }
 
@@ -48,7 +46,6 @@ namespace InfinityTech.Rendering.Pipeline
             float shadowDistance = pipelineAsset.shadowDistance;
             Matrix4x4 cameraViewProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) * camera.worldToCameraMatrix;
             int cascadeCount = ShadowAllocator.CascadeCount;
-            MeshScene meshScene = renderContext.GetMeshScene();
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
 
             TextureDescriptor shadowMapDsc = new TextureDescriptor(shadowMapResolution * 2, shadowMapResolution * 2);
@@ -66,7 +63,6 @@ namespace InfinityTech.Rendering.Pipeline
             Matrix4x4[] shadowMatrices = new Matrix4x4[cascadeCount];
             Vector4[] tileRects = new Vector4[cascadeCount];
             Vector4 cascadeSplitDistances = allocator.CascadeSplitDistances;
-            RendererList[] rendererLists = new RendererList[cascadeCount];
             RGDrawListRef[] cascadeDraws = new RGDrawListRef[cascadeCount];
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
@@ -91,38 +87,17 @@ namespace InfinityTech.Rendering.Pipeline
                         continue;
                     }
 
-                    ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
-                    shadowDrawingSettings.useRenderingLayerMaskTest = true;
-                    shadowDrawingSettings.splitIndex = cascade;
-                    rendererLists[cascade] = renderContext.scriptableRenderContext.CreateShadowRendererList(ref shadowDrawingSettings);
-
-                    ulong cascadeKey = lightInstanceId;
                     var cascadePlanes = new Plane[slice.splitData.cullingPlaneCount];
                     for (int plane = 0; plane < cascadePlanes.Length; plane++)
                         cascadePlanes[plane] = slice.splitData.GetCullingPlane(plane);
-                    MeshVisibilityHandle cascadeVis = m_VisibilityShare.Acquire(
-                        meshScene,
-                        cascadeKey,
+                    MeshView cascadeView = MeshView.FromCascadeShadow(
+                        lightInstanceId,
                         cascadePlanes,
-                        MeshVisibilityShare.PolicyCascadeShadow,
-                        enable: true, subviewIndex: cascade);
-
-                    MeshFilterProgram shadowFilter = BuiltinMeshesPasses.Shadow.defaultFilter;
-                    shadowFilter.layerMask = shadowLight.cullingMask;
-                    shadowFilter.renderingLayerMask = shadowRenderingLayerMask;
-                    shadowFilter.filterRenderingLayers = true;
-                    var shadowRequest = new MeshDrawRequest
-                    {
-                        filter = shadowFilter,
-                        sort = BuiltinMeshesPasses.Shadow.defaultSort,
-                        backendPolicy = RenderCaptureService.BackendFor(camera),
-                        shaderPassIndex = BuiltinMeshesPasses.Shadow.shaderPassIndex,
-                        lightModeTag = BuiltinMeshesPasses.Shadow.lightModeTag,
-                        viewPosition = camera.transform.position,
-                        viewKey = cascadeKey
-                    };
-                    cascadeDraws[cascade] = m_RGBuilder.DeclareDrawList(m_ShadowMeshProcessor, shadowRequest, cascadeVis, m_VisibilityShare);
-                    m_VisibilityShare.Release(cascadeVis);
+                        camera.transform.position,
+                        shadowLight.cullingMask,
+                        shadowRenderingLayerMask,
+                        cascade);
+                    cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(cascadeView, MeshPassId.Shadow);
                 }
             }
 
@@ -154,7 +129,6 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.casterBias = new Vector4[cascadeCount];
                     for (int i = 0; i < cascadeCount; i++) passData.casterBias[i] = allocator.CascadeSlices[i].casterBias;
                     if (lightIndex >= 0) passData.casterLight = -cullingResults.visibleLights[lightIndex].light.transform.forward;
-                    passData.rendererLists = rendererLists;
 
                     passData.draws = new RGDrawListRef[cascadeCount];
                     for (int cascade = 0; cascade < cascadeCount; ++cascade)
@@ -190,11 +164,6 @@ namespace InfinityTech.Rendering.Pipeline
                         if (passData.draws != null && cascade < passData.draws.Length && passData.draws[cascade].IsValid)
                         {
                             cmdEncoder.Draw(passData.draws[cascade]);
-                        }
-
-                        if (passData.rendererLists != null && cascade < passData.rendererLists.Length && passData.rendererLists[cascade].isValid)
-                        {
-                            cmdEncoder.DrawRendererList(passData.rendererLists[cascade]);
                         }
 
                         cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);

@@ -42,6 +42,8 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal struct RGDrawListRecord
     {
+        public MeshView view;
+        public MeshPassId passId;
         public MeshDrawPipeline pipeline;
         public MeshDrawRequest request;
         public MeshViewCullingResult culling;
@@ -94,7 +96,12 @@ namespace InfinityTech.Rendering.RenderGraph
                 throw new System.InvalidOperationException("Motion draws require the selected view's previous-transform producer.");
         }
 
-        public RGDrawListRef Declare(MeshDrawPipeline pipeline, in MeshDrawRequest request, in MeshViewCullingResult culling)
+        public RGDrawListRef Declare(
+            MeshDrawPipeline pipeline,
+            in MeshDrawRequest request,
+            in MeshViewCullingResult culling,
+            in MeshView view = default,
+            MeshPassId passId = default)
         {
             ValidateMotionInput(request);
             // Value-copy path: first record owns NativeArrays; later declares sharing the same arrays must not double-free.
@@ -117,6 +124,8 @@ namespace InfinityTech.Rendering.RenderGraph
             int index = m_Records.Count;
             m_Records.Add(new RGDrawListRecord
             {
+                view = view,
+                passId = passId,
                 pipeline = pipeline,
                 request = request,
                 culling = culling,
@@ -139,7 +148,9 @@ namespace InfinityTech.Rendering.RenderGraph
             MeshDrawPipeline pipeline,
             in MeshDrawRequest request,
             MeshVisibilityHandle visibilityHandle,
-            MeshVisibilityShare visibilityShare)
+            MeshVisibilityShare visibilityShare,
+            in MeshView view = default,
+            MeshPassId passId = default)
         {
             ValidateMotionInput(request);
             MeshViewCullingResult culling = default;
@@ -152,6 +163,8 @@ namespace InfinityTech.Rendering.RenderGraph
             int index = m_Records.Count;
             m_Records.Add(new RGDrawListRecord
             {
+                view = view,
+                passId = passId,
                 pipeline = pipeline,
                 request = request,
                 culling = culling,
