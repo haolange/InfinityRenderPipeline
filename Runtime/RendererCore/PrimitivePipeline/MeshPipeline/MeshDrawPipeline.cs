@@ -19,7 +19,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly MeshScene m_Scene;
         private readonly GpuScene m_Residency;
         private readonly ResourcePool m_ResourcePool;
-        private readonly ProfilingSampler m_DrawProfiler;
         private readonly MaterialPropertyBlock m_PropertyBlock;
         private readonly PassBinStore m_PassBins;
         private readonly MeshCandidateTableStore m_CandidateTables;
@@ -35,7 +34,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Scene = scene;
             m_Residency = residency;
             m_ResourcePool = resourcePool;
-            m_DrawProfiler = new ProfilingSampler("RenderLoop.DrawMeshPipeline");
             m_PropertyBlock = new MaterialPropertyBlock();
             m_PlatformFeatureKey = MeshDrawGPUBackend.SupportsIndirect ? 1u : 0u;
             m_PassBins = new PassBinStore(scene, registry, m_PlatformFeatureKey);
@@ -139,7 +137,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return false;
             }
 
-            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, m_DrawProfiler, payload, staging, world, view, passId, m_CandidateTables);
+            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, payload, staging, world, view, passId, m_CandidateTables);
         }
 
         internal void SubmitGpu(
@@ -156,7 +154,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 shaderPassIndex,
                 m_Residency,
                 m_PropertyBlock,
-                m_DrawProfiler,
                 payload,
                 staging,
                 lightModeTag, previousTransforms);
@@ -218,7 +215,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            using (new ProfilingScope(cmdBuffer, m_DrawProfiler))
+            cmdBuffer.BeginSample("RenderLoop.DrawMesh");
+            try
             {
                 for (int i = 0; i < drawList.commandCount; ++i)
                 {
@@ -247,6 +245,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                     cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, passIndex, command.countOffset.x, m_PropertyBlock);
                     MeshBakedLighting.ClearKeywords(cmdBuffer);
                 }
+            }
+            finally
+            {
+                cmdBuffer.EndSample("RenderLoop.DrawMesh");
             }
         }
     }

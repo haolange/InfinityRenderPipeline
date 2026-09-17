@@ -68,6 +68,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -129,6 +130,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -185,6 +187,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -257,20 +260,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
-
-			CBUFFER_START(UnityPerMaterial)
-                float _SurfaceRoute;
-				float _Roughness;
-				float _Reflectance;
-				float _NormalTile;
-				float _BaseColorTile;
-				float _SpecularLevel;
-				float _Subsurface;
-				float _SSSProfileIndex;
-				float _SSSThickness;
-				float4 _BaseColor;
-				float4 _EmissionColor;
-			CBUFFER_END
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
 
@@ -394,19 +384,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
-
-			CBUFFER_START(UnityPerMaterial)
-				float _Roughness;
-				float _Reflectance;
-				float _NormalTile;
-				float _BaseColorTile;
-				float _SpecularLevel;
-				float _Subsurface;
-				float _SSSProfileIndex;
-				float _SSSThickness;
-				float4 _BaseColor;
-				float4 _EmissionColor;
-			CBUFFER_END
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 			Texture2D _NormalTexture; SamplerState sampler_NormalTexture;
 
@@ -514,6 +492,7 @@
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 
 			struct Attributes
 			{
@@ -628,10 +607,7 @@
 			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
-
-			CBUFFER_START(UnityPerMaterial)
-				float4 _BaseColor;
-			CBUFFER_END
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct Attributes
@@ -712,12 +688,7 @@
 			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
-
-			CBUFFER_START(UnityPerMaterial)
-				float4 _BaseColor;
-				float _Roughness;
-				float _RefractionStrength;
-			CBUFFER_END
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct Attributes
@@ -801,10 +772,7 @@
 			#include "../ShaderLibrary/TranslucentCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
             #include "../ShaderLibrary/NativeMotion.hlsl"
-
-			CBUFFER_START(UnityPerMaterial)
-				float4 _BaseColor;
-			CBUFFER_END
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 			Texture2D _MainTex; SamplerState sampler_MainTex;
 
 			struct Attributes
@@ -874,18 +842,7 @@
             #include "../ShaderLibrary/MotionVectors.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
-			CBUFFER_START(UnityPerMaterial)
-				float _Roughness;
-				float _Reflectance;
-				float _NormalTile;
-				float _BaseColorTile;
-				float _SpecularLevel;
-				float _Subsurface;
-				float _SSSProfileIndex;
-				float _SSSThickness;
-				float4 _BaseColor;
-				float4 _EmissionColor;
-			CBUFFER_END
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 
 			CBUFFER_START(UnityMetaPass)
 				bool4 unity_MetaVertexControl;
@@ -997,14 +954,7 @@
 			#include "../ShaderLibrary/RayTracing/Common/RayTracingCommon.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
-			CBUFFER_START(UnityPerMaterial)
-				float _Roughness;
-				float _Reflectance;
-				float _NormalTile;
-				float _BaseColorTile;
-				float _SpecularLevel;
-				float4 _BaseColor;
-			CBUFFER_END
+			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
 
 			[shader("closesthit")]
 			void ClosestHit(inout AORayPayload RayIntersectionAO : SV_RayPayload, AttributeData attributeData : SV_IntersectionAttributes)

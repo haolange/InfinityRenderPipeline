@@ -73,26 +73,25 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
-        public MeshDrawGpuStaging CreateStaging(MeshPassId passId, in MeshViewCullingResult culling, int boundsInstanceCount)
+        public MeshDrawGpuStaging CreateStaging(MeshPassId passId, in MeshView view, int boundsInstanceCount)
         {
-            ref PassTable table = ref Ensure(passId);
-            if (table.commandCount <= 0)
+            MeshDrawGpuStaging staging = CreateStagingCore(passId, boundsInstanceCount);
+            if (staging == null)
             {
                 return null;
             }
 
-            var staging = new MeshDrawGpuStaging
+            view.CopyFrustumPlanes(staging.frustumPlanes);
+            return staging;
+        }
+
+        public MeshDrawGpuStaging CreateStaging(MeshPassId passId, in MeshViewCullingResult culling, int boundsInstanceCount)
+        {
+            MeshDrawGpuStaging staging = CreateStagingCore(passId, boundsInstanceCount);
+            if (staging == null)
             {
-                commandCount = table.commandCount,
-                candidateCount = table.candidateCount,
-                boundsInstanceCount = math.max(1, boundsInstanceCount),
-                commandMeta = table.commandMeta,
-                candidateOffsets = table.candidateOffsets,
-                candidateCounts = table.candidateCounts,
-                drawCommands = table.commands,
-                frustumPlanes = new Vector4[6],
-                isValid = true
-            };
+                return null;
+            }
 
             if (culling.isValid && culling.frustum.IsCreated)
             {
@@ -105,6 +104,28 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             return staging;
+        }
+
+        MeshDrawGpuStaging CreateStagingCore(MeshPassId passId, int boundsInstanceCount)
+        {
+            ref PassTable table = ref Ensure(passId);
+            if (table.commandCount <= 0)
+            {
+                return null;
+            }
+
+            return new MeshDrawGpuStaging
+            {
+                commandCount = table.commandCount,
+                candidateCount = table.candidateCount,
+                boundsInstanceCount = math.max(1, boundsInstanceCount),
+                commandMeta = table.commandMeta,
+                candidateOffsets = table.candidateOffsets,
+                candidateCounts = table.candidateCounts,
+                drawCommands = table.commands,
+                frustumPlanes = new Vector4[6],
+                isValid = true
+            };
         }
 
         public ComputeBuffer GetCandidateBuffer(MeshPassId passId)

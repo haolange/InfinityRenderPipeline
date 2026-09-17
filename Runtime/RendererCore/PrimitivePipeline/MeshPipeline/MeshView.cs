@@ -85,6 +85,21 @@ namespace InfinityTech.Rendering.MeshPipeline
             return planes;
         }
 
+        public void CopyFrustumPlanes(Vector4[] dest)
+        {
+            if (dest == null)
+            {
+                return;
+            }
+
+            int count = math.min(dest.Length, math.clamp(planeCount, 0, MaxPlanes));
+            for (int i = 0; i < count; ++i)
+            {
+                Plane plane = GetPlane(i);
+                dest[i] = new Vector4(plane.normal.x, plane.normal.y, plane.normal.z, plane.distance);
+            }
+        }
+
         public static MeshView FromCamera(Camera camera, ref ScriptableCullingParameters cullingParameters)
         {
             if (camera == null)

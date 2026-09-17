@@ -59,6 +59,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public MeshDrawGpuStaging gpuStaging;
         public MeshDrawGpuPayload gpuPayload;
         public FBufferRef cpuIndexBuffer;
+        public RGBufferRef gpuVisibilityBuffer;
         public bool hasSideEffect;
     }
 
@@ -219,6 +220,39 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Records[drawListIndex] = record;
         }
 
+        public void BindGpuVisibility(int index, in RGBufferRef visibility)
+        {
+            if (index < 0 || index >= m_Records.Count)
+            {
+                return;
+            }
+
+            RGDrawListRecord record = m_Records[index];
+            record.gpuVisibilityBuffer = visibility;
+            m_Records[index] = record;
+        }
+
+        public bool HasLiveView(in MeshView view)
+        {
+            ulong key = MeshGpuVisibilityCache.MakeKey(view);
+            for (int i = 0; i < m_Records.Count; ++i)
+            {
+                RGDrawListRecord record = m_Records[i];
+                if (record.state == ERGDrawListCompileState.Declared
+                    || record.state == ERGDrawListCompileState.Released)
+                {
+                    continue;
+                }
+
+                if (MeshGpuVisibilityCache.MakeKey(record.view) == key)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public void PrepareLive(MeshWorld world)
         {
             for (int i = 0; i < m_Records.Count; ++i)
@@ -232,25 +266,21 @@ namespace InfinityTech.Rendering.RenderGraph
                     continue;
                 }
 
-                MeshWorld producer = record.meshWorld ?? world;
-                if (producer != null && !record.visibilityHandle.IsValid)
+                if (record.pipeline == null)
                 {
-                    record.visibilityHandle = producer.AcquireVisibility(record.view);
-                    record.visibilityShare = producer.VisibilityShare;
-                    record.culling = record.visibilityShare.GetResult(record.visibilityHandle);
-                    producer.RefineVisibilityHiZ(record.visibilityHandle);
+                    record.state = ERGDrawListCompileState.Released;
+                    m_Records[i] = record;
+                    continue;
                 }
 
                 record.selectedBackend = MeshDrawGPUBackend.SelectPolicy(record.pass.backendPolicy);
-                if (record.pipeline != null)
+                if (record.selectedBackend != EMeshBackendPolicy.GpuIndirect)
                 {
+                    AcquireCpuVisibility(ref record, record.meshWorld ?? world);
                     record.extract = record.pipeline.Extract(record.passId, record.culling);
-                    record.state = ERGDrawListCompileState.Scheduled;
                 }
-                else
-                {
-                    record.state = ERGDrawListCompileState.Released;
-                }
+
+                record.state = ERGDrawListCompileState.Scheduled;
                 m_Records[i] = record;
             }
         }
@@ -280,12 +310,11 @@ namespace InfinityTech.Rendering.RenderGraph
 
             if (record.pipeline != null)
             {
-                record.resolvedList = record.pipeline.Resolve(ref record.extract);
                 if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect)
                 {
                     int boundsCount = record.pipeline.GetBoundsCullCount();
                     record.resolvedList = record.pipeline.CandidateTables.BuildPassView(record.passId);
-                    record.gpuStaging = record.pipeline.CandidateTables.CreateStaging(record.passId, record.culling, boundsCount);
+                    record.gpuStaging = record.pipeline.CandidateTables.CreateStaging(record.passId, record.view, boundsCount);
                     if (record.gpuStaging != null)
                     {
                         MeshDrawGPUBackend.ComputePayloadBudget(
@@ -301,23 +330,56 @@ namespace InfinityTech.Rendering.RenderGraph
                         }
                         else
                         {
-                            record.gpuStaging = null;
-                            record.selectedBackend = EMeshBackendPolicy.CpuDirect;
-                            record.resolvedList = record.pipeline.Resolve(ref record.extract);
-                            MeshPipelineDiagnostics.GpuOverflowCount++;
+                            FallbackCpuDirect(ref record, countOverflow: true);
                         }
                     }
                     else
                     {
-                        record.selectedBackend = EMeshBackendPolicy.CpuDirect;
-                        record.resolvedList = record.pipeline.Resolve(ref record.extract);
-                        MeshPipelineDiagnostics.GpuOverflowCount++;
+                        FallbackCpuDirect(ref record, countOverflow: true);
                     }
+                }
+                else
+                {
+                    record.resolvedList = record.pipeline.Resolve(ref record.extract);
                 }
             }
 
             record.state = ERGDrawListCompileState.Resolved;
             m_Records[index] = record;
+        }
+
+        public bool NeedsGpuPrepare(in RGDrawListRef draws)
+        {
+            if (!IsLiveRef(draws))
+            {
+                return false;
+            }
+
+            RGDrawListRecord record = m_Records[draws.index];
+            return record.state == ERGDrawListCompileState.Resolved
+                && record.pipeline != null
+                && record.selectedBackend == EMeshBackendPolicy.GpuIndirect
+                && record.gpuPayload != null
+                && record.gpuStaging != null;
+        }
+
+        public string SliceSampleName(in RGDrawListRef draws)
+        {
+            if (!IsLiveRef(draws))
+            {
+                return null;
+            }
+
+            MeshView view = m_Records[draws.index].view;
+            switch (view.kind)
+            {
+                case EMeshViewKind.CascadeShadow:
+                    return $"CascadeSlice{view.subviewIndex}";
+                case EMeshViewKind.LocalShadow:
+                    return $"LocalShadowSlice{view.subviewIndex}";
+                default:
+                    return null;
+            }
         }
 
         public void PrepareSubmit(CommandBuffer cmdBuffer, in RGDrawListRef draws)
@@ -342,14 +404,48 @@ namespace InfinityTech.Rendering.RenderGraph
                 return;
             }
 
+            FallbackCpuDirect(ref record, countOverflow: false);
+            record.cpuIndexBuffer = record.pipeline.PrepareCpuDirect(cmdBuffer, record.resolvedList);
+            m_Records[draws.index] = record;
+        }
+
+        static void AcquireCpuVisibility(ref RGDrawListRecord record, MeshWorld producer)
+        {
+            if (record.visibilityHandle.IsValid || producer == null)
+            {
+                return;
+            }
+
+            record.visibilityHandle = producer.AcquireVisibility(record.view);
+            record.visibilityShare = producer.VisibilityShare;
+            record.culling = record.visibilityShare.GetResult(record.visibilityHandle);
+            producer.RefineVisibilityHiZ(record.visibilityHandle);
+        }
+
+        static void FallbackCpuDirect(ref RGDrawListRecord record, bool countOverflow)
+        {
+            if (countOverflow)
+            {
+                MeshPipelineDiagnostics.GpuOverflowCount++;
+            }
             record.selectedBackend = EMeshBackendPolicy.CpuDirect;
-            if (!record.resolvedList.isValid || !record.resolvedList.instanceIndices.IsCreated)
+            record.gpuStaging = null;
+            if (record.gpuPayload != null)
+            {
+                MeshDrawGPUBackend.RetirePayload(record.gpuPayload);
+                record.gpuPayload = null;
+            }
+
+            AcquireCpuVisibility(ref record, record.meshWorld);
+            if (record.pipeline != null && !record.extract.isCreated)
+            {
+                record.extract = record.pipeline.Extract(record.passId, record.culling);
+            }
+
+            if (record.pipeline != null)
             {
                 record.resolvedList = record.pipeline.Resolve(ref record.extract);
             }
-
-            record.cpuIndexBuffer = record.pipeline.PrepareCpuDirect(cmdBuffer, record.resolvedList);
-            m_Records[draws.index] = record;
         }
 
         public void Submit(CommandBuffer cmdBuffer, in RGDrawListRef draws)

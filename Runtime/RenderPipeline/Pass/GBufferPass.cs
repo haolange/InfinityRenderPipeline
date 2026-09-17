@@ -4,6 +4,7 @@ using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -31,12 +32,13 @@ namespace InfinityTech.Rendering.Pipeline
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
             public RGDrawListRef draws;
+            public RGRendererListRef rendererList;
             public RGTextureRef dBufferA;
             public RGTextureRef dBufferB;
             public RGTextureRef dBufferC;
         }
 
-        void RenderGBuffer(RenderContext renderContext, Camera camera, in MeshView view)
+        void RenderGBuffer(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.GBuffer);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
@@ -89,6 +91,16 @@ namespace InfinityTech.Rendering.Pipeline
             Shader.SetKeyword(GBufferPassUtilityData.DBufferKeyword, bindDBuffer);
 
             RGDrawListRef gbufferDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.GBuffer);
+            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.GBufferPass, cullingResults, camera);
+            {
+                rendererListDesc.layerMask = camera.cullingMask;
+                rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
+                rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
+                rendererListDesc.renderingLayerMask = uint.MaxValue;
+                rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe;
+                rendererListDesc.excludeObjectMotionVectors = false;
+            }
+            RGRendererListRef gbufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             var bakedDescriptor = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y)
             { name = "BakedDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, clearColor = Color.clear };
@@ -115,6 +127,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.shadowmask = GBufferPassUtilityData.HasShadowmask();
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.draws = passRef.UseDrawList(gbufferDraws);
+                    passData.rendererList = passRef.UseRendererList(gbufferRendererList);
                     if (bindDBuffer)
                     {
                         passData.dBufferA = passRef.ReadTexture(dBufferA);
@@ -136,6 +149,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
 

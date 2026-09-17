@@ -20,13 +20,12 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct TranslucentDepthPassData
         {
-            public RendererList rendererList;
+            public RGRendererListRef rendererList;
         }
 
         struct TranslucentColorPassData
         {
-            public RendererList rendererList;
-            public RGBufferRef nativeVertices;
+            public RGRendererListRef rendererList;
             public bool bindFog;
             public bool bindAerial;
             public bool bindPyramid;
@@ -58,7 +57,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RendererList depthRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
+            RGRendererListRef depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderTranslucentDepth)))
             {
@@ -66,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetDepthStencilAttachment(translucentDepthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref TranslucentDepthPassData passData = ref passRef.GetPassData<TranslucentDepthPassData>();
-                passData.rendererList = depthRendererList;
+                passData.rendererList = passRef.UseRendererList(depthRendererList);
 
                 passRef.SetExecuteFunc((in TranslucentDepthPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
@@ -131,12 +130,10 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.renderQueueRange = InfinityRenderQueue.k_RenderQueue_AllTransparent;
                 rendererListDesc.sortingCriteria = SortingCriteria.CommonTransparent;
                 rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = InfinityDebugDisplaySettings.current.temporal.preferNativeMotionVectors
-                    ? PerObjectData.MotionVectors
-                    : PerObjectData.None;
+                rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RendererList rendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
+            RGRendererListRef rendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {
@@ -148,8 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref TranslucentColorPassData passData = ref passRef.GetPassData<TranslucentColorPassData>();
-                passData.rendererList = rendererList;
-                passData.nativeVertices = passRef.ReadBuffer(m_RGScoper.QueryBuffer(InfinityShaderIDs.NativePreviousVertices));
+                passData.rendererList = passRef.UseRendererList(rendererList);
                 passData.bindFog = hasFog;
                 passData.bindAerial = hasAerial;
                 passData.bindPyramid = hasPyramid;
@@ -175,7 +171,6 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    cmdEncoder.SetGlobalBuffer(InfinityShaderIDs.NativePreviousVertices, passData.nativeVertices);
                     cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_MaxDistanceID, passData.fogMaxDistance);
                     cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_AerialDistanceID, passData.aerialDistance);
                     if (passData.bindFog)

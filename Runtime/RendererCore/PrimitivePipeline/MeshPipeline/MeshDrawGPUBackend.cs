@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -275,6 +276,62 @@ namespace InfinityTech.Rendering.MeshPipeline
             return SupportsIndirect ? EMeshBackendPolicy.GpuIndirect : EMeshBackendPolicy.CpuDirect;
         }
 
+        internal static bool TryGetCullKernel(out ComputeShader shader, out int kernel)
+        {
+            ResolveKernels();
+            shader = s_Shader;
+            kernel = s_KernelCull;
+            return SupportsIndirect && shader != null && kernel >= 0;
+        }
+
+        internal static void DispatchCullFrustum(
+            IComputeCommands commands,
+            in MeshView view,
+            int instanceCount,
+            Vector4[] frustumPlanes,
+            RGBufferRef boundsCenter,
+            RGBufferRef boundsExtent,
+            RGBufferRef instanceFlags,
+            RGBufferRef instanceLayerMask,
+            RGBufferRef instanceRenderingLayer,
+            RGBufferRef visibility)
+        {
+            if (commands == null)
+            {
+                throw new ArgumentNullException(nameof(commands));
+            }
+
+            if (!TryGetCullKernel(out ComputeShader shader, out int kernel))
+            {
+                throw new InvalidOperationException("MeshGpuCull requires CullFrustum.");
+            }
+
+            if (!visibility.IsValid()
+                || !boundsCenter.IsValid()
+                || !boundsExtent.IsValid()
+                || !instanceFlags.IsValid()
+                || !instanceLayerMask.IsValid()
+                || !instanceRenderingLayer.IsValid())
+            {
+                throw new InvalidOperationException("MeshGpuCull requires GpuScene bounds/flags/layers and a visibility UAV.");
+            }
+
+            commands.SetComputeVectorArrayParam(shader, ID_FrustumPlanes, frustumPlanes);
+            commands.SetComputeIntParam(shader, ID_InstanceCount, math.max(0, instanceCount));
+            commands.SetComputeIntParam(shader, ID_ViewLayerMask, view.layerMask);
+            commands.SetComputeIntParam(shader, ID_ViewRenderingLayerMask, (int)view.renderingLayerMask);
+            commands.SetComputeIntParam(shader, ID_FilterRenderingLayers, view.FilterRenderingLayers ? 1 : 0);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsCenter, boundsCenter);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, boundsExtent);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceFlags, instanceFlags);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceLayerMask, instanceLayerMask);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceRenderingLayer, instanceRenderingLayer);
+            commands.SetComputeBufferParam(shader, kernel, ID_Visibility, visibility);
+            int cullGroups = math.max(1, (math.max(instanceCount, 1) + 63) / 64);
+            commands.DispatchCompute(shader, kernel, cullGroups, 1, 1);
+            MeshPipelineDiagnostics.GpuCullDispatchesPerFrame++;
+        }
+
         internal static MeshDrawGpuStaging CreateStaging(in PassView drawList, in MeshViewCullingResult culling, int boundsInstanceCount)
         {
             return MeshDrawGpuStaging.Build(drawList, culling, boundsInstanceCount);
@@ -436,13 +493,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Upload + GPU cull/compact/args. Must run before BeginRenderPass (D3D12 forbids SetBufferData inside a pass).
+        /// Compact + BuildIndirectArgs only. Must run before BeginRenderPass (D3D12 forbids SetBufferData inside a pass).
         /// </summary>
         internal static bool PrepareIndirect(
             CommandBuffer cmdBuffer,
             in PassView drawList,
             GpuScene residency,
-            ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             MeshWorld world = null,
@@ -455,49 +511,46 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return false;
             }
 
-            using (new ProfilingScope(cmdBuffer, profiler))
+            if (!TryPlanBatches(staging.candidateCounts, staging.commandCount, s_BatchPlan))
             {
-                if (!TryPlanBatches(staging.candidateCounts, staging.commandCount, s_BatchPlan))
-                {
-                    MeshPipelineDiagnostics.GpuOverflowCount++;
-                    return false;
-                }
-
-                ComputePayloadBudget(
-                    staging.candidateCounts,
-                    staging.commandCount,
-                    staging.boundsInstanceCount,
-                    out int maxCommands,
-                    out int maxInstances);
-                if (maxCommands <= 0 || !payload.TryEnsureCapacity(maxCommands, maxInstances))
-                {
-                    MeshPipelineDiagnostics.GpuOverflowCount++;
-                    return false;
-                }
-
-                for (int i = 0; i < s_BatchPlan.Count; ++i)
-                {
-                    (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
-                    if (!TryGetBatchInstanceCapacity(staging, batch.commandBegin, batch.batchCommands, out int instanceCapacity)
-                        || !payload.RequireCapacity(batch.batchCommands, instanceCapacity))
-                    {
-                        MeshPipelineDiagnostics.GpuOverflowCount++;
-                        return false;
-                    }
-                }
-
-                for (int i = 0; i < s_BatchPlan.Count; ++i)
-                {
-                    (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
-                    if (!PrepareBatch(cmdBuffer, residency, payload, staging, batch.commandBegin, batch.batchCommands, world, view, passId, candidateTables))
-                    {
-                        MeshPipelineDiagnostics.GpuOverflowCount++;
-                        return false;
-                    }
-                }
-
-                return true;
+                MeshPipelineDiagnostics.GpuOverflowCount++;
+                return false;
             }
+
+            ComputePayloadBudget(
+                staging.candidateCounts,
+                staging.commandCount,
+                staging.boundsInstanceCount,
+                out int maxCommands,
+                out int maxInstances);
+            if (maxCommands <= 0 || !payload.TryEnsureCapacity(maxCommands, maxInstances))
+            {
+                MeshPipelineDiagnostics.GpuOverflowCount++;
+                return false;
+            }
+
+            for (int i = 0; i < s_BatchPlan.Count; ++i)
+            {
+                (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
+                if (!TryGetBatchInstanceCapacity(staging, batch.commandBegin, batch.batchCommands, out int instanceCapacity)
+                    || !payload.RequireCapacity(batch.batchCommands, instanceCapacity))
+                {
+                    MeshPipelineDiagnostics.GpuOverflowCount++;
+                    return false;
+                }
+            }
+
+            for (int i = 0; i < s_BatchPlan.Count; ++i)
+            {
+                (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
+                if (!PrepareBatch(cmdBuffer, residency, payload, staging, batch.commandBegin, batch.batchCommands, world, view, passId, candidateTables))
+                {
+                    MeshPipelineDiagnostics.GpuOverflowCount++;
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -509,7 +562,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             int shaderPassIndex,
             GpuScene residency,
             MaterialPropertyBlock propertyBlock,
-            ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             string lightModeTag = null, ComputeBuffer previousTransforms = null)
@@ -519,18 +571,23 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            using (new ProfilingScope(cmdBuffer, profiler))
+            if (!TryPlanBatches(staging.candidateCounts, staging.commandCount, s_BatchPlan))
             {
-                if (!TryPlanBatches(staging.candidateCounts, staging.commandCount, s_BatchPlan))
-                {
-                    return;
-                }
+                return;
+            }
 
+            cmdBuffer.BeginSample("RenderLoop.DrawMesh");
+            try
+            {
                 for (int i = 0; i < s_BatchPlan.Count; ++i)
                 {
                     (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
                     DrawBatch(cmdBuffer, drawList, shaderPassIndex, residency, propertyBlock, payload, staging, batch.commandBegin, batch.batchCommands, lightModeTag, previousTransforms);
                 }
+            }
+            finally
+            {
+                cmdBuffer.EndSample("RenderLoop.DrawMesh");
             }
         }
 
@@ -541,16 +598,23 @@ namespace InfinityTech.Rendering.MeshPipeline
             int shaderPassIndex,
             GpuScene residency,
             MaterialPropertyBlock propertyBlock,
-            ProfilingSampler profiler,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging)
         {
-            if (!PrepareIndirect(cmdBuffer, drawList, residency, profiler, payload, staging))
+            cmdBuffer.BeginSample("ComputeMeshGpuCompact");
+            try
             {
-                return false;
+                if (!PrepareIndirect(cmdBuffer, drawList, residency, payload, staging))
+                {
+                    return false;
+                }
+            }
+            finally
+            {
+                cmdBuffer.EndSample("ComputeMeshGpuCompact");
             }
 
-            DrawIndirect(cmdBuffer, drawList, shaderPassIndex, residency, propertyBlock, profiler, payload, staging);
+            DrawIndirect(cmdBuffer, drawList, shaderPassIndex, residency, propertyBlock, payload, staging);
             return true;
         }
 
@@ -674,53 +738,28 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             cmdBuffer.SetBufferData(payload.commandMeta, batchMeta, 0, 0, batchMeta.Length);
-            cmdBuffer.SetComputeVectorArrayParam(s_Shader, ID_FrustumPlanes, staging.frustumPlanes);
-            cmdBuffer.SetComputeIntParam(s_Shader, ID_InstanceCount, boundsCount);
             cmdBuffer.SetComputeIntParam(s_Shader, ID_CommandCount, batchCommandCount);
             cmdBuffer.SetComputeIntParam(s_Shader, ID_CommandBegin, commandBegin);
             cmdBuffer.SetComputeIntParam(s_Shader, ID_CandidateOffset, candidateBegin);
             cmdBuffer.SetComputeIntParam(s_Shader, ID_CandidateSpan, batchCandidates);
             cmdBuffer.SetComputeIntParam(s_Shader, ID_CandidateCount, staging.candidateCount);
 
-            ComputeBuffer visibility = null;
-            bool dispatchCull = true;
-            if (world != null)
-            {
-                visibility = world.GetGpuVisibilityBuffer(view, boundsCount);
-                dispatchCull = world.NeedsGpuCull(view);
-            }
-
+            ComputeBuffer visibility = world != null ? world.GetGpuVisibilityBuffer(view, boundsCount) : null;
             if (visibility == null)
             {
                 return false;
             }
 
-            if (dispatchCull)
-            {
-                int viewLayerMask = view.layerMask;
-                int viewRenderingLayerMask = (int)view.renderingLayerMask;
-                int filterLayers = view.FilterRenderingLayers ? 1 : 0;
-                cmdBuffer.SetComputeIntParam(s_Shader, ID_ViewLayerMask, viewLayerMask);
-                cmdBuffer.SetComputeIntParam(s_Shader, ID_ViewRenderingLayerMask, viewRenderingLayerMask);
-                cmdBuffer.SetComputeIntParam(s_Shader, ID_FilterRenderingLayers, filterLayers);
-                cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCull, ID_InstanceBoundsCenter, residency.BoundsCenterBuffer.buffer);
-                cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCull, ID_InstanceBoundsExtent, residency.BoundsExtentBuffer.buffer);
-                cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCull, ID_InstanceFlags, residency.InstanceFlagsBuffer.buffer);
-                cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCull, ID_InstanceLayerMask, residency.InstanceLayerMaskBuffer.buffer);
-                cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCull, ID_InstanceRenderingLayer, residency.InstanceRenderingLayerBuffer.buffer);
-                cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCull, ID_Visibility, visibility);
-                int cullGroups = (boundsCount + 63) / 64;
-                cmdBuffer.DispatchCompute(s_Shader, s_KernelCull, math.max(1, cullGroups), 1, 1);
-                world.MarkGpuCulled(view);
-            }
-
+            cmdBuffer.BeginSample("ComputeMeshGpuClearCounts");
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelClearCounts, ID_VisibleCounts, payload.visibleCounts);
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelClearCounts, ID_IndirectArgs, payload.argsBuffer);
             int clearGroups = (batchCommandCount + 63) / 64;
             cmdBuffer.DispatchCompute(s_Shader, s_KernelClearCounts, math.max(1, clearGroups), 1, 1);
+            cmdBuffer.EndSample("ComputeMeshGpuClearCounts");
 
             if (batchCandidates > 0)
             {
+                cmdBuffer.BeginSample("ComputeMeshGpuCompactIndices");
                 cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCompact, ID_CandidateTable, candidateTable);
                 cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCompact, ID_Visibility, visibility);
                 cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCompact, ID_InstanceToTransform, residency.InstanceTransformIndexBuffer.buffer);
@@ -730,13 +769,16 @@ namespace InfinityTech.Rendering.MeshPipeline
                 int groups = (batchCandidates + 63) / 64;
                 cmdBuffer.DispatchCompute(s_Shader, s_KernelCompact, math.max(1, groups), 1, 1);
                 MeshPipelineDiagnostics.CompactDispatchesPerFrame++;
+                cmdBuffer.EndSample("ComputeMeshGpuCompactIndices");
             }
 
+            cmdBuffer.BeginSample("ComputeMeshGpuBuildArgs");
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelBuildArgs, ID_CommandMeta, payload.commandMeta);
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelBuildArgs, ID_VisibleCounts, payload.visibleCounts);
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelBuildArgs, ID_IndirectArgs, payload.argsBuffer);
             int argsGroups = (batchCommandCount + 63) / 64;
             cmdBuffer.DispatchCompute(s_Shader, s_KernelBuildArgs, math.max(1, argsGroups), 1, 1);
+            cmdBuffer.EndSample("ComputeMeshGpuBuildArgs");
             return true;
         }
 

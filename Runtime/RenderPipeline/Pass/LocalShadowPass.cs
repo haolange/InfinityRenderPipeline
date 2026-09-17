@@ -32,6 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
             public RGDrawListRef[] draws;
+            public RGRendererListRef[] rendererLists;
         }
 
         void RenderLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
@@ -57,11 +58,13 @@ namespace InfinityTech.Rendering.Pipeline
             Matrix4x4[] shadowMatrices = new Matrix4x4[matrixCount];
             Vector4[] tileRects = new Vector4[matrixCount];
             RGDrawListRef[] sliceDraws = new RGDrawListRef[matrixCount];
+            RGRendererListRef[] sliceRendererLists = new RGRendererListRef[matrixCount];
             for (int i = 0; i < matrixCount; ++i)
             {
                 shadowMatrices[i] = Matrix4x4.identity;
                 tileRects[i] = Vector4.zero;
                 sliceDraws[i] = RGDrawListRef.Invalid;
+                sliceRendererLists[i] = RGRendererListRef.Invalid;
             }
 
             int lightCount = 0;
@@ -99,6 +102,11 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowRenderingLayerMask,
                     local.face);
                 sliceDraws[slice] = m_RGBuilder.CreateDrawList(localView, MeshPassId.Shadow);
+
+                ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
+                shadowDrawingSettings.useRenderingLayerMaskTest = true;
+                shadowDrawingSettings.splitIndex = local.face;
+                sliceRendererLists[slice] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
             }
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RenderLocalShadow)))
@@ -124,11 +132,15 @@ namespace InfinityTech.Rendering.Pipeline
                         passData.casterLight[i] = new Vector4(position.x, position.y, position.z, 1);
                     }
                     passData.draws = new RGDrawListRef[matrixCount];
+                    passData.rendererLists = new RGRendererListRef[matrixCount];
                     for (int slice = 0; slice < matrixCount; ++slice)
                     {
                         passData.draws[slice] = sliceDraws[slice].IsValid
                             ? passRef.UseDrawList(sliceDraws[slice])
                             : RGDrawListRef.Invalid;
+                        passData.rendererLists[slice] = sliceRendererLists[slice].IsValid
+                            ? passRef.UseRendererList(sliceRendererLists[slice])
+                            : RGRendererListRef.Invalid;
                     }
                 }
 
@@ -155,6 +167,11 @@ namespace InfinityTech.Rendering.Pipeline
                         if (passData.draws != null && slice < passData.draws.Length && passData.draws[slice].IsValid)
                         {
                             cmdEncoder.Draw(passData.draws[slice]);
+                        }
+
+                        if (passData.rendererLists != null && slice < passData.rendererLists.Length && passData.rendererLists[slice].IsValid)
+                        {
+                            cmdEncoder.DrawRendererList(passData.rendererLists[slice]);
                         }
 
                         cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);

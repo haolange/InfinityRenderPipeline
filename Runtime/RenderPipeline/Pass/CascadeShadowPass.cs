@@ -38,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4[] casterBias;
             public Vector4 casterLight;
             public RGDrawListRef[] draws;
+            public RGRendererListRef[] rendererLists;
         }
 
         void RenderCascadeShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
@@ -64,6 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
             Vector4[] tileRects = new Vector4[cascadeCount];
             Vector4 cascadeSplitDistances = allocator.CascadeSplitDistances;
             RGDrawListRef[] cascadeDraws = new RGDrawListRef[cascadeCount];
+            RGRendererListRef[] cascadeRendererLists = new RGRendererListRef[cascadeCount];
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
             {
@@ -71,6 +73,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMatrices[cascade] = slice.shadowMatrix;
                 tileRects[cascade] = slice.atlasPixelRect;
                 cascadeDraws[cascade] = RGDrawListRef.Invalid;
+                cascadeRendererLists[cascade] = RGRendererListRef.Invalid;
             }
 
             if (lightIndex >= 0)
@@ -98,6 +101,11 @@ namespace InfinityTech.Rendering.Pipeline
                         shadowRenderingLayerMask,
                         cascade);
                     cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(cascadeView, MeshPassId.Shadow);
+
+                    ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
+                    shadowDrawingSettings.useRenderingLayerMaskTest = true;
+                    shadowDrawingSettings.splitIndex = cascade;
+                    cascadeRendererLists[cascade] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
                 }
             }
 
@@ -131,11 +139,15 @@ namespace InfinityTech.Rendering.Pipeline
                     if (lightIndex >= 0) passData.casterLight = -cullingResults.visibleLights[lightIndex].light.transform.forward;
 
                     passData.draws = new RGDrawListRef[cascadeCount];
+                    passData.rendererLists = new RGRendererListRef[cascadeCount];
                     for (int cascade = 0; cascade < cascadeCount; ++cascade)
                     {
                         passData.draws[cascade] = cascadeDraws[cascade].IsValid
                             ? passRef.UseDrawList(cascadeDraws[cascade])
                             : RGDrawListRef.Invalid;
+                        passData.rendererLists[cascade] = cascadeRendererLists[cascade].IsValid
+                            ? passRef.UseRendererList(cascadeRendererLists[cascade])
+                            : RGRendererListRef.Invalid;
                     }
                 }
 
@@ -164,6 +176,11 @@ namespace InfinityTech.Rendering.Pipeline
                         if (passData.draws != null && cascade < passData.draws.Length && passData.draws[cascade].IsValid)
                         {
                             cmdEncoder.Draw(passData.draws[cascade]);
+                        }
+
+                        if (passData.rendererLists != null && cascade < passData.rendererLists.Length && passData.rendererLists[cascade].IsValid)
+                        {
+                            cmdEncoder.DrawRendererList(passData.rendererLists[cascade]);
                         }
 
                         cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);

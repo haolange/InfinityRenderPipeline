@@ -21,6 +21,7 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetComputeFloatParam(ComputeShader computeShader, int nameID, float val);
         void SetComputeIntParam(ComputeShader computeShader, int nameID, int val);
         void SetComputeVectorParam(ComputeShader computeShader, int nameID, Vector4 val);
+        void SetComputeVectorArrayParam(ComputeShader computeShader, int nameID, Vector4[] values);
         void SetComputeMatrixParam(ComputeShader computeShader, int nameID, Matrix4x4 val);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel);
@@ -146,6 +147,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetComputeVectorParam(ComputeShader computeShader, int nameID, Vector4 val)
         {
             m_CommandBuffer.SetComputeVectorParam(computeShader, nameID, val);
+        }
+
+        public void SetComputeVectorArrayParam(ComputeShader computeShader, int nameID, Vector4[] values)
+        {
+            m_CommandBuffer.SetComputeVectorArrayParam(computeShader, nameID, values);
         }
 
         public void SetComputeMatrixParam(ComputeShader computeShader, int nameID, Matrix4x4 val)

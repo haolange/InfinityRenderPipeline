@@ -675,11 +675,13 @@ namespace InfinityTech.Rendering.RenderGraph
         }
         internal CommandBuffer m_CommandBuffer;
         internal RGDrawListContext m_DrawLists;
+        internal RGRendererListContext m_RendererLists;
 
-        internal RGRasterEncoder(CommandBuffer commandBuffer, RGDrawListContext drawLists = null)
+        internal RGRasterEncoder(CommandBuffer commandBuffer, RGDrawListContext drawLists = null, RGRendererListContext rendererLists = null)
         {
             m_CommandBuffer = commandBuffer;
             m_DrawLists = drawLists;
+            m_RendererLists = rendererLists;
         }
 
         public void Draw(in RGDrawListRef draws)
@@ -943,6 +945,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void DrawRendererList(in RendererList rendererList)
         {
             m_CommandBuffer.DrawRendererList(rendererList);
+        }
+
+        public void DrawRendererList(in RGRendererListRef rendererList)
+        {
+            m_RendererLists?.Submit(m_CommandBuffer, rendererList);
         }
 
         public void DrawProcedural(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, in int vertexCount, in int instanceCount, MaterialPropertyBlock properties)

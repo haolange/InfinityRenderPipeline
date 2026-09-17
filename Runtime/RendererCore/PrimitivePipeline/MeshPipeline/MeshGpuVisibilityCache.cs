@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        public ComputeBuffer GetBuffer(in MeshView view, int instanceCount)
+        public FBufferRef GetBufferRef(in MeshView view, int instanceCount)
         {
             ulong key = MakeKey(view);
             int needed = math.max(1, instanceCount);
@@ -64,7 +64,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Slots[key] = slot;
             }
 
-            return slot.buffer.buffer;
+            return slot.buffer;
+        }
+
+        public ComputeBuffer GetBuffer(in MeshView view, int instanceCount)
+        {
+            return GetBufferRef(view, instanceCount).buffer;
         }
 
         public bool NeedsCull(in MeshView view)

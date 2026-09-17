@@ -7,6 +7,8 @@ using InfinityTech.Rendering.Pipeline;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
 using Unity.Collections;
+using Unity.Mathematics;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.RenderGraph
 {
@@ -16,6 +18,22 @@ namespace InfinityTech.Rendering.RenderGraph
         internal CommandBuffer cmdBuffer;
         public RenderContext renderContext;
         internal RGDrawListContext drawLists;
+        internal RGRendererListContext rendererLists;
+    }
+
+    internal struct MeshGpuCullPassData
+    {
+        public MeshWorld world;
+        public MeshView view;
+        public int instanceCount;
+        public Vector4[] frustumPlanes;
+        public RGDrawListContext drawLists;
+        public RGBufferRef visibility;
+        public RGBufferRef boundsCenter;
+        public RGBufferRef boundsExtent;
+        public RGBufferRef instanceFlags;
+        public RGBufferRef instanceLayerMask;
+        public RGBufferRef instanceRenderingLayer;
     }
 
     internal struct RGPassCompileInfo
@@ -96,7 +114,9 @@ namespace InfinityTech.Rendering.RenderGraph
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
         RGDrawListContext m_DrawListRecords = new RGDrawListContext();
+        RGRendererListContext m_RendererListRecords = new RGRendererListContext();
         MeshWorld m_MeshWorld;
+        readonly Dictionary<ulong, RGBufferRef> m_GpuCullVisibility = new Dictionary<ulong, RGBufferRef>(8);
 
         public RGBuilder(string name)
         {
@@ -128,7 +148,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             MeshPassContext pass = m_MeshWorld.BindPass(view, passId);
-            return m_DrawListRecords.Declare(
+            RGDrawListRef draws = m_DrawListRecords.Declare(
                 m_MeshWorld.Processor,
                 pass,
                 MeshVisibilityHandle.Invalid,
@@ -136,6 +156,139 @@ namespace InfinityTech.Rendering.RenderGraph
                 view,
                 passId,
                 m_MeshWorld);
+            EnsureMeshGpuCull(view, draws);
+            return draws;
+        }
+
+        public void EnsureMeshGpuCull(in MeshView view)
+        {
+            if (m_MeshWorld == null)
+            {
+                throw new InvalidOperationException("EnsureMeshGpuCull requires MeshWorld.");
+            }
+
+            EnsureMeshGpuCull(view, RGDrawListRef.Invalid);
+        }
+
+        static CustomSamplerId SamplerForMeshGpuCull(EMeshViewKind kind)
+        {
+            switch (kind)
+            {
+                case EMeshViewKind.CascadeShadow:
+                    return CustomSamplerId.ComputeMeshGpuCullCascade;
+                case EMeshViewKind.LocalShadow:
+                    return CustomSamplerId.ComputeMeshGpuCullLocal;
+                default:
+                    return CustomSamplerId.ComputeMeshGpuCull;
+            }
+        }
+
+        void EnsureMeshGpuCull(in MeshView view, in RGDrawListRef draws)
+        {
+            if (MeshDrawGPUBackend.SelectPolicy(m_MeshWorld.SelectPolicy()) != EMeshBackendPolicy.GpuIndirect)
+            {
+                return;
+            }
+
+            ulong key = MeshGpuVisibilityCache.MakeKey(view);
+            if (m_GpuCullVisibility.TryGetValue(key, out RGBufferRef existing))
+            {
+                if (m_DrawListRecords.IsLiveRef(draws))
+                {
+                    m_DrawListRecords.BindGpuVisibility(draws.index, existing);
+                }
+
+                return;
+            }
+
+            GpuScene residency = m_MeshWorld.Residency;
+            if (residency == null
+                || residency.BoundsCenterBuffer.buffer == null
+                || residency.BoundsExtentBuffer.buffer == null
+                || residency.InstanceFlagsBuffer.buffer == null
+                || residency.InstanceLayerMaskBuffer.buffer == null
+                || residency.InstanceRenderingLayerBuffer.buffer == null)
+            {
+                throw new InvalidOperationException("MeshGpuCull requires uploaded GpuScene instance buffers.");
+            }
+
+            if (!MeshDrawGPUBackend.TryGetCullKernel(out _, out _))
+            {
+                throw new InvalidOperationException("MeshGpuCull requires CullFrustum.");
+            }
+
+            int instanceCount = residency.Scene != null ? residency.Scene.InstanceHighWater : 0;
+            FBufferRef visibility = m_MeshWorld.GetGpuVisibilityBufferRef(view, math.max(1, instanceCount));
+            RGBufferRef visibilityRef = ImportBuffer(visibility);
+            RGBufferRef boundsCenter = ImportBuffer(residency.BoundsCenterBuffer);
+            RGBufferRef boundsExtent = ImportBuffer(residency.BoundsExtentBuffer);
+            RGBufferRef instanceFlags = ImportBuffer(residency.InstanceFlagsBuffer);
+            RGBufferRef instanceLayerMask = ImportBuffer(residency.InstanceLayerMaskBuffer);
+            RGBufferRef instanceRenderingLayer = ImportBuffer(residency.InstanceRenderingLayerBuffer);
+
+            var frustumPlanes = new Vector4[6];
+            view.CopyFrustumPlanes(frustumPlanes);
+
+            using (RGComputePassRef passRef = AddComputePass<MeshGpuCullPassData>(ProfilingSampler.Get(SamplerForMeshGpuCull(view.kind))))
+            {
+                ref MeshGpuCullPassData passData = ref passRef.GetPassData<MeshGpuCullPassData>();
+                passData.world = m_MeshWorld;
+                passData.view = view;
+                passData.instanceCount = instanceCount;
+                passData.frustumPlanes = frustumPlanes;
+                passData.drawLists = m_DrawListRecords;
+                passData.visibility = passRef.WriteBuffer(visibilityRef);
+                passData.boundsCenter = passRef.ReadBuffer(boundsCenter);
+                passData.boundsExtent = passRef.ReadBuffer(boundsExtent);
+                passData.instanceFlags = passRef.ReadBuffer(instanceFlags);
+                passData.instanceLayerMask = passRef.ReadBuffer(instanceLayerMask);
+                passData.instanceRenderingLayer = passRef.ReadBuffer(instanceRenderingLayer);
+                passRef.EnablePassCulling(true);
+                passRef.SetExecuteFunc((in MeshGpuCullPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                {
+                    if (passData.drawLists != null && !passData.drawLists.HasLiveView(passData.view))
+                    {
+                        return;
+                    }
+
+                    MeshDrawGPUBackend.DispatchCullFrustum(
+                        cmdEncoder,
+                        passData.view,
+                        passData.instanceCount,
+                        passData.frustumPlanes,
+                        passData.boundsCenter,
+                        passData.boundsExtent,
+                        passData.instanceFlags,
+                        passData.instanceLayerMask,
+                        passData.instanceRenderingLayer,
+                        passData.visibility);
+                    passData.world?.MarkGpuCulled(passData.view);
+                });
+            }
+
+            m_GpuCullVisibility[key] = visibilityRef;
+            if (m_DrawListRecords.IsLiveRef(draws))
+            {
+                m_DrawListRecords.BindGpuVisibility(draws.index, visibilityRef);
+            }
+        }
+
+        /// <summary>
+        /// Record a Unity RendererList descriptor. Does not call ScriptableRenderContext.CreateRendererList.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGRendererListRef CreateRendererList(in RendererListDesc desc)
+        {
+            return m_RendererListRecords.Declare(desc);
+        }
+
+        /// <summary>
+        /// Record shadow drawing settings. CreateShadowRendererList runs after pass culling.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGRendererListRef CreateShadowRendererList(in ShadowDrawingSettings settings)
+        {
+            return m_RendererListRecords.DeclareShadow(settings);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -331,7 +484,7 @@ namespace InfinityTech.Rendering.RenderGraph
             rasterPass.index = m_PassList.Count;
             rasterPass.customSampler = profilerSampler;
             m_PassList.Add(rasterPass);
-            return new RGRasterPassRef(rasterPass, m_Resources, m_DrawListRecords);
+            return new RGRasterPassRef(rasterPass, m_Resources, m_DrawListRecords, m_RendererListRecords);
         }
 
         /// <summary>
@@ -354,7 +507,8 @@ namespace InfinityTech.Rendering.RenderGraph
             RGContext graphContext = new RGContext
             {
                 cmdBuffer = graphCommands, objectPool = m_ObjectPool,
-                renderContext = renderContext, drawLists = m_DrawListRecords
+                renderContext = renderContext, drawLists = m_DrawListRecords,
+                rendererLists = m_RendererListRecords
             };
             System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
             try
@@ -366,6 +520,15 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 m_Resources.BeginRender();
                 CompilePass();
+                if (m_RendererListRecords.LiveCount > 0)
+                {
+                    if (renderContext == null)
+                    {
+                        throw new InvalidOperationException("CreateRendererList requires ScriptableRenderContext after pass culling.");
+                    }
+
+                    m_RendererListRecords.CreateLive(renderContext.scriptableRenderContext);
+                }
                 ExecutePass(ref graphContext);
             }
             catch (Exception exception)
@@ -444,6 +607,12 @@ namespace InfinityTech.Rendering.RenderGraph
             Exception failure = null;
             try { ReleaseAllDrawLists(); }
             catch (Exception error) { failure = error; }
+            try { ReleaseAllRendererLists(); }
+            catch (Exception error)
+            {
+                if (failure == null) failure = error;
+                else Debug.LogException(error);
+            }
             foreach (var pass in m_PassList)
             {
                 try { pass.Release(m_ObjectPool); }
@@ -454,6 +623,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
             m_PassList.Clear();
+            m_GpuCullVisibility.Clear();
             try { m_Resources.Clear(); }
             catch (Exception error)
             {
@@ -802,6 +972,41 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             m_DrawListRecords.PrepareLive(m_MeshWorld);
+            CompileRendererLists();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void CompileRendererLists()
+        {
+            m_RendererListRecords.ClearConsumers();
+
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
+                if (passInfo.culled)
+                {
+                    continue;
+                }
+
+                List<RGRendererListRef> used = passInfo.pass.usedRendererLists;
+                if (used == null)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < used.Count; ++i)
+                {
+                    RGRendererListRef list = used[i];
+                    if (!m_RendererListRecords.IsLiveRef(list))
+                    {
+                        continue;
+                    }
+
+                    m_RendererListRecords.MarkLiveConsumer(list.index, passIndex);
+                }
+            }
+
+            m_RendererListRecords.ReleaseUnused();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -814,6 +1019,12 @@ namespace InfinityTech.Rendering.RenderGraph
         void ReleaseAllDrawLists()
         {
             m_DrawListRecords.ReleaseAll();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void ReleaseAllRendererLists()
+        {
+            m_RendererListRecords.ReleaseAll();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1321,9 +1532,50 @@ namespace InfinityTech.Rendering.RenderGraph
                             }
 
                             // D3D12: SetBufferData / DispatchCompute cannot run inside BeginRenderPass.
+                            bool anyGpuPrepare = false;
                             for (int i = 0; i < usedDrawLists.Count; ++i)
                             {
-                                m_DrawListRecords.PrepareSubmit(graphContext.cmdBuffer, usedDrawLists[i]);
+                                if (m_DrawListRecords.NeedsGpuPrepare(usedDrawLists[i]))
+                                {
+                                    anyGpuPrepare = true;
+                                    break;
+                                }
+                            }
+
+                            if (anyGpuPrepare)
+                            {
+                                graphContext.cmdBuffer.BeginSample("ComputeMeshGpuCompact");
+                            }
+                            try
+                            {
+                                for (int i = 0; i < usedDrawLists.Count; ++i)
+                                {
+                                    string sliceSample = m_DrawListRecords.NeedsGpuPrepare(usedDrawLists[i])
+                                        ? m_DrawListRecords.SliceSampleName(usedDrawLists[i])
+                                        : null;
+                                    if (sliceSample != null)
+                                    {
+                                        graphContext.cmdBuffer.BeginSample(sliceSample);
+                                    }
+                                    try
+                                    {
+                                        m_DrawListRecords.PrepareSubmit(graphContext.cmdBuffer, usedDrawLists[i]);
+                                    }
+                                    finally
+                                    {
+                                        if (sliceSample != null)
+                                        {
+                                            graphContext.cmdBuffer.EndSample(sliceSample);
+                                        }
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                if (anyGpuPrepare)
+                                {
+                                    graphContext.cmdBuffer.EndSample("ComputeMeshGpuCompact");
+                                }
                             }
 
                             PrePassExecute(ref graphContext, passInfo);

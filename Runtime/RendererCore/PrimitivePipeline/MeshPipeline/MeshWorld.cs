@@ -51,6 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PreviousTransforms.Clear();
             MeshPipelineDiagnostics.VisibilityProductionsPerFrame = 0;
             MeshPipelineDiagnostics.CompactDispatchesPerFrame = 0;
+            MeshPipelineDiagnostics.GpuCullDispatchesPerFrame = 0;
             MeshPipelineDiagnostics.CandidateUploadsBytes = 0;
             m_GpuVisibility.BeginCamera();
             if (m_Scene != null)
@@ -118,6 +119,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal ComputeBuffer GetGpuVisibilityBuffer(in MeshView view, int instanceCount)
         {
             return m_GpuVisibility.GetBuffer(view, instanceCount);
+        }
+
+        internal FBufferRef GetGpuVisibilityBufferRef(in MeshView view, int instanceCount)
+        {
+            return m_GpuVisibility.GetBufferRef(view, instanceCount);
         }
 
         internal bool NeedsGpuCull(in MeshView view)

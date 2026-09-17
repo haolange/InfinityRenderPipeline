@@ -18,7 +18,6 @@ namespace InfinityTech.Rendering.Pipeline
         public bool preparedThisRender;
         public long successfulRenderCount;
         public CameraUniform cameraUniform;
-        internal readonly NativeViewMotionHistory nativeMotionHistory = new NativeViewMotionHistory();
         internal readonly MeshViewMotionHistory meshMotionHistory = new MeshViewMotionHistory();
         public VolumeStack volumeStack;
         public HistoryCache historyCache;
@@ -74,7 +73,6 @@ namespace InfinityTech.Rendering.Pipeline
             preparedThisRender = false;
             historyCache.RollbackPending();
             meshMotionHistory.Rollback();
-            nativeMotionHistory.Rollback();
             atmosphereViewCache.RollbackPending();
             combineLutCache.RollbackPending();
             executeSucceeded = false;
@@ -87,7 +85,6 @@ namespace InfinityTech.Rendering.Pipeline
             if (!executeSucceeded) return;
             cameraUniform.Commit();
             meshMotionHistory.Commit();
-            nativeMotionHistory.Commit();
             successfulRenderCount++;
             preparedThisRender = false;
             historyCache.CommitFrame();
@@ -100,7 +97,6 @@ namespace InfinityTech.Rendering.Pipeline
         public void Dispose()
         {
             meshMotionHistory.Clear();
-            nativeMotionHistory.Clear();
             if (volumeStack != null)
             {
                 VolumeManager.instance.DestroyStack(volumeStack);

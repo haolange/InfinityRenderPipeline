@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DBufferPassData
         {
-            public RendererList rendererList;
+            public RGRendererListRef rendererList;
             public RGTextureRef depthTexture;
         }
 
@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RendererList dBufferRendererList = renderContext.scriptableRenderContext.CreateRendererList(rendererListDesc);
+            RGRendererListRef dBufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDBuffer)))
             {
@@ -83,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 ref DBufferPassData passData = ref passRef.GetPassData<DBufferPassData>();
                 {
-                    passData.rendererList = dBufferRendererList;
+                    passData.rendererList = passRef.UseRendererList(dBufferRendererList);
                     passData.depthTexture = depthTexture;
                 }
 

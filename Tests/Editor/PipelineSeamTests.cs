@@ -21,8 +21,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             "MeshDrawRequest",
             "BuiltinMeshesPasses",
             "MeshVisibilityHandle",
-            "EMeshBackendPolicy"
+            "EMeshBackendPolicy",
+            "scriptableRenderContext.CreateRendererList",
+            "scriptableRenderContext.CreateShadowRendererList"
         };
+
+        [Test]
+        public void MeshDrawPipeline_DoesNotWrapPrepareAndDrawWithLegacySampler()
+        {
+            string path = Path.GetFullPath(Path.Combine(
+                Application.dataPath,
+                "../Packages/com.infinity.render-pipeline/Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshDrawPipeline.cs"));
+            Assert.IsTrue(File.Exists(path), path);
+            string text = File.ReadAllText(path);
+            Assert.IsTrue(text.Contains("BeginSample(\"RenderLoop.DrawMesh\")"));
+            Assert.IsFalse(text.Contains("RenderLoop.DrawMeshPipeline"));
+        }
 
         [Test]
         public void GeometryPassFiles_DoNotReferenceRetiredSeamTypes()

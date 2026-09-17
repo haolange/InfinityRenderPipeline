@@ -382,7 +382,6 @@ namespace InfinityTech.Rendering.Pipeline
                             RenderCaptureService.current?.PrepareCamera(camera, frameState, pipelineAsset);
                             RenderFaultValidation.BeforeCamera(camera, frameState);
                             ConfigureFrameFeatures(frameState);
-                            if (ShouldRecordFeature(EFrameFeature.Motion)) frameState.nativeMotionHistory.Prepare();
                             // Declare camera outputs before Unity camera setup and culling.
                             if (ShouldRecordFeature(EFrameFeature.Motion))
                                 camera.depthTextureMode |= DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
@@ -528,10 +527,11 @@ namespace InfinityTech.Rendering.Pipeline
                                     ComputeAtmosphericLUT(renderContext, camera);
 
                                     // PHASE 1: geometry raster (shared depth attachment chain).
-                                    RenderDepth(renderContext, camera, mainView);
+                                    RecordMeshGpuCulls(renderContext, camera, mainView, cullingResults);
+                                    RenderDepth(renderContext, camera, mainView, cullingResults);
                                     RenderDBuffer(renderContext, camera, cullingResults);
-                                    RenderGBuffer(renderContext, camera, mainView);
-                                    RenderMotion(renderContext, camera, mainView);
+                                    RenderGBuffer(renderContext, camera, mainView, cullingResults);
+                                    RenderMotion(renderContext, camera, mainView, cullingResults);
 
                                     // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
                                     ComputeHiZ(renderContext, camera);
@@ -555,7 +555,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                                     // PHASE 6: DeferredBase → Forward → OpaqueLightingPyramid → SSR/SSGI → Composite → OpaqueSceneColor
                                     ComputeDeferredShading(renderContext, camera);
-                                    RenderForward(renderContext, camera, mainView);
+                                    RenderForward(renderContext, camera, mainView, cullingResults);
                                     ComputeBurleySubsurface(renderContext, camera);
                                     RenderAtmosphericSkyAndFog(renderContext, camera);
                                     RecordLightingCapture();
@@ -632,7 +632,6 @@ namespace InfinityTech.Rendering.Pipeline
                             }
                             finally
                             {
-                                frameState.nativeMotionHistory.RestoreBindings();
                                 // If recording aborted before Execute, still free DrawList visibility / GPU payloads.
                                 m_RGBuilder.ClearRecordedGraph();
                                 m_ShadowCasterSplits.Clear();

@@ -61,6 +61,9 @@ namespace InfinityTech.Rendering.Pipeline
         CopyPostProcessInput,
         ResolveDisplayDepth,
         Present,
+        ComputeMeshGpuCull,
+        ComputeMeshGpuCullCascade,
+        ComputeMeshGpuCullLocal,
         Max,
     }
 
@@ -178,7 +181,6 @@ namespace InfinityTech.Rendering.Pipeline
         public static int InstanceIndexOffset = Shader.PropertyToID("instanceIndexOffset");
         public static int InstanceIndexBuffer = Shader.PropertyToID("instanceIndexBuffer");
         public static int TransformBuffer = Shader.PropertyToID("transformBuffer");
-        internal static int NativePreviousVertices = Shader.PropertyToID("SRV_NativePreviousVertices");
         public static int PreviousTransformBuffer = Shader.PropertyToID("previousTransformBuffer");
         public static int RenderingLayerBuffer = Shader.PropertyToID("renderingLayerBuffer");
     }

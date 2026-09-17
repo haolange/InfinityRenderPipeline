@@ -20,6 +20,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static int VisibilityProductionsPerFrame;
         public static int PassBinRebuilds;
         public static int CompactDispatchesPerFrame;
+        public static int GpuCullDispatchesPerFrame;
         public static int CandidateUploadsBytes;
         public static int GpuSceneUploadedSlots;
         public static int GpuSceneUploadedBytes;
@@ -39,6 +40,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             public int VisibilityProductionsPerFrame;
             public int PassBinRebuilds;
             public int CompactDispatchesPerFrame;
+            public int GpuCullDispatchesPerFrame;
             public int CandidateUploadsBytes;
             public int GpuSceneUploadedSlots;
             public int GpuSceneUploadedBytes;
@@ -61,6 +63,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 VisibilityProductionsPerFrame = VisibilityProductionsPerFrame,
                 PassBinRebuilds = PassBinRebuilds,
                 CompactDispatchesPerFrame = CompactDispatchesPerFrame,
+                GpuCullDispatchesPerFrame = GpuCullDispatchesPerFrame,
                 CandidateUploadsBytes = CandidateUploadsBytes,
                 GpuSceneUploadedSlots = GpuSceneUploadedSlots,
                 GpuSceneUploadedBytes = GpuSceneUploadedBytes
@@ -82,6 +85,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             VisibilityProductionsPerFrame = 0;
             PassBinRebuilds = 0;
             CompactDispatchesPerFrame = 0;
+            GpuCullDispatchesPerFrame = 0;
             CandidateUploadsBytes = 0;
             GpuSceneUploadedSlots = 0;
             GpuSceneUploadedBytes = 0;

@@ -4,6 +4,7 @@ using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using UnityEngine.Rendering.RendererUtils;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -18,6 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct ForwardPassData
         {
             public RGDrawListRef draws;
+            public RGRendererListRef rendererList;
             public RGTextureRef atmosphereGGX;
             public RGTextureRef occlusion;
             public bool hasOcclusion;
@@ -75,12 +77,22 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RenderForward(RenderContext renderContext, Camera camera, in MeshView view)
+        void RenderForward(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
 
             RGDrawListRef forwardDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Forward);
+            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.ForwardPass, cullingResults, camera);
+            {
+                rendererListDesc.layerMask = camera.cullingMask;
+                rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
+                rendererListDesc.sortingCriteria = SortingCriteria.OptimizeStateChanges;
+                rendererListDesc.renderingLayerMask = uint.MaxValue;
+                rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.OcclusionProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume;
+                rendererListDesc.excludeObjectMotionVectors = false;
+            }
+            RGRendererListRef forwardRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             //Add ForwardPass
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RenderForward)))
@@ -115,6 +127,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.hasOcclusion = m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureRef occlusion);
                     if (passData.hasOcclusion) passData.occlusion = passRef.ReadTexture(occlusion);
                     passData.draws = passRef.UseDrawList(forwardDraws);
+                    passData.rendererList = passRef.UseRendererList(forwardRendererList);
                     passData.atmosphereGGX = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter));
                     passData.atmosphereSH = passRef.ReadBuffer(m_RGScoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH));
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
@@ -137,6 +150,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.BindLighting(cmdEncoder);
                     cmdEncoder.Draw(passData.draws);
+                    cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
         }
