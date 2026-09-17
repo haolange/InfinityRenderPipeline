@@ -209,16 +209,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                     continue;
                 }
 
-                if ((instance.layerMask & filter.layerMask) == 0)
-                {
-                    continue;
-                }
-
-                if (filter.filterRenderingLayers && (instance.renderingLayerMask & filter.renderingLayerMask) == 0)
-                {
-                    continue;
-                }
-
                 if (filter.excludeCameraMotionOnly && instance.motionType == EMotionType.Camera)
                 {
                     continue;

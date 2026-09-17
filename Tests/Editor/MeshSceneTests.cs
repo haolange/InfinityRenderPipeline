@@ -776,6 +776,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var scene = new MeshScene(16))
             using (var share = new MeshVisibilityShare())
             {
+                MeshPipelineDiagnostics.Reset();
                 Plane[] planes = CreateUnitFrustumPlanes();
                 share.BeginFrame(scene.VisibilityRevision);
 
@@ -786,6 +787,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.IsTrue(first.IsValid);
                 Assert.IsTrue(second.IsValid);
                 Assert.AreEqual(first, second);
+                Assert.AreEqual(1, MeshPipelineDiagnostics.VisibilityProductionsPerFrame);
 
                 // Native generation and subview identity are separate fields.
                 ulong cascade0 = (768ul << 32) | 42ul;
@@ -805,6 +807,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     scene, localFace0, planes, MeshVisibilityShare.PolicyLocalShadow, enable: true);
                 Assert.IsTrue(localHandle.IsValid);
                 Assert.AreNotEqual(cascadeHandle, localHandle);
+                Assert.AreEqual(4, MeshPipelineDiagnostics.VisibilityProductionsPerFrame);
 
                 share.Release(first);
                 share.Release(second);
@@ -812,6 +815,68 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 share.Release(cascadeHandleB);
                 share.Release(localHandle);
                 // using Dispose(share) is the safety net against leaks.
+            }
+        }
+
+        [Test]
+        public void MeshInstanceCulling_AppliesVisibleFlagAndLayerMasks()
+        {
+            using (var scene = new MeshScene(16))
+            {
+                MeshSceneUpdate update = scene.BeginUpdate();
+                MeshInstanceId visible = update.CreateInstance(
+                    update.CreateTransform(float4x4.identity),
+                    new FBound(float3.zero, new float3(1, 1, 1)),
+                    layerMask: ~0,
+                    renderingLayerMask: 1,
+                    flags: EMeshInstanceFlags.Visible,
+                    motionType: EMotionType.Object,
+                    castShadow: ECastShadowMethod.Off);
+                MeshInstanceId hiddenFlag = update.CreateInstance(
+                    update.CreateTransform(float4x4.Translate(new float3(0.1f, 0, 0))),
+                    new FBound(new float3(0.1f, 0, 0), new float3(1, 1, 1)),
+                    layerMask: ~0,
+                    renderingLayerMask: 1,
+                    flags: EMeshInstanceFlags.None,
+                    motionType: EMotionType.Object,
+                    castShadow: ECastShadowMethod.Off);
+                MeshInstanceId hiddenLayer = update.CreateInstance(
+                    update.CreateTransform(float4x4.Translate(new float3(0.2f, 0, 0))),
+                    new FBound(new float3(0.2f, 0, 0), new float3(1, 1, 1)),
+                    layerMask: 0,
+                    renderingLayerMask: 1,
+                    flags: EMeshInstanceFlags.Visible,
+                    motionType: EMotionType.Object,
+                    castShadow: ECastShadowMethod.Off);
+                MeshInstanceId hiddenRendering = update.CreateInstance(
+                    update.CreateTransform(float4x4.Translate(new float3(0.3f, 0, 0))),
+                    new FBound(new float3(0.3f, 0, 0), new float3(1, 1, 1)),
+                    layerMask: ~0,
+                    renderingLayerMask: 2,
+                    flags: EMeshInstanceFlags.Visible,
+                    motionType: EMotionType.Object,
+                    castShadow: ECastShadowMethod.Off);
+                update.Commit();
+
+                MeshViewCullingResult result = MeshVisibilityUtility.CullInstances(
+                    scene,
+                    CreateUnitFrustumPlanes(),
+                    enable: true,
+                    viewLayerMask: ~0,
+                    viewRenderingLayerMask: 1,
+                    filterRenderingLayers: true);
+                try
+                {
+                    Assert.IsTrue(result.isValid);
+                    Assert.AreEqual(1, result.instanceVisibility[(int)visible.Index]);
+                    Assert.AreEqual(0, result.instanceVisibility[(int)hiddenFlag.Index]);
+                    Assert.AreEqual(0, result.instanceVisibility[(int)hiddenLayer.Index]);
+                    Assert.AreEqual(0, result.instanceVisibility[(int)hiddenRendering.Index]);
+                }
+                finally
+                {
+                    result.Release();
+                }
             }
         }
 

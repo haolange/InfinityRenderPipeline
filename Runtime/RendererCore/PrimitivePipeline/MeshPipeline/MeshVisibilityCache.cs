@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
+using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -17,6 +18,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int sceneVisibilityRevision;
         public int policyId;
         public int subviewIndex;
+        public int layerMask;
+        public uint renderingLayerMask;
+        public byte filterRenderingLayers;
 
         public MeshVisibilitySignature(int sceneId, ulong viewKey, ulong frustumHash, int sceneVisibilityRevision, int policyId, int subviewIndex = 0)
         {
@@ -26,6 +30,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             this.sceneVisibilityRevision = sceneVisibilityRevision;
             this.policyId = policyId;
             this.subviewIndex = subviewIndex;
+            layerMask = ~0;
+            renderingLayerMask = (uint)ERenderingLayer.Everything;
+            filterRenderingLayers = 0;
         }
 
         public bool Equals(MeshVisibilitySignature other)
@@ -34,7 +41,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 && viewKey == other.viewKey
                 && frustumHash == other.frustumHash
                 && sceneVisibilityRevision == other.sceneVisibilityRevision
-                && policyId == other.policyId && subviewIndex == other.subviewIndex;
+                && policyId == other.policyId && subviewIndex == other.subviewIndex
+                && layerMask == other.layerMask
+                && renderingLayerMask == other.renderingLayerMask
+                && filterRenderingLayers == other.filterRenderingLayers;
         }
 
         public override bool Equals(object obj)
@@ -52,6 +62,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = (hash * 397) ^ sceneVisibilityRevision;
                 hash = (hash * 397) ^ policyId;
                 hash = (hash * 397) ^ subviewIndex;
+                hash = (hash * 397) ^ layerMask;
+                hash = (hash * 397) ^ (int)renderingLayerMask;
+                hash = (hash * 397) ^ filterRenderingLayers;
                 return hash;
             }
         }
@@ -186,7 +199,45 @@ namespace InfinityTech.Rendering.MeshPipeline
             return Insert(signature, result);
         }
 
+        public MeshVisibilityHandle Acquire(MeshScene scene, in MeshView view)
+        {
+            if (!view.enableVisibility || scene == null)
+            {
+                MeshPipelineDiagnostics.CulledPassSkippedBuilds++;
+                return MeshVisibilityHandle.Invalid;
+            }
+
+            return Acquire(
+                scene,
+                view.viewKey,
+                view.CopyPlanes(),
+                view.PolicyId,
+                view.enableVisibility,
+                view.subviewIndex,
+                view.layerMask,
+                view.renderingLayerMask,
+                view.FilterRenderingLayers);
+        }
+
         public MeshVisibilityHandle Acquire(MeshScene scene, ulong viewKey, Plane[] planes, int policyId, bool enable, int subviewIndex = 0)
+        {
+            return Acquire(
+                scene, viewKey, planes, policyId, enable, subviewIndex,
+                layerMask: ~0,
+                renderingLayerMask: (uint)ERenderingLayer.Everything,
+                filterRenderingLayers: false);
+        }
+
+        public MeshVisibilityHandle Acquire(
+            MeshScene scene,
+            ulong viewKey,
+            Plane[] planes,
+            int policyId,
+            bool enable,
+            int subviewIndex,
+            int layerMask,
+            uint renderingLayerMask,
+            bool filterRenderingLayers)
         {
             if (!enable || scene == null)
             {
@@ -196,14 +247,27 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             ulong frustumHash = HashFrustum(planes);
             var signature = new MeshVisibilitySignature(
-                scene.SceneId, viewKey, frustumHash, scene.VisibilityRevision, policyId, subviewIndex);
+                scene.SceneId, viewKey, frustumHash, scene.VisibilityRevision, policyId, subviewIndex)
+            {
+                layerMask = layerMask,
+                renderingLayerMask = renderingLayerMask,
+                filterRenderingLayers = filterRenderingLayers ? (byte)1 : (byte)0
+            };
             if (m_Lookup.TryGetValue(signature, out int slot))
             {
                 return AddRef(new MeshVisibilityHandle { slot = slot, generation = m_Entries[slot].generation });
             }
 
-            MeshViewCullingResult result = MeshVisibilityUtility.CullInstances(scene, planes, enable);
+            MeshViewCullingResult result = MeshVisibilityUtility.CullInstances(
+                scene, planes, enable, layerMask, renderingLayerMask, filterRenderingLayers);
             return Insert(signature, result);
+        }
+
+        /// <summary>
+        /// Reserved HiZ refine. Phase 2 produces frustum + layer Visibility only.
+        /// </summary>
+        public void RefineVisibilityHiZ(MeshVisibilityHandle handle)
+        {
         }
 
         public MeshVisibilityHandle AddRef(MeshVisibilityHandle handle)
@@ -306,6 +370,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             m_Lookup[signature] = slot;
+            MeshPipelineDiagnostics.VisibilityProductionsPerFrame++;
             return new MeshVisibilityHandle { slot = slot, generation = entry.generation };
         }
 

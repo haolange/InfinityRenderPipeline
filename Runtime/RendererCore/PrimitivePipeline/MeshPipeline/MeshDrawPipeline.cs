@@ -157,7 +157,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             CommandBuffer cmdBuffer,
             in MeshDrawList drawList,
             MeshDrawGpuPayload payload,
-            MeshDrawGpuStaging staging)
+            MeshDrawGpuStaging staging,
+            MeshWorld world,
+            in MeshView view)
         {
             if (!MeshDrawGPUBackend.SupportsIndirect || payload == null || staging == null)
             {
@@ -165,7 +167,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return false;
             }
 
-            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, m_DrawProfiler, payload, staging);
+            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, m_DrawProfiler, payload, staging, world, view);
         }
 
         internal void SubmitGpu(

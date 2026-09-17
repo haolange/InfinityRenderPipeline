@@ -537,6 +537,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshInstanceRecord record = m_Instances[(int)id.Index];
             record.flags = flags;
             m_Instances[(int)id.Index] = record;
+            MarkBoundsDirty((int)id.Index);
             VisibilityRevision++;
         }
 
@@ -568,6 +569,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             record.castShadow = castShadow;
             m_Instances[(int)id.Index] = record;
             MarkTransformDirty((int)record.transform.Index);
+            MarkBoundsDirty((int)id.Index);
             ContentRevision++;
             VisibilityRevision++;
         }

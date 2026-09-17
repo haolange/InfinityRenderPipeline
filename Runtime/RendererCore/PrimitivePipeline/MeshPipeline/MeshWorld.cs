@@ -17,6 +17,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly MeshVisibilityShare m_VisibilityShare;
         private readonly MeshDrawPipeline m_Processor;
         private readonly PassRegistry m_Registry;
+        private readonly MeshGpuVisibilityCache m_GpuVisibility;
         private readonly Dictionary<ulong, ComputeBuffer> m_PreviousTransforms = new Dictionary<ulong, ComputeBuffer>(8);
         private Camera m_ActiveCamera;
         private EMeshBackendPolicy? m_BackendOverride;
@@ -40,12 +41,15 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_VisibilityShare = new MeshVisibilityShare();
             m_Processor = new MeshDrawPipeline(m_Scene, m_Residency, resourcePool);
             m_Registry = new PassRegistry();
+            m_GpuVisibility = new MeshGpuVisibilityCache(resourcePool);
         }
 
         public void BeginCamera(Camera camera)
         {
             m_ActiveCamera = camera;
             m_PreviousTransforms.Clear();
+            MeshPipelineDiagnostics.VisibilityProductionsPerFrame = 0;
+            m_GpuVisibility.BeginCamera();
             if (m_Scene != null)
             {
                 m_VisibilityShare.BeginFrame(m_Scene.VisibilityRevision);
@@ -108,14 +112,27 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public MeshVisibilityHandle AcquireVisibility(in MeshView view)
         {
-            Plane[] planes = view.CopyPlanes();
-            return m_VisibilityShare.Acquire(
-                m_Scene,
-                view.viewKey,
-                planes,
-                view.PolicyId,
-                view.enableVisibility,
-                view.subviewIndex);
+            return m_VisibilityShare.Acquire(m_Scene, view);
+        }
+
+        public void RefineVisibilityHiZ(MeshVisibilityHandle handle)
+        {
+            m_VisibilityShare.RefineVisibilityHiZ(handle);
+        }
+
+        internal ComputeBuffer GetGpuVisibilityBuffer(in MeshView view, int instanceCount)
+        {
+            return m_GpuVisibility.GetBuffer(view, instanceCount);
+        }
+
+        internal bool NeedsGpuCull(in MeshView view)
+        {
+            return m_GpuVisibility.NeedsCull(view);
+        }
+
+        internal void MarkGpuCulled(in MeshView view)
+        {
+            m_GpuVisibility.MarkCulled(view);
         }
 
         public void UpdateResidency()
@@ -132,6 +149,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             MeshDrawGPUBackend.FlushRetiredPayloads();
             m_Processor.FlushRetiredBuffers();
+            m_GpuVisibility.FlushRetired();
         }
 
         public void Dispose()
@@ -145,6 +163,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PreviousTransforms.Clear();
             m_Processor.Dispose();
             m_VisibilityShare.Dispose();
+            m_GpuVisibility.Dispose();
             m_Residency.Dispose();
         }
     }

@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -41,7 +42,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             return CullInstances(scene, planes, enable);
         }
 
-        public static MeshViewCullingResult CullInstances(MeshScene scene, Plane[] planes, bool enable)
+        public static MeshViewCullingResult CullInstances(
+            MeshScene scene,
+            Plane[] planes,
+            bool enable,
+            int viewLayerMask = ~0,
+            uint viewRenderingLayerMask = (uint)ERenderingLayer.Everything,
+            bool filterRenderingLayers = false)
         {
             if (!enable || scene == null || planes == null || planes.Length < 6)
             {
@@ -72,7 +79,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                         viewFrustum = (FPlane*)result.frustum.GetUnsafeReadOnlyPtr(),
                         instances = scene.GetInstances(),
                         generations = scene.GetInstanceGenerations(),
-                        instanceVisibility = result.instanceVisibility
+                        instanceVisibility = result.instanceVisibility,
+                        viewLayerMask = viewLayerMask,
+                        viewRenderingLayerMask = viewRenderingLayerMask,
+                        filterRenderingLayers = filterRenderingLayers ? 1 : 0
                     };
                     job.Schedule(instanceCount, 256).Complete();
                 }
@@ -128,6 +138,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         [WriteOnly]
         public NativeArray<byte> instanceVisibility;
 
+        public int viewLayerMask;
+        public uint viewRenderingLayerMask;
+        public int filterRenderingLayers;
+
         public void Execute(int index)
         {
             byte visible = 0;
@@ -135,7 +149,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 MeshInstanceRecord instance = instances[index];
                 bool flagVisible = (instance.flags & EMeshInstanceFlags.Visible) != 0;
-                if (flagVisible)
+                bool layerVisible = (instance.layerMask & viewLayerMask) != 0;
+                bool renderingVisible = filterRenderingLayers == 0
+                    || (instance.renderingLayerMask & viewRenderingLayerMask) != 0;
+                if (flagVisible && layerVisible && renderingVisible)
                 {
                     int inside = 1;
                     FBound bound = instance.worldBounds;

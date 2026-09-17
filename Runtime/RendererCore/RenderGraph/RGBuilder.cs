@@ -128,20 +128,14 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             MeshDrawRequest request = m_MeshWorld.BuildRequest(view, passId);
-            MeshVisibilityHandle handle = m_MeshWorld.AcquireVisibility(view);
-            RGDrawListRef draws = m_DrawListRecords.Declare(
+            return m_DrawListRecords.Declare(
                 m_MeshWorld.Processor,
                 request,
-                handle,
+                MeshVisibilityHandle.Invalid,
                 m_MeshWorld.VisibilityShare,
                 view,
-                passId);
-            if (handle.IsValid)
-            {
-                m_MeshWorld.VisibilityShare.Release(handle);
-            }
-
-            return draws;
+                passId,
+                m_MeshWorld);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -807,7 +801,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
             }
 
-            m_DrawListRecords.ScheduleLive();
+            m_DrawListRecords.PrepareLive(m_MeshWorld);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

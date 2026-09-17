@@ -27,7 +27,13 @@ float4 _FrustumPlanes[6];
 StructuredBuffer<float4> _InstanceBoundsCenter; // xyz = center (instance-indexed)
 StructuredBuffer<float4> _InstanceBoundsExtent; // xyz = extent (instance-indexed)
 StructuredBuffer<uint> _InstanceTransformIndex; // TransformId.Index per instance slot
-RWStructuredBuffer<uint> _InstanceVisibility;   // 0/1 per instance slot
+StructuredBuffer<uint> _InstanceFlags;
+StructuredBuffer<uint> _InstanceLayerMask;
+StructuredBuffer<uint> _InstanceRenderingLayer;
+uint _ViewLayerMask;
+uint _ViewRenderingLayerMask;
+uint _FilterRenderingLayers;
+RWStructuredBuffer<uint> _InstanceVisibility;   // 0/1 per instance slot (shared per view)
 
 // Command meta: indexCount, startIndex, baseVertex, candidateOffset
 StructuredBuffer<uint> _CommandMeta;
@@ -64,6 +70,25 @@ void CullInstances(uint3 id : SV_DispatchThreadID)
     uint instanceIndex = id.x;
     if (instanceIndex >= _InstanceCount)
     {
+        return;
+    }
+
+    uint flags = _InstanceFlags[instanceIndex];
+    if ((flags & 4u) == 0u)
+    {
+        _InstanceVisibility[instanceIndex] = 0u;
+        return;
+    }
+
+    if ((_InstanceLayerMask[instanceIndex] & _ViewLayerMask) == 0u)
+    {
+        _InstanceVisibility[instanceIndex] = 0u;
+        return;
+    }
+
+    if (_FilterRenderingLayers != 0u && (_InstanceRenderingLayer[instanceIndex] & _ViewRenderingLayerMask) == 0u)
+    {
+        _InstanceVisibility[instanceIndex] = 0u;
         return;
     }
 

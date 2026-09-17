@@ -43,6 +43,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
+        public bool FilterRenderingLayers =>
+            kind == EMeshViewKind.CascadeShadow || kind == EMeshViewKind.LocalShadow;
+
         public Plane GetPlane(int index)
         {
             switch (index)

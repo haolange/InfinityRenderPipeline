@@ -57,6 +57,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             Assert.AreEqual(MeshVisibilityShare.PolicyMainFrustum, Kind(EMeshViewKind.Preview).PolicyId);
             Assert.AreEqual(MeshVisibilityShare.PolicyCascadeShadow, Kind(EMeshViewKind.CascadeShadow).PolicyId);
             Assert.AreEqual(MeshVisibilityShare.PolicyLocalShadow, Kind(EMeshViewKind.LocalShadow).PolicyId);
+            Assert.IsFalse(Kind(EMeshViewKind.Main).FilterRenderingLayers);
+            Assert.IsTrue(Kind(EMeshViewKind.CascadeShadow).FilterRenderingLayers);
+            Assert.IsTrue(Kind(EMeshViewKind.LocalShadow).FilterRenderingLayers);
         }
 
         static MeshView Kind(EMeshViewKind kind)

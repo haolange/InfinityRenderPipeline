@@ -49,6 +49,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public MeshViewCullingResult culling;
         public MeshVisibilityHandle visibilityHandle;
         public MeshVisibilityShare visibilityShare;
+        public MeshWorld meshWorld;
         public bool ownsCulling;
         public List<int> consumerPassIndices;
         public ERGDrawListCompileState state;
@@ -101,7 +102,8 @@ namespace InfinityTech.Rendering.RenderGraph
             in MeshDrawRequest request,
             in MeshViewCullingResult culling,
             in MeshView view = default,
-            MeshPassId passId = default)
+            MeshPassId passId = default,
+            MeshWorld meshWorld = null)
         {
             ValidateMotionInput(request);
             // Value-copy path: first record owns NativeArrays; later declares sharing the same arrays must not double-free.
@@ -131,6 +133,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 culling = culling,
                 visibilityHandle = MeshVisibilityHandle.Invalid,
                 visibilityShare = null,
+                meshWorld = meshWorld,
                 ownsCulling = owns,
                 consumerPassIndices = new List<int>(4),
                 state = ERGDrawListCompileState.Declared,
@@ -150,7 +153,8 @@ namespace InfinityTech.Rendering.RenderGraph
             MeshVisibilityHandle visibilityHandle,
             MeshVisibilityShare visibilityShare,
             in MeshView view = default,
-            MeshPassId passId = default)
+            MeshPassId passId = default,
+            MeshWorld meshWorld = null)
         {
             ValidateMotionInput(request);
             MeshViewCullingResult culling = default;
@@ -170,6 +174,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 culling = culling,
                 visibilityHandle = visibilityHandle,
                 visibilityShare = visibilityShare,
+                meshWorld = meshWorld,
                 ownsCulling = false,
                 consumerPassIndices = new List<int>(4),
                 state = ERGDrawListCompileState.Declared,
@@ -214,18 +219,26 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Records[drawListIndex] = record;
         }
 
-        public void ScheduleLive()
+        public void PrepareLive(MeshWorld world)
         {
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGDrawListRecord record = m_Records[i];
                 if (record.state != ERGDrawListCompileState.Live)
                 {
-                    // Culled / unused: zero schedule, zero TempJob alloc.
-                    // Visibility ownership is still released in ReleaseAll.
+                    // Unused lists never produce Visibility or Compact.
                     record.state = ERGDrawListCompileState.Released;
                     m_Records[i] = record;
                     continue;
+                }
+
+                MeshWorld producer = record.meshWorld ?? world;
+                if (producer != null && !record.visibilityHandle.IsValid)
+                {
+                    record.visibilityHandle = producer.AcquireVisibility(record.view);
+                    record.visibilityShare = producer.VisibilityShare;
+                    record.culling = record.visibilityShare.GetResult(record.visibilityHandle);
+                    producer.RefineVisibilityHiZ(record.visibilityHandle);
                 }
 
                 record.selectedBackend = MeshDrawGPUBackend.SelectPolicy(record.request.backendPolicy);
@@ -321,7 +334,7 @@ namespace InfinityTech.Rendering.RenderGraph
             if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect
                 && record.gpuPayload != null
                 && record.gpuStaging != null
-                && record.pipeline.PrepareGpu(cmdBuffer, record.resolvedList, record.gpuPayload, record.gpuStaging))
+                && record.pipeline.PrepareGpu(cmdBuffer, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.view))
             {
                 m_Records[draws.index] = record;
                 return;
