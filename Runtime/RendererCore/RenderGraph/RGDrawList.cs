@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public MeshView view;
         public MeshPassId passId;
         public MeshDrawPipeline pipeline;
-        public MeshDrawRequest request;
+        public MeshPassContext pass;
         public MeshViewCullingResult culling;
         public MeshVisibilityHandle visibilityHandle;
         public MeshVisibilityShare visibilityShare;
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public List<int> consumerPassIndices;
         public ERGDrawListCompileState state;
         public EMeshBackendPolicy selectedBackend;
-        public MeshDrawBuild build;
+        public MeshDrawExtract extract;
         public MeshDrawList resolvedList;
         public MeshDrawGpuStaging gpuStaging;
         public MeshDrawGpuPayload gpuPayload;
@@ -91,21 +91,21 @@ namespace InfinityTech.Rendering.RenderGraph
                 && draws.index < m_Records.Count;
         }
 
-        static void ValidateMotionInput(in MeshDrawRequest request)
+        static void ValidateMotionInput(in MeshPassContext pass)
         {
-            if (request.lightModeTag == "MotionPass" && request.previousTransforms == null)
+            if (pass.lightModeTag == "MotionPass" && pass.previousTransforms == null)
                 throw new System.InvalidOperationException("Motion draws require the selected view's previous-transform producer.");
         }
 
         public RGDrawListRef Declare(
             MeshDrawPipeline pipeline,
-            in MeshDrawRequest request,
+            in MeshPassContext pass,
             in MeshViewCullingResult culling,
             in MeshView view = default,
             MeshPassId passId = default,
             MeshWorld meshWorld = null)
         {
-            ValidateMotionInput(request);
+            ValidateMotionInput(pass);
             // Value-copy path: first record owns NativeArrays; later declares sharing the same arrays must not double-free.
             // Prefer Declare(..., MeshVisibilityHandle) for shared visibility.
             bool owns = culling.isValid;
@@ -129,7 +129,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 view = view,
                 passId = passId,
                 pipeline = pipeline,
-                request = request,
+                pass = pass,
                 culling = culling,
                 visibilityHandle = MeshVisibilityHandle.Invalid,
                 visibilityShare = null,
@@ -138,7 +138,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 consumerPassIndices = new List<int>(4),
                 state = ERGDrawListCompileState.Declared,
                 selectedBackend = EMeshBackendPolicy.CpuDirect,
-                build = default,
+                extract = default,
                 resolvedList = MeshDrawList.Invalid,
                 gpuStaging = null,
                 gpuPayload = null,
@@ -149,14 +149,14 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public RGDrawListRef Declare(
             MeshDrawPipeline pipeline,
-            in MeshDrawRequest request,
+            in MeshPassContext pass,
             MeshVisibilityHandle visibilityHandle,
             MeshVisibilityShare visibilityShare,
             in MeshView view = default,
             MeshPassId passId = default,
             MeshWorld meshWorld = null)
         {
-            ValidateMotionInput(request);
+            ValidateMotionInput(pass);
             MeshViewCullingResult culling = default;
             if (visibilityShare != null && visibilityHandle.IsValid)
             {
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 view = view,
                 passId = passId,
                 pipeline = pipeline,
-                request = request,
+                pass = pass,
                 culling = culling,
                 visibilityHandle = visibilityHandle,
                 visibilityShare = visibilityShare,
@@ -179,7 +179,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 consumerPassIndices = new List<int>(4),
                 state = ERGDrawListCompileState.Declared,
                 selectedBackend = EMeshBackendPolicy.CpuDirect,
-                build = default,
+                extract = default,
                 resolvedList = MeshDrawList.Invalid,
                 gpuStaging = null,
                 gpuPayload = null,
@@ -241,10 +241,10 @@ namespace InfinityTech.Rendering.RenderGraph
                     producer.RefineVisibilityHiZ(record.visibilityHandle);
                 }
 
-                record.selectedBackend = MeshDrawGPUBackend.SelectPolicy(record.request.backendPolicy);
+                record.selectedBackend = MeshDrawGPUBackend.SelectPolicy(record.pass.backendPolicy);
                 if (record.pipeline != null)
                 {
-                    record.build = record.pipeline.Schedule(record.request, record.culling);
+                    record.extract = record.pipeline.Extract(record.passId, record.culling);
                     record.state = ERGDrawListCompileState.Scheduled;
                 }
                 else
@@ -280,7 +280,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
             if (record.pipeline != null)
             {
-                record.resolvedList = record.pipeline.Resolve(ref record.build);
+                record.resolvedList = record.pipeline.Resolve(ref record.extract);
                 if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect)
                 {
                     // Overflow splits into multiple Submit batches; single-command overflow falls back to CpuDirect.
@@ -365,14 +365,14 @@ namespace InfinityTech.Rendering.RenderGraph
                 record.pipeline.SubmitGpu(
                     cmdBuffer,
                     record.resolvedList,
-                    record.request.shaderPassIndex,
+                    record.pass.shaderPassIndex,
                     record.gpuPayload,
                     record.gpuStaging,
-                    record.request.lightModeTag, record.request.previousTransforms);
+                    record.pass.lightModeTag, record.pass.previousTransforms);
                 return;
             }
 
-            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.request.shaderPassIndex, record.cpuIndexBuffer, record.request.lightModeTag, record.request.previousTransforms);
+            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.pass.shaderPassIndex, record.cpuIndexBuffer, record.pass.lightModeTag, record.pass.previousTransforms);
         }
 
         /// <summary>
@@ -385,9 +385,9 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGDrawListRecord record = m_Records[i];
-                if (record.pipeline != null && record.build.isCreated)
+                if (record.pipeline != null && record.extract.isCreated)
                 {
-                    record.pipeline.Release(ref record.build);
+                    record.pipeline.Release(ref record.extract);
                 }
 
                 if (record.gpuPayload != null)

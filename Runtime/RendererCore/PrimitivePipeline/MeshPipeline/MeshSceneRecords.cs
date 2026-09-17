@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct MeshDrawRecord
+    public struct MeshDraw
     {
         public MeshInstanceId instance;
         public MeshSectionId section;
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public ulong materialUnityId;
         public int sectionIndex;
         /// <summary>
-        /// Draw-level static / batching flags (e.g. 1 = Static mobility). Feeds MeshPassDrawCacheKey.
+        /// Draw-level static / batching flags (e.g. 1 = Static mobility). Feeds MeshDrawCommandKey.
         /// </summary>
         public uint staticFlags;
     }

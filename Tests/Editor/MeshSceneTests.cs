@@ -362,7 +362,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshDrawId draw = update.CreateDraw(instance, 10, 0, 20, EPassEligibility.Depth, 2450, 0);
                 update.Commit();
 
-                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord committedDraw));
+                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw committedDraw));
                 MaterialDataId oldMaterial = committedDraw.material;
                 Assert.IsTrue(scene.IsMaterialAlive(oldMaterial));
                 Assert.IsTrue(scene.TryGetMaterial(oldMaterial, out MaterialDataRecord oldRecord));
@@ -371,7 +371,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
                 update = scene.BeginUpdate();
                 update.SetMaterial(draw, materialUnityId: 99, renderQueue: 3000);
-                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord midDraw));
+                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw midDraw));
                 Assert.AreEqual(99, midDraw.materialUnityId);
                 Assert.AreNotEqual(oldMaterial, midDraw.material);
                 // Unique old material must remain addressable during the transaction (deferred reclaim).
@@ -379,7 +379,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 update.Rollback();
 
                 Assert.IsTrue(scene.IsDrawAlive(draw));
-                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord restoredDraw));
+                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw restoredDraw));
                 Assert.AreEqual(20, restoredDraw.materialUnityId);
                 Assert.AreEqual(oldMaterial, restoredDraw.material);
                 Assert.IsTrue(scene.IsMaterialAlive(oldMaterial));
@@ -406,7 +406,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshDrawId draw = update.CreateDraw(instance, 10, 0, materialUnityId, EPassEligibility.Depth, 2450, 0);
                 update.Commit();
 
-                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord beforeDraw));
+                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw beforeDraw));
                 Assert.IsTrue(scene.TryGetMaterial(beforeDraw.material, out MaterialDataRecord beforeMaterial));
                 Assert.AreEqual(2450, beforeDraw.renderQueue);
                 Assert.AreEqual(2450, beforeMaterial.renderQueue);
@@ -418,7 +418,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 update.SetDrawPriority(draw, priority: 100 + 3000);
                 update.Commit();
 
-                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord afterDraw));
+                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw afterDraw));
                 Assert.IsTrue(scene.TryGetMaterial(afterDraw.material, out MaterialDataRecord afterMaterial));
                 Assert.AreEqual(materialUnityId, afterDraw.materialUnityId);
                 Assert.AreEqual(beforeDraw.material, afterDraw.material);
@@ -465,7 +465,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 // (owned by Free*/Restore*/deferred reclaim — not truncated on rollback).
                 AssertLiveBookkeepingEqual(before, after);
                 Assert.IsTrue(scene.IsDrawAlive(draw));
-                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord restoredDraw));
+                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw restoredDraw));
                 Assert.AreEqual(20, restoredDraw.materialUnityId);
             }
         }
@@ -530,7 +530,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             ulong previous = 0;
             for (int i = 0; i < priorities.Length; ++i)
             {
-                var draw = new MeshDrawRecord { priority = priorities[i] };
+                var draw = new MeshDraw { priority = priorities[i] };
                 ulong key = MeshSortKey.PackSortKey(plan, draw, instance, view, drawIndex: i);
                 if (i > 0)
                 {
@@ -544,7 +544,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void SortKey_Distance_DoesNotSaturateAtGivenScale()
         {
-            var draw = new MeshDrawRecord();
+            var draw = new MeshDraw();
             var near = new MeshInstanceRecord
             {
                 worldBounds = new FBound(new float3(0, 0, 1000), new float3(0.1f, 0.1f, 0.1f))
@@ -571,115 +571,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void GroupingKey_HashCollision_DoesNotMergeUnequalKeys()
+        public void CommandKey_HashCollision_DoesNotMergeUnequalKeys()
         {
-            var keyA = new MeshGroupingKey(meshUnityId: 1, sectionIndex: 0, materialUnityId: 2, pipelinePassIndex: 3);
-            var keyB = new MeshGroupingKey(meshUnityId: 1, sectionIndex: 0, materialUnityId: 2, pipelinePassIndex: 4);
-
+            var keyA = new MeshDrawCommandKey { meshUnityId = 1, sectionIndex = 0, materialUnityId = 2, shaderPassIndex = 3 };
+            var keyB = new MeshDrawCommandKey { meshUnityId = 1, sectionIndex = 0, materialUnityId = 2, shaderPassIndex = 4 };
             Assert.AreNotEqual(keyA, keyB);
             Assert.IsFalse(keyA.Equals(keyB));
-
-            var collideA = new MeshGroupingKey(0, 0, 0, 0);
-            var collideB = new MeshGroupingKey(0, 0, 0, 1);
-            if (collideA.GetHashCode() == collideB.GetHashCode())
-            {
-                Assert.IsFalse(collideA.Equals(collideB));
-            }
-
-            Assert.AreNotEqual(0, collideA.CompareTo(collideB));
-        }
-
-        [Test]
-        public void PassDrawCache_StructuredKey_CollisionDoesNotOverwrite()
-        {
-            AssertPassDrawCacheStructuredKeyEqualsAuthority();
-        }
-
-        [Test]
-        public void PassDrawCache_StructuredKey_EqualsAuthorityUnderHashCollision()
-        {
-            AssertPassDrawCacheStructuredKeyEqualsAuthority();
-        }
-
-        private static void AssertPassDrawCacheStructuredKeyEqualsAuthority()
-        {
-            MeshPipelineDiagnostics.Reset();
-
-            Assert.IsTrue(TryFindPassDrawCacheHashCollision(out MeshPassDrawCacheKey keyA, out MeshPassDrawCacheKey keyB),
-                "Expected to find unequal MeshPassDrawCacheKey pair with identical GetHashCode.");
-            Assert.IsFalse(keyA.Equals(keyB));
-            Assert.AreEqual(keyA.GetHashCode(), keyB.GetHashCode());
-
-            var dict = new Dictionary<MeshPassDrawCacheKey, int>(2);
-            dict[keyA] = 11;
-            dict[keyB] = 22;
-            Assert.AreEqual(2, dict.Count);
-            Assert.AreEqual(11, dict[keyA]);
-            Assert.AreEqual(22, dict[keyB]);
-
-            using (var cache = new MeshPassDrawCache(32))
-            {
-                MeshPassDrawId first = cache.GetOrCreate(0, 0,
-                    keyA.shaderPassIndex, keyA.meshUnityId, keyA.sectionIndex, keyA.materialUnityId,
-                    keyA.materialRevision, keyA.sectionRevision, keyA.platformFeatureKey, keyA.staticFlags);
-                MeshPassDrawId second = cache.GetOrCreate(0, 0,
-                    keyA.shaderPassIndex, keyA.meshUnityId, keyA.sectionIndex, keyA.materialUnityId,
-                    keyA.materialRevision, keyA.sectionRevision, keyA.platformFeatureKey, keyA.staticFlags);
-                MeshPassDrawId other = cache.GetOrCreate(0, 0,
-                    keyB.shaderPassIndex, keyB.meshUnityId, keyB.sectionIndex, keyB.materialUnityId,
-                    keyB.materialRevision, keyB.sectionRevision, keyB.platformFeatureKey, keyB.staticFlags);
-
-                Assert.AreEqual(first, second);
-                Assert.AreNotEqual(first, other);
-                Assert.IsTrue(cache.TryGet(first, out _));
-                Assert.IsTrue(cache.TryGet(other, out _));
-            }
-        }
-
-        [Test]
-        public void PassDrawCache_HitsOnSecondLookup_AndIgnoresTransformMotionInKey()
-        {
-            MeshPipelineDiagnostics.Reset();
-            using (var cache = new MeshPassDrawCache(32))
-            {
-                MeshPassDrawId first = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 3);
-                MeshPassDrawId second = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 3);
-
-                Assert.AreEqual(first, second);
-                Assert.GreaterOrEqual(MeshPipelineDiagnostics.TemplateCacheHits, 1);
-
-                MeshPassDrawId revised = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 2, sectionRevision: 3);
-                Assert.AreNotEqual(first, revised);
-                Assert.GreaterOrEqual(MeshPipelineDiagnostics.TemplateCacheMisses, 1);
-
-                MeshPassDrawId sectionRevised = cache.GetOrCreate(0, 0, 1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1, sectionRevision: 4);
-                Assert.AreNotEqual(first, sectionRevised);
-
-                MeshPassDrawId staticFlagChanged = cache.GetOrCreate(0, 0,
-                    1, meshUnityId: 10, sectionIndex: 0, materialUnityId: 20, materialRevision: 1,
-                    sectionRevision: 3, platformFeatureKey: 0, staticFlags: 1u);
-                Assert.AreNotEqual(first, staticFlagChanged);
-            }
-        }
-
-        [Test]
-        public void PassDrawCache_Disabled_ReturnsInvalid()
-        {
-            bool previous = MeshPassDrawCache.Enabled;
-            try
-            {
-                MeshPassDrawCache.Enabled = false;
-                using (var cache = new MeshPassDrawCache(16))
-                {
-                    MeshPassDrawId id = cache.GetOrCreate(0, 0, 1, 10, 0, 20, materialRevision: 1);
-                    Assert.AreEqual(MeshPassDrawId.Invalid, id);
-                    Assert.IsFalse(id.IsValid);
-                }
-            }
-            finally
-            {
-                MeshPassDrawCache.Enabled = previous;
-            }
         }
 
         [Test]
@@ -699,7 +596,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         EGeometrySourceKind.IndexedMesh, geometryRevision: 0, staticFlags: 1u);
                     update.Commit();
 
-                    Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord record));
+                    Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw record));
                     Assert.AreEqual(1u, record.staticFlags);
                 }
             }
@@ -751,7 +648,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     EGeometrySourceKind.IndexedMesh, geometryRevision: 11u);
                 create.Commit();
 
-                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDrawRecord drawRecord));
+                Assert.IsTrue(scene.TryGetDraw(draw, out MeshDraw drawRecord));
                 Assert.IsTrue(scene.TryGetSection(drawRecord.section, out MeshSectionRecord section));
                 Assert.AreEqual(11u, section.geometryRevision);
                 uint revisionBefore = section.revision;
@@ -987,46 +884,50 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         /// <summary>
-        /// C2: candidate / CPU index dual streams.
-        /// MeshPassBuildJob writes transform indices for CPU Submit and instance slot indices for GPU Staging.
-        /// Staging.Build copies instanceSlotIndices into candidateIndices (GPU cull domain).
+        /// CpuDirect extract writes transform indices for Submit and instance slot indices for GPU candidates.
         /// </summary>
         [Test]
-        public void MeshPassBuildJob_WritesTransformAndInstanceSlotIndices()
+        public void MeshPassExtractJob_WritesTransformAndInstanceSlotIndices()
         {
-            var visible = new NativeList<VisibleMeshDraw>(2, Allocator.Temp);
-            var draws = new NativeArray<MeshDrawRecord>(2, Allocator.Temp);
+            var passCommands = new NativeArray<MeshPassCommand>(1, Allocator.Temp);
+            var memberDrawIndices = new NativeArray<int>(2, Allocator.Temp);
+            var draws = new NativeArray<MeshDraw>(2, Allocator.Temp);
+            var instances = new NativeArray<MeshInstanceRecord>(8, Allocator.Temp);
+            var instanceGenerations = new NativeArray<uint>(8, Allocator.Temp);
+            var transformGenerations = new NativeArray<uint>(8, Allocator.Temp);
+            var visibility = new NativeArray<byte>(8, Allocator.Temp);
             var commands = new NativeList<MeshDrawCommand>(2, Allocator.Temp);
-            var transformIndices = new NativeArray<int>(2, Allocator.Temp);
-            var slotIndices = new NativeArray<int>(2, Allocator.Temp);
+            var transformIndices = new NativeList<int>(2, Allocator.Temp);
+            var slotIndices = new NativeList<int>(2, Allocator.Temp);
             try
             {
-                // Two instances share transform slot 7; instance slots differ (3 vs 5).
-                visible.Add(new VisibleMeshDraw
+                passCommands[0] = new MeshPassCommand
                 {
-                    grouping = new MeshGroupingKey(10, 0, 20, 0),
-                    passDrawId = MeshPassDrawId.Invalid,
-                    instance = new MeshInstanceId(3u, 1u),
-                    sortKey = 1,
-                    drawIndex = 0,
-                    transformIndex = 7
-                });
-                visible.Add(new VisibleMeshDraw
-                {
-                    grouping = new MeshGroupingKey(10, 0, 20, 0),
-                    passDrawId = MeshPassDrawId.Invalid,
-                    instance = new MeshInstanceId(5u, 1u),
-                    sortKey = 2,
-                    drawIndex = 1,
-                    transformIndex = 7
-                });
-                draws[0] = new MeshDrawRecord { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20 };
-                draws[1] = new MeshDrawRecord { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20 };
+                    key = new MeshDrawCommandKey { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20 },
+                    memberBegin = 0,
+                    memberCount = 2
+                };
+                memberDrawIndices[0] = 0;
+                memberDrawIndices[1] = 1;
+                draws[0] = new MeshDraw { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20, instance = new MeshInstanceId(3u, 1u) };
+                draws[1] = new MeshDraw { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20, instance = new MeshInstanceId(5u, 1u) };
+                instances[3] = new MeshInstanceRecord { transform = new TransformId(7u, 1u) };
+                instances[5] = new MeshInstanceRecord { transform = new TransformId(7u, 1u) };
+                instanceGenerations[3] = 1;
+                instanceGenerations[5] = 1;
+                transformGenerations[7] = 1;
+                visibility[3] = 1;
+                visibility[5] = 1;
 
-                new MeshPassBuildJob
+                new MeshPassExtractJob
                 {
-                    visibleDraws = visible,
+                    commands = passCommands,
+                    memberDrawIndices = memberDrawIndices,
                     draws = draws,
+                    instances = instances,
+                    instanceGenerations = instanceGenerations,
+                    transformGenerations = transformGenerations,
+                    instanceVisibility = visibility,
                     drawCommands = commands,
                     instanceIndices = transformIndices,
                     instanceSlotIndices = slotIndices
@@ -1041,8 +942,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             }
             finally
             {
-                visible.Dispose();
+                passCommands.Dispose();
+                memberDrawIndices.Dispose();
                 draws.Dispose();
+                instances.Dispose();
+                instanceGenerations.Dispose();
+                transformGenerations.Dispose();
+                visibility.Dispose();
                 commands.Dispose();
                 transformIndices.Dispose();
                 slotIndices.Dispose();
@@ -1051,8 +957,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
         private static void AssertDistanceSortOrderFlipsWithDirection()
         {
-            var drawNear = new MeshDrawRecord { priority = 0, renderQueue = 2000, materialUnityId = 1, meshUnityId = 1, sectionIndex = 0 };
-            var drawFar = new MeshDrawRecord { priority = 0, renderQueue = 2000, materialUnityId = 1, meshUnityId = 1, sectionIndex = 0 };
+            var drawNear = new MeshDraw { priority = 0, renderQueue = 2000, materialUnityId = 1, meshUnityId = 1, sectionIndex = 0 };
+            var drawFar = new MeshDraw { priority = 0, renderQueue = 2000, materialUnityId = 1, meshUnityId = 1, sectionIndex = 0 };
             var instanceNear = new MeshInstanceRecord { worldBounds = new FBound(new float3(0, 0, 1), new float3(0.1f, 0.1f, 0.1f)) };
             var instanceFar = new MeshInstanceRecord { worldBounds = new FBound(new float3(0, 0, 100), new float3(0.1f, 0.1f, 0.1f)) };
             float3 view = float3.zero;
@@ -1136,39 +1042,5 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             };
         }
 
-        private static bool TryFindPassDrawCacheHashCollision(out MeshPassDrawCacheKey keyA, out MeshPassDrawCacheKey keyB)
-        {
-            // Known unequal pair with identical GetHashCode under the current Mixer (397 / xor).
-            // staticFlags=0 preserves the prior collision (final mix is *397 ^ 0).
-            // If the hash formula changes, fall back to a short random probe.
-            keyA = new MeshPassDrawCacheKey(0, 0, 6, 78, 25, 815, 42, 56, 50, 0);
-            keyB = new MeshPassDrawCacheKey(0, 0, 3, 21, 20, 582, 5, 38, 25, 0);
-            if (!keyA.Equals(keyB) && keyA.GetHashCode() == keyB.GetHashCode())
-            {
-                return true;
-            }
-
-            var rnd = new System.Random(1);
-            var seen = new Dictionary<int, MeshPassDrawCacheKey>(65536);
-            for (int i = 0; i < 4000000; ++i)
-            {
-                var key = new MeshPassDrawCacheKey(0, 0,
-                    rnd.Next(8), (ulong)rnd.Next(1024), rnd.Next(64), (ulong)rnd.Next(1024),
-                    (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64));
-                int hash = key.GetHashCode();
-                if (seen.TryGetValue(hash, out MeshPassDrawCacheKey prior) && !prior.Equals(key))
-                {
-                    keyA = prior;
-                    keyB = key;
-                    return true;
-                }
-
-                seen[hash] = key;
-            }
-
-            keyA = default;
-            keyB = default;
-            return false;
-        }
     }
 }

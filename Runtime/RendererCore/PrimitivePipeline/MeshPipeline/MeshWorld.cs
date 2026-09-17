@@ -39,8 +39,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             m_Residency = new MeshSceneResidency(resourcePool, m_Scene);
             m_VisibilityShare = new MeshVisibilityShare();
-            m_Processor = new MeshDrawPipeline(m_Scene, m_Residency, resourcePool);
             m_Registry = new PassRegistry();
+            m_Processor = new MeshDrawPipeline(m_Scene, m_Residency, resourcePool, m_Registry);
             m_GpuVisibility = new MeshGpuVisibilityCache(resourcePool);
         }
 
@@ -87,24 +87,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             return EMeshBackendPolicy.Auto;
         }
 
-        public MeshDrawRequest BuildRequest(in MeshView view, MeshPassId passId)
+        public MeshPassContext BindPass(in MeshView view, MeshPassId passId)
         {
             MeshPassDefinition definition = m_Registry.Get(passId);
-            MeshFilterProgram filter = definition.defaultFilter;
-            filter.layerMask = view.layerMask;
-            filter.renderingLayerMask = view.renderingLayerMask;
-            filter.filterRenderingLayers = definition.filterRenderingLayers;
-            filter.excludeCameraMotionOnly = definition.excludeCameraMotionOnly;
             m_PreviousTransforms.TryGetValue(view.viewKey, out ComputeBuffer previousTransforms);
-
-            return new MeshDrawRequest
+            return new MeshPassContext
             {
-                filter = filter,
-                sort = definition.defaultSort,
-                backendPolicy = SelectPolicy(),
+                passId = passId,
                 shaderPassIndex = definition.shaderPassIndex,
                 lightModeTag = definition.lightModeTag,
-                viewPosition = view.viewPosition,
+                backendPolicy = SelectPolicy(),
                 viewKey = view.viewKey,
                 previousTransforms = previousTransforms
             };

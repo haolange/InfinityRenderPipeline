@@ -13,7 +13,7 @@ namespace InfinityTech.Component
 {
     /// <summary>
     /// Mesh proxy state machine: property change → snapshot diff → structural/lightweight path →
-    /// MeshScene transaction → world Static/Dynamic list membership → MeshPassDrawCache revision.
+    /// MeshScene transaction → world Static/Dynamic list membership → PassBin invalidation.
     /// MarkDirty uses a shared dirty queue (not the Dynamic world list), so Dynamic→Static still syncs.
     /// </summary>
     [ExecuteAlways]

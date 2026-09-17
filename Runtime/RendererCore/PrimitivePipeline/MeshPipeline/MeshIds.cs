@@ -153,33 +153,4 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static bool operator !=(MaterialDataId a, MaterialDataId b) => !a.Equals(b);
     }
 
-    public readonly struct MeshPassDrawId : IEquatable<MeshPassDrawId>
-    {
-        public readonly uint Index;
-        public readonly uint Generation;
-
-        public MeshPassDrawId(uint index, uint generation)
-        {
-            Index = index;
-            Generation = generation;
-        }
-
-        public bool IsValid
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Generation != 0;
-        }
-
-        public static readonly MeshPassDrawId Invalid = default;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(MeshPassDrawId other) => Index == other.Index && Generation == other.Generation;
-
-        public override bool Equals(object obj) => obj is MeshPassDrawId other && Equals(other);
-
-        public override int GetHashCode() => (int)(Index * 397u) ^ (int)Generation;
-
-        public static bool operator ==(MeshPassDrawId a, MeshPassDrawId b) => a.Equals(b);
-        public static bool operator !=(MeshPassDrawId a, MeshPassDrawId b) => !a.Equals(b);
-    }
 }

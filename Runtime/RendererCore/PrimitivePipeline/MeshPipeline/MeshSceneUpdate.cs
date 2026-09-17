@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public uint generation;
         public TransformRecord transformRecord;
         public MeshInstanceRecord instanceRecord;
-        public MeshDrawRecord drawRecord;
+        public MeshDraw drawRecord;
         public MeshSectionRecord sectionRecord;
         public MaterialDataRecord materialRecord;
         public MeshSceneRevisionSnapshot revisions;
@@ -249,7 +249,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 materialUnityId, renderQueue,
                 out MaterialDataRecord previousMaterial, out bool materialCreated, out bool materialRevised);
 
-            MeshDrawId drawId = m_Scene.AllocDrawForInstance(instance, new MeshDrawRecord
+            MeshDrawId drawId = m_Scene.AllocDrawForInstance(instance, new MeshDraw
             {
                 instance = instance,
                 section = sectionId,
@@ -322,7 +322,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void SetMaterial(MeshDrawId drawId, ulong materialUnityId, int renderQueue)
         {
             ThrowIfClosed();
-            if (!m_Scene.TryGetDraw(drawId, out MeshDrawRecord previousDraw))
+            if (!m_Scene.TryGetDraw(drawId, out MeshDraw previousDraw))
             {
                 return;
             }
@@ -358,7 +358,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void SetDrawPriority(MeshDrawId drawId, int priority)
         {
             ThrowIfClosed();
-            if (!m_Scene.TryGetDraw(drawId, out MeshDrawRecord previousDraw))
+            if (!m_Scene.TryGetDraw(drawId, out MeshDraw previousDraw))
             {
                 return;
             }
@@ -382,7 +382,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void SetDrawEligibility(MeshDrawId drawId, EPassEligibility eligibility)
         {
             ThrowIfClosed();
-            if (!m_Scene.TryGetDraw(drawId, out MeshDrawRecord previousDraw))
+            if (!m_Scene.TryGetDraw(drawId, out MeshDraw previousDraw))
             {
                 return;
             }
@@ -479,7 +479,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     continue;
                 }
 
-                MeshDrawRecord draw = draws[i];
+                MeshDraw draw = draws[i];
                 if (!draw.instance.Equals(instanceId))
                 {
                     continue;

@@ -25,7 +25,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private NativeArray<int> m_TransformOwners;
         private NativeList<int> m_TransformFreeList;
 
-        private NativeArray<MeshDrawRecord> m_Draws;
+        private NativeArray<MeshDraw> m_Draws;
         private NativeArray<uint> m_DrawGenerations;
         private NativeList<int> m_DrawFreeList;
 
@@ -76,6 +76,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int StructuralRevision { get; private set; }
         public int ContentRevision { get; private set; }
         public int VisibilityRevision { get; private set; }
+        public int BinEpoch { get; private set; }
 
         public int LogicalInstanceCount => m_LogicalInstanceCount;
         public int TransformCount => m_TransformCount;
@@ -132,7 +133,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             FillTransformOwners(-1, 0, m_TransformCapacity);
             m_TransformFreeList = new NativeList<int>(m_TransformCapacity, Allocator.Persistent);
 
-            m_Draws = new NativeArray<MeshDrawRecord>(m_DrawCapacity, Allocator.Persistent);
+            m_Draws = new NativeArray<MeshDraw>(m_DrawCapacity, Allocator.Persistent);
             m_DrawGenerations = new NativeArray<uint>(m_DrawCapacity, Allocator.Persistent);
             m_DrawFreeList = new NativeList<int>(m_DrawCapacity, Allocator.Persistent);
 
@@ -177,6 +178,11 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             m_ActiveUpdate = null;
             m_InTransaction = false;
+            if (!committed)
+            {
+                BinEpoch++;
+            }
+
             if (committed)
             {
                 FlushPendingReclaims();
@@ -232,7 +238,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return owner >= 0 && IsInstanceSlotLive(owner) ? m_Instances[owner].renderingLayerMask : 0;
         }
         public NativeArray<uint> GetTransformGenerations() => m_TransformGenerations;
-        public NativeArray<MeshDrawRecord> GetDraws() => m_Draws;
+        public NativeArray<MeshDraw> GetDraws() => m_Draws;
         public NativeArray<uint> GetDrawGenerations() => m_DrawGenerations;
         public NativeArray<MeshSectionRecord> GetSections() => m_Sections;
         public NativeArray<uint> GetSectionGenerations() => m_SectionGenerations;
@@ -263,7 +269,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return true;
         }
 
-        public bool TryGetDraw(MeshDrawId id, out MeshDrawRecord record)
+        public bool TryGetDraw(MeshDrawId id, out MeshDraw record)
         {
             record = default;
             if (!IsDrawAlive(id))
@@ -592,7 +598,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// Allocate a draw slot (free-list first). drawStart/drawCount are diagnostic only;
         /// Filter matches draws by draw.instance.
         /// </summary>
-        internal MeshDrawId AllocDrawForInstance(MeshInstanceId instanceId, in MeshDrawRecord drawRecord)
+        internal MeshDrawId AllocDrawForInstance(MeshInstanceId instanceId, in MeshDraw drawRecord)
         {
             if (!IsInstanceAlive(instanceId))
             {
@@ -610,7 +616,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             instance.drawCount += 1;
 
-            MeshDrawRecord stored = drawRecord;
+            MeshDraw stored = drawRecord;
             stored.instance = instanceId;
             m_Draws[drawIndex] = stored;
             m_Instances[(int)instanceId.Index] = instance;
@@ -629,7 +635,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            MeshDrawRecord draw = m_Draws[(int)id.Index];
+            MeshDraw draw = m_Draws[(int)id.Index];
             if (IsInstanceAlive(draw.instance))
             {
                 MeshInstanceRecord instance = m_Instances[(int)draw.instance.Index];
@@ -646,7 +652,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             StructuralRevision++;
         }
 
-        internal void RestoreDraw(MeshDrawId id, in MeshDrawRecord record)
+        internal void RestoreDraw(MeshDrawId id, in MeshDraw record)
         {
             int index = (int)id.Index;
             EnsureDrawCapacity(index + 1);
@@ -672,7 +678,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            MeshDrawRecord draw = m_Draws[(int)drawId.Index];
+            MeshDraw draw = m_Draws[(int)drawId.Index];
             if (!draw.material.Equals(materialId))
             {
                 ReleaseMaterialRef(draw.material);
@@ -693,7 +699,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            MeshDrawRecord draw = m_Draws[(int)drawId.Index];
+            MeshDraw draw = m_Draws[(int)drawId.Index];
             draw.priority = priority;
             m_Draws[(int)drawId.Index] = draw;
             ContentRevision++;
@@ -706,20 +712,21 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            MeshDrawRecord draw = m_Draws[(int)drawId.Index];
+            MeshDraw draw = m_Draws[(int)drawId.Index];
             draw.eligibility = eligibility;
             m_Draws[(int)drawId.Index] = draw;
             ContentRevision++;
+            PassBinStore.NotifyMembershipInvalidated();
         }
 
-        internal void WriteDrawRecord(MeshDrawId drawId, in MeshDrawRecord record)
+        internal void WriteDrawRecord(MeshDrawId drawId, in MeshDraw record)
         {
             if (!IsDrawAlive(drawId))
             {
                 return;
             }
 
-            MeshDrawRecord previous = m_Draws[(int)drawId.Index];
+            MeshDraw previous = m_Draws[(int)drawId.Index];
             if (!previous.material.Equals(record.material))
             {
                 ReleaseMaterialRef(previous.material);
@@ -761,7 +768,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         m_Materials[i] = existing;
                         ContentRevision++;
                         revised = true;
-                        MeshPassDrawCache.NotifyMaterialRevision(materialUnityId, oldRevision);
+                        PassBinStore.NotifyMaterialRevision(materialUnityId, oldRevision);
                     }
 
                     return new MaterialDataId((uint)i, m_MaterialGenerations[i]);
@@ -1163,7 +1170,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            MeshDrawRecord draw = m_Draws[index];
+            MeshDraw draw = m_Draws[index];
             ReleaseSectionRef(draw.section);
             ReleaseMaterialRef(draw.material);
 

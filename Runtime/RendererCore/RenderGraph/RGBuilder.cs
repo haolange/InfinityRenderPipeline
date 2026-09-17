@@ -127,10 +127,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 throw new InvalidOperationException("CreateDrawList requires MeshWorld.");
             }
 
-            MeshDrawRequest request = m_MeshWorld.BuildRequest(view, passId);
+            MeshPassContext pass = m_MeshWorld.BindPass(view, passId);
             return m_DrawListRecords.Declare(
                 m_MeshWorld.Processor,
-                request,
+                pass,
                 MeshVisibilityHandle.Invalid,
                 m_MeshWorld.VisibilityShare,
                 view,

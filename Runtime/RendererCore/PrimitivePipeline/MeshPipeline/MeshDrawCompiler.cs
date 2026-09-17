@@ -8,8 +8,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// <summary>
     /// Burst-friendly MeshSortPlan → 64-bit lexicographic key (high bits = field0).
     /// Each field packs into a 16-bit segment. StableDrawId uses EncodeUnsigned(drawIndex) only as a
-    /// coarse 16-bit bucket; true total order past 65535 draws comes from VisibleMeshDraw.CompareTo
-    /// drawIndex tie-break after equal sortKey.
+    /// coarse 16-bit bucket; uniqueness past 65535 draws is draw-index order in the bin.
     /// </summary>
     [BurstCompile]
     public static class MeshSortKey
@@ -24,7 +23,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// </summary>
         public static ulong PackSortKey(
             in MeshSortPlan plan,
-            in MeshDrawRecord draw,
+            in MeshDraw draw,
             in MeshInstanceRecord instance,
             float3 viewPos,
             int drawIndex)
@@ -64,7 +63,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private static uint EncodeSemantic(
             in MeshSortField field,
-            in MeshDrawRecord draw,
+            in MeshDraw draw,
             in MeshInstanceRecord instance,
             float3 viewPos,
             int drawIndex)
@@ -84,7 +83,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 case EMeshSortSemantic.Distance:
                     return EncodeDistance(instance.worldBounds.center, viewPos, field.quantizeScale);
                 case EMeshSortSemantic.StableDrawId:
-                    // Coarse 16-bit bucket only; VisibleMeshDraw.CompareTo uses drawIndex for true stability.
+                    // Coarse 16-bit bucket only; bin member order is the remaining tie-break.
                     return EncodeUnsigned(drawIndex);
                 case EMeshSortSemantic.InstanceGroup:
                     return HashInt((int)instance.transform.Index);
@@ -151,160 +150,82 @@ namespace InfinityTech.Rendering.MeshPipeline
     }
 
     [BurstCompile]
-    public struct MeshPassFilterJob : IJob
+    public struct MeshPassExtractJob : IJob
     {
-        [ReadOnly] public NativeArray<byte> instanceVisibility;
+        [ReadOnly] public NativeArray<MeshPassCommand> commands;
+        [ReadOnly] public NativeArray<int> memberDrawIndices;
+        [ReadOnly] public NativeArray<MeshDraw> draws;
         [ReadOnly] public NativeArray<MeshInstanceRecord> instances;
         [ReadOnly] public NativeArray<uint> instanceGenerations;
         [ReadOnly] public NativeArray<uint> transformGenerations;
-        [ReadOnly] public NativeArray<MeshDrawRecord> draws;
-        [ReadOnly] public NativeArray<MeshPassDrawId> passDrawIds;
-        [ReadOnly] public MeshFilterProgram filter;
-        [ReadOnly] public MeshSortPlan sort;
-        public float3 viewPosition;
-        public int shaderPassIndex;
-        public int drawHighWater;
-
-        public NativeList<VisibleMeshDraw> visibleDraws;
-
-        public void Execute()
-        {
-            for (int drawIndex = 0; drawIndex < drawHighWater; ++drawIndex)
-            {
-                MeshDrawRecord draw = draws[drawIndex];
-                MeshInstanceId instanceId = draw.instance;
-                if (!instanceId.IsValid || instanceId.Index >= (uint)instanceGenerations.Length)
-                {
-                    continue;
-                }
-
-                int instanceIndex = (int)instanceId.Index;
-                if (instanceGenerations[instanceIndex] != instanceId.Generation)
-                {
-                    continue;
-                }
-
-                if (instanceIndex >= instanceVisibility.Length || instanceVisibility[instanceIndex] == 0)
-                {
-                    continue;
-                }
-
-                MeshInstanceRecord instance = instances[instanceIndex];
-
-                TransformId transformId = instance.transform;
-                if (!transformId.IsValid
-                    || transformId.Index >= (uint)transformGenerations.Length
-                    || transformGenerations[(int)transformId.Index] != transformId.Generation)
-                {
-                    continue;
-                }
-
-                if ((draw.eligibility & filter.requiredEligibility) != filter.requiredEligibility)
-                {
-                    continue;
-                }
-
-                if (draw.renderQueue < filter.renderQueueMin || draw.renderQueue > filter.renderQueueMax)
-                {
-                    continue;
-                }
-
-                if (filter.excludeCameraMotionOnly && instance.motionType == EMotionType.Camera)
-                {
-                    continue;
-                }
-
-                var grouping = new MeshGroupingKey(draw.meshUnityId, draw.sectionIndex, draw.materialUnityId, shaderPassIndex, instance.bakedLighting.TextureSet);
-                visibleDraws.Add(new VisibleMeshDraw
-                {
-                    grouping = grouping,
-                    passDrawId = passDrawIds.IsCreated ? passDrawIds[drawIndex] : MeshPassDrawId.Invalid,
-                    instance = instanceId,
-                    sortKey = MeshSortKey.PackSortKey(sort, draw, instance, viewPosition, drawIndex),
-                    drawIndex = drawIndex,
-                    transformIndex = (int)transformId.Index
-                });
-            }
-        }
-    }
-
-    [BurstCompile]
-    public struct MeshPassSortJob : IJob
-    {
-        public NativeList<VisibleMeshDraw> visibleDraws;
-
-        public void Execute()
-        {
-            if (visibleDraws.Length > 1)
-            {
-                visibleDraws.Sort();
-            }
-        }
-    }
-
-    [BurstCompile]
-    public struct MeshPassBuildJob : IJob
-    {
-        [ReadOnly] public NativeList<VisibleMeshDraw> visibleDraws;
-        [ReadOnly] public NativeArray<MeshDrawRecord> draws;
-
+        [ReadOnly] public NativeArray<byte> instanceVisibility;
         public NativeList<MeshDrawCommand> drawCommands;
-        public NativeArray<int> instanceIndices;
-        public NativeArray<int> instanceSlotIndices;
+        public NativeList<int> instanceIndices;
+        public NativeList<int> instanceSlotIndices;
 
         public void Execute()
         {
-            if (visibleDraws.Length == 0)
+            for (int commandIndex = 0; commandIndex < commands.Length; ++commandIndex)
             {
-                return;
+                MeshPassCommand passCommand = commands[commandIndex];
+                int visibleBegin = instanceIndices.Length;
+                int visibleCount = 0;
+                for (int i = 0; i < passCommand.memberCount; ++i)
+                {
+                    int drawIndex = memberDrawIndices[passCommand.memberBegin + i];
+                    MeshDraw draw = draws[drawIndex];
+                    MeshInstanceId instanceId = draw.instance;
+                    if (!instanceId.IsValid || instanceId.Index >= (uint)instanceGenerations.Length)
+                    {
+                        continue;
+                    }
+
+                    int instanceIndex = (int)instanceId.Index;
+                    if (instanceGenerations[instanceIndex] != instanceId.Generation)
+                    {
+                        continue;
+                    }
+
+                    if (instanceIndex >= instanceVisibility.Length || instanceVisibility[instanceIndex] == 0)
+                    {
+                        continue;
+                    }
+
+                    MeshInstanceRecord instance = instances[instanceIndex];
+                    TransformId transformId = instance.transform;
+                    if (!transformId.IsValid
+                        || transformId.Index >= (uint)transformGenerations.Length
+                        || transformGenerations[(int)transformId.Index] != transformId.Generation)
+                    {
+                        continue;
+                    }
+
+                    instanceIndices.Add((int)transformId.Index);
+                    instanceSlotIndices.Add(instanceIndex);
+                    visibleCount++;
+                    if (visibleCount == PassBinStore.MaxCommandInstances)
+                    {
+                        FlushCommand(passCommand.key, visibleBegin, visibleCount);
+                        visibleBegin = instanceIndices.Length;
+                        visibleCount = 0;
+                    }
+                }
+
+                if (visibleCount > 0)
+                {
+                    FlushCommand(passCommand.key, visibleBegin, visibleCount);
+                }
             }
+        }
 
-            MeshPassDrawId lastPassDrawId = MeshPassDrawId.Invalid;
-            MeshGroupingKey lastGrouping = default;
-            int lastBakedTextureSet = -1;
-            bool hasLast = false;
-            bool lastUsedPassDrawId = false;
-
-            for (int i = 0; i < visibleDraws.Length; ++i)
-            {
-                VisibleMeshDraw visible = visibleDraws[i];
-                // CPU Submit index buffer: TransformId.Index for shared matrix lookup.
-                instanceIndices[i] = visible.transformIndex;
-                // GPU candidate stream: MeshInstanceId.Index for instance-indexed cull/bounds.
-                instanceSlotIndices[i] = visible.instance.IsValid ? (int)visible.instance.Index : -1;
-
-                MeshDrawRecord draw = draws[visible.drawIndex];
-                bool newGroup;
-                if (visible.passDrawId.IsValid)
-                {
-                    newGroup = !hasLast || !lastUsedPassDrawId || !visible.passDrawId.Equals(lastPassDrawId);
-                    lastPassDrawId = visible.passDrawId;
-                    lastUsedPassDrawId = true;
-                }
-                else
-                {
-                    newGroup = !hasLast || lastUsedPassDrawId || !visible.grouping.Equals(lastGrouping);
-                    lastGrouping = visible.grouping;
-                    lastUsedPassDrawId = false;
-                }
-
-                int bakedTextureSet = visible.grouping.bakedTextureSet;
-                newGroup |= bakedTextureSet != lastBakedTextureSet;
-                lastBakedTextureSet = bakedTextureSet;
-                if (newGroup)
-                {
-                    hasLast = true;
-                    drawCommands.Add(new MeshDrawCommand(
-                        draw.meshUnityId,
-                        draw.sectionIndex,
-                        draw.materialUnityId,
-                        new int2(0, i), bakedTextureSet));
-                }
-
-                MeshDrawCommand command = drawCommands[drawCommands.Length - 1];
-                command.countOffset.x += 1;
-                drawCommands[drawCommands.Length - 1] = command;
-            }
+        void FlushCommand(in MeshDrawCommandKey key, int visibleBegin, int visibleCount)
+        {
+            drawCommands.Add(new MeshDrawCommand(
+                key.meshUnityId,
+                key.sectionIndex,
+                key.materialUnityId,
+                new int2(visibleCount, visibleBegin),
+                key.bakedTextureSet));
         }
     }
 }

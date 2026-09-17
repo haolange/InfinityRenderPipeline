@@ -40,32 +40,33 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsFalse(scene.HasTransformDirtyRange);
             }
         }
-        [TestCase(false)]
-        [TestCase(true)]
-        public void DifferentTextureSets_NeverShareOneCommandEvenWithCachedPass(bool cached)
+        [Test]
+        public void DifferentTextureSets_NeverShareOneCommand()
         {
-            using (var visible = new NativeList<VisibleMeshDraw>(3, Allocator.Temp))
-            using (var draws = new NativeArray<MeshDrawRecord>(new[] {
-                new MeshDrawRecord { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20 },
-                new MeshDrawRecord { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20 },
-                new MeshDrawRecord { meshUnityId = 10, sectionIndex = 0, materialUnityId = 20 } }, Allocator.Temp))
-            using (var commands = new NativeList<MeshDrawCommand>(3, Allocator.Temp))
-            using (var indices = new NativeArray<int>(3, Allocator.Temp))
-            using (var slots = new NativeArray<int>(3, Allocator.Temp))
+            using (var scene = new MeshScene(16))
+            using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
             {
-                for (int i = 0; i < 3; i++)
+                MeshSceneUpdate update = scene.BeginUpdate();
+                for (int i = 0; i < 3; ++i)
                 {
-                    int set = i == 0 ? 1 : 2;
-                    visible.Add(new VisibleMeshDraw { grouping = new MeshGroupingKey(10, 0, 20, 0, set),
-                        passDrawId = cached ? new MeshPassDrawId(7, 1) : MeshPassDrawId.Invalid,
-                        instance = new MeshInstanceId((uint)i, 1), transformIndex = i + 5, drawIndex = i });
+                    TransformId transform = update.CreateTransform(float4x4.identity);
+                    MeshInstanceId instance = update.CreateInstance(
+                        transform, new FBound(float3.zero, new float3(1)), ~0, 1,
+                        EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Off);
+                    update.SetInstanceBakedLighting(instance, new FMeshBakedLighting
+                    {
+                        metadata = new float4(i == 0 ? 1 : 2, 0, 0, 0)
+                    });
+                    update.CreateDraw(instance, 10, 0, 20, EPassEligibility.GBuffer, 2000, 0);
                 }
-                new MeshPassBuildJob { visibleDraws = visible, draws = draws, drawCommands = commands, instanceIndices = indices, instanceSlotIndices = slots }.Execute();
+
+                update.Commit();
+                NativeArray<MeshPassCommand> commands = bins.GetCommands(MeshPassId.GBuffer);
                 Assert.AreEqual(2, commands.Length);
-                Assert.AreEqual(1, commands[0].bakedTextureSet); Assert.AreEqual(1, commands[0].countOffset.x);
-                Assert.AreEqual(2, commands[1].bakedTextureSet); Assert.AreEqual(2, commands[1].countOffset.x);
-                Assert.AreEqual(5, indices[0]); Assert.AreEqual(7, indices[2]);
-                Assert.AreNotEqual(new MeshGroupingKey(10, 0, 20, 0, 1), new MeshGroupingKey(10, 0, 20, 0, 2));
+                Assert.AreEqual(1, commands[0].key.bakedTextureSet);
+                Assert.AreEqual(1, commands[0].memberCount);
+                Assert.AreEqual(2, commands[1].key.bakedTextureSet);
+                Assert.AreEqual(2, commands[1].memberCount);
             }
         }
     }

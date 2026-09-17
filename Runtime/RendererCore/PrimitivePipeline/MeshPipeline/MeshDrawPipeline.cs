@@ -12,10 +12,7 @@ using InfinityTech.Rendering.Pipeline;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
-    /// Mesh draw facade: Schedule / Resolve / Submit.
-    /// Template cache is warmed on the managed side before Burst filter jobs.
-    /// Transform/camera motion does not invalidate MeshPassDrawCache entries.
-    /// Scene authority lives on the pipeline (<see cref="m_Scene"/>), not on the request.
+    /// Mesh draw facade: Extract / Resolve / Submit against PassBin + CommandTable.
     /// </summary>
     public class MeshDrawPipeline
     {
@@ -24,25 +21,25 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly ResourcePool m_ResourcePool;
         private readonly ProfilingSampler m_DrawProfiler;
         private readonly MaterialPropertyBlock m_PropertyBlock;
-        private readonly MeshPassDrawCache m_PassDrawCache;
+        private readonly PassBinStore m_PassBins;
         private readonly uint m_PlatformFeatureKey;
         private readonly List<FBufferRef> m_FrameRentedBuffers = new List<FBufferRef>(8);
         private readonly List<FBufferRef> m_RetiredBuffers = new List<FBufferRef>(8);
 
-        public MeshPassDrawCache PassDrawCache => m_PassDrawCache;
+        public PassBinStore PassBins => m_PassBins;
 
-        public MeshDrawPipeline(MeshScene scene, MeshSceneResidency residency, ResourcePool resourcePool)
+        public MeshDrawPipeline(MeshScene scene, MeshSceneResidency residency, ResourcePool resourcePool, PassRegistry registry)
         {
             m_Scene = scene;
             m_Residency = residency;
             m_ResourcePool = resourcePool;
             m_DrawProfiler = new ProfilingSampler("RenderLoop.DrawMeshPipeline");
             m_PropertyBlock = new MaterialPropertyBlock();
-            m_PassDrawCache = new MeshPassDrawCache();
             m_PlatformFeatureKey = MeshDrawGPUBackend.SupportsIndirect ? 1u : 0u;
+            m_PassBins = new PassBinStore(scene, registry, m_PlatformFeatureKey);
         }
 
-        public MeshDrawBuild Schedule(in MeshDrawRequest request, in MeshViewCullingResult culling, JobHandle dependency = default)
+        public MeshDrawExtract Extract(MeshPassId passId, in MeshViewCullingResult culling)
         {
             if (m_Scene == null || !culling.isValid || !culling.instanceVisibility.IsCreated)
             {
@@ -50,80 +47,51 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return default;
             }
 
-            int drawHighWater = math.max(1, m_Scene.DrawHighWater);
-            int visibleCapacity = drawHighWater;
-
-            // Warm MeshPassDraw templates on managed side (Burst-safe ids for filter).
-            NativeArray<MeshPassDrawId> passDrawIds = new NativeArray<MeshPassDrawId>(drawHighWater, Allocator.TempJob);
-            MeshPipelineDiagnostics.TempAllocCount++;
-            WarmPassDrawCache(request, passDrawIds);
-
-            MeshFilterProgram filter = request.filter;
-
-
-            var build = new MeshDrawBuild
+            m_PassBins.EnsureRebuilt(passId);
+            NativeArray<MeshPassCommand> commands = m_PassBins.GetCommands(passId);
+            NativeArray<int> members = m_PassBins.GetMemberDrawIndices(passId);
+            int visibleCapacity = math.max(1, members.Length);
+            var extract = new MeshDrawExtract
             {
                 isCreated = true,
-                visibleDraws = new NativeList<VisibleMeshDraw>(visibleCapacity, Allocator.TempJob),
-                drawCommands = new NativeList<MeshDrawCommand>(visibleCapacity, Allocator.TempJob),
-                instanceIndices = new NativeArray<int>(visibleCapacity, Allocator.TempJob),
-                instanceSlotIndices = new NativeArray<int>(visibleCapacity, Allocator.TempJob),
-                passDrawIds = passDrawIds
+                drawCommands = new NativeList<MeshDrawCommand>(math.max(1, commands.Length), Allocator.TempJob),
+                instanceIndices = new NativeList<int>(visibleCapacity, Allocator.TempJob),
+                instanceSlotIndices = new NativeList<int>(visibleCapacity, Allocator.TempJob)
             };
-            MeshPipelineDiagnostics.TempAllocCount += 4;
+            MeshPipelineDiagnostics.TempAllocCount += 3;
 
-            var filterJob = new MeshPassFilterJob
+            new MeshPassExtractJob
             {
-                instanceVisibility = culling.instanceVisibility,
+                commands = commands,
+                memberDrawIndices = members,
+                draws = m_Scene.GetDraws(),
                 instances = m_Scene.GetInstances(),
                 instanceGenerations = m_Scene.GetInstanceGenerations(),
                 transformGenerations = m_Scene.GetTransformGenerations(),
-                draws = m_Scene.GetDraws(),
-                passDrawIds = passDrawIds,
-                filter = filter,
-                sort = request.sort,
-                viewPosition = request.viewPosition,
-                shaderPassIndex = request.shaderPassIndex,
-                drawHighWater = m_Scene.DrawHighWater,
-                visibleDraws = build.visibleDraws
-            };
-            JobHandle filterHandle = filterJob.Schedule(dependency);
+                instanceVisibility = culling.instanceVisibility,
+                drawCommands = extract.drawCommands,
+                instanceIndices = extract.instanceIndices,
+                instanceSlotIndices = extract.instanceSlotIndices
+            }.Run();
 
-            var sortJob = new MeshPassSortJob
-            {
-                visibleDraws = build.visibleDraws
-            };
-            JobHandle sortHandle = sortJob.Schedule(filterHandle);
-
-            var buildJob = new MeshPassBuildJob
-            {
-                visibleDraws = build.visibleDraws,
-                draws = m_Scene.GetDraws(),
-                drawCommands = build.drawCommands,
-                instanceIndices = build.instanceIndices,
-                instanceSlotIndices = build.instanceSlotIndices
-            };
-            build.dependency = buildJob.Schedule(sortHandle);
-            return build;
+            return extract;
         }
 
-        public MeshDrawList Resolve(ref MeshDrawBuild build)
+        public MeshDrawList Resolve(ref MeshDrawExtract extract)
         {
-            if (!build.isCreated)
+            if (!extract.isCreated)
             {
                 return MeshDrawList.Invalid;
             }
 
-            build.dependency.Complete();
-
             return new MeshDrawList
             {
                 isValid = true,
-                commands = build.drawCommands.AsArray(),
-                instanceIndices = build.instanceIndices,
-                instanceSlotIndices = build.instanceSlotIndices,
-                commandCount = build.drawCommands.Length,
-                instanceCount = build.visibleDraws.Length
+                commands = extract.drawCommands.AsArray(),
+                instanceIndices = extract.instanceIndices.AsArray(),
+                instanceSlotIndices = extract.instanceSlotIndices.AsArray(),
+                commandCount = extract.drawCommands.Length,
+                instanceCount = extract.instanceIndices.Length
             };
         }
 
@@ -195,10 +163,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             return math.max(1, m_Scene != null ? m_Scene.InstanceHighWater : 1);
         }
 
-        public void Release(ref MeshDrawBuild build)
+        public void Release(ref MeshDrawExtract extract)
         {
-            build.Dispose();
-            build = default;
+            extract.Dispose();
+            extract = default;
         }
 
         /// <summary>
@@ -233,7 +201,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             ReleaseFrameBuffers();
             FlushRetiredBuffers();
-            m_PassDrawCache.Dispose();
+            m_PassBins.Dispose();
         }
 
         internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in MeshDrawList drawList, int shaderPassIndex, FBufferRef indexBufferRef, string lightModeTag = null, ComputeBuffer previousTransforms = null)
@@ -274,65 +242,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                     cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, passIndex, command.countOffset.x, m_PropertyBlock);
                     MeshBakedLighting.ClearKeywords(cmdBuffer);
                 }
-            }
-        }
-
-        private void WarmPassDrawCache(in MeshDrawRequest request, NativeArray<MeshPassDrawId> passDrawIds)
-        {
-            NativeArray<MeshDrawRecord> draws = m_Scene.GetDraws();
-            NativeArray<MaterialDataRecord> materials = m_Scene.GetMaterials();
-            NativeArray<MeshSectionRecord> sections = m_Scene.GetSections();
-            int highWater = m_Scene.DrawHighWater;
-
-            for (int drawIndex = 0; drawIndex < highWater; ++drawIndex)
-            {
-                if (!m_Scene.IsDrawSlotLive(drawIndex))
-                {
-                    passDrawIds[drawIndex] = MeshPassDrawId.Invalid;
-                    continue;
-                }
-
-                MeshDrawRecord draw = draws[drawIndex];
-                uint materialRevision = 0;
-                if (draw.material.IsValid && draw.material.Index < (uint)materials.Length)
-                {
-                    MaterialDataRecord material = materials[(int)draw.material.Index];
-                    if (material.materialUnityId >= 0)
-                    {
-                        materialRevision = material.revision;
-                    }
-                }
-
-                uint sectionRevision = 0;
-                if (draw.section.IsValid && draw.section.Index < (uint)sections.Length)
-                {
-                    MeshSectionRecord section = sections[(int)draw.section.Index];
-                    if (section.meshUnityId >= 0)
-                    {
-                        // section.revision already reflects geometryRevision / geometrySource changes.
-                        sectionRevision = section.revision;
-                    }
-                }
-
-                Material resolvedMaterial = UnityEntityId.ToObject<Material>(draw.materialUnityId);
-                ulong shaderIdentity = resolvedMaterial ? UnityEntityId.ToUInt64(resolvedMaterial.shader) : 0;
-                uint materialRoute = 0;
-                if (resolvedMaterial && resolvedMaterial.HasProperty("_SurfaceRoute") && resolvedMaterial.HasProperty("_TranslucentStage"))
-                {
-                    MaterialRouteUtility.Read(resolvedMaterial, out int route, out int stage);
-                    materialRoute = (uint)((route << 2) | stage);
-                }
-                passDrawIds[drawIndex] = m_PassDrawCache.GetOrCreate(
-                    shaderIdentity,
-                    materialRoute,
-                    request.shaderPassIndex,
-                    draw.meshUnityId,
-                    draw.sectionIndex,
-                    draw.materialUnityId,
-                    materialRevision,
-                    sectionRevision: sectionRevision,
-                    platformFeatureKey: m_PlatformFeatureKey,
-                    staticFlags: draw.staticFlags);
             }
         }
     }

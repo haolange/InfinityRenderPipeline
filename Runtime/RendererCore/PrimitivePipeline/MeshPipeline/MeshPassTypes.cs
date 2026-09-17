@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.CompilerServices;
 using InfinityTech.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
@@ -82,64 +81,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 case 3: return field3;
                 default: return default;
             }
-        }
-    }
-
-    public struct MeshGroupingKey : IEquatable<MeshGroupingKey>, IComparable<MeshGroupingKey>
-    {
-        public ulong meshUnityId;
-        public int sectionIndex;
-        public ulong materialUnityId;
-        public int pipelinePassIndex;
-        public int bakedTextureSet;
-
-        public MeshGroupingKey(ulong meshUnityId, int sectionIndex, ulong materialUnityId, int pipelinePassIndex, int bakedTextureSet = 0)
-        {
-            this.meshUnityId = meshUnityId;
-            this.sectionIndex = sectionIndex;
-            this.materialUnityId = materialUnityId;
-            this.pipelinePassIndex = pipelinePassIndex;
-            this.bakedTextureSet = bakedTextureSet;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(MeshGroupingKey other)
-        {
-            return meshUnityId == other.meshUnityId
-                && sectionIndex == other.sectionIndex
-                && materialUnityId == other.materialUnityId
-                && pipelinePassIndex == other.pipelinePassIndex
-                && bakedTextureSet == other.bakedTextureSet;
-        }
-
-        public override bool Equals(object obj) => obj is MeshGroupingKey other && Equals(other);
-
-        /// <summary>
-        /// Hash is acceleration only; collisions must be resolved with Equals.
-        /// </summary>
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int hash = meshUnityId.GetHashCode();
-                hash = (hash * 397) ^ sectionIndex;
-                hash = (hash * 397) ^ materialUnityId.GetHashCode();
-                hash = (hash * 397) ^ pipelinePassIndex;
-                hash = (hash * 397) ^ bakedTextureSet;
-                return hash;
-            }
-        }
-
-        public int CompareTo(MeshGroupingKey other)
-        {
-            int c = meshUnityId.CompareTo(other.meshUnityId);
-            if (c != 0) return c;
-            c = sectionIndex.CompareTo(other.sectionIndex);
-            if (c != 0) return c;
-            c = materialUnityId.CompareTo(other.materialUnityId);
-            if (c != 0) return c;
-            c = pipelinePassIndex.CompareTo(other.pipelinePassIndex);
-            return c != 0 ? c : bakedTextureSet.CompareTo(other.bakedTextureSet);
         }
     }
 

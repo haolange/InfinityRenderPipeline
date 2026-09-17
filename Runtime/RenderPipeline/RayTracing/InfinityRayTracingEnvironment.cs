@@ -187,7 +187,7 @@ namespace InfinityTech.Rendering.Pipeline
                         continue;
                     }
 
-                    MeshDrawRecord draw = draws[i];
+                    MeshDraw draw = draws[i];
                     if (!scene.TryGetInstance(draw.instance, out MeshInstanceRecord instance))
                     {
                         continue;
