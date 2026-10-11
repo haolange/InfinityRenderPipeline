@@ -9,7 +9,7 @@ This document defines coding conventions and collaboration rules for `com.infini
 ## Architecture principles
 
 1. **Entity data belongs to the entity; draw descriptions only reference it.** One logical object owns one `TransformId` / bounds. Submesh, material, and pass only add `MeshDraw` / template references.
-2. **Cache stable templates; regenerate view results.** `MeshPassDraw` is cacheable. Visibility, LOD, sort order, and compaction are per request/view.
+2. **Cache stable structure; regenerate view results.** Pass bins and their command table are rebuilt only on structural change. Visibility, LOD, sort order, and compaction are per request/view.
 3. **One public Mesh Drawing API for CPU and GPU backends.** Callers use `MeshDrawRequest` / `RGDrawListRef`; backends stay internal.
 4. **RenderGraph-native lifecycle.** `DeclareDrawList` records only; structural pass culling runs first; only live DrawLists schedule work; cleanup is graph-owned.
 5. **No legacy / deprecated compatibility layers.** When a path is replaced, delete the old ownership path. Do not keep dual authorities.
@@ -40,28 +40,29 @@ This document defines coding conventions and collaboration rules for `com.infini
 - Hot paths: `struct` + Burst jobs; explicit `Allocator` (`Persistent` / `TempJob` / `Temp`).
 - `unsafe` only for Native containers and culling pointer jobs (`allowUnsafeCode` is enabled).
 - Do not put managed delegates into Burst jobs.
-- `GroupingKey` uses full structured equality; hash is lookup acceleration only.
+- `MeshDrawCommandKey` uses full structured equality; hash is lookup acceleration only.
 - Filter / Grouping / Sort are three separate semantics — never one hash for all.
 
 ## Mesh Drawing Pipeline touchpoints
 
 | Module | Responsibility |
 |--------|----------------|
-| `MeshScene` | SoA tables, typed IDs + generation, transactions |
-| `MeshSceneResidency` | Dirty-range GPU transform / previous / bounds upload |
-| `MeshVisibility` | Per-instance frustum / flags |
-| `MeshVisibilityShare` | Intern cull results by viewKey + sceneId + frustumHash + revision + policy |
-| `MeshDrawCompiler` | Filter / 64-bit SortPlan / build jobs |
-| `MeshPassDrawCache` | Stable pass templates + revision invalidation |
-| `MeshDrawPipeline` | Schedule / Resolve / Submit facade |
-| `MeshDrawGPUBackend` | Per-DrawList GPU payloads + Auto fallback |
+| `MeshScene` / `MeshSceneUpdate` | SoA tables, typed IDs + generation, dirty-page bitmaps, undo transactions |
+| `GpuScene` | Dirty-page GPU upload of transforms, layers, baked lighting, bounds, flags |
+| `PassBinStore` / `MeshDrawCommandKey` | Per-pass filter, structural sort, grouping into command spans |
+| `MeshVisibilityShare` | Intern CPU cull results by `MeshVisibilitySignature` |
+| `MeshGpuVisibilityCache` | GPU `CullFrustum` result per view key |
+| `MeshDrawCompiler` | `MeshPassExtractJob` (commands × visibility → draw commands) |
+| `MeshCandidateTableStore` | Per-pass GPU command and candidate tables |
+| `MeshDrawPipeline` / `MeshWorld` | Facades: extract / resolve / submit; per-scene ownership |
+| `MeshDrawGPUBackend` | Per-DrawList GPU payloads, compaction, indirect args + Auto fallback |
 | `RGDrawList*` | Graph registry; not an `ERGResourceType` |
 
 ### Mesh Drawing Pipeline conventions (required)
 
 1. **`MeshSceneUpdate` must fully undo.** Every mutating op pushes an undo entry; `Dispose` without `Commit` rolls back via the undo log (live counts / object relations) and restores revision + dirty ranges. Free-list membership and highWater stay owned by Free*/Restore*/deferred reclaim — do not truncate free-lists on rollback. Do not add half-applied structural edits.
 2. **Deferred section/material reclaim inside a transaction.** When `refCount` hits zero during `BeginUpdate`…`EndUpdate`, queue pending reclaim — do not free immediately. `Commit` flushes pending reclaim; `Rollback` discards pending lists after undo restores refCounts.
-3. **`MeshPassDrawCacheKey` uses structured `Equals`.** Hash codes are lookup acceleration only; never treat hash equality as key equality (same rule as `GroupingKey`).
+3. **`MeshDrawCommandKey` and `MeshVisibilitySignature` use structured `Equals`.** Hash codes are lookup acceleration only; never treat hash equality as key equality. (The GPU visibility cache still packs its view key into one `ulong`; see Known gaps.)
 4. **Visibility ownership:** `MeshVisibilityShare` interns results; RDG `ReleaseAllDrawLists` (paired `Release`) owns handle lifetime. Do not leave TempJob cull arrays alive across frames.
 5. **GPU payload is per-DrawList.** Rent/return payload buffers from the backend pool keyed to a DrawList lifetime.
 6. **No process-global static indirect / args buffer** shared across concurrent DrawLists or cameras.
@@ -71,12 +72,12 @@ This document defines coding conventions and collaboration rules for `com.infini
 10. **Physical GPU resources retire only after frame-end `ScriptableRenderContext.Submit()`.** `ReleaseAll` / `ReleaseAllDrawLists` perform logical cleanup + `RetirePayload` (and CPU rented-buffer retire) only. Call `FlushRetiredPayloads` / `FlushRetiredBuffers` after Submit to drain retired queues. Never Release/Return a payload still referenced by in-flight GPU work.
 11. **No mid-recording ComputeBuffer Release / EnsureCapacity rebuild.** Pre-record: `ComputePayloadBudget` then one `EnsureCapacity`. During CommandBuffer recording / submit: `RequireCapacity` check only — never grow or recreate buffers already bound to a live command buffer.
 12. **`TransformId` ownership is exclusive (1:1).** One live transform maps to at most one `MeshInstance`. `CreateInstance` must reject an already-owned transform. Do not add refcount-free multi-instance transform sharing.
-13. **`BufferDescriptor` / `TextureDescriptor`: field-level `Equals` is authoritative.** `GetHashCode` is lookup acceleration only (same principle as `GroupingKey` / `MeshPassDrawCacheKey`).
+13. **`BufferDescriptor` / `TextureDescriptor`: field-level `Equals` is authoritative.** `GetHashCode` is lookup acceleration only (same principle as `MeshDrawCommandKey`).
 
 Public RDG usage:
 
 ```csharp
-RGDrawListRef draws = graph.DeclareDrawList(pipeline, request, visibility, visibilityShare);
+RGDrawListRef draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
 data.draws = pass.UseDrawList(draws);
 // execute:
 cmdEncoder.Draw(data.draws);
@@ -132,6 +133,7 @@ These rules exist because Console-clean patches have already hidden real ownersh
 
 Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defects below are known in code; each is owned by a PLAN.md stage. Do not hide them behind fallbacks.
 
+- Mesh GPU path: `MeshCandidateTableStore.Ensure` compares only `BinEpoch`, which only rollback bumps, so committed draw changes can leave a stale candidate table while `Compact` does no generation check (S2). Freed instance slots are not marked bounds-dirty (S2). `SetDrawMaterial` changes the queue without a structural revision (S2). `MeshGpuVisibilityCache` packs its key lossily into one `ulong` (S2). Pass `defaultSort` plans are not applied; `GpuIndirectFullPass` and the GPU staging chain have no consumer.
 - Validation scenes (Decal, LocalLights, Translucent) show sky black bands, large dark triangles and cube blotches. Their cause is undiagnosed.
 - Box, Pyramid, Tube and Disc lights reach `LightElement.MapUnityType`, which throws for Disc (S2/S6).
 - Reflection and Preview cameras run the Game-camera chain (jitter, TAA, exposure, tonemapping, display encoding), so probe captures are not scene-linear (S2).
@@ -154,7 +156,7 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 2. **Clear depth and sampled depth are different values.** `ClearRenderTarget(depth)` and `AttachmentDescriptor.clearDepth` are normalized by Unity: `1.0` always means far plane and the backend flips it on reversed-Z platforms. Use `GraphicsUtility.ClearDepthFar` there. Only shader-side comparisons against a sampled depth buffer use `GraphicsUtility.SampledFarDepth`. Feeding one into the other clears the depth buffer to the near plane and silently kills geometry in every raster pass.
 3. **A color-only raster target binds color only.** Never pass an empty `RenderTargetIdentifier` as the depth target of a `RenderTargetBinding`; Unity reports it as `temporary render texture not found`. Use the color-only `SetRenderTarget` overload.
 4. **The backbuffer enters RDG through `ImportBackbuffer`.** It is an imported resource and therefore skips Create/Release. `RTHandle.SetTexture` is CoreRP-internal, so rebinding reallocates when the identifier changes.
-5. **`HistoryCache` reallocates only via `TextureDescriptor.Equals`.** That field-level compare is the authority (same rule as `GroupingKey` / `MeshPassDrawCacheKey`). Do not rebuild a second compare through `RenderTextureDescriptor`: the implicit conversion forced `depthStencilFormat = None` and `mipCount = -1`, so history textures could reallocate every frame, latch `resetHistory`, and silently kill TAA accumulation.
+5. **`HistoryCache` reallocates only via `TextureDescriptor.Equals`.** That field-level compare is the authority (same rule as `MeshDrawCommandKey`). Do not rebuild a second compare through `RenderTextureDescriptor`: the implicit conversion forced `depthStencilFormat = None` and `mipCount = -1`, so history textures could reallocate every frame, latch `resetHistory`, and silently kill TAA accumulation.
 
 ## Profiling conventions
 

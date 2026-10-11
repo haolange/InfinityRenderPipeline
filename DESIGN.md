@@ -1,87 +1,82 @@
-# InfinityRP Mesh Drawing Pipeline — Design (as implemented)
+# InfinityRP — Design (as implemented)
 
-> Active delivery is governed by PLAN.md U00–U82 (0.4.0 normalization). Historical N00–N15 receipts live in Docs/History. Main agent implements; Grok 4.6 verifies batches.
+This document describes the code as it is. Verification state is in [Docs/FeatureStatus.md](Docs/FeatureStatus.md);
+the active plan is [PLAN.md](PLAN.md); archived delivery reports are in [Docs/History/](Docs/History).
 
-Status: **code-converged; runtime-unverified** (closure **D / D1–D6**). Editor / GPU / multi-camera / Frame Debugger runs remain `TODO(UNVERIFIED)`.
-Wave C gate **C5** (“CPU Submit ownership + frame buffer release” / “physical resources closed”) is **withdrawn** and **superseded by D1** (frame-end retirement).
-This does **not** include HZB occlusion, GPU radix sort, or a full GPU LOD pipeline.
-Related research: external `MeshDrawingPipeline-Research-and-Design.zh-CN.md`.
-Baseline notes: [Docs/MeshPipeline-Baseline.md](Docs/MeshPipeline-Baseline.md).
-Delivery / verification: [Docs/MeshPipeline-Delivery-Report.md](Docs/MeshPipeline-Delivery-Report.md).
+Part I (sections 1–14) is the Mesh Drawing Pipeline. Part II (sections 15–24) is the frame and its ownership contracts.
 
-## 1. Problem solved
+## 1. Mesh Drawing Pipeline: problem solved
 
-The previous MeshPipeline treated each submesh as a full element with a duplicated matrix, built pass work during RenderGraph record (before culling), never submitted draws, and used one hash for identity/equality/sort.
+Infinity `MeshComponent` content does not go through Unity RendererLists. It is drawn from an authoritative SoA scene
+with separate lifetimes for:
 
-The new system separates six lifetimes:
-
-1. Logical instance + transform
-2. Geometry section
-3. Material data
-4. Pass-stable draw template (`MeshPassDraw`)
-5. Per-view visibility / filter / sort results
-6. Backend submission payload (CPU procedural or per-DrawList GPU buffers)
+1. Logical instance + exclusive transform
+2. Geometry section and material data (refcounted)
+3. Per-pass bins and their grouped command table (rebuilt only on structural change)
+4. Per-view visibility (CPU job or GPU `CullFrustum`)
+5. Per-DrawList submission payload (CPU procedural or GPU indirect)
 
 ## 2. Data model
 
 ```text
-MeshInstance ──TransformId──► TransformTable (current/previous)
-     │
-     └── DrawSpan ──► MeshDraw[] ──► MeshSectionId + MaterialDataId
+MeshInstanceRecord ──TransformId──► TransformRecord   (1:1, exclusive)
+        │
+        └── MeshDraw[] ──► MeshSectionId + MaterialDataId (+ eligibility, queue, priority)
 
-MeshPassDraw (cached) = shaderPass + mesh + section + material + revisions
-VisibleMeshDraw       = grouping/template + InstanceId + sortKey + transformIndex
-MeshDrawList          = ordered commands + instance index buffer
+PassBin (per MeshPassId)  = filtered, structurally sorted MeshDraws
+MeshPassCommand           = MeshDrawCommandKey + member span inside the bin
+MeshDrawCommand           = mesh, section, material, count/offset, bakedTextureSet (per view, per list)
 ```
 
-Invariant: `TransformCount / LogicalInstanceCount == 1` in steady state (exposed as `MatrixDuplicateRatio`).
+Typed IDs (`MeshInstanceId`, `TransformId`, `MeshDrawId`, `MeshSectionId`, `MaterialDataId`) carry
+`Index + Generation`; generation 0 is invalid and stale handles are rejected.
 
-**TransformId ownership is exclusive (1:1).** Each live `TransformId` is owned by at most one `MeshInstance`. `CreateInstance` / `AllocInstance` rejects an already-owned transform (`ArgumentException`). There is no refcounted multi-instance transform sharing — do not describe shared transforms as a supported capability. Instance-indexed GPU cull remains compatible with this 1:1 model (instance slots map to their sole transform index).
-
-Typed IDs carry `Index + Generation` to reject stale handles after remove/reuse.
-
-`MeshSceneResidency` uploads `transformBuffer` and `previousTransformBuffer` (plus instance-indexed bounds centers/extents and `InstanceTransformIndexBuffer` for GPU cull staging).
+**TransformId ownership is exclusive (1:1).** `MeshSceneUpdate.CreateInstance` and `MeshScene.AllocInstance` reject a
+transform that already has an owner ("TransformId already owned"). There is no multi-instance transform sharing.
+`MeshScene.MatrixDuplicateRatio` (`TransformCount / LogicalInstanceCount`) is 1 in steady state.
 
 ## 3. Module map
 
-| Path | Role |
+| Path (`Runtime/RendererCore/PrimitivePipeline/MeshPipeline/`) | Role |
 |------|------|
-| `Runtime/.../MeshPipeline/MeshScene*.cs` | Authoritative SoA scene + atomic undo transactions |
-| `MeshSceneResidency.cs` | Dirty-range transform / previous / bounds upload |
-| `MeshVisibility.cs` | Instance-granularity frustum cull |
-| `MeshVisibilityCache.cs` | `MeshVisibilityShare` — signature intern (viewKey + sceneId + frustumHash + revision + policy) |
-| `MeshDrawCompiler.cs` | Burst filter / 64-bit SortPlan keys / build |
-| `MeshPassDrawCache.cs` | Template cache; structured `MeshPassDrawCacheKey` Equals |
-| `MeshDrawPipeline.cs` | Schedule / Resolve / Submit facade |
-| `MeshDrawGPUBackend.cs` | Per-payload GPU buffers + Auto fallback; Retire → Flush after Submit |
-| `RenderGraph/RGDrawList.cs` | Logical DrawList registry; `ReleaseAll` = logical cleanup + Retire (visibility + payloads) |
-| `Shaders/.../Compute_MeshDrawPipeline.compute` | Cull / compact / BuildIndirectArgs kernels |
+| `MeshScene.cs`, `MeshSceneRecords.cs` | Authoritative SoA tables, generation free lists, transform ownership map, refcounted sections/materials, dirty-page bitmaps, revisions |
+| `MeshSceneUpdate.cs` | Transaction with full undo log; `Dispose` without `Commit` rolls back |
+| `GpuScene.cs` | GPU mirror of `MeshScene`: uploads dirty 64-slot page runs of transforms, rendering layers, baked lighting, bounds, instance→transform index and flags |
+| `MeshWorld.cs` | Per-scene facade owning `MeshScene`, `GpuScene`, `MeshVisibilityShare`, `PassRegistry`, `MeshDrawPipeline`, `MeshGpuVisibilityCache` and per-view previous transforms |
+| `PassRegistry.cs`, `MeshPassTypes.cs`, `MeshPassId.cs` | The nine `MeshPassId` definitions (filter program, eligibility, sort fields) |
+| `PassBinStore.cs` | Per-pass bins: filter (eligibility, queue, liveness, motion), structural sort (GBuffer/Forward), grouping by `MeshDrawCommandKey` into `MeshPassCommand` spans |
+| `MeshDrawCommandKey.cs` | Structured command identity (full `Equals`; hash is lookup acceleration only) |
+| `MeshView.cs` | One observer (Main / SceneView / Preview / CascadeShadow / LocalShadow): view key, planes, layer masks |
+| `MeshVisibility.cs`, `MeshVisibilityCache.cs` | CPU per-instance frustum/layer cull job; `MeshVisibilityShare` interns results by `MeshVisibilitySignature` |
+| `MeshGpuVisibilityCache.cs` | One GPU visibility buffer per view key for the GPU `CullFrustum` path |
+| `MeshDrawCompiler.cs` | `MeshPassExtractJob`: bin commands × visibility → draw commands and transform/slot index streams |
+| `MeshCandidateTableStore.cs` | Per-pass GPU command table and candidate table (`uint2` instance slot, local command) |
+| `MeshDrawPipeline.cs` | CPU Extract / Resolve / Submit and GPU prepare/submit delegation; frame-buffer retirement |
+| `MeshDrawGPUBackend.cs` | Kernel resolution, backend policy, per-DrawList payload pool, ClearCounts/Compact/BuildIndirectArgs, `DrawMeshInstancedIndirect` |
+| `MeshBakedLighting.cs` | Per-instance lightmap index/scale-offset and probe SH capture; per-draw lightmap keywords |
+| `MeshPipelineDiagnostics.cs` | Counters (see §11) |
+| `Runtime/RendererCore/RenderGraph/RGDrawList.cs` | Per-graph DrawList registry: declare, prepare, resolve, submit, release |
+| `Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute` | `CullFrustum`, `ClearCounts`, `Compact`, `BuildIndirectArgs` |
 | `Shaders/ShaderLibrary/GPUScene.hlsl` | `transformBuffer` / `previousTransformBuffer` / `instanceIndexBuffer` |
-| `Runtime/RendererCore/RenderingLayer.cs` | Shared 8-bit `ERenderingLayer` flags for Mesh/Light |
 
-Terrain / foliage / water remain separate systems. Shared seams already present:
+Terrain, foliage and water are separate systems. Shared seams: `EGeometrySourceKind` (`IndexedMesh`,
+`SkinnedDeformed`, `Procedural`, `MeshletCluster`) and instance/transform identity suitable for RTAS sharing.
 
-- `EGeometrySourceKind` (`IndexedMesh`, `SkinnedDeformed`, `Procedural`, `MeshletCluster`)
-- `MeshInstanceRecord.deformationDataId` for skinned/compute preprocess
-- Instance/transform identity suitable for future RTAS sharing (`RayTraceEnvironment` stays independent)
+## 4. Frame flow
 
-## 4. CPU path
+1. `MeshComponent` mutates the scene through `MeshSceneUpdate` (one transform, N draws) and commits.
+2. `MeshWorld.UpdateResidency` → `GpuScene.Update` uploads dirty page runs.
+3. `MeshWorld.BeginCamera` resets per-camera counters and GPU cull flags.
+4. `PassBinStore` rebuilds a pass's bins only when `StructuralRevision` (or rollback `BinEpoch`) changed.
+5. Per DrawList (`RGDrawList`): `PrepareLive` selects the backend.
+   - **CPU:** `MeshVisibilityShare.Acquire` (CPU cull job), `MeshDrawPipeline.Extract` → `MeshPassExtractJob` → `DrawMeshInstancedProcedural` with `instanceIndexBuffer` = transform indices and `instanceIndexOffset` = command offset.
+   - **GPU:** `RGBuilder.EnsureMeshGpuCull` dispatches `CullFrustum` once per view key; `EnsureResolved` builds the candidate table and rents/pre-sizes a payload; `ClearCounts` → `Compact` (instance slot → transform index) → `BuildIndirectArgs` → `DrawMeshInstancedIndirect`.
+6. `RGDrawListContext.ReleaseAll` retires payloads and drops visibility references; `MeshWorld.FlushRetired` drains them after frame Submit.
 
-1. `MeshComponent` registers via `MeshSceneUpdate` (1 transform, N draws).
-2. Per camera / cascade / local-shadow face: `MeshVisibilityShare.Acquire` → shared `MeshViewCullingResult`.
-3. Pass records `DeclareDrawList(request, visibility, share)` only.
-4. RDG compile culls unused passes, then `CompileDrawLists` schedules live work.
-5. First consumer `EnsureResolved` completes jobs and builds `MeshDrawList`.
-6. `RGRasterEncoder.Draw` → CPU `DrawMeshInstancedProcedural` or GPU indirect with:
-   - `transformBuffer` / `previousTransformBuffer` = TransformTable
-   - `instanceIndexBuffer` = TransformId indices (CPU path and GPU compacted output)
-   - `instanceIndexOffset` = command run offset
+Wired MeshDraw passes: Depth, GBuffer, Forward, Motion, Cascade Shadow, Local Shadow. Unity `MeshRenderer`s still use
+RendererLists.
 
-Unity `DrawRendererList` remains for Unity-owned MeshRenderer content; Infinity `MeshComponent` draws through MeshDrawPipeline.
-
-Wired MeshDraw paths: Depth, GBuffer, Forward, Motion, Cascade Shadow, Local Shadow.
-
-## 5. RDG DrawList lifecycle
+## 5. RenderGraph DrawList lifecycle
 
 ```text
 Record:  DeclareDrawList + UseDrawList
@@ -91,60 +86,45 @@ Finally: ReleaseAllDrawLists (logical: builds + RetirePayload + visibility Relea
 Frame end: ScriptableRenderContext.Submit → FlushRetiredPayloads / FlushRetiredBuffers
 ```
 
-DrawList is **not** an `ERGResourceType`. Physical buffers created by backends remain Buffer resources. Resource loops use `(int)ERGResourceType.Max` (Buffer / Texture / AccelerationStructure slots).
-Each `RGDrawListRef` carries a graph generation; stale refs after Begin/Clear are rejected. Visibility share is owned per DrawList record.
+A DrawList is not an `ERGResourceType`. Each `RGDrawListRef` carries a graph generation; stale refs are rejected.
 
-## 5.1 Physical GPU resource lifetime
-
-Two distinct phases — do not conflate them:
+### 5.1 Physical GPU resource lifetime
 
 | Phase | API | What happens |
 |-------|-----|----------------|
-| **Logical cleanup** | `RGDrawListContext.ReleaseAll` | Releases NativeArray builds, visibility handles / share refs, and **retires** GPU payloads (`RetirePayload`) / CPU rented buffers into retired queues. Does **not** `ComputeBuffer.Release` or return payloads to the pool. |
-| **Physical retirement** | After `ScriptableRenderContext.Submit()` | `MeshDrawGPUBackend.FlushRetiredPayloads` + per-pipeline `FlushRetiredBuffers` drain retired queues back to pools (or dispose). Safe only once GPU work for the frame has been submitted. |
+| Logical cleanup | `RGDrawListContext.ReleaseAll` | Releases NativeArray builds and visibility references and retires payloads into retired queues. No `ComputeBuffer.Release`. |
+| Physical retirement | After `ScriptableRenderContext.Submit()` | `FlushRetiredPayloads` / `FlushRetiredBuffers` return payloads to the pool or dispose them. |
 
-Recording capacity rules:
+Before recording, the payload budget is sized once (`EnsureCapacity`); during recording only `RequireCapacity` checks
+run. Buffers bound to a live command buffer are never grown or recreated.
 
-1. **Before CommandBuffer recording:** `ComputePayloadBudget` sizes the worst-case command/instance needs across planned batches; call `EnsureCapacity` / `TryEnsureCapacity` **once** for that budget.
-2. **During recording / submit:** only `RequireCapacity` (boolean check). **Never** mid-record `Release` / recreate / `EnsureCapacity` growth of ComputeBuffers already bound to a live CommandBuffer.
+## 6. Transactions and keys
 
-## 6. Transactions and cache keys
+- Every `MeshSceneUpdate` mutation pushes undo; `Dispose` without `Commit` rolls back atomically, restoring revisions
+  and dirty pages. Section/material slots whose refcount reaches zero inside a transaction are reclaimed on commit and
+  discarded on rollback.
+- `MeshDrawCommandKey` uses full structured `Equals`; `GetHashCode` is lookup acceleration only. `bakedTextureSet`
+  is part of the key, so different lightmap texture sets never share a command.
+- `MeshSortKey.PackSortKey` (four saturating 16-bit segments → 64-bit key) exists and is tested, but bins are sorted
+  only by `CompareStructural`; pass `defaultSort` plans are not applied yet.
 
-- `MeshSceneUpdate`: every mutating op pushes undo; `Dispose` without `Commit` rolls back atomically.
-- **Deferred reclaim:** during a transaction, section/material slots whose `refCount` hits zero are queued (`m_Pending*Reclaims`), not freed immediately. `Commit` / `EndUpdate(commit: true)` flushes pending reclaim; `Rollback` / `EndUpdate(commit: false)` discards the pending lists after undo has restored refCounts.
-- **Rollback restore:** revisions + dirty ranges are restored from the begin-update state snapshot; free-list membership and live counts are owned by the undo log + flush/discard path (no half-applied structural edits).
-- `MeshSortKey.PackSortKey`: up to four 16-bit segments → 64-bit lexicographic key; Descending inverts the segment. Signed/unsigned encodes **explicitly saturate** (no silent truncation).
-- `MeshPassDrawCacheKey`: full structured `Equals` is authoritative (includes `staticFlags`); `GetHashCode` is lookup acceleration only. `geometryRevision` changes bump `section.revision` and invalidate templates.
-- Transform / camera motion → **no** template cache miss; material/section/pass/revision/`staticFlags` change → miss.
-- `MeshPassDrawCache.Enabled = false` → lookups return `MeshPassDrawId.Invalid`; build jobs fall back to `MeshGroupingKey` (image-equivalent). Invalidated entries are **tombstoned** and free-slots are reused with bumped generation.
-- Counters: `TemplateCacheHits` / `TemplateCacheMisses`.
+## 7. Visibility
 
-## 7. Visibility share
-
-- Intern key is `MeshVisibilitySignature`: **`viewKey + sceneId + frustumHash + VisibilityRevision + policyId`** → one cull result, ref-counted.
-- Same viewKey with a different frustum hash does **not** share.
-- `MakeCascadeViewKey(light, cascade)` isolates shadow cascades from the main camera frustum.
-- `MakeLocalShadowViewKey(light, face)` isolates Spot (face 0) and Point (faces 0–5) local-shadow views (`PolicyLocalShadow`).
-- Depth / GBuffer / Forward / Motion share main-camera visibility when signature matches; cascade and local shadows acquire distinct keys.
-- Ownership: per-record Share + RDG `ReleaseAllDrawLists` (paired `Release`); no leaked TempJob arrays across frames.
+- CPU intern key `MeshVisibilitySignature`: scene id, view key, frustum hash (planes quantized to 1e-3), scene
+  visibility revision, policy id, subview index, layer mask, rendering-layer mask, layer-filter flag. Results are
+  refcounted and released by the graph.
+- `MakeCascadeViewKey(light, cascade)` and `MakeLocalShadowViewKey(light, face)` isolate shadow views.
+- GPU visibility (`MeshGpuVisibilityCache`) is keyed by a packed `ulong` view key, one `CullFrustum` dispatch per key.
 
 ## 8. GPU backend
 
-`EMeshBackendPolicy.Auto` selects:
+`EMeshBackendPolicy`: `Auto`, `CpuDirect`, `GpuIndirect`, `GpuIndirectFullPass` (no consumer). `Auto` resolves to
+`GpuIndirect` when instancing, compute, the compute shader and its four kernels are available, otherwise `CpuDirect`.
+Payloads are rented per DrawList from a pool; there is no process-global indirect buffer. No same-frame visible-count
+readback; overflow falls back to `CpuDirect` and increments `GpuOverflowCount`. The compute shader resolves from
+GlobalSettings (`InfinityRenderPipelineRuntimeShaders.meshDrawPipelineCS`).
 
-| Capability | Path |
-|------------|------|
-| No compute or no CS asset | `CpuDirect` |
-| Compute without usable indirect | `CpuDirect` |
-| Compute + instancing | `GpuIndirect` |
-
-Committed GPU slice: CPU still produces filtered/sorted commands and candidate **instance** indices; compute kernels cull/compact (emitting **transform** indices) and `BuildIndirectArgs` fills args; submit uses `DrawMeshInstancedIndirect` with **per-DrawList** payload buffers (pooled, never a process-global static indirect buffer).
-`ComputePayloadBudget` + one pre-record `EnsureCapacity`; recording uses `RequireCapacity` only (see §5.1). `TryPlanBatches` preflights payload caps before any dispatch; kernel resolve uses `HasKernel`.
-No same-frame visible-count readback. Overflow increments `GpuOverflowCount`.
-
-Assign `InfinityRenderPipelineAsset.meshDrawPipelineCS` to `Compute_MeshDrawPipeline.compute`.
-
-Explicitly **out of this closed slice**: HZB occlusion, GPU radix sort of draw keys, complete GPU-resident LOD selection.
+Out of scope: HZB occlusion, GPU sort of draw keys, GPU LOD, meshlets.
 
 ## 9. Public API sketch
 
@@ -158,61 +138,49 @@ using (MeshSceneUpdate update = scene.BeginUpdate())
     update.Commit();
 }
 
-var request = new MeshDrawRequest {
-    filter = BuiltinMeshesPasses.GBuffer.defaultFilter,
-    sort = BuiltinMeshesPasses.GBuffer.defaultSort,
-    backendPolicy = EMeshBackendPolicy.Auto,
-    shaderPassIndex = BuiltinMeshesPasses.GBuffer.shaderPassIndex
-};
-RGDrawListRef draws = graph.DeclareDrawList(pipeline, request, visibility, visibilityShare);
+RGDrawListRef draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
+data.draws = pass.UseDrawList(draws);
+// execute:
+cmdEncoder.Draw(data.draws);
 ```
 
-## 10. Explicit non-goals (this delivery)
+## 10. Non-goals
 
-- HZB occlusion
-- GPU radix / full GPU sort of MeshSortPlan keys
-- Full GPU LOD pipeline
-- Nanite-like meshlets
-- Replacing Unity RendererList for builtin MeshRenderers
-- Completing AccelerationStructure RDG physical path beyond enum slot sizing
-- **Runtime in-place mesh topology rewrite** without a `geometryRevision` notification — unsupported. Mutating vertex/index topology under a live registration leaves the scene/section cache stale; re-register the `MeshComponent` (or bump geometry through the supported AllocOrUpdateSection path) after such edits.
+HZB occlusion, GPU radix sort of draw keys, GPU LOD, meshlets, replacing RendererLists for Unity `MeshRenderer`s,
+in-place mesh topology rewrite without a section revision (re-register the `MeshComponent` after such edits).
 
 ## 11. Diagnostics
 
-`MeshPipelineDiagnostics`: instance/draw/transform counts, `MatrixDuplicateRatio`, temp allocs, culled-skip builds, template hits/misses, GPU overflow, `LocalShadowBudgetDropped`.
+`MeshPipelineDiagnostics` counters: instance/draw/transform counts, `MatrixDuplicateRatio`, `TempAllocCount`,
+`CulledPassSkippedBuilds`, `GpuOverflowCount`, `LocalShadowBudgetDropped`, `VisibilityProductionsPerFrame`,
+`PassBinRebuilds`, `CompactDispatchesPerFrame`, `GpuCullDispatchesPerFrame`, `CandidateUploadsBytes`,
+`GpuSceneUploadedSlots`, `GpuSceneUploadedBytes`.
 
-## 12. LocalShadow MeshDraw
+## 12. Local shadow MeshDraw
 
-Local shadows for Spot / Point lights use the same MeshDraw + RDG DrawList path as cascade shadows:
-
-- **Tile budget:** atlas resolution from `localShadowMapResolution`; `tileResolution = resolution/4`, `tilesPerRow = resolution/tileResolution`, budget = `tilesPerRow²`. Spot costs 1 tile; Point costs 6. Candidates are scored (shadow strength / distance, Spot preferred on ties) and greedily accepted; over-budget lights increment `LocalShadowBudgetDropped` and are skipped.
-- **Point 6-face:** each accepted Point light records six face frusta / view-projection matrices and six `MakeLocalShadowViewKey(light, face)` visibility acquires (`PolicyLocalShadow`). Spot uses a single face/key. Point face matrix construction uses `light.shadowNearPlane` as nearPlane.
-- **Shadow MeshDraw filter (Cascade + Local):** `layerMask = light.cullingMask`; `filterRenderingLayers = true`, with the validated native `Light.renderingLayerMask` as the caster mask. Unity shadow RendererLists enable `useRenderingLayerMaskTest` against the same native mask.
-- **Dual path:** each atlas slice draws Infinity `MeshComponent` content via `RGDrawListRef` **and** Unity-owned renderers via `DrawRendererList`. The two paths cover different object ownership — not dual authority for the same Infinity mesh.
+- Atlas from `localShadowMapResolution`; tile = resolution/4, budget = 16 tiles. Spot costs 1 tile, Point 6.
+  Candidates are scored (strength / distance, Spot preferred on ties) and greedily accepted; drops increment
+  `LocalShadowBudgetDropped`.
+- Point lights record six face frusta and six `MakeLocalShadowViewKey(light, face)` visibility acquires.
+- Shadow MeshDraw filter: `layerMask = light.cullingMask`, rendering-layer filtering enabled with the native
+  `Light.renderingLayerMask`. Unity shadow RendererLists use `useRenderingLayerMaskTest` with the same mask.
+- Each atlas slice draws Infinity `MeshComponent` content via `RGDrawListRef` and Unity renderers via
+  `DrawRendererList`; the two paths cover different objects.
 
 ## 13. Instance-indexed GPU cull
 
-GPU cull separates lookup identity from shading matrix identity:
-
 | Stage | Index domain |
 |-------|----------------|
-| Bounds / visibility buffers | **Instance** index (`InstanceHighWater`) |
-| CandidateIndices (CPU → GPU) | **Instance** index |
-| CompactedIndices / shader `instanceIndexBuffer` | **Transform** index (`TransformId.Index`) |
-| CPU `MeshDrawList.instanceIndices` (procedural submit) | **Transform** index |
-
-`MeshSceneResidency` uploads instance-indexed bounds + `InstanceTransformIndexBuffer`; Compact maps a visible instance slot to its transform index for matrix fetch. Do not treat candidate and compacted streams as the same semantic.
+| Bounds / visibility buffers | Instance slot |
+| Candidate table | Instance slot + local command |
+| Compacted indices / shader `instanceIndexBuffer` | Transform index (`TransformId.Index`) |
+| CPU `instanceIndices` (procedural submit) | Transform index |
 
 ## 14. Rendering layer unification
 
-`ERenderingLayer : byte` with `[Flags]` (`Nothing` … `Everything = 0xFF`) is the shared Mesh/Light mask. `MeshFilterProgram` tests rendering layers only when `filterRenderingLayers` is enabled. The enabled filter rejects `(instance.mask & filter.mask) == 0`; camera visibility leaves this filter disabled, including for zero-layer surfaces.
-
-| Pass family | `layerMask` | `renderingLayerMask` |
-|-------------|-------------|----------------------|
-| Depth / GBuffer / Forward / Motion | camera / pass default (`~0` open) | Layer filtering disabled; native RendererLists use an open mask |
-| Cascade / Local shadow MeshDraw | `light.cullingMask` | Validated native `Light.renderingLayerMask`; layer filtering enabled |
-
-`MeshComponent.renderingLayer` is flags, not an int layer index. Do not reintroduce `1 << renderLayer` indexing.
+`ERenderingLayer : byte` with `[Flags]` (`Nothing` … `Everything = 0xFF`) is the shared Mesh/Light mask.
+`MeshFilterProgram` tests rendering layers only when `filterRenderingLayers` is enabled (shadow passes); camera
+passes leave it disabled. `MeshComponent.renderingLayer` is flags, not an int layer index.
 
 ## 15. Full rendering pipeline (locked order)
 
