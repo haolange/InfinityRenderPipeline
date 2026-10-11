@@ -1,54 +1,55 @@
 ## InfinityRenderPipeline
 
-InfinityRenderPipeline is a graphics research SRP for Unity (InfinityRP).
+InfinityRenderPipeline (InfinityRP) is a RenderGraph-native Scriptable Render Pipeline for Unity 6000.6
+(CoreRP / Shader Graph / VFX 17.6). It targets compute-capable platforms and is organized around a strict separation of
+passes, resources and features, with a modern feature baseline as the default design target.
 
 ### Documentation
 
-- [AGENTS.md](AGENTS.md) — coding conventions and agent collaboration rules
-- [DESIGN.md](DESIGN.md) — Mesh Drawing Pipeline + full rendering order (as implemented)
-- [Docs/MeshPipeline-Baseline.md](Docs/MeshPipeline-Baseline.md) — MeshDraw migration baseline
-- [Docs/MeshPipeline-Delivery-Report.md](Docs/MeshPipeline-Delivery-Report.md) — Closure D (D1–D6)
-- [Docs/FullRendering-Delivery-Report.md](Docs/FullRendering-Delivery-Report.md) — S0–S9 full-rendering delivery
-- [PLAN.md](PLAN.md) — active 0.4.0 normalization ledger (U00–U82)
-- [Documentation~/index.md](Documentation~/index.md) — user-facing 0.4.0 docs
-- [Docs/History/PLAN-2026-09-N00-N15.md](Docs/History/PLAN-2026-09-N00-N15.md) — archived N00–N15 receipts
+- [Docs/FeatureStatus.md](Docs/FeatureStatus.md) — what is recorded, tested, image-verified and measured, per feature
+- [DESIGN.md](DESIGN.md) — architecture as implemented: RenderGraph, Mesh Drawing Pipeline, frame order, ownership contracts
+- [AGENTS.md](AGENTS.md) — coding conventions and rules for contributors and coding agents
+- [PLAN.md](PLAN.md) — the active task ledger (0.5.0 upgrade)
+- [CHANGELOG.md](CHANGELOG.md)
+- [Documentation~/index.md](Documentation~/index.md) — user documentation
+- [Docs/History/](Docs/History) — archived plans, delivery reports and evidence (immutable)
 
-### Feature
+### Features
 
-Completed (record path; image quality stays `TODO(UNVERIFIED)` unless a capture is listed in PLAN):
+The pipeline currently records:
 
-- ThinGBuffer (Crytek A/B + GBufferC flags/SSS)
-- TemporalAA (jitter-free motion, direct-texel history)
-- RenderGraph (custom RGBuilder + async compute hooks)
-- Screen-space GI / reflection (RayMarch → Spatial → Temporal → Bilateral + Composite)
-- Ground-truth ambient occlusion (Trace → SpatialX/Y → Temporal → Upsample); RTAO records UnifiedRayTracing visibility when the Volume is active, otherwise GTAO owns AO
-- Atmosphere LUT + IBL (Profile-only; Shared / View / IBL caches)
-- Z-Binning tile / z-bin light lists
-- Volumetric fog and cloud (after T0 depth) + FogComposite
-- Translucent T0 / T1 refraction / T2
-- Exposure / Bloom / CombineLUT / Vignette / FilmGrain / final Present encoding
-- Instanced terrain / runtime virtual texture / foliage systems (separate from MeshScene)
-- **Mesh Drawing Pipeline** — `MeshScene` SoA + RDG `RGDrawListRef` + CPU/GPU backends (per-payload indirect, Auto fallback); Motion / CascadeShadow / LocalShadow (Spot + Point **6-face**) MeshDraw; instance-indexed GPU cull (compact → transform); exclusive TransformId 1:1 ownership; shared `renderingLayer` (`ERenderingLayer : byte` flags); shadow MeshDraw uses `light.cullingMask` + `shadowLayer`; no HZB / GPU radix sort / full GPU LOD in this closed slice
+- ThinGBuffer deferred shading plus a forward route, clustered (tile + z-bin) local lights
+- Mesh Drawing Pipeline: SoA `MeshScene`, RenderGraph DrawLists, CPU and GPU-indirect backends, GPU frustum culling
+- Cascade and local (spot, point 6-face) shadow atlases; contact shadows
+- Hillaire atmosphere LUTs with sky IBL (SH + GGX prefilter); volumetric fog and clouds
+- GTAO, RTAO (UnifiedRayTracing), SSR and SSGI with temporal and spatial denoising
+- Burley subsurface scattering, DBuffer decals, three-stage translucency (T0 / T1 refraction / T2)
+- TAA, fixed-ratio super resolution, exposure (manual / histogram), bloom, ACES tonemapping and grading LUT, vignette,
+  film grain, display-transfer encoding in the final Present pass
+- Rendering Debugger panels and debug views, normal-frame capture service, shader stripping
 
-Out of this delivery:
+Verification state differs per feature; [Docs/FeatureStatus.md](Docs/FeatureStatus.md) is authoritative. Nothing in
+this README claims image or performance acceptance.
 
-- Hardware RT outside UnifiedRayTracing (D3D12 path remains UNVERIFIED)
-- Baked GI
-- Depth of field
-- Super-resolution expansion
-- XR
-- MSAA
-- Dynamic resolution
+The 0.5.0 upgrade ([PLAN.md](PLAN.md)) adds stochastic SSR, area lights, a full baked-GI and reflection-probe stack,
+cookies/IES, PCSS/VSM/EVSM shadows, screen-space traced shadows, quality presets and HDRP-level Editor tooling.
+
+Not supported: hardware ray tracing outside UnifiedRayTracing, depth of field, motion blur, XR, MSAA, dynamic
+resolution, VFX Graph outputs.
 
 ### Mesh Drawing Pipeline (quick start)
 
-1. Add `Mesh Component` to renderable objects (Infinity path). Set `renderingLayer` as **flags** (`ERenderingLayer : byte`, default `LightLayerDefault`) — not an int layer index. Each instance owns exactly one `TransformId` (no shared transforms).
-2. Runtime shaders, including Mesh Draw Pipeline CS, resolve from Infinity Global Settings (`[ResourcePath]`).
-3. Materials should provide Infinity pass tags and, for the instanced path, bind `transformBuffer` / `previousTransformBuffer` / `instanceIndexBuffer` / `instanceIndexOffset` (see `InfinityLit-Instanced.shader`).
-4. LocalShadow / CascadeShadow MeshDraw uses the light’s Unity `cullingMask` plus `InfinityAdditionalLightData.shadowLayer` for Infinity casters; Unity MeshRenderers still go through RendererList. Spot or Point lights with shadows enabled are required for LocalShadow.
-5. Run EditMode tests under `Tests/Editor`.
+1. Add `Mesh Component` to renderable objects. Set `renderingLayer` as flags (`ERenderingLayer : byte`, default
+   `LightLayerDefault`), not an int layer index. Each instance owns exactly one `TransformId`.
+2. Runtime shaders, including the Mesh Draw Pipeline compute shader, resolve from Infinity Global Settings
+   (`[ResourcePath]`).
+3. Materials provide Infinity pass tags and, for the instanced path, bind `transformBuffer` /
+   `previousTransformBuffer` / `instanceIndexBuffer` / `instanceIndexOffset` (see `InfinityLit-Instanced.shader`).
+4. Local and cascade shadow MeshDraw uses the light's `cullingMask` plus its rendering-layer mask for Infinity casters;
+   Unity MeshRenderers still go through RendererLists.
+5. Run the EditMode tests under `Tests/Editor`.
 
-Invariant: one logical instance → one exclusive transform record (`MatrixDuplicateRatio == 1`).
+Invariant: one logical instance owns one exclusive transform record (`MatrixDuplicateRatio == 1`).
 
 ### Example
 

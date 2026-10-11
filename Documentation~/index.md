@@ -1,6 +1,6 @@
-# Infinity RP 0.4.0
+# Infinity RP
 
-InfinityRP is a high-fidelity Scriptable Render Pipeline. This documentation covers the **user-facing integration** added in 0.4.0. Rendering architecture remains Infinity's own Pass / RenderGraph / MeshScene / ZBin design.
+InfinityRP is a RenderGraph-native Scriptable Render Pipeline. This documentation covers user-facing setup and authoring. Architecture is described in `DESIGN.md` at the package root; per-feature verification state is in `Docs/FeatureStatus.md`.
 
 ## Contents
 

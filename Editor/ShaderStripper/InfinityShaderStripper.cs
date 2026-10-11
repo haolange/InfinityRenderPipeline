@@ -40,6 +40,17 @@ namespace InfinityTech.Rendering.Editor.Build
         }
     }
 
+    public sealed class InfinityBuildPostprocessor : IPostprocessBuildWithReport
+    {
+        public int callbackOrder => 0;
+        public void OnPostprocessBuild(BuildReport report)
+        {
+            if (!InfinityShaderStripper.IsInfinityActive) return;
+            Debug.Log($"InfinityRP shader stripping: kept {InfinityShaderStripper.Kept}, stripped foreign-pipeline {InfinityShaderStripper.StrippedForeignTag}, " +
+                $"stripped unused LightMode {InfinityShaderStripper.StrippedLightMode}; compute variants kept {InfinityComputeShaderStripper.Kept}.");
+        }
+    }
+
     public sealed class InfinityShaderStripper : IPreprocessShaders
     {
         static readonly ShaderTagId s_RenderPipelineTag = new ShaderTagId("RenderPipeline");

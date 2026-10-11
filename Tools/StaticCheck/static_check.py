@@ -99,7 +99,7 @@ def check_lightmode(repo, out):
 
 def check_links(repo, out):
     for dp, _, fns in os.walk(repo):
-        if '/.git' in dp: continue
+        if '/.git' in dp or os.sep + os.path.join('Docs', 'History') in dp: continue  # History is immutable evidence
         for f in fns:
             if not f.endswith('.md'): continue
             p = os.path.join(dp, f)
