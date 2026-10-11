@@ -37,16 +37,20 @@ namespace InfinityTech.Rendering.Pipeline
             s_Registered = true;
             InfinityDebugDisplaySettings state = current;
             DebugUI.Panel rendering = DebugManager.instance.GetPanel("Infinity Rendering", true);
-            rendering.children.Add(new DebugUI.IntField
+            rendering.children.Add(new DebugUI.EnumField
             {
                 displayName = "Debug View",
+                autoEnum = typeof(EDebugView),
                 getter = () => (int)state.debugView,
-                setter = value => state.debugView = (EDebugView)value
+                setter = value => state.debugView = (EDebugView)value,
+                getIndex = () => (int)state.debugView,
+                setIndex = value => state.debugView = (EDebugView)value
             });
 
             DebugUI.Panel lighting = DebugManager.instance.GetPanel("Infinity Lighting", true);
             lighting.children.Add(new DebugUI.Value { displayName = "Directional Lights", getter = () => (object)state.lighting.lastDirectionalCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Local Lights", getter = () => (object)state.lighting.lastLocalCount });
+            lighting.children.Add(new DebugUI.Value { displayName = "Skipped Light Shapes", getter = () => (object)state.lighting.lastUnsupportedShapeCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Ray Tracing Backend", getter = () => (object)state.lighting.rayTracingBackend.ToString() });
             lighting.children.Add(new DebugUI.Value { displayName = "RTAO Record Reason", getter = () => (object)(string.IsNullOrEmpty(state.lighting.rtaoBlockReason) ? "recording" : state.lighting.rtaoBlockReason) });
             lighting.children.Add(new DebugUI.Value

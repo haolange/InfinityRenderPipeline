@@ -42,7 +42,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         public int cascadeShadowMapResolution = 2048;
         public int localShadowMapResolution = 2048;
+        [Min(0.0f)]
         public float shadowDistance = 128;
+        // Cascade split positions as fractions of shadowDistance (the last cascade ends at shadowDistance).
+        public Vector3 cascadeSplitRatios = new Vector3(0.067f, 0.2f, 0.467f);
+        // Upper bound on local lights considered for the shadow atlas before tile budgeting.
+        [Range(1, 64)]
+        public int maxShadowedLocalLights = 16;
 
         [SerializeField] Shader m_DefaultShader;
         [SerializeField] Material m_DefaultMaterial;

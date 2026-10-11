@@ -22,7 +22,8 @@ namespace InfinityTech.Rendering.Pipeline
         PostProcess,
         Display,
         DBuffer,
-        OpaqueLightingPyramid
+        OpaqueLightingPyramid,
+        HalfResDownsample
     }
 
     public class FrameFeatureSet
@@ -80,13 +81,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void EnsureRequiredProducers(bool superResolutionEnabled)
+        // TAA is a required producer only for temporal cameras that do not use super resolution.
+        public void EnsureRequiredProducers(bool requiresTemporalAntiAliasing)
         {
             EnsureProduced(EFrameFeature.Depth);
             EnsureProduced(EFrameFeature.GBuffer);
             EnsureProduced(EFrameFeature.DeferredShading);
             EnsureProduced(EFrameFeature.Display);
-            if (!superResolutionEnabled)
+            if (requiresTemporalAntiAliasing)
             {
                 EnsureProduced(EFrameFeature.TAA);
             }

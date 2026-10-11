@@ -340,16 +340,18 @@ namespace InfinityTech.Rendering.Pipeline
 
                         int cameraId = GetCameraID(camera);
                         bool isEditView = camera.cameraType == CameraType.SceneView;
-                        bool isSceneView = camera.cameraType == CameraType.Game || camera.cameraType == CameraType.Reflection || camera.cameraType == CameraType.SceneView;
+                        CameraRenderPolicy renderPolicy = CameraRenderPolicy.For(camera.cameraType);
 
                         CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId, out bool newlyCreated);
                         int previousLastSeen = frameState.lastSeenFrame;
-                        bool forceHistoryReset = frameState.requiresHistoryReset || (camera.cameraType != CameraType.Preview
-                            && CameraFrameState.ShouldForceHistoryReset(newlyCreated, previousLastSeen, Time.frameCount, camera.cameraType));
+                        // Non-temporal cameras (previews, probe faces) reset every frame, which also zeroes jitter.
+                        bool forceHistoryReset = !renderPolicy.temporal || frameState.requiresHistoryReset
+                            || CameraFrameState.ShouldForceHistoryReset(newlyCreated, previousLastSeen, Time.frameCount, camera.cameraType);
                         frameState.lastSeenFrame = Time.frameCount;
                         frameState.camera = camera;
                         frameState.preparedThisRender = true;
                         frameState.cameraType = camera.cameraType;
+                        frameState.renderPolicy = renderPolicy;
                         frameState.executeSucceeded = false;
                         using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
                         {
@@ -365,7 +367,7 @@ namespace InfinityTech.Rendering.Pipeline
                             }
 
                             frameState.dimensions = dimensions;
-                            frameState.postProcessingEnabled = CoreUtils.ArePostProcessesEnabled(camera);
+                            frameState.postProcessingEnabled = renderPolicy.postProcessing && CoreUtils.ArePostProcessesEnabled(camera);
                             frameState.sceneLightingEnabled = !CoreUtils.IsSceneLightingDisabled(camera);
                             CameraUniform cameraUniform = frameState.cameraUniform;
                             HistoryCache historyCache = frameState.historyCache;
@@ -406,7 +408,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.CulllingScene)))
                                 {
                                     camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
-                                    cullingParameters.shadowDistance = 128;
+                                    cullingParameters.shadowDistance = Mathf.Max(0.0f, pipelineAsset.shadowDistance);
                                     cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
                                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
@@ -440,9 +442,13 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.cascadeMapResolution = pipelineAsset.cascadeShadowMapResolution;
                                     shadowSettings.localMapResolution = pipelineAsset.localShadowMapResolution;
                                     shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
-                                    shadowSettings.cascadeRatios = ShadowAllocator.DefaultCascadeRatios;
-                                    shadowSettings.maxLocalLights = 16;
+                                    shadowSettings.cascadeRatios = ShadowAllocator.ValidateCascadeRatios(pipelineAsset.cascadeSplitRatios);
+                                    shadowSettings.maxLocalLights = Mathf.Clamp(pipelineAsset.maxShadowedLocalLights, 1, 64);
                                     renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings);
+                                    InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
+                                    lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
+                                    lightingDebug.lastLocalCount = renderContext.lightContext.LocalLightCount;
+                                    lightingDebug.lastUnsupportedShapeCount = renderContext.lightContext.UnsupportedShapeCount;
 
                                     ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
                                     m_ActiveCascadeCount = shadowAllocator.CascadeAllocatedCount;
@@ -582,12 +588,13 @@ namespace InfinityTech.Rendering.Pipeline
                                     RenderTranslucentT2(renderContext, camera, cullingResults);
 
                                     // PHASE 8: temporal resolve + post (TAA after fog/translucents)
-                                    if (frameState.dimensions.superResolution)
+                                    // Previews and probe faces have no temporal resolve; post reads FoggedSceneColor.
+                                    if (renderPolicy.temporal && frameState.dimensions.superResolution)
                                     {
                                         ComputeSuperResolution(renderContext, camera, historyCache, cameraUniform.jitter);
                                         CopyHistorySuperResolution(renderContext, historyCache, camera);
                                     }
-                                    else
+                                    else if (renderPolicy.temporal)
                                     {
                                         ComputeAntiAliasing(renderContext, camera, historyCache, cameraUniform);
                                         CopyHistoryAntiAliasing(renderContext, historyCache, camera);
@@ -605,7 +612,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     MarkFeatureProduced(EFrameFeature.Display);
                                     RenderUIOverlay(renderContext, camera);
                                     RecordNormalFrameCapture(camera);
-                                    frameState.features.EnsureRequiredProducers(frameState.dimensions.superResolution);
+                                    frameState.features.EnsureRequiredProducers(renderPolicy.temporal && !frameState.dimensions.superResolution);
                                     RenderPresent(renderContext, camera, outputDecision);
                                 }
 
@@ -1053,6 +1060,8 @@ namespace InfinityTech.Rendering.Pipeline
             FrameFeatureSet features = frameState.features;
             features.Reset();
             VolumeStack stack = frameState.volumeStack;
+            // Previews and reflection-probe faces have no history: no TAA/SR and no history-accumulating features.
+            bool temporal = frameState.renderPolicy.temporal;
 
             features.Request(EFrameFeature.Depth);
             features.MarkSupported(EFrameFeature.Depth);
@@ -1095,7 +1104,8 @@ namespace InfinityTech.Rendering.Pipeline
                 features.MarkSupported(EFrameFeature.Display);
             }
 
-            if (frameState.dimensions.superResolution)
+            // Without a temporal policy PostProcess reads FoggedSceneColor directly.
+            if (temporal && frameState.dimensions.superResolution)
             {
                 features.Request(EFrameFeature.SuperResolution);
                 if (shaders.superResolutionShader != null)
@@ -1103,7 +1113,7 @@ namespace InfinityTech.Rendering.Pipeline
                     features.MarkSupported(EFrameFeature.SuperResolution);
                 }
             }
-            else
+            else if (temporal)
             {
                 features.Request(EFrameFeature.TAA);
                 if (shaders.taaShader != null)
@@ -1115,7 +1125,7 @@ namespace InfinityTech.Rendering.Pipeline
             var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
             InfinityRayTracingEnvironment rayEnv = InfinityRayTracingEnvironment.EnsureOwned();
             rayEnv.SyncGeometry(renderContext.GetMeshScene());
-            bool rtaoLive = VolumeComponentActive(rtao) && InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders) && rayEnv.InstanceCount > 0;
+            bool rtaoLive = pipelineAsset.enableRayTrace && VolumeComponentActive(rtao) && InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders) && rayEnv.InstanceCount > 0;
             bool gtaoKernels = GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
             if (rtaoLive)
             {
@@ -1125,7 +1135,11 @@ namespace InfinityTech.Rendering.Pipeline
             }
             else
             {
-                if (!VolumeComponentActive(rtao))
+                if (!pipelineAsset.enableRayTrace)
+                {
+                    InfinityRayTracingEnvironment.ReportBlockReason("Ray tracing is disabled on the RP Asset.");
+                }
+                else if (!VolumeComponentActive(rtao))
                 {
                     InfinityRayTracingEnvironment.ReportBlockReason("RTAO Volume is inactive.");
                 }
@@ -1134,10 +1148,14 @@ namespace InfinityTech.Rendering.Pipeline
                     InfinityRayTracingEnvironment.ReportBlockReason("URT accel has no mesh instances.");
                 }
 
-                if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels)
+                // GTAO traces at half resolution and accumulates history: it needs the half-res producer and a temporal camera.
+                bool halfResKernels = GraphicsUtility.HasRequiredKernels(shaders.halfResDownsampleShader, "HalfResDownsample");
+                if (temporal && ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels && halfResKernels)
                 {
                     features.Request(EFrameFeature.GTAO);
                     features.MarkSupported(EFrameFeature.GTAO);
+                    features.Request(EFrameFeature.HalfResDownsample);
+                    features.MarkSupported(EFrameFeature.HalfResDownsample);
                 }
             }
 
@@ -1153,15 +1171,17 @@ namespace InfinityTech.Rendering.Pipeline
                 stack.GetComponent<ScreenSpaceIndirectDiffuse>());
             bool pyramidOk = GraphicsUtility.HasRequiredKernels(shaders.colorPyramidShader, "KMain");
             bool compositeOk = GraphicsUtility.HasRequiredKernels(shaders.screenSpaceCompositeShader, "ScreenSpaceComposite");
+            // SSR/SSGI trace the Hi-Z pyramid and accumulate history.
+            bool screenSpaceInputsOk = temporal && features.ShouldRecord(EFrameFeature.HiZ) && pyramidOk && compositeOk;
             bool ssrOk = GraphicsUtility.HasRequiredKernels(shaders.ssrShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
             bool ssgiOk = GraphicsUtility.HasRequiredKernels(shaders.ssgiShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
-            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && ssrOk && pyramidOk && compositeOk)
+            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && ssrOk && screenSpaceInputsOk)
             {
                 features.Request(EFrameFeature.SSR);
                 features.MarkSupported(EFrameFeature.SSR);
                 features.Request(EFrameFeature.OpaqueLightingPyramid);
             }
-            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode) && ssgiOk && pyramidOk && compositeOk)
+            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode) && ssgiOk && screenSpaceInputsOk)
             {
                 features.Request(EFrameFeature.SSGI);
                 features.MarkSupported(EFrameFeature.SSGI);
@@ -1173,7 +1193,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volFog = stack.GetComponent<VolumetricFog>();
-            if (VolumeComponentActive(volFog))
+            if (temporal && VolumeComponentActive(volFog))
             {
                 features.Request(EFrameFeature.VolumetricFog);
             }
@@ -1183,7 +1203,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var volCloud = stack.GetComponent<VolumetricCloud>();
-            if (VolumeComponentActive(volCloud))
+            if (temporal && VolumeComponentActive(volCloud))
             {
                 features.Request(EFrameFeature.VolumetricCloud);
             }

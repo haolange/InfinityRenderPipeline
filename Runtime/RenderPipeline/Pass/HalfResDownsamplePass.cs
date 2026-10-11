@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void ComputeHalfResDownsample(RenderContext renderContext, Camera camera)
         {
-            if (!GraphicsUtility.HasRequiredKernels(shaders.halfResDownsampleShader, "HalfResDownsample"))
+            if (!ShouldRecordFeature(EFrameFeature.HalfResDownsample))
             {
                 return;
             }
@@ -94,6 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.DispatchCompute(passData.halfResShader, 0, Mathf.CeilToInt(passData.halfResolution.x / 8.0f), Mathf.CeilToInt(passData.halfResolution.y / 8.0f), 1);
                 });
             }
+            MarkFeatureProduced(EFrameFeature.HalfResDownsample);
         }
     }
 }

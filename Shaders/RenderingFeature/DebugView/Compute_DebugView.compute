@@ -6,6 +6,7 @@
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/DebugViewModes.hlsl"
 
 float4 DV_Resolution;
 int DV_Mode;
@@ -45,11 +46,11 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     SRV_GBufferTextureA.GetDimensions(width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     DecodeGBuffer(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbuffer);
-    if (DV_Mode == 1)
+    if (DV_Mode == DEBUGVIEW_ALBEDO)
     {
         color = gbuffer.Albedo;
     }
-    else if (DV_Mode == 2)
+    else if (DV_Mode == DEBUGVIEW_NORMAL)
     {
         color = gbuffer.Normal * 0.5 + 0.5;
     }
@@ -109,8 +110,8 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     SRV_OptionalTexture.GetDimensions(width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     float3 color = SRV_OptionalTexture[inputPixel].rgb;
-    if (DV_Mode == 4) color = color.r.xxx;
-    else if (DV_Mode == 8) color = color.g.xxx; // Final TAA history weight; R is geometric coverage.
+    if (DV_Mode == DEBUGVIEW_AO) color = color.r.xxx;
+    else if (DV_Mode == DEBUGVIEW_TAACONFIDENCE) color = color.g.xxx; // Final TAA history weight; R is geometric coverage.
 
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
 }

@@ -27,6 +27,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_CascadeShadowMapResolution;
         SerializedProperty m_LocalShadowMapResolution;
         SerializedProperty m_ShadowDistance;
+        SerializedProperty m_CascadeSplitRatios;
+        SerializedProperty m_MaxShadowedLocalLights;
         SerializedProperty m_DefaultShader;
         SerializedProperty m_DefaultMaterial;
         SerializedProperty m_DefaultParticleMaterial;
@@ -51,6 +53,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_CascadeShadowMapResolution = serializedObject.FindProperty("cascadeShadowMapResolution");
             m_LocalShadowMapResolution = serializedObject.FindProperty("localShadowMapResolution");
             m_ShadowDistance = serializedObject.FindProperty("shadowDistance");
+            m_CascadeSplitRatios = serializedObject.FindProperty("cascadeSplitRatios");
+            m_MaxShadowedLocalLights = serializedObject.FindProperty("maxShadowedLocalLights");
             m_DefaultShader = serializedObject.FindProperty("m_DefaultShader");
             m_DefaultMaterial = serializedObject.FindProperty("m_DefaultMaterial");
             m_DefaultParticleMaterial = serializedObject.FindProperty("m_DefaultParticleMaterial");
@@ -92,6 +96,11 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_CascadeShadowMapResolution, new GUIContent("Cascade Shadow Map Resolution"));
                 EditorGUILayout.PropertyField(m_LocalShadowMapResolution, new GUIContent("Local Shadow Map Resolution"));
                 EditorGUILayout.PropertyField(m_ShadowDistance, new GUIContent("Shadow Distance"));
+                EditorGUILayout.PropertyField(m_CascadeSplitRatios, new GUIContent("Cascade Splits", "Split positions as fractions of Shadow Distance; strictly increasing inside (0, 1)."));
+                Vector3 ratios = m_CascadeSplitRatios.vector3Value;
+                if (!(ratios.x > 0.0f && ratios.y > ratios.x && ratios.z > ratios.y && ratios.z < 1.0f))
+                    EditorGUILayout.HelpBox("Cascade splits must be strictly increasing inside (0, 1). Rendering fails until this is fixed.", MessageType.Error);
+                EditorGUILayout.PropertyField(m_MaxShadowedLocalLights, new GUIContent("Max Shadowed Local Lights"));
             }
             InfinityInspectorGUI.EndFoldout();
 

@@ -40,6 +40,7 @@ namespace InfinityTech.Rendering.LightPipeline
         int m_BoundsStride;
         int m_DirectionalCount;
         int m_LocalCount;
+        int m_UnsupportedShapeCount;
         int m_SunRecordIndex;
         GraphicsBuffer m_LightRecordBuffer;
         GraphicsBuffer m_LightBoundsBuffer;
@@ -95,6 +96,8 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal int DirectionalLightCount => m_DirectionalCount;
         internal int LocalLightCount => m_LocalCount;
+        // Visible lights whose native type the realtime record does not represent (skipped, not substituted).
+        internal int UnsupportedShapeCount => m_UnsupportedShapeCount;
         internal int SunRecordIndex => m_SunRecordIndex;
         internal int RecordCount => m_Records.Length;
         internal GraphicsBuffer LightRecordBuffer => m_LightRecordBuffer;
@@ -125,6 +128,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_LocalBounds.Clear();
             m_DirectionalCount = 0;
             m_LocalCount = 0;
+            m_UnsupportedShapeCount = 0;
             m_SunRecordIndex = -1;
             m_ShadowAllocator.Reset();
         }
@@ -152,7 +156,15 @@ namespace InfinityTech.Rendering.LightPipeline
                         continue;
                     }
 
-                    ELightType type = FLightRecordPack.MapUnityType(visible.lightType);
+                    if (!FLightRecordPack.TryMapUnityType(visible.lightType, out ELightType type))
+                    {
+                        if (wantDirectional)
+                        {
+                            m_UnsupportedShapeCount++;
+                        }
+                        continue;
+                    }
+
                     bool isDirectional = type == ELightType.Directional;
                     if (isDirectional != wantDirectional)
                     {

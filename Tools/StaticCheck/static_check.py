@@ -93,6 +93,8 @@ def check_respath(repo, out):
 def check_lightmode(repo, out):
     declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', read(os.path.join(repo, 'Runtime/RenderPipeline/Utility/PipelineIDs.cs'))))
     for p in all_files(repo, {'.shader', '.template'}):
+        if os.sep + 'Tests' + os.sep in p:
+            continue  # test fixtures deliberately use foreign LightModes
         for m in re.finditer(r'"LightMode"\s*=\s*"(\w+)"', read(p)):
             if m.group(1) not in declared and m.group(1) not in UNITY_LIGHTMODES:
                 out.append(('ERROR', 'lightmode', f'{os.path.relpath(p, repo)}: LightMode "{m.group(1)}" not in InfinityPassIDs'))

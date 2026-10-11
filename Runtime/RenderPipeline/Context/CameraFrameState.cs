@@ -37,6 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
         public bool loggedOutputDecision;
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
+        public CameraRenderPolicy renderPolicy;
         public int ssrValidFrames;
         public int ssgiValidFrames;
         public int gtaoValidFrames;

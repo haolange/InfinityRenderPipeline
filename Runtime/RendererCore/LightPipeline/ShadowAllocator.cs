@@ -52,6 +52,16 @@ namespace InfinityTech.Rendering.LightPipeline
         public const int CascadeCount = 4;
         internal static readonly Vector3 DefaultCascadeRatios = new Vector3(0.067f, 0.2f, 0.467f);
 
+        // Split ratios must be strictly increasing inside (0, 1). The RP Asset keeps them ordered in OnValidate;
+        // a script that writes an invalid value fails at record time instead of rendering unordered cascades.
+        internal static Vector3 ValidateCascadeRatios(Vector3 ratios)
+        {
+            bool valid = ratios.x > 0.0f && ratios.y > ratios.x && ratios.z > ratios.y && ratios.z < 1.0f;
+            if (!valid)
+                throw new ArgumentOutOfRangeException(nameof(ratios), $"InfinityRP: cascade split ratios {ratios} must be strictly increasing inside (0, 1).");
+            return ratios;
+        }
+
         public int CascadeVisibleLightIndex { get; private set; } = -1;
         public int CascadeRecordIndex { get; private set; } = -1;
         public int CascadeAllocatedCount { get; private set; }

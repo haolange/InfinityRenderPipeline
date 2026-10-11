@@ -84,20 +84,27 @@ namespace InfinityTech.Rendering.LightPipeline
             return new Vector4(color.r * intensity, color.g * intensity, color.b * intensity, 1.0f);
         }
 
-        public static ELightType MapUnityType(LightType unityType)
+        // Returns false for native light types the realtime record cannot represent yet. The caller skips those
+        // lights and counts them; it never substitutes another shape and never fails the camera.
+        public static bool TryMapUnityType(LightType unityType, out ELightType type)
         {
             switch (unityType)
             {
                 case LightType.Directional:
-                    return ELightType.Directional;
+                    type = ELightType.Directional;
+                    return true;
                 case LightType.Point:
-                    return ELightType.Point;
+                    type = ELightType.Point;
+                    return true;
                 case LightType.Spot:
-                    return ELightType.Spot;
+                    type = ELightType.Spot;
+                    return true;
                 case LightType.Rectangle:
-                    return ELightType.Rect;
+                    type = ELightType.Rect;
+                    return true;
                 default:
-                    throw new NotSupportedException($"Infinity does not implement light shape {unityType}.");
+                    type = default;
+                    return false;
             }
         }
 
