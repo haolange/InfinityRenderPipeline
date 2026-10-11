@@ -11,7 +11,7 @@ This document defines coding conventions and collaboration rules for `com.infini
 1. **Entity data belongs to the entity; draw descriptions only reference it.** One logical object owns one `TransformId` / bounds. Submesh, material, and pass only add `MeshDraw` / template references.
 2. **Cache stable structure; regenerate view results.** Pass bins and their command table are rebuilt only on structural change. Visibility, LOD, sort order, and compaction are per request/view.
 3. **One public Mesh Drawing API for CPU and GPU backends.** Callers use `MeshDrawRequest` / `RGDrawListRef`; backends stay internal.
-4. **RenderGraph-native lifecycle.** `DeclareDrawList` records only; structural pass culling runs first; only live DrawLists schedule work; cleanup is graph-owned.
+4. **RenderGraph-native lifecycle.** `CreateDrawList` records only; structural pass culling runs first; only live DrawLists schedule work; cleanup is graph-owned.
 5. **No legacy / deprecated compatibility layers.** When a path is replaced, delete the old ownership path. Do not keep dual authorities.
 
 ## Naming

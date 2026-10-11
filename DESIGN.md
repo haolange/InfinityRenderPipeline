@@ -79,7 +79,7 @@ RendererLists.
 ## 5. RenderGraph DrawList lifecycle
 
 ```text
-Record:  DeclareDrawList + UseDrawList
+Record:  CreateDrawList + UseDrawList
 Compile: CountPassReference → CullingUnusedPass → CompileDrawLists → UpdateResource
 Execute: EnsureResolved(per consumer) → encoder.Draw
 Finally: ReleaseAllDrawLists (logical: builds + RetirePayload + visibility Release)

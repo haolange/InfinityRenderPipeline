@@ -40,8 +40,8 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | Stage | Scope | Depends on | Status |
 |---|---|---|---|
 | S0 | Offline gate (`Tools/StaticCheck/`) | — | done |
-| S1 | Documents and governance; repository hygiene; Film→ACES | S0 | in progress |
-| S2 | Contract defects: Reflection/Preview camera policy, every `LightType` mapped, hardcoded shadow values, feature-gate gaps, DebugView enum | S1 | pending |
+| S1 | Documents and governance; repository hygiene; Film→ACES | S0 | done |
+| S2 | Contract defects: Reflection/Preview camera policy, every `LightType` mapped, hardcoded shadow values, feature-gate gaps, DebugView enum, Mesh GPU table invalidation | S1 | in progress |
 | S3 | RenderGraph: indirect dispatch on `RGBufferRef`, utility kernels, typed resource keys, two-phase feature registry | S2 | pending |
 | S4 | Quality presets: `EQualityLevel`, low-level settings structs, hardcoded preset tables, Volume `Resolve()` | S3 | pending |
 | S5 | Stochastic SSR (classify, Hi-Z/linear trace, ray-reuse resolve, temporal, spatial) + shared denoise library | S3, S4 | pending |
