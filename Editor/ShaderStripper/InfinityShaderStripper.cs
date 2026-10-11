@@ -43,28 +43,60 @@ namespace InfinityTech.Rendering.Editor.Build
     public sealed class InfinityShaderStripper : IPreprocessShaders
     {
         static readonly ShaderTagId s_RenderPipelineTag = new ShaderTagId("RenderPipeline");
+        static readonly ShaderTagId s_LightModeTag = new ShaderTagId("LightMode");
+        // LightModes the pipeline actually draws. An empty LightMode is SRPDefaultUnlit. ShadowCaster is drawn by
+        // the Unity shadow RendererList; Meta is consumed by the lightmapper.
+        static readonly HashSet<string> s_UsedLightModes = new HashSet<string>
+        {
+            "", "SRPDefaultUnlit", "ShadowCaster", "Meta",
+            InfinityPassIDs.DepthPass.name, InfinityPassIDs.DBufferPass.name, InfinityPassIDs.GBufferPass.name,
+            InfinityPassIDs.ShadowPass.name, InfinityPassIDs.MotionPass.name, InfinityPassIDs.ForwardPass.name,
+            InfinityPassIDs.TranslucentDepthPass.name, InfinityPassIDs.TranslucentT0Pass.name,
+            InfinityPassIDs.TranslucentT1Pass.name, InfinityPassIDs.TranslucentT2Pass.name,
+        };
         static int s_Kept;
         static int s_StrippedForeignTag;
+        static int s_StrippedLightMode;
         public int callbackOrder => 0;
         public static bool IsInfinityActive => GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset;
         public static int Kept => s_Kept;
         public static int StrippedForeignTag => s_StrippedForeignTag;
+        public static int StrippedLightMode => s_StrippedLightMode;
 
-        public static void ResetCounts() { s_Kept = 0; s_StrippedForeignTag = 0; }
+        public static void ResetCounts() { s_Kept = 0; s_StrippedForeignTag = 0; s_StrippedLightMode = 0; }
 
         public void OnProcessShader(Shader shader, ShaderSnippetData snippet, IList<ShaderCompilerData> data)
         {
             if (!IsInfinityActive || data == null || data.Count == 0) return;
             if (shader == null) throw new ArgumentNullException(nameof(shader));
-            // passName is not LightMode. Preserve all passes in a compatible shader, including
-            // ShadowCaster, SRPDefaultUnlit, Terrain, Meta, material previews and system blits.
-            if (HasCompatibleSubShader(shader))
-                s_Kept += data.Count;
-            else
+            // URP/HDRP package shaders carry their own RenderPipeline tag and are removed here.
+            if (!HasCompatibleSubShader(shader))
             {
                 s_StrippedForeignTag += data.Count;
                 data.Clear();
+                return;
             }
+
+            // Inside an Infinity-tagged SubShader, a pass whose LightMode the pipeline never draws (for example a
+            // Built-in ForwardBase/ForwardAdd pass) is dead weight. Untagged SubShaders (system blits, UI, terrain
+            // details, material previews) keep every pass.
+            if (IsUnusedInfinityPass(shader, snippet))
+            {
+                s_StrippedLightMode += data.Count;
+                data.Clear();
+                return;
+            }
+
+            s_Kept += data.Count;
+        }
+
+        internal static bool IsUnusedInfinityPass(Shader shader, in ShaderSnippetData snippet)
+        {
+            int subshader = (int)snippet.pass.SubshaderIndex;
+            if (subshader < 0 || subshader >= shader.subshaderCount) return false;
+            if (shader.FindSubshaderTagValue(subshader, s_RenderPipelineTag).name != "InfinityRenderPipeline") return false;
+            string lightMode = shader.FindPassTagValue(subshader, (int)snippet.pass.PassIndex, s_LightModeTag).name;
+            return !s_UsedLightModes.Contains(lightMode ?? string.Empty);
         }
 
         internal static bool HasCompatibleSubShader(Shader shader)

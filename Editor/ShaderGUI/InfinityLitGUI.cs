@@ -22,9 +22,9 @@ namespace InfinityTech.Rendering.Editor
             DrawGroup(materialEditor, properties, "Surface Inputs", true,
                 "_UseAlbedoTex", "_MainTex", "_BaseColor", "_BaseColorTile", "_EmissionColor",
                 "_Roughness", "_Reflectance", "_SpecularLevel",
-                "_NormalTexture", "_NomralTexture", "_NormalTile",
+                "_NormalTexture", "_NormalTile",
                 "_Iridescence", "_Iridescence_Distance",
-                "_PixelDepthOffset", "_PixelDepthOffsetVaule");
+                "_PixelDepthOffset");
 
             bool subsurface = material != null && material.HasProperty("_Subsurface") && material.GetFloat("_Subsurface") > 0.5f;
             if (subsurface || SessionState.GetBool(FoldoutPrefix + "Subsurface", false))

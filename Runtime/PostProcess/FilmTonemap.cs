@@ -5,10 +5,12 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.PostProcess
 {
+    // InfinityRP supports exactly two tonemapping modes. The film curve is the ACES filmic curve
+    // (slope/toe/shoulder/clip parameters). The serialized value of ACES stays 1.
     public enum EFilmTonemapMode
     {
         None = 0,
-        Film = 1
+        ACES = 1
     }
 
     [Serializable]
@@ -24,7 +26,7 @@ namespace InfinityTech.Rendering.PostProcess
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
     public class FilmTonemap : VolumeComponent, IInfinityVolumeActivity
     {
-        [Tooltip("None disables the film curve. The packaged default profile uses Film with the current artistic values.")]
+        [Tooltip("None disables tonemapping. ACES applies the ACES filmic curve shaped by the parameters below. The packaged default profile uses ACES.")]
         public FilmTonemapModeParameter mode = new FilmTonemapModeParameter(EFilmTonemapMode.None);
 
         public ClampedFloatParameter slope = new ClampedFloatParameter(0.88f, 0.0f, 1.0f);

@@ -9,7 +9,6 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly InfinityDebugDisplaySettings current = new InfinityDebugDisplaySettings();
 
         public InfinityDebugDisplaySettingsRendering rendering { get; } = new InfinityDebugDisplaySettingsRendering();
-        public InfinityDebugDisplaySettingsTemporal temporal { get; } = new InfinityDebugDisplaySettingsTemporal();
         public InfinityDebugDisplaySettingsLighting lighting { get; } = new InfinityDebugDisplaySettingsLighting();
         public InfinityDebugDisplaySettingsMesh mesh { get; } = new InfinityDebugDisplaySettingsMesh();
 
@@ -22,7 +21,6 @@ namespace InfinityTech.Rendering.Pipeline
         public void Reset()
         {
             rendering.Reset();
-            temporal.Reset();
             lighting.Reset();
             mesh.Reset();
         }
@@ -60,25 +58,6 @@ namespace InfinityTech.Rendering.Pipeline
             DebugUI.Panel mesh = DebugManager.instance.GetPanel("Infinity Mesh", true);
             mesh.children.Add(new DebugUI.Value { displayName = "Matrix Duplicate Ratio", getter = () => (object)state.mesh.matrixDuplicateRatio });
 
-            DebugUI.Panel temporal = DebugManager.instance.GetPanel("Infinity Temporal", true);
-            temporal.children.Add(new DebugUI.BoolField
-            {
-                displayName = "Prefer Native Motion Vectors",
-                getter = () => state.temporal.preferNativeMotionVectors,
-                setter = value => state.temporal.preferNativeMotionVectors = value
-            });
-            temporal.children.Add(new DebugUI.BoolField
-            {
-                displayName = "Fuse TAA Sharpen",
-                getter = () => state.temporal.fuseTemporalSharpen,
-                setter = value => state.temporal.fuseTemporalSharpen = value
-            });
-            temporal.children.Add(new DebugUI.BoolField
-            {
-                displayName = "Show Temporal Overlay",
-                getter = () => state.temporal.showOverlay,
-                setter = value => state.temporal.showOverlay = value
-            });
         }
 
     }

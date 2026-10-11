@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.Editor
             PropertyField(m_Mode);
             if (((FilmTonemap)target).mode.value == EFilmTonemapMode.None)
             {
-                EditorGUILayout.HelpBox("None disables the film curve. Closing a scene Volume inherits the default profile, which is Film.", MessageType.Info);
+                EditorGUILayout.HelpBox("None disables tonemapping. A scene Volume that does not override the mode inherits the default profile, which is ACES.", MessageType.Info);
                 return;
             }
             PropertyField(m_Slope); PropertyField(m_Toe); PropertyField(m_Shoulder); PropertyField(m_Black); PropertyField(m_White);

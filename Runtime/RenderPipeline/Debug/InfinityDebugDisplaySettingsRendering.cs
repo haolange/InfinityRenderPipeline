@@ -12,20 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
         }
     }
 
-    public sealed class InfinityDebugDisplaySettingsTemporal
-    {
-        public bool showOverlay;
-        public bool preferNativeMotionVectors;
-        public bool fuseTemporalSharpen;
-
-        public void Reset()
-        {
-            showOverlay = false;
-            preferNativeMotionVectors = false;
-            fuseTemporalSharpen = false;
-        }
-    }
-
     public sealed class InfinityDebugDisplaySettingsLighting
     {
         public int lastDirectionalCount;

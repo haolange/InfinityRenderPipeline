@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (profile.TryGet(out FilmTonemap film))
             {
                 film.mode.overrideState = true;
-                film.mode.value = EFilmTonemapMode.Film;
+                film.mode.value = EFilmTonemapMode.ACES;
                 Override(film.slope, PackagedFilmSlope);
                 Override(film.toe, PackagedFilmToe);
                 Override(film.shoulder, PackagedFilmShoulder);

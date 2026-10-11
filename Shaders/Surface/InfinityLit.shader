@@ -941,35 +941,6 @@
 			}
 			ENDHLSL
 		}
-
-		//RayTrace AO
-		/*Pass
-		{
-			Name "RTAO"
-			Tags { "LightMode" = "RayTraceAmbientOcclusion" }
-
-			HLSLPROGRAM
-			#pragma raytracing test
-
-			#include "../ShaderLibrary/RayTracing/Common/RayTracingCommon.hlsl"
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-
-			#include "../ShaderLibrary/InfinityLitMaterial.hlsl"
-
-			[shader("closesthit")]
-			void ClosestHit(inout AORayPayload RayIntersectionAO : SV_RayPayload, AttributeData attributeData : SV_IntersectionAttributes)
-			{
-				RayIntersectionAO.HitDistance = RayTCurrent();
-				//Calculate_VertexData(FragInput);
-			}
-
-			[shader("anyhit")]
-			void Anyhit(inout AORayPayload RayIntersectionAO : SV_RayPayload, AttributeData attributeData : SV_IntersectionAttributes)
-			{
-				IgnoreHit();
-			}
-			ENDHLSL
-		}*/
 	}
 	CustomEditor "InfinityTech.Rendering.Editor.InfinityLitGUI"
 }
