@@ -1,5 +1,9 @@
 # InfinityRP Agent Guide
 
+## 0.5.0 upgrade override (user approved, 2026-10-11)
+
+The user approved the 0.5.0 upgrade and convergence plan (PLAN.md, stages S0–S17). It supersedes the C0–C7 rule "Do not create branches, commit, push": 0.5.0 work happens on branch `claude/infinityrp-0.5`, one or more commits per stage, each stage tagged `v0.5-sNN` and pushed. Building or packaging Players is still out of scope. Without an Editor, every stage must pass the offline gate in `Tools/StaticCheck/` before the next stage starts, and image results stay `TODO(UNVERIFIED)` until the user verifies them.
+
 ## Active Editor convergence override (user approved)
 
 The current C0-C7 plan in PLAN.md supersedes prior normalization roles and incompatible target contracts below. Main agent implements and visually inspects; independent GPT-6 Astra verifies. Luna is search-only. Do not create branches, commit, push, build or package Players. All Editor quality gaps are included.
