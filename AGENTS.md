@@ -2,7 +2,7 @@
 
 ## 0.5.0 upgrade override (user approved, 2026-10-11)
 
-The user approved the 0.5.0 upgrade and convergence plan (PLAN.md, stages S0–S17). It supersedes the C0–C7 rule "Do not create branches, commit, push": 0.5.0 work happens on branch `claude/infinityrp-0.5`, one or more commits per stage, each stage tagged `v0.5-sNN` and pushed. Building or packaging Players is still out of scope. Without an Editor, every stage must pass the offline gate in `Tools/StaticCheck/` before the next stage starts, and image results stay `TODO(UNVERIFIED)` until the user verifies them.
+The user approved the 0.5.0 upgrade and convergence plan (PLAN.md, stages S0–S17). It supersedes the C0–C7 rule "Do not create branches, commit, push": 0.5.0 work happens on branch `claude/infinityrp-0.5`, one or more commits per stage, each stage marked by an `SNN:` commit-subject prefix and pushed. Building or packaging Players is still out of scope. Without an Editor, every stage must pass the offline gate in `Tools/StaticCheck/` before the next stage starts, and image results stay `TODO(UNVERIFIED)` until the user verifies them.
 
 ## Active Editor convergence override (user approved)
 
