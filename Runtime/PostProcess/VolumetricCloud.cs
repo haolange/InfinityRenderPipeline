@@ -10,6 +10,8 @@ namespace InfinityTech.Rendering.PostProcess
     public class VolumetricCloud : VolumeComponent, IInfinityVolumeActivity
     {
         public BoolParameter enable = new BoolParameter(false);
+        [Tooltip("Low/Medium/High/Ultra use hardcoded presets for the quality parameters. Custom uses the values below.")]
+        public QualityLevelParameter quality = new QualityLevelParameter(EQualityLevel.Custom);
         public ClampedFloatParameter CloudLayerBottom = new ClampedFloatParameter(1500.0f, 500.0f, 5000.0f);
         public ClampedFloatParameter CloudLayerThickness = new ClampedFloatParameter(3500.0f, 500.0f, 10000.0f);
         public ClampedFloatParameter DensityMultiplier = new ClampedFloatParameter(0.4f, 0.0f, 2.0f);
@@ -22,6 +24,23 @@ namespace InfinityTech.Rendering.PostProcess
         public ClampedIntParameter NumPrimarySteps = new ClampedIntParameter(64, 16, 128);
         public ClampedIntParameter NumLightSteps = new ClampedIntParameter(6, 1, 12);
         public ClampedFloatParameter TemporalWeight = new ClampedFloatParameter(0.9f, 0.0f, 0.99f);
+
+        public FVolumetricCloudSettings Resolve()
+        {
+            FVolumetricCloudSettings settings = quality.value == EQualityLevel.Custom
+                ? new FVolumetricCloudSettings { numPrimarySteps = NumPrimarySteps.value, numLightSteps = NumLightSteps.value, temporalWeight = TemporalWeight.value }
+                : QualityPresets.Select(QualityPresets.VolumetricCloud, quality.value);
+            settings.cloudLayerBottom = CloudLayerBottom.value;
+            settings.cloudLayerThickness = CloudLayerThickness.value;
+            settings.densityMultiplier = DensityMultiplier.value;
+            settings.shapeFactor = ShapeFactor.value;
+            settings.erosionFactor = ErosionFactor.value;
+            settings.anisotropy = Anisotropy.value;
+            settings.silverIntensity = SilverIntensity.value;
+            settings.silverSpread = SilverSpread.value;
+            settings.ambientIntensity = AmbientIntensity.value;
+            return settings;
+        }
 
         public bool IsActive() => active && enable.value;
     }

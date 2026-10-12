@@ -128,7 +128,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            var ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>();
+            FGTAOSettings ssao = ActiveVolumeStack.GetComponent<ScreenSpaceAmbientOcclusion>().Resolve();
             if (!GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample"))
             {
                 return;
@@ -173,15 +173,15 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<GTAOPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeGroundTruthOcclusion)))
             {
                 ref GTAOPassData passData = ref passRef.GetPassData<GTAOPassData>();
-                passData.numRays = ssao.NumRays.value;
-                passData.numSteps = ssao.NumSteps.value;
-                passData.power = ssao.Power.value;
-                passData.radius = ssao.Radius.value;
-                passData.intensity = ssao.Intensity.value;
-                passData.sharpeness = ssao.sharpness.value;
-                passData.temporalScale = ssao.TemporalScale.value;
+                passData.numRays = ssao.numRays;
+                passData.numSteps = ssao.numSteps;
+                passData.power = ssao.power;
+                passData.radius = ssao.radius;
+                passData.intensity = ssao.intensity;
+                passData.sharpeness = ssao.sharpness;
+                passData.temporalScale = ssao.temporalScale;
                 bool resetHistory = m_CameraUniform.historyReset || historyAOCreated || historyDepthCreated;
-                passData.temporalWeight = ScreenSpaceHistoryUtility.RampTemporalWeight(ssao.TemporalWeight.value, ref m_ActiveFrameState.gtaoValidFrames, resetHistory);
+                passData.temporalWeight = ScreenSpaceHistoryUtility.RampTemporalWeight(ssao.temporalWeight, ref m_ActiveFrameState.gtaoValidFrames, resetHistory);
                 passData.halfResolution = new int2(halfWidth, halfHeight);
                 passData.fullResolution = new int2(fullWidth, fullHeight);
 

@@ -60,3 +60,10 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 3. Rendering Debugger → Infinity Rendering → Frame Features: each feature shows Off / Records / Blocked with a reason. Disable SSR on the Volume (Off), then clear the SSR compute shader slot (Blocked: not assigned) and restore it.
 4. Images are unchanged from S2.
 5. An `RGScoper` error now names the missing resource (for example `_HiZTexture`) instead of a number.
+
+## S4 — quality presets
+
+1. Compile; run `QualityPresetTests`.
+2. Open a Volume with GTAO, RTAO, Volumetric Fog or Volumetric Cloud: a Quality section shows `Quality = Custom` and the existing values (images unchanged).
+3. Switch Quality to Low/Medium/High/Ultra: the quality fields become read-only and show the preset values; the image changes accordingly. Artistic fields (intensity, radius, density, ...) stay editable.
+4. "Copy Preset To Custom" copies the preset into the parameters and switches to Custom; Undo restores the previous state.

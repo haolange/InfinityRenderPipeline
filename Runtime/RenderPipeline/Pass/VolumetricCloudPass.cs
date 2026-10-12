@@ -132,6 +132,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
+            FVolumetricCloudSettings cloud = volCloud.Resolve();
 
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
@@ -165,18 +166,18 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
             {
                 ref VolumetricCloudPassData passData = ref passRef.GetPassData<VolumetricCloudPassData>();
-                passData.cloudLayerBottom = volCloud.CloudLayerBottom.value;
-                passData.cloudLayerThickness = volCloud.CloudLayerThickness.value;
-                passData.densityMultiplier = volCloud.DensityMultiplier.value;
-                passData.shapeFactor = volCloud.ShapeFactor.value;
-                passData.erosionFactor = volCloud.ErosionFactor.value;
-                passData.anisotropy = volCloud.Anisotropy.value;
-                passData.silverIntensity = volCloud.SilverIntensity.value;
-                passData.silverSpread = volCloud.SilverSpread.value;
-                passData.ambientIntensity = volCloud.AmbientIntensity.value;
-                passData.numPrimarySteps = volCloud.NumPrimarySteps.value;
-                passData.numLightSteps = volCloud.NumLightSteps.value;
-                passData.temporalWeight = (m_CameraUniform.historyReset || historyCreated) ? 0.0f : volCloud.TemporalWeight.value;
+                passData.cloudLayerBottom = cloud.cloudLayerBottom;
+                passData.cloudLayerThickness = cloud.cloudLayerThickness;
+                passData.densityMultiplier = cloud.densityMultiplier;
+                passData.shapeFactor = cloud.shapeFactor;
+                passData.erosionFactor = cloud.erosionFactor;
+                passData.anisotropy = cloud.anisotropy;
+                passData.silverIntensity = cloud.silverIntensity;
+                passData.silverSpread = cloud.silverSpread;
+                passData.ambientIntensity = cloud.ambientIntensity;
+                passData.numPrimarySteps = cloud.numPrimarySteps;
+                passData.numLightSteps = cloud.numLightSteps;
+                passData.temporalWeight = (m_CameraUniform.historyReset || historyCreated) ? 0.0f : cloud.temporalWeight;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(cloudWidth, cloudHeight);
                 passData.numTilesX = Mathf.CeilToInt(width / 16.0f);

@@ -136,10 +136,11 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 return;
             }
+            FVolumetricFogSettings fog = volFog.Resolve();
 
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
-            int depthSlices = volFog.DepthSlices.value;
+            int depthSlices = fog.depthSlices;
             int froxelWidth = Mathf.CeilToInt(width / 8.0f);
             int froxelHeight = Mathf.CeilToInt(height / 8.0f);
 
@@ -172,15 +173,15 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
             {
                 ref VolumetricFogPassData passData = ref passRef.GetPassData<VolumetricFogPassData>();
-                passData.density = volFog.Density.value;
-                passData.height = volFog.Height.value;
-                passData.heightFalloff = volFog.HeightFalloff.value;
-                passData.albedo = volFog.Albedo.value;
-                passData.anisotropy = volFog.Anisotropy.value;
-                passData.ambientIntensity = volFog.AmbientIntensity.value;
+                passData.density = fog.density;
+                passData.height = fog.height;
+                passData.heightFalloff = fog.heightFalloff;
+                passData.albedo = fog.albedo;
+                passData.anisotropy = fog.anisotropy;
+                passData.ambientIntensity = fog.ambientIntensity;
                 passData.depthSlices = depthSlices;
-                passData.maxDistance = volFog.MaxDistance.value;
-                passData.temporalWeight = (m_CameraUniform.historyReset || historyCreated) ? 0.0f : volFog.TemporalWeight.value;
+                passData.maxDistance = fog.maxDistance;
+                passData.temporalWeight = (m_CameraUniform.historyReset || historyCreated) ? 0.0f : fog.temporalWeight;
                 passData.frameIndex = Time.frameCount;
                 passData.screenSize = new int2(width, height);
                 passData.froxelResolution = new int3(froxelWidth, froxelHeight, depthSlices);
@@ -340,7 +341,7 @@ namespace InfinityTech.Rendering.Pipeline
             var volFog = ActiveVolumeStack.GetComponent<VolumetricFog>();
             int froxelWidth = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.x / 8.0f);
             int froxelHeight = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.y / 8.0f);
-            TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, volFog.DepthSlices.value, VolumetricFogPassUtilityData.HistoryTextureName, false);
+            TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, volFog.Resolve().depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
             RGTextureRef history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricFogBuffer);
 

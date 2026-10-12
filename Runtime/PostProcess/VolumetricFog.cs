@@ -10,6 +10,8 @@ namespace InfinityTech.Rendering.PostProcess
     public class VolumetricFog : VolumeComponent, IInfinityVolumeActivity
     {
         public BoolParameter enable = new BoolParameter(false);
+        [Tooltip("Low/Medium/High/Ultra use hardcoded presets for the quality parameters. Custom uses the values below.")]
+        public QualityLevelParameter quality = new QualityLevelParameter(EQualityLevel.Custom);
         public ClampedFloatParameter Density = new ClampedFloatParameter(0.01f, 0.0f, 1.0f);
         public ClampedFloatParameter Height = new ClampedFloatParameter(50.0f, 0.0f, 500.0f);
         public ClampedFloatParameter HeightFalloff = new ClampedFloatParameter(0.2f, 0.001f, 2.0f);
@@ -19,6 +21,21 @@ namespace InfinityTech.Rendering.PostProcess
         public ClampedIntParameter DepthSlices = new ClampedIntParameter(64, 16, 128);
         public ClampedFloatParameter MaxDistance = new ClampedFloatParameter(128.0f, 32.0f, 512.0f);
         public ClampedFloatParameter TemporalWeight = new ClampedFloatParameter(0.9f, 0.0f, 0.99f);
+
+        public FVolumetricFogSettings Resolve()
+        {
+            FVolumetricFogSettings settings = quality.value == EQualityLevel.Custom
+                ? new FVolumetricFogSettings { depthSlices = DepthSlices.value, temporalWeight = TemporalWeight.value }
+                : QualityPresets.Select(QualityPresets.VolumetricFog, quality.value);
+            settings.density = Density.value;
+            settings.height = Height.value;
+            settings.heightFalloff = HeightFalloff.value;
+            settings.albedo = Albedo.value;
+            settings.anisotropy = Anisotropy.value;
+            settings.ambientIntensity = AmbientIntensity.value;
+            settings.maxDistance = MaxDistance.value;
+            return settings;
+        }
 
         public bool IsActive() => active && enable.value;
     }
