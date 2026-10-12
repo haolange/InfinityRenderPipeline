@@ -137,3 +137,17 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 5. Expected global changes: brighter, unclamped specular highlights on glossy materials (bloom may react); punctual
    lights with a Diffuse or Specular weight below 1 now scale only that term.
 
+## S9a — shadow settings, PCF / PCSS, shadows for every shape
+
+1. Compile; run `LocalShadowFrustumTests` and `LightRecordTests`.
+2. RP Asset → Lighting & Shadows: new Cascade Count, Cascade Blend Width and Shadow Filter Quality. Cascade Count 1–4
+   changes the number of cascades in Frame Debugger (`RenderCascadeShadow`); with Blend Width 0.1 the cascade seams on a
+   long floor are no longer visible as a hard line.
+3. Shadow Filter Quality Low → Ultra: PCF edges grow from 3×3 to 7×7 texels. Custom shows editable fields; Copy Preset
+   To Custom copies the current preset.
+4. Light inspector → Shadow Filter = PCSS on the sun with Source Angle 2°: contact-hardening shadows (sharp at the
+   contact, softer with distance). On a sphere point light, Source Radius 0 → 0.3 widens the penumbra.
+5. Pyramid spot, box spot, rect and disk lights now cast shadows (they cast none before). Box spots give parallel
+   shadows. A point light with Source Length > 0 (line / tube) still casts six-face shadows.
+6. Expected changes: shadow edges are softer at Medium (5×5 tent replaces the 3×3 box); Hard keeps one-tap edges.
+

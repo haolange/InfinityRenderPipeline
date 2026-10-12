@@ -21,6 +21,12 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Area light shading (`Lighting/LightShapes.hlsl`): Karis representative-point specular with energy normalization for
   sphere, line, tube, rect, disk and sun disk; Frostbite sphere / disk form factor, Karis line irradiance and the rect
   polygon form factor for diffuse. `CreateAreaLightsValidationScene` (Window/Infinity/Create Area Lights Fixture).
+- Shadow settings on the RP Asset: cascade count 1–4, cascade blend width, shadow filter quality presets (Low..Ultra +
+  Custom) with a read-only preset view and Copy Preset To Custom.
+- Shadow filtering: GatherRed tent PCF (3×3 to 7×7, no comparison sampler) and PCSS (Vogel blocker search, penumbra
+  from the light's source radius or sun angle), selected per light; cascades blend into the next cascade.
+- Realtime shadows for pyramid and box spots (perspective / orthographic tiles) and rect / disk lights; line and tube
+  lights use six cube faces like points. Local shadow frustums include a filter guard band.
 
 ### Fixed
 - Rect lights contributed no diffuse light: the polygon form factor was wound backwards and clamped to zero. Rect

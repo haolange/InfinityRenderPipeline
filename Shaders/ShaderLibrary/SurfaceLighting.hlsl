@@ -29,7 +29,7 @@ float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, f
         return 0;
     }
 
-    float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, worldPos, viewDepth, light.shadowFilter, normal) : 1.0;
+    float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, worldPos, viewDepth, normal) : 1.0;
     shadow = MixBakedAndRealtimeShadow(light, shadow, bakedMask, viewDepth);
     if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
     float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * NoL * LightDiffuseWeight(light);

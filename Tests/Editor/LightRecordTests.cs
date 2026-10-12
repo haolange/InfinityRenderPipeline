@@ -48,13 +48,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [Test]
         [Category("Unverified-0.5")]
-        public void ShadowSliceCounts_Point6_Cone1_OtherShapesZero()
+        public void ShadowSliceCounts_Point6_SingleTileShapes1_Directional0()
         {
             Assert.AreEqual(6, FLightRecordPack.LocalShadowSliceCount(new FLightRecord()));
             Assert.AreEqual(1, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.SpotCone }));
-            Assert.AreEqual(0, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.SpotPyramid }));
-            Assert.AreEqual(0, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.SpotBox }));
-            Assert.AreEqual(0, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.Planar }));
+            Assert.AreEqual(1, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.SpotPyramid }));
+            Assert.AreEqual(1, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.SpotBox }));
+            Assert.AreEqual(1, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.Planar }));
             Assert.AreEqual(0, FLightRecordPack.LocalShadowSliceCount(new FLightRecord { flags = FLightRecordFlags.Directional }));
         }
 

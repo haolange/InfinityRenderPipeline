@@ -10,8 +10,6 @@ int g_LocalLightCount;
 int g_SunRecordIndex;
 int g_LocalShadowSliceCount;
 StructuredBuffer<FLightRecord> g_LightRecordBuffer;
-StructuredBuffer<float4x4> SRV_LocalShadowMatrices;
-StructuredBuffer<float4> SRV_LocalShadowRects;
 
 #include "Lighting/LightLoop.hlsl"
 

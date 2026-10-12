@@ -47,6 +47,8 @@ namespace InfinityTech.Rendering.Pipeline
             public int cascadeCount;
             public Matrix4x4[] cascadeMatrices;
             public Vector4[] cascadeSpheres;
+            public Vector4[] cascadeShadowParams;
+            public Vector4 shadowFilterParams;
             public Vector4 cascadeSplitDistances;
             public Vector4 localShadowMapSize;
             public ComputeShader deferredShadingShader;
@@ -136,6 +138,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.cascadeCount = m_ActiveCascadeCount;
                 passData.cascadeMatrices = (Matrix4x4[])m_ActiveCascadeMatrices.Clone();
                 passData.cascadeSpheres = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeSpheres.Clone();
+                passData.cascadeShadowParams = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeParams.Clone();
+                passData.shadowFilterParams = CascadeShadowPassUtilityData.FilterParams(pipelineAsset.ResolveShadowFilter());
                 passData.cascadeSplitDistances = m_ActiveCascadeSplitDistances;
                 passData.localShadowMapSize = new Vector4(
                     pipelineAsset.localShadowMapResolution,
@@ -183,6 +187,8 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowRectsID, passData.localShadowRectBuffer);
                     cmdEncoder.SetComputeIntParam(shader, CascadeShadowPassUtilityData.CascadeCountID, passData.cascadeCount);
                     cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeSpheresID, passData.cascadeSpheres);
+                    cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeShadowParamsID, passData.cascadeShadowParams);
+                    cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.ShadowFilterParamsID, passData.shadowFilterParams);
                     cmdEncoder.SetComputeMatrixArrayParam(shader, CascadeShadowPassUtilityData.CascadeMatricesID, passData.cascadeMatrices);
                     cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeSplitDistancesID, passData.cascadeSplitDistances);
                     cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.LocalShadowMapSizeID, passData.localShadowMapSize);

@@ -444,6 +444,9 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
                                     shadowSettings.cascadeRatios = ShadowAllocator.ValidateCascadeRatios(pipelineAsset.cascadeSplitRatios);
                                     shadowSettings.maxLocalLights = Mathf.Clamp(pipelineAsset.maxShadowedLocalLights, 1, 64);
+                                    shadowSettings.cascadeCount = Mathf.Clamp(pipelineAsset.cascadeCount, 1, ShadowAllocator.CascadeCount);
+                                    shadowSettings.cascadeBlendWidth = pipelineAsset.cascadeBlendWidth;
+                                    shadowSettings.filterGuardTexels = pipelineAsset.ResolveShadowFilter().pcfRadius + 1;
                                     renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize);
                                     ConfigureContentFeatures(frameState);
                                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;

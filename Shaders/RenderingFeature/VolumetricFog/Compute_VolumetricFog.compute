@@ -85,7 +85,7 @@ float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, 
     if (IsDirectionalLight(light))
     {
         L = DirectionalLightL(light);
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, worldPos, viewDepth, light.shadowFilter) : 1);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, light, worldPos, viewDepth) : 1);
     }
     else
     {

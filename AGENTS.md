@@ -135,8 +135,8 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 
 - Mesh: pass `defaultSort` plans are not applied (bins sort only by `CompareStructural`). `PrepareIndirect` can call `TryEnsureCapacity` on the recording path; it is dormant because the budget matches the pre-record size.
 - Validation scenes (Decal, LocalLights, Translucent) show sky black bands, large dark triangles and cube blotches. Their cause is undiagnosed.
-- Pyramid, box, rect and disk lights cast no realtime shadows (S9).
-- Cascade count is fixed at 4 (S9).
+- VSM and EVSM shadow filters sample as PCF until the moment atlas lands (S9).
+- Rect and disk shadow tiles cover a 120° cone in front of the emitter; receivers at grazing angles outside it are unshadowed.
 - `ContactShadowCS` traces only the sun record (`g_SunRecordIndex`) and the result applies only to directional lights in Deferred; Forward passes 1 (S10).
 - `TAAJitter` has SuperResolution consumers. TAA uses explicit current/previous framebuffer jitter UV and per-pixel sample age; do not remove the shared upload without checking SR consumers.
 - TAA accumulation and color history are RGBA16F. `ComputeTemporalSharpen` is a separate output pass at strength 0.35; only unsharpened accumulation is copied into history. A single-dispatch TAA + sharpen is not implemented.

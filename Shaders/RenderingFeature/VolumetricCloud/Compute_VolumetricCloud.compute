@@ -151,7 +151,7 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     if (IsDirectionalLight(light))
     {
         L = DirectionalLightL(light);
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, samplePos, viewDepth, light.shadowFilter) : 1);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, samplePos, viewDepth) : 1);
     }
     else
     {

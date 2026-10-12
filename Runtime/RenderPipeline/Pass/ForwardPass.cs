@@ -27,6 +27,8 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferRef shadowMatrices, shadowRects;
             public Matrix4x4[] cascadeMatrices;
             public Vector4[] cascadeSpheres;
+            public Vector4[] cascadeShadowParams;
+            public Vector4 shadowFilterParams;
             public Vector4 cascadeSplits, cascadeSize, localSize;
             public int cascadeCount, shadowmaskMode, hasProbes;
             public float shadowDistance;
@@ -48,6 +50,8 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetGlobalBuffer(Shader.PropertyToID("SRV_LocalShadowRects"), shadowRects);
                 commands.SetGlobalMatrixArray(CascadeShadowPassUtilityData.CascadeMatricesID, cascadeMatrices);
                 commands.SetGlobalVectorArray(CascadeShadowPassUtilityData.CascadeSpheresID, cascadeSpheres);
+                commands.SetGlobalVectorArray(CascadeShadowPassUtilityData.CascadeShadowParamsID, cascadeShadowParams);
+                commands.SetGlobalVector(CascadeShadowPassUtilityData.ShadowFilterParamsID, shadowFilterParams);
                 commands.SetGlobalVector(CascadeShadowPassUtilityData.CascadeSplitDistancesID, cascadeSplits);
                 commands.SetGlobalVector(CascadeShadowPassUtilityData.CascadeShadowMapSizeID, cascadeSize);
                 commands.SetGlobalVector(Shader.PropertyToID("_LocalShadowMapSize"), localSize);
@@ -101,6 +105,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.shadowRects = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer));
                     passData.cascadeMatrices = (Matrix4x4[])allocator.CascadeMatrices.Clone();
                     passData.cascadeSpheres = (Vector4[])allocator.CascadeSpheres.Clone();
+                    passData.cascadeShadowParams = (Vector4[])allocator.CascadeParams.Clone();
+                    passData.shadowFilterParams = CascadeShadowPassUtilityData.FilterParams(pipelineAsset.ResolveShadowFilter());
                     passData.cascadeSplits = allocator.CascadeSplitDistances;
                     passData.cascadeCount = allocator.CascadeAllocatedCount;
                     float cascadeSize = pipelineAsset.cascadeShadowMapResolution * 2;

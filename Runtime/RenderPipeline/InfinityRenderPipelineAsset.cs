@@ -49,6 +49,19 @@ namespace InfinityTech.Rendering.Pipeline
         // Upper bound on local lights considered for the shadow atlas before tile budgeting.
         [Range(1, 64)]
         public int maxShadowedLocalLights = 16;
+        // Directional cascades used (1-4); the atlas keeps the 2x2 layout.
+        [Range(1, 4)]
+        public int cascadeCount = 4;
+        // Fraction of each cascade, at its outer edge, blended into the next cascade.
+        [Range(0.0f, 0.5f)]
+        public float cascadeBlendWidth = 0.1f;
+        // Shadow filtering quality: Low..Ultra pick QualityPresets.ShadowFilter; Custom uses customShadowFilter.
+        public EQualityLevel shadowFilterQuality = EQualityLevel.Medium;
+        public FShadowFilterSettings customShadowFilter = QualityPresets.ShadowFilter[(int)EQualityLevel.Medium];
+
+        public FShadowFilterSettings ResolveShadowFilter() => shadowFilterQuality == EQualityLevel.Custom
+            ? customShadowFilter
+            : QualityPresets.Select(QualityPresets.ShadowFilter, shadowFilterQuality);
 
         [SerializeField] Shader m_DefaultShader;
         [SerializeField] Material m_DefaultMaterial;

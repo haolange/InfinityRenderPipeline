@@ -46,7 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
             int cascadeLight = allocator.CascadeVisibleLightIndex;
             if (cascadeLight >= 0)
             {
-                for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
+                for (int cascade = 0; cascade < allocator.ActiveCascadeCount; ++cascade)
                 {
                     FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                     if (!slice.valid)
@@ -66,7 +66,7 @@ namespace InfinityTech.Rendering.Pipeline
                     continue;
                 }
 
-                RecordShadowCasterSplit(local.visibleLightIndex, local.face, local.splitData, BatchCullingProjectionType.Perspective);
+                RecordShadowCasterSplit(local.visibleLightIndex, local.face, local.splitData, local.projectionType);
             }
         }
 

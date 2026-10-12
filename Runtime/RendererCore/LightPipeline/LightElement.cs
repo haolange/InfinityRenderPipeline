@@ -200,19 +200,19 @@ namespace InfinityTech.Rendering.LightPipeline
             record.flags = flags;
 
             EShadowFilter filter = ext != null ? ext.shadowFilter : (light.shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF);
-            // TODO: PCSS / VSM / EVSM sampling lands in 0.5.0 S9; until then they sample as PCF.
-            record.shadowFilter = filter == EShadowFilter.Hard ? (int)EShadowFilter.Hard : (int)EShadowFilter.PCF;
+            // TODO: VSM / EVSM moment sampling lands with the moment atlas (0.5.0 S9); until then they sample as PCF.
+            record.shadowFilter = filter == EShadowFilter.VSM || filter == EShadowFilter.EVSM ? (int)EShadowFilter.PCF : (int)filter;
             return true;
         }
 
-        // Shadow-map slices a local light needs: 6 cube faces for point / sphere / tube, 1 for cone spots. Pyramid,
-        // box, rect and disk shadows land in 0.5.0 S9.
+        // Shadow-map slices a local light needs: 6 cube faces for point / sphere / line / tube lights, one tile for
+        // cone, pyramid and box spots, rects and disks; directional lights use the cascades.
         public static int LocalShadowSliceCount(in FLightRecord record)
         {
             int flags = record.flags;
-            if ((flags & (FLightRecordFlags.Directional | FLightRecordFlags.Planar | FLightRecordFlags.SpotPyramid | FLightRecordFlags.SpotBox)) != 0)
+            if ((flags & FLightRecordFlags.Directional) != 0)
                 return 0;
-            return (flags & FLightRecordFlags.SpotCone) != 0 ? 1 : 6;
+            return (flags & (FLightRecordFlags.SpotCone | FLightRecordFlags.SpotPyramid | FLightRecordFlags.SpotBox | FLightRecordFlags.Planar)) != 0 ? 1 : 6;
         }
 
         public static bool IsConeSpot(in FLightRecord record) => (record.flags & FLightRecordFlags.SpotCone) != 0;

@@ -19,6 +19,12 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int CascadeSplitDistancesID = Shader.PropertyToID("_CascadeSplitDistances");
         internal static int ShadowDistanceID = Shader.PropertyToID("_ShadowDistance");
         internal static int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
+        internal static readonly int CascadeShadowParamsID = Shader.PropertyToID("_CascadeShadowParams");
+        internal static readonly int ShadowFilterParamsID = Shader.PropertyToID("_ShadowFilterParams");
+
+        // _ShadowFilterParams of ShadowSampling.hlsl.
+        internal static Vector4 FilterParams(in FShadowFilterSettings settings) =>
+            new Vector4(settings.pcfRadius, settings.pcssBlockerSamples, settings.pcssFilterSamples, settings.pcssMaxPenumbra);
     }
 
     public partial class InfinityRenderPipeline

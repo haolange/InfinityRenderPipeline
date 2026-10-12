@@ -29,6 +29,10 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_ShadowDistance;
         SerializedProperty m_CascadeSplitRatios;
         SerializedProperty m_MaxShadowedLocalLights;
+        SerializedProperty m_CascadeCount;
+        SerializedProperty m_CascadeBlendWidth;
+        SerializedProperty m_ShadowFilterQuality;
+        SerializedProperty m_CustomShadowFilter;
         SerializedProperty m_DefaultShader;
         SerializedProperty m_DefaultMaterial;
         SerializedProperty m_DefaultParticleMaterial;
@@ -55,12 +59,71 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_ShadowDistance = serializedObject.FindProperty("shadowDistance");
             m_CascadeSplitRatios = serializedObject.FindProperty("cascadeSplitRatios");
             m_MaxShadowedLocalLights = serializedObject.FindProperty("maxShadowedLocalLights");
+            m_CascadeCount = serializedObject.FindProperty("cascadeCount");
+            m_CascadeBlendWidth = serializedObject.FindProperty("cascadeBlendWidth");
+            m_ShadowFilterQuality = serializedObject.FindProperty("shadowFilterQuality");
+            m_CustomShadowFilter = serializedObject.FindProperty("customShadowFilter");
             m_DefaultShader = serializedObject.FindProperty("m_DefaultShader");
             m_DefaultMaterial = serializedObject.FindProperty("m_DefaultMaterial");
             m_DefaultParticleMaterial = serializedObject.FindProperty("m_DefaultParticleMaterial");
             m_DefaultLineMaterial = serializedObject.FindProperty("m_DefaultLineMaterial");
             m_DefaultTerrainMaterial = serializedObject.FindProperty("m_DefaultTerrainMaterial");
             m_Default2DMaterial = serializedObject.FindProperty("m_Default2DMaterial");
+        }
+
+        // Filter quality follows the Quality preset pattern: Low..Ultra show the hardcoded preset read-only, Custom edits
+        // the asset's own copy.
+        void DrawShadowFilter()
+        {
+            EditorGUILayout.PropertyField(m_ShadowFilterQuality, new GUIContent("Shadow Filter Quality", "Low..Ultra select QualityPresets.ShadowFilter; Custom uses the values below."));
+            EQualityLevel level = (EQualityLevel)m_ShadowFilterQuality.enumValueIndex;
+            ++EditorGUI.indentLevel;
+            if (level == EQualityLevel.Custom || m_ShadowFilterQuality.hasMultipleDifferentValues)
+            {
+                foreach (SerializedProperty child in ChildProperties(m_CustomShadowFilter))
+                    EditorGUILayout.PropertyField(child);
+            }
+            else
+            {
+                FShadowFilterSettings preset = QualityPresets.Select(QualityPresets.ShadowFilter, level);
+                using (new EditorGUI.DisabledScope(true))
+                {
+                    EditorGUILayout.IntField("Pcf Radius", preset.pcfRadius);
+                    EditorGUILayout.IntField("Pcss Blocker Samples", preset.pcssBlockerSamples);
+                    EditorGUILayout.IntField("Pcss Filter Samples", preset.pcssFilterSamples);
+                    EditorGUILayout.FloatField("Pcss Max Penumbra", preset.pcssMaxPenumbra);
+                    EditorGUILayout.FloatField("Evsm Exponent", preset.evsmExponent);
+                    EditorGUILayout.FloatField("Light Bleeding Reduction", preset.lightBleedingReduction);
+                    EditorGUILayout.IntField("Moment Blur Radius", preset.momentBlurRadius);
+                }
+                if (GUILayout.Button("Copy Preset To Custom"))
+                {
+                    foreach (Object asset in targets)
+                    {
+                        if (asset is InfinityRenderPipelineAsset pipelineAsset)
+                        {
+                            Undo.RecordObject(pipelineAsset, "Copy Shadow Filter Preset");
+                            pipelineAsset.customShadowFilter = preset;
+                            pipelineAsset.shadowFilterQuality = EQualityLevel.Custom;
+                            EditorUtility.SetDirty(pipelineAsset);
+                        }
+                    }
+                    serializedObject.Update();
+                }
+            }
+            --EditorGUI.indentLevel;
+        }
+
+        static System.Collections.Generic.IEnumerable<SerializedProperty> ChildProperties(SerializedProperty parent)
+        {
+            SerializedProperty iterator = parent.Copy();
+            SerializedProperty end = parent.GetEndProperty();
+            bool enterChildren = true;
+            while (iterator.NextVisible(enterChildren) && !SerializedProperty.EqualContents(iterator, end))
+            {
+                enterChildren = false;
+                yield return iterator.Copy();
+            }
         }
 
         public override void OnInspectorGUI()
@@ -96,11 +159,14 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_CascadeShadowMapResolution, new GUIContent("Cascade Shadow Map Resolution"));
                 EditorGUILayout.PropertyField(m_LocalShadowMapResolution, new GUIContent("Local Shadow Map Resolution"));
                 EditorGUILayout.PropertyField(m_ShadowDistance, new GUIContent("Shadow Distance"));
-                EditorGUILayout.PropertyField(m_CascadeSplitRatios, new GUIContent("Cascade Splits", "Split positions as fractions of Shadow Distance; strictly increasing inside (0, 1)."));
+                EditorGUILayout.PropertyField(m_CascadeCount, new GUIContent("Cascade Count", "Directional shadow cascades (1-4)."));
+                EditorGUILayout.PropertyField(m_CascadeSplitRatios, new GUIContent("Cascade Splits", "Split positions as fractions of Shadow Distance; strictly increasing inside (0, 1). Only the first Cascade Count - 1 splits are used."));
                 Vector3 ratios = m_CascadeSplitRatios.vector3Value;
                 if (!(ratios.x > 0.0f && ratios.y > ratios.x && ratios.z > ratios.y && ratios.z < 1.0f))
                     EditorGUILayout.HelpBox("Cascade splits must be strictly increasing inside (0, 1). Rendering fails until this is fixed.", MessageType.Error);
+                EditorGUILayout.PropertyField(m_CascadeBlendWidth, new GUIContent("Cascade Blend Width", "Fraction of each cascade's depth range blended into the next cascade."));
                 EditorGUILayout.PropertyField(m_MaxShadowedLocalLights, new GUIContent("Max Shadowed Local Lights"));
+                DrawShadowFilter();
             }
             InfinityInspectorGUI.EndFoldout();
 
