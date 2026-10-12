@@ -31,11 +31,9 @@ namespace InfinityTech.Rendering.Pipeline
             public int cascadeCount, shadowmaskMode, hasProbes;
             public float shadowDistance;
             public bool directionalLightmap, shadowmask;
-            public RGBufferRef atmosphereSH, tileRange, tileList;
-            public RGBufferRef emptyTileRange, emptyTileList;
+            public RGBufferRef atmosphereSH;
             public RGBufferRef lightRecords;
-            public int directionalCount, localCount;
-            public bool hasLocalLights;
+            public FLightLoopInputs lightLoop;
             public float iblMaxMip;
 
             public readonly void BindLighting<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
@@ -57,23 +55,11 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetGlobalInt(Shader.PropertyToID("_InfinityShadowmaskMode"), shadowmaskMode);
                 commands.SetGlobalFloat(Shader.PropertyToID("_InfinityShadowDistance"), shadowDistance);
                 commands.SetGlobalInt(Shader.PropertyToID("_InfinityHasProbes"), hasProbes);
-                commands.SetGlobalInt(LightShaderIDs.DirectionalLightCount, directionalCount);
-                commands.SetGlobalInt(LightShaderIDs.LocalLightCount, localCount);
+                lightLoop.BindGlobal(commands);
                 commands.SetGlobalBuffer(LightShaderIDs.LightRecordBuffer, lightRecords);
                 commands.SetGlobalTexture(InfinityShaderIDs.AtmosphereGGXPrefilter, atmosphereGGX);
                 commands.SetGlobalBuffer(InfinityShaderIDs.AtmosphereSkySH, atmosphereSH);
                 commands.SetGlobalFloat(InfinityShaderIDs.AtmosphereIBLMaxMip, iblMaxMip);
-                commands.SetGlobalInt(LightShaderIDs.HasTileLightList, hasLocalLights ? 1 : 0);
-                if (hasLocalLights)
-                {
-                    commands.SetGlobalBuffer(ZBinningPassUtilityData.SRV_TileLightRangeID, tileRange);
-                    commands.SetGlobalBuffer(ZBinningPassUtilityData.SRV_TileLightListID, tileList);
-                }
-                else
-                {
-                    commands.SetGlobalBuffer(ZBinningPassUtilityData.SRV_TileLightRangeID, emptyTileRange);
-                    commands.SetGlobalBuffer(ZBinningPassUtilityData.SRV_TileLightListID, emptyTileList);
-                }
             }
         }
 
@@ -133,16 +119,10 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.iblMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(
                         AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).cubemapSize) - 1;
                     passData.lightRecords = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                    passData.directionalCount = renderContext.lightContext.DirectionalLightCount;
-                    passData.localCount = renderContext.lightContext.LocalLightCount;
-                    passData.hasLocalLights = renderContext.lightContext.HasZBinningLightList();
-                    if (passData.hasLocalLights)
-                    {
-                        passData.tileRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(InfinityShaderIDs.TileLightRangeBuffer));
-                        passData.tileList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(InfinityShaderIDs.TileLightListBuffer));
-                    }
-                    passData.emptyTileRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileRangeBuffer));
-                    passData.emptyTileList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileListBuffer));
+                    FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                    lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
+                    lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
+                    passData.lightLoop = lightLoop;
                 }
 
                 //Execute Phase

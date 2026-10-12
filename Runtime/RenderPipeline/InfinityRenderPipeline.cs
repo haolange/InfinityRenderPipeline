@@ -444,7 +444,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.shadowDistance = pipelineAsset.shadowDistance;
                                     shadowSettings.cascadeRatios = ShadowAllocator.ValidateCascadeRatios(pipelineAsset.cascadeSplitRatios);
                                     shadowSettings.maxLocalLights = Mathf.Clamp(pipelineAsset.maxShadowedLocalLights, 1, 64);
-                                    renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings);
+                                    renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize);
                                     ConfigureContentFeatures(frameState);
                                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                                     lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
@@ -544,7 +544,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     // PHASE 2: depth-derived async. ZBin stays here so fog/deferred can consume it.
                                     ComputeHiZ(renderContext, camera);
                                     ComputeHalfResDownsample(renderContext, camera);
-                                    ComputeZBinningLightList(renderContext, camera);
+                                    ComputeLightTileMask(renderContext, camera);
 
                                     // PHASE 3: shadow raster (longest ROP window).
                                     // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs.
@@ -1161,7 +1161,7 @@ namespace InfinityTech.Rendering.Pipeline
         void ConfigureContentFeatures(CameraFrameState frameState)
         {
             FrameFeatureSet features = frameState.features;
-            if (renderContext.lightContext.HasZBinningLightList())
+            if (renderContext.lightContext.HasLocalLightList())
             {
                 features.Request(EFrameFeature.LocalLightList);
             }

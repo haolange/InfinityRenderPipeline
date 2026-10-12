@@ -15,6 +15,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   pyramid and box spots; rect with barn doors; disk) with the native Light fields derived on edit, a lightmapper
   delegate that bakes the same shapes, per-light shadow filter selection and Maximum Distance culling with fade.
 - Light record v2 (`Shaders/ShaderLibrary/Lighting/LightRecord.hlsl`): no shape enum, shapes are flags plus parameters.
+- Clustered light list v2: CPU depth sort, logarithmic z-bins and conservative tile rectangles, GPU tile bitmasks and
+  one shared light loop (`Lighting/LightLoop.hlsl`) for Deferred, Forward, fog and clouds. Forward now uses the list
+  instead of looping every local light. Contact shadows follow the sun record instead of record 0.
 - RuntimeTextures: the three blue-noise Sobol textures (imported uncompressed, single channel).
 
 ### Changed
@@ -32,6 +35,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Screen Space Reflection parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
   `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; `VarianceEstimator.hlsl` and the
   unreferenced `Compute_SpatialTemporalVarianceFilter.compute`.
+- The z-binning compute (`Compute_ZBinningLightList`), the ZBin overflow counter and its capture path
+  (`includeZBinOverflow`, counter readback).
 
 ## [0.4.0] - 2026-09-11
 

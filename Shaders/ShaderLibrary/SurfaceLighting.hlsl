@@ -76,7 +76,8 @@ float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 
 }
 
 
-float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, MicrofaceContext material, float4 mask, float viewDepth, uint layer)
+// Forward / translucent evaluation of every light that reaches positionSS (SV_Position.xy) at viewDepth.
+float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, MicrofaceContext material, float4 mask, float viewDepth, uint layer, uint2 positionSS)
 {
     float3 direct = 0;
     for (int i = 0; i < g_DirectionalLightCount; i++)
@@ -84,9 +85,12 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
         FLightRecord light = g_LightRecordBuffer[i];
         if ((light.lightLayer & layer) != 0) direct += EvaluateDirectional(light, position, normal, view, material, 1, viewDepth, mask);
     }
-    for (int i = 0; i < g_LocalLightCount; i++)
+    FLightLoop lightLoop = BeginLightLoop(positionSS, viewDepth);
+    uint recordIndex;
+    [loop]
+    while (NextLight(lightLoop, recordIndex))
     {
-        FLightRecord light = g_LightRecordBuffer[g_DirectionalLightCount + i];
+        FLightRecord light = g_LightRecordBuffer[recordIndex];
         if ((light.lightLayer & layer) != 0) direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth);
     }
     return direct;

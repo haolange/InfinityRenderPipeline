@@ -110,3 +110,17 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 7. Sun direction is unchanged (directional lights now store the emission axis; contact shadows, fog and clouds read
    `-forward`).
 
+## S7 — clustered light list v2
+
+1. Compile; run `LightBinningTests`, `LightResourceLifetimeTests`, `LightRecordTests`. GlobalSettings → RuntimeShaders
+   shows `Light Tile Mask Shader` filled (the old `Z Binning Shader` slot is gone).
+2. `CreateLocalLightsValidationScene` (or any scene with many point / spot lights): lighting matches S6 in Deferred.
+   Forward-route materials now receive local lights through the list: compare a Forward and a Deferred sphere side by
+   side; they should match.
+3. Put the camera inside a point light's range: the light still lights everything (it covers every tile). Lights
+   behind the camera no longer light pixels in front (the old mirrored-tile bug).
+4. Far scenes: local lights 100 m+ away no longer flicker on and off between bins.
+5. Volumetric fog / clouds with local lights: same scattering as S6.
+6. Frame Debugger: `ComputeLightTileMask` replaces `ComputeZBinningLightList` (one dispatch); no ZBin overflow
+   capture remains.
+

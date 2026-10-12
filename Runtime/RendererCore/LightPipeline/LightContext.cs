@@ -18,46 +18,60 @@ namespace InfinityTech.Rendering.LightPipeline
         public static int LocalLightCount = Shader.PropertyToID("g_LocalLightCount");
         public static int SunRecordIndex = Shader.PropertyToID("g_SunRecordIndex");
         public static int LightRecordBuffer = Shader.PropertyToID("g_LightRecordBuffer");
-        public static int LightBoundsBuffer = Shader.PropertyToID("g_LightBoundsBuffer");
-        public static int SRV_LightBoundsBuffer = Shader.PropertyToID("SRV_LightBoundsBuffer");
         public static int LocalShadowMatrixBuffer = Shader.PropertyToID("SRV_LocalShadowMatrices");
         public static int LocalShadowRectBuffer = Shader.PropertyToID("SRV_LocalShadowRects");
         public static int LocalShadowSliceCount = Shader.PropertyToID("g_LocalShadowSliceCount");
-        public static readonly int EmptyTileRangeBuffer = Shader.PropertyToID("EmptyTileRangeBuffer");
-        public static readonly int EmptyTileListBuffer = Shader.PropertyToID("EmptyTileListBuffer");
-        public static readonly int EmptyZBinRangeBuffer = Shader.PropertyToID("EmptyZBinRangeBuffer");
-        public static readonly int EmptyZBinListBuffer = Shader.PropertyToID("EmptyZBinListBuffer");
-        public static readonly int ZBinOverflowBuffer = Shader.PropertyToID("ZBinOverflowBuffer");
-        public static int HasTileLightList = Shader.PropertyToID("g_HasTileLightList");
+        // Clustered light list (LightLoop.hlsl).
+        public static readonly int LightZBins = Shader.PropertyToID("SRV_LightZBins");
+        public static readonly int LightTileMasks = Shader.PropertyToID("SRV_LightTileMasks");
+        public static readonly int LightTileRects = Shader.PropertyToID("SRV_LightTileRects");
+        public static readonly int LightTileParams = Shader.PropertyToID("g_LightTileParams");
+        public static readonly int LightZBinParams = Shader.PropertyToID("g_LightZBinParams");
+        // Graph keys of the CPU-uploaded light-list buffers.
+        public static readonly int LightTileRectBuffer = Shader.PropertyToID("_LightTileRectBuffer");
+        public static readonly int LightZBinBuffer = Shader.PropertyToID("_LightZBinBuffer");
+        public static readonly int EmptyLightTileMaskBuffer = Shader.PropertyToID("_EmptyLightTileMaskBuffer");
     }
 
     internal class LightContext : IDisposable
     {
+        struct LocalCandidate
+        {
+            public FLightRecord record;
+            public float depth;
+            public int4 tileRect;
+        }
+
         int m_RecordCapacity;
-        int m_BoundsCapacity;
+        int m_RectCapacity;
         int m_LocalMatrixCapacity;
         int m_RecordStride;
-        int m_BoundsStride;
         int m_DirectionalCount;
         int m_LocalCount;
         int m_UnsupportedShapeCount;
         int m_DistanceCulledCount;
+        int m_OffscreenCount;
         int m_SunRecordIndex;
+        int2 m_ScreenSize;
+        Vector4 m_ZBinParams;
         GraphicsBuffer m_LightRecordBuffer;
-        GraphicsBuffer m_LightBoundsBuffer;
+        GraphicsBuffer m_TileRectBuffer;
+        GraphicsBuffer m_ZBinBuffer;
+        GraphicsBuffer m_EmptyTileMaskBuffer;
         GraphicsBuffer m_LocalShadowMatrixBuffer;
         GraphicsBuffer m_LocalShadowRectBuffer;
-        GraphicsBuffer m_ZBinOverflowBuffer;
-        GraphicsBuffer m_EmptyTileRangeBuffer;
-        GraphicsBuffer m_EmptyTileListBuffer;
-        GraphicsBuffer m_EmptyZBinRangeBuffer;
-        GraphicsBuffer m_EmptyZBinListBuffer;
         NativeList<FLightRecord> m_Records;
-        NativeList<FLightBounds> m_LocalBounds;
+        NativeList<int4> m_TileRects;
+        NativeArray<uint> m_ZBins;
+        readonly List<LocalCandidate> m_LocalCandidates = new List<LocalCandidate>();
         readonly ShadowAllocator m_ShadowAllocator;
         readonly List<GraphicsBuffer> m_RetiredBuffers = new List<GraphicsBuffer>();
-        static readonly uint[] s_EmptyData = new uint[1];
-        static readonly uint2[] s_EmptyRange = new uint2[1];
+        static readonly uint[] s_EmptyMask = new uint[1];
+        static readonly Comparison<LocalCandidate> s_ByDepth = (a, b) =>
+        {
+            int cmp = a.depth.CompareTo(b.depth);
+            return cmp != 0 ? cmp : a.record.visibleLightIndex.CompareTo(b.record.visibleLightIndex);
+        };
         internal int RetiredBufferCount => m_RetiredBuffers.Count;
 
         internal void FlushRetiredBuffers()
@@ -76,21 +90,18 @@ namespace InfinityTech.Rendering.LightPipeline
         internal LightContext()
         {
             m_RecordStride = Marshal.SizeOf<FLightRecord>();
-            m_BoundsStride = Marshal.SizeOf<FLightBounds>();
             m_RecordCapacity = 1;
-            m_BoundsCapacity = 1;
+            m_RectCapacity = 1;
             m_LocalMatrixCapacity = 1;
             m_LightRecordBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_RecordCapacity, m_RecordStride);
-            m_LightBoundsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_BoundsCapacity, m_BoundsStride);
+            m_TileRectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_RectCapacity, 16);
+            m_ZBinBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, LightBinning.ZBinCount, sizeof(uint));
+            m_EmptyTileMaskBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             m_LocalShadowMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, 64);
             m_LocalShadowRectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, 16);
-            m_ZBinOverflowBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured | GraphicsBuffer.Target.CopySource, 1, sizeof(uint));
-            m_EmptyTileRangeBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint) * 2);
-            m_EmptyTileListBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
-            m_EmptyZBinRangeBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint) * 2);
-            m_EmptyZBinListBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             m_Records = new NativeList<FLightRecord>(8, Allocator.Persistent);
-            m_LocalBounds = new NativeList<FLightBounds>(8, Allocator.Persistent);
+            m_TileRects = new NativeList<int4>(8, Allocator.Persistent);
+            m_ZBins = new NativeArray<uint>(LightBinning.ZBinCount, Allocator.Persistent);
             m_ShadowAllocator = new ShadowAllocator();
             m_SunRecordIndex = -1;
         }
@@ -102,147 +113,158 @@ namespace InfinityTech.Rendering.LightPipeline
         internal int UnsupportedShapeCount => m_UnsupportedShapeCount;
         // Local lights culled this camera by their Maximum Distance.
         internal int DistanceCulledCount => m_DistanceCulledCount;
+        // Local lights Unity reported visible whose bounds project outside the screen.
+        internal int OffscreenCount => m_OffscreenCount;
         internal int SunRecordIndex => m_SunRecordIndex;
         internal int RecordCount => m_Records.Length;
+        internal int2 TileCount => LightBinning.TileCount(m_ScreenSize);
+        internal int TileWordCount => LightBinning.WordCount(m_LocalCount);
+        // x, y = screen size the tiles cover; z = tiles per row; w = mask words per tile.
+        internal Vector4 TileParams => new Vector4(m_ScreenSize.x, m_ScreenSize.y, TileCount.x, TileWordCount);
+        internal Vector4 ZBinParams => m_ZBinParams;
         internal GraphicsBuffer LightRecordBuffer => m_LightRecordBuffer;
-        internal GraphicsBuffer LightBoundsBuffer => m_LightBoundsBuffer;
+        internal GraphicsBuffer TileRectBuffer => m_TileRectBuffer;
+        internal GraphicsBuffer ZBinBuffer => m_ZBinBuffer;
+        internal GraphicsBuffer EmptyTileMaskBuffer => m_EmptyTileMaskBuffer;
         internal GraphicsBuffer LocalShadowMatrixBuffer => m_LocalShadowMatrixBuffer;
         internal GraphicsBuffer LocalShadowRectBuffer => m_LocalShadowRectBuffer;
-        internal GraphicsBuffer ZBinOverflowBuffer => m_ZBinOverflowBuffer;
-        internal GraphicsBuffer EmptyTileRangeBuffer => m_EmptyTileRangeBuffer;
-        internal GraphicsBuffer EmptyTileListBuffer => m_EmptyTileListBuffer;
-        internal GraphicsBuffer EmptyZBinRangeBuffer => m_EmptyZBinRangeBuffer;
-        internal GraphicsBuffer EmptyZBinListBuffer => m_EmptyZBinListBuffer;
         internal ShadowAllocator ShadowAllocator => m_ShadowAllocator;
+        internal NativeArray<uint> ZBins => m_ZBins;
 
-        internal static bool HasZBinningLightList(int localLightCount)
+        internal static bool HasLocalLightList(int localLightCount)
         {
             return localLightCount > 0;
         }
 
-        internal bool HasZBinningLightList()
+        internal bool HasLocalLightList()
         {
-            return HasZBinningLightList(m_LocalCount);
+            return HasLocalLightList(m_LocalCount);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {
             m_Records.Clear();
-            m_LocalBounds.Clear();
+            m_TileRects.Clear();
+            m_LocalCandidates.Clear();
             m_DirectionalCount = 0;
             m_LocalCount = 0;
             m_UnsupportedShapeCount = 0;
             m_DistanceCulledCount = 0;
+            m_OffscreenCount = 0;
             m_SunRecordIndex = -1;
             m_ShadowAllocator.Reset();
         }
 
+        // Per camera: collect -> sort local lights by view depth -> z-bins and tile rectangles -> shadow allocation.
+        // Light-list indices are record indices of this camera; nothing here is keyed across frames.
         internal void Build(
             in CullingResults cullingResults,
             Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup,
             Camera camera,
-            in FShadowAllocatorSettings settings)
+            in FShadowAllocatorSettings settings,
+            int2 screenSize)
         {
             Clear();
+            m_ScreenSize = math.max(screenSize, new int2(1, 1));
 
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
             Light sun = RenderSettings.sun;
             Vector3 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
-
-            for (int pass = 0; pass < 2; ++pass)
-            {
-                bool wantDirectional = pass == 0;
-                for (int i = 0; i < visibleLights.Length; ++i)
-                {
-                    VisibleLight visible = visibleLights[i];
-                    Light light = visible.light;
-                    if (light == null || !light.enabled)
-                    {
-                        continue;
-                    }
-
-                    if (!LightShapeUtility.IsSupportedNativeType(visible.lightType))
-                    {
-                        if (wantDirectional) m_UnsupportedShapeCount++;
-                        continue;
-                    }
-
-                    InfinityAdditionalLightData ext = null;
-                    if (worldLightLookup != null)
-                    {
-                        worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext);
-                    }
-
-                    if (ext == null)
-                    {
-                        light.TryGetComponent(out ext);
-                    }
-
-                    FLightShape shape = FLightRecordPack.ResolveShape(light, ext);
-                    bool isDirectional = shape.type == EInfinityLightType.Directional;
-                    if (isDirectional != wantDirectional)
-                    {
-                        continue;
-                    }
-
-                    if (!FLightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out FLightRecord record))
-                    {
-                        if (LightShapeUtility.IsValid(shape)) m_DistanceCulledCount++;
-                        else m_UnsupportedShapeCount++;
-                        continue;
-                    }
-
-                    if (sun != null && light == sun)
-                    {
-                        m_SunRecordIndex = m_Records.Length;
-                    }
-
-                    m_Records.Add(record);
-                    if (isDirectional)
-                    {
-                        m_DirectionalCount++;
-                    }
-                    else
-                    {
-                        m_LocalCount++;
-                    }
-                }
-            }
-
-            if (m_SunRecordIndex < 0)
-            {
-                for (int i = 0; i < m_Records.Length; ++i)
-                {
-                    if (m_Records[i].IsDirectional)
-                    {
-                        m_SunRecordIndex = i;
-                        break;
-                    }
-                }
-            }
-
-            m_ShadowAllocator.Allocate(m_Records, cullingResults, camera, settings);
-
             Matrix4x4 worldToView = camera != null ? camera.worldToCameraMatrix : Matrix4x4.identity;
-            for (int i = 0; i < m_Records.Length; ++i)
+            Matrix4x4 gpuProjection = camera != null ? GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) : Matrix4x4.identity;
+            bool orthographic = camera != null && camera.orthographic;
+            float near = camera != null ? camera.nearClipPlane : 0.1f;
+            float far = camera != null ? camera.farClipPlane : 1000.0f;
+            m_ZBinParams = LightBinning.ZBinParams(near, far, LightBinning.ZBinCount);
+
+            for (int i = 0; i < visibleLights.Length; ++i)
             {
-                FLightRecord record = m_Records[i];
-                if (record.IsDirectional)
+                VisibleLight visible = visibleLights[i];
+                Light light = visible.light;
+                if (light == null || !light.enabled)
                 {
                     continue;
                 }
 
-                m_LocalBounds.Add(FLightRecordPack.LocalBounds(record, worldToView));
+                if (!LightShapeUtility.IsSupportedNativeType(visible.lightType))
+                {
+                    m_UnsupportedShapeCount++;
+                    continue;
+                }
+
+                InfinityAdditionalLightData ext = null;
+                if (worldLightLookup != null)
+                {
+                    worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext);
+                }
+
+                if (ext == null)
+                {
+                    light.TryGetComponent(out ext);
+                }
+
+                FLightShape shape = FLightRecordPack.ResolveShape(light, ext);
+                if (!FLightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out FLightRecord record))
+                {
+                    if (LightShapeUtility.IsValid(shape)) m_DistanceCulledCount++;
+                    else m_UnsupportedShapeCount++;
+                    continue;
+                }
+
+                if (record.IsDirectional)
+                {
+                    if (sun != null && light == sun)
+                    {
+                        m_SunRecordIndex = m_Records.Length;
+                    }
+                    m_Records.Add(record);
+                    m_DirectionalCount++;
+                    continue;
+                }
+
+                Vector3 centerVS = worldToView.MultiplyPoint3x4(new Vector3(record.positionRange.x, record.positionRange.y, record.positionRange.z));
+                float radius = math.max(record.positionRange.w, 0.01f);
+                if (!LightBinning.TryComputeTileRect(centerVS, radius, gpuProjection, orthographic, near, m_ScreenSize, out int4 rect))
+                {
+                    m_OffscreenCount++;
+                    continue;
+                }
+                m_LocalCandidates.Add(new LocalCandidate { record = record, depth = -centerVS.z, tileRect = rect });
             }
 
-            EnsureCapacity(m_Records.Length, m_LocalBounds.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
+            if (m_LocalCandidates.Count > LightBinning.MaxLocalLights)
+            {
+                throw new InvalidOperationException($"InfinityRP: {m_LocalCandidates.Count} visible local lights exceed the light-list limit of {LightBinning.MaxLocalLights}.");
+            }
+
+            m_LocalCandidates.Sort(s_ByDepth);
+            var depthRanges = new NativeArray<float2>(math.max(1, m_LocalCandidates.Count), Allocator.Temp);
+            for (int i = 0; i < m_LocalCandidates.Count; ++i)
+            {
+                LocalCandidate candidate = m_LocalCandidates[i];
+                float radius = math.max(candidate.record.positionRange.w, 0.01f);
+                depthRanges[i] = new float2(math.max(candidate.depth - radius, near), math.max(candidate.depth + radius, near));
+                m_Records.Add(candidate.record);
+                m_TileRects.Add(candidate.tileRect);
+            }
+            m_LocalCount = m_LocalCandidates.Count;
+            LightBinning.BuildZBins(depthRanges, m_LocalCount, m_ZBinParams, m_ZBins);
+            depthRanges.Dispose();
+
+            if (m_SunRecordIndex < 0 && m_DirectionalCount > 0)
+            {
+                m_SunRecordIndex = 0;
+            }
+
+            m_ShadowAllocator.Allocate(m_Records, cullingResults, camera, settings);
+            EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
         }
 
-        internal void EnsureCapacity(int recordCount, int boundsCount, int localMatrixCount)
+        internal void EnsureCapacity(int recordCount, int rectCount, int localMatrixCount)
         {
             int records = math.max(1, recordCount);
-            int bounds = math.max(1, boundsCount);
+            int rects = math.max(1, rectCount);
             int matrices = math.max(1, localMatrixCount);
             if (m_LightRecordBuffer == null || m_RecordCapacity < records)
             {
@@ -250,10 +272,10 @@ namespace InfinityTech.Rendering.LightPipeline
                 m_RecordCapacity = records;
             }
 
-            if (m_LightBoundsBuffer == null || m_BoundsCapacity < bounds)
+            if (m_TileRectBuffer == null || m_RectCapacity < rects)
             {
-                ReplaceBuffer(ref m_LightBoundsBuffer, bounds, m_BoundsStride);
-                m_BoundsCapacity = bounds;
+                ReplaceBuffer(ref m_TileRectBuffer, rects, 16);
+                m_RectCapacity = rects;
             }
 
             if (m_LocalShadowMatrixBuffer == null || m_LocalMatrixCapacity < matrices)
@@ -270,16 +292,16 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        internal void RequireCapacity(int recordCount, int boundsCount, int localMatrixCount)
+        internal void RequireCapacity(int recordCount, int rectCount, int localMatrixCount)
         {
             if (m_LightRecordBuffer == null || m_RecordCapacity < math.max(1, recordCount))
             {
                 throw new InvalidOperationException("InfinityRP: Light record buffer capacity was not ensured before upload.");
             }
 
-            if (m_LightBoundsBuffer == null || m_BoundsCapacity < math.max(1, boundsCount))
+            if (m_TileRectBuffer == null || m_RectCapacity < math.max(1, rectCount))
             {
-                throw new InvalidOperationException("InfinityRP: Light bounds buffer capacity was not ensured before upload.");
+                throw new InvalidOperationException("InfinityRP: Light tile rectangle buffer capacity was not ensured before upload.");
             }
 
             if (m_LocalShadowMatrixBuffer == null || m_LocalMatrixCapacity < math.max(1, localMatrixCount))
@@ -291,17 +313,19 @@ namespace InfinityTech.Rendering.LightPipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Upload<TCommands>(in TCommands cmdBuffer) where TCommands : struct, ITransferCommands
         {
-            RequireCapacity(m_Records.Length, m_LocalBounds.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
+            RequireCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
 
             if (m_Records.Length > 0)
             {
                 cmdBuffer.SetBufferData(m_LightRecordBuffer, m_Records.AsArray());
             }
 
-            if (m_LocalBounds.Length > 0)
+            if (m_TileRects.Length > 0)
             {
-                cmdBuffer.SetBufferData(m_LightBoundsBuffer, m_LocalBounds.AsArray());
+                cmdBuffer.SetBufferData(m_TileRectBuffer, m_TileRects.AsArray());
             }
+
+            cmdBuffer.SetBufferData(m_ZBinBuffer, m_ZBins);
 
             if (m_ShadowAllocator.LocalSliceCount > 0)
             {
@@ -309,10 +333,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 cmdBuffer.SetBufferData(m_LocalShadowRectBuffer, m_ShadowAllocator.LocalUVRects, 0, 0, m_ShadowAllocator.LocalSliceCount);
             }
 
-            cmdBuffer.SetBufferData(m_EmptyTileRangeBuffer, s_EmptyRange, 0, 0, 1);
-            cmdBuffer.SetBufferData(m_EmptyTileListBuffer, s_EmptyData, 0, 0, 1);
-            cmdBuffer.SetBufferData(m_EmptyZBinRangeBuffer, s_EmptyRange, 0, 0, 1);
-            cmdBuffer.SetBufferData(m_EmptyZBinListBuffer, s_EmptyData, 0, 0, 1);
+            cmdBuffer.SetBufferData(m_EmptyTileMaskBuffer, s_EmptyMask, 0, 0, 1);
         }
 
         internal bool TryGetSunRecord(out FLightRecord record)
@@ -333,7 +354,8 @@ namespace InfinityTech.Rendering.LightPipeline
             builder.Append("directional=").Append(m_DirectionalCount);
             builder.Append(" local=").Append(m_LocalCount);
             builder.Append(" records=").Append(m_Records.Length);
-            builder.Append(" sunIndex=").Append(m_SunRecordIndex).AppendLine();
+            builder.Append(" sunIndex=").Append(m_SunRecordIndex);
+            builder.Append(" offscreen=").Append(m_OffscreenCount).AppendLine();
             builder.Append("cascadeAllocated=").Append(m_ShadowAllocator.CascadeAllocatedCount);
             builder.Append(" cascadeVisible=").Append(m_ShadowAllocator.CascadeVisibleLightIndex);
             builder.Append(" localSlices=").Append(m_ShadowAllocator.LocalSliceCount).AppendLine();
@@ -383,23 +405,14 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             FlushRetiredBuffers();
             m_LightRecordBuffer?.Release();
-            m_LightBoundsBuffer?.Release();
+            m_TileRectBuffer?.Release();
+            m_ZBinBuffer?.Release();
+            m_EmptyTileMaskBuffer?.Release();
             m_LocalShadowMatrixBuffer?.Release();
             m_LocalShadowRectBuffer?.Release();
-            m_ZBinOverflowBuffer?.Release();
-            m_EmptyTileRangeBuffer?.Release();
-            m_EmptyTileListBuffer?.Release();
-            m_EmptyZBinRangeBuffer?.Release();
-            m_EmptyZBinListBuffer?.Release();
-            if (m_Records.IsCreated)
-            {
-                m_Records.Dispose();
-            }
-
-            if (m_LocalBounds.IsCreated)
-            {
-                m_LocalBounds.Dispose();
-            }
+            if (m_Records.IsCreated) m_Records.Dispose();
+            if (m_TileRects.IsCreated) m_TileRects.Dispose();
+            if (m_ZBins.IsCreated) m_ZBins.Dispose();
         }
     }
 }

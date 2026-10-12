@@ -3,27 +3,17 @@
 
 #include "Lighting/LightRecord.hlsl"
 
-// First g_DirectionalLightCount records are directional; the remaining g_LocalLightCount are local. Light-list
-// indices are absolute record indices.
-struct FLightBounds
-{
-    float4 centerRadius;
-    float4 zRange;
-};
-
+// First g_DirectionalLightCount records are directional; the remaining g_LocalLightCount are local, sorted by view
+// depth. Light-list indices are absolute record indices.
 int g_DirectionalLightCount;
 int g_LocalLightCount;
-int g_HasTileLightList;
 int g_SunRecordIndex;
 int g_LocalShadowSliceCount;
 StructuredBuffer<FLightRecord> g_LightRecordBuffer;
-StructuredBuffer<FLightBounds> g_LightBoundsBuffer;
 StructuredBuffer<float4x4> SRV_LocalShadowMatrices;
 StructuredBuffer<float4> SRV_LocalShadowRects;
-StructuredBuffer<uint2> SRV_TileLightRange;
-StructuredBuffer<uint> SRV_TileLightList;
-StructuredBuffer<uint2> SRV_ZBinRange;
-StructuredBuffer<uint> SRV_ZBinLightList;
+
+#include "Lighting/LightLoop.hlsl"
 
 // Half extents of a planar emitter. A disk is shaded as the square of equal area until the disk evaluation lands
 // (0.5.0 S8).

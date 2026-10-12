@@ -12,7 +12,6 @@ namespace InfinityTech.Rendering.Pipeline
     {
         internal static string TextureName = "LightingTexture";
         internal static int DeferredShading_ResolutionID = Shader.PropertyToID("DeferredShading_Resolution");
-        internal static int DeferredShading_TileSizeID = Shader.PropertyToID("DeferredShading_TileSize");
         internal static int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
         internal static int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
         internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
@@ -25,15 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_LocalShadowMapID = Shader.PropertyToID("SRV_LocalShadowMap");
         internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
         internal static int DeferredShading_FarDepthID = Shader.PropertyToID("DeferredShading_FarDepth");
-        internal static int DeferredShading_HasTileListID = Shader.PropertyToID("DeferredShading_HasTileList");
-        internal static int DeferredShading_NumTilesXID = Shader.PropertyToID("DeferredShading_NumTilesX");
-        internal static int DeferredShading_NumBinsID = Shader.PropertyToID("DeferredShading_NumBins");
-        internal static int DeferredShading_NearFarID = Shader.PropertyToID("DeferredShading_NearFar");
         internal static int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
-        internal static int SRV_TileLightRangeID = Shader.PropertyToID("SRV_TileLightRange");
-        internal static int SRV_TileLightListID = Shader.PropertyToID("SRV_TileLightList");
-        internal static int SRV_ZBinRangeID = Shader.PropertyToID("SRV_ZBinRange");
-        internal static int SRV_ZBinLightListID = Shader.PropertyToID("SRV_ZBinLightList");
         internal static int SRV_LocalShadowMatricesID = Shader.PropertyToID("SRV_LocalShadowMatrices");
         internal static int SRV_LocalShadowRectsID = Shader.PropertyToID("SRV_LocalShadowRects");
     }
@@ -43,25 +34,16 @@ namespace InfinityTech.Rendering.Pipeline
         struct DeferredShadingPassData
         {
             public int tileSize;
+            public FLightLoopInputs lightLoop;
             public int2 resolution;
-            public int numTilesX;
-            public int hasTileList;
-            public float nearPlane;
-            public float farPlane;
             public Matrix4x4 matrix_InvProj;
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public int hasAO;
             public int hasContactShadow;
-            public int directionalLightCount;
-            public int localLightCount;
             public RGBufferRef lightRecordBuffer;
             public RGBufferRef localShadowMatrixBuffer;
             public RGBufferRef localShadowRectBuffer;
-            public RGBufferRef emptyTileRange;
-            public RGBufferRef emptyTileList;
-            public RGBufferRef emptyZBinRange;
-            public RGBufferRef emptyZBinList;
             public int cascadeCount;
             public Matrix4x4[] cascadeMatrices;
             public Vector4[] cascadeSpheres;
@@ -83,10 +65,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef atmosphereGGXPrefilter;
             public RGBufferRef atmosphereSkySH;
             public float atmosphereIBLMaxMip;
-            public RGBufferRef tileRange;
-            public RGBufferRef tileList;
-            public RGBufferRef zBinRange;
-            public RGBufferRef zBinList;
         }
 
         void ComputeDeferredShading(RenderContext renderContext, Camera camera)
@@ -125,15 +103,6 @@ namespace InfinityTech.Rendering.Pipeline
             AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
             atmosphereParameter.ThrowIfInvalid();
 
-            RGBufferRef tileRange = default;
-            RGBufferRef tileList = default;
-            RGBufferRef zBinRange = default;
-            RGBufferRef zBinList = default;
-            bool hasTileList =
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.TileLightRangeBuffer, out tileRange) &&
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.TileLightListBuffer, out tileList) &&
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.ZBinRangeBuffer, out zBinRange) &&
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.ZBinLightListBuffer, out zBinList);
 
             var indirectDescriptor = new TextureDescriptor(width, height)
             { name = "IndirectDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = true };
@@ -152,24 +121,18 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.shadowDistance = pipelineAsset.shadowDistance;
                 passData.tileSize = tileSize;
                 passData.resolution = new int2(width, height);
-                passData.numTilesX = Mathf.CeilToInt((float)width / tileSize);
-                passData.hasTileList = hasTileList ? 1 : 0;
-                passData.nearPlane = camera.nearClipPlane;
-                passData.farPlane = camera.farClipPlane;
                 passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
-                passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
-                passData.localLightCount = renderContext.lightContext.LocalLightCount;
+                FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
+                lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
+                passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.localShadowMatrixBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer));
                 passData.localShadowRectBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer));
-                passData.emptyTileRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileRangeBuffer));
-                passData.emptyTileList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileListBuffer));
-                passData.emptyZBinRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinRangeBuffer));
-                passData.emptyZBinList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinListBuffer));
                 passData.cascadeCount = m_ActiveCascadeCount;
                 passData.cascadeMatrices = (Matrix4x4[])m_ActiveCascadeMatrices.Clone();
                 passData.cascadeSpheres = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeSpheres.Clone();
@@ -198,13 +161,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.atmosphereGGXPrefilter = passRef.ReadTexture(atmosphereGGXPrefilter);
                 passData.atmosphereSkySH = passRef.ReadBuffer(atmosphereSkySH);
                 passData.atmosphereIBLMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(atmosphereParameter.cubemapSize) - 1;
-                if (hasTileList)
-                {
-                    passData.tileRange = passRef.ReadBuffer(tileRange);
-                    passData.tileList = passRef.ReadBuffer(tileList);
-                    passData.zBinRange = passRef.ReadBuffer(zBinRange);
-                    passData.zBinList = passRef.ReadBuffer(zBinList);
-                }
 
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
@@ -217,17 +173,11 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, Shader.PropertyToID("_InfinityShadowmaskMode"), passData.shadowmaskMode);
                     cmdEncoder.SetComputeFloatParam(shader, Shader.PropertyToID("_InfinityShadowDistance"), passData.shadowDistance);
                     cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeIntParam(shader, DeferredShadingPassUtilityData.DeferredShading_TileSizeID, passData.tileSize);
                     cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsUtility.SampledFarDepth);
-                    cmdEncoder.SetComputeIntParam(shader, DeferredShadingPassUtilityData.DeferredShading_HasTileListID, passData.hasTileList);
-                    cmdEncoder.SetComputeIntParam(shader, DeferredShadingPassUtilityData.DeferredShading_NumTilesXID, passData.numTilesX);
-                    cmdEncoder.SetComputeIntParam(shader, DeferredShadingPassUtilityData.DeferredShading_NumBinsID, ZBinningPassUtilityData.NumBins);
-                    cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_NearFarID, new Vector4(passData.nearPlane, passData.farPlane, 0, 0));
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvProj"), passData.matrix_InvProj);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
-                    cmdEncoder.SetComputeIntParam(shader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
-                    cmdEncoder.SetComputeIntParam(shader, LightShaderIDs.LocalLightCount, passData.localLightCount);
+                    passData.lightLoop.Bind(cmdEncoder, shader, 0);
                     cmdEncoder.SetComputeBufferParam(shader, 0, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowMatricesID, passData.localShadowMatrixBuffer);
                     cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowRectsID, passData.localShadowRectBuffer);
@@ -257,21 +207,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, 0, InfinityShaderIDs.AtmosphereGGXPrefilter, passData.atmosphereGGXPrefilter);
                     cmdEncoder.SetComputeBufferParam(shader, 0, InfinityShaderIDs.AtmosphereSkySH, passData.atmosphereSkySH);
                     cmdEncoder.SetComputeFloatParam(shader, InfinityShaderIDs.AtmosphereIBLMaxMip, passData.atmosphereIBLMaxMip);
-
-                    if (passData.hasTileList != 0)
-                    {
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_TileLightRangeID, passData.tileRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_TileLightListID, passData.tileList);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_ZBinRangeID, passData.zBinRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_ZBinLightListID, passData.zBinList);
-                    }
-                    else
-                    {
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_TileLightRangeID, passData.emptyTileRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_TileLightListID, passData.emptyTileList);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_ZBinRangeID, passData.emptyZBinRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_ZBinLightListID, passData.emptyZBinList);
-                    }
 
                     cmdEncoder.DispatchCompute(shader, 0, Mathf.CeilToInt(passData.resolution.x / (float)passData.tileSize), Mathf.CeilToInt(passData.resolution.y / (float)passData.tileSize), 1);
                 });

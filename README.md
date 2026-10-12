@@ -18,7 +18,7 @@ passes, resources and features, with a modern feature baseline as the default de
 
 The pipeline currently records:
 
-- ThinGBuffer deferred shading plus a forward route, clustered (tile + z-bin) local lights
+- ThinGBuffer deferred shading plus a forward route, a clustered local-light list (logarithmic depth bins + tile bitmasks) shared by every lit pass
 - Mesh Drawing Pipeline: SoA `MeshScene`, RenderGraph DrawLists, CPU and GPU-indirect backends, GPU frustum culling
 - Cascade and local (spot, point 6-face) shadow atlases; contact shadows
 - Hillaire atmosphere LUTs with sky IBL (SH + GGX prefilter); volumetric fog and clouds

@@ -100,9 +100,9 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
 
     // Sample directional light direction
     float shadow = 1.0;
-    if (g_DirectionalLightCount > 0)
+    if (g_SunRecordIndex >= 0 && g_SunRecordIndex < g_DirectionalLightCount)
     {
-        FLightRecord dirLight = g_LightRecordBuffer[0];
+        FLightRecord dirLight = g_LightRecordBuffer[g_SunRecordIndex];
         if ((dirLight.flags & LIGHT_FLAG_CONTACT) != 0)
         {
             float3 lightDir = DirectionalLightL(dirLight);

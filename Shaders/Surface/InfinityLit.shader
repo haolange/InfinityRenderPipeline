@@ -460,7 +460,7 @@
 #endif
                 indirectDiffuse = float4(diffuse, 1);
                 indirectSpecular = float4(specular, 1);
-                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, asuint(unity_RenderingLayer.x))
+                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)In.vertexCS.xy)
                     + diffuse + specular + _EmissionColor.rgb, 1);
 			}
 			ENDHLSL

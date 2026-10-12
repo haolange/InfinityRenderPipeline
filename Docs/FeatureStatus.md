@@ -22,7 +22,7 @@ Columns:
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
 | Light shapes and record v2 (0.5.0) | Yes | Unverified-0.5 (shape, record layout) | Open | Open | None | Area shapes shade as punctual / equal-area square until S8 |
 | Lightmapper delegate (0.5.0) | Editor bakes | No | Open | — | None | |
-| Clustered lights (tile + z-bin) | Yes | Partial | Open | Open | macOS Metal | 0.5.0 S7 replaces it |
+| Clustered light list v2 (log z-bins + tile bitmasks, 0.5.0) | Yes | Unverified-0.5 (binning, rectangles) | Open | Open | None | Deferred, Forward, fog and clouds share LightLoop.hlsl |
 | Cascade + local shadows (PCF 3×3) | Yes | Partial | Open | Open | macOS Metal | 0.5.0 S9 replaces filtering |
 | Contact shadow (first directional light) | Yes | No | Open | Open | macOS Metal | 0.5.0 S10 replaces it |
 | Atmosphere LUTs + sky IBL | Yes | Yes (parameters, cache) | Open | Open | macOS Metal | |

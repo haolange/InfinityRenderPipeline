@@ -16,13 +16,11 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 pass.GetPassData<LightUploadPassData>().context = context;
                 m_RGScoper.RegisterBuffer(LightShaderIDs.LightRecordBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LightRecordBuffer, "LightRecordBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.LightBoundsBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LightBoundsBuffer, "LightBoundsBuffer")));
+                m_RGScoper.RegisterBuffer(LightShaderIDs.LightTileRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.TileRectBuffer, "LightTileRectBuffer")));
+                m_RGScoper.RegisterBuffer(LightShaderIDs.LightZBinBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ZBinBuffer, "LightZBinBuffer")));
+                m_RGScoper.RegisterBuffer(LightShaderIDs.EmptyLightTileMaskBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.EmptyTileMaskBuffer, "EmptyLightTileMaskBuffer")));
                 m_RGScoper.RegisterBuffer(LightShaderIDs.LocalShadowMatrixBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowMatrixBuffer, "LocalShadowMatrixBuffer")));
                 m_RGScoper.RegisterBuffer(LightShaderIDs.LocalShadowRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowRectBuffer, "LocalShadowRectBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.EmptyTileRangeBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.EmptyTileRangeBuffer, "EmptyTileRangeBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.EmptyTileListBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.EmptyTileListBuffer, "EmptyTileListBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.EmptyZBinRangeBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.EmptyZBinRangeBuffer, "EmptyZBinRangeBuffer")));
-                m_RGScoper.RegisterBuffer(LightShaderIDs.EmptyZBinListBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.EmptyZBinListBuffer, "EmptyZBinListBuffer")));
                 pass.SetExecuteFunc((in LightUploadPassData data, in RGTransferEncoder commands, RGObjectPool pool) => data.context.Upload(commands));
             }
         }

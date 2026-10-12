@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         RenderCascadeShadow,
         RenderLocalShadow,
         ComputeAtmosphericLUT,
-        ComputeZBinningLightList,
+        ComputeLightTileMask,
         ComputeGroundTruthOcclusion,
         ComputeRayTracedOcclusion,
         ComputeContactShadow,
@@ -122,18 +122,13 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey AtmosphereSkySH = new RGResourceKey("_AtmosphereSkySH");
         public static readonly RGResourceKey AtmosphereGGXPrefilter = new RGResourceKey("_AtmosphereGGXPrefilter");
         public static readonly int AtmosphereIBLMaxMip = Shader.PropertyToID("_AtmosphereIBLMaxMip");
-        public static readonly RGResourceKey ZBinLightListBuffer = new RGResourceKey("_ZBinLightListBuffer");
-        public static readonly RGResourceKey ZBinCountBuffer = new RGResourceKey("_ZBinCountBuffer");
-        public static readonly RGResourceKey ZBinRangeBuffer = new RGResourceKey("_ZBinRangeBuffer");
-        public static readonly RGResourceKey TileLightListBuffer = new RGResourceKey("_TileLightListBuffer");
-        public static readonly RGResourceKey TileLightCountBuffer = new RGResourceKey("_TileLightCountBuffer");
-        public static readonly RGResourceKey TileLightRangeBuffer = new RGResourceKey("_TileLightRangeBuffer");
         public static readonly RGResourceKey OcclusionBuffer = new RGResourceKey("_OcclusionTexture");
         public static readonly RGResourceKey OcclusionHalfBuffer = new RGResourceKey("_OcclusionHalfTexture");
         public static readonly RGResourceKey SpatialTempBuffer = new RGResourceKey("_SpatialTempTexture");
         public static readonly RGResourceKey HistoryOcclusionBuffer = new RGResourceKey("_HistoryOcclusionTexture");
         public static readonly RGResourceKey HistoryOcclusionDepthBuffer = new RGResourceKey("_HistoryOcclusionDepthTexture");
         public static readonly RGResourceKey ContactShadowBuffer = new RGResourceKey("_ContactShadowTexture");
+        public static readonly RGResourceKey LightTileMaskBuffer = new RGResourceKey("_LightTileMaskBuffer");
         public static readonly RGResourceKey SSRBuffer = new RGResourceKey("_SSRTexture");
         public static readonly RGResourceKey SSRRayHitBuffer = new RGResourceKey("_SSRRayHitTexture");
         public static readonly RGResourceKey SSRResolvedBuffer = new RGResourceKey("_SSRResolvedTexture");

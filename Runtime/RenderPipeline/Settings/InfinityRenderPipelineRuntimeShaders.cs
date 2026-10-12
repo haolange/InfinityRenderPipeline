@@ -41,8 +41,8 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/RenderingFeature/HalfResDownsample/Compute_HalfResDownsample.compute")]
         public ComputeShader halfResDownsampleShader;
 
-        [ResourcePath("Shaders/RenderingFeature/ZBinningLightList/Compute_ZBinningLightList.compute")]
-        public ComputeShader zBinningShader;
+        [ResourcePath("Shaders/RenderingFeature/LightTileMask/Compute_LightTileMask.compute")]
+        public ComputeShader lightTileMaskShader;
 
         [ResourcePath("Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute")]
         public ComputeShader contactShadowShader;

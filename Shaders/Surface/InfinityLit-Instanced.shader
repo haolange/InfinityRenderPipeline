@@ -409,7 +409,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #endif
                 indirectDiffuse = float4(diffuse, 1);
                 indirectSpecular = float4(specular, 1);
-                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, renderingLayerBuffer[In.PrimitiveId])
+                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, renderingLayerBuffer[In.PrimitiveId], (uint2)In.vertexCS.xy)
                     + diffuse + specular + _EmissionColor.rgb, 1);
 			}
 			ENDHLSL

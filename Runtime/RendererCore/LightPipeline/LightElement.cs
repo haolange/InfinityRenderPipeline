@@ -74,16 +74,6 @@ namespace InfinityTech.Rendering.LightPipeline
         public bool IsDirectional => (flags & FLightRecordFlags.Directional) != 0;
     }
 
-    /// <summary>
-    /// Local-light bounds uploaded as SRV_LightBoundsBuffer (one entry per local record, same order).
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct FLightBounds
-    {
-        public Vector4 centerRadius;
-        public Vector4 zRange;
-    }
-
     public static class FLightRecordPack
     {
         public static Vector4 Radiance(Color color, float intensity)
@@ -226,18 +216,5 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         public static bool IsConeSpot(in FLightRecord record) => (record.flags & FLightRecordFlags.SpotCone) != 0;
-
-        public static FLightBounds LocalBounds(in FLightRecord record, Matrix4x4 worldToView)
-        {
-            Vector3 center = new Vector3(record.positionRange.x, record.positionRange.y, record.positionRange.z);
-            float range = Mathf.Max(record.positionRange.w, 0.01f);
-            Vector3 view = worldToView.MultiplyPoint3x4(center);
-            float viewZ = -view.z;
-            FLightBounds bounds;
-            bounds.centerRadius = new Vector4(center.x, center.y, center.z, range);
-            bounds.zRange = new Vector4(viewZ - range, viewZ + range, 0.0f, 0.0f);
-            return bounds;
-        }
-
     }
 }

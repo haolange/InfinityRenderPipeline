@@ -92,11 +92,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void HasZBinningLightList_TrueWhenLocalCountPositive()
+        public void HasLocalLightList_TrueWhenLocalCountPositive()
         {
-            Assert.IsFalse(LightContext.HasZBinningLightList(0));
-            Assert.IsTrue(LightContext.HasZBinningLightList(1));
-            Assert.IsTrue(LightContext.HasZBinningLightList(3));
+            Assert.IsFalse(LightContext.HasLocalLightList(0));
+            Assert.IsTrue(LightContext.HasLocalLightList(1));
+            Assert.IsTrue(LightContext.HasLocalLightList(3));
         }
 
         [Test]

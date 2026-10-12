@@ -22,10 +22,6 @@ float VolCloud_TemporalWeight;
 int VolCloud_FrameIndex;
 float VolCloud_PlanetRadius;
 float VolCloud_AtmosphereHeight;
-int VolCloud_HasTileList;
-int VolCloud_NumTilesX;
-int VolCloud_NumBins;
-float4 VolCloud_NearFar;
 float4x4 Matrix_WorldToView;
 
 float4x4 Matrix_InvViewProj;
@@ -242,48 +238,13 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
             luminance += EvaluateCloudLight(g_LightRecordBuffer[d], samplePos, rayDir, density, normalizedHeight);
         }
 
-        if (g_LocalLightCount > 0)
+        float3 sampleViewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
+        FLightLoop lightLoop = BeginLightLoopUV(screenUV, -sampleViewPos.z);
+        uint recordIndex;
+        [loop]
+        while (NextLight(lightLoop, recordIndex))
         {
-            if (VolCloud_HasTileList != 0)
-            {
-                uint2 pixelCoord = uint2(screenUV * (VolCloud_Resolution.xy * 2.0));
-                uint2 tile = pixelCoord / 16u;
-                uint tileIndex = tile.y * (uint)VolCloud_NumTilesX + tile.x;
-                uint2 range = SRV_TileLightRange[tileIndex];
-                float3 viewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
-                float viewDepth = -viewPos.z;
-                float binT = saturate((viewDepth - VolCloud_NearFar.x) / max(VolCloud_NearFar.y - VolCloud_NearFar.x, 1e-4));
-                uint pixelBin = min((uint)(binT * VolCloud_NumBins), (uint)VolCloud_NumBins - 1);
-                uint2 zRange = SRV_ZBinRange[pixelBin];
-                [loop]
-                for (uint li = 0; li < range.y; ++li)
-                {
-                    uint lightIdx = SRV_TileLightList[range.x + li];
-                    bool inBin = false;
-                    [loop]
-                    for (uint zi = 0; zi < zRange.y; ++zi)
-                    {
-                        if (SRV_ZBinLightList[zRange.x + zi] == lightIdx)
-                        {
-                            inBin = true;
-                            break;
-                        }
-                    }
-                    if (!inBin && zRange.y > 0)
-                    {
-                        continue;
-                    }
-                    luminance += EvaluateCloudLight(g_LightRecordBuffer[lightIdx], samplePos, rayDir, density, normalizedHeight);
-                }
-            }
-            else
-            {
-                [loop]
-                for (int l = 0; l < g_LocalLightCount; ++l)
-                {
-                    luminance += EvaluateCloudLight(g_LightRecordBuffer[g_DirectionalLightCount + l], samplePos, rayDir, density, normalizedHeight);
-                }
-            }
+            luminance += EvaluateCloudLight(g_LightRecordBuffer[recordIndex], samplePos, rayDir, density, normalizedHeight);
         }
 
         float sampleExtinction = density * 0.04;

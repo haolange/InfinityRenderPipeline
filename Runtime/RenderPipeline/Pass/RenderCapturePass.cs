@@ -61,7 +61,6 @@ namespace InfinityTech.Rendering.Pipeline
         {
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame) return;
-            RecordZBinOverflowCapture();
             if (Array.IndexOf(session.request.buffers, "CascadeShadow") >= 0) session.RecordShadowState(renderContext.lightContext.ShadowAllocator);
             foreach (string buffer in session.request.buffers)
             {
@@ -113,35 +112,6 @@ namespace InfinityTech.Rendering.Pipeline
             }
             if (session.request.includeConfidence)
                 RecordCaptureTransfer(session, "TAAConfidence", InfinityShaderIDs.TAAConfidenceBuffer);
-        }
-
-        struct CaptureCounterPassData
-        {
-            public RGBufferRef source, destination;
-            public RenderCaptureSession.Staging staging;
-        }
-
-        void RecordZBinOverflowCapture()
-        {
-            RenderCaptureSession session = RenderCaptureService.current;
-            if (session == null || !session.CaptureThisFrame || !session.request.includeZBinOverflow) return;
-            RGBufferRef source = m_RGScoper.QueryBuffer(LightShaderIDs.ZBinOverflowBuffer);
-            string producer = m_RGBuilder.GetBufferProducer(source, out string queue);
-            var staging = session.ReserveCounter("ZBinOverflow", renderContext.lightContext.ZBinOverflowBuffer, producer, queue);
-            using (RGTransferPassRef pass = m_RGBuilder.AddTransferPass<CaptureCounterPassData>(s_CaptureTransferSampler))
-            {
-                pass.EnablePassCulling(false);
-                ref CaptureCounterPassData data = ref pass.GetPassData<CaptureCounterPassData>();
-                data.source = pass.ReadBuffer(source);
-                data.destination = pass.WriteBuffer(m_RGBuilder.ImportBuffer(staging.buffer, "ZBinOverflowStaging"));
-                data.staging = staging;
-                pass.SetQueueObserver(staging);
-                pass.SetExecuteFunc((in CaptureCounterPassData parameters, in RGTransferEncoder commands, RGObjectPool pool) =>
-                {
-                    commands.CopyBuffer(parameters.source.Resolve().graphicsResource, parameters.destination.Resolve().graphicsResource);
-                    commands.RequestAsyncReadback(parameters.staging.buffer, parameters.staging.Complete);
-                });
-            }
         }
 
         struct CaptureDepthPassData

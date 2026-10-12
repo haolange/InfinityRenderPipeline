@@ -189,7 +189,7 @@ passes leave it disabled. `MeshComponent.renderingLayer` is flags, not an int la
 ```text
 Phase 0  CombineLUT + AtmosphericLUT          (zero RG-resource inputs; async-eligible)
 Phase 1  Depth → DBuffer → GBuffer → Motion
-Phase 2  HiZ + HalfResDownsample + ZBin       (async-eligible)
+Phase 2  HiZ + HalfResDownsample + LightTileMask (async-eligible)
 Phase 3  CascadeShadow + LocalShadow
 Phase 4  reserved (VolFog moved to Phase 7)
 Phase 5  GTAO → CopyHistoryOcclusion → ContactShadow
@@ -288,7 +288,7 @@ Lighting capture is recorded after the final opaque lighting/atmosphere producer
 
 The graph owns an unnamed command buffer separate from enclosing frame/camera scopes. Execute propagates the original exception and stack; failed pass commands are abandoned without clearing enclosing scopes. Async temporary command buffers return in `finally`. Unreturned transient graph allocations move to a retirement queue during logical clear and become reusable only after the enclosing frame Submit.
 
-Attachment Load is a read of prior contents. Loaded depth that later effects or capture consume must be stored. Forward explicitly reads GGX/SH and, when local lights exist, the tile range/list resources; it binds through the raster capability surface. Atmosphere and ZBin producers do not prebind outputs globally. Required local-light ZBin kernels fail at record when absent. The LightContext upload is a Transfer producer. Imported GraphicsBuffer resources share `RGBufferRef` dependency tracking with ComputeBuffer resources; native target/count/stride stay explicit and an imported GraphicsBuffer is never cloned as a ComputeBuffer descriptor. LightContext retires replaced buffers only after frame Submit.
+Attachment Load is a read of prior contents. Loaded depth that later effects or capture consume must be stored. Forward explicitly reads GGX/SH and the light-list buffers (z-bins and tile masks, or the one-word empty mask when no local light is visible); it binds through the raster capability surface. Atmosphere and light-list producers do not prebind outputs globally. A missing tile-mask kernel fails at record when local lights are visible. The LightContext upload is a Transfer producer. Imported GraphicsBuffer resources share `RGBufferRef` dependency tracking with ComputeBuffer resources; native target/count/stride stay explicit and an imported GraphicsBuffer is never cloned as a ComputeBuffer descriptor. LightContext retires replaced buffers only after frame Submit.
 
 Pass queue observers publish capture ownership and atmosphere production only after Unity accepts the pass command buffer. Abandoned recording never latches queued ownership. A graph orders its first async work after earlier graphics submissions and joins its last accepted async fence on exit, including after a later recording failure.
 
@@ -307,3 +307,16 @@ Surface masks are encoded in GBufferC alpha as an eight-bit UNorm value. Unity s
 ## 24. Editor interaction boundary
 
 Automated Editor interaction uses the official Unity CLI connection with an Editor-only command adapter (`Editor/Cli`, compiled only when `INFINITY_UNITY_CLI` is defined by `com.unity.pipeline`). Rendering evidence stays owned by the RG capture modules. `com.unity.pipeline`'s `screenshot` rerenders into a substituted camera target and is not used for normal-frame, temporal or actual-window acceptance.
+
+## Clustered light list (0.5.0 S7)
+
+`LightContext.Build` runs per camera after culling: collect visible lights (directional first), compute each local
+light's conservative screen tile rectangle on the CPU (tangent-line sphere bounds; a sphere that reaches the near plane
+covers every tile; spheres behind the camera or off screen are dropped), sort local lights by view depth, build 128
+logarithmic depth bins holding the [min, max] sorted index range they overlap, then allocate shadows. The upload pass
+imports the records, tile rectangles and z-bins. `LightTileMaskPass` (async compute, `Compute_LightTileMask`) writes
+one 32-bit mask word per tile per 32 lights. `Shaders/ShaderLibrary/Lighting/LightLoop.hlsl` is the only light loop:
+`BeginLightLoop(pixel, viewDepth)` + `NextLight` visit the tile mask bits inside the pixel's bin range. Deferred,
+Forward (`SV_Position`), volumetric fog and clouds use it; tiles are not culled by opaque depth so transparents and
+volumes share the list.
+

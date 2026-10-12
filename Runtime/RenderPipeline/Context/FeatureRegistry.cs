@@ -160,7 +160,7 @@ namespace InfinityTech.Rendering.Pipeline
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.LocalLightList,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.zBinningShader), s => s.zBinningShader, "LightCount", "PrefixSum", "Fill") }
+                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.lightTileMaskShader), s => s.lightTileMaskShader, LightTileMaskPassUtilityData.KernelName) }
             });
             Add(new FeatureDescriptor
             {

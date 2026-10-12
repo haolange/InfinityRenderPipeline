@@ -29,10 +29,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int VolCloud_FrameIndexID = Shader.PropertyToID("VolCloud_FrameIndex");
         internal static int VolCloud_PlanetRadiusID = Shader.PropertyToID("VolCloud_PlanetRadius");
         internal static int VolCloud_AtmosphereHeightID = Shader.PropertyToID("VolCloud_AtmosphereHeight");
-        internal static int VolCloud_HasTileListID = Shader.PropertyToID("VolCloud_HasTileList");
-        internal static int VolCloud_NumTilesXID = Shader.PropertyToID("VolCloud_NumTilesX");
-        internal static int VolCloud_NumBinsID = Shader.PropertyToID("VolCloud_NumBins");
-        internal static int VolCloud_NearFarID = Shader.PropertyToID("VolCloud_NearFar");
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int SRV_TransmittanceLUTID = Shader.PropertyToID("SRV_TransmittanceLUT");
         internal static int SRV_CascadeShadowMapID = Shader.PropertyToID("SRV_CascadeShadowMap");
@@ -40,10 +36,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_HistoryVolumetricCloudID = Shader.PropertyToID("SRV_HistoryVolumetricCloud");
         internal static int UAV_VolumetricCloudTextureID = Shader.PropertyToID("UAV_VolumetricCloudTexture");
         internal static int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
-        internal static int SRV_TileLightRangeID = Shader.PropertyToID("SRV_TileLightRange");
-        internal static int SRV_TileLightListID = Shader.PropertyToID("SRV_TileLightList");
-        internal static int SRV_ZBinRangeID = Shader.PropertyToID("SRV_ZBinRange");
-        internal static int SRV_ZBinLightListID = Shader.PropertyToID("SRV_ZBinLightList");
         internal static int SRV_LocalShadowMatricesID = Shader.PropertyToID("SRV_LocalShadowMatrices");
         internal static int SRV_LocalShadowRectsID = Shader.PropertyToID("SRV_LocalShadowRects");
     }
@@ -66,8 +58,6 @@ namespace InfinityTech.Rendering.Pipeline
             public float temporalWeight;
             public int frameIndex;
             public int2 resolution;
-            public int numTilesX;
-            public int hasTileList;
             public float nearPlane;
             public float farPlane;
             public float planetRadius;
@@ -75,8 +65,6 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Matrix4x4 matrix_WorldToView;
             public Vector4 worldSpaceCameraPos;
-            public int directionalLightCount;
-            public int localLightCount;
             public int cascadeCount;
             public Matrix4x4[] cascadeMatrices;
             public Vector4[] cascadeSpheres;
@@ -84,12 +72,9 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 cascadeShadowMapSize;
             public Vector4 localShadowMapSize;
             public RGBufferRef lightRecordBuffer;
+            public FLightLoopInputs lightLoop;
             public RGBufferRef localShadowMatrixBuffer;
             public RGBufferRef localShadowRectBuffer;
-            public RGBufferRef emptyTileRange;
-            public RGBufferRef emptyTileList;
-            public RGBufferRef emptyZBinRange;
-            public RGBufferRef emptyZBinList;
             public ComputeShader volumetricCloudShader;
             public RGTextureRef depthTexture;
             public RGTextureRef transmittanceLUT;
@@ -97,10 +82,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef localShadowMap;
             public RGTextureRef historyTexture;
             public RGTextureRef volumetricCloudTexture;
-            public RGBufferRef tileRange;
-            public RGBufferRef tileList;
-            public RGBufferRef zBinRange;
-            public RGBufferRef zBinList;
         }
 
         static TextureDescriptor CreateVolumetricCloudDescriptor(int width, int height, string name, bool randomWrite)
@@ -153,16 +134,6 @@ namespace InfinityTech.Rendering.Pipeline
             AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
             atmosphereParameter.ThrowIfInvalid();
 
-            RGBufferRef tileRange = default;
-            RGBufferRef tileList = default;
-            RGBufferRef zBinRange = default;
-            RGBufferRef zBinList = default;
-            bool hasTileList =
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.TileLightRangeBuffer, out tileRange) &&
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.TileLightListBuffer, out tileList) &&
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.ZBinRangeBuffer, out zBinRange) &&
-                m_RGScoper.TryQueryBuffer(InfinityShaderIDs.ZBinLightListBuffer, out zBinList);
-
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
             {
                 ref VolumetricCloudPassData passData = ref passRef.GetPassData<VolumetricCloudPassData>();
@@ -180,8 +151,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.temporalWeight = (m_CameraUniform.historyReset || historyCreated) ? 0.0f : cloud.temporalWeight;
                 passData.frameIndex = Time.frameCount;
                 passData.resolution = new int2(cloudWidth, cloudHeight);
-                passData.numTilesX = Mathf.CeilToInt(width / 16.0f);
-                passData.hasTileList = hasTileList ? 1 : 0;
                 passData.nearPlane = camera.nearClipPlane;
                 passData.farPlane = camera.farClipPlane;
                 passData.planetRadius = atmosphereParameter.planetRadius;
@@ -189,8 +158,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
                 passData.worldSpaceCameraPos = camera.transform.position;
-                passData.directionalLightCount = renderContext.lightContext.DirectionalLightCount;
-                passData.localLightCount = renderContext.lightContext.LocalLightCount;
+                FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
+                lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
+                lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
+                passData.lightLoop = lightLoop;
                 passData.cascadeCount = m_ActiveCascadeCount;
                 passData.cascadeMatrices = (Matrix4x4[])m_ActiveCascadeMatrices.Clone();
                 passData.cascadeSpheres = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeSpheres.Clone();
@@ -208,10 +179,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.localShadowMatrixBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer));
                 passData.localShadowRectBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer));
-                passData.emptyTileRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileRangeBuffer));
-                passData.emptyTileList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyTileListBuffer));
-                passData.emptyZBinRange = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinRangeBuffer));
-                passData.emptyZBinList = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.EmptyZBinListBuffer));
                 passData.volumetricCloudShader = shaders.volumetricCloudShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.transmittanceLUT = passRef.ReadTexture(transmittanceLUT);
@@ -219,13 +186,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.localShadowMap = passRef.ReadTexture(localShadowMap);
                 passData.historyTexture = passRef.ReadTexture(historyTexture);
                 passData.volumetricCloudTexture = passRef.WriteTexture(volumetricCloudTexture);
-                if (hasTileList)
-                {
-                    passData.tileRange = passRef.ReadBuffer(tileRange);
-                    passData.tileList = passRef.ReadBuffer(tileList);
-                    passData.zBinRange = passRef.ReadBuffer(zBinRange);
-                    passData.zBinList = passRef.ReadBuffer(zBinList);
-                }
 
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in VolumetricCloudPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
@@ -247,15 +207,9 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_FrameIndexID, passData.frameIndex);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_PlanetRadiusID, passData.planetRadius);
                     cmdEncoder.SetComputeFloatParam(shader, VolumetricCloudPassUtilityData.VolCloud_AtmosphereHeightID, passData.atmosphereHeight);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_HasTileListID, passData.hasTileList);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_NumTilesXID, passData.numTilesX);
-                    cmdEncoder.SetComputeIntParam(shader, VolumetricCloudPassUtilityData.VolCloud_NumBinsID, ZBinningPassUtilityData.NumBins);
-                    cmdEncoder.SetComputeVectorParam(shader, VolumetricCloudPassUtilityData.VolCloud_NearFarID, new Vector4(passData.nearPlane, passData.farPlane, 0, 0));
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_WorldToView"), passData.matrix_WorldToView);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
-                    cmdEncoder.SetComputeIntParam(shader, LightShaderIDs.DirectionalLightCount, passData.directionalLightCount);
-                    cmdEncoder.SetComputeIntParam(shader, LightShaderIDs.LocalLightCount, passData.localLightCount);
                     cmdEncoder.SetComputeIntParam(shader, CascadeShadowPassUtilityData.CascadeCountID, passData.cascadeCount);
                     cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeSpheresID, passData.cascadeSpheres);
                     cmdEncoder.SetComputeMatrixArrayParam(shader, CascadeShadowPassUtilityData.CascadeMatricesID, passData.cascadeMatrices);
@@ -265,20 +219,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeBufferParam(shader, 0, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
                     cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_LocalShadowMatricesID, passData.localShadowMatrixBuffer);
                     cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_LocalShadowRectsID, passData.localShadowRectBuffer);
-                    if (passData.hasTileList != 0)
-                    {
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TileLightRangeID, passData.tileRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TileLightListID, passData.tileList);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_ZBinRangeID, passData.zBinRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_ZBinLightListID, passData.zBinList);
-                    }
-                    else
-                    {
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TileLightRangeID, passData.emptyTileRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TileLightListID, passData.emptyTileList);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_ZBinRangeID, passData.emptyZBinRange);
-                        cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_ZBinLightListID, passData.emptyZBinList);
-                    }
+                    passData.lightLoop.Bind(cmdEncoder, shader, 0);
 
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
