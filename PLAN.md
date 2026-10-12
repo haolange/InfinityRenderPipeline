@@ -45,7 +45,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S3 | RenderGraph: indirect dispatch on `RGBufferRef`, utility kernels, typed resource keys, two-phase feature registry | S2 | done |
 | S4 | Quality presets: `EQualityLevel`, low-level settings structs, hardcoded preset tables, Volume `Resolve()` | S3 | done |
 | S5 | Stochastic SSR (classify, Hi-Z/linear trace, ray-reuse resolve, temporal, spatial) + shared denoise library | S3, S4 | done |
-| S6 | Light data model v2 (UE-form shape data, implicit Unity Light sync, lightmapper delegate, record v2) | S2 | pending |
+| S6 | Light data model v2 (UE-form shape data, implicit Unity Light sync, lightmapper delegate, record v2) | S2 | done |
 | S7 | Clustered light list v2 (CPU z-bins + GPU tile bitmasks) and one shared light loop | S6, S3 | pending |
 | S8 | Area shapes: sphere, tube, line, rect, disk, sun disk (Karis representative point + Frostbite diffuse) | S7 | pending |
 | S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | pending |
@@ -61,6 +61,26 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S6
+
+- `LightPipeline/LightShape.cs`: `EInfinityLightType { Directional, Point, Spot, Rect, Disk }`, `ESpotShape { Cone,
+  Pyramid, Box }`, `EShadowFilter { Hard, PCF, PCSS, VSM, EVSM }` (PCSS/VSM/EVSM sample as PCF until S9),
+  `FLightShape` (Unreal form) and `LightShapeUtility` (`FromUnityLight`, `NativeType`, `ApplyToUnityLight`,
+  `IsBakeable`, `IsValid`, `PyramidTangents`).
+- `InfinityAdditionalLightData`: `m_Shape`, `m_ShapeAuthored`, `m_ShadowFilter`; `shape` returns the authored shape or
+  the native-derived one; `SetShape` and the inspector write the native fields; `Reset` and the inspector adopt the
+  native shape (`AdoptNativeShape`). Nothing writes on load.
+- `FLightRecord` v2 (`// GPU-RECORD` ↔ `Shaders/ShaderLibrary/Lighting/LightRecord.hlsl`): radiance, positionRange,
+  forward (w = cone cos outer), right (w = 1 / (cos inner − cos outer)), shape (radius, soft radius, length,
+  tan sun half angle), area (rect size + barn doors / pyramid tangents / box size), weights (diffuse, specular,
+  volumetric intensity, volumetric shadow), misc (shadow strength, tan soft sun half angle), shadowAtlasRect;
+  lightLayer, flags, shadowMatrixIndex, shadowSliceCount, shadowFilter, visibleLightIndex, bakedOcclusionChannel,
+  cookieIndex (−1 until S11). Flags: shadow, contact, volumetric, shadowmask, baked, directional, spot cone / pyramid /
+  box, planar.
+- `FLightRecordPack.TryPack` applies Maximum Distance fade on the CPU (per camera) and rejects invalid shapes;
+  `LocalShadowSliceCount` replaces the light-type switch in `ShadowAllocator`.
+- `InfinityLightmapperDelegate` is installed with the pipeline's global state (Editor only) and restored on Dispose.
 
 ### S5
 

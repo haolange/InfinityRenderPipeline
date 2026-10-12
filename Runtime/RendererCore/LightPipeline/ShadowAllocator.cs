@@ -75,19 +75,6 @@ namespace InfinityTech.Rendering.LightPipeline
         public Matrix4x4[] LocalMatrices = Array.Empty<Matrix4x4>();
         public Vector4[] LocalUVRects = Array.Empty<Vector4>();
 
-        public static int TileCountForType(ELightType type)
-        {
-            switch (type)
-            {
-                case ELightType.Spot:
-                    return 1;
-                case ELightType.Point:
-                    return 6;
-                default:
-                    return 0;
-            }
-        }
-
         public void Reset()
         {
             CascadeVisibleLightIndex = -1;
@@ -137,7 +124,7 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int i = 0; i < records.Length; ++i)
             {
                 FLightRecord record = records[i];
-                if (record.lightType != (int)ELightType.Directional || record.visibleLightIndex < 0)
+                if (!record.IsDirectional || record.visibleLightIndex < 0)
                 {
                     continue;
                 }
@@ -217,8 +204,7 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int i = 0; i < records.Length; ++i)
             {
                 FLightRecord record = records[i];
-                ELightType type = (ELightType)record.lightType;
-                if (TileCountForType(type) <= 0 || record.visibleLightIndex < 0)
+                if (FLightRecordPack.LocalShadowSliceCount(record) <= 0 || record.visibleLightIndex < 0)
                 {
                     continue;
                 }
@@ -238,8 +224,7 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int i = 0; i < records.Length; ++i)
             {
                 FLightRecord record = records[i];
-                ELightType type = (ELightType)record.lightType;
-                if (TileCountForType(type) <= 0 || record.visibleLightIndex < 0)
+                if (FLightRecordPack.LocalShadowSliceCount(record) <= 0 || record.visibleLightIndex < 0)
                 {
                     continue;
                 }
@@ -253,7 +238,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 Vector3 lightPosition = visible.localToWorldMatrix.GetColumn(3);
                 float distance = math.max(0.01f, Vector3.Distance(cameraPosition, lightPosition));
                 float score = visible.light.shadowStrength / distance;
-                if (type == ELightType.Spot)
+                if (FLightRecordPack.IsConeSpot(record))
                 {
                     score += 1e-4f;
                 }
@@ -287,7 +272,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 int recordIndex = recordIndices[order[o]];
                 FLightRecord record = records[recordIndex];
-                int faces = TileCountForType((ELightType)record.lightType);
+                int faces = FLightRecordPack.LocalShadowSliceCount(record);
                 if (accepted >= maxLocalLights || tilesUsed + faces > tileBudget)
                 {
                     MeshPipelineDiagnostics.LocalShadowBudgetDropped++;
@@ -305,11 +290,10 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 int recordIndex = acceptedRecords[a];
                 FLightRecord record = records[recordIndex];
-                ELightType type = (ELightType)record.lightType;
-                int faces = TileCountForType(type);
+                int faces = FLightRecordPack.LocalShadowSliceCount(record);
                 int visibleIndex = record.visibleLightIndex;
                 VisibleLight visible = cullingResults.visibleLights[visibleIndex];
-                bool isSpot = type == ELightType.Spot;
+                bool isSpot = FLightRecordPack.IsConeSpot(record);
                 int firstSlice = nextSlice;
 
                 for (int face = 0; face < faces; ++face)

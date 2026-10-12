@@ -152,21 +152,15 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     float3 viewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
     float viewDepth = -viewPos.z;
     float shadow;
-    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
+    if (IsDirectionalLight(light))
     {
-        L = light.directionSpot.xyz;
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, samplePos, viewDepth, light.shadowType) : 1);
+        L = DirectionalLightL(light);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, samplePos, viewDepth, light.shadowFilter) : 1);
     }
     else
     {
-        float3 toLight = light.positionRange.xyz - samplePos;
-        float distance = length(toLight);
-        L = toLight / max(distance, 1e-4);
-        att = DistanceAttenuation(distance, light.positionRange.w);
-        if (light.lightType == LIGHT_TYPE_SPOT)
-        {
-            att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
-        }
+        L = LocalLightL(light, samplePos);
+        att = LocalLightAttenuation(light, samplePos);
         shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
     }
 
@@ -174,7 +168,7 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
     float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, L.y, VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
     float phase = CloudPhase(dot(rayDir, L));
-    shadow = VolumeShadowWeight(light, lerp(1, shadow, light.shape.z));
+    shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
     float3 radiance = VolumeLightRadiance(light) * sunTransmittance * lightEnergy * phase * shadow * att;
     float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
     return (radiance + ambient) * density;

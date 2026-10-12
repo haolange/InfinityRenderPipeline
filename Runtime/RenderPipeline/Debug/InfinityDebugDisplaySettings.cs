@@ -58,7 +58,8 @@ namespace InfinityTech.Rendering.Pipeline
             DebugUI.Panel lighting = DebugManager.instance.GetPanel("Infinity Lighting", true);
             lighting.children.Add(new DebugUI.Value { displayName = "Directional Lights", getter = () => (object)state.lighting.lastDirectionalCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Local Lights", getter = () => (object)state.lighting.lastLocalCount });
-            lighting.children.Add(new DebugUI.Value { displayName = "Skipped Light Shapes", getter = () => (object)state.lighting.lastUnsupportedShapeCount });
+            lighting.children.Add(new DebugUI.Value { displayName = "Invalid Light Shapes", getter = () => (object)state.lighting.lastUnsupportedShapeCount });
+            lighting.children.Add(new DebugUI.Value { displayName = "Lights Beyond Max Distance", getter = () => (object)state.lighting.lastDistanceCulledCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Ray Tracing Backend", getter = () => (object)state.lighting.rayTracingBackend.ToString() });
             lighting.children.Add(new DebugUI.Value { displayName = "RTAO Record Reason", getter = () => (object)(string.IsNullOrEmpty(state.lighting.rtaoBlockReason) ? "recording" : state.lighting.rtaoBlockReason) });
             lighting.children.Add(new DebugUI.Value

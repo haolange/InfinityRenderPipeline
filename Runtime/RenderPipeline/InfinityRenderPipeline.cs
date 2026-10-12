@@ -450,6 +450,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
                                     lightingDebug.lastLocalCount = renderContext.lightContext.LocalLightCount;
                                     lightingDebug.lastUnsupportedShapeCount = renderContext.lightContext.UnsupportedShapeCount;
+                                    lightingDebug.lastDistanceCulledCount = renderContext.lightContext.DistanceCulledCount;
 
                                     ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
                                     m_ActiveCascadeCount = shadowAllocator.CascadeAllocatedCount;
@@ -777,6 +778,10 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphicsUtility.m_BlitMaterial = m_PreviousBlitMaterial;
             if (Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousBestFitTexture);
+#if UNITY_EDITOR
+            if (UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate() == InfinityLightmapperDelegate.Delegate)
+                UnityEngine.Experimental.GlobalIllumination.Lightmapping.ResetDelegate();
+#endif
         }
 
         static void ResolveVolumeSelection(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask)
@@ -872,6 +877,9 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsSettings.lightsUseColorTemperature = true;
             GraphicsSettings.useScriptableRenderPipelineBatching = m_InstalledBatching;
             Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_InstalledBestFitTexture);
+#if UNITY_EDITOR
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(InfinityLightmapperDelegate.Delegate);
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

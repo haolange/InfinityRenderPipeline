@@ -41,6 +41,7 @@ namespace InfinityTech.Rendering.LightPipeline
         int m_DirectionalCount;
         int m_LocalCount;
         int m_UnsupportedShapeCount;
+        int m_DistanceCulledCount;
         int m_SunRecordIndex;
         GraphicsBuffer m_LightRecordBuffer;
         GraphicsBuffer m_LightBoundsBuffer;
@@ -96,8 +97,11 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal int DirectionalLightCount => m_DirectionalCount;
         internal int LocalLightCount => m_LocalCount;
-        // Visible lights whose native type the realtime record does not represent (skipped, not substituted).
+        // Visible lights skipped because their shape is invalid (for example a zero-area rect) or their native type is
+        // unknown; they are counted, never substituted.
         internal int UnsupportedShapeCount => m_UnsupportedShapeCount;
+        // Local lights culled this camera by their Maximum Distance.
+        internal int DistanceCulledCount => m_DistanceCulledCount;
         internal int SunRecordIndex => m_SunRecordIndex;
         internal int RecordCount => m_Records.Length;
         internal GraphicsBuffer LightRecordBuffer => m_LightRecordBuffer;
@@ -129,6 +133,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_DirectionalCount = 0;
             m_LocalCount = 0;
             m_UnsupportedShapeCount = 0;
+            m_DistanceCulledCount = 0;
             m_SunRecordIndex = -1;
             m_ShadowAllocator.Reset();
         }
@@ -143,6 +148,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
             Light sun = RenderSettings.sun;
+            Vector3 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
 
             for (int pass = 0; pass < 2; ++pass)
             {
@@ -156,18 +162,9 @@ namespace InfinityTech.Rendering.LightPipeline
                         continue;
                     }
 
-                    if (!FLightRecordPack.TryMapUnityType(visible.lightType, out ELightType type))
+                    if (!LightShapeUtility.IsSupportedNativeType(visible.lightType))
                     {
-                        if (wantDirectional)
-                        {
-                            m_UnsupportedShapeCount++;
-                        }
-                        continue;
-                    }
-
-                    bool isDirectional = type == ELightType.Directional;
-                    if (isDirectional != wantDirectional)
-                    {
+                        if (wantDirectional) m_UnsupportedShapeCount++;
                         continue;
                     }
 
@@ -182,7 +179,20 @@ namespace InfinityTech.Rendering.LightPipeline
                         light.TryGetComponent(out ext);
                     }
 
-                    FLightRecord record = FLightRecordPack.FromUnityLight(light, ext, type, i);
+                    FLightShape shape = FLightRecordPack.ResolveShape(light, ext);
+                    bool isDirectional = shape.type == EInfinityLightType.Directional;
+                    if (isDirectional != wantDirectional)
+                    {
+                        continue;
+                    }
+
+                    if (!FLightRecordPack.TryPack(light, ext, shape, i, cameraPosition, out FLightRecord record))
+                    {
+                        if (LightShapeUtility.IsValid(shape)) m_DistanceCulledCount++;
+                        else m_UnsupportedShapeCount++;
+                        continue;
+                    }
+
                     if (sun != null && light == sun)
                     {
                         m_SunRecordIndex = m_Records.Length;
@@ -204,7 +214,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 for (int i = 0; i < m_Records.Length; ++i)
                 {
-                    if (m_Records[i].lightType == (int)ELightType.Directional)
+                    if (m_Records[i].IsDirectional)
                     {
                         m_SunRecordIndex = i;
                         break;
@@ -218,7 +228,7 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int i = 0; i < m_Records.Length; ++i)
             {
                 FLightRecord record = m_Records[i];
-                if (record.lightType == (int)ELightType.Directional)
+                if (record.IsDirectional)
                 {
                     continue;
                 }
@@ -332,12 +342,12 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 FLightRecord record = m_Records[i];
                 builder.Append("  record[").Append(i).Append(']');
-                builder.Append(" type=").Append((ELightType)record.lightType);
+                builder.Append(" directional=").Append(record.IsDirectional);
                 builder.Append(" visible=").Append(record.visibleLightIndex);
                 builder.Append(" radiance=").Append(record.radiance);
                 builder.Append(" posRange=").Append(record.positionRange);
                 builder.Append(" flags=").Append(record.flags);
-                builder.Append(" shadowType=").Append(record.shadowType);
+                builder.Append(" shadowFilter=").Append((EShadowFilter)record.shadowFilter);
                 builder.Append(" shadowIndex=").Append(record.shadowMatrixIndex);
                 builder.Append(" slices=").Append(record.shadowSliceCount);
                 builder.AppendLine();
@@ -363,7 +373,8 @@ namespace InfinityTech.Rendering.LightPipeline
             radiance = new Vector4(1, 1, 1, 1);
             if (context != null && context.TryGetSunRecord(out FLightRecord sun))
             {
-                direction = sun.directionSpot;
+                direction = -sun.forward;
+                direction.w = 0;
                 radiance = sun.radiance;
             }
         }

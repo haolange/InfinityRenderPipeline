@@ -29,6 +29,7 @@ namespace InfinityTech.Rendering.Pipeline
         public int lastDirectionalCount;
         public int lastLocalCount;
         public int lastUnsupportedShapeCount;
+        public int lastDistanceCulledCount;
         public ERayTracingBackend rayTracingBackend;
         public string rtaoBlockReason = "URT context is not created.";
 
@@ -37,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
             lastDirectionalCount = 0;
             lastLocalCount = 0;
             lastUnsupportedShapeCount = 0;
+            lastDistanceCulledCount = 0;
             rayTracingBackend = ERayTracingBackend.Unavailable;
             rtaoBlockReason = "URT context is not created.";
         }

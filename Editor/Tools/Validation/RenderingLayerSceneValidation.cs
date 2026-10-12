@@ -41,8 +41,8 @@ namespace InfinityTech.Rendering.Editor.Validation
                 foreach (Light light in root.GetComponentsInChildren<Light>(true))
                 {
                     ValidateMask(unchecked((uint)light.renderingLayerMask), scene.path, light);
-                    if (!FLightRecordPack.TryMapUnityType(light.type, out _))
-                        Debug.LogWarning($"{scene.path}/{light.name}: light type {light.type} is not rendered in realtime yet.", light);
+                    if (!LightShapeUtility.IsSupportedNativeType(light.type))
+                        Debug.LogWarning($"{scene.path}/{light.name}: light type {light.type} is not rendered in realtime.", light);
                 }
             }
         }

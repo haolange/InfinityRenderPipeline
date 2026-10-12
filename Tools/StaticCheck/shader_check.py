@@ -102,7 +102,8 @@ def main():
     root = stage_root(a.repo, a.corerp)
     incdirs = [root]
     failures, counts = [], {'compiled': 0}
-    for dp, _, fs in os.walk(os.path.join(a.repo, "Shaders")):
+    walks = [os.walk(os.path.join(a.repo, d)) for d in ("Shaders", "Tests/Editor/Shaders") if os.path.isdir(os.path.join(a.repo, d))]
+    for dp, _, fs in (entry for w in walks for entry in w):
         for fn in sorted(fs):
             p = os.path.join(dp, fn)
             rel = os.path.relpath(p, a.repo)

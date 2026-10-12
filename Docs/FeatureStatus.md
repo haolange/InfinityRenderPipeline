@@ -20,6 +20,8 @@ Columns:
 | Mesh Drawing Pipeline (CPU + GPU backends) | Yes | Yes | Open | Open | macOS Metal | No HZB occlusion, GPU sort or GPU LOD |
 | ThinGBuffer + Deferred shading | Yes | Yes (pack contract) | Failing | Open | macOS Metal | Validation scenes show sky bands, dark triangles and cube blotches |
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
+| Light shapes and record v2 (0.5.0) | Yes | Unverified-0.5 (shape, record layout) | Open | Open | None | Area shapes shade as punctual / equal-area square until S8 |
+| Lightmapper delegate (0.5.0) | Editor bakes | No | Open | — | None | |
 | Clustered lights (tile + z-bin) | Yes | Partial | Open | Open | macOS Metal | 0.5.0 S7 replaces it |
 | Cascade + local shadows (PCF 3×3) | Yes | Partial | Open | Open | macOS Metal | 0.5.0 S9 replaces filtering |
 | Contact shadow (first directional light) | Yes | No | Open | Open | macOS Metal | 0.5.0 S10 replaces it |

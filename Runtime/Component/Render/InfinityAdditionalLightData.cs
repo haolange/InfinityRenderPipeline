@@ -23,8 +23,56 @@ namespace InfinityTech.Component
         public bool enableVolumetric = true;
         public float volumetricIntensity = 1;
         public float volumetricOcclusion = 1;
+        [Tooltip("Lights farther than this from the camera are not rendered (meters).")]
         public float maxDrawDistance = 128;
+        [Tooltip("Distance over which the light fades out before Maximum Distance (meters).")]
         public float maxDrawDistanceFade = 1;
+
+        // Source shape in Unreal form. Authority over the native shape fields (type, shapeRadius, areaSize,
+        // shadowAngle) once authored; until then the shape is read from the native Light.
+        [SerializeField] bool m_ShapeAuthored;
+        [SerializeField] FLightShape m_Shape = FLightShape.Default(EInfinityLightType.Point);
+        [SerializeField] EShadowFilter m_ShadowFilter = EShadowFilter.PCF;
+
+        public bool shapeAuthored => m_ShapeAuthored;
+
+        // The shape the renderer uses: the authored shape, or the shape derived from the native Light.
+        public FLightShape shape => m_ShapeAuthored ? m_Shape : LightShapeUtility.FromUnityLight(attachedLight);
+
+        public EShadowFilter shadowFilter
+        {
+            get => m_ShadowFilter;
+            set => m_ShadowFilter = value;
+        }
+
+        // Sets the authored shape and writes the derived native Light fields. The Editor records Undo on both
+        // objects before calling this.
+        public void SetShape(in FLightShape value)
+        {
+            m_Shape = value;
+            m_ShapeAuthored = true;
+            LightShapeUtility.ApplyToUnityLight(attachedLight, m_Shape);
+        }
+
+        // Makes the native shape the authored shape. Rendering does not change; afterwards this component is the
+        // shape authority.
+        public void AdoptNativeShape()
+        {
+            Light light = attachedLight;
+            if (light == null) return;
+            m_Shape = LightShapeUtility.FromUnityLight(light);
+            m_ShapeAuthored = true;
+            m_ShadowFilter = light.shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF;
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+#endif
+        }
+
+        // Adopts the native shape when the component is added, so adding it never changes how the light renders.
+        void Reset()
+        {
+            AdoptNativeShape();
+        }
 
         public ERenderingLayer shadowLayer
         {

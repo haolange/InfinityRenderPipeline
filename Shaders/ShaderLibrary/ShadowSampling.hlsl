@@ -116,7 +116,7 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, flo
     }
 
     int face = 0;
-    if (light.lightType == LIGHT_TYPE_POINT)
+    if (light.shadowSliceCount == 6)
     {
         face = SelectPointShadowFace(worldPos - light.positionRange.xyz);
         face = min(face, light.shadowSliceCount - 1);
@@ -140,7 +140,7 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, flo
         return 1.0;
     }
     float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
-    return SampleShadowPCF3x3(localShadowMap, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect, light.shadowType, ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw));
+    return SampleShadowPCF3x3(localShadowMap, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect, light.shadowFilter, ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw));
 }
 
 int _InfinityShadowmaskMode;
@@ -149,11 +149,11 @@ float _InfinityShadowDistance;
 float MixBakedAndRealtimeShadow(FLightRecord light, float realtime, float4 mask, float viewDepth)
 {
     float fade = saturate((viewDepth / max(_InfinityShadowDistance, 0.001) - 0.9) * 10);
-    if ((light.flags & 8) == 0 || light.bakedOcclusionChannel < 0 || light.bakedOcclusionChannel > 3)
-        return lerp(1, lerp(realtime, 1, fade), light.shape.z);
+    if (!LightHasFlag(light, LIGHT_FLAG_SHADOWMASK) || light.bakedOcclusionChannel < 0 || light.bakedOcclusionChannel > 3)
+        return lerp(1, lerp(realtime, 1, fade), LightShadowStrength(light));
     float baked = mask[light.bakedOcclusionChannel];
     float combined = _InfinityShadowmaskMode == 0 ? min(baked, lerp(realtime, 1, fade)) : lerp(realtime, baked, fade);
-    return lerp(1, combined, light.shape.z);
+    return lerp(1, combined, LightShadowStrength(light));
 }
 
 #endif

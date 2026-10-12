@@ -78,20 +78,7 @@ float3 FroxelToWorld(uint3 froxelCoord)
 
 float VolumeLightAttenuation(FLightRecord light, float3 worldPos)
 {
-    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
-    {
-        return 1.0;
-    }
-
-    float3 toLight = light.positionRange.xyz - worldPos;
-    float distance = length(toLight);
-    float att = DistanceAttenuation(distance, light.positionRange.w);
-    if (light.lightType == LIGHT_TYPE_SPOT)
-    {
-        float3 L = toLight / max(distance, 1e-4);
-        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
-    }
-    return att;
+    return IsDirectionalLight(light) ? 1.0 : LocalLightAttenuation(light, worldPos);
 }
 
 float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
@@ -99,21 +86,19 @@ float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, 
     float3 L;
     float att = 1.0;
     float shadow;
-    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
+    if (IsDirectionalLight(light))
     {
-        L = light.directionSpot.xyz;
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, worldPos, viewDepth, light.shadowType) : 1);
+        L = DirectionalLightL(light);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, worldPos, viewDepth, light.shadowFilter) : 1);
     }
     else
     {
-        float3 toLight = light.positionRange.xyz - worldPos;
-        float distance = length(toLight);
-        L = toLight / max(distance, 1e-4);
+        L = LocalLightL(light, worldPos);
         att = VolumeLightAttenuation(light, worldPos);
         shadow = SampleLocalShadow(localShadowMap, light, worldPos);
     }
 
-    shadow = VolumeShadowWeight(light, lerp(1, shadow, light.shape.z));
+    shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
 
     float cosTheta = dot(viewDir, L);
     float phase = HGPhase(VolFog_Anisotropy, cosTheta);

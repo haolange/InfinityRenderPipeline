@@ -11,6 +11,10 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   filtered importance sampling, virtual-point temporal reprojection with per-pixel history age, optional a-trous pass,
   quality presets and four SSR debug views.
 - Shared screen-space denoise library `Shaders/ShaderLibrary/ScreenSpaceDenoise/`.
+- Light shapes in Unreal form on `InfinityAdditionalLightData` (directional sun angle; point sphere / line / tube; cone,
+  pyramid and box spots; rect with barn doors; disk) with the native Light fields derived on edit, a lightmapper
+  delegate that bakes the same shapes, per-light shadow filter selection and Maximum Distance culling with fade.
+- Light record v2 (`Shaders/ShaderLibrary/Lighting/LightRecord.hlsl`): no shape enum, shapes are flags plus parameters.
 - RuntimeTextures: the three blue-noise Sobol textures (imported uncompressed, single channel).
 
 ### Changed

@@ -91,3 +91,22 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 5. Quality Low → Ultra visibly trades noise and blur for cost; Frame Debugger shows `SSR_Classify`, `SSR_Trace`
    (three indirect dispatches), `SSR_Resolve`, `SSR_Temporal` and, below Ultra, `SSR_Spatial`.
 
+## S6 — light data model
+
+1. Compile; run `LightShapeTests`, `LightRecordLayoutTests`, `LightRecordTests`.
+2. Open an existing scene: lights render exactly as before (no shape is authored until the Light inspector opens; then
+   the native shape is adopted and the scene becomes dirty once).
+3. Light inspector: **Type** offers Directional / Point / Spot / Rect / Disk. Changing it or a shape value updates the
+   native type (Point ↔ Tube by Source Length, Spot ↔ Pyramid / Box by Spot Shape) and Unity's gizmo; Undo reverts both
+   the Infinity shape and the native Light in one step.
+4. New shapes render: pyramid and box spots (hard-edged frustum / box), disk (as a square of equal area), sphere and
+   tube (at their center for now). Rect lights no longer light surfaces behind them.
+5. Maximum Distance: put the camera beyond a point light's Maximum Distance: it fades out over Distance Fade and
+   Rendering Debugger → Infinity Lighting → Lights Beyond Max Distance counts it.
+6. Bake a scene with a Mixed spot (inner angle 20°, outer 60°), a Baked disk and a Baked sun with Source Angle 2°: the
+   baked spot has the same inner cone as the realtime one; the baked sun shadow penumbra widens with Source Angle;
+   baked intensity matches realtime (compare a Mixed light in Baked Indirect with its realtime direct lighting). Report
+   if baked lights are now about π times darker or brighter than before.
+7. Sun direction is unchanged (directional lights now store the emission axis; contact shadows, fog and clouds read
+   `-forward`).
+

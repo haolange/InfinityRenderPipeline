@@ -7,7 +7,7 @@ Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
 float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask)
 {
-    float3 L = light.directionSpot.xyz;
+    float3 L = DirectionalLightL(light);
     float3 H = normalize(viewDir + L);
     BSDFContext bsdfCtx = InitBXDFContext(normal, viewDir, L, H);
     float NoL = saturate(bsdfCtx.NoL);
@@ -16,17 +16,22 @@ float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, f
         return 0;
     }
 
-    float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, worldPos, viewDepth, light.shadowType, normal) : 1.0;
+    float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, worldPos, viewDepth, light.shadowFilter, normal) : 1.0;
     shadow = MixBakedAndRealtimeShadow(light, shadow, bakedMask, viewDepth);
     if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
     float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
-    return brdf * LightRadiance(light) * NoL * shadow * light.axisX.w;
+    return brdf * LightRadiance(light) * NoL * shadow * LightDiffuseWeight(light);
 }
 
 float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth)
 {
-    if (light.lightType == LIGHT_TYPE_RECT)
+    if (IsPlanarLight(light))
     {
+        // One-sided emitter: nothing behind the emitting face.
+        if (dot(worldPos - light.positionRange.xyz, light.forward.xyz) <= 0)
+        {
+            return 0;
+        }
         float3 R = reflect(-viewDir, normal);
         float3 specPos = KarisRectRepresentativePoint(worldPos, R, light);
         float3 Lspec = normalize(specPos - worldPos);
@@ -37,24 +42,20 @@ float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 
         {
             MicrofaceContext specMicro = microfaceCtx;
             specMicro.AlbedoColor = 0;
-            spec = DefultLit(specCtx, specMicro) * LightRadiance(light) * saturate(specCtx.NoL) * light.axisY.w;
+            spec = DefultLit(specCtx, specMicro) * LightRadiance(light) * saturate(specCtx.NoL) * LightSpecularWeight(light);
         }
 
         float form = FrostbiteRectFormFactor(worldPos, normal, light);
-        float3 diff = microfaceCtx.AlbedoColor * LightRadiance(light) * form * light.axisX.w * (1.0 / 3.14159265);
+        float3 diff = microfaceCtx.AlbedoColor * LightRadiance(light) * form * LightDiffuseWeight(light) * (1.0 / 3.14159265);
         float dist = length(light.positionRange.xyz - worldPos);
         float att = DistanceAttenuation(dist, light.positionRange.w);
         return (diff + spec) * att * MixBakedAndRealtimeShadow(light, 1, bakedMask, viewDepth);
     }
 
-    float3 toLight = light.positionRange.xyz - worldPos;
-    float dist = length(toLight);
-    float3 L = toLight / max(dist, 1e-4);
-    float att = DistanceAttenuation(dist, light.positionRange.w);
-    if (light.lightType == LIGHT_TYPE_SPOT)
-    {
-        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
-    }
+    // Sphere, line and tube sources are evaluated at their center until the representative-point shapes land
+    // (0.5.0 S8).
+    float3 L = LocalLightL(light, worldPos);
+    float att = LocalLightAttenuation(light, worldPos);
 
     if (att <= 0)
     {
@@ -71,7 +72,7 @@ float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 
 
     float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
     float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
-    return brdf * LightRadiance(light) * NoL * att * shadow * light.axisX.w;
+    return brdf * LightRadiance(light) * NoL * att * shadow * LightDiffuseWeight(light);
 }
 
 

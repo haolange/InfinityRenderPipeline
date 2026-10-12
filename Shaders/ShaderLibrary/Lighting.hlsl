@@ -1,38 +1,10 @@
 #ifndef _LightingInclude
 #define _LightingInclude
 
-#define LIGHT_TYPE_DIRECTIONAL 0
-#define LIGHT_TYPE_POINT 1
-#define LIGHT_TYPE_SPOT 2
-#define LIGHT_TYPE_RECT 3
+#include "Lighting/LightRecord.hlsl"
 
-#define LIGHT_FLAG_SHADOW 1
-#define LIGHT_FLAG_CONTACT 2
-#define LIGHT_FLAG_VOLUMETRIC 4
-
-// Packed visible-light record. First g_DirectionalLightCount entries are directional;
-// remaining g_LocalLightCount entries are Point/Spot/Rect. ZBin indices are absolute.
-// Must match C# FLightRecord (explicit 16-byte aligned Sequential pack).
-struct FLightRecord
-{
-    float4 radiance;
-    float4 positionRange;
-    float4 directionSpot;
-    float4 shape; // x/y: shape parameters, z: native shadow strength.
-    float4 axisX;
-    float4 axisY;
-    float4 shadowAtlasRect;
-    float4 attenuation;
-    int lightType;
-    int lightLayer;
-    int flags;
-    int shadowMatrixIndex;
-    int shadowSliceCount;
-    int shadowType;
-    int visibleLightIndex;
-    int bakedOcclusionChannel;
-};
-
+// First g_DirectionalLightCount records are directional; the remaining g_LocalLightCount are local. Light-list
+// indices are absolute record indices.
 struct FLightBounds
 {
     float4 centerRadius;
@@ -53,42 +25,22 @@ StructuredBuffer<uint> SRV_TileLightList;
 StructuredBuffer<uint2> SRV_ZBinRange;
 StructuredBuffer<uint> SRV_ZBinLightList;
 
-float3 LightRadiance(FLightRecord light)
+// Half extents of a planar emitter. A disk is shaded as the square of equal area until the disk evaluation lands
+// (0.5.0 S8).
+float2 RectHalfSize(FLightRecord light)
 {
-    return (light.flags & 16) != 0 ? 0 : light.radiance.rgb;
-}
-
-float3 VolumeLightRadiance(FLightRecord light)
-{
-    return (light.flags & LIGHT_FLAG_VOLUMETRIC) != 0 ? light.radiance.rgb * light.attenuation.z : 0;
-}
-
-float VolumeShadowWeight(FLightRecord light, float shadow)
-{
-    return lerp(1.0, shadow, light.attenuation.w);
-}
-
-float DistanceAttenuation(float distance, float range)
-{
-    float invRange = rcp(max(range, 1e-4));
-    float d = saturate(1.0 - pow(distance * invRange, 4.0));
-    return d * d * rcp(max(distance * distance, 1e-4));
-}
-
-float SpotAttenuation(float3 L, float3 spotToLight, float innerCos, float outerCos)
-{
-    float cosAngle = dot(L, spotToLight);
-    return saturate((cosAngle - outerCos) / max(innerCos - outerCos, 1e-4));
+    return IsRectLight(light) ? 0.5 * light.area.xy : (0.5 * sqrt(3.14159265) * light.shape.x).xx;
 }
 
 // Karis representative point for rectangular area specular (no LTC LUT).
 float3 KarisRectRepresentativePoint(float3 positionWS, float3 R, FLightRecord light)
 {
     float3 center = light.positionRange.xyz;
-    float3 axisX = light.axisX.xyz;
-    float3 axisY = light.axisY.xyz;
-    float halfW = light.shape.x * 0.5;
-    float halfH = light.shape.y * 0.5;
+    float3 axisX = light.right.xyz;
+    float3 axisY = LightUp(light);
+    float2 halfSize = RectHalfSize(light);
+    float halfW = halfSize.x;
+    float halfH = halfSize.y;
     float3 planeN = normalize(cross(axisX, axisY));
     float denom = dot(R, planeN);
     float t = dot(center - positionWS, planeN) / (abs(denom) > 1e-4 ? denom : 1e-4);
@@ -103,10 +55,11 @@ float3 KarisRectRepresentativePoint(float3 positionWS, float3 R, FLightRecord li
 float FrostbiteRectFormFactor(float3 positionWS, float3 normalWS, FLightRecord light)
 {
     float3 center = light.positionRange.xyz;
-    float3 axisX = light.axisX.xyz;
-    float3 axisY = light.axisY.xyz;
-    float halfW = light.shape.x * 0.5;
-    float halfH = light.shape.y * 0.5;
+    float3 axisX = light.right.xyz;
+    float3 axisY = LightUp(light);
+    float2 halfSize = RectHalfSize(light);
+    float halfW = halfSize.x;
+    float halfH = halfSize.y;
     float3 p0 = center - axisX * halfW - axisY * halfH;
     float3 p1 = center + axisX * halfW - axisY * halfH;
     float3 p2 = center + axisX * halfW + axisY * halfH;
