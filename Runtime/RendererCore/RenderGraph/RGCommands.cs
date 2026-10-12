@@ -29,6 +29,9 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferRef buffer);
         void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, ComputeBuffer buffer, int offset, int size);
         void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ);
+        // Thread-group counts come from three uints at argsOffset (bytes) in a graph buffer created with
+        // ComputeBufferType.IndirectArguments. The pass must declare the buffer with ReadBuffer.
+        void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset);
         void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst);
         void BeginSample(string name);
         void EndSample(string name);
@@ -182,6 +185,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ)
         {
             m_CommandBuffer.DispatchCompute(computeShader, kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
+        }
+
+        public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset)
+        {
+            argsBuffer.DispatchIndirect(m_CommandBuffer, computeShader, kernelIndex, argsOffset);
         }
 
         public void BeginSample(string name)

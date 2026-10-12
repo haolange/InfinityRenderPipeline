@@ -85,8 +85,8 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(shaders.zBinningShader, "LightCount", "PrefixSum", "Fill"))
-                throw new System.InvalidOperationException("Local lights require the LightCount, PrefixSum and Fill ZBin kernels.");
+            // Visible local lights make the list a required producer: a blocked feature fails at record time.
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.LocalLightList);
 
             int tileSize = 16;
             int width = m_ActiveFrameState.dimensions.internalSize.x;
@@ -227,6 +227,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 });
             }
+            MarkFeatureProduced(EFrameFeature.LocalLightList);
         }
     }
 }

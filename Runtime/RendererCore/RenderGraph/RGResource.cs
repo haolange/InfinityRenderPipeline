@@ -68,6 +68,23 @@ namespace InfinityTech.Rendering.RenderGraph
             else commands.SetGlobalBuffer(nameID, buffer.resource);
         }
 
+        internal void DispatchIndirect(CommandBuffer commands, ComputeShader shader, int kernel, uint argsOffset)
+        {
+            RGBuffer buffer = Resolve();
+            if (buffer.graphicsResource != null)
+            {
+                if ((buffer.graphicsTarget & GraphicsBuffer.Target.IndirectArguments) == 0)
+                    throw new InvalidOperationException($"RG buffer {buffer.GetName()} is not an IndirectArguments buffer.");
+                commands.DispatchCompute(shader, kernel, buffer.graphicsResource, argsOffset);
+            }
+            else
+            {
+                if ((buffer.descriptor.type & ComputeBufferType.IndirectArguments) == 0)
+                    throw new InvalidOperationException($"RG buffer {buffer.GetName()} is not an IndirectArguments buffer.");
+                commands.DispatchCompute(shader, kernel, buffer.resource, argsOffset);
+            }
+        }
+
         internal void BindCompute(CommandBuffer commands, ComputeShader shader, int kernel, int nameID)
         {
             RGBuffer buffer = Resolve();

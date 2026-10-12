@@ -14,6 +14,9 @@ namespace InfinityTech.Rendering.Pipeline
         public int version => m_Version;
         public bool isAvailableInPlayerBuild => true;
 
+        [ResourcePath("Shaders/Utility/Compute_Utility.compute")]
+        public ComputeShader utilityShader;
+
         [ResourcePath("Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute")]
         public ComputeShader meshDrawPipelineCS;
 

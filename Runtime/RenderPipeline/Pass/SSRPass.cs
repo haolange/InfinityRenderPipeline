@@ -10,6 +10,8 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class SSRPassUtilityData
     {
+        internal static readonly string[] RequiredKernels = { "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter" };
+
         internal static string RadianceName = "SSRRadiance";
         internal static string HitPDFTextureName = "SSRHitPDFTexture";
         internal static string SpatialName = "SSRSpatial";
@@ -124,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             var ssr = ActiveVolumeStack.GetComponent<ScreenSpaceReflection>();
-            if (!GraphicsUtility.HasRequiredKernels(shaders.ssrShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter"))
+            if (!GraphicsUtility.HasRequiredKernels(shaders.ssrShader, SSRPassUtilityData.RequiredKernels))
             {
                 return;
             }

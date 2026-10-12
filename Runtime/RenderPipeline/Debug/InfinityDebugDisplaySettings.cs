@@ -47,6 +47,14 @@ namespace InfinityTech.Rendering.Pipeline
                 setIndex = value => state.debugView = (EDebugView)value
             });
 
+            var featureList = new DebugUI.Foldout { displayName = "Frame Features (last camera)" };
+            foreach (EFrameFeature feature in System.Enum.GetValues(typeof(EFrameFeature)))
+            {
+                EFrameFeature captured = feature;
+                featureList.children.Add(new DebugUI.Value { displayName = captured.ToString(), getter = () => state.rendering.DescribeFeature(captured) });
+            }
+            rendering.children.Add(featureList);
+
             DebugUI.Panel lighting = DebugManager.instance.GetPanel("Infinity Lighting", true);
             lighting.children.Add(new DebugUI.Value { displayName = "Directional Lights", getter = () => (object)state.lighting.lastDirectionalCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Local Lights", getter = () => (object)state.lighting.lastLocalCount });

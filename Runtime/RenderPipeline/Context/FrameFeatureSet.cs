@@ -23,7 +23,9 @@ namespace InfinityTech.Rendering.Pipeline
         Display,
         DBuffer,
         OpaqueLightingPyramid,
-        HalfResDownsample
+        HalfResDownsample,
+        // Content-phase feature: requested after LightContext.Build when local lights are visible.
+        LocalLightList
     }
 
     public class FrameFeatureSet
@@ -33,9 +35,13 @@ namespace InfinityTech.Rendering.Pipeline
             public bool requested;
             public bool supported;
             public bool produced;
+            // Why a requested feature cannot record (null when supported). Filled by FeatureRegistry.Resolve.
+            public string unsupportedReason;
         }
 
         readonly FeatureState[] m_States = new FeatureState[FeatureCount];
+
+        public static int Count => FeatureCount;
 
         static readonly int FeatureCount = Enum.GetNames(typeof(EFrameFeature)).Length;
 
@@ -60,6 +66,29 @@ namespace InfinityTech.Rendering.Pipeline
         public void MarkProduced(EFrameFeature feature)
         {
             m_States[Index(feature)].produced = true;
+        }
+
+        public bool IsRequested(EFrameFeature feature)
+        {
+            return m_States[Index(feature)].requested;
+        }
+
+        public bool IsSupported(EFrameFeature feature)
+        {
+            return m_States[Index(feature)].supported;
+        }
+
+        public string GetUnsupportedReason(EFrameFeature feature)
+        {
+            return m_States[Index(feature)].unsupportedReason;
+        }
+
+        internal void SetResolved(EFrameFeature feature, bool requested, bool supported, string reason)
+        {
+            ref FeatureState state = ref m_States[Index(feature)];
+            state.requested = requested;
+            state.supported = supported;
+            state.unsupportedReason = supported ? null : reason;
         }
 
         public bool IsProduced(EFrameFeature feature)

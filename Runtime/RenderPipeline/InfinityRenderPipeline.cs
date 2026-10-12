@@ -445,6 +445,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.cascadeRatios = ShadowAllocator.ValidateCascadeRatios(pipelineAsset.cascadeSplitRatios);
                                     shadowSettings.maxLocalLights = Mathf.Clamp(pipelineAsset.maxShadowedLocalLights, 1, 64);
                                     renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings);
+                                    ConfigureContentFeatures(frameState);
                                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                                     lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
                                     lightingDebug.lastLocalCount = renderContext.lightContext.LocalLightCount;
@@ -1009,6 +1010,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         FrameFeatureSet ActiveFeatures => m_ActiveFrameState.features;
 
+        FeatureSupportContext m_FeatureSupportContext;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool ShouldRecordFeature(EFrameFeature feature)
         {
@@ -1055,162 +1058,105 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
+        // States what this camera wants to record. FeatureRegistry.Resolve decides what can record (kernels,
+        // dependencies, camera policy), requests dependencies and keeps the reason for anything that cannot.
         void ConfigureFrameFeatures(CameraFrameState frameState)
         {
             FrameFeatureSet features = frameState.features;
             features.Reset();
             VolumeStack stack = frameState.volumeStack;
-            // Previews and reflection-probe faces have no history: no TAA/SR and no history-accumulating features.
             bool temporal = frameState.renderPolicy.temporal;
 
             features.Request(EFrameFeature.Depth);
-            features.MarkSupported(EFrameFeature.Depth);
             features.Request(EFrameFeature.GBuffer);
-            features.MarkSupported(EFrameFeature.GBuffer);
+            features.Request(EFrameFeature.Motion);
+            features.Request(EFrameFeature.DeferredShading);
+            features.Request(EFrameFeature.HiZ);
+            features.Request(EFrameFeature.ColorPyramid);
+            features.Request(EFrameFeature.PostProcess);
+            features.Request(EFrameFeature.Display);
             if (renderContext.WorldDecalCount > 0)
             {
                 features.Request(EFrameFeature.DBuffer);
-                features.MarkSupported(EFrameFeature.DBuffer);
-            }
-            features.Request(EFrameFeature.Motion);
-            features.MarkSupported(EFrameFeature.Motion);
-            features.Request(EFrameFeature.DeferredShading);
-            if (GraphicsUtility.HasRequiredKernels(shaders.deferredShadingShader, "DeferredShadingCS"))
-            {
-                features.MarkSupported(EFrameFeature.DeferredShading);
-            }
-
-            features.Request(EFrameFeature.HiZ);
-            if (GraphicsUtility.HasRequiredKernels(shaders.hiZShader, "HiZ_Generation"))
-            {
-                features.MarkSupported(EFrameFeature.HiZ);
-            }
-
-            features.Request(EFrameFeature.ColorPyramid);
-            if (GraphicsUtility.HasRequiredKernels(shaders.colorPyramidShader, "KMain"))
-            {
-                features.MarkSupported(EFrameFeature.ColorPyramid);
-            }
-
-            features.Request(EFrameFeature.PostProcess);
-            features.Request(EFrameFeature.Display);
-            if (GraphicsUtility.HasRequiredKernels(shaders.postProcessingShader, "BloomDownsample", "BloomUpsample", "FinalCombine", "ExposureClear", "ExposureHistogram", "ExposureReduce"))
-            {
-                features.MarkSupported(EFrameFeature.PostProcess);
-            }
-
-            if (GraphicsUtility.BlitMaterial != null && GraphicsUtility.BlitMaterial.FindPass("Present") >= 0)
-            {
-                features.MarkSupported(EFrameFeature.Display);
             }
 
             // Without a temporal policy PostProcess reads FoggedSceneColor directly.
-            if (temporal && frameState.dimensions.superResolution)
+            if (temporal)
             {
-                features.Request(EFrameFeature.SuperResolution);
-                if (shaders.superResolutionShader != null)
-                {
-                    features.MarkSupported(EFrameFeature.SuperResolution);
-                }
-            }
-            else if (temporal)
-            {
-                features.Request(EFrameFeature.TAA);
-                if (shaders.taaShader != null)
-                {
-                    features.MarkSupported(EFrameFeature.TAA);
-                }
+                features.Request(frameState.dimensions.superResolution ? EFrameFeature.SuperResolution : EFrameFeature.TAA);
             }
 
             var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
             InfinityRayTracingEnvironment rayEnv = InfinityRayTracingEnvironment.EnsureOwned();
             rayEnv.SyncGeometry(renderContext.GetMeshScene());
-            bool rtaoLive = pipelineAsset.enableRayTrace && VolumeComponentActive(rtao) && InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders) && rayEnv.InstanceCount > 0;
-            bool gtaoKernels = GraphicsUtility.HasRequiredKernels(shaders.ssaoShader, "OcclusionTrace", "OcclusionSpatialX", "OcclusionSpatialY", "OcclusionTemporal", "OcclusionUpsample");
-            if (rtaoLive)
+            string rtaoReason = null;
+            if (!pipelineAsset.enableRayTrace)
+                rtaoReason = "Ray tracing is disabled on the RP Asset.";
+            else if (!VolumeComponentActive(rtao))
+                rtaoReason = "RTAO Volume is inactive.";
+            else if (!InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders))
+                rtaoReason = string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason) ? "UnifiedRayTracing is not ready." : InfinityRayTracingEnvironment.lastBlockReason;
+            else if (rayEnv.InstanceCount == 0)
+                rtaoReason = "URT accel has no mesh instances.";
+            InfinityRayTracingEnvironment.ReportBlockReason(rtaoReason ?? string.Empty);
+
+            // RTAO owns AO when it can record; otherwise GTAO does (if requested).
+            if (rtaoReason == null)
             {
                 features.Request(EFrameFeature.RTAO);
-                features.MarkSupported(EFrameFeature.RTAO);
-                InfinityRayTracingEnvironment.ReportBlockReason(string.Empty);
             }
-            else
+            else if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()))
             {
-                if (!pipelineAsset.enableRayTrace)
-                {
-                    InfinityRayTracingEnvironment.ReportBlockReason("Ray tracing is disabled on the RP Asset.");
-                }
-                else if (!VolumeComponentActive(rtao))
-                {
-                    InfinityRayTracingEnvironment.ReportBlockReason("RTAO Volume is inactive.");
-                }
-                else if (rayEnv.InstanceCount == 0 && string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason))
-                {
-                    InfinityRayTracingEnvironment.ReportBlockReason("URT accel has no mesh instances.");
-                }
-
-                // GTAO traces at half resolution and accumulates history: it needs the half-res producer and a temporal camera.
-                bool halfResKernels = GraphicsUtility.HasRequiredKernels(shaders.halfResDownsampleShader, "HalfResDownsample");
-                if (temporal && ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()) && gtaoKernels && halfResKernels)
-                {
-                    features.Request(EFrameFeature.GTAO);
-                    features.MarkSupported(EFrameFeature.GTAO);
-                    features.Request(EFrameFeature.HalfResDownsample);
-                    features.MarkSupported(EFrameFeature.HalfResDownsample);
-                }
+                features.Request(EFrameFeature.GTAO);
             }
 
-            var contactShadow = stack.GetComponent<ContactShadow>();
-            if (VolumeComponentActive(contactShadow) && GraphicsUtility.HasRequiredKernels(shaders.contactShadowShader, "ContactShadowCS"))
+            if (VolumeComponentActive(stack.GetComponent<ContactShadow>()))
             {
                 features.Request(EFrameFeature.ContactShadow);
-                features.MarkSupported(EFrameFeature.ContactShadow);
             }
 
             EScreenSpaceMode screenSpaceMode = ScreenSpaceModeUtility.Resolve(
                 stack.GetComponent<ScreenSpaceReflection>(),
                 stack.GetComponent<ScreenSpaceIndirectDiffuse>());
-            bool pyramidOk = GraphicsUtility.HasRequiredKernels(shaders.colorPyramidShader, "KMain");
-            bool compositeOk = GraphicsUtility.HasRequiredKernels(shaders.screenSpaceCompositeShader, "ScreenSpaceComposite");
-            // SSR/SSGI trace the Hi-Z pyramid and accumulate history.
-            bool screenSpaceInputsOk = temporal && features.ShouldRecord(EFrameFeature.HiZ) && pyramidOk && compositeOk;
-            bool ssrOk = GraphicsUtility.HasRequiredKernels(shaders.ssrShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
-            bool ssgiOk = GraphicsUtility.HasRequiredKernels(shaders.ssgiShader, "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter");
-            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && ssrOk && screenSpaceInputsOk)
+            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode))
             {
                 features.Request(EFrameFeature.SSR);
-                features.MarkSupported(EFrameFeature.SSR);
-                features.Request(EFrameFeature.OpaqueLightingPyramid);
             }
-            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode) && ssgiOk && screenSpaceInputsOk)
+            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode))
             {
                 features.Request(EFrameFeature.SSGI);
-                features.MarkSupported(EFrameFeature.SSGI);
-                features.Request(EFrameFeature.OpaqueLightingPyramid);
-            }
-            if (features.ShouldRecord(EFrameFeature.SSR) || features.ShouldRecord(EFrameFeature.SSGI))
-            {
-                features.MarkSupported(EFrameFeature.OpaqueLightingPyramid);
             }
 
-            var volFog = stack.GetComponent<VolumetricFog>();
-            if (temporal && VolumeComponentActive(volFog))
+            if (VolumeComponentActive(stack.GetComponent<VolumetricFog>()))
             {
                 features.Request(EFrameFeature.VolumetricFog);
             }
-            if (GraphicsUtility.HasRequiredKernels(shaders.volumetricFogShader, "ScatterDensity", "Integrate", "Temporal"))
-            {
-                features.MarkSupported(EFrameFeature.VolumetricFog);
-            }
-
-            var volCloud = stack.GetComponent<VolumetricCloud>();
-            if (temporal && VolumeComponentActive(volCloud))
+            if (VolumeComponentActive(stack.GetComponent<VolumetricCloud>()))
             {
                 features.Request(EFrameFeature.VolumetricCloud);
             }
-            if (GraphicsUtility.HasRequiredKernels(shaders.volumetricCloudShader, "VolumetricCloudCS"))
+
+            m_FeatureSupportContext = new FeatureSupportContext
             {
-                features.MarkSupported(EFrameFeature.VolumetricCloud);
+                shaders = shaders,
+                temporal = temporal,
+                rayTracedOcclusionReady = rtaoReason == null,
+                rayTracedOcclusionReason = rtaoReason,
+                presentAvailable = GraphicsUtility.BlitMaterial != null && GraphicsUtility.BlitMaterial.FindPass("Present") >= 0,
+            };
+            FeatureRegistry.Resolve(features, m_FeatureSupportContext);
+            InfinityDebugDisplaySettings.current.rendering.lastFeatures = features;
+        }
+
+        // Second phase, after culling and LightContext.Build: features whose recording depends on scene content.
+        void ConfigureContentFeatures(CameraFrameState frameState)
+        {
+            FrameFeatureSet features = frameState.features;
+            if (renderContext.lightContext.HasZBinningLightList())
+            {
+                features.Request(EFrameFeature.LocalLightList);
             }
+            FeatureRegistry.Resolve(features, m_FeatureSupportContext);
         }
 
 #if UNITY_EDITOR

@@ -52,3 +52,11 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 7. **GTAO off**: no HalfResDownsample pass in the Frame Debugger; GTAO on: it is present.
 8. Rendering Debugger → Infinity Rendering → Debug View is an enum popup; every view still works.
 9. Mesh GPU path: change a MeshComponent's material at runtime and remove/re-add instances; no stale draws or flicker.
+
+## S3 — RenderGraph and feature registry
+
+1. Compile; run `FeatureRegistryTests`.
+2. GlobalSettings → RuntimeShaders shows the new `Utility Shader` slot filled automatically (Unity reloads null `[ResourcePath]` fields). If it is empty, use the GlobalSettings inspector reset for that container.
+3. Rendering Debugger → Infinity Rendering → Frame Features: each feature shows Off / Records / Blocked with a reason. Disable SSR on the Volume (Off), then clear the SSR compute shader slot (Blocked: not assigned) and restore it.
+4. Images are unchanged from S2.
+5. An `RGScoper` error now names the missing resource (for example `_HiZTexture`) instead of a number.

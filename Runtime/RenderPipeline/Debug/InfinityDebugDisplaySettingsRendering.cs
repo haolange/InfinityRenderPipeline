@@ -5,10 +5,22 @@ namespace InfinityTech.Rendering.Pipeline
     public sealed class InfinityDebugDisplaySettingsRendering
     {
         public EDebugView debugView = EDebugView.None;
+        // Feature state of the most recently configured camera (read-only display).
+        public FrameFeatureSet lastFeatures;
 
         public void Reset()
         {
             debugView = EDebugView.None;
+            lastFeatures = null;
+        }
+
+        public string DescribeFeature(EFrameFeature feature)
+        {
+            FrameFeatureSet features = lastFeatures;
+            if (features == null) return "-";
+            if (!features.IsRequested(feature)) return "Off";
+            if (features.IsSupported(feature)) return "Records";
+            return "Blocked: " + features.GetUnsupportedReason(feature);
         }
     }
 
