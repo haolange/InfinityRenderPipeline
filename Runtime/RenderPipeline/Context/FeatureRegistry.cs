@@ -7,6 +7,7 @@ namespace InfinityTech.Rendering.Pipeline
     internal struct FeatureSupportContext
     {
         public InfinityRenderPipelineRuntimeShaders shaders;
+        public InfinityRenderPipelineRuntimeTextures textures;
         // From CameraRenderPolicy.temporal: jitter, history and temporal resolve are allowed.
         public bool temporal;
         // RTAO readiness is decided by the UnifiedRayTracing environment before the registry runs.
@@ -110,7 +111,13 @@ namespace InfinityTech.Rendering.Pipeline
                 id = EFrameFeature.SSR,
                 requiresTemporal = true,
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.OpaqueLightingPyramid },
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssrShader), s => s.ssrShader, SSRPassUtilityData.RequiredKernels), composite }
+                shaders = new[]
+                {
+                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssrShader), s => s.ssrShader, SSRPassUtilityData.RequiredKernels),
+                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.utilityShader), s => s.utilityShader, ComputeUtility.ClearIndirectArgsKernelName),
+                    composite
+                },
+                customSupport = c => c.textures != null && c.textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures."
             });
             Add(new FeatureDescriptor
             {

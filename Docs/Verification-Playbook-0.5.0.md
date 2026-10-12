@@ -67,3 +67,27 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 2. Open a Volume with GTAO, RTAO, Volumetric Fog or Volumetric Cloud: a Quality section shows `Quality = Custom` and the existing values (images unchanged).
 3. Switch Quality to Low/Medium/High/Ultra: the quality fields become read-only and show the preset values; the image changes accordingly. Artistic fields (intensity, radius, density, ...) stay editable.
 4. "Copy Preset To Custom" copies the preset into the parameters and switches to Custom; Undo restores the previous state.
+
+## S5 — stochastic SSR
+
+1. Compile; run `QualityPresetTests` and `StochasticSSRNumericTests` (GPU; three plane cases plus constant spatial).
+   The 0.4.0 SSR kernels are gone from `ScreenSpaceNumericContract_ProductionKernels`.
+2. The three textures in `Runtime/Resources/Textures/MonteCarlo/` (RankingTile256SPP, ScramblingTile256SPP,
+   ScrambledNoise_Owen) reimport as uncompressed single-channel. GlobalSettings → RuntimeTextures shows the three
+   new blue-noise slots filled.
+3. Screen Space Reflection Volume: removed parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
+   `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight` (their values are dropped). Kept names:
+   `MaxDistance`, `Thickness`, `MaxRoughness`, `fade`, `NumSteps` (now the Hi-Z budget), `BrdfBias`, `TemporalScale`
+   (now the variance-clip width), `TemporalWeight`. New: `quality`, `HalfResolution`, `MirrorRoughness`,
+   `LinearRoughness`, `LinearSteps`, `ResolveSamples`, `ResolveRadius`, `SpatialPasses`.
+4. Scene with a glossy floor and a rough wall, SSR enabled:
+   - Debug View **SSR Tile Class**: floor tiles blue (Hi-Z), rough tiles orange (linear), sky and forward materials gray.
+   - **SSR Ray Hit**: green where reflected objects are on screen, red elsewhere; with Half Resolution the pattern is
+     a 2x2 rotating checker.
+   - **SSR Confidence** fades at screen edges and near Max Distance; **SSR History Age** goes white within ~16 frames
+     on a still camera and drops to black on disocclusion.
+   - Final image: mirror reflections sharp and stable while orbiting; rough reflections blurred without fireflies.
+     Report ghosting on moving objects and any reflection of an object's back side.
+5. Quality Low → Ultra visibly trades noise and blur for cost; Frame Debugger shows `SSR_Classify`, `SSR_Trace`
+   (three indirect dispatches), `SSR_Resolve`, `SSR_Temporal` and, below Ultra, `SSR_Spatial`.
+

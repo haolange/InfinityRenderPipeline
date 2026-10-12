@@ -33,12 +33,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void ScreenSpaceReflection_NumRaysDefaultIsAtLeastTwo()
+        public void ScreenSpaceReflection_ResolveReusesAtLeastTwoRaysByDefault()
         {
             ScreenSpaceReflection ssr = ScriptableObject.CreateInstance<ScreenSpaceReflection>();
             try
             {
-                Assert.GreaterOrEqual(ssr.NumRays.value, 2);
+                Assert.GreaterOrEqual(ssr.ResolveSamples.value, 2);
             }
             finally
             {

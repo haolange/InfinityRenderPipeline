@@ -26,7 +26,7 @@ Columns:
 | Atmosphere LUTs + sky IBL | Yes | Yes (parameters, cache) | Open | Open | macOS Metal | |
 | GTAO | Yes | Yes (numeric) | Open | Open | macOS Metal | |
 | RTAO (UnifiedRayTracing) | When URT is ready | Partial | Open | Open | Editor only | Player shader load unverified |
-| SSR | Yes | Yes (numeric) | Open | Open | macOS Metal | 0.5.0 S5 replaces it |
+| SSR (stochastic, 0.5.0) | Yes | Unverified-0.5 (numeric, presets) | Open | Open | None | Never compiled by Unity yet |
 | SSGI | Yes | Yes (numeric) | Open | Open | macOS Metal | 0.5.0 S14 replaces it |
 | Burley SSS | Yes | No | Open | Open | macOS Metal | |
 | Volumetric fog / cloud | Yes | Partial | Open | Open | macOS Metal | |

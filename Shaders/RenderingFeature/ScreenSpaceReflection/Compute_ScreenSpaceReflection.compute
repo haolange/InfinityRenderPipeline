@@ -1,381 +1,577 @@
-#include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
-float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
-#include "../../ShaderLibrary/BSDF.hlsl"
-#include "../../ShaderLibrary/Random.hlsl"
+// Stochastic screen-space reflections after Frostbite (Stachowiak 2015, "Stochastic Screen-Space Reflections").
+//
+//   SSRClassify      one group per 8x8 trace tile: skip, Hi-Z (smooth) or linear (rough) by the tile's minimum roughness
+//   SSRClearSkipped  indirect over skip tiles: clears their ray records
+//   SSRTraceHiZ      indirect over Hi-Z tiles: one VNDF ray per trace pixel, Hi-Z walk
+//   SSRTraceLinear   indirect over linear tiles: one VNDF ray per trace pixel, linear march
+//   SSRResolve       full resolution: ratio estimator over neighbor rays (ray reuse), filtered importance sampling mip
+//   SSRTemporal      full resolution: virtual-point + surface reprojection, variance clip, per-pixel history age
+//   SSRSpatial       full resolution: optional 5x5 a-trous pass with roughness-scaled spacing
+//   SSRDebug         full resolution: tile class, ray result, confidence and history age views
+//
+// Trace resolution is full or half. At half resolution each trace pixel traces a different full-resolution pixel of
+// its 2x2 quad every frame, and the resolve reuses the rays around the quad.
+//
+// Ray record (RGBA32F, trace resolution): hit = (uv, raw depth, +pdf); miss = (octahedral world direction, 0, -pdf);
+// no ray = 0. The pdf is the solid-angle pdf of the reflected direction.
+// Resolved / Temporal / SSRTexture (RGBA16F): rgb = radiance premultiplied by confidence, a = confidence.
+// Meta (RGBA16F): octahedral world normal, raw depth, history age in frames (0 = no history).
+
+#pragma kernel SSRClassify
+#pragma kernel SSRClearSkipped
+#pragma kernel SSRTraceHiZ
+#pragma kernel SSRTraceLinear
+#pragma kernel SSRResolve
+#pragma kernel SSRTemporal
+#pragma kernel SSRSpatial
+#pragma kernel SSRDebug
+
 #include "../../ShaderLibrary/Common.hlsl"
-#include "../../ShaderLibrary/RayTracing/Variance/VarianceEstimator.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceDepth.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
+#include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceDenoise/TemporalAccumulation.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceDenoise/AtrousFilter.hlsl"
+#include "../../ShaderLibrary/DebugViewModes.hlsl"
 
-int SSR_NumRays, SSR_NumSteps, SSR_FrameIndex;
+#define SSR_TILE_SIZE 8
+#define SSR_CLASS_HIZ 0
+#define SSR_CLASS_LINEAR 1
+#define SSR_CLASS_SKIP 2
+
+float4 SSR_Resolution;
+float4 SSR_TraceResolution;
+uint SSR_TraceScale;
+uint SSR_FrameIndex;
+uint SSR_MaxTiles;
+uint SSR_TileListOffset;
 float SSR_MaxDistance;
-float SSR_BRDFBias, SSR_Thickness, SSR_Fadeness, SSR_Roughness, SSR_SpatialRadius, SSR_TemporalScale, SSR_TemporalWeight, ColorPyramidNumLOD;
-float4 SSR_Resolution, SSR_FilterResolution;
+float SSR_Thickness;
+float SSR_MaxRoughness;
+float SSR_EdgeFade;
+float SSR_MirrorRoughness;
+float SSR_LinearRoughness;
+float SSR_BRDFBias;
+uint SSR_HiZSteps;
+uint SSR_LinearSteps;
+uint SSR_ResolveSamples;
+float SSR_ResolveRadius;
+float SSR_TemporalWeight;
+float SSR_TemporalClampScale;
+float SSR_HistoryValid;
+int SSR_DebugMode;
+// xyz = world position, w = 1 for orthographic cameras.
+float4 SSR_CameraPosition;
+float4 SSR_CameraForward;
 float4x4 Matrix_Proj, Matrix_InvProj, Matrix_InvViewProj, Matrix_WorldToView;
-Texture2D SRV_DepthTexture, SRV_MotionTexture, SRV_NormalTexture, SRV_RoughnessTexture, SRV_HiCTexture, SRV_HiZTexture, SRV_HitPDFTexture, SRV_ColorMaskTexture, SRV_AliasingTexture, SRV_HistoryTexture, SRV_HistoryMoments, SRV_HistoryDepthNormal;
+float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
 
-static const float2 kStackowiakSampleSet0[56 * 4] =
+Texture2D<float> SRV_DepthTexture;
+Texture2D SRV_HiZTexture;
+Texture2D SRV_GBufferA;
+Texture2D SRV_GBufferB;
+Texture2D SRV_GBufferC;
+Texture2D SRV_LightingPyramid;
+Texture2D SRV_MotionTexture;
+Texture2D SRV_HistoryRadiance;
+Texture2D SRV_HistoryMeta;
+Texture2D<float4> SRV_RayHit;
+Texture2D<float4> SRV_Resolved;
+Texture2D<float> SRV_HitDistance;
+Texture2D<float4> SRV_Temporal;
+Texture2D<float4> SRV_Meta;
+Texture2D<uint> SRV_TileClass;
+StructuredBuffer<uint> SRV_TileList;
+
+RWStructuredBuffer<uint> UAV_TileArgs;
+RWStructuredBuffer<uint> UAV_TileList;
+RWTexture2D<uint> UAV_TileClass;
+RWTexture2D<float4> UAV_RayHit;
+RWTexture2D<float4> UAV_Resolved;
+RWTexture2D<float> UAV_HitDistance;
+RWTexture2D<float4> UAV_Temporal;
+RWTexture2D<float4> UAV_Meta;
+RWTexture2D<float4> UAV_Output;
+RWTexture2D<float4> UAV_Debug;
+
+struct FSSRSurface
 {
-	float2(-0.5, -0.5), float2(+0.5, -0.5), float2(-0.5, +0.5), float2(+0.5, +0.5),
-	float2(-1.5, +0.5), float2(-1.5, -0.5), float2(-0.5, +1.5), float2(+1.5, -0.5),
-	float2(+0.5, -1.5), float2(+2.5, -0.5), float2(+1.5, +0.5), float2(-0.5, -1.5),
-	float2(-1.5, -2.5), float2(-0.5, -2.5), float2(-1.5, -1.5), float2(-0.5, +2.5),
-	float2(-1.5, +1.5), float2(+1.5, -2.5), float2(-1.5, +2.5), float2(+1.5, +2.5),
-	float2(+0.5, -2.5), float2(-2.5, -0.5), float2(-2.5, -1.5), float2(-2.5, +0.5),
-	float2(+0.5, +1.5), float2(+0.5, +2.5), float2(-3.5, +0.5), float2(+0.5, +3.5),
-	float2(+1.5, -1.5), float2(+3.5, -0.5), float2(+2.5, +1.5), float2(+3.5, +0.5),
-	float2(+1.5, +1.5), float2(-2.5, +1.5), float2(-3.5, +2.5), float2(+3.5, +1.5),
-	float2(-3.5, -0.5), float2(-1.5, -3.5), float2(-2.5, -2.5), float2(-2.5, +2.5),
-	float2(+2.5, +0.5), float2(+2.5, +2.5), float2(+1.5, +3.5), float2(+3.5, -1.5),
-	float2(-3.5, -2.5), float2(+3.5, -2.5), float2(+2.5, -1.5), float2(+0.5, -3.5),
-	float2(-0.5, +3.5), float2(-0.5, -4.5), float2(-4.5, +0.5), float2(+4.5, +0.5),
-	float2(-4.5, -1.5), float2(-3.5, +1.5), float2(-0.5, -3.5), float2(+1.5, -3.5),
-	float2(+0.5, -4.5), float2(-1.5, +3.5), float2(+0.5, +4.5), float2(-3.5, -1.5),
-	float2(-4.5, +1.5), float2(+2.5, -4.5), float2(+2.5, -2.5), float2(-1.5, +4.5),
-	float2(-2.5, -4.5), float2(+4.5, -2.5), float2(+2.5, +3.5), float2(-3.5, +3.5),
-	float2(-2.5, +3.5), float2(+0.5, -5.5), float2(-4.5, +3.5), float2(-2.5, -3.5),
-	float2(-4.5, +2.5), float2(+3.5, +3.5), float2(+2.5, -3.5), float2(+4.5, +3.5),
-	float2(+3.5, -3.5), float2(+4.5, +2.5), float2(-5.5, +1.5), float2(-4.5, -0.5),
-	float2(+3.5, +2.5), float2(-0.5, +4.5), float2(-1.5, +5.5), float2(+1.5, +5.5),
-	float2(+4.5, -0.5), float2(+5.5, +0.5), float2(+4.5, +1.5), float2(-1.5, -4.5),
-	float2(-1.5, -5.5), float2(-4.5, -2.5), float2(-2.5, +5.5), float2(+2.5, +5.5),
-	float2(+1.5, +4.5), float2(+5.5, +1.5), float2(+1.5, -4.5), float2(-3.5, -3.5),
-	float2(+3.5, -4.5), float2(-3.5, -4.5), float2(+4.5, -1.5), float2(+4.5, -3.5),
-	float2(-3.5, -5.5), float2(-2.5, -5.5), float2(-4.5, -3.5), float2(+4.5, +4.5),
-	float2(-3.5, +4.5), float2(-2.5, +4.5), float2(-5.5, -2.5), float2(-5.5, +0.5),
-	float2(+2.5, -5.5), float2(+3.5, +4.5), float2(-0.5, -5.5), float2(-0.5, +6.5),
-	float2(+2.5, +4.5), float2(-5.5, -0.5), float2(-6.5, -1.5), float2(+1.5, -5.5),
-	float2(-6.5, -0.5), float2(+0.5, +5.5), float2(+1.5, +6.5), float2(+6.5, +1.5),
-	float2(-0.5, +5.5), float2(+6.5, -0.5), float2(-4.5, -4.5), float2(-5.5, +2.5),
-	float2(+5.5, -0.5), float2(-5.5, -1.5), float2(-6.5, +3.5), float2(-1.5, +6.5),
-	float2(-6.5, +0.5), float2(+4.5, -5.5), float2(-3.5, +6.5), float2(+6.5, -1.5),
-	float2(+0.5, -6.5), float2(-5.5, -3.5), float2(+5.5, -2.5), float2(+4.5, -4.5),
-	float2(+5.5, -1.5), float2(+3.5, -6.5), float2(+5.5, +3.5), float2(+3.5, -5.5),
-	float2(-5.5, -4.5), float2(+6.5, -3.5), float2(-0.5, -6.5), float2(+3.5, +6.5),
-	float2(-5.5, +3.5), float2(+0.5, +6.5), float2(+6.5, +0.5), float2(+6.5, -2.5),
-	float2(-6.5, -3.5), float2(-4.5, +4.5), float2(-7.5, -0.5), float2(+7.5, +0.5),
-	float2(+5.5, +2.5), float2(-0.5, -7.5), float2(+0.5, +7.5), float2(-4.5, +5.5),
-	float2(+3.5, +5.5), float2(-3.5, +5.5), float2(-4.5, -5.5), float2(+4.5, +6.5),
-	float2(+5.5, -4.5), float2(+4.5, +5.5), float2(-4.5, +6.5), float2(+6.5, +4.5),
-	float2(-7.5, +1.5), float2(-6.5, +1.5), float2(+5.5, -3.5), float2(-6.5, +2.5),
-	float2(-2.5, +6.5), float2(-1.5, -7.5), float2(+5.5, +4.5), float2(-1.5, -6.5),
-	float2(-3.5, -7.5), float2(+2.5, -7.5), float2(-7.5, +2.5), float2(-6.5, -2.5),
-	float2(-5.5, +5.5), float2(+2.5, +6.5), float2(-2.5, -6.5), float2(-7.5, +0.5),
-	float2(-0.5, +7.5), float2(+7.5, -2.5), float2(-2.5, +7.5), float2(+0.5, -7.5),
-	float2(-4.5, -7.5), float2(+7.5, +1.5), float2(+1.5, -6.5), float2(-6.5, +4.5),
-	float2(-1.5, +7.5), float2(-5.5, -5.5), float2(+6.5, +2.5), float2(-3.5, -6.5),
-	float2(+3.5, -7.5), float2(-5.5, +4.5), float2(+2.5, -6.5), float2(+1.5, -7.5),
-	float2(+6.5, +3.5), float2(+5.5, -6.5), float2(-6.5, +5.5), float2(+7.5, +4.5),
-	float2(+7.5, -1.5), float2(-7.5, -1.5), float2(+3.5, +7.5), float2(-5.5, +6.5),
-	float2(+1.5, +7.5), float2(+7.5, +3.5), float2(+7.5, -0.5), float2(-7.5, -2.5),
-	float2(+5.5, +5.5), float2(+6.5, +5.5), float2(+5.5, -5.5), float2(-2.5, -7.5),
-	float2(+2.5, +7.5), float2(-7.5, -3.5), float2(-7.5, -4.5), float2(-6.5, -4.5),
-	float2(+7.5, -3.5), float2(+5.5, +6.5), float2(-5.5, -6.5), float2(-4.5, -6.5),
-	float2(+7.5, +2.5), float2(-7.5, +3.5), float2(+4.5, -6.5), float2(+7.5, -4.5),
+    float rawDepth;
+    float roughness;
+    float3 normalWS;
+    float3 positionVS;
+    float3 positionWS;
+    // Unit vector from the camera toward the surface.
+    float3 viewRayWS;
 };
-static const float2 kStackowiakSampleSet1[56 * 4] =
+
+// Deferred, valid, glossy enough. Forward-route pixels keep their own specular and are never reflected onto.
+bool IsReflectiveSurface(uint2 pixel, out float rawDepth, out float roughness)
 {
-    float2(-0.5, -0.5), float2(+0.5, -0.5), float2(-0.5, +0.5), float2(+0.5, +0.5),
-    float2(+0.5, -1.5), float2(+1.5, -1.5), float2(-1.5, -0.5), float2(+1.5, +1.5),
-    float2(-0.5, -2.5), float2(-1.5, -1.5), float2(+0.5, +1.5), float2(-1.5, +0.5),
-    float2(+1.5, -0.5), float2(-0.5, +1.5), float2(-2.5, +0.5), float2(+0.5, +2.5),
-    float2(-2.5, -1.5), float2(+2.5, +0.5), float2(+1.5, +0.5), float2(-0.5, -1.5),
-    float2(-1.5, +1.5), float2(+2.5, -2.5), float2(-3.5, -0.5), float2(-1.5, +2.5),
-    float2(-2.5, +1.5), float2(-2.5, -0.5), float2(-1.5, -2.5), float2(+2.5, -1.5),
-    float2(-3.5, +0.5), float2(-0.5, -3.5), float2(-1.5, +3.5), float2(+0.5, -2.5),
-    float2(+1.5, +2.5), float2(-0.5, +2.5), float2(+0.5, +3.5), float2(+3.5, +0.5),
-    float2(+2.5, +1.5), float2(-2.5, -2.5), float2(+2.5, -0.5), float2(+3.5, -1.5),
-    float2(-0.5, +3.5), float2(+3.5, +1.5), float2(-3.5, +2.5), float2(+3.5, +2.5),
-    float2(+3.5, -0.5), float2(+0.5, -4.5), float2(-2.5, +3.5), float2(+0.5, -3.5),
-    float2(-1.5, -4.5), float2(+1.5, +3.5), float2(+1.5, -2.5), float2(-3.5, +1.5),
-    float2(+2.5, -3.5), float2(-2.5, -3.5), float2(+2.5, +2.5), float2(+1.5, +4.5),
-    float2(-4.5, -2.5), float2(-2.5, +2.5), float2(-4.5, +1.5), float2(+4.5, +1.5),
-    float2(-2.5, -4.5), float2(+3.5, -3.5), float2(-1.5, -3.5), float2(-3.5, -1.5),
-    float2(+1.5, -4.5), float2(+4.5, -2.5), float2(+1.5, -3.5), float2(-1.5, +4.5),
-    float2(-4.5, +2.5), float2(-4.5, -0.5), float2(+2.5, +4.5), float2(-4.5, +0.5),
-    float2(-3.5, -4.5), float2(+0.5, +4.5), float2(+3.5, -2.5), float2(-3.5, -2.5),
-    float2(-3.5, +3.5), float2(+3.5, +3.5), float2(+4.5, +0.5), float2(+0.5, +5.5),
-    float2(-0.5, +4.5), float2(+4.5, -3.5), float2(-1.5, +5.5), float2(-0.5, -4.5),
-    float2(+2.5, +3.5), float2(+4.5, +2.5), float2(-2.5, +5.5), float2(+2.5, -4.5),
-    float2(+4.5, -0.5), float2(+5.5, -0.5), float2(-4.5, +4.5), float2(+5.5, -1.5),
-    float2(-5.5, -1.5), float2(-4.5, -1.5), float2(+3.5, +4.5), float2(-3.5, -3.5),
-    float2(-5.5, +0.5), float2(+1.5, -5.5), float2(-5.5, -2.5), float2(-3.5, +4.5),
-    float2(+0.5, -5.5), float2(-2.5, -5.5), float2(+2.5, +5.5), float2(+4.5, +4.5),
-    float2(+4.5, -1.5), float2(-2.5, +4.5), float2(+4.5, +3.5), float2(+0.5, +6.5),
-    float2(-0.5, -6.5), float2(+5.5, +2.5), float2(-0.5, -5.5), float2(-5.5, -0.5),
-    float2(-6.5, -1.5), float2(-0.5, +5.5), float2(-0.5, +6.5), float2(+6.5, -0.5),
-    float2(+1.5, +5.5), float2(+1.5, -6.5), float2(+5.5, +0.5), float2(-5.5, +2.5),
-    float2(+5.5, +1.5), float2(-5.5, +1.5), float2(-6.5, -0.5), float2(-1.5, -5.5),
-    float2(-5.5, -4.5), float2(-4.5, +3.5), float2(-6.5, +1.5), float2(+2.5, -5.5),
-    float2(+3.5, -5.5), float2(-5.5, -3.5), float2(+1.5, +6.5), float2(+6.5, +2.5),
-    float2(+4.5, -4.5), float2(+3.5, -6.5), float2(-4.5, -4.5), float2(-4.5, -3.5),
-    float2(-6.5, +2.5), float2(+3.5, +5.5), float2(+3.5, -4.5), float2(+5.5, -3.5),
-    float2(-5.5, +4.5), float2(+6.5, -3.5), float2(-6.5, -2.5), float2(+5.5, +4.5),
-    float2(-1.5, +6.5), float2(-0.5, -7.5), float2(-6.5, +3.5), float2(-5.5, +3.5),
-    float2(-6.5, -4.5), float2(+7.5, -1.5), float2(-3.5, -5.5), float2(+3.5, +6.5),
-    float2(+5.5, +3.5), float2(+7.5, +0.5), float2(+5.5, -2.5), float2(-6.5, +0.5),
-    float2(-7.5, +1.5), float2(-3.5, -6.5), float2(+6.5, +0.5), float2(+7.5, +1.5),
-    float2(-2.5, -7.5), float2(-3.5, +5.5), float2(-7.5, -0.5), float2(-3.5, +6.5),
-    float2(-2.5, +6.5), float2(+4.5, -6.5), float2(-5.5, +5.5), float2(+4.5, -5.5),
-    float2(+6.5, -2.5), float2(+6.5, +3.5), float2(-1.5, -6.5), float2(-1.5, +7.5),
-    float2(+6.5, +1.5), float2(-5.5, -5.5), float2(+0.5, -6.5), float2(+7.5, +3.5),
-    float2(+2.5, +6.5), float2(-4.5, +5.5), float2(-6.5, -3.5), float2(-4.5, -5.5),
-    float2(-6.5, -5.5), float2(+5.5, -6.5), float2(-2.5, -6.5), float2(+5.5, -5.5),
-    float2(+4.5, +5.5), float2(-7.5, +0.5), float2(+6.5, -1.5), float2(+0.5, -7.5),
-    float2(+7.5, -0.5), float2(-3.5, -7.5), float2(+2.5, -6.5), float2(-3.5, +7.5),
-    float2(-4.5, -7.5), float2(-0.5, +7.5), float2(-6.5, +5.5), float2(+7.5, -3.5),
-    float2(-4.5, +6.5), float2(+1.5, +7.5), float2(+5.5, -4.5), float2(+7.5, +4.5),
-    float2(+0.5, +7.5), float2(+4.5, +6.5), float2(-4.5, +7.5), float2(-7.5, -1.5),
-    float2(+3.5, -7.5), float2(+7.5, -4.5), float2(+3.5, +7.5), float2(-1.5, -7.5),
-    float2(+6.5, -4.5), float2(-7.5, -3.5), float2(+6.5, +4.5), float2(+2.5, -7.5),
-    float2(+7.5, -2.5), float2(-7.5, +2.5), float2(+1.5, -7.5), float2(-5.5, +6.5),
-    float2(+5.5, +5.5), float2(-2.5, +7.5), float2(+7.5, +2.5), float2(-7.5, -2.5),
-    float2(+2.5, +7.5), float2(-6.5, +4.5), float2(+5.5, +6.5), float2(-4.5, -6.5),
-};
-static const int2 kStackowiakSampleSet2[16] = {int2(0, 0), int2(0, 1), int2(1, 0), int2(1, 1), int2(0, -1), int2(-1, -2), int2(-1, 0), int2(0, 2), int2(1, -1), int2(-1, 1), int2(-1, 2), int2(1, 2), int2(2, -1), int2(2, 0), int2(2, 1), int2(2, 2)};
-static const int2 kStackowiakSampleSet3[9] = { int2(0, 0), int2(1, -1), int2(-1, -1), int2(0, 1), int2(1, 0), int2(1, 1), int2(0, -1), int2(-1, 0), int2(-1, 1) };
-static const int2 kStackowiakSampleSet4[15] = { int2(0, 1), int2(-2, 1), int2(2, -3), int2(-3, 0), int2(1, 2), int2(-1, -2), int2(3, 0), int2(-3, 3), int2(0, -3), int2(-1, -1), int2(2, 1), int2(-2, -2), int2(1, 0), int2(0, 2), int2(3, -1) };
-static const int2 kStackowiakSampleSet5[4] = { int2(0, 0), int2(0, 1), int2(1, 0), int2(1, 1) };
+    rawDepth = SRV_DepthTexture[pixel];
+    roughness = 1;
+    if (ScreenSpaceIsFarDepth(rawDepth))
+    {
+        return false;
+    }
+    uint shadingModel, flags;
+    UnpackGBufferCChannelR(SRV_GBufferC[pixel].r, shadingModel, flags);
+    if ((flags & GBUFFER_FLAG_VALID_SURFACE) == 0 || (flags & GBUFFER_FLAG_FORWARD) != 0)
+    {
+        return false;
+    }
+    roughness = SRV_GBufferA[pixel].b;
+    return roughness <= SSR_MaxRoughness;
+}
 
-#pragma kernel Raytracing
-RWTexture2D<float4> UAV_HitPDFTexture;
-RWTexture2D<float4> UAV_ColorMaskTexture;
-[numthreads(16, 16, 1)]
-void Raytracing(uint3 id : SV_DispatchThreadID)
+bool LoadSurface(uint2 pixel, out FSSRSurface surface)
 {
-    if (any(id.xy >= (uint2)SSR_Resolution.xy)) return;
-    float2 UV = (id.xy + 0.5) * SSR_Resolution.zw;
-    uint2 PixelPosition = uint2(UV.xy * SSR_Resolution.xy);
-
-    float SceneDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
-    if (ScreenSpaceIsFarDepth(SceneDepth))
+    surface = (FSSRSurface)0;
+    if (!IsReflectiveSurface(pixel, surface.rawDepth, surface.roughness))
     {
-        UAV_HitPDFTexture[id.xy] = 0;
-        UAV_ColorMaskTexture[id.xy] = 0;
-        return;
+        return false;
     }
-    float Roughness = SRV_RoughnessTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0).b;
-    Roughness = clamp(Roughness, 0.02, 1);
-    if (Roughness > SSR_Roughness)
+    surface.normalWS = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
+    float2 uv = (pixel + 0.5) * SSR_Resolution.zw;
+    float3 ndc = GetNDCPos(uv, surface.rawDepth);
+    surface.positionVS = GetViewSpacePos(ndc, Matrix_InvProj);
+    surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewProj);
+    surface.viewRayWS = SSR_CameraPosition.w != 0 ? SSR_CameraForward.xyz : normalize(surface.positionWS - SSR_CameraPosition.xyz);
+    return true;
+}
+
+uint2 TraceToFullPixel(uint2 tracePixel)
+{
+    if (SSR_TraceScale <= 1)
     {
-        UAV_HitPDFTexture[id.xy] = 0;
-        UAV_ColorMaskTexture[id.xy] = 0;
-        return;
+        return tracePixel;
     }
-    float3 NDCPos = GetNDCPos(UV, SceneDepth);
-    float3 ViewPos = GetViewSpacePos(NDCPos, Matrix_InvProj);
-    float3 WorldNormal = normalize(SRV_NormalTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1);
-    float3x3 TangentToWorld = GetTangentBasis(WorldNormal);
+    static const uint2 kQuadOrder[4] = { uint2(0, 0), uint2(1, 1), uint2(1, 0), uint2(0, 1) };
+    return min(tracePixel * 2 + kQuadOrder[SSR_FrameIndex & 3], (uint2)SSR_Resolution.xy - 1);
+}
 
-    uint FrameIDMod8 = uint(fmod(SSR_FrameIndex, 8));
-    uint2 Random = Rand3DPCG16(uint3(PixelPosition, FrameIDMod8)).xy;
-    float StepOffset = InterleavedGradientNoise(PixelPosition + 0.5, FrameIDMod8) - 0.9;
+uint2 FullToTracePixel(uint2 pixel)
+{
+    return min(pixel / max(SSR_TraceScale, 1u), (uint2)SSR_TraceResolution.xy - 1);
+}
 
-    float4 Out_UVWPDF = 0;
-    float4 Out_ColorMask = 0;
+// ---------------------------------------------------------------------------------------------------------------------
+// Classification
 
-    [loop]
-    for (uint i = 0; i < (uint)SSR_NumRays; ++i)
+groupshared uint gs_ReflectiveCount;
+groupshared uint gs_MinRoughness;
+
+[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
+void SSRClassify(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
+{
+    if (groupIndex == 0)
     {
-        float2 Hash = Hammersley16(i, (uint)SSR_NumRays, Random);
-        Hash.y = lerp(Hash.y, 0, SSR_BRDFBias);
-        float4 LightDir_TS = ImportanceSampleGGX(Hash, Roughness);
-        float3 LightDir_WS = mul(LightDir_TS.xyz, TangentToWorld);
-        float3 LightDir_VS = mul((float3x3)(Matrix_WorldToView), LightDir_WS);
-        LightDir_VS = reflect(-ScreenSpaceViewDirection(ViewPos), LightDir_VS);
-        if (dot(LightDir_VS, mul((float3x3)Matrix_WorldToView, WorldNormal)) <= 0) continue;
+        gs_ReflectiveCount = 0;
+        gs_MinRoughness = asuint(1.0f);
+    }
+    GroupMemoryBarrierWithGroupSync();
 
-        float3 HitUVz;
-        bool bHit = TraceScreenSpaceRay(ViewPos, normalize(LightDir_VS), SSR_MaxDistance, SSR_Thickness,
-            (uint)SSR_NumSteps, StepOffset + 0.9, Matrix_Proj, SRV_HiZTexture, HitUVz);
-
-        [branch]
-        if (bHit)
+    uint2 tracePixel = groupId.xy * SSR_TILE_SIZE + groupThreadId.xy;
+    if (all(tracePixel < (uint2)SSR_TraceResolution.xy))
+    {
+        float rawDepth, roughness;
+        if (IsReflectiveSurface(TraceToFullPixel(tracePixel), rawDepth, roughness))
         {
-            if (Out_UVWPDF.w == 0) Out_UVWPDF = float4(HitUVz, max(LightDir_TS.w, 1e-5));
-            float3 SampleColor = SRV_HiCTexture.SampleLevel(Global_bilinear_clamp_sampler, HitUVz.xy, 0).rgb;
-            float confidence = GetScreenFadeBord(HitUVz.xy, SSR_Fadeness);
-            Out_ColorMask += float4(SampleColor.rgb * confidence, confidence);
+            InterlockedAdd(gs_ReflectiveCount, 1u);
+            // Non-negative floats order like their bit patterns.
+            InterlockedMin(gs_MinRoughness, asuint(saturate(roughness)));
         }
     }
+    GroupMemoryBarrierWithGroupSync();
 
-
-    Out_ColorMask *= rcp(SSR_NumRays);
-    Out_ColorMask.a = saturate(Out_ColorMask.a);
-
-    UAV_HitPDFTexture[id.xy] = Out_UVWPDF;
-    UAV_ColorMaskTexture[id.xy] = Out_ColorMask ;
+    if (groupIndex == 0)
+    {
+        uint tileClass = SSR_CLASS_SKIP;
+        if (gs_ReflectiveCount > 0)
+        {
+            tileClass = asfloat(gs_MinRoughness) < SSR_LinearRoughness ? SSR_CLASS_HIZ : SSR_CLASS_LINEAR;
+        }
+        uint slot;
+        InterlockedAdd(UAV_TileArgs[tileClass * 3], 1u, slot);
+        UAV_TileList[tileClass * SSR_MaxTiles + slot] = groupId.x | (groupId.y << 16);
+        UAV_TileClass[groupId.xy] = tileClass;
+    }
 }
 
-#define SSR_NumSpatial 15
-
-#pragma kernel SpatialFilter
-RWTexture2D<float4> UAV_SpatialTexture;
-[numthreads(16, 16, 1)]
-void SpatialFilter (uint3 id : SV_DispatchThreadID)
+uint2 TileTracePixel(uint3 groupId, uint3 groupThreadId)
 {
-    if (any(id.xy >= (uint2)SSR_FilterResolution.xy)) return;
-    float2 UV = (id.xy + 0.5) * SSR_FilterResolution.zw;
-    uint2 PixelPosition = uint2(UV.xy * SSR_FilterResolution.xy);
-	float SceneDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
-    if (ScreenSpaceIsFarDepth(SceneDepth))
+    uint packed = SRV_TileList[SSR_TileListOffset + groupId.x];
+    uint2 tile = uint2(packed & 0xFFFFu, packed >> 16);
+    return tile * SSR_TILE_SIZE + groupThreadId.xy;
+}
+
+[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
+void SSRClearSkipped(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+{
+    uint2 tracePixel = TileTracePixel(groupId, groupThreadId);
+    if (all(tracePixel < (uint2)SSR_TraceResolution.xy))
     {
-        UAV_SpatialTexture[id.xy] = 0;
+        UAV_RayHit[tracePixel] = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Trace
+
+void TraceTilePixel(uint3 groupId, uint3 groupThreadId, bool linearMarch)
+{
+    uint2 tracePixel = TileTracePixel(groupId, groupThreadId);
+    if (any(tracePixel >= (uint2)SSR_TraceResolution.xy))
+    {
         return;
     }
-	float3 WorldNormal = normalize(SRV_NormalTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1);
 
-	float NumWeight = 1;
-	float4 SpatialColor = SRV_ColorMaskTexture.SampleLevel(Global_point_clamp_sampler, UV, 0);
-	uint2 Random = Rand3DPCG16( uint3(id.xy + 0.5, SSR_FrameIndex) ).xy;
-
-	[loop]
-	for (int i = 0; i < SSR_NumSpatial; ++i) {
-
-
-        float2 Offset_UV = UV + (kStackowiakSampleSet4[i] * SSR_FilterResolution.zw * SSR_SpatialRadius);
-
-        if (any(Offset_UV < 0) || any(Offset_UV >= 1)) continue;
-        float OffsetDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).r;
-        float3 OffsetNormal = normalize(SRV_NormalTexture.SampleLevel(Global_point_clamp_sampler, Offset_UV, 0).xyz * 2 - 1);
-
-		float4 HitColorMask = SRV_ColorMaskTexture.SampleLevel(Global_bilinear_clamp_sampler, Offset_UV, 0);
-
-
-        float DepthWeight = ScreenSpaceDepthWeight(ScreenSpaceLinearEyeDepth(SceneDepth), ScreenSpaceLinearEyeDepth(OffsetDepth), max(SSR_Thickness, ScreenSpaceLinearEyeDepth(SceneDepth) * 0.01));
-        float NormalWeight = ScreenSpaceNormalWeight(WorldNormal, OffsetNormal, 64);
-		float Weight = DepthWeight * NormalWeight;
-        NumWeight += Weight;
-
-        SpatialColor += HitColorMask * Weight;
-	}
-	SpatialColor /= max(NumWeight, 0.00001);
-
-
-    UAV_SpatialTexture[id.xy] = SpatialColor;
-}
-
-#define VARIANCE_THRESHOLD 0.0005
-static const int2 TemportalOffsets[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
-float ComputeTemporalVariance(float3 History_Radiance, float3 Radiance)
-{
-    float history_luminance = Rec709Luminance(History_Radiance);
-    float luminance = Rec709Luminance(Radiance);
-    return abs(history_luminance - luminance) / max(max(history_luminance, luminance), 0.00001);
-}
-
-#pragma kernel TemporalFilter
-RWTexture2D<float4> UAV_AccmulateTexture;
-RWTexture2D<float4> UAV_MomentsTexture;
-RWTexture2D<float4> UAV_DepthNormalTexture;
-[numthreads(16, 16, 1)]
-void TemporalFilter (uint3 id : SV_DispatchThreadID)
-{
-    if (any(id.xy >= (uint2)SSR_FilterResolution.xy)) return;
-    float2 UV = (id.xy + 0.5) * SSR_FilterResolution.zw;
-    float SceneDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).r;
-    float3 WorldNormal = normalize(SRV_NormalTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).xyz * 2 - 1);
-    float4 hitRecord = SRV_HitPDFTexture.SampleLevel(Global_point_clamp_sampler, UV, 0);
-    float2 HitMotion = hitRecord.w > 0 ? GetMotionVector(hitRecord.z, hitRecord.xy, Matrix_InvViewProj, Matrix_LastMotionViewProj, Matrix_MotionViewProj) : 0;
-    float2 DepthMotion = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).xy;
-
-    float4 SampleColors[9];
-    float4 CurrColor, PrevColor, MomentA = 0, MomentB = 0;
-
-    [loop]
-    for(int i = 0; i < 9; ++i)
+    FSSRSurface surface;
+    if (!LoadSurface(TraceToFullPixel(tracePixel), surface))
     {
-        SampleColors[i] = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, UV + (TemportalOffsets[i] * SSR_FilterResolution.zw), 0);
-        MomentA += SampleColors[i];
-        MomentB += SampleColors[i] * SampleColors[i];
+        UAV_RayHit[tracePixel] = 0;
+        return;
     }
 
-    float4 Mean = MomentA / 9;
-    float4 Stddev = sqrt(max(0, (MomentB / 9) - pow2(Mean)));
-
-    CurrColor = SampleColors[4];
-    float4 MinColor = Mean - SSR_TemporalScale * Stddev;
-    float4 MaxColor = Mean + SSR_TemporalScale * Stddev;
-    MinColor = min(MinColor, CurrColor);
-    MaxColor = max(MaxColor, CurrColor);
-
-    float2 PrevUV;
-    float expectedHistoryDepth;
-    ReprojectSurface(UV, SceneDepth, DepthMotion, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, PrevUV, expectedHistoryDepth);
-    float2 RayPrevUV = PrevUV + DepthMotion - HitMotion;
-    bool offscreen = any(PrevUV < 0) || any(PrevUV > 1) || any(RayPrevUV < 0) || any(RayPrevUV > 1);
-
-    if (offscreen)
+    float3 V = -surface.viewRayWS;
+    float3 N = surface.normalWS;
+    float3 L;
+    float pdf;
+    if (surface.roughness < SSR_MirrorRoughness)
     {
-        PrevColor = CurrColor;
+        // Mirror pixels resolve their own ray only; the pdf is unused.
+        L = reflect(-V, N);
+        pdf = 1;
     }
     else
     {
-        float4 HistoryDepthNormal = SRV_HistoryDepthNormal.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
-        float3 HistoryNormal = HistoryDepthNormal.xyz * 2 - 1;
-        float DepthConfidence = HistoryDepthConfidence(SRV_HistoryDepthNormal, PrevUV, expectedHistoryDepth, 3);
-        float NormalReject = 1 - saturate(dot(WorldNormal, HistoryNormal));
-        float HistoryConfidence = DepthConfidence * saturate(1 - NormalReject * 4);
-
-        float4 RayProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, RayPrevUV, 0);
-        float4 RayProject_Dist = ( RayProject_PrevColor - Mean ) / max(Stddev, 1e-4);
-        float RayProject_Weight = (hitRecord.w > 0 ? 1.0 : 0.0) * exp2(-10 * Rec709Luminance(abs(RayProject_Dist.rgb)));
-
-        float4 DepthProject_PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, PrevUV, 0);
-        float4 DepthProject_Dist = (DepthProject_PrevColor - Mean) / max(Stddev, 1e-4);
-        float DepthProject_Weight = exp2(-10 * Rec709Luminance(abs(DepthProject_Dist.rgb)));
-
-        PrevColor = (RayProject_PrevColor * RayProject_Weight + DepthProject_PrevColor * DepthProject_Weight) / max(RayProject_Weight + DepthProject_Weight, 1e-4);
-        PrevColor = clamp(PrevColor, MinColor, MaxColor);
-        PrevColor = lerp(CurrColor, PrevColor, HistoryConfidence);
+        float3x3 tangentBasis = GetTangentBasis(N);
+        float3 tangentV = mul(tangentBasis, V);
+        float2 E = float2(GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 0), GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 1));
+        // BRDF bias truncates the lobe tail: E.x is the radial coordinate of the visible-normal disk.
+        E.x *= 1 - SSR_BRDFBias;
+        float4 sampleH = ImportanceSampleVisibleGGX(E, max(surface.roughness, 0.02), tangentV);
+        float3 H = mul(sampleH.xyz, tangentBasis);
+        L = reflect(-V, H);
+        float VoH = saturate(dot(V, H));
+        pdf = sampleH.w / max(4 * VoH, 1e-5);
     }
 
-    float motionLength = max(length(HitMotion), length(DepthMotion));
-    float BlendWeight = clamp(lerp(SSR_TemporalWeight, 0.0, motionLength * 200.0), 0.0, SSR_TemporalWeight);
-    float4 Radiance = max(0, lerp(CurrColor, PrevColor, BlendWeight));
-    float Variance = ComputeTemporalVariance(PrevColor.rgb, Radiance.rgb) > VARIANCE_THRESHOLD ? 0 : 1;
+    if (dot(N, L) <= 0)
+    {
+        UAV_RayHit[tracePixel] = 0;
+        return;
+    }
 
-    UAV_AccmulateTexture[id.xy] = Radiance;
-    UAV_MomentsTexture[id.xy] = float4(Rec709Luminance(Mean.rgb), Rec709Luminance(Stddev.rgb), BlendWeight, Variance);
-    UAV_DepthNormalTexture[id.xy] = float4(WorldNormal * 0.5 + 0.5, SceneDepth);
+    float3 directionVS = normalize(mul((float3x3)Matrix_WorldToView, L));
+    float jitter = GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 2);
+    float3 hit;
+    bool found = linearMarch
+        ? TraceScreenSpaceRayLinear(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_LinearSteps, jitter, Matrix_Proj, SRV_HiZTexture, SSR_TraceScale - 1, hit)
+        : TraceScreenSpaceRay(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_HiZSteps, jitter, Matrix_Proj, SRV_HiZTexture, hit);
+
+    pdf = max(pdf, 1e-5);
+    UAV_RayHit[tracePixel] = found ? float4(hit, pdf) : float4(UnitVectorToOctahedron(L), 0, -pdf);
 }
 
-static const float Bilateralkernel[25] = { float(1.0f / 256.0f), float(1.0f / 64.0f), float(3.0f / 128.0f), float(1.0f / 64.0f), float(1.0f / 256.0f), float(1.0f / 64.0f), float(1.0f / 16.0f), float(3.0f / 32.0f), float(1.0f / 16.0f), float(1.0f / 64.0f), float(3.0f / 128.0f), float(3.0f / 32.0f), float(9.0f / 64.0f), float(3.0f / 32.0f), float(3.0f / 128.0f), float(1.0f / 64.0f), float(1.0f / 16.0f), float(3.0f / 32.0f), float(1.0f / 16.0f), float(1.0f / 64.0f), float(1.0f / 256.0f), float(1.0f / 64.0f), float(3.0f / 128.0f), float(1.0f / 64.0f), float(1.0f / 256.0f) };
-static const int2 BilateralOffset[25] = { int2(-2, -2), int2(-1, -2), int2(0, -2), int2(1, -2), int2(2, -2), int2(-2, -1), int2(-1, -1), int2(0, -1), int2(1, -1), int2(2, -1), int2(-2, 0), int2(-1, 0), int2(0, 0), int2(1, 0), int2(2, 0), int2(-2, 1), int2(-1, 1), int2(0, 1), int2(1, 1), int2(2, 1), int2(-2, 2), int2(-1, 2), int2(0, 2), int2(1, 2), int2(2, 2) };
-
-float SVGF_BilateralRadius, SVGF_ColorWeight, SVGF_NormalWeight, SVGF_DepthWeight;
-float4 SVGF_BilateralSize;
-Texture2D SRV_InputColor;
-RWTexture2D<float4> UAV_BilateralColor;
-
-#pragma kernel BilateralFilter
-[numthreads(16, 16, 1)]
-void BilateralFilter (uint3 id : SV_DispatchThreadID)
+[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
+void SSRTraceHiZ(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
 {
-    if (any(id.xy >= (uint2)SVGF_BilateralSize.xy)) return;
-	float WeightSum = 0;
-	float4 ColorSum = 0;
+    TraceTilePixel(groupId, groupThreadId, false);
+}
 
-    float2 UV = (id.xy + 0.5) * SVGF_BilateralSize.zw;
-	float4 Color = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
-	float4 Normal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, UV, 0);
-	float Depth = ScreenSpaceLinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, UV, 0).r);
+[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
+void SSRTraceLinear(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+{
+    TraceTilePixel(groupId, groupThreadId, true);
+}
 
-	for(int i = 0; i < 25; i++) {
-		float2 OffsetUV = UV + (BilateralOffset[i] * SVGF_BilateralSize.zw * SVGF_BilateralRadius);
+// ---------------------------------------------------------------------------------------------------------------------
+// Resolve (ray reuse)
 
-		float4 OffsetColor = SRV_AliasingTexture.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
-        float4 OffsetNormal = SRV_NormalTexture.SampleLevel(Global_bilinear_clamp_sampler, OffsetUV, 0);
-        float OffsetDepth = ScreenSpaceLinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, OffsetUV, 0).r);
+[numthreads(8, 8, 1)]
+void SSRResolve(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)SSR_Resolution.xy))
+    {
+        return;
+    }
+    uint2 pixel = id.xy;
+    FSSRSurface surface;
+    if (!LoadSurface(pixel, surface))
+    {
+        UAV_Resolved[pixel] = 0;
+        UAV_HitDistance[pixel] = 0;
+        return;
+    }
 
-		float4 Distance = Normal - OffsetNormal;
-		float Distance2 = max( dot(Distance, Distance) / (SVGF_BilateralRadius * SVGF_BilateralRadius), 0);
-		float WeightNormal = min( exp(-Distance2 / max(SVGF_NormalWeight, 1e-4)), 1 );
-	    float WeightDepth = (SVGF_DepthWeight == 0) ? 0 : abs(Depth - OffsetDepth) / SVGF_DepthWeight;
-	    float WeightColor = abs( Rec709Luminance(Color.rgb) - Rec709Luminance(OffsetColor.rgb) ) / max(SVGF_ColorWeight, 1e-4);
-        float Weight = exp(0 - max(WeightColor, 0) - max(WeightDepth, 0)) * WeightNormal;
+    float3 V = -surface.viewRayWS;
+    float3 N = surface.normalWS;
+    float NoV = saturate(dot(N, V)) + 1e-5;
+    float roughness = max(surface.roughness, 0.02);
+    float roughness4 = pow4(roughness);
+    bool mirror = surface.roughness < SSR_MirrorRoughness;
 
-		ColorSum += OffsetColor * Weight * Bilateralkernel[i];
-		WeightSum += Weight * Bilateralkernel[i];
-	}
-	UAV_BilateralColor[id.xy] = ColorSum / WeightSum;
+    uint lightingWidth, lightingHeight, lightingMips;
+    SRV_LightingPyramid.GetDimensions(0, lightingWidth, lightingHeight, lightingMips);
+    // Pixels covered by one world unit at eye depth 1.
+    float projectionScale = 0.5 * SSR_Resolution.y * abs(Matrix_Proj[1][1]);
+
+    uint2 traceCenter = FullToTracePixel(pixel);
+    uint sampleCount = mirror ? 1u : clamp(SSR_ResolveSamples, 1u, 16u);
+    float rotation = InterleavedGradientNoise(float2(pixel) + 0.5, (float)(SSR_FrameIndex & 7u)) * 6.2831853;
+
+    float weightSum = 0;
+    float3 radianceSum = 0;
+    float confidenceSum = 0;
+    float distanceSum = 0;
+    float distanceWeight = 0;
+    [loop]
+    for (uint i = 0; i < sampleCount; ++i)
+    {
+        int2 offset = 0;
+        if (i > 0)
+        {
+            // Vogel disk, rotated per pixel.
+            float radius = sqrt((i + 0.5) / sampleCount) * SSR_ResolveRadius;
+            float theta = i * 2.39996323 + rotation;
+            offset = (int2)round(float2(cos(theta), sin(theta)) * radius);
+        }
+        int2 samplePixel = clamp(int2(traceCenter) + offset, 0, int2(SSR_TraceResolution.xy) - 1);
+        float4 ray = SRV_RayHit[samplePixel];
+        if (ray.w == 0)
+        {
+            continue;
+        }
+
+        float pdf = abs(ray.w);
+        float3 L;
+        float3 radiance = 0;
+        float hitConfidence = 0;
+        float hitDistance = 0;
+        if (ray.w > 0)
+        {
+            float3 hitWS = GetWorldSpacePos(GetNDCPos(ray.xy, ray.z), Matrix_InvViewProj);
+            float3 toHit = hitWS - surface.positionWS;
+            hitDistance = length(toHit);
+            if (hitDistance <= 1e-4)
+            {
+                continue;
+            }
+            L = toHit / hitDistance;
+
+            // The back of an object is never visible in a reflection; a ray that lands on one is treated as a miss.
+            uint2 hitPixel = min((uint2)(ray.xy * SSR_Resolution.xy), (uint2)SSR_Resolution.xy - 1);
+            float3 hitNormal = normalize(SRV_GBufferB[hitPixel].xyz * 2 - 1);
+            float facing = saturate(-dot(hitNormal, L) * 4);
+            float distanceFade = saturate((SSR_MaxDistance - hitDistance) / max(0.1 * SSR_MaxDistance, 1e-3));
+            hitConfidence = GetScreenFadeBord(ray.xy, SSR_EdgeFade) * facing * distanceFade;
+
+            // Filtered importance sampling (Krivanek and Colbert 2008): each reused ray stands for a solid angle of
+            // 1 / (count * pdf); the color pyramid mip covers that cone's footprint at the hit.
+            float mip = 0;
+            if (!mirror)
+            {
+                float solidAngle = rcp(sampleCount * pdf);
+                float footprint = 2 * hitDistance * sqrt(solidAngle / 3.14159265) * projectionScale / max(ScreenSpaceLinearEyeDepth(ray.z), 1e-4);
+                mip = clamp(log2(max(footprint, 1)), 0, (float)lightingMips - 1);
+            }
+            radiance = SRV_LightingPyramid.SampleLevel(Global_trilinear_clamp_sampler, ray.xy, mip).rgb;
+        }
+        else
+        {
+            L = OctahedronToUnitVector(ray.xy);
+        }
+
+        float NoL = dot(N, L);
+        if (NoL <= 0)
+        {
+            continue;
+        }
+
+        // Ratio estimator: sum(f * Li / pdf) / sum(f / pdf). Fresnel is applied by the composite with the split-sum
+        // term, so f is D * Vis * NoL here. A miss adds weight but no confidence: that part falls back to probes.
+        float weight = 1;
+        if (!mirror)
+        {
+            float NoH = saturate(dot(N, normalize(V + L)));
+            weight = D_GGX(NoH, roughness4) * Vis_Smith(NoL, NoV, roughness) * NoL / pdf;
+        }
+        weightSum += weight;
+        radianceSum += weight * hitConfidence * radiance;
+        confidenceSum += weight * hitConfidence;
+        if (ray.w > 0)
+        {
+            distanceSum += weight * hitDistance;
+            distanceWeight += weight;
+        }
+    }
+
+    float inverseWeight = weightSum > 0 ? rcp(weightSum) : 0;
+    UAV_Resolved[pixel] = float4(radianceSum * inverseWeight, saturate(confidenceSum * inverseWeight));
+    UAV_HitDistance[pixel] = distanceWeight > 0 ? distanceSum / distanceWeight : 0;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Temporal
+
+[numthreads(8, 8, 1)]
+void SSRTemporal(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)SSR_Resolution.xy))
+    {
+        return;
+    }
+    uint2 pixel = id.xy;
+    FSSRSurface surface;
+    if (!LoadSurface(pixel, surface))
+    {
+        UAV_Temporal[pixel] = 0;
+        UAV_Meta[pixel] = float4(0, 0, surface.rawDepth, 0);
+        return;
+    }
+
+    float4 current = SRV_Resolved[pixel];
+    float4 sum = 0;
+    float4 sumSquares = 0;
+    int2 maxPixel = int2(SSR_Resolution.xy) - 1;
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            float4 value = SRV_Resolved[clamp(int2(pixel) + int2(x, y), 0, maxPixel)];
+            sum += value;
+            sumSquares += value * value;
+        }
+    }
+    FNeighborhoodMoments moments = ResolveNeighborhoodMoments(sum, sumSquares, 9, current, SSR_TemporalClampScale);
+
+    float2 uv = (pixel + 0.5) * SSR_Resolution.zw;
+    float2 surfaceMotion = SRV_MotionTexture[pixel].xy;
+    float2 surfaceUV;
+    float expectedDepth;
+    ReprojectSurface(uv, surface.rawDepth, surfaceMotion, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, surfaceUV, expectedDepth);
+
+    float historyAge = 0;
+    float4 history = current;
+    float historyValid = SSR_HistoryValid * HistoryDepthConfidence(SRV_HistoryMeta, surfaceUV, expectedDepth, 2);
+    if (historyValid > 0)
+    {
+        float4 historyMeta = SRV_HistoryMeta.SampleLevel(Global_point_clamp_sampler, surfaceUV, 0);
+        float normalAgreement = dot(surface.normalWS, OctahedronToUnitVector(historyMeta.xy));
+        historyValid = normalAgreement > 0.9 && historyMeta.w >= 1 ? 1 : 0;
+        historyAge = historyValid > 0 ? historyMeta.w : 0;
+    }
+
+    if (historyValid > 0)
+    {
+        float4 surfaceHistory = SRV_HistoryRadiance.SampleLevel(Global_bilinear_clamp_sampler, surfaceUV, 0);
+        history = surfaceHistory;
+        float hitDistance = SRV_HitDistance[pixel];
+        float2 virtualUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_HistoryViewProj) : -1;
+        if (all(virtualUV >= 0) && all(virtualUV <= 1))
+        {
+            // Smooth lobes follow the reflected image; rough lobes follow the surface. The neighborhood arbitrates.
+            float4 virtualHistory = SRV_HistoryRadiance.SampleLevel(Global_bilinear_clamp_sampler, virtualUV, 0);
+            float prior = 1 - smoothstep(0.1, 0.4, surface.roughness);
+            float virtualWeight = prior * exp2(-NeighborhoodDistance(virtualHistory, moments));
+            float surfaceWeight = (1 - prior) * exp2(-NeighborhoodDistance(surfaceHistory, moments)) + 1e-4;
+            history = (virtualHistory * virtualWeight + surfaceHistory * surfaceWeight) / (virtualWeight + surfaceWeight);
+        }
+        history = ClipHistoryToNeighborhood(history, moments);
+    }
+
+    float currentWeight = TemporalCurrentWeight(historyAge, SSR_TemporalWeight);
+    UAV_Temporal[pixel] = max(0, lerp(history, current, currentWeight));
+    UAV_Meta[pixel] = float4(UnitVectorToOctahedron(surface.normalWS), surface.rawDepth, NextHistoryAge(historyAge));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Spatial
+
+[numthreads(8, 8, 1)]
+void SSRSpatial(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)SSR_Resolution.xy))
+    {
+        return;
+    }
+    uint2 pixel = id.xy;
+    float4 center = SRV_Temporal[pixel];
+    float centerDepth, centerRoughness;
+    if (!IsReflectiveSurface(pixel, centerDepth, centerRoughness) || centerRoughness < SSR_MirrorRoughness)
+    {
+        UAV_Output[pixel] = center;
+        return;
+    }
+
+    float centerEye = ScreenSpaceLinearEyeDepth(centerDepth);
+    float3 centerNormal = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
+    // Wider spacing for rougher lobes: mirrors keep detail, rough reflections are smoothed.
+    float spacing = lerp(1.0, 3.0, saturate(centerRoughness / max(SSR_MaxRoughness, 1e-3)));
+    int2 maxPixel = int2(SSR_Resolution.xy) - 1;
+
+    float4 sum = 0;
+    float weightSum = 0;
+    [unroll]
+    for (int y = -2; y <= 2; ++y)
+    {
+        [unroll]
+        for (int x = -2; x <= 2; ++x)
+        {
+            int2 tap = int2(x, y);
+            uint2 samplePixel = (uint2)clamp(int2(pixel) + (int2)round(float2(tap) * spacing), 0, maxPixel);
+            float sampleDepth, sampleRoughness;
+            if (!IsReflectiveSurface(samplePixel, sampleDepth, sampleRoughness))
+            {
+                continue;
+            }
+            float3 sampleNormal = normalize(SRV_GBufferB[samplePixel].xyz * 2 - 1);
+            float weight = AtrousKernelWeight(tap)
+                * AtrousDepthWeight(centerEye, ScreenSpaceLinearEyeDepth(sampleDepth), 0.05)
+                * AtrousNormalWeight(centerNormal, sampleNormal, 32)
+                * AtrousRoughnessWeight(centerRoughness, sampleRoughness);
+            sum += SRV_Temporal[samplePixel] * weight;
+            weightSum += weight;
+        }
+    }
+    UAV_Output[pixel] = weightSum > 0 ? sum / weightSum : center;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Debug
+
+[numthreads(8, 8, 1)]
+void SSRDebug(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)SSR_Resolution.xy))
+    {
+        return;
+    }
+    uint2 pixel = id.xy;
+    uint2 tracePixel = FullToTracePixel(pixel);
+    float3 color = 0;
+    if (SSR_DebugMode == DEBUGVIEW_SSRTILECLASS)
+    {
+        uint tileClass = SRV_TileClass[tracePixel / SSR_TILE_SIZE];
+        color = tileClass == SSR_CLASS_HIZ ? float3(0.1, 0.45, 1.0) : (tileClass == SSR_CLASS_LINEAR ? float3(1.0, 0.6, 0.1) : float3(0.12, 0.12, 0.12));
+    }
+    else if (SSR_DebugMode == DEBUGVIEW_SSRRAYHIT)
+    {
+        float4 ray = SRV_RayHit[tracePixel];
+        color = ray.w > 0 ? float3(0, 1, 0) : (ray.w < 0 ? float3(1, 0, 0) : float3(0, 0, 0));
+    }
+    else if (SSR_DebugMode == DEBUGVIEW_SSRCONFIDENCE)
+    {
+        color = SRV_Resolved[pixel].aaa;
+    }
+    else if (SSR_DebugMode == DEBUGVIEW_SSRHISTORYAGE)
+    {
+        color = saturate(SRV_Meta[pixel].w / 16.0).xxx;
+    }
+    UAV_Debug[pixel] = float4(color, 1);
 }

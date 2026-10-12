@@ -16,6 +16,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.RTAO.Length);
             Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.VolumetricFog.Length);
             Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.VolumetricCloud.Length);
+            Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.SSR.Length);
             Assert.Throws<System.ArgumentException>(() => QualityPresets.Select(QualityPresets.GTAO, EQualityLevel.Custom));
         }
 
@@ -94,6 +95,63 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 Object.DestroyImmediate(fog);
             }
+        }
+
+        [Test]
+        [Category("Unverified-0.5")]
+        public void SSRPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable()
+        {
+            var ssr = Create<ScreenSpaceReflection>();
+            try
+            {
+                foreach (FSSRSettings p in QualityPresets.SSR)
+                {
+                    Assert.That(p.mirrorRoughness, Is.InRange(ssr.MirrorRoughness.min, ssr.MirrorRoughness.max));
+                    Assert.That(p.linearRoughness, Is.InRange(ssr.LinearRoughness.min, ssr.LinearRoughness.max));
+                    Assert.That(p.hiZSteps, Is.InRange(ssr.NumSteps.min, ssr.NumSteps.max));
+                    Assert.That(p.linearSteps, Is.InRange(ssr.LinearSteps.min, ssr.LinearSteps.max));
+                    Assert.That(p.resolveSamples, Is.InRange(ssr.ResolveSamples.min, ssr.ResolveSamples.max));
+                    Assert.That(p.resolveRadius, Is.InRange(ssr.ResolveRadius.min, ssr.ResolveRadius.max));
+                    Assert.That(p.brdfBias, Is.InRange(ssr.BrdfBias.min, ssr.BrdfBias.max));
+                    Assert.That(p.temporalWeight, Is.InRange(ssr.TemporalWeight.min, ssr.TemporalWeight.max));
+                    Assert.That(p.temporalClampScale, Is.InRange(ssr.TemporalScale.min, ssr.TemporalScale.max));
+                    Assert.That(p.spatialPasses, Is.InRange(ssr.SpatialPasses.min, ssr.SpatialPasses.max));
+                    Assert.Less(p.mirrorRoughness, p.linearRoughness, "Mirror pixels must classify as Hi-Z tiles.");
+                }
+
+                FSSRSettings medium = QualityPresets.SSR[(int)EQualityLevel.Medium];
+                Assert.AreEqual(medium.halfResolution, ssr.HalfResolution.value, "Medium equals the Volume defaults.");
+                Assert.AreEqual(medium.linearRoughness, ssr.LinearRoughness.value);
+                Assert.AreEqual(medium.hiZSteps, ssr.NumSteps.value);
+                Assert.AreEqual(medium.linearSteps, ssr.LinearSteps.value);
+                Assert.AreEqual(medium.resolveSamples, ssr.ResolveSamples.value);
+
+                ssr.MaxDistance.value = 12.0f;
+                ssr.quality.value = EQualityLevel.Low;
+                FSSRSettings low = ssr.Resolve();
+                Assert.IsTrue(low.halfResolution);
+                Assert.AreEqual(QualityPresets.SSR[(int)EQualityLevel.Low].resolveSamples, low.resolveSamples);
+                Assert.AreEqual(12.0f, low.maxDistance, "Artistic parameters never come from a preset.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(ssr);
+            }
+        }
+
+        [TestCase(1920, 1080, false, 1920, 1080, 240, 135)]
+        [TestCase(1920, 1080, true, 960, 540, 120, 68)]
+        [TestCase(17, 19, true, 9, 10, 2, 2)]
+        [TestCase(1, 1, true, 1, 1, 1, 1)]
+        [Category("Unverified-0.5")]
+        public void SSRTraceAndTileSizes(int width, int height, bool half, int traceX, int traceY, int tilesX, int tilesY)
+        {
+            Unity.Mathematics.int2 trace = SSRPassUtilityData.TraceSize(new Unity.Mathematics.int2(width, height), half);
+            Unity.Mathematics.int2 tiles = SSRPassUtilityData.TileCount(trace);
+            Assert.AreEqual(traceX, trace.x);
+            Assert.AreEqual(traceY, trace.y);
+            Assert.AreEqual(tilesX, tiles.x);
+            Assert.AreEqual(tilesY, tiles.y);
         }
     }
 }

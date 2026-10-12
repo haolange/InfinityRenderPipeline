@@ -5,6 +5,14 @@
 Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for stages and
 [Docs/FeatureStatus.md](Docs/FeatureStatus.md) for verification state. Entries are added as stages land.
 
+### Added
+- Stochastic screen-space reflections (Frostbite): tile classification into Hi-Z / linear / skip with indirect
+  dispatch, half-resolution tracing, VNDF sampling with the blue-noise Sobol textures, ray-reuse resolve with
+  filtered importance sampling, virtual-point temporal reprojection with per-pixel history age, optional a-trous pass,
+  quality presets and four SSR debug views.
+- Shared screen-space denoise library `Shaders/ShaderLibrary/ScreenSpaceDenoise/`.
+- RuntimeTextures: the three blue-noise Sobol textures (imported uncompressed, single channel).
+
 ### Changed
 - `EFilmTonemapMode.Film` is renamed `ACES`. The serialized value is unchanged (1). Tonemapping is None or ACES only.
 - The shader stripper now strips passes whose LightMode the pipeline never draws inside Infinity-tagged SubShaders.
@@ -17,6 +25,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - The commented-out RTAO ray-tracing pass in InfinityLit, the unused `PreintegratedDGF_LUT` function, the RenderGraph
   GraphView stub and 21 orphan `.meta` files.
 - Unused package dependencies `com.unity.addressables` and `com.unity.terrain-tools`.
+- Screen Space Reflection parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
+  `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; `VarianceEstimator.hlsl` and the
+  unreferenced `Compute_SpatialTemporalVarianceFilter.compute`.
 
 ## [0.4.0] - 2026-09-11
 

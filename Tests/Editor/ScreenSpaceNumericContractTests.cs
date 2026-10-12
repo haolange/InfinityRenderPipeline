@@ -22,11 +22,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Directory.CreateDirectory(output);
             using (var fixture = new ScreenSpaceNumericGpuRun(width, height, output))
             {
-                fixture.RunReflection();
                 fixture.RunIndirectDiffuse();
                 fixture.RunOcclusion();
             }
-            File.WriteAllText(Path.Combine(output, "PASS.txt"), $"13 production kernels; full={width}x{height}; half={Mathf.Max(1, width >> 1)}x{Mathf.Max(1, height >> 1)}; raw finite, active writes, padded dispatch guards, plane self-hit rejection, constant radiance preservation, and bounded AO chain.\n");
+            File.WriteAllText(Path.Combine(output, "PASS.txt"), $"9 production kernels (SSR is covered by StochasticSSRNumericTests); full={width}x{height}; half={Mathf.Max(1, width >> 1)}x{Mathf.Max(1, height >> 1)}; raw finite, active writes, padded dispatch guards, plane self-hit rejection, constant radiance preservation, and bounded AO chain.\n");
             TestContext.Progress.WriteLine(output);
         }
 
@@ -46,7 +45,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     RequireGpu();
                     using (var fixture = new ScreenSpaceNumericGpuRun(size.x, size.y, caseOutput))
                     {
-                        fixture.RunReflection();
                         fixture.RunIndirectDiffuse();
                         fixture.RunOcclusion();
                     }
@@ -113,60 +111,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 return shader;
             }
 
-            public void RunReflection()
-            {
-                ComputeShader shader = Load("Shaders/RenderingFeature/ScreenSpaceReflection/Compute_ScreenSpaceReflection.compute");
-                SetupScreenSpace(shader, "SSR");
-                shader.SetInt("SSR_NumRays", 1);
-                shader.SetInt("SSR_NumSteps", 32);
-                shader.SetFloat("SSR_BRDFBias", 0.3f);
-                shader.SetFloat("SSR_Roughness", 1);
-                shader.SetFloat("SSR_Fadeness", 0.1f);
-                Texture2D[] ray = Dispatch(shader, "Raytracing", m_Width, m_Height, false,
-                    new[] { "UAV_HitPDFTexture", "UAV_ColorMaskTexture" },
-                    ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal),
-                    ("SRV_RoughnessTexture", m_Roughness), ("SRV_HiZTexture", m_Depth), ("SRV_HiCTexture", m_Color));
-                RequireNoHit(ray[1], "SSR unobstructed plane must not reflect itself");
-                Texture2D spatial = Dispatch(shader, "SpatialFilter", m_Width, m_Height, false,
-                    new[] { "UAV_SpatialTexture" }, ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal),
-                    ("SRV_RoughnessTexture", m_Roughness), ("SRV_HitPDFTexture", ray[0]), ("SRV_ColorMaskTexture", ray[1]))[0];
-                // Only the jittered inverse is a production reconstruction input. The two
-                // nonjittered hit-motion VPs remain identical, so static velocity stays zero.
-                Matrix4x4 jittered = Matrix4x4.Translate(new Vector3(0.03125f, -0.046875f, 0)) * m_Projection;
-                shader.SetMatrix("Matrix_HistoryViewProj", jittered);
-                shader.SetMatrix("Matrix_InvViewProj", jittered.inverse);
-                Texture2D[] temporal = Dispatch(shader, "TemporalFilter", m_Width, m_Height, false,
-                    new[] { "UAV_AccmulateTexture", "UAV_MomentsTexture", "UAV_DepthNormalTexture" },
-                    ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal), ("SRV_HitPDFTexture", ray[0]),
-                    ("SRV_MotionTexture", m_Motion), ("SRV_AliasingTexture", spatial),
-                    ("SRV_HistoryTexture", spatial), ("SRV_HistoryMoments", m_Color), ("SRV_HistoryDepthNormal", DepthNormal(m_Width, m_Height)));
-                foreach (Color moments in temporal[1].GetPixels())
-                    Assert.That(moments.b, Is.EqualTo(0.9f).Within(1e-5f), "Static SSR hit motion must not include raster jitter");
-                // A zero legal color/normal weight used to produce 0/0 even at the center tap.
-                shader.SetFloat("SVGF_ColorWeight", 0);
-                shader.SetFloat("SVGF_NormalWeight", 0);
-                Texture2D bilateral = Dispatch(shader, "BilateralFilter", m_Width, m_Height, false,
-                    new[] { "UAV_BilateralColor" }, ("SRV_AliasingTexture", temporal[0]),
-                    ("SRV_NormalTexture", m_Normal), ("SRV_DepthTexture", m_Depth))[0];
-                RequireNoHit(bilateral, "SSR denoising must preserve a miss");
-                // Constant radiance and confidence must stay constant across weighted spatial taps.
-                var constant = Solid(m_Width, m_Height, new Color(0.18f, 0.18f, 0.18f, 0.7f));
-                Texture2D constantSpatial = Dispatch(shader, "SpatialFilter", m_Width, m_Height, false,
-                    new[] { "UAV_SpatialTexture" }, ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal),
-                    ("SRV_RoughnessTexture", m_Roughness), ("SRV_HitPDFTexture", ray[0]), ("SRV_ColorMaskTexture", constant))[0];
-                foreach (Color value in constantSpatial.GetPixels())
-                {
-                    Assert.That(value.r, Is.EqualTo(0.18f).Within(1e-4f), "SSR normalized radiance");
-                    Assert.That(value.a, Is.EqualTo(0.7f).Within(1e-4f), "SSR normalized confidence");
-                }
-                // A large signed history discrepancy must remain finite before history rejection.
-                Dispatch(shader, "TemporalFilter", m_Width, m_Height, false,
-                    new[] { "UAV_AccmulateTexture", "UAV_MomentsTexture", "UAV_DepthNormalTexture" },
-                    ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal), ("SRV_HitPDFTexture", ray[0]),
-                    ("SRV_MotionTexture", m_Motion), ("SRV_AliasingTexture", constant),
-                    ("SRV_HistoryTexture", m_Motion), ("SRV_HistoryMoments", m_Color), ("SRV_HistoryDepthNormal", DepthNormal(m_Width, m_Height)));
-            }
-
             public void RunIndirectDiffuse()
             {
                 ComputeShader shader = Load("Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute");
@@ -229,7 +173,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             void SetupScreenSpace(ComputeShader shader, string prefix)
             {
                 SetMatrices(shader);
-                shader.SetVector(prefix == "SSR" ? "SSR_Resolution" : "SSGi_TraceResolution", Resolution(m_Width, m_Height));
+                shader.SetVector("SSGi_TraceResolution", Resolution(m_Width, m_Height));
                 shader.SetVector(prefix + "_FilterResolution", Resolution(m_Width, m_Height));
                 shader.SetInt(prefix + "_FrameIndex", 0);
                 shader.SetFloat(prefix + "_MaxDistance", 50);

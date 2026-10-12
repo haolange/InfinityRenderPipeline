@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int i = 0; i < 2; i++)
                 {
                     var state = new CameraFrameState(90 + i) { lastSeenFrame = 50, preparedThisRender = true, executeSucceeded = i == 0 ? firstSuccess : secondSuccess,
-                        ssrValidFrames = 8 };
+                        ssgiValidFrames = 8 };
                     states.Add(i, state);
                     state.historyCache.GetTexture(123, descriptor);
                     state.historyCache.GetWriteTexture(123, descriptor);
@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.AreEqual(success ? 1 : 0, states[i].historyCache.TextureGeneration(123));
                     Assert.AreEqual(!success, states[i].requiresHistoryReset);
                     Assert.IsFalse(states[i].executeSucceeded);
-                    if (!success) Assert.AreEqual(0, states[i].ssrValidFrames);
+                    if (!success) Assert.AreEqual(0, states[i].ssgiValidFrames);
                 }
                 m_Shared.BeginFrame();
                 m_Shared.ResolveShared(key, descriptor, descriptor, out _, out _, out bool hit);

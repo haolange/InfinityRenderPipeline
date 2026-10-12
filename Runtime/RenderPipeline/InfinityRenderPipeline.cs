@@ -1139,6 +1139,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_FeatureSupportContext = new FeatureSupportContext
             {
                 shaders = shaders,
+                textures = resources.textures,
                 temporal = temporal,
                 rayTracedOcclusionReady = rtaoReason == null,
                 rayTracedOcclusionReason = rtaoReason,

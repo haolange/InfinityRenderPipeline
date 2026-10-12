@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     case "TAAInput": case "TAAHistoryColor": case "TAAHistoryDepth":
                     case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal":
-                    case "SSRSpatial": case "SSGISpatial": id = Shader.PropertyToID("Capture_" + buffer); break;
+                    case "SSGISpatial": id = Shader.PropertyToID("Capture_" + buffer); break;
                     case "BakedDiffuse": id = InfinityShaderIDs.BakedDiffuseBuffer; break;
                     case "BakedOcclusion": id = InfinityShaderIDs.BakedOcclusionBuffer; break;
                     case "IndirectDiffuse": id = InfinityShaderIDs.IndirectDiffuseBuffer; break;
@@ -86,8 +86,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "HalfResDepth": id = InfinityShaderIDs.HalfResDepthBuffer; break;
                     case "HalfResNormal": id = InfinityShaderIDs.HalfResNormalBuffer; break;
                     case "CascadeShadow": id = InfinityShaderIDs.CascadeShadowMap; break;
-                    case "SSRHit": id = InfinityShaderIDs.SSRHitPDFBuffer; break;
-                    case "SSRRadiance": id = Shader.PropertyToID("Capture_SSRRadiance"); break;
+                    case "SSRRayHit": id = InfinityShaderIDs.SSRRayHitBuffer; break;
+                    case "SSRResolved": id = InfinityShaderIDs.SSRResolvedBuffer; break;
                     case "SSRTemporal": id = InfinityShaderIDs.SSRTemporalBuffer; break;
                     case "SSGIRadiance": id = Shader.PropertyToID("Capture_SSGIRadiance"); break;
                     case "SSGITemporal": id = InfinityShaderIDs.SSGITemporalBuffer; break;

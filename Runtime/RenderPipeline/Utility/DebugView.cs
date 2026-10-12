@@ -13,6 +13,11 @@ namespace InfinityTech.Rendering.Pipeline
         SSGI,
         MotionMagnitude,
         TAAConfidence,
-        PreTonemapLuma
+        PreTonemapLuma,
+        // Stochastic SSR diagnostics (written by the SSR pass into SSRDebugBuffer).
+        SSRTileClass,
+        SSRRayHit,
+        SSRConfidence,
+        SSRHistoryAge
     }
 }

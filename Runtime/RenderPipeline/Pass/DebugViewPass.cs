@@ -120,6 +120,22 @@ namespace InfinityTech.Rendering.Pipeline
                         bindSet = 4;
                     }
                     break;
+                case EDebugView.SSRTileClass:
+                case EDebugView.SSRRayHit:
+                case EDebugView.SSRConfidence:
+                case EDebugView.SSRHistoryAge:
+                    if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRDebugBuffer, out optionalTexture))
+                    {
+                        kernelName = "DebugViewOptional";
+                        bindSet = 3;
+                        needOptional = true;
+                    }
+                    else
+                    {
+                        kernelName = "DebugViewMissing";
+                        bindSet = 4;
+                    }
+                    break;
                 case EDebugView.SSGI:
                     if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out optionalTexture))
                     {

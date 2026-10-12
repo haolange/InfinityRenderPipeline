@@ -140,7 +140,6 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 - `ContactShadowCS` reads `g_LightRecordBuffer[0]` and the result applies only to directional lights in Deferred; Forward passes 1 (S10).
 - Forward loops all local lights instead of the tile/z-bin lists; Deferred's bin filter is bypassed for empty bins; bins are linear in depth (S7).
 - `maxDrawDistance` / `maxDrawDistanceFade` are uploaded but no shader reads them (S6).
-- `Compute_ScreenSpaceReflection` unprojects Hi-Z with `Matrix_InvViewProj` (`renderIntoTexture = true`) while compute-side reconstruction elsewhere uses `FlipY` (`renderIntoTexture = false`) (S5).
 - `TAAJitter` has SuperResolution consumers. TAA uses explicit current/previous framebuffer jitter UV and per-pixel sample age; do not remove the shared upload without checking SR consumers.
 - TAA accumulation and color history are RGBA16F. `ComputeTemporalSharpen` is a separate output pass at strength 0.35; only unsharpened accumulation is copied into history. A single-dispatch TAA + sharpen is not implemented.
 - Several passes always record but emit no draws, so Frame Debugger may omit them (`RenderDBuffer` without a DBufferPass shader, `RenderLocalShadow` without local casters, the `CopyHistory*` Transfer passes). `RenderCascadeShadow` records and binds its target even with 0 draws.

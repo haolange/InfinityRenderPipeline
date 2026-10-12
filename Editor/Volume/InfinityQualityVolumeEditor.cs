@@ -65,6 +65,12 @@ namespace InfinityTech.Rendering.Editor
             parameter.value.intValue = value;
         }
 
+        protected static void Set(SerializedDataParameter parameter, bool value)
+        {
+            parameter.overrideState.boolValue = true;
+            parameter.value.boolValue = value;
+        }
+
         protected static void Set(SerializedDataParameter parameter, float value)
         {
             parameter.overrideState.boolValue = true;

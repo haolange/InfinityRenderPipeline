@@ -225,26 +225,60 @@ namespace InfinityTech.Rendering.Editor
     }
 
     [CustomEditor(typeof(ScreenSpaceReflection))]
-    sealed class ScreenSpaceReflectionEditor : VolumeComponentEditor
+    sealed class ScreenSpaceReflectionEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_NumRays, m_NumSteps, m_Bias, m_Fade, m_Roughness;
+        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_MaxRoughness, m_Fade;
+        SerializedDataParameter m_HalfResolution, m_MirrorRoughness, m_LinearRoughness, m_HiZSteps, m_LinearSteps;
+        SerializedDataParameter m_ResolveSamples, m_ResolveRadius, m_BrdfBias, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceReflection>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
             m_MaxDistance = Unpack(o.Find(x => x.MaxDistance));
             m_Thickness = Unpack(o.Find(x => x.Thickness));
-            m_NumRays = Unpack(o.Find(x => x.NumRays));
-            m_NumSteps = Unpack(o.Find(x => x.NumSteps));
-            m_Bias = Unpack(o.Find(x => x.BrdfBias));
+            m_MaxRoughness = Unpack(o.Find(x => x.MaxRoughness));
             m_Fade = Unpack(o.Find(x => x.fade));
-            m_Roughness = Unpack(o.Find(x => x.MaxRoughness));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
+            m_HalfResolution = Unpack(o.Find(x => x.HalfResolution));
+            m_MirrorRoughness = Unpack(o.Find(x => x.MirrorRoughness));
+            m_LinearRoughness = Unpack(o.Find(x => x.LinearRoughness));
+            m_HiZSteps = Unpack(o.Find(x => x.NumSteps));
+            m_LinearSteps = Unpack(o.Find(x => x.LinearSteps));
+            m_ResolveSamples = Unpack(o.Find(x => x.ResolveSamples));
+            m_ResolveRadius = Unpack(o.Find(x => x.ResolveRadius));
+            m_BrdfBias = Unpack(o.Find(x => x.BrdfBias));
+            m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
+            m_TemporalScale = Unpack(o.Find(x => x.TemporalScale));
+            m_SpatialPasses = Unpack(o.Find(x => x.SpatialPasses));
         }
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            EditorGUILayout.LabelField("Trace", EditorStyles.boldLabel);
-            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_NumRays); PropertyField(m_NumSteps); PropertyField(m_Bias); PropertyField(m_Fade); PropertyField(m_Roughness);
+            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_MaxRoughness); PropertyField(m_Fade);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_HalfResolution, l => Preset(l).halfResolution);
+            QualityField(m_MirrorRoughness, l => Preset(l).mirrorRoughness);
+            QualityField(m_LinearRoughness, l => Preset(l).linearRoughness);
+            QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
+            QualityField(m_LinearSteps, l => Preset(l).linearSteps);
+            QualityField(m_ResolveSamples, l => Preset(l).resolveSamples);
+            QualityField(m_ResolveRadius, l => Preset(l).resolveRadius);
+            QualityField(m_BrdfBias, l => Preset(l).brdfBias);
+            QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
+            QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
+            QualityField(m_SpatialPasses, l => Preset(l).spatialPasses);
+        }
+        static FSSRSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSR, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FSSRSettings preset = Preset(level);
+            Set(m_HalfResolution, preset.halfResolution);
+            Set(m_MirrorRoughness, preset.mirrorRoughness); Set(m_LinearRoughness, preset.linearRoughness);
+            Set(m_HiZSteps, preset.hiZSteps); Set(m_LinearSteps, preset.linearSteps);
+            Set(m_ResolveSamples, preset.resolveSamples); Set(m_ResolveRadius, preset.resolveRadius);
+            Set(m_BrdfBias, preset.brdfBias); Set(m_TemporalWeight, preset.temporalWeight);
+            Set(m_TemporalScale, preset.temporalClampScale); Set(m_SpatialPasses, preset.spatialPasses);
         }
     }
 
