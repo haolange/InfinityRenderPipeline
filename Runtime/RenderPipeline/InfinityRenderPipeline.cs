@@ -224,9 +224,6 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, ProfilingSampler> m_CameraSamplers;
         private CameraUniform m_CameraUniform;
         private CameraFrameState m_ActiveFrameState;
-        private int m_ActiveCascadeCount;
-        private readonly Matrix4x4[] m_ActiveCascadeMatrices = new Matrix4x4[4];
-        private Vector4 m_ActiveCascadeSplitDistances;
         private GraphicsBuffer m_DiffusionProfileBuffer;
         private int m_DiffusionProfileCapacity;
         private AtmosphereSharedCache m_AtmosphereSharedCache;
@@ -455,14 +452,6 @@ namespace InfinityTech.Rendering.Pipeline
                                     lightingDebug.lastUnsupportedShapeCount = renderContext.lightContext.UnsupportedShapeCount;
                                     lightingDebug.lastDistanceCulledCount = renderContext.lightContext.DistanceCulledCount;
 
-                                    ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
-                                    m_ActiveCascadeCount = shadowAllocator.CascadeAllocatedCount;
-                                    m_ActiveCascadeSplitDistances = shadowAllocator.CascadeSplitDistances;
-                                    for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
-                                    {
-                                        m_ActiveCascadeMatrices[cascade] = shadowAllocator.CascadeMatrices[cascade];
-                                    }
-
                                     scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                                     cmdBuffer.Clear();
                                 }
@@ -555,6 +544,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     FlushShadowCasterCulling(scriptableRenderContext, cullingResults);
                                     RenderCascadeShadow(renderContext, camera, cullingResults);
                                     RenderLocalShadow(renderContext, camera, cullingResults);
+                                    ComputeShadowMoments(renderContext);
 
                                     // PHASE 4: reserved. VolFog moved after T0 depth so it can use CSM + ZBin.
 
@@ -1167,6 +1157,11 @@ namespace InfinityTech.Rendering.Pipeline
             if (renderContext.lightContext.HasLocalLightList())
             {
                 features.Request(EFrameFeature.LocalLightList);
+            }
+            ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
+            if (shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0)
+            {
+                features.Request(EFrameFeature.ShadowMoments);
             }
             FeatureRegistry.Resolve(features, m_FeatureSupportContext);
         }

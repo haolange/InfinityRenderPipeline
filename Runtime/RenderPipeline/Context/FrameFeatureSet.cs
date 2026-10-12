@@ -24,8 +24,11 @@ namespace InfinityTech.Rendering.Pipeline
         DBuffer,
         OpaqueLightingPyramid,
         HalfResDownsample,
-        // Content-phase feature: requested after LightContext.Build when local lights are visible.
-        LocalLightList
+        // Content-phase features: requested after LightContext.Build from what is visible.
+        // Local lights are visible.
+        LocalLightList,
+        // A shadowed light filters with VSM / EVSM.
+        ShadowMoments
     }
 
     public class FrameFeatureSet

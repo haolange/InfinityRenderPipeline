@@ -5,13 +5,16 @@
 #include "Common.hlsl"
 #include "Random.hlsl"
 #include "Lighting.hlsl"
+#include "ShadowMoments.hlsl"
 
 // Per local shadow slice (C# FLocalShadowSliceGPU). depthParams: x, y = m22, m23 of the GPU projection; z = world
 // texel size at unit depth (perspective) or world texel size (orthographic); w = 1 for orthographic.
+// momentParams: x = 1 / far (moment depth normalization).
 struct FLocalShadowSlice
 {
     float4 atlasRect;
     float4 depthParams;
+    float4 momentParams;
 };
 
 StructuredBuffer<float4x4> SRV_LocalShadowMatrices;
@@ -27,8 +30,13 @@ float4 _CascadeShadowParams[4];
 float4 _LocalShadowMapSize;
 // x = PCF tent radius (texels), y = PCSS blocker samples, z = PCSS filter samples, w = PCSS max penumbra (texels).
 float4 _ShadowFilterParams;
+// x = EVSM exponent, y = light-bleeding reduction, z = minimum moment standard deviation.
+float4 _ShadowMomentParams;
 
-#define SHADOW_FILTER_PCSS 2
+// Moment atlases (VSM / EVSM) at half the resolution of their depth atlas, same UV layout. Bound to a black texture
+// when no visible light uses moments.
+Texture2D<float4> SRV_CascadeShadowMoments;
+Texture2D<float4> SRV_LocalShadowMoments;
 
 // Depth is a plane in projected texture space. Compare each tap at that tap's
 // receiver depth, rather than comparing sloped neighboring texels to the center.
@@ -66,12 +74,6 @@ bool ShadowCloser(float storedZ, float receiverZ)
 #else
     return storedZ < receiverZ;
 #endif
-}
-
-// Linear distance along the light from a stored depth (see FLocalShadowSlice.depthParams).
-float ShadowLinearDepth(float z, float4 depthParams)
-{
-    return depthParams.w != 0 ? (depthParams.y - z) / depthParams.x : depthParams.y / (z + depthParams.x);
 }
 
 float ShadowTexelWorld(float linearDepth, float4 depthParams)
@@ -197,8 +199,22 @@ float ShadowLightSize(FLightRecord light)
     return light.shape.x + light.shape.y;
 }
 
-float FilterShadow(Texture2D<float> shadowMap, FLightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams)
+// Bilinear moments inside the slice; the moment atlas has half the texel density of the depth atlas.
+float SampleShadowMoments(Texture2D<float4> momentMap, int mode, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float4 depthParams, float invFar)
 {
+    float2 momentTexel = 2.0 * texelSize;
+    float2 sampleUV = clamp(uv, clipRect.xy + 0.5 * momentTexel, clipRect.xy + clipRect.zw - 0.5 * momentTexel);
+    float4 moments = momentMap.SampleLevel(Global_bilinear_clamp_sampler, sampleUV, 0);
+    return ShadowMomentVisibility(moments, ShadowMomentDepth(compareZ, depthParams, invFar), mode, _ShadowMomentParams);
+}
+
+float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, FLightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar)
+{
+    if (light.shadowFilter == SHADOW_FILTER_VSM || light.shadowFilter == SHADOW_FILTER_EVSM)
+    {
+        int mode = light.shadowFilter == SHADOW_FILTER_EVSM ? SHADOW_MOMENT_EVSM : SHADOW_MOMENT_VSM;
+        return SampleShadowMoments(momentMap, mode, uv, compareZ, texelSize, clipRect, depthParams, invFar);
+    }
     if (light.shadowFilter == SHADOW_FILTER_HARD)
     {
         return SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
@@ -233,8 +249,8 @@ float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, FLightRecord light, 
     float2 shadowUV = localUV * 0.5 + clipRect.xy;
     float4 params = _CascadeShadowParams[cascadeIdx];
     float4 depthParams = float4(params.y, params.z, params.x, 1);
-    return FilterShadow(cascadeShadowMap, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
-        ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams);
+    return FilterShadow(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
+        ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0);
 }
 
 // Picks the first cascade whose culling sphere holds the point and blends into the next one over the outer
@@ -307,8 +323,8 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, flo
         return 1.0;
     }
     float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
-    return FilterShadow(localShadowMap, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
-        ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams);
+    return FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
+        ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x);
 }
 
 int _InfinityShadowmaskMode;

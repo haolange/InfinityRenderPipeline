@@ -151,3 +151,15 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    shadows. A point light with Source Length > 0 (line / tube) still casts six-face shadows.
 6. Expected changes: shadow edges are softer at Medium (5×5 tent replaces the 3×3 box); Hard keeps one-tap edges.
 
+## S9b — VSM / EVSM
+
+1. Compile; run `ShadowMomentGpuTests` (GPU).
+2. Sun Shadow Filter = EVSM: Frame Debugger shows `ComputeShadowMoments` after `RenderLocalShadow`, with one
+   `MomentFromDepth` + two blur dispatches per cascade; Rendering Debugger → Frame Features lists ShadowMoments as
+   produced. Shadows are smooth and wide; contact areas stay dark.
+3. Switch to VSM: overlapping occluders at different depths show light bleeding (a lighter halo inside the far
+   shadow); Shadow Filter Quality Low → Ultra lowers it. EVSM shows much less.
+4. Set every light back to PCF: `ComputeShadowMoments` disappears from Frame Debugger.
+5. A spot light with EVSM next to a point light with PCF: only the spot's tile is written in `LocalShadowMoments`.
+6. Volumetric fog with a shadowed sun: shafts look slightly sharper than before (the fog used twice the texel size).
+

@@ -20,13 +20,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal const string AOKeyword = "DEFERRED_AO";
         internal const string ContactShadowKeyword = "DEFERRED_CONTACT_SHADOW";
         internal static int SRV_ContactShadowTextureID = Shader.PropertyToID("SRV_ContactShadowTexture");
-        internal static int SRV_CascadeShadowMapID = Shader.PropertyToID("SRV_CascadeShadowMap");
-        internal static int SRV_LocalShadowMapID = Shader.PropertyToID("SRV_LocalShadowMap");
         internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
         internal static int DeferredShading_FarDepthID = Shader.PropertyToID("DeferredShading_FarDepth");
-        internal static int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
-        internal static int SRV_LocalShadowMatricesID = Shader.PropertyToID("SRV_LocalShadowMatrices");
-        internal static int SRV_LocalShadowRectsID = Shader.PropertyToID("SRV_LocalShadowRects");
     }
 
     public partial class InfinityRenderPipeline
@@ -42,27 +37,15 @@ namespace InfinityTech.Rendering.Pipeline
             public int hasAO;
             public int hasContactShadow;
             public RGBufferRef lightRecordBuffer;
-            public RGBufferRef localShadowMatrixBuffer;
-            public RGBufferRef localShadowRectBuffer;
-            public int cascadeCount;
-            public Matrix4x4[] cascadeMatrices;
-            public Vector4[] cascadeSpheres;
-            public Vector4[] cascadeShadowParams;
-            public Vector4 shadowFilterParams;
-            public Vector4 cascadeSplitDistances;
-            public Vector4 localShadowMapSize;
+            public FShadowInputs shadows;
             public ComputeShader deferredShadingShader;
             public RGTextureRef bakedDiffuse, bakedOcclusion, indirectDiffuse, indirectSpecular;
-            public int shadowmaskMode;
-            public float shadowDistance;
             public RGTextureRef gBufferA;
             public RGTextureRef gBufferB;
             public RGTextureRef gBufferC;
             public RGTextureRef depthTexture;
             public RGTextureRef occlusionTexture;
             public RGTextureRef contactShadowTexture;
-            public RGTextureRef cascadeShadowMap;
-            public RGTextureRef localShadowMap;
             public RGTextureRef lightingTexture;
             public RGTextureRef atmosphereGGXPrefilter;
             public RGBufferRef atmosphereSkySH;
@@ -98,8 +81,6 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 throw new System.InvalidOperationException("InfinityRP: ContactShadow is recorded this frame but ContactShadowBuffer is not registered.");
             }
-            RGTextureRef cascadeShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap);
-            RGTextureRef localShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.LocalShadowMap);
             RGTextureRef atmosphereGGXPrefilter = m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereGGXPrefilter);
             RGBufferRef atmosphereSkySH = m_RGScoper.QueryBuffer(InfinityShaderIDs.AtmosphereSkySH);
             AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
@@ -119,8 +100,6 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bakedOcclusion = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
                 passData.indirectDiffuse = passRef.WriteTexture(indirectDiffuse);
                 passData.indirectSpecular = passRef.WriteTexture(indirectSpecular);
-                passData.shadowmaskMode = QualitySettings.shadowmaskMode == ShadowmaskMode.DistanceShadowmask ? 1 : 0;
-                passData.shadowDistance = pipelineAsset.shadowDistance;
                 passData.tileSize = tileSize;
                 passData.resolution = new int2(width, height);
                 passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
@@ -133,19 +112,9 @@ namespace InfinityTech.Rendering.Pipeline
                 lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                passData.localShadowMatrixBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer));
-                passData.localShadowRectBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer));
-                passData.cascadeCount = m_ActiveCascadeCount;
-                passData.cascadeMatrices = (Matrix4x4[])m_ActiveCascadeMatrices.Clone();
-                passData.cascadeSpheres = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeSpheres.Clone();
-                passData.cascadeShadowParams = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeParams.Clone();
-                passData.shadowFilterParams = CascadeShadowPassUtilityData.FilterParams(pipelineAsset.ResolveShadowFilter());
-                passData.cascadeSplitDistances = m_ActiveCascadeSplitDistances;
-                passData.localShadowMapSize = new Vector4(
-                    pipelineAsset.localShadowMapResolution,
-                    pipelineAsset.localShadowMapResolution,
-                    1.0f / pipelineAsset.localShadowMapResolution,
-                    1.0f / pipelineAsset.localShadowMapResolution);
+                FShadowInputs shadows = QueryShadowInputs(renderContext);
+                shadows.Read(passRef);
+                passData.shadows = shadows;
                 passData.deferredShadingShader = shaders.deferredShadingShader;
                 passData.gBufferA = passRef.ReadTexture(gBufferA);
                 passData.gBufferB = passRef.ReadTexture(gBufferB);
@@ -159,8 +128,6 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.contactShadowTexture = passRef.ReadTexture(contactShadowTexture);
                 }
-                passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);
-                passData.localShadowMap = passRef.ReadTexture(localShadowMap);
                 passData.lightingTexture = passRef.WriteTexture(lightingTexture);
                 passData.atmosphereGGXPrefilter = passRef.ReadTexture(atmosphereGGXPrefilter);
                 passData.atmosphereSkySH = passRef.ReadBuffer(atmosphereSkySH);
@@ -174,8 +141,6 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("SRV_BakedOcclusion"), passData.bakedOcclusion);
                     cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("UAV_IndirectDiffuse"), passData.indirectDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("UAV_IndirectSpecular"), passData.indirectSpecular);
-                    cmdEncoder.SetComputeIntParam(shader, Shader.PropertyToID("_InfinityShadowmaskMode"), passData.shadowmaskMode);
-                    cmdEncoder.SetComputeFloatParam(shader, Shader.PropertyToID("_InfinityShadowDistance"), passData.shadowDistance);
                     cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsUtility.SampledFarDepth);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvProj"), passData.matrix_InvProj);
@@ -183,15 +148,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
                     passData.lightLoop.Bind(cmdEncoder, shader, 0);
                     cmdEncoder.SetComputeBufferParam(shader, 0, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
-                    cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowMatricesID, passData.localShadowMatrixBuffer);
-                    cmdEncoder.SetComputeBufferParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowRectsID, passData.localShadowRectBuffer);
-                    cmdEncoder.SetComputeIntParam(shader, CascadeShadowPassUtilityData.CascadeCountID, passData.cascadeCount);
-                    cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeSpheresID, passData.cascadeSpheres);
-                    cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeShadowParamsID, passData.cascadeShadowParams);
-                    cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.ShadowFilterParamsID, passData.shadowFilterParams);
-                    cmdEncoder.SetComputeMatrixArrayParam(shader, CascadeShadowPassUtilityData.CascadeMatricesID, passData.cascadeMatrices);
-                    cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeSplitDistancesID, passData.cascadeSplitDistances);
-                    cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.LocalShadowMapSizeID, passData.localShadowMapSize);
+                    passData.shadows.Bind(cmdEncoder, shader, 0);
 
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
@@ -207,8 +164,6 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_ContactShadowTextureID, passData.contactShadowTexture);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_CascadeShadowMapID, passData.cascadeShadowMap);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_LocalShadowMapID, passData.localShadowMap);
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, InfinityShaderIDs.AtmosphereGGXPrefilter, passData.atmosphereGGXPrefilter);
                     cmdEncoder.SetComputeBufferParam(shader, 0, InfinityShaderIDs.AtmosphereSkySH, passData.atmosphereSkySH);

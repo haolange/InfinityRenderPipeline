@@ -31,13 +31,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int VolCloud_AtmosphereHeightID = Shader.PropertyToID("VolCloud_AtmosphereHeight");
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int SRV_TransmittanceLUTID = Shader.PropertyToID("SRV_TransmittanceLUT");
-        internal static int SRV_CascadeShadowMapID = Shader.PropertyToID("SRV_CascadeShadowMap");
-        internal static int SRV_LocalShadowMapID = Shader.PropertyToID("SRV_LocalShadowMap");
         internal static int SRV_HistoryVolumetricCloudID = Shader.PropertyToID("SRV_HistoryVolumetricCloud");
         internal static int UAV_VolumetricCloudTextureID = Shader.PropertyToID("UAV_VolumetricCloudTexture");
-        internal static int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
-        internal static int SRV_LocalShadowMatricesID = Shader.PropertyToID("SRV_LocalShadowMatrices");
-        internal static int SRV_LocalShadowRectsID = Shader.PropertyToID("SRV_LocalShadowRects");
     }
 
     public partial class InfinityRenderPipeline
@@ -65,23 +60,12 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Matrix4x4 matrix_WorldToView;
             public Vector4 worldSpaceCameraPos;
-            public int cascadeCount;
-            public Matrix4x4[] cascadeMatrices;
-            public Vector4[] cascadeSpheres;
-            public Vector4[] cascadeShadowParams;
-            public Vector4 shadowFilterParams;
-            public Vector4 cascadeSplitDistances;
-            public Vector4 cascadeShadowMapSize;
-            public Vector4 localShadowMapSize;
             public RGBufferRef lightRecordBuffer;
             public FLightLoopInputs lightLoop;
-            public RGBufferRef localShadowMatrixBuffer;
-            public RGBufferRef localShadowRectBuffer;
+            public FShadowInputs shadows;
             public ComputeShader volumetricCloudShader;
             public RGTextureRef depthTexture;
             public RGTextureRef transmittanceLUT;
-            public RGTextureRef cascadeShadowMap;
-            public RGTextureRef localShadowMap;
             public RGTextureRef historyTexture;
             public RGTextureRef volumetricCloudTexture;
         }
@@ -131,8 +115,6 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureRef transmittanceLUT = m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT);
-            RGTextureRef cascadeShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.CascadeShadowMap);
-            RGTextureRef localShadowMap = m_RGScoper.QueryTexture(InfinityShaderIDs.LocalShadowMap);
             AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
             atmosphereParameter.ThrowIfInvalid();
 
@@ -164,30 +146,13 @@ namespace InfinityTech.Rendering.Pipeline
                 lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
                 lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
                 passData.lightLoop = lightLoop;
-                passData.cascadeCount = m_ActiveCascadeCount;
-                passData.cascadeMatrices = (Matrix4x4[])m_ActiveCascadeMatrices.Clone();
-                passData.cascadeSpheres = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeSpheres.Clone();
-                passData.cascadeShadowParams = (Vector4[])renderContext.lightContext.ShadowAllocator.CascadeParams.Clone();
-                passData.shadowFilterParams = CascadeShadowPassUtilityData.FilterParams(pipelineAsset.ResolveShadowFilter());
-                passData.cascadeSplitDistances = m_ActiveCascadeSplitDistances;
-                passData.cascadeShadowMapSize = new Vector4(
-                    pipelineAsset.cascadeShadowMapResolution,
-                    pipelineAsset.cascadeShadowMapResolution,
-                    1.0f / pipelineAsset.cascadeShadowMapResolution,
-                    1.0f / pipelineAsset.cascadeShadowMapResolution);
-                passData.localShadowMapSize = new Vector4(
-                    pipelineAsset.localShadowMapResolution,
-                    pipelineAsset.localShadowMapResolution,
-                    1.0f / pipelineAsset.localShadowMapResolution,
-                    1.0f / pipelineAsset.localShadowMapResolution);
+                FShadowInputs shadows = QueryShadowInputs(renderContext);
+                shadows.Read(passRef);
+                passData.shadows = shadows;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
-                passData.localShadowMatrixBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowMatrixBuffer));
-                passData.localShadowRectBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LocalShadowRectBuffer));
                 passData.volumetricCloudShader = shaders.volumetricCloudShader;
                 passData.depthTexture = passRef.ReadTexture(depthTexture);
                 passData.transmittanceLUT = passRef.ReadTexture(transmittanceLUT);
-                passData.cascadeShadowMap = passRef.ReadTexture(cascadeShadowMap);
-                passData.localShadowMap = passRef.ReadTexture(localShadowMap);
                 passData.historyTexture = passRef.ReadTexture(historyTexture);
                 passData.volumetricCloudTexture = passRef.WriteTexture(volumetricCloudTexture);
 
@@ -214,23 +179,12 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_WorldToView"), passData.matrix_WorldToView);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
-                    cmdEncoder.SetComputeIntParam(shader, CascadeShadowPassUtilityData.CascadeCountID, passData.cascadeCount);
-                    cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeSpheresID, passData.cascadeSpheres);
-                    cmdEncoder.SetComputeVectorArrayParam(shader, CascadeShadowPassUtilityData.CascadeShadowParamsID, passData.cascadeShadowParams);
-                    cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.ShadowFilterParamsID, passData.shadowFilterParams);
-                    cmdEncoder.SetComputeMatrixArrayParam(shader, CascadeShadowPassUtilityData.CascadeMatricesID, passData.cascadeMatrices);
-                    cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeSplitDistancesID, passData.cascadeSplitDistances);
-                    cmdEncoder.SetComputeVectorParam(shader, CascadeShadowPassUtilityData.CascadeShadowMapSizeID, passData.cascadeShadowMapSize);
-                    cmdEncoder.SetComputeVectorParam(shader, VolumetricCloudPassUtilityData.LocalShadowMapSizeID, passData.localShadowMapSize);
                     cmdEncoder.SetComputeBufferParam(shader, 0, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
-                    cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_LocalShadowMatricesID, passData.localShadowMatrixBuffer);
-                    cmdEncoder.SetComputeBufferParam(shader, 0, VolumetricCloudPassUtilityData.SRV_LocalShadowRectsID, passData.localShadowRectBuffer);
                     passData.lightLoop.Bind(cmdEncoder, shader, 0);
+                    passData.shadows.Bind(cmdEncoder, shader, 0);
 
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_TransmittanceLUTID, passData.transmittanceLUT);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_CascadeShadowMapID, passData.cascadeShadowMap);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_LocalShadowMapID, passData.localShadowMap);
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.SRV_HistoryVolumetricCloudID, passData.historyTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, VolumetricCloudPassUtilityData.UAV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
                     cmdEncoder.BeginSample("VolCloud_Trace");

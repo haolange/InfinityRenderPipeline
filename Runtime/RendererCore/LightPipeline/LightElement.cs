@@ -200,8 +200,7 @@ namespace InfinityTech.Rendering.LightPipeline
             record.flags = flags;
 
             EShadowFilter filter = ext != null ? ext.shadowFilter : (light.shadows == LightShadows.Hard ? EShadowFilter.Hard : EShadowFilter.PCF);
-            // TODO: VSM / EVSM moment sampling lands with the moment atlas (0.5.0 S9); until then they sample as PCF.
-            record.shadowFilter = filter == EShadowFilter.VSM || filter == EShadowFilter.EVSM ? (int)EShadowFilter.PCF : (int)filter;
+            record.shadowFilter = (int)filter;
             return true;
         }
 

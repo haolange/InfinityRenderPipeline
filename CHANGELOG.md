@@ -27,8 +27,12 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   from the light's source radius or sun angle), selected per light; cascades blend into the next cascade.
 - Realtime shadows for pyramid and box spots (perspective / orthographic tiles) and rect / disk lights; line and tube
   lights use six cube faces like points. Local shadow frustums include a filter guard band.
+- VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
+  with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Volumetric fog and clouds filtered cascade shadows with twice the real texel size (they passed the per-cascade tile
+  resolution as the atlas size). Deferred, Forward, fog and clouds now bind shadows through one `FShadowInputs`.
 - Rect lights contributed no diffuse light: the polygon form factor was wound backwards and clamped to zero. Rect
   lights also applied the inverse-square falloff twice.
 - Specular highlights were clamped to 1 (`saturate` on the BRDF); HDR highlights now keep their energy.

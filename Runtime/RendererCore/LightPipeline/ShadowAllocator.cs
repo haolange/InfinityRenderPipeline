@@ -34,6 +34,9 @@ namespace InfinityTech.Rendering.LightPipeline
         public Matrix4x4 shadowMatrix;
         public Vector4 casterBias;
         public ShadowSplitData splitData;
+        // EShadowFilter of the owning record; VSM / EVSM slices get moments.
+        public int shadowFilter;
+        public float far;
         public bool valid;
     }
 
@@ -47,6 +50,8 @@ namespace InfinityTech.Rendering.LightPipeline
         // x, y = m22, m23 of the GPU projection (linear depth from stored depth); z = world texel size at unit depth
         // (perspective) or world texel size (orthographic); w = 1 for orthographic.
         public Vector4 depthParams;
+        // x = 1 / far: normalizes linear depth for VSM / EVSM moments.
+        public Vector4 momentParams;
     }
 
     internal struct FCascadeShadowSlice
@@ -95,6 +100,14 @@ namespace InfinityTech.Rendering.LightPipeline
         // x = world texel size, y, z = m22, m23 of the GPU projection, w = blend width (fraction of the cascade).
         public readonly Vector4[] CascadeParams = new Vector4[CascadeCount];
 
+        // Shadow filter of the cascaded light (EShadowFilter), -1 without one.
+        public int CascadeShadowFilter { get; private set; } = -1;
+        public bool CascadeUsesMoments => CascadeAllocatedCount > 0 && UsesMoments(CascadeShadowFilter);
+        // Valid local slices whose light filters with VSM / EVSM.
+        public int LocalMomentSliceCount { get; private set; }
+
+        public static bool UsesMoments(int shadowFilter) => shadowFilter == (int)EShadowFilter.VSM || shadowFilter == (int)EShadowFilter.EVSM;
+
         public int LocalSliceCount { get; private set; }
         public FLocalShadowSlice[] LocalSlices = Array.Empty<FLocalShadowSlice>();
         public Matrix4x4[] LocalMatrices = Array.Empty<Matrix4x4>();
@@ -106,7 +119,9 @@ namespace InfinityTech.Rendering.LightPipeline
             CascadeRecordIndex = -1;
             CascadeAllocatedCount = 0;
             CascadeSplitDistances = Vector4.zero;
+            CascadeShadowFilter = -1;
             LocalSliceCount = 0;
+            LocalMomentSliceCount = 0;
             for (int i = 0; i < CascadeCount; ++i)
             {
                 CascadeSlices[i] = default;
@@ -166,6 +181,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
                 CascadeVisibleLightIndex = record.visibleLightIndex;
                 CascadeRecordIndex = i;
+                CascadeShadowFilter = record.shadowFilter;
                 Vector4 splits = Vector4.zero;
                 int allocated = 0;
                 for (int cascade = 0; cascade < count; ++cascade)
@@ -329,6 +345,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     local.face = face;
                     local.matrixIndex = slice;
                     local.isSpot = faces == 1;
+                    local.shadowFilter = record.shadowFilter;
                     local.atlasPixelRect = new Vector4(x, y, tileResolution, tileResolution);
                     local.atlasUVRect = new Vector4(x / localRes, y / localRes, (float)tileResolution / localRes, (float)tileResolution / localRes);
 
@@ -336,7 +353,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     local.projectionType = frustum.orthographic ? BatchCullingProjectionType.Orthographic : BatchCullingProjectionType.Perspective;
                     local.valid = frustum.valid;
                     local.shadowMatrix = Matrix4x4.identity;
-                    var gpu = new FLocalShadowSliceGPU { atlasRect = local.atlasUVRect, depthParams = new Vector4(0, 1, 1, 0) };
+                    var gpu = new FLocalShadowSliceGPU { atlasRect = local.atlasUVRect, depthParams = new Vector4(0, 1, 1, 0), momentParams = new Vector4(1, 0, 0, 0) };
                     if (frustum.valid)
                     {
                         Matrix4x4 gpuProjection = GL.GetGPUProjectionMatrix(frustum.projection, true);
@@ -345,6 +362,9 @@ namespace InfinityTech.Rendering.LightPipeline
                         local.casterBias = new Vector4(-light.shadowBias * texelSize, -light.shadowNormalBias * texelSize, 0, 0);
                         local.splitData = CullingSplit(frustum.projection * frustum.view, frustum.near);
                         gpu.depthParams = new Vector4(gpuProjection.m22, gpuProjection.m23, texelSize, frustum.orthographic ? 1 : 0);
+                        gpu.momentParams = new Vector4(1.0f / math.max(frustum.far, 1e-4f), 0, 0, 0);
+                        local.far = frustum.far;
+                        if (UsesMoments(local.shadowFilter)) LocalMomentSliceCount++;
                     }
 
                     LocalSlices[slice] = local;
@@ -380,6 +400,7 @@ namespace InfinityTech.Rendering.LightPipeline
             public Matrix4x4 view;
             public Matrix4x4 projection;
             public float near;
+            public float far;
             public bool orthographic;
             public bool valid;
         }
@@ -440,8 +461,10 @@ namespace InfinityTech.Rendering.LightPipeline
                 frustum.view = WorldToView(position - forward * apexOffset, forward, up);
                 near = apexOffset;
                 frustum.projection = Matrix4x4.Perspective(2.0f * Mathf.Atan(halfTan * guardScale) * Mathf.Rad2Deg, 1, near, range + apexOffset);
+                frustum.far = range + apexOffset;
             }
 
+            if (frustum.far <= 0) frustum.far = range;
             frustum.near = near;
             frustum.valid = true;
             return frustum;

@@ -21,8 +21,8 @@ namespace InfinityTech.Rendering.LightPipeline
         Box = 2,
     }
 
-    // Per-light shadow filter. Hard and PCF are implemented; PCSS, VSM and EVSM land in 0.5.0 S9 and render as PCF
-    // until then.
+    // Per-light shadow filter (Shaders/ShaderLibrary/ShadowSampling.hlsl FilterShadow). PCF and PCSS read the depth
+    // atlas; VSM and EVSM read the moment atlas that ShadowMomentPass builds for the slices that need it.
     public enum EShadowFilter
     {
         Hard = 0,

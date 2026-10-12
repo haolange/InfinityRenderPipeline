@@ -44,6 +44,9 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/RenderingFeature/LightTileMask/Compute_LightTileMask.compute")]
         public ComputeShader lightTileMaskShader;
 
+        [ResourcePath("Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute")]
+        public ComputeShader shadowMomentShader;
+
         [ResourcePath("Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute")]
         public ComputeShader contactShadowShader;
 

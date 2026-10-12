@@ -17,6 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeHalfResDownsample,
         RenderCascadeShadow,
         RenderLocalShadow,
+        ComputeShadowMoments,
         ComputeAtmosphericLUT,
         ComputeLightTileMask,
         ComputeGroundTruthOcclusion,
@@ -112,6 +113,8 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey MotionBuffer = new RGResourceKey("_MotionTexture");
         public static readonly RGResourceKey CascadeShadowMap = new RGResourceKey("_CascadeShadowMapTexture");
         public static readonly RGResourceKey LocalShadowMap = new RGResourceKey("_LocalShadowMapTexture");
+        public static readonly RGResourceKey CascadeShadowMoments = new RGResourceKey("_CascadeShadowMomentsTexture");
+        public static readonly RGResourceKey LocalShadowMoments = new RGResourceKey("_LocalShadowMomentsTexture");
         public static readonly RGResourceKey AtmosphereTransmittanceLUT = new RGResourceKey("_AtmosphereTransmittanceLUT");
         public static readonly RGResourceKey AtmosphereScatteringLUT = new RGResourceKey("_AtmosphereScatteringLUT");
         public static readonly RGResourceKey AtmosphereMultiScatteringLUT = new RGResourceKey("_AtmosphereMultiScatteringLUT");

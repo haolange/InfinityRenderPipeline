@@ -22,6 +22,9 @@
 
 #define SHADOW_FILTER_HARD 0
 #define SHADOW_FILTER_PCF 1
+#define SHADOW_FILTER_PCSS 2
+#define SHADOW_FILTER_VSM 3
+#define SHADOW_FILTER_EVSM 4
 
 struct FLightRecord
 {

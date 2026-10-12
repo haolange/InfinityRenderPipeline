@@ -164,6 +164,12 @@ namespace InfinityTech.Rendering.Pipeline
             });
             Add(new FeatureDescriptor
             {
+                id = EFrameFeature.ShadowMoments,
+                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.shadowMomentShader), s => s.shadowMomentShader,
+                    ShadowMomentPassUtilityData.KernelFromDepth, ShadowMomentPassUtilityData.KernelBlurH, ShadowMomentPassUtilityData.KernelBlurV) }
+            });
+            Add(new FeatureDescriptor
+            {
                 id = EFrameFeature.Display,
                 customSupport = c => c.presentAvailable ? null : "The GlobalSettings blit material has no Present pass."
             });

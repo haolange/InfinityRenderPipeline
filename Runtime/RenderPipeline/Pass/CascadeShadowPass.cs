@@ -115,13 +115,6 @@ namespace InfinityTech.Rendering.Pipeline
                 }
             }
 
-            m_ActiveCascadeCount = allocator.CascadeAllocatedCount;
-            m_ActiveCascadeSplitDistances = cascadeSplitDistances;
-            for (int cascade = 0; cascade < cascadeCount; ++cascade)
-            {
-                m_ActiveCascadeMatrices[cascade] = shadowMatrices[cascade];
-            }
-
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCascadeShadow)))
             {
                 passRef.EnablePassCulling(false);
