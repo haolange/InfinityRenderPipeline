@@ -22,6 +22,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             public NativeList<MeshPassCommand> commands;
             public NativeList<int> memberDrawIndices;
             public int builtEpoch;
+            // Changes on every rebuild of this pass (committed edits and rollbacks alike). Consumers that cache
+            // data derived from the bins (the GPU candidate table) compare this, never BinEpoch alone.
+            public int buildSerial;
             public bool dirty;
         }
 
@@ -30,6 +33,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly uint m_PlatformFeatureKey;
         private readonly PassState[] m_Passes = new PassState[PassRegistry.Count];
         private int m_BuiltStructuralRevision = int.MinValue;
+        private int m_BuildSerialCounter;
         private bool m_Disposed;
 
         public static event Action<ulong, uint> MaterialRevisionInvalidated;
@@ -84,10 +88,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             return m_Passes[(int)passId].memberDrawIndices.AsArray();
         }
 
-        public int GetBuiltEpoch(MeshPassId passId)
+        public int GetBuildSerial(MeshPassId passId)
         {
             EnsureRebuilt(passId);
-            return m_Passes[(int)passId].builtEpoch;
+            return m_Passes[(int)passId].buildSerial;
         }
 
         public void EnsureRebuilt(MeshPassId passId)
@@ -260,6 +264,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             state.builtEpoch = m_Scene.BinEpoch;
+            state.buildSerial = ++m_BuildSerialCounter;
             state.dirty = false;
         }
 

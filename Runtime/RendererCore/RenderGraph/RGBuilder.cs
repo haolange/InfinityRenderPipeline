@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.RenderGraph
         RGDrawListContext m_DrawListRecords = new RGDrawListContext();
         RGRendererListContext m_RendererListRecords = new RGRendererListContext();
         MeshWorld m_MeshWorld;
-        readonly Dictionary<ulong, RGBufferRef> m_GpuCullVisibility = new Dictionary<ulong, RGBufferRef>(8);
+        readonly Dictionary<MeshGpuVisibilityKey, RGBufferRef> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferRef>(8);
 
         public RGBuilder(string name)
         {
@@ -190,7 +190,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 return;
             }
 
-            ulong key = MeshGpuVisibilityCache.MakeKey(view);
+            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view);
             if (m_GpuCullVisibility.TryGetValue(key, out RGBufferRef existing))
             {
                 if (m_DrawListRecords.IsLiveRef(draws))

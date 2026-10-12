@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             public uint2[] candidates;
             public int commandCount;
             public int candidateCount;
-            public int builtEpoch;
+            public int builtSerial;
             public int capacityCandidates;
         }
 
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Bins = bins ?? throw new ArgumentNullException(nameof(bins));
             for (int i = 0; i < m_Tables.Length; ++i)
             {
-                m_Tables[i].builtEpoch = int.MinValue;
+                m_Tables[i].builtSerial = int.MinValue;
             }
         }
 
@@ -47,8 +47,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             int index = (int)passId;
             m_Bins.EnsureRebuilt(passId);
-            int epoch = m_Bins.GetBuiltEpoch(passId);
-            if (m_Tables[index].builtEpoch == epoch && m_Tables[index].commands != null)
+            // The bins rebuild on every structural change, including committed edits; rebuild the GPU tables
+            // whenever the bins did, so Compact never reads a command/slot pair from an older bin layout.
+            int epoch = m_Bins.GetBuildSerial(passId);
+            if (m_Tables[index].builtSerial == epoch && m_Tables[index].commands != null)
             {
                 return ref m_Tables[index];
             }
@@ -226,7 +228,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             table.candidates = candidates.ToArray();
             table.commandCount = table.commands.Length;
             table.candidateCount = table.candidates.Length;
-            table.builtEpoch = epoch;
+            table.builtSerial = epoch;
 
             int needed = math.max(1, table.candidateCount);
             if (table.candidateTable == null || table.capacityCandidates < needed)

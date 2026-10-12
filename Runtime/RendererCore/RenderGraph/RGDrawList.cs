@@ -234,7 +234,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public bool HasLiveView(in MeshView view)
         {
-            ulong key = MeshGpuVisibilityCache.MakeKey(view);
+            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view);
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGDrawListRecord record = m_Records[i];
@@ -244,7 +244,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     continue;
                 }
 
-                if (MeshGpuVisibilityCache.MakeKey(record.view) == key)
+                if (MeshGpuVisibilityCache.MakeKey(record.view).Equals(key))
                 {
                     return true;
                 }
