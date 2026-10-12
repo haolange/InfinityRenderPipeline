@@ -25,9 +25,13 @@ by a script or imported) renders the shape its native fields describe. Adding th
 A tube's diameter is twice its Source Radius; there is no separate thickness parameter. Tube and line lights are
 realtime only (the lightmapper skips them, as in HDRP).
 
-In 0.5.0 S6 sphere, line and tube sources shade as punctual lights at their center and a disk shades as the square of
-equal area; the representative-point shapes land in S8. Pyramid, box, rect and disk lights do not cast realtime
-shadows until S9.
+Shading (no LTC): specular uses the Karis representative point for every shape (closest point on the sphere, segment,
+tube, rect, disk or sun disk to the reflection ray) with energy normalization; diffuse uses the Frostbite
+horizon-clipped form factor for spheres and disks, the Karis line irradiance for lines and tubes and the polygon form
+factor for rects. Every shape converges to the punctual result far away, so changing a light's size does not change
+its overall brightness. **Soft Source Radius / Angle** widen highlights without moving them. Rect barn doors narrow the
+emission cone as Barn Door Length grows relative to the emitter. Pyramid, box, rect and disk lights do not cast
+realtime shadows until S9.
 
 ## Baking
 

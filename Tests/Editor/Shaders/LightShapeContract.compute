@@ -1,0 +1,36 @@
+// Numeric contracts of Shaders/ShaderLibrary/Lighting/LightShapes.hlsl (0.5.0 S8).
+// Results[i] = (diffuse E / I, reference, specular N.L, energy) for case i.
+#pragma kernel ShapeIrradiance
+#include "../../../Shaders/ShaderLibrary/Lighting/LightShapes.hlsl"
+
+float4 ShapeDistance; // x = distance of the receiver from the light along its forward axis
+RWStructuredBuffer<float4> Results;
+
+FLightRecord MakeLight()
+{
+    FLightRecord light = (FLightRecord)0;
+    light.positionRange = float4(0, 0, 0, 1000);
+    light.forward = float4(0, 0, 1, 0);
+    light.right = float4(1, 0, 0, 0);
+    light.radiance = 1;
+    light.weights = 1;
+    return light;
+}
+
+[numthreads(1, 1, 1)]
+void ShapeIrradiance(uint3 id : SV_DispatchThreadID)
+{
+    float d = ShapeDistance.x;
+    float3 position = float3(0, 0, d);
+    float3 N = float3(0, 0, -1);
+    float3 V = normalize(float3(0.3, 0.2, -1));
+    FLightRecord light = MakeLight();
+    // 0 punctual, 1 sphere, 2 line, 3 tube, 4 rect, 5 disk: all face the receiver, so far away E / I -> 1 / d^2.
+    if (id.x == 1) light.shape.x = 0.3;
+    if (id.x == 2) light.shape.z = 1.0;
+    if (id.x == 3) { light.shape.z = 1.0; light.shape.x = 0.1; }
+    if (id.x == 4) { light.flags = LIGHT_FLAG_PLANAR; light.area = float4(1.0, 0.5, 0, 0); }
+    if (id.x == 5) { light.flags = LIGHT_FLAG_PLANAR; light.shape.x = 0.3; }
+    FLightShapeSample s = EvaluateLocalLightShape(light, position, N, V, 0.4);
+    Results[id.x] = float4(s.diffuseIrradiance, 1.0 / (d * d), s.specularNoL, s.specularEnergy);
+}

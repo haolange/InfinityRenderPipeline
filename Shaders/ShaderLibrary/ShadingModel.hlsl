@@ -3,21 +3,6 @@
 
 #include "BSDF.hlsl"
 
-half3 DefultLit(BSDFContext bsdfContext, MicrofaceContext microfaceContext)
-{
-	half3 Diffuse = Diffuse_Lambert(microfaceContext.AlbedoColor);
-    //half3 Diffuse = Diffuse_RenormalizeBurley(bsdfContext.LoH, bsdfContext.NoL, bsdfContext.NoV, AlbedoColor, Roughness);
-
-    half pbr_GGX = D_GGX(bsdfContext.NoH, microfaceContext.RoughnessPow4);     
-    half pbr_Vis = Vis_SmithJointApprox_NoPI(bsdfContext.NoL, bsdfContext.NoV, microfaceContext.RoughnessPow4);
-    half3 pbr_Fresnel = F_Schlick(microfaceContext.SpecularColor, 1, bsdfContext.LoH);     
-
-    half3 Specular = pbr_Vis * pbr_GGX * pbr_Fresnel;
-	//Specular *= MultiScatterEnergy;
-
-   	return saturate(Diffuse + Specular);
-}
-
 half3 SkinLit(BSDFContext bsdfContext, half3 MultiScatterEnergy, half3 AlbedoColor, half3 SpecularColor, half Roughness)
 {
 	half3 Diffuse = Diffuse_Lambert(AlbedoColor);

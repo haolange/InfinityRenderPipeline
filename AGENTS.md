@@ -135,7 +135,7 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 
 - Mesh: pass `defaultSort` plans are not applied (bins sort only by `CompareStructural`). `PrepareIndirect` can call `TryEnsureCapacity` on the recording path; it is dormant because the budget matches the pre-record size.
 - Validation scenes (Decal, LocalLights, Translucent) show sky black bands, large dark triangles and cube blotches. Their cause is undiagnosed.
-- Sphere, line and tube lights shade at their center and disks as an equal-area square until the representative-point shapes land (S8). Pyramid, box, rect and disk lights cast no realtime shadows (S9).
+- Pyramid, box, rect and disk lights cast no realtime shadows (S9).
 - Cascade count is fixed at 4 (S9).
 - `ContactShadowCS` traces only the sun record (`g_SunRecordIndex`) and the result applies only to directional lights in Deferred; Forward passes 1 (S10).
 - `TAAJitter` has SuperResolution consumers. TAA uses explicit current/previous framebuffer jitter UV and per-pixel sample age; do not remove the shared upload without checking SR consumers.

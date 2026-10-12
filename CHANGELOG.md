@@ -18,6 +18,16 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Clustered light list v2: CPU depth sort, logarithmic z-bins and conservative tile rectangles, GPU tile bitmasks and
   one shared light loop (`Lighting/LightLoop.hlsl`) for Deferred, Forward, fog and clouds. Forward now uses the list
   instead of looping every local light. Contact shadows follow the sun record instead of record 0.
+- Area light shading (`Lighting/LightShapes.hlsl`): Karis representative-point specular with energy normalization for
+  sphere, line, tube, rect, disk and sun disk; Frostbite sphere / disk form factor, Karis line irradiance and the rect
+  polygon form factor for diffuse. `CreateAreaLightsValidationScene` (Window/Infinity/Create Area Lights Fixture).
+
+### Fixed
+- Rect lights contributed no diffuse light: the polygon form factor was wound backwards and clamped to zero. Rect
+  lights also applied the inverse-square falloff twice.
+- Specular highlights were clamped to 1 (`saturate` on the BRDF); HDR highlights now keep their energy.
+- Diffuse / Specular light weights were applied to the whole BRDF (diffuse weight) for punctual lights; each now scales
+  its own term.
 - RuntimeTextures: the three blue-noise Sobol textures (imported uncompressed, single channel).
 
 ### Changed

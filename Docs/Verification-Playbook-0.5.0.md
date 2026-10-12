@@ -124,3 +124,16 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 6. Frame Debugger: `ComputeLightTileMask` replaces `ComputeZBinningLightList` (one dispatch); no ZBin overflow
    capture remains.
 
+## S8 — area light shapes
+
+1. Compile; run `LightShapeGpuTests` (GPU).
+2. Window/Infinity/Create Area Lights Fixture: on the glossy floor each light's highlight has the light's shape
+   (round for the sphere, a streak for the line and tube, a rectangle / ellipse for rect and disk, a soft disk for the
+   sun with Source Angle 2°). On the rough floor the highlights widen without becoming brighter than their sources.
+3. Change Source Radius of the sphere from 0 to 0.5: the overall brightness on the rough floor stays nearly the same;
+   the highlight on the glossy floor grows and its peak drops.
+4. Rect lights now light diffuse surfaces (they only produced a highlight before) and do not light behind the emitter.
+   Barn Door Length 0 → 0.4 at 45° narrows the lit area.
+5. Expected global changes: brighter, unclamped specular highlights on glossy materials (bloom may react); punctual
+   lights with a Diffuse or Specular weight below 1 now scale only that term.
+

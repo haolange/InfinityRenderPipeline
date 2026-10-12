@@ -20,7 +20,7 @@ Columns:
 | Mesh Drawing Pipeline (CPU + GPU backends) | Yes | Yes | Open | Open | macOS Metal | No HZB occlusion, GPU sort or GPU LOD |
 | ThinGBuffer + Deferred shading | Yes | Yes (pack contract) | Failing | Open | macOS Metal | Validation scenes show sky bands, dark triangles and cube blotches |
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
-| Light shapes and record v2 (0.5.0) | Yes | Unverified-0.5 (shape, record layout) | Open | Open | None | Area shapes shade as punctual / equal-area square until S8 |
+| Light shapes and record v2 (0.5.0) | Yes | Unverified-0.5 (shape, record layout, GPU far-field) | Open | Open | None | Karis representative point + Frostbite / Karis diffuse (S8) |
 | Lightmapper delegate (0.5.0) | Editor bakes | No | Open | — | None | |
 | Clustered light list v2 (log z-bins + tile bitmasks, 0.5.0) | Yes | Unverified-0.5 (binning, rectangles) | Open | Open | None | Deferred, Forward, fog and clouds share LightLoop.hlsl |
 | Cascade + local shadows (PCF 3×3) | Yes | Partial | Open | Open | macOS Metal | 0.5.0 S9 replaces filtering |
