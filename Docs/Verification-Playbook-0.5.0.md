@@ -40,3 +40,15 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 4. Rendering Debugger → Infinity Temporal panel is gone; other panels are unchanged.
 5. Optional Player build: the Console prints an "InfinityRP shader stripping" summary that now includes LightMode-stripped variants
    (Infinity-tagged passes whose LightMode the pipeline never draws). Expected count is 0 for the shipped shaders.
+
+## S2 — contract defects
+
+1. Compile; run EditMode tests (new: `DebugViewModeTests`, `ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader`, `CommandTableTests.CommittedEdit_ChangesBuildSerial`, `CommandTableTests.SwitchingMaterial_RebuildsCommands`).
+2. **Reflection probes**: bake a reflection probe in a lit scene. Expected change: the probe stores HDR scene-linear radiance (no TAA ghosting between faces, no exposure, tonemapping or display encoding).
+3. **Material / Inspector previews** render without jitter shimmer; SSR, SSGI, GTAO and volumetrics are off in previews.
+4. **Disc light** in a scene: the camera keeps rendering (it used to throw); Rendering Debugger → Infinity Lighting → Skipped Light Shapes shows 1.
+5. **RP Asset → Lighting & Shadows**: new Cascade Splits and Max Shadowed Local Lights fields; an invalid split order shows an error box and fails rendering with a clear message. Shadow culling follows Shadow Distance (previously fixed at 128 m).
+6. **Unified Ray Tracing off** on the RP Asset: RTAO does not record; the Debugger reason says ray tracing is disabled.
+7. **GTAO off**: no HalfResDownsample pass in the Frame Debugger; GTAO on: it is present.
+8. Rendering Debugger → Infinity Rendering → Debug View is an enum popup; every view still works.
+9. Mesh GPU path: change a MeshComponent's material at runtime and remove/re-add instances; no stale draws or flicker.

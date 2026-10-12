@@ -133,11 +133,10 @@ These rules exist because Console-clean patches have already hidden real ownersh
 
 Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defects below are known in code; each is owned by a PLAN.md stage. Do not hide them behind fallbacks.
 
-- Mesh GPU path: `MeshCandidateTableStore.Ensure` compares only `BinEpoch`, which only rollback bumps, so committed draw changes can leave a stale candidate table while `Compact` does no generation check (S2). Freed instance slots are not marked bounds-dirty (S2). `SetDrawMaterial` changes the queue without a structural revision (S2). `MeshGpuVisibilityCache` packs its key lossily into one `ulong` (S2). Pass `defaultSort` plans are not applied; `GpuIndirectFullPass` and the GPU staging chain have no consumer.
+- Mesh: pass `defaultSort` plans are not applied (bins sort only by `CompareStructural`). `PrepareIndirect` can call `TryEnsureCapacity` on the recording path; it is dormant because the budget matches the pre-record size.
 - Validation scenes (Decal, LocalLights, Translucent) show sky black bands, large dark triangles and cube blotches. Their cause is undiagnosed.
-- Box, Pyramid, Tube and Disc lights reach `LightElement.MapUnityType`, which throws for Disc (S2/S6).
-- Reflection and Preview cameras run the Game-camera chain (jitter, TAA, exposure, tonemapping, display encoding), so probe captures are not scene-linear (S2).
-- Shadow culling distance (`cullingParameters.shadowDistance = 128`), `maxLocalLights = 16` and cascade count/ratios are hardcoded (S2/S9).
+- Light types without a realtime representation yet (Disc, Pyramid, Box, Tube) are skipped and counted in the Rendering Debugger (S6 implements them).
+- Cascade count is fixed at 4 (S9).
 - `ContactShadowCS` reads `g_LightRecordBuffer[0]` and the result applies only to directional lights in Deferred; Forward passes 1 (S10).
 - Forward loops all local lights instead of the tile/z-bin lists; Deferred's bin filter is bypassed for empty bins; bins are linear in depth (S7).
 - `maxDrawDistance` / `maxDrawDistanceFade` are uploaded but no shader reads them (S6).
@@ -146,7 +145,6 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 - TAA accumulation and color history are RGBA16F. `ComputeTemporalSharpen` is a separate output pass at strength 0.35; only unsharpened accumulation is copied into history. A single-dispatch TAA + sharpen is not implemented.
 - Several passes always record but emit no draws, so Frame Debugger may omit them (`RenderDBuffer` without a DBufferPass shader, `RenderLocalShadow` without local casters, the `CopyHistory*` Transfer passes). `RenderCascadeShadow` records and binds its target even with 0 draws.
 - HiZ / HalfRes / AtmosphereLUT are marked async; actual overlap is unmeasured.
-- Preview cameras lack temporal gating (S2).
 - RTAO records only when UnifiedRayTracing `RayTracingContext` + `IRayTracingAccelStruct` + `VisibilityRTAO.urtshader` are ready and the accel has instances; otherwise GTAO owns AO and the Debugger shows the reason. Player shader load is unverified.
 - CombineLUT is keyed (grading + ACES + output mode); cache hit is zero dispatch. The LUT writes Rec.709 linear only.
 

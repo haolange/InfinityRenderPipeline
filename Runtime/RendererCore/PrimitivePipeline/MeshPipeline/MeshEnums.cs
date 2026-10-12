@@ -62,8 +62,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         Auto = 0,
         CpuDirect = 1,
-        GpuIndirect = 2,
-        GpuIndirectFullPass = 3
+        GpuIndirect = 2
     }
 
     [Serializable]

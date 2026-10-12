@@ -385,14 +385,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Alias for <see cref="FlushRetiredPayloads"/>. Prefer the Flush name at frame-end call sites.
-        /// </summary>
-        public static void ReleaseFrameResources()
-        {
-            FlushRetiredPayloads();
-        }
-
-        /// <summary>
         /// Max command / instance capacities required across all planned batches.
         /// <paramref name="maxCommands"/> is 0 when planning fails (caller should CPU-fallback).
         /// Instances per batch = max(batchCandidates, boundsCount).
@@ -424,17 +416,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 maxCommands = math.max(maxCommands, batch.batchCommands);
                 maxInstances = math.max(maxInstances, math.max(batchCandidates, safeBounds));
             }
-        }
-
-        /// <summary>
-        /// True when the draw list fits a single payload; false means split batches or CPU fallback.
-        /// </summary>
-        public static bool CanSubmitSinglePayload(in PassView drawList)
-        {
-            return drawList.isValid
-                && drawList.commandCount > 0
-                && drawList.commandCount <= MaxCommands
-                && drawList.instanceCount <= MaxInstances;
         }
 
         /// <summary>
