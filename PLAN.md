@@ -51,7 +51,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | done |
 | S10 | Screen-space traced shadows (sun + up to 24 local lights) | S7 | done |
 | S11 | Cookie and IES atlas | S6, S7 | done |
-| S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | pending |
+| S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | in progress |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | pending |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | pending |
 | S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | pending |
@@ -61,6 +61,25 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S12
+
+- Baked diffuse priority (`Lightmap.hlsl SampleBakedLighting`, `MeshBakedLighting.hlsl SampleMeshBakedLighting`):
+  lightmap → Adaptive Probe Volumes (`PROBE_VOLUMES_L1 / L2` and `_EnableProbeVolumes`) → Light Probe Proxy Volume
+  (`unity_ProbeVolumeParams.x == 1`, RendererList draws only) → light probe SH → sky SH (deferred / forward, alpha 0).
+  Shadowmask / probe occlusion come from the same source. GBuffer and Forward renderer lists request
+  `LightProbeProxyVolume | OcclusionProbeProxyVolume`; `SupportedRenderingFeatures.lightProbeProxyVolumes = true`.
+- APV: `ProbeVolumeIntegration` (Runtime/RenderPipeline/Lighting) initializes `ProbeReferenceVolume` with the pipeline
+  and, per camera before culling, `SetEnableStateFromSRP`, `PerformPendingOperations`, `UpdateCellStreaming` (not
+  Reflection / Preview), `BindAPVRuntimeResources`, `RenderDebug`, `UpdateShaderVariablesProbeVolumes`, keywords.
+  RP Asset implements `IProbeVolumeEnabledRenderPipeline` (`lightProbeSystem`, SH bands, budgets, streaming,
+  scenarios); `overridesLightProbeSystem` / `skyOcclusion` follow it. `ProbeVolumesOptions` joins the default Volume
+  registry. The stripper drops `PROBE_VOLUMES_L1 / L2` variants no Infinity asset of the build uses.
+- InfinityLit-Instanced gains `ShadowCaster` and `Meta` (its own UnityPerMaterial layout). TerrainLit gains lightmaps
+  (`LIGHTMAP_ON`, `DIRLIGHTMAP_COMBINED`, `SHADOWS_SHADOWMASK`, APV) writing the baked GBuffer targets (add passes
+  write 0), `ShadowCaster` and `Meta` (splat-mixed albedo).
+- Shadow casters: both shadow passes set `Matrix_ViewFlipYProj` (what every caster shader projects with) as well as
+  `Matrix_ViewProj` to the shadow matrix, and restore the camera's values.
 
 ### S11
 

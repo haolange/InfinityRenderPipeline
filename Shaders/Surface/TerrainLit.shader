@@ -63,6 +63,10 @@ Shader "InfinityPipeline/TerrainLit"
             
             #pragma multi_compile_instancing
             #pragma multi_compile _ _DBUFFER
+            #pragma multi_compile _ LIGHTMAP_ON
+            #pragma multi_compile _ DIRLIGHTMAP_COMBINED
+            #pragma multi_compile _ SHADOWS_SHADOWMASK
+            #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
             //#pragma enable_d3d11_debug_symbols
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
@@ -101,6 +105,43 @@ Shader "InfinityPipeline/TerrainLit"
     
             #define _METALLICSPECGLOSSMAP 1
             #define _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A 1
+
+            #include "TerrainLitInclude.hlsl"
+            ENDHLSL
+        }
+
+        // Unity CreateShadowRendererList looks up LightMode ShadowCaster.
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+
+            ZTest LEqual ZWrite On Cull Back
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex ShadowPassVertex
+            #pragma fragment ShadowPassFragment
+            #pragma multi_compile_instancing
+            #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
+
+            #include "TerrainLitInclude.hlsl"
+            ENDHLSL
+        }
+
+        // The lightmapper renders terrain albedo and emission through Meta.
+        Pass
+        {
+            Name "Meta"
+            Tags { "LightMode" = "Meta" }
+
+            Cull Off
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex TerrainMetaVertex
+            #pragma fragment TerrainMetaFragment
 
             #include "TerrainLitInclude.hlsl"
             ENDHLSL

@@ -244,6 +244,7 @@
 			#pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK
+            #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/Lightmap.hlsl"
@@ -339,7 +340,7 @@
 				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
 				LightingBuffer = float4(_EmissionColor.rgb, 0);
                 float4 shadowMask;
-                SampleBakedLighting(In.uv1, pnormalWS, BakedDiffuse, shadowMask);
+                SampleBakedLighting(In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, asuint(unity_RenderingLayer.x), BakedDiffuse, shadowMask);
                 BakedOcclusion = 1 - shadowMask;
 			}
 			ENDHLSL
@@ -367,6 +368,7 @@
 			#pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ SHADOWS_SHADOWMASK
+            #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/BSDF.hlsl"
@@ -449,7 +451,7 @@
 				MicrofaceContext microfaceContext = InitMicrofaceContext(surfaceSpecular, surfaceRoughness, surfaceReflctance, surfaceAlbedo);
 
                 float4 baked, mask;
-                SampleBakedLighting(In.uv1, pnormalWS, baked, mask);
+                SampleBakedLighting(In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, asuint(unity_RenderingLayer.x), baked, mask);
                 float viewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
                 float3 diffuse = microfaceContext.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
                 float3 specular = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflect(-cameraDirWS, pnormalWS), microfaceContext.RoughnessClamp, _AtmosphereIBLMaxMip)
@@ -902,11 +904,9 @@
 				{
 					res = float4(input.Albedo, 1.0);
 
-					// d3d9 shader compiler doesn't like NaNs and infinity.
-					unity_OneOverOutputBoost = saturate(unity_OneOverOutputBoost);
-
-					// Apply Albedo Boost from LightmapSettings.
-					res.rgb = clamp(PositivePow(res.rgb, unity_OneOverOutputBoost), 0, unity_MaxOutputValue);
+					// Albedo boost from LightmapSettings (globals are read-only; clamp a copy).
+					float oneOverOutputBoost = saturate(unity_OneOverOutputBoost);
+					res.rgb = clamp(PositivePow(res.rgb, oneOverOutputBoost), 0, unity_MaxOutputValue);
 				}
 				if (unity_MetaFragmentControl.y)
 				{

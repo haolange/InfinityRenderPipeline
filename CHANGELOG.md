@@ -34,6 +34,10 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   come from the shadowmask), for RendererList objects and MeshScene instances alike. Distance Shadowmask is unchanged.
 - Rendering Debugger → Debug View: Cascade / Local / Cached Shadow Atlas and Shadow Moments; Infinity Lighting panel
   counts cached shadow tiles and re-renders.
+- Baked GI: Adaptive Probe Volumes (RP Asset Light Probe System, CoreRP streaming / scenarios, ProbeVolumesOptions in
+  the default Volume profile) and Light Probe Proxy Volumes feed unlightmapped surfaces in Deferred and Forward, for
+  RendererList objects and MeshScene instances; terrain receives lightmaps, Shadowmask and probes; InfinityLit-
+  Instanced and TerrainLit get ShadowCaster and Meta passes. Unused APV variants are stripped from builds.
 - Light cookies and IES profiles: one mip-mapped atlas with buddy-allocated blocks, compute uploads (2D copy, cube
   to octahedral, mips), cookies on spot / pyramid / box / point / directional (tiled) lights and emitter textures on
   rect / disk lights, IES profiles by direction (Cube) or projected (2D spots); Deferred, Forward, fog and clouds share
@@ -46,6 +50,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Shadow casters projected with the camera matrix: caster shaders read `Matrix_ViewFlipYProj`, which the shadow passes
+  never replaced (they only set `Matrix_ViewProj`). Both are now set to the shadow matrix and restored afterwards.
+- The InfinityLit Meta pass assigned to a read-only global (`unity_OneOverOutputBoost`).
 - Forward lighting ignored contact shadows, and `g_SunRecordIndex` was never bound for Deferred, Forward and the
   volumetrics (only the contact pass set it).
 - Volumetric fog and clouds filtered cascade shadows with twice the real texel size (they passed the per-cascade tile

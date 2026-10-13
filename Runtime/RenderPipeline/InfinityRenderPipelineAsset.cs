@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     [ExecuteInEditMode]
     [CreateAssetMenu(menuName = "InfinityRenderPipeline/InfinityRenderPipelineAsset", order = 360)]
-    public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>
+    public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>, IProbeVolumeEnabledRenderPipeline
     {
         public VolumeProfile qualityVolumeProfile
         {
@@ -53,6 +53,21 @@ namespace InfinityTech.Rendering.Pipeline
         // resolution); 0 disables caching and every light renders every frame.
         [Min(0)]
         public int cachedShadowAtlasWidth = 4096;
+        // Light probe system: Light Probe Groups (+ Light Probe Proxy Volumes) or Adaptive Probe Volumes.
+        public ELightProbeSystem lightProbeSystem = ELightProbeSystem.LegacyLightProbes;
+        public ProbeVolumeTextureMemoryBudget probeVolumeMemoryBudget = ProbeVolumeTextureMemoryBudget.MemoryBudgetMedium;
+        public ProbeVolumeBlendingTextureMemoryBudget probeVolumeBlendingMemoryBudget = ProbeVolumeBlendingTextureMemoryBudget.MemoryBudgetMedium;
+        public ProbeVolumeSHBands probeVolumeSHBands = ProbeVolumeSHBands.SphericalHarmonicsL1;
+        public bool supportProbeVolumeGPUStreaming;
+        public bool supportProbeVolumeDiskStreaming;
+        public bool supportProbeVolumeScenarios;
+        public bool supportProbeVolumeScenarioBlending;
+
+        public bool supportProbeVolume => lightProbeSystem == ELightProbeSystem.ProbeVolumes;
+        public ProbeVolumeSHBands maxSHBands => supportProbeVolume ? probeVolumeSHBands : ProbeVolumeSHBands.SphericalHarmonicsL1;
+        [System.Obsolete("This property is no longer necessary. #from(2023.3)")]
+        public ProbeVolumeSceneData probeVolumeSceneData => null;
+
         // Light cookie / IES atlas (power of two, RGBA8 with mips); 0 disables cookies.
         [Min(0)]
         public int cookieAtlasResolution = 2048;

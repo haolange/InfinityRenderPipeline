@@ -68,13 +68,16 @@ namespace InfinityTech.Rendering.Editor.Build
         static int s_Kept;
         static int s_StrippedForeignTag;
         static int s_StrippedLightMode;
+        static int s_StrippedProbeVolume;
         public int callbackOrder => 0;
         public static bool IsInfinityActive => GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset;
         public static int Kept => s_Kept;
         public static int StrippedForeignTag => s_StrippedForeignTag;
         public static int StrippedLightMode => s_StrippedLightMode;
 
-        public static void ResetCounts() { s_Kept = 0; s_StrippedForeignTag = 0; s_StrippedLightMode = 0; }
+        public static int StrippedProbeVolume => s_StrippedProbeVolume;
+
+        public static void ResetCounts() { s_Kept = 0; s_StrippedForeignTag = 0; s_StrippedLightMode = 0; s_StrippedProbeVolume = 0; }
 
         public void OnProcessShader(Shader shader, ShaderSnippetData snippet, IList<ShaderCompilerData> data)
         {
@@ -98,7 +101,44 @@ namespace InfinityTech.Rendering.Editor.Build
                 return;
             }
 
+            StripUnusedProbeVolumeVariants(shader, data);
             s_Kept += data.Count;
+        }
+
+        // PROBE_VOLUMES_L1 / L2 variants exist for Adaptive Probe Volumes; a build keeps a band only when an Infinity
+        // asset of the build (Graphics default or any Quality level) uses Adaptive Probe Volumes with that band.
+        static void StripUnusedProbeVolumeVariants(Shader shader, IList<ShaderCompilerData> data)
+        {
+            UsedProbeVolumeBands(out bool l1, out bool l2);
+            var keywordL1 = new ShaderKeyword(shader, "PROBE_VOLUMES_L1");
+            var keywordL2 = new ShaderKeyword(shader, "PROBE_VOLUMES_L2");
+            for (int i = data.Count - 1; i >= 0; --i)
+            {
+                ShaderKeywordSet keywords = data[i].shaderKeywordSet;
+                if ((!l1 && keywords.IsEnabled(keywordL1)) || (!l2 && keywords.IsEnabled(keywordL2)))
+                {
+                    data.RemoveAt(i);
+                    s_StrippedProbeVolume++;
+                }
+            }
+        }
+
+        internal static void UsedProbeVolumeBands(out bool l1, out bool l2)
+        {
+            l1 = false;
+            l2 = false;
+            var assets = new List<InfinityRenderPipelineAsset>();
+            if (GraphicsSettings.defaultRenderPipeline is InfinityRenderPipelineAsset defaultAsset) assets.Add(defaultAsset);
+            for (int level = 0; level < QualitySettings.count; ++level)
+            {
+                if (QualitySettings.GetRenderPipelineAssetAt(level) is InfinityRenderPipelineAsset qualityAsset) assets.Add(qualityAsset);
+            }
+            foreach (InfinityRenderPipelineAsset asset in assets)
+            {
+                if (!asset.supportProbeVolume) continue;
+                if (asset.probeVolumeSHBands == ProbeVolumeSHBands.SphericalHarmonicsL2) l2 = true;
+                else l1 = true;
+            }
         }
 
         internal static bool IsUnusedInfinityPass(Shader shader, in ShaderSnippetData snippet)

@@ -19,6 +19,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int CascadeSplitDistancesID = Shader.PropertyToID("_CascadeSplitDistances");
         internal static int ShadowDistanceID = Shader.PropertyToID("_ShadowDistance");
         internal static int MatrixViewProjID = Shader.PropertyToID("Matrix_ViewProj");
+        // Shadow-caster shaders (ShadowPass / ShadowCaster) project with Matrix_ViewFlipYProj; the shadow passes set it
+        // to the shadow matrix (a renderIntoTexture GPU projection) and restore the camera's afterwards.
+        internal static int MatrixViewFlipYProjID = Shader.PropertyToID("Matrix_ViewFlipYProj");
         internal static readonly int CascadeShadowParamsID = Shader.PropertyToID("_CascadeShadowParams");
         internal static readonly int ShadowFilterParamsID = Shader.PropertyToID("_ShadowFilterParams");
 
@@ -47,6 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shadowMapResolution;
             public float shadowDistance;
             public Matrix4x4 cameraViewProj;
+            public Matrix4x4 cameraViewFlipYProj;
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] spheres;
@@ -63,7 +67,6 @@ namespace InfinityTech.Rendering.Pipeline
         {
             int shadowMapResolution = pipelineAsset.cascadeShadowMapResolution;
             float shadowDistance = pipelineAsset.shadowDistance;
-            Matrix4x4 cameraViewProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) * camera.worldToCameraMatrix;
             int cascadeCount = ShadowAllocator.CascadeCount;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
 
@@ -144,7 +147,8 @@ namespace InfinityTech.Rendering.Pipeline
                     for (int i = 0; i < cascadeCount; i++) passData.valid[i] = allocator.CascadeSlices[i].valid;
                     passData.shadowMapResolution = shadowMapResolution;
                     passData.shadowDistance = shadowDistance;
-                    passData.cameraViewProj = cameraViewProj;
+                    passData.cameraViewProj = m_CameraUniform.matrix_ViewProj;
+                    passData.cameraViewFlipYProj = m_CameraUniform.matrix_ViewFlipYProj;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.cascadeSplitDistances = cascadeSplitDistances;
@@ -186,6 +190,7 @@ namespace InfinityTech.Rendering.Pipeline
                         cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ShadowCasterBias"), passData.casterBias[cascade]);
                         cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ShadowCasterLight"), passData.casterLight);
                         cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewProjID, passData.shadowMatrices[cascade]);
+                        cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.shadowMatrices[cascade]);
 
                         if (passData.draws != null && cascade < passData.draws.Length && passData.draws[cascade].IsValid)
                         {
@@ -203,6 +208,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                     cmdEncoder.SetViewport(new Rect(0, 0, halfRes * 2, halfRes * 2));
                     cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewProjID, passData.cameraViewProj);
+                    cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.cameraViewFlipYProj);
                 });
             }
         }

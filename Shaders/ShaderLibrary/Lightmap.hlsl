@@ -10,7 +10,15 @@
 TEXTURE2D(unity_Lightmap); SAMPLER(samplerunity_Lightmap);
 TEXTURE2D(unity_LightmapInd);
 TEXTURE2D(unity_ShadowMask); SAMPLER(samplerunity_ShadowMask);
+// Light Probe Proxy Volume of the renderer (PerObjectData.LightProbeProxyVolume; unity_ProbeVolumeParams.x == 1).
+TEXTURE3D_FLOAT(unity_ProbeVolumeSH); SAMPLER(samplerunity_ProbeVolumeSH);
 int _InfinityHasProbes;
+// Adaptive Probe Volumes hold data for this camera (ProbeVolumeIntegration.SetupCamera).
+int _EnableProbeVolumes;
+
+#if defined(PROBE_VOLUMES_L1) || defined(PROBE_VOLUMES_L2)
+#include "Packages/com.unity.render-pipelines.core/Runtime/Lighting/ProbeVolume/ProbeVolume.hlsl"
+#endif
 
 
 half3 SampleSH(half3 normalWS)
@@ -72,8 +80,45 @@ half3 SampleLightmap(float2 lightmapUV, half3 normalWS)
 #endif
 }
 
-// RGB is scene-linear baked/probe diffuse; alpha identifies an authored GI source.
-void SampleBakedLighting(float2 uv, float3 normalWS, out float4 diffuse, out float4 mask)
+// Adaptive Probe Volumes, when the project uses them and this camera has data. Returns false otherwise.
+bool SampleAdaptiveProbeVolume(float3 positionWS, float3 normalWS, float3 viewDir, float2 positionSS, uint renderingLayer, out float3 diffuse, out float4 occlusion)
+{
+    diffuse = 0;
+    occlusion = 1;
+#if defined(PROBE_VOLUMES_L1) || defined(PROBE_VOLUMES_L2)
+    if (_EnableProbeVolumes != 0)
+    {
+        EvaluateAdaptiveProbeVolume(positionWS, normalWS, viewDir, positionSS, renderingLayer, diffuse, occlusion);
+        return true;
+    }
+#endif
+    return false;
+}
+
+// Probe lighting of a renderer without a lightmap: Adaptive Probe Volumes when enabled, else the renderer's Light Probe
+// Proxy Volume, else its interpolated light probe SH. Returns false when no probe data exists (the sky SH applies).
+bool SampleRendererProbes(float3 positionWS, float3 normalWS, float3 viewDir, float2 positionSS, uint renderingLayer, out float3 diffuse, out float4 occlusion)
+{
+    if (SampleAdaptiveProbeVolume(positionWS, normalWS, viewDir, positionSS, renderingLayer, diffuse, occlusion))
+    {
+        return true;
+    }
+    if (unity_ProbeVolumeParams.x == 1.0)
+    {
+        diffuse = max(0, SampleProbeVolumeSH4(TEXTURE3D_ARGS(unity_ProbeVolumeSH, samplerunity_ProbeVolumeSH), positionWS, normalWS,
+            unity_ProbeVolumeWorldToObject, unity_ProbeVolumeParams.y, unity_ProbeVolumeParams.z, unity_ProbeVolumeMin.xyz, unity_ProbeVolumeSizeInv.xyz));
+        occlusion = SampleProbeOcclusion(TEXTURE3D_ARGS(unity_ProbeVolumeSH, samplerunity_ProbeVolumeSH), positionWS,
+            unity_ProbeVolumeWorldToObject, unity_ProbeVolumeParams.y, unity_ProbeVolumeParams.z, unity_ProbeVolumeMin.xyz, unity_ProbeVolumeSizeInv.xyz);
+        return true;
+    }
+    diffuse = _InfinityHasProbes != 0 ? SampleSH(normalWS) : 0;
+    occlusion = _InfinityHasProbes != 0 ? unity_ProbesOcclusion : 1;
+    return _InfinityHasProbes != 0;
+}
+
+// RGB is scene-linear baked/probe diffuse; alpha = 1 when a baked source exists (0 lets the sky SH apply).
+// Priority: lightmap -> Adaptive Probe Volumes -> Light Probe Proxy Volume -> light probe SH.
+void SampleBakedLighting(float2 uv, float3 positionWS, float3 normalWS, float3 viewDir, float2 positionSS, uint renderingLayer, out float4 diffuse, out float4 mask)
 {
     mask = 1;
 #if defined(LIGHTMAP_ON)
@@ -82,8 +127,9 @@ void SampleBakedLighting(float2 uv, float3 normalWS, out float4 diffuse, out flo
     mask = unity_ShadowMask.Sample(samplerunity_ShadowMask, uv);
 #endif
 #else
-    diffuse = float4(_InfinityHasProbes != 0 ? SampleSH(normalWS) : 0, _InfinityHasProbes != 0 ? 1 : 0);
-    if (_InfinityHasProbes != 0) mask = unity_ProbesOcclusion;
+    float3 probe;
+    bool hasProbe = SampleRendererProbes(positionWS, normalWS, viewDir, positionSS, renderingLayer, probe, mask);
+    diffuse = float4(probe, hasProbe ? 1 : 0);
 #endif
 }
 

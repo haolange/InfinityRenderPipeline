@@ -32,6 +32,14 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_CascadeCount;
         SerializedProperty m_CachedShadowAtlasWidth;
         SerializedProperty m_CookieAtlasResolution;
+        SerializedProperty m_LightProbeSystem;
+        SerializedProperty m_ProbeVolumeMemoryBudget;
+        SerializedProperty m_ProbeVolumeBlendingMemoryBudget;
+        SerializedProperty m_ProbeVolumeSHBands;
+        SerializedProperty m_ProbeVolumeGPUStreaming;
+        SerializedProperty m_ProbeVolumeDiskStreaming;
+        SerializedProperty m_ProbeVolumeScenarios;
+        SerializedProperty m_ProbeVolumeScenarioBlending;
         SerializedProperty m_CookieMaxSize;
         SerializedProperty m_CascadeBlendWidth;
         SerializedProperty m_ShadowFilterQuality;
@@ -65,6 +73,14 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_CascadeCount = serializedObject.FindProperty("cascadeCount");
             m_CachedShadowAtlasWidth = serializedObject.FindProperty("cachedShadowAtlasWidth");
             m_CookieAtlasResolution = serializedObject.FindProperty("cookieAtlasResolution");
+            m_LightProbeSystem = serializedObject.FindProperty("lightProbeSystem");
+            m_ProbeVolumeMemoryBudget = serializedObject.FindProperty("probeVolumeMemoryBudget");
+            m_ProbeVolumeBlendingMemoryBudget = serializedObject.FindProperty("probeVolumeBlendingMemoryBudget");
+            m_ProbeVolumeSHBands = serializedObject.FindProperty("probeVolumeSHBands");
+            m_ProbeVolumeGPUStreaming = serializedObject.FindProperty("supportProbeVolumeGPUStreaming");
+            m_ProbeVolumeDiskStreaming = serializedObject.FindProperty("supportProbeVolumeDiskStreaming");
+            m_ProbeVolumeScenarios = serializedObject.FindProperty("supportProbeVolumeScenarios");
+            m_ProbeVolumeScenarioBlending = serializedObject.FindProperty("supportProbeVolumeScenarioBlending");
             m_CookieMaxSize = serializedObject.FindProperty("cookieMaxSize");
             m_CascadeBlendWidth = serializedObject.FindProperty("cascadeBlendWidth");
             m_ShadowFilterQuality = serializedObject.FindProperty("shadowFilterQuality");
@@ -176,6 +192,22 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 DrawShadowFilter();
                 EditorGUILayout.PropertyField(m_CookieAtlasResolution, new GUIContent("Cookie Atlas Resolution", "Power-of-two atlas for light cookies and IES profiles (RGBA8 with mips). 0 disables cookies."));
                 EditorGUILayout.PropertyField(m_CookieMaxSize, new GUIContent("Cookie Max Size", "Largest atlas block of one cookie; larger textures are minified."));
+                EditorGUILayout.PropertyField(m_LightProbeSystem, new GUIContent("Light Probe System", "Light Probe Groups (with Light Probe Proxy Volumes) or Adaptive Probe Volumes. Changing it recreates the pipeline."));
+                if (m_LightProbeSystem.enumValueIndex == (int)ELightProbeSystem.ProbeVolumes || m_LightProbeSystem.hasMultipleDifferentValues)
+                {
+                    ++EditorGUI.indentLevel;
+                    EditorGUILayout.PropertyField(m_ProbeVolumeSHBands, new GUIContent("SH Bands"));
+                    EditorGUILayout.PropertyField(m_ProbeVolumeMemoryBudget, new GUIContent("Memory Budget"));
+                    EditorGUILayout.PropertyField(m_ProbeVolumeGPUStreaming, new GUIContent("GPU Streaming"));
+                    EditorGUILayout.PropertyField(m_ProbeVolumeDiskStreaming, new GUIContent("Disk Streaming"));
+                    EditorGUILayout.PropertyField(m_ProbeVolumeScenarios, new GUIContent("Lighting Scenarios"));
+                    using (new EditorGUI.DisabledScope(!m_ProbeVolumeScenarios.boolValue))
+                    {
+                        EditorGUILayout.PropertyField(m_ProbeVolumeScenarioBlending, new GUIContent("Scenario Blending"));
+                        EditorGUILayout.PropertyField(m_ProbeVolumeBlendingMemoryBudget, new GUIContent("Blending Memory Budget"));
+                    }
+                    --EditorGUI.indentLevel;
+                }
             }
             InfinityInspectorGUI.EndFoldout();
 

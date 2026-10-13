@@ -17,7 +17,8 @@ TEXTURE2D(_MeshLightmapDirection);
 TEXTURE2D(_MeshShadowMask); SAMPLER(sampler_MeshShadowMask);
 #endif
 #endif
-void SampleMeshBakedLighting(uint transformIndex, float2 uv, float3 normal, out float4 diffuse, out float4 mask)
+// Priority as SampleBakedLighting: the instance lightmap, then Adaptive Probe Volumes, then the instance's light probe SH.
+void SampleMeshBakedLighting(uint transformIndex, float2 uv, float3 positionWS, float3 normal, float3 viewDir, float2 positionSS, uint renderingLayer, out float4 diffuse, out float4 mask)
 {
     FMeshBakedLighting data = meshBakedLightingBuffer[transformIndex];
     mask = data.metadata.y > 0 ? data.occlusion : 1;
@@ -35,6 +36,14 @@ void SampleMeshBakedLighting(uint transformIndex, float2 uv, float3 normal, out 
     mask = _MeshShadowMask.Sample(sampler_MeshShadowMask, uv);
 #endif
 #else
+    float3 apv;
+    float4 apvOcclusion;
+    if (SampleAdaptiveProbeVolume(positionWS, normal, viewDir, positionSS, renderingLayer, apv, apvOcclusion))
+    {
+        diffuse = float4(apv, 1);
+        mask = apvOcclusion;
+        return;
+    }
     float3 sh = SHEvalLinearL0L1(normal, data.shAr, data.shAg, data.shAb) + SHEvalLinearL2(normal, data.shBr, data.shBg, data.shBb, data.shC);
     diffuse = float4(data.metadata.y > 0 ? max(0, sh) : 0, data.metadata.y > 0 ? 1 : 0);
 #endif

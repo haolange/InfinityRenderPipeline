@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
                 rendererListDesc.sortingCriteria = SortingCriteria.QuantizedFrontToBack;
                 rendererListDesc.renderingLayerMask = uint.MaxValue;
-                rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe;
+                rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RGRendererListRef gbufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);

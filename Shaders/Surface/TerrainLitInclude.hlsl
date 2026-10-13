@@ -14,6 +14,8 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/EntityLighting.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
+#include "../ShaderLibrary/Lightmap.hlsl"
+#include "../ShaderLibrary/ShadowCaster.hlsl"
 
 #if defined(UNITY_INSTANCING_ENABLED) && defined(_TERRAIN_INSTANCED_PERPIXEL_NORMAL)
     #define ENABLE_TERRAIN_PERPIXEL_NORMAL
@@ -160,21 +162,6 @@ struct Varyings
     float4 clipPos                  : SV_POSITION;
     UNITY_VERTEX_OUTPUT_STEREO
 };
-
-half3 SampleSH(half3 normalWS)
-{
-    // LPPV is not supported in Ligthweight Pipeline
-    real4 SHCoefficients[7];
-    SHCoefficients[0] = unity_SHAr;
-    SHCoefficients[1] = unity_SHAg;
-    SHCoefficients[2] = unity_SHAb;
-    SHCoefficients[3] = unity_SHBr;
-    SHCoefficients[4] = unity_SHBg;
-    SHCoefficients[5] = unity_SHBb;
-    SHCoefficients[6] = unity_SHC;
-
-    return max(half3(0, 0, 0), SampleSH9(SHCoefficients, normalWS));
-}
 
 void InitializeInputData(Varyings IN, half3 normalTS, out InputData input)
 {
@@ -522,7 +509,8 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
     #endif
 }
 
-void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3)
+void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3,
+    out float4 BakedDiffuse : SV_Target4, out float4 BakedOcclusion : SV_Target5)
 {
     #ifdef _ALPHATEST_ON
         ClipHoles(IN.uvMainAndLM.xy);
@@ -586,8 +574,16 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     EncodeGBuffer(GBufferData, IN.clipPos.xy, GBufferA, GBufferB, GBufferC);
     #if defined(TERRAIN_SPLAT_ADDPASS)
     LightingBuffer = 0;
+    // Additive layer passes add nothing to the baked targets of the base pass.
+    BakedDiffuse = 0;
+    BakedOcclusion = 0;
     #else
     LightingBuffer = float4(_EmissionColor.rgb, 0);
+    // Lightmap (uvMainAndLM.zw already carries unity_LightmapST) -> Adaptive Probe Volumes -> probes.
+    float4 bakedMask;
+    SampleBakedLighting(IN.uvMainAndLM.zw, IN.positionWS, surfaceNormal, normalize(_WorldSpaceCameraPos - IN.positionWS), IN.clipPos.xy,
+        asuint(unity_RenderingLayer.x), BakedDiffuse, bakedMask);
+    BakedOcclusion = 1 - bakedMask;
     #endif
 }
 
@@ -621,7 +617,9 @@ VaryingsLean ShadowPassVertex(AttributesLean v)
     float3 positionWS = TransformObjectToWorld(v.position.xyz);
     float3 normalWS = TransformObjectToWorldNormal(v.normalOS);
 
-    float4 clipPos = TransformWorldToHClip(positionWS);
+    // Shadow passes set Matrix_ViewFlipYProj to the shadow matrix (see CascadeShadowPassUtilityData).
+    positionWS = OffsetShadowCaster(positionWS, normalWS);
+    float4 clipPos = mul(Matrix_ViewFlipYProj, float4(positionWS, 1.0));
 
 #if UNITY_REVERSED_Z
     clipPos.z = min(clipPos.z, clipPos.w * UNITY_NEAR_CLIP_VALUE);
@@ -671,4 +669,68 @@ half4 DepthOnlyFragment(VaryingsLean IN) : SV_TARGET
     return half4(_ObjectId, _PassValue, 1.0, 1.0);
 #endif
     return 0;
+}
+
+// Meta pass: the lightmapper reads terrain albedo (splat mix) and emission.
+CBUFFER_START(UnityMetaPass)
+    bool4 unity_MetaVertexControl;
+    bool4 unity_MetaFragmentControl;
+CBUFFER_END
+float unity_OneOverOutputBoost;
+float unity_MaxOutputValue;
+
+struct MetaAttributes
+{
+    float4 positionOS : POSITION;
+    float3 normalOS : NORMAL;
+    float2 texcoord : TEXCOORD0;
+    UNITY_VERTEX_INPUT_INSTANCE_ID
+};
+
+struct MetaVaryings
+{
+    float4 positionCS : SV_POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+MetaVaryings TerrainMetaVertex(MetaAttributes v)
+{
+    MetaVaryings o = (MetaVaryings)0;
+    UNITY_SETUP_INSTANCE_ID(v);
+    TerrainInstancing(v.positionOS, v.normalOS, v.texcoord);
+    float4 position = v.positionOS;
+    // Terrain lightmap UVs are its main UVs.
+    if (unity_MetaVertexControl.x)
+    {
+        position.xy = v.texcoord * unity_LightmapST.xy + unity_LightmapST.zw;
+        position.z = position.z > 0 ? REAL_MIN : 0.0f;
+    }
+    if (unity_MetaVertexControl.y)
+    {
+        position.xy = v.texcoord * unity_DynamicLightmapST.xy + unity_DynamicLightmapST.zw;
+        position.z = position.z > 0 ? REAL_MIN : 0.0f;
+    }
+    o.positionCS = mul(unity_MatrixVP, float4(position.xyz, 1.0));
+    o.uv = v.texcoord;
+    return o;
+}
+
+float4 TerrainMetaFragment(MetaVaryings IN) : SV_Target
+{
+    float2 splatUV = (IN.uv * (_Control_TexelSize.zw - 1.0f) + 0.5f) * _Control_TexelSize.xy;
+    half4 control = SAMPLE_TEXTURE2D(_Control, sampler_Control, splatUV);
+    half3 albedo = control.r * SAMPLE_TEXTURE2D(_Splat0, sampler_Splat0, IN.uv * _Splat0_ST.xy + _Splat0_ST.zw).rgb
+                 + control.g * SAMPLE_TEXTURE2D(_Splat1, sampler_Splat0, IN.uv * _Splat1_ST.xy + _Splat1_ST.zw).rgb
+                 + control.b * SAMPLE_TEXTURE2D(_Splat2, sampler_Splat0, IN.uv * _Splat2_ST.xy + _Splat2_ST.zw).rgb
+                 + control.a * SAMPLE_TEXTURE2D(_Splat3, sampler_Splat0, IN.uv * _Splat3_ST.xy + _Splat3_ST.zw).rgb;
+    float4 result = 0;
+    if (unity_MetaFragmentControl.x)
+    {
+        result = float4(clamp(PositivePow(albedo, saturate(unity_OneOverOutputBoost)), 0, unity_MaxOutputValue), 1.0);
+    }
+    if (unity_MetaFragmentControl.y)
+    {
+        result = float4(_EmissionColor.rgb, 1.0);
+    }
+    return result;
 }

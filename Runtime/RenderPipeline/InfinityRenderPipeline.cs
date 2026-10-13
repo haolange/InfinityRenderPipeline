@@ -229,6 +229,7 @@ namespace InfinityTech.Rendering.Pipeline
         private AtmosphereSharedCache m_AtmosphereSharedCache;
         private LocalShadowCache m_LocalShadowCache;
         private LightCookieAtlas m_LightCookieAtlas;
+        private ProbeVolumeIntegration m_ProbeVolumes;
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
         bool m_PreviousLightsUseLinearIntensity;
@@ -294,6 +295,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_AtmosphereSharedCache = new AtmosphereSharedCache();
                 m_LocalShadowCache = new LocalShadowCache();
                 m_LightCookieAtlas = new LightCookieAtlas();
+                m_ProbeVolumes = new ProbeVolumeIntegration(asset);
             }
             catch (Exception constructionFailure)
             {
@@ -400,6 +402,8 @@ namespace InfinityTech.Rendering.Pipeline
                                 #endif
 
                                 cameraUniform.SetUniformData(cmdBuffer, dimensions.internalSize);
+                                // Adaptive Probe Volumes: CoreRP-owned resources, bound before culling and recording.
+                                m_ProbeVolumes.SetupCamera(cmdBuffer, camera, frameState.volumeStack, renderPolicy.temporal);
                                 scriptableRenderContext.SetupCameraProperties(camera);
                                 scriptableRenderContext.ExecuteCommandBuffer(cmdBuffer);
                                 cmdBuffer.Clear();
@@ -859,7 +863,9 @@ namespace InfinityTech.Rendering.Pipeline
                 mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly | SupportedRenderingFeatures.LightmapMixedBakeModes.Shadowmask,
                 lightmapBakeTypes = LightmapBakeType.Baked | LightmapBakeType.Mixed | LightmapBakeType.Realtime,
                 lightmapsModes = LightmapsMode.NonDirectional | LightmapsMode.CombinedDirectional,
-                lightProbeProxyVolumes = false,
+                lightProbeProxyVolumes = true,
+                overridesLightProbeSystem = m_PipelineAsset.supportProbeVolume,
+                skyOcclusion = m_PipelineAsset.supportProbeVolume,
                 motionVectors = true,
                 receiveShadows = true,
                 reflectionProbes = true,
@@ -1014,6 +1020,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_LocalShadowCache = null;
             Release(() => m_LightCookieAtlas?.Dispose());
             m_LightCookieAtlas = null;
+            Release(() => m_ProbeVolumes?.Dispose());
+            m_ProbeVolumes = null;
             if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
             Release(RestoreGraphicsState);
             if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);

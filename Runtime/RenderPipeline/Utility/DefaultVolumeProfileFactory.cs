@@ -37,7 +37,9 @@ namespace InfinityTech.Rendering.Pipeline
             typeof(VolumetricCloud),
             typeof(ContactShadow),
             typeof(SubsurfaceScattering),
-            typeof(RayTracingAmbientOcclusion)
+            typeof(RayTracingAmbientOcclusion),
+            // CoreRP's Adaptive Probe Volume options (sampling bias, leak reduction, intensity).
+            typeof(ProbeVolumesOptions)
         };
 
         internal static System.Collections.Generic.IReadOnlyList<System.Type> OptionalComponentTypes => s_OptionalComponentTypes;

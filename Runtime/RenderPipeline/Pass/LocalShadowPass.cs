@@ -31,6 +31,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int sliceCount;
             public int shadowMapResolution;
             public Matrix4x4 cameraViewProj;
+            public Matrix4x4 cameraViewFlipYProj;
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
@@ -75,7 +76,6 @@ namespace InfinityTech.Rendering.Pipeline
         void RenderLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
         {
             int shadowMapResolution = pipelineAsset.localShadowMapResolution;
-            Matrix4x4 cameraViewProj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) * camera.worldToCameraMatrix;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
             int sliceCount = allocator.LocalSliceCount;
             int matrixCount = math.max(1, sliceCount);
@@ -184,7 +184,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.lightCount = lightCount;
                     passData.sliceCount = sliceCount;
                     passData.shadowMapResolution = shadowMapResolution;
-                    passData.cameraViewProj = cameraViewProj;
+                    passData.cameraViewProj = m_CameraUniform.matrix_ViewProj;
+                    passData.cameraViewFlipYProj = m_CameraUniform.matrix_ViewFlipYProj;
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;
@@ -226,6 +227,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
 
                     cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, passData.cameraViewProj);
+                    cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, passData.cameraViewFlipYProj);
                 });
             }
 
@@ -240,6 +242,7 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.ShadowCasterBiasID, casterBias);
             cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.ShadowCasterLightID, casterLight);
             cmdEncoder.SetGlobalMatrix(LocalShadowPassUtilityData.MatrixViewProjID, shadowMatrix);
+            cmdEncoder.SetGlobalMatrix(CascadeShadowPassUtilityData.MatrixViewFlipYProjID, shadowMatrix);
             if (draws.IsValid) cmdEncoder.Draw(draws);
             if (rendererList.IsValid) cmdEncoder.DrawRendererList(rendererList);
             cmdEncoder.SetGlobalDepthBias(0.0f, 0.0f);
