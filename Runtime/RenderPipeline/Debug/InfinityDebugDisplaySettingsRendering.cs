@@ -7,11 +7,21 @@ namespace InfinityTech.Rendering.Pipeline
         public EDebugView debugView = EDebugView.None;
         // Feature state of the most recently configured camera (read-only display).
         public FrameFeatureSet lastFeatures;
+        // Frame Settings of the most recently configured camera.
+        public FResolvedFrameSettings lastFrameSettings;
+        public bool hasFrameSettings;
 
         public void Reset()
         {
             debugView = EDebugView.None;
             lastFeatures = null;
+            hasFrameSettings = false;
+        }
+
+        public string DescribeFrameSetting(EFrameSetting setting)
+        {
+            if (!hasFrameSettings) return "-";
+            return (lastFrameSettings.IsEnabled(setting) ? "On" : "Off") + " (" + lastFrameSettings.SourceOf(setting) + ")";
         }
 
         public string DescribeFeature(EFrameFeature feature)

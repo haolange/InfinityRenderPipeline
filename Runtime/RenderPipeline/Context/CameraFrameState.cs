@@ -38,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
         public CameraRenderPolicy renderPolicy;
+        public FResolvedFrameSettings frameSettings;
         public int gtaoValidFrames;
 
         internal const int GameUnseenFramesToRecycle = 8;

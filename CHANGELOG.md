@@ -63,6 +63,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Render Pipeline Wizard (Window/Infinity/Render Pipeline Wizard) with Fix / Fix All: color space, graphics API, pipeline
   asset and quality levels, GlobalSettings, default Volume profile, SRP Batcher, mixed lighting mode, baking sky, light
   shape sync and realtime-only tube lights. Window/Infinity/Append Missing Default Volume Components.
+- Frame Settings: RP Asset defaults for cameras and for reflection probe captures, per-camera overrides on the Camera
+  inspector, and a Rendering Debugger list of the effective values and their source.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

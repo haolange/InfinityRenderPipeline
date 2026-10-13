@@ -200,6 +200,17 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15c — Frame Settings
+
+1. Run `FrameSettingsTests`.
+2. RP Asset → Frame Settings: all camera settings on; reflection probe captures have AO, RTAO, Contact Shadows, SSR and
+   SSGI off. Existing assets show the same (new fields).
+3. Camera → Custom Frame Settings → override Screen Space Reflection off: SSR disappears for that camera only
+   (Frame Debugger has no `ComputeScreenSpaceReflection`); Rendering Debugger → Infinity Rendering → Frame Settings shows
+   "Off (CameraOverride)".
+4. Override Reflection Probes off: reflections fall back to the sky. Light Cookies off: cookie patterns vanish.
+5. Bake a Reflection Probe with SSR enabled in the Volume: the probe capture does not record SSR (ReflectionDefault).
+
 ## S15b — Render Pipeline Wizard
 
 1. Run `RenderPipelineWizardTests`.

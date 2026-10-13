@@ -68,6 +68,11 @@ namespace InfinityTech.Rendering.Pipeline
         [System.Obsolete("This property is no longer necessary. #from(2023.3)")]
         public ProbeVolumeSceneData probeVolumeSceneData => null;
 
+        // Frame Settings: features each camera may request (Game / SceneView / Preview cameras use the camera defaults,
+        // reflection probe captures the reflection defaults; InfinityAdditionalCameraData can override single settings).
+        public FFrameSettings defaultFrameSettings = FFrameSettings.AllEnabled;
+        public FFrameSettings reflectionFrameSettings = FFrameSettings.ReflectionDefaults;
+
         // Reflection probe atlas: face resolution (power of two, GGX mips) and probe slots (6 slices each); 0 disables
         // probes (the sky reflects everything).
         [Min(0)]

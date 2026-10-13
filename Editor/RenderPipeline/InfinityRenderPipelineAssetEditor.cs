@@ -226,6 +226,17 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             }
             InfinityInspectorGUI.EndFoldout();
 
+            if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "FrameSettings", "Frame Settings"))
+            {
+                EditorGUILayout.LabelField("Cameras", EditorStyles.miniBoldLabel);
+                InfinityTech.Rendering.Editor.InfinityFrameSettingsGUI.DrawSettings(serializedObject.FindProperty("defaultFrameSettings"));
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Reflection Probe Captures", EditorStyles.miniBoldLabel);
+                InfinityTech.Rendering.Editor.InfinityFrameSettingsGUI.DrawSettings(serializedObject.FindProperty("reflectionFrameSettings"));
+                EditorGUILayout.HelpBox("Frame Settings only withhold features; Volumes and scene content still decide whether an enabled feature records. Cameras can override single settings.", MessageType.None);
+            }
+            InfinityInspectorGUI.EndFoldout();
+
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Defaults", "Default Materials"))
             {
                 EditorGUILayout.PropertyField(m_DefaultShader, new GUIContent("Default Shader"));

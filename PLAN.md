@@ -54,7 +54,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard done) |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings done) |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
@@ -88,6 +88,14 @@ default pipeline, no foreign quality-level overrides, GlobalSettings registered 
 complete (`DefaultVolumeProfileFactory.CountMissing`), SRP Batcher. Loaded scenes: mixed lighting not Subtractive, baking
 sky with Baked GI on, light shapes in sync with native lights (`LightShapeUtility.IsInSync`), tube / line lights
 realtime. Window/Infinity/Append Missing Default Volume Components runs `ValidateAndComplete` on the default profile.
+
+S15c — Frame Settings (`Runtime/RenderPipeline/Context/FrameSettings.cs`): `EFrameSetting` (Decals, Ambient Occlusion,
+Ray-Traced AO, Contact Shadows, SSR, SSGI, Volumetric Fog, Volumetric Clouds, Reflection Probes, Light Cookies);
+`FFrameSettings` stores a disabled mask (zero = all enabled). RP Asset `defaultFrameSettings` (cameras) and
+`reflectionFrameSettings` (probe captures; AO, RTAO, contact shadows, SSR, SSGI off); `InfinityAdditionalCameraData`
+`customFrameSettings` + `frameSettings` (per-setting overrides). `FrameSettingsUtility.Resolve` runs per camera before
+`ConfigureFrameFeatures`; a disabled setting withholds its feature requests (RTAO falls back to GTAO; cookies / probes
+resolve no atlas entries). Rendering Debugger → Infinity Rendering → Frame Settings shows each value and its source.
 
 - Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
   variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.

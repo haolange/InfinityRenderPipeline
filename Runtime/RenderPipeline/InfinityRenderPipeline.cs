@@ -368,6 +368,9 @@ namespace InfinityTech.Rendering.Pipeline
                         frameState.preparedThisRender = true;
                         frameState.cameraType = camera.cameraType;
                         frameState.renderPolicy = renderPolicy;
+                        frameState.frameSettings = FrameSettingsUtility.Resolve(pipelineAsset.defaultFrameSettings, pipelineAsset.reflectionFrameSettings,
+                            camera.cameraType == CameraType.Reflection, cameraComponent != null && cameraComponent.customFrameSettings,
+                            cameraComponent != null ? cameraComponent.frameSettings : default);
                         frameState.executeSucceeded = false;
                         using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
                         {
@@ -467,9 +470,12 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.filterGuardTexels = pipelineAsset.ResolveShadowFilter().pcfRadius + 1;
                                     renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize);
                                     m_LightCookieAtlas.Configure(pipelineAsset.cookieAtlasResolution, pipelineAsset.cookieMaxSize);
-                                    renderContext.lightContext.ResolveCookies(m_LightCookieAtlas, cullingResults, renderContext.GetWorldLight(), Time.frameCount);
+                                    // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
+                                    renderContext.lightContext.ResolveCookies(frameState.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? m_LightCookieAtlas : null,
+                                        cullingResults, renderContext.GetWorldLight(), Time.frameCount);
                                     m_ReflectionProbeAtlas.Configure(pipelineAsset.reflectionProbeResolution, pipelineAsset.maxReflectionProbes);
-                                    renderContext.lightContext.ResolveReflectionProbes(m_ReflectionProbeAtlas, cullingResults, Time.frameCount);
+                                    renderContext.lightContext.ResolveReflectionProbes(frameState.frameSettings.IsEnabled(EFrameSetting.ReflectionProbes) ? m_ReflectionProbeAtlas : null,
+                                        cullingResults, Time.frameCount);
                                     ConfigureContentFeatures(frameState);
                                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                                     lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
@@ -1111,6 +1117,7 @@ namespace InfinityTech.Rendering.Pipeline
             features.Reset();
             VolumeStack stack = frameState.volumeStack;
             bool temporal = frameState.renderPolicy.temporal;
+            FResolvedFrameSettings frameSettings = frameState.frameSettings;
 
             features.Request(EFrameFeature.Depth);
             features.Request(EFrameFeature.GBuffer);
@@ -1120,7 +1127,7 @@ namespace InfinityTech.Rendering.Pipeline
             features.Request(EFrameFeature.ColorPyramid);
             features.Request(EFrameFeature.PostProcess);
             features.Request(EFrameFeature.Display);
-            if (renderContext.WorldDecalCount > 0)
+            if (renderContext.WorldDecalCount > 0 && frameSettings.IsEnabled(EFrameSetting.Decals))
             {
                 features.Request(EFrameFeature.DBuffer);
             }
@@ -1137,6 +1144,8 @@ namespace InfinityTech.Rendering.Pipeline
             string rtaoReason = null;
             if (!pipelineAsset.enableRayTrace)
                 rtaoReason = "Ray tracing is disabled on the RP Asset.";
+            else if (!frameSettings.IsEnabled(EFrameSetting.RayTracedAmbientOcclusion))
+                rtaoReason = "Disabled by Frame Settings (" + frameSettings.SourceOf(EFrameSetting.RayTracedAmbientOcclusion) + ").";
             else if (!VolumeComponentActive(rtao))
                 rtaoReason = "RTAO Volume is inactive.";
             else if (!InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders))
@@ -1150,7 +1159,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 features.Request(EFrameFeature.RTAO);
             }
-            else if (ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()))
+            else if (frameSettings.IsEnabled(EFrameSetting.AmbientOcclusion) && ScreenSpaceModeUtility.ShouldRequestGTAO(stack.GetComponent<ScreenSpaceAmbientOcclusion>()))
             {
                 features.Request(EFrameFeature.GTAO);
             }
@@ -1158,20 +1167,20 @@ namespace InfinityTech.Rendering.Pipeline
             EScreenSpaceMode screenSpaceMode = ScreenSpaceModeUtility.Resolve(
                 stack.GetComponent<ScreenSpaceReflection>(),
                 stack.GetComponent<ScreenSpaceIndirectDiffuse>());
-            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode))
+            if (ScreenSpaceModeUtility.IncludesSSR(screenSpaceMode) && frameSettings.IsEnabled(EFrameSetting.ScreenSpaceReflection))
             {
                 features.Request(EFrameFeature.SSR);
             }
-            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode))
+            if (ScreenSpaceModeUtility.IncludesSSGI(screenSpaceMode) && frameSettings.IsEnabled(EFrameSetting.ScreenSpaceGlobalIllumination))
             {
                 features.Request(EFrameFeature.SSGI);
             }
 
-            if (VolumeComponentActive(stack.GetComponent<VolumetricFog>()))
+            if (frameSettings.IsEnabled(EFrameSetting.VolumetricFog) && VolumeComponentActive(stack.GetComponent<VolumetricFog>()))
             {
                 features.Request(EFrameFeature.VolumetricFog);
             }
-            if (VolumeComponentActive(stack.GetComponent<VolumetricCloud>()))
+            if (frameSettings.IsEnabled(EFrameSetting.VolumetricClouds) && VolumeComponentActive(stack.GetComponent<VolumetricCloud>()))
             {
                 features.Request(EFrameFeature.VolumetricCloud);
             }
@@ -1187,6 +1196,8 @@ namespace InfinityTech.Rendering.Pipeline
             };
             FeatureRegistry.Resolve(features, m_FeatureSupportContext);
             InfinityDebugDisplaySettings.current.rendering.lastFeatures = features;
+            InfinityDebugDisplaySettings.current.rendering.lastFrameSettings = frameSettings;
+            InfinityDebugDisplaySettings.current.rendering.hasFrameSettings = true;
         }
 
         // Second phase, after culling and LightContext.Build: features whose recording depends on scene content.
@@ -1198,7 +1209,8 @@ namespace InfinityTech.Rendering.Pipeline
                 features.Request(EFrameFeature.LocalLightList);
             }
             LightContext lightContext = renderContext.lightContext;
-            if ((lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0)
+            if (frameState.frameSettings.IsEnabled(EFrameSetting.ContactShadows)
+                && (lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0)
                 && VolumeComponentActive(frameState.volumeStack.GetComponent<ContactShadow>()))
             {
                 features.Request(EFrameFeature.ContactShadow);

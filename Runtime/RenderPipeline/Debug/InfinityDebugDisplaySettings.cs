@@ -55,6 +55,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
             rendering.children.Add(featureList);
 
+            var frameSettingList = new DebugUI.Foldout { displayName = "Frame Settings (last camera)" };
+            foreach (EFrameSetting setting in FrameSettingsUtility.All)
+            {
+                EFrameSetting captured = setting;
+                frameSettingList.children.Add(new DebugUI.Value { displayName = captured.ToString(), getter = () => state.rendering.DescribeFrameSetting(captured) });
+            }
+            rendering.children.Add(frameSettingList);
+
             DebugUI.Panel lighting = DebugManager.instance.GetPanel("Infinity Lighting", true);
             lighting.children.Add(new DebugUI.Value { displayName = "Directional Lights", getter = () => (object)state.lighting.lastDirectionalCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Local Lights", getter = () => (object)state.lighting.lastLocalCount });
