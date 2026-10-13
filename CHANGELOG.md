@@ -30,6 +30,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Shadow Update Mode per local light (EveryFrame, OnEnable, OnDemand + `RequestShadowMapRendering()`): cached tiles
   live in a persistent atlas (RP Asset Cached Shadow Atlas Width), are re-rendered only when stale and are copied into
   the frame atlas; slot state commits only with a submitted frame.
+- Shadowmask mode: realtime shadows of Mixed Shadowmask lights draw dynamic casters only (static lightmapped casters
+  come from the shadowmask), for RendererList objects and MeshScene instances alike. Distance Shadowmask is unchanged.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

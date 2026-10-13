@@ -60,9 +60,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         // Identity of a cached tile's content: the shadow matrix (position, orientation, projection), caster bias and
         // the caster filters. Camera independent.
-        static int CachedShadowHash(in FLocalShadowSlice slice, Light light)
+        static int CachedShadowHash(in FLocalShadowSlice slice, Light light, bool excludeStatic)
         {
             var hash = new System.HashCode();
+            hash.Add(excludeStatic);
             for (int i = 0; i < 16; ++i) hash.Add(slice.shadowMatrix[i]);
             hash.Add(slice.casterBias);
             hash.Add(slice.atlasPixelRect.z);
@@ -140,12 +141,13 @@ namespace InfinityTech.Rendering.Pipeline
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
                 uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
+                bool excludeStatic = CascadeShadowPassUtilityData.ShadowmaskExcludesStatic(shadowLight);
 
                 if (shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
                     cacheKeys[slice] = new FShadowCacheKey(lightInstanceId, local.face);
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
-                        CachedShadowHash(local, shadowLight), ext.shadowCacheVersion, frame, out cacheRender[slice]);
+                        CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
                     if (cacheSlots[slice] >= 0 && !cacheRender[slice])
                     {
                         // The cached tile is current: no casters are drawn for it this frame.
@@ -161,12 +163,14 @@ namespace InfinityTech.Rendering.Pipeline
                     lightPosition,
                     shadowLight.cullingMask,
                     shadowRenderingLayerMask,
-                    local.face);
+                    local.face,
+                    CascadeShadowPassUtilityData.ExcludedCasterFlags(excludeStatic));
                 sliceDraws[slice] = m_RGBuilder.CreateDrawList(localView, MeshPassId.Shadow);
 
                 ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
                 shadowDrawingSettings.useRenderingLayerMaskTest = true;
                 shadowDrawingSettings.splitIndex = local.face;
+                shadowDrawingSettings.objectsFilter = excludeStatic ? ShadowObjectsFilter.DynamicOnly : ShadowObjectsFilter.AllObjects;
                 sliceRendererLists[slice] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
             }
 

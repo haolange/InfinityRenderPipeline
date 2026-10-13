@@ -100,6 +100,11 @@ Each stage fills in its section before its code lands.
   Stale tiles draw into the cleared frame atlas; `CopyCachedLocalShadow` (transfer pass) saves them into the cache and
   loads current tiles into the frame atlas. Transaction: `Acquire` marks pending, the copy pass's queue observer marks
   produced, `CommitFrame` validates produced tiles, `RollbackPending` invalidates every tile written in a failed frame.
+- Shadowmask casters (S9d): `CascadeShadowPassUtilityData.ShadowmaskExcludesStatic(light)` (baked Mixed + Shadowmask
+  mixed mode + `QualitySettings.shadowmaskMode == Shadowmask`) → `ShadowDrawingSettings.objectsFilter = DynamicOnly`
+  and `MeshView.excludeInstanceFlags = EMeshInstanceFlags.ShadowmaskStatic` (Static `MeshComponent` whose renderer has a
+  lightmap). The flag mask is part of `MeshVisibilitySignature` and `MeshGpuVisibilityKey`; CPU culling
+  (`MeshInstanceCullingJob`) and GPU `CullFrustum` (`_ViewExcludeFlags`) both apply it.
 
 ### S8
 

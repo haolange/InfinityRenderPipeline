@@ -21,6 +21,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int layerMask;
         public uint renderingLayerMask;
         public byte filterRenderingLayers;
+        public uint excludeInstanceFlags;
 
         public MeshVisibilitySignature(int sceneId, ulong viewKey, ulong frustumHash, int sceneVisibilityRevision, int policyId, int subviewIndex = 0)
         {
@@ -33,6 +34,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             layerMask = ~0;
             renderingLayerMask = (uint)ERenderingLayer.Everything;
             filterRenderingLayers = 0;
+            excludeInstanceFlags = 0;
         }
 
         public bool Equals(MeshVisibilitySignature other)
@@ -44,7 +46,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 && policyId == other.policyId && subviewIndex == other.subviewIndex
                 && layerMask == other.layerMask
                 && renderingLayerMask == other.renderingLayerMask
-                && filterRenderingLayers == other.filterRenderingLayers;
+                && filterRenderingLayers == other.filterRenderingLayers
+                && excludeInstanceFlags == other.excludeInstanceFlags;
         }
 
         public override bool Equals(object obj)
@@ -65,6 +68,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = (hash * 397) ^ layerMask;
                 hash = (hash * 397) ^ (int)renderingLayerMask;
                 hash = (hash * 397) ^ filterRenderingLayers;
+                hash = (hash * 397) ^ (int)excludeInstanceFlags;
                 return hash;
             }
         }
@@ -216,7 +220,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 view.subviewIndex,
                 view.layerMask,
                 view.renderingLayerMask,
-                view.FilterRenderingLayers);
+                view.FilterRenderingLayers,
+                view.excludeInstanceFlags);
         }
 
         public MeshVisibilityHandle Acquire(MeshScene scene, ulong viewKey, Plane[] planes, int policyId, bool enable, int subviewIndex = 0)
@@ -237,7 +242,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             int subviewIndex,
             int layerMask,
             uint renderingLayerMask,
-            bool filterRenderingLayers)
+            bool filterRenderingLayers,
+            uint excludeInstanceFlags = 0)
         {
             if (!enable || scene == null)
             {
@@ -251,7 +257,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 layerMask = layerMask,
                 renderingLayerMask = renderingLayerMask,
-                filterRenderingLayers = filterRenderingLayers ? (byte)1 : (byte)0
+                filterRenderingLayers = filterRenderingLayers ? (byte)1 : (byte)0,
+                excludeInstanceFlags = excludeInstanceFlags
             };
             if (m_Lookup.TryGetValue(signature, out int slot))
             {
@@ -259,7 +266,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             MeshViewCullingResult result = MeshVisibilityUtility.CullInstances(
-                scene, planes, enable, layerMask, renderingLayerMask, filterRenderingLayers);
+                scene, planes, enable, layerMask, renderingLayerMask, filterRenderingLayers, excludeInstanceFlags);
             return Insert(signature, result);
         }
 

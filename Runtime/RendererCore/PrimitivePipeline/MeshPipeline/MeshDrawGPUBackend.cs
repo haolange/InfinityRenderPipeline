@@ -228,6 +228,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private static readonly int ID_ViewLayerMask = Shader.PropertyToID("_ViewLayerMask");
         private static readonly int ID_ViewRenderingLayerMask = Shader.PropertyToID("_ViewRenderingLayerMask");
         private static readonly int ID_FilterRenderingLayers = Shader.PropertyToID("_FilterRenderingLayers");
+        private static readonly int ID_ViewExcludeFlags = Shader.PropertyToID("_ViewExcludeFlags");
         private static readonly int ID_CommandMeta = Shader.PropertyToID("_CommandMeta");
         private static readonly int ID_CommandBases = Shader.PropertyToID("_CommandBases");
         private static readonly int ID_CandidateTable = Shader.PropertyToID("_CandidateTable");
@@ -321,6 +322,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeIntParam(shader, ID_ViewLayerMask, view.layerMask);
             commands.SetComputeIntParam(shader, ID_ViewRenderingLayerMask, (int)view.renderingLayerMask);
             commands.SetComputeIntParam(shader, ID_FilterRenderingLayers, view.FilterRenderingLayers ? 1 : 0);
+            commands.SetComputeIntParam(shader, ID_ViewExcludeFlags, unchecked((int)view.excludeInstanceFlags));
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsCenter, boundsCenter);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, boundsExtent);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceFlags, instanceFlags);

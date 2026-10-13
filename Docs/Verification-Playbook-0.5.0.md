@@ -176,3 +176,13 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 5. Cached Shadow Atlas Width 0: every light renders every frame again (Cached Shadow Tiles 0).
 6. Two Game views / Scene + Game: a stale tile is rendered once per frame, not once per camera.
 
+## S9d — Shadowmask casters
+
+1. Compile; run `ShadowmaskCasterFilterTests`.
+2. Project Settings → Quality → Shadowmask Mode = Shadowmask; Lighting → Mixed Lighting = Shadowmask; a Mixed sun and a
+   Mixed spot; a static cube (Contribute GI, lightmapped) and a dynamic sphere. Bake.
+3. Frame Debugger → `RenderCascadeShadow` / `RenderLocalShadow`: the static cube is not drawn; the sphere is. On
+   screen the cube's shadow still appears (from the shadowmask), the sphere's shadow is realtime.
+4. Switch Shadowmask Mode to Distance Shadowmask: the cube is drawn into the shadow maps again.
+5. With a MeshComponent (Static mobility) using a lightmapped renderer as its baked source: same result as step 3.
+

@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly int layerMask;
         public readonly uint renderingLayerMask;
         public readonly bool filterRenderingLayers;
+        public readonly uint excludeInstanceFlags;
 
         public MeshGpuVisibilityKey(in MeshView view)
         {
@@ -27,13 +28,15 @@ namespace InfinityTech.Rendering.MeshPipeline
             layerMask = view.layerMask;
             renderingLayerMask = view.renderingLayerMask;
             filterRenderingLayers = view.FilterRenderingLayers;
+            excludeInstanceFlags = view.excludeInstanceFlags;
         }
 
         public bool Equals(MeshGpuVisibilityKey other)
         {
             return viewKey == other.viewKey && subviewIndex == other.subviewIndex && policyId == other.policyId
                 && layerMask == other.layerMask && renderingLayerMask == other.renderingLayerMask
-                && filterRenderingLayers == other.filterRenderingLayers;
+                && filterRenderingLayers == other.filterRenderingLayers
+                && excludeInstanceFlags == other.excludeInstanceFlags;
         }
 
         public override bool Equals(object obj) => obj is MeshGpuVisibilityKey other && Equals(other);
@@ -48,6 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = hash * 31 + layerMask;
                 hash = hash * 31 + (int)renderingLayerMask;
                 hash = hash * 31 + (filterRenderingLayers ? 1 : 0);
+                hash = hash * 31 + (int)excludeInstanceFlags;
                 return hash;
             }
         }

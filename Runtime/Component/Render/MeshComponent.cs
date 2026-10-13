@@ -541,6 +541,9 @@ namespace InfinityTech.Component
             if (receiveShadow) flags |= EMeshInstanceFlags.ReceiveShadow;
             if (castShadow != ECastShadowMethod.Off) flags |= EMeshInstanceFlags.CastShadow;
             if (affectIndirectLighting) flags |= EMeshInstanceFlags.AffectIndirect;
+            Renderer bakedSource = m_BakedLightingSource != null ? m_BakedLightingSource : GetComponent<Renderer>();
+            if (movebility == EStateType.Static && bakedSource != null && bakedSource.lightmapIndex >= 0 && bakedSource.lightmapIndex < 65534)
+                flags |= EMeshInstanceFlags.ShadowmaskStatic;
             return flags;
         }
 

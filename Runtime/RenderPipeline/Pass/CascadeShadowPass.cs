@@ -25,6 +25,18 @@ namespace InfinityTech.Rendering.Pipeline
         // _ShadowFilterParams of ShadowSampling.hlsl.
         internal static Vector4 FilterParams(in FShadowFilterSettings settings) =>
             new Vector4(settings.pcfRadius, settings.pcssBlockerSamples, settings.pcssFilterSamples, settings.pcssMaxPenumbra);
+
+        // A Mixed light in Shadowmask mode has the shadows of static lightmapped casters baked into the shadowmask, so
+        // its realtime shadow maps draw dynamic casters only. Distance Shadowmask keeps every caster in realtime range.
+        internal static bool ShadowmaskExcludesStatic(Light light)
+        {
+            LightBakingOutput baking = light.bakingOutput;
+            return baking.isBaked && baking.lightmapBakeType == LightmapBakeType.Mixed
+                && baking.mixedLightingMode == MixedLightingMode.Shadowmask
+                && QualitySettings.shadowmaskMode == ShadowmaskMode.Shadowmask;
+        }
+
+        internal static uint ExcludedCasterFlags(bool excludeStatic) => excludeStatic ? (uint)EMeshInstanceFlags.ShadowmaskStatic : 0u;
     }
 
     public partial class InfinityRenderPipeline
@@ -87,6 +99,7 @@ namespace InfinityTech.Rendering.Pipeline
                 Light shadowLight = cullingResults.visibleLights[lightIndex].light;
                 ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
+                bool excludeStatic = CascadeShadowPassUtilityData.ShadowmaskExcludesStatic(shadowLight);
 
                 for (int cascade = 0; cascade < cascadeCount; ++cascade)
                 {
@@ -105,12 +118,14 @@ namespace InfinityTech.Rendering.Pipeline
                         camera.transform.position,
                         shadowLight.cullingMask,
                         shadowRenderingLayerMask,
-                        cascade);
+                        cascade,
+                        CascadeShadowPassUtilityData.ExcludedCasterFlags(excludeStatic));
                     cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(cascadeView, MeshPassId.Shadow);
 
                     ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);
                     shadowDrawingSettings.useRenderingLayerMaskTest = true;
                     shadowDrawingSettings.splitIndex = cascade;
+                    shadowDrawingSettings.objectsFilter = excludeStatic ? ShadowObjectsFilter.DynamicOnly : ShadowObjectsFilter.AllObjects;
                     cascadeRendererLists[cascade] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
                 }
             }
