@@ -427,3 +427,11 @@ updating, then use the fixture for the stage it names.
    fixture, save, run again: that case logs **Fail** with the rmse; the report is
    `Library/InfinityImageRegression/<run>/report.json`.
 4. Documentation~ links resolve (index → every page); the pages match what you see in the inspectors.
+
+## S17 — folder layout
+
+1. Pull and let Unity reimport: no "missing script" warnings on Volume profiles, cameras or lights (the moved scripts
+   keep their GUIDs). The default Volume profile and every fixture profile still show their components.
+2. Compile; run the full EditMode suite (`NativeViewMotionHistoryTests` and `ScreenSpaceDenoiseTests` read pass sources
+   from the new paths).
+3. Render any fixture: identical to the S16 image (Image Regression → Run Comparison passes against S16 baselines).

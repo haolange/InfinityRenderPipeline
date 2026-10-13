@@ -108,6 +108,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Reflection probe captures and preview cameras rendered the active Rendering Debugger view (a baked probe kept it).
 
 ### Changed
+- Source layout: render passes live in `Runtime/RenderPipeline/Pass/<domain>/` and Volume components in
+  `Runtime/Volume/<domain>/` (moved with their `.meta`; GUIDs, class names and namespaces are unchanged).
 - `EFilmTonemapMode.Film` is renamed `ACES`. The serialized value is unchanged (1). Tonemapping is None or ACES only.
 - The shader stripper now strips passes whose LightMode the pipeline never draws inside Infinity-tagged SubShaders.
 - `ObjectFactory` adds `InfinityAdditionalCameraData` (with Undo) when a Camera is added, as it already did for Lights.
