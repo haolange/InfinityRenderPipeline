@@ -14,7 +14,8 @@ namespace InfinityTech.Rendering.Pipeline
             "DebugViewMotion",
             "DebugViewSceneColor",
             "DebugViewOptional",
-            "DebugViewMissing"
+            "DebugViewMissing",
+            "DebugViewShadow"
         };
 
         internal static int DV_ResolutionID = Shader.PropertyToID("DV_Resolution");
@@ -25,6 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
         internal static int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
         internal static int SRV_OptionalTextureID = Shader.PropertyToID("SRV_OptionalTexture");
+        internal static int SRV_ShadowAtlasTextureID = Shader.PropertyToID("SRV_ShadowAtlasTexture");
         internal static int UAV_PostProcessTextureID = Shader.PropertyToID("UAV_PostProcessTexture");
     }
 
@@ -56,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (!GraphicsUtility.HasRequiredKernels(shaders.debugViewShader, DebugViewPassUtilityData.RequiredKernels))
             {
-                throw new InvalidOperationException("InfinityRP: DebugView is active but debugViewShader is missing required kernels (DebugViewGBuffer/Motion/SceneColor/Optional/Missing).");
+                throw new InvalidOperationException("InfinityRP: DebugView is active but debugViewShader is missing required kernels (DebugViewGBuffer/Motion/SceneColor/Optional/Missing/Shadow).");
             }
 
             if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.PostProcessBuffer, out RGTextureRef postProcessTexture))
@@ -179,6 +181,27 @@ namespace InfinityTech.Rendering.Pipeline
                         throw new InvalidOperationException("InfinityRP: DebugView PreTonemapLuma requires AntiAliasingBuffer/SuperResolutionBuffer/FoggedSceneColorBuffer, none of which were registered this frame.");
                     }
                     break;
+                case EDebugView.CascadeShadowAtlas:
+                case EDebugView.LocalShadowAtlas:
+                case EDebugView.CachedShadowAtlas:
+                case EDebugView.ShadowMoments:
+                    bool hasAtlas = view == EDebugView.CascadeShadowAtlas ? m_RGScoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMap, out optionalTexture)
+                        : view == EDebugView.LocalShadowAtlas ? m_RGScoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMap, out optionalTexture)
+                        : view == EDebugView.CachedShadowAtlas ? m_RGScoper.TryQueryTexture(InfinityShaderIDs.CachedLocalShadowMap, out optionalTexture)
+                        : m_RGScoper.TryQueryTexture(InfinityShaderIDs.CascadeShadowMoments, out optionalTexture)
+                            || m_RGScoper.TryQueryTexture(InfinityShaderIDs.LocalShadowMoments, out optionalTexture);
+                    if (hasAtlas)
+                    {
+                        kernelName = "DebugViewShadow";
+                        bindSet = 5;
+                        needOptional = true;
+                    }
+                    else
+                    {
+                        kernelName = "DebugViewMissing";
+                        bindSet = 4;
+                    }
+                    break;
                 default:
                     throw new InvalidOperationException($"InfinityRP: DebugView '{view}' is not implemented.");
             }
@@ -253,6 +276,10 @@ namespace InfinityTech.Rendering.Pipeline
                     else if (passData.bindSet == 3)
                     {
                         cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_OptionalTextureID, passData.optionalTexture);
+                    }
+                    else if (passData.bindSet == 5)
+                    {
+                        cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.SRV_ShadowAtlasTextureID, passData.optionalTexture);
                     }
 
                     cmdEncoder.SetComputeTextureParam(shader, kernel, DebugViewPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);

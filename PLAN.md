@@ -48,7 +48,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S6 | Light data model v2 (UE-form shape data, implicit Unity Light sync, lightmapper delegate, record v2) | S2 | done |
 | S7 | Clustered light list v2 (CPU z-bins + GPU tile bitmasks) and one shared light loop | S6, S3 | done |
 | S8 | Area shapes: sphere, tube, line, rect, disk, sun disk (Karis representative point + Frostbite diffuse) | S7 | done |
-| S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | in progress |
+| S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | done |
 | S10 | Screen-space traced shadows (sun + up to 32 local lights) | S7 | pending |
 | S11 | Cookie and IES atlas | S6, S7 | pending |
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | pending |
@@ -105,6 +105,8 @@ Each stage fills in its section before its code lands.
   and `MeshView.excludeInstanceFlags = EMeshInstanceFlags.ShadowmaskStatic` (Static `MeshComponent` whose renderer has a
   lightmap). The flag mask is part of `MeshVisibilitySignature` and `MeshGpuVisibilityKey`; CPU culling
   (`MeshInstanceCullingJob`) and GPU `CullFrustum` (`_ViewExcludeFlags`) both apply it.
+- Debug views (S9e): `EDebugView.CascadeShadowAtlas`, `LocalShadowAtlas`, `CachedShadowAtlas`, `ShadowMoments`
+  (kernel `DebugViewShadow`, letterboxed, near = bright); a missing atlas shows the magenta Missing view.
 
 ### S8
 

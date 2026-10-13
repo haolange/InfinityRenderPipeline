@@ -32,6 +32,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   the frame atlas; slot state commits only with a submitted frame.
 - Shadowmask mode: realtime shadows of Mixed Shadowmask lights draw dynamic casters only (static lightmapped casters
   come from the shadowmask), for RendererList objects and MeshScene instances alike. Distance Shadowmask is unchanged.
+- Rendering Debugger → Debug View: Cascade / Local / Cached Shadow Atlas and Shadow Moments; Infinity Lighting panel
+  counts cached shadow tiles and re-renders.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

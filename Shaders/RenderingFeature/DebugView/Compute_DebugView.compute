@@ -3,6 +3,7 @@
 #pragma kernel DebugViewSceneColor DV_KERNEL_SCENECOLOR
 #pragma kernel DebugViewOptional DV_KERNEL_OPTIONAL
 #pragma kernel DebugViewMissing DV_KERNEL_MISSING
+#pragma kernel DebugViewShadow DV_KERNEL_SHADOW
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
@@ -27,6 +28,11 @@ Texture2D SRV_SceneColorTexture;
 
 #if defined(DV_KERNEL_OPTIONAL)
 Texture2D SRV_OptionalTexture;
+#endif
+
+#if defined(DV_KERNEL_SHADOW)
+// A depth atlas (.r = device depth) or a moment atlas (.x = first moment).
+Texture2D SRV_ShadowAtlasTexture;
 #endif
 
 RWTexture2D<float4> UAV_PostProcessTexture;
@@ -113,6 +119,50 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     if (DV_Mode == DEBUGVIEW_AO) color = color.r.xxx;
     else if (DV_Mode == DEBUGVIEW_TAACONFIDENCE) color = color.g.xxx; // Final TAA history weight; R is geometric coverage.
 
+    UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_SHADOW)
+[numthreads(8, 8, 1)]
+void DebugViewShadow(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    // Letterbox: the atlas fills the largest centered square; the rest is mid gray.
+    float side = min(DV_Resolution.x, DV_Resolution.y);
+    float2 origin = 0.5 * (DV_Resolution.xy - side);
+    float2 uv = (id.xy + 0.5 - origin) / side;
+    if (any(uv < 0.0) || any(uv > 1.0))
+    {
+        UAV_PostProcessTexture[id.xy] = float4(0.18, 0.18, 0.18, 1.0);
+        return;
+    }
+
+    uint width, height;
+    SRV_ShadowAtlasTexture.GetDimensions(width, height);
+    uint2 inputPixel = min((uint2)(uv * float2(width, height)), uint2(width, height) - 1);
+    float value = SRV_ShadowAtlasTexture[inputPixel].r;
+    float3 color;
+    if (DV_Mode == DEBUGVIEW_SHADOWMOMENTS)
+    {
+        // VSM stores depth in [0, 1]; EVSM stores exp(c (2d - 1)) with c <= 5.54. Both map to [0, 1], near = bright.
+        float depth = value > 1.0 || value < 0.0 ? 0.5 + 0.5 * log(max(value, 1e-4)) / 5.54 : value;
+        color = (1.0 - saturate(depth)).xxx;
+    }
+    else
+    {
+#if UNITY_REVERSED_Z
+        float nearness = value;
+#else
+        float nearness = 1.0 - value;
+#endif
+        // Perspective depth crowds near 0 (reversed) far away; the square root spreads it out.
+        color = sqrt(saturate(nearness)).xxx;
+    }
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
 }
 #endif

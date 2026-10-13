@@ -18,6 +18,12 @@ namespace InfinityTech.Rendering.Pipeline
         SSRTileClass,
         SSRRayHit,
         SSRConfidence,
-        SSRHistoryAge
+        SSRHistoryAge,
+        // Shadow atlases, letterboxed to a square (near = bright).
+        CascadeShadowAtlas,
+        LocalShadowAtlas,
+        CachedShadowAtlas,
+        // First moment of the cascade moment atlas, or of the local one when the sun has none.
+        ShadowMoments
     }
 }

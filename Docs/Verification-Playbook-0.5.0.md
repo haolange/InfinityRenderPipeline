@@ -186,3 +186,12 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 4. Switch Shadowmask Mode to Distance Shadowmask: the cube is drawn into the shadow maps again.
 5. With a MeshComponent (Static mobility) using a lightmapped renderer as its baked source: same result as step 3.
 
+## S9e — shadow debug views
+
+1. Run `DebugViewModeTests`.
+2. Rendering Debugger → Debug View = Cascade Shadow Atlas: a 2x2 grid (only the first Cascade Count tiles filled),
+   casters bright, background black. Local Shadow Atlas: one tile per spot / rect / disk, six per point.
+3. Cached Shadow Atlas with an OnEnable light: its tile is visible; with no cached light the view is magenta.
+4. Shadow Moments with an EVSM sun: a blurred, half-resolution version of the cascade atlas; magenta without any
+   VSM / EVSM light.
+
