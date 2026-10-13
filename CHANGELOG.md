@@ -82,6 +82,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   GameObject/Rendering/Infinity for volumes, decal projector, reflection probes and light probe group;
   Assets/Create/Shader Graph/Infinity graphs. The asset create menus moved from Create/InfinityRenderPipeline to
   Create/Rendering/Infinity.
+- Validation fixture creators for shadows, cookies / IES, reflection probes, baked lighting and screen-space
+  reflections / GI (Window/Infinity/Create … Fixture).
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

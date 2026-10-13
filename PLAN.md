@@ -54,7 +54,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles, S15f Rendering Debugger panels, S15g RenderGraph Viewer, S15h material conversion and create menus done) |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | done |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
@@ -142,6 +142,13 @@ GameObject/Rendering/Infinity creates volumes, a decal projector (shared `Assets
 sphere reflection probes and a light probe group; Assets/Create/Rendering/Infinity holds the pipeline asset, profiles,
 mesh asset, Global Settings and a Volume profile with the default components; Assets/Create/Shader Graph/Infinity
 creates Lit / Unlit / Decal graphs.
+
+S15i — Validation fixtures (`ValidationFixture` builder; Window/Infinity/Create … Fixture, scenes under
+`Assets/Scene/Validation`): Shadows (one spot per filter, PCSS sphere light, OnDemand cached spot, PCSS sun, contact
+shadow pebbles with the ContactShadow Volume), Cookies (spot / pyramid / tiled sun checker, cube cookie, IES rings
+through CoreRP's importer), Reflection Probes (baked + realtime box probes by importance, sphere-influence probe,
+roughness ramp), Baked Lighting (static room, Shadowmask sun, baked bulb, emissive panel, probe grid, LPPV, baked
+reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, SSR + SSGI High, GTAO).
 
 - Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
   variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.

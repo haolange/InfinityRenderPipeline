@@ -200,6 +200,29 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15i — Validation fixtures
+
+Each creator replaces `Assets/Scene/Validation/Validation_<Name>.unity` and its asset folder; run it once after
+updating, then use the fixture for the stage it names.
+
+1. Create Shadows Fixture: five poles under spots labeled by filter. Hard has aliased edges; PCF smooth constant
+   width; PCSS sharp at the pole base and wider at the tip; VSM / EVSM smooth with possible faint light bleeding where
+   shadows overlap. Sphere Light PCSS casts soft cube-map shadows; Spot OnDemand renders once (move the box: the shadow
+   stays until `RequestShadowMapRendering`). Pebbles show contact shadows from the sun and the Contact Point light;
+   disabling ContactShadow in the Volume removes them.
+2. Create Cookies Fixture: checker on the spot and (stretched 2:1) on the pyramid; tiled 4 m checker from the sun;
+   colored stripes around the point light; rings from the IES light (Console warns if the IES import produced
+   nothing).
+3. Create Reflection Probes Fixture: bake Probe Left (Lighting window or the probe inspector). Spheres reflect red on
+   the left and blue on the right, blending over 1 m; the middle sphere shows the sphere probe; roughness ramps blur.
+   Debug View Reflection Probe Complexity counts 1–3.
+4. Create Baked Lighting Fixture: Generate Lighting. Red / green bounce on the floor and pillar, the sun patch through
+   the slot with shadowmask shadows, the dynamic sphere tinted by probes, the capsule lit per LPPV cell, the baked
+   reflection probe on glossy surfaces. Debug View Baked Diffuse shows the lightmap.
+5. Create Screen Space Fixture: the mirror strip reflects the blocks (SSR Tile Class: mirror tiles one class, rough
+   strip another); SSGI tints the white walls near the blocks and the emissive bar; SSR Confidence falls at screen
+   edges.
+
 ## S15h — Material conversion and create menus
 
 1. Run `MaterialUpgraderTests`.
