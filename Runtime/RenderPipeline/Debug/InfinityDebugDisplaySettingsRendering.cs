@@ -30,6 +30,9 @@ namespace InfinityTech.Rendering.Pipeline
         public int lastLocalCount;
         public int lastUnsupportedShapeCount;
         public int lastDistanceCulledCount;
+        // Cached local shadow tiles drawn this frame (copied or re-rendered) and how many were re-rendered.
+        public int lastCachedShadowTiles;
+        public int lastCachedShadowRenders;
         public ERayTracingBackend rayTracingBackend;
         public string rtaoBlockReason = "URT context is not created.";
 
@@ -39,6 +42,8 @@ namespace InfinityTech.Rendering.Pipeline
             lastLocalCount = 0;
             lastUnsupportedShapeCount = 0;
             lastDistanceCulledCount = 0;
+            lastCachedShadowTiles = 0;
+            lastCachedShadowRenders = 0;
             rayTracingBackend = ERayTracingBackend.Unavailable;
             rtaoBlockReason = "URT context is not created.";
         }

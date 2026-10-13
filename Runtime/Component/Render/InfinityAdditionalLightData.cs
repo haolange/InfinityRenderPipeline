@@ -33,6 +33,9 @@ namespace InfinityTech.Component
         [SerializeField] bool m_ShapeAuthored;
         [SerializeField] FLightShape m_Shape = FLightShape.Default(EInfinityLightType.Point);
         [SerializeField] EShadowFilter m_ShadowFilter = EShadowFilter.PCF;
+        [SerializeField] EShadowUpdateMode m_ShadowUpdateMode = EShadowUpdateMode.EveryFrame;
+        int m_ShadowRequestCount;
+        int m_EnableGeneration;
 
         public bool shapeAuthored => m_ShapeAuthored;
 
@@ -44,6 +47,21 @@ namespace InfinityTech.Component
             get => m_ShadowFilter;
             set => m_ShadowFilter = value;
         }
+
+        public EShadowUpdateMode shadowUpdateMode
+        {
+            get => m_ShadowUpdateMode;
+            set => m_ShadowUpdateMode = value;
+        }
+
+        // OnDemand lights re-render their cached shadow tiles on the next frame that draws them.
+        public void RequestShadowMapRendering()
+        {
+            m_ShadowRequestCount++;
+        }
+
+        // Version the shadow cache compares against: requests for OnDemand, enables for OnEnable.
+        internal int shadowCacheVersion => m_ShadowUpdateMode == EShadowUpdateMode.OnDemand ? m_ShadowRequestCount : m_EnableGeneration;
 
         // Sets the authored shape and writes the derived native Light fields. The Editor records Undo on both
         // objects before calling this.
@@ -103,6 +121,7 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
+            m_EnableGeneration++;
             m_UnityLight = GetComponent<Light>();
             m_RegisteredLightId = UnityEntityId.ToUInt64(m_UnityLight);
             ulong lightId = m_RegisteredLightId;

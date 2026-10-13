@@ -30,6 +30,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_CascadeSplitRatios;
         SerializedProperty m_MaxShadowedLocalLights;
         SerializedProperty m_CascadeCount;
+        SerializedProperty m_CachedShadowAtlasWidth;
         SerializedProperty m_CascadeBlendWidth;
         SerializedProperty m_ShadowFilterQuality;
         SerializedProperty m_CustomShadowFilter;
@@ -60,6 +61,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_CascadeSplitRatios = serializedObject.FindProperty("cascadeSplitRatios");
             m_MaxShadowedLocalLights = serializedObject.FindProperty("maxShadowedLocalLights");
             m_CascadeCount = serializedObject.FindProperty("cascadeCount");
+            m_CachedShadowAtlasWidth = serializedObject.FindProperty("cachedShadowAtlasWidth");
             m_CascadeBlendWidth = serializedObject.FindProperty("cascadeBlendWidth");
             m_ShadowFilterQuality = serializedObject.FindProperty("shadowFilterQuality");
             m_CustomShadowFilter = serializedObject.FindProperty("customShadowFilter");
@@ -166,6 +168,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                     EditorGUILayout.HelpBox("Cascade splits must be strictly increasing inside (0, 1). Rendering fails until this is fixed.", MessageType.Error);
                 EditorGUILayout.PropertyField(m_CascadeBlendWidth, new GUIContent("Cascade Blend Width", "Fraction of each cascade's depth range blended into the next cascade."));
                 EditorGUILayout.PropertyField(m_MaxShadowedLocalLights, new GUIContent("Max Shadowed Local Lights"));
+                EditorGUILayout.PropertyField(m_CachedShadowAtlasWidth, new GUIContent("Cached Shadow Atlas Width", "Atlas for local lights whose Shadow Update Mode is OnEnable or OnDemand; its height is the Local Shadow Map Resolution. 0 disables caching."));
                 DrawShadowFilter();
             }
             InfinityInspectorGUI.EndFoldout();

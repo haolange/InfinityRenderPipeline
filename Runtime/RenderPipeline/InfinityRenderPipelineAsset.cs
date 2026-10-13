@@ -49,6 +49,10 @@ namespace InfinityTech.Rendering.Pipeline
         // Upper bound on local lights considered for the shadow atlas before tile budgeting.
         [Range(1, 64)]
         public int maxShadowedLocalLights = 16;
+        // Width of the cached shadow atlas for OnEnable / OnDemand local lights (its height is the local atlas
+        // resolution); 0 disables caching and every light renders every frame.
+        [Min(0)]
+        public int cachedShadowAtlasWidth = 4096;
         // Directional cascades used (1-4); the atlas keeps the 2x2 layout.
         [Range(1, 4)]
         public int cascadeCount = 4;

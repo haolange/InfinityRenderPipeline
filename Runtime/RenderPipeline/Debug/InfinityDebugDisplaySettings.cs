@@ -60,6 +60,8 @@ namespace InfinityTech.Rendering.Pipeline
             lighting.children.Add(new DebugUI.Value { displayName = "Local Lights", getter = () => (object)state.lighting.lastLocalCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Invalid Light Shapes", getter = () => (object)state.lighting.lastUnsupportedShapeCount });
             lighting.children.Add(new DebugUI.Value { displayName = "Lights Beyond Max Distance", getter = () => (object)state.lighting.lastDistanceCulledCount });
+            lighting.children.Add(new DebugUI.Value { displayName = "Cached Shadow Tiles", getter = () => (object)state.lighting.lastCachedShadowTiles });
+            lighting.children.Add(new DebugUI.Value { displayName = "Cached Shadow Re-renders", getter = () => (object)state.lighting.lastCachedShadowRenders });
             lighting.children.Add(new DebugUI.Value { displayName = "Ray Tracing Backend", getter = () => (object)state.lighting.rayTracingBackend.ToString() });
             lighting.children.Add(new DebugUI.Value { displayName = "RTAO Record Reason", getter = () => (object)(string.IsNullOrEmpty(state.lighting.rtaoBlockReason) ? "recording" : state.lighting.rtaoBlockReason) });
             lighting.children.Add(new DebugUI.Value

@@ -23,6 +23,18 @@ namespace InfinityTech.Rendering.LightPipeline
 
     // Per-light shadow filter (Shaders/ShaderLibrary/ShadowSampling.hlsl FilterShadow). PCF and PCSS read the depth
     // atlas; VSM and EVSM read the moment atlas that ShadowMomentPass builds for the slices that need it.
+    // When a local light's shadow tiles are rendered. EveryFrame renders into the frame's shadow atlas; OnEnable and
+    // OnDemand keep their tiles in the cached shadow atlas (static casters as of the last render) and copy them into
+    // the frame atlas. OnEnable re-renders when the component is enabled or the light's shadow parameters change;
+    // OnDemand re-renders on the first use and on InfinityAdditionalLightData.RequestShadowMapRendering().
+    // Directional lights always render every frame.
+    public enum EShadowUpdateMode
+    {
+        EveryFrame = 0,
+        OnEnable = 1,
+        OnDemand = 2,
+    }
+
     public enum EShadowFilter
     {
         Hard = 0,

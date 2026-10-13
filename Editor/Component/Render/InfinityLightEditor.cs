@@ -141,6 +141,21 @@ namespace InfinityTech.Component.Editor
 
             m_Additional.Update();
             Field(m_Additional, "m_ShadowFilter", "Shadow Filter");
+            Field(m_Additional, "m_ShadowUpdateMode", "Shadow Update Mode");
+            SerializedProperty updateMode = m_Additional.FindProperty("m_ShadowUpdateMode");
+            if (updateMode != null && !updateMode.hasMultipleDifferentValues && updateMode.enumValueIndex == (int)EShadowUpdateMode.OnDemand)
+            {
+                if (GUILayout.Button("Request Shadow Map Rendering"))
+                {
+                    foreach (Object extra in m_Additional.targetObjects)
+                        ((InfinityAdditionalLightData)extra).RequestShadowMapRendering();
+                    SceneView.RepaintAll();
+                }
+            }
+            if (updateMode != null && updateMode.enumValueIndex != (int)EShadowUpdateMode.EveryFrame)
+            {
+                EditorGUILayout.HelpBox("Cached shadows keep the casters of their last render; moving objects do not update them. Directional lights always render every frame.", MessageType.None);
+            }
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Infinity", EditorStyles.boldLabel);
             Field(m_Additional, "lightLayer", "Light Layers");

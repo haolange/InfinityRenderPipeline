@@ -163,3 +163,16 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 5. A spot light with EVSM next to a point light with PCF: only the spot's tile is written in `LocalShadowMoments`.
 6. Volumetric fog with a shadowed sun: shafts look slightly sharper than before (the fog used twice the texel size).
 
+## S9c — cached local shadows
+
+1. Compile; run `LocalShadowCacheTests`.
+2. A shadowed spot light → Shadow Update Mode = OnEnable. Rendering Debugger → Infinity Lighting: Cached Shadow Tiles 1,
+   Cached Shadow Re-renders 1 on the first frame, then 0. Frame Debugger: `CopyCachedLocalShadow` appears and the
+   spot's `LocalShadowSlice` draw disappears from `RenderLocalShadow` on later frames.
+3. Move a cube under the spot: its shadow stays where it was (cached). Move or rotate the light: one re-render.
+   Disable and re-enable the Infinity component: one re-render.
+4. OnDemand on a point light: six cached tiles; moving the light does not re-render; the inspector button
+   Request Shadow Map Rendering re-renders all six once.
+5. Cached Shadow Atlas Width 0: every light renders every frame again (Cached Shadow Tiles 0).
+6. Two Game views / Scene + Game: a stale tile is rendered once per frame, not once per camera.
+

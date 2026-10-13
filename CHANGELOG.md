@@ -27,6 +27,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   from the light's source radius or sun angle), selected per light; cascades blend into the next cascade.
 - Realtime shadows for pyramid and box spots (perspective / orthographic tiles) and rect / disk lights; line and tube
   lights use six cube faces like points. Local shadow frustums include a filter guard band.
+- Shadow Update Mode per local light (EveryFrame, OnEnable, OnDemand + `RequestShadowMapRendering()`): cached tiles
+  live in a persistent atlas (RP Asset Cached Shadow Atlas Width), are re-rendered only when stale and are copied into
+  the frame atlas; slot state commits only with a submitted frame.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

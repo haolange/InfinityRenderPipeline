@@ -227,6 +227,7 @@ namespace InfinityTech.Rendering.Pipeline
         private GraphicsBuffer m_DiffusionProfileBuffer;
         private int m_DiffusionProfileCapacity;
         private AtmosphereSharedCache m_AtmosphereSharedCache;
+        private LocalShadowCache m_LocalShadowCache;
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
         bool m_PreviousLightsUseLinearIntensity;
@@ -290,6 +291,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_RGBuilder.SetMeshWorld(m_MeshWorld);
                 MeshDrawGPUBackend.SetShader(shaders.meshDrawPipelineCS);
                 m_AtmosphereSharedCache = new AtmosphereSharedCache();
+                m_LocalShadowCache = new LocalShadowCache();
             }
             catch (Exception constructionFailure)
             {
@@ -326,6 +328,7 @@ namespace InfinityTech.Rendering.Pipeline
                     BeginContextRendering(scriptableRenderContext, cameras);
                     contextBegan = true;
                     m_AtmosphereSharedCache.BeginFrame();
+                    m_LocalShadowCache.BeginFrame();
                     for (int i = 0; i < cameras.Count; ++i)
                     {
                         Camera camera = cameras[i];
@@ -659,6 +662,8 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     frameValid &= m_RGBuilder.CanRetireSubmittedResources;
                     CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
+                    if (frameValid) m_LocalShadowCache.CommitFrame();
+                    else m_LocalShadowCache.RollbackPending();
                     if (!frameValid)
                         RenderCaptureService.current?.Fail(firstCameraException?.ToString() ?? "Frame submission failed.");
                     if (submitted)
@@ -722,6 +727,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGBuilder.FlushRetiredResources();
             renderContext.lightContext.FlushRetiredBuffers();
             m_AtmosphereSharedCache.FlushRetired();
+            m_LocalShadowCache.FlushRetired();
             foreach (CameraFrameState state in m_CameraStates.Values)
             {
                 state.historyCache.FlushRetired();
@@ -997,6 +1003,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_DiffusionProfileBuffer = null;
             Release(() => m_AtmosphereSharedCache?.Dispose());
             m_AtmosphereSharedCache = null;
+            Release(() => m_LocalShadowCache?.Dispose());
+            m_LocalShadowCache = null;
             if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
             Release(RestoreGraphicsState);
             if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);

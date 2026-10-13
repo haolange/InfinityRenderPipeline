@@ -91,6 +91,15 @@ Each stage fills in its section before its code lands.
   `momentParams`.
 - `FShadowInputs` (`Pass/ShadowInputs.cs`: `QueryShadowInputs`, `Read`, `Bind`, `BindGlobal`) is the one consumer
   contract for Deferred, Forward, fog and clouds; moment atlases bind `Texture2D.blackTexture` when absent.
+- Cached shadows (S9c): `EShadowUpdateMode { EveryFrame, OnEnable, OnDemand }` on `InfinityAdditionalLightData`
+  (`shadowUpdateMode`, `RequestShadowMapRendering()`), local lights only. `LocalShadowCache` (one per pipeline):
+  persistent depth atlas `cachedShadowAtlasWidth` × `localShadowMapResolution` (same height so copy regions keep their
+  row on every API), frame-atlas tile size, slots keyed by (light instance id, face), LRU eviction excluding tiles of
+  the current frame; a light without a slot renders every frame. Content hash = shadow matrix, caster bias, tile size,
+  culling mask, rendering layers; OnEnable re-renders on hash or enable change, OnDemand on request.
+  Stale tiles draw into the cleared frame atlas; `CopyCachedLocalShadow` (transfer pass) saves them into the cache and
+  loads current tiles into the frame atlas. Transaction: `Acquire` marks pending, the copy pass's queue observer marks
+  produced, `CommitFrame` validates produced tiles, `RollbackPending` invalidates every tile written in a failed frame.
 
 ### S8
 
