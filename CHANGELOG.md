@@ -60,6 +60,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Shader Graph target "Infinity" with Lit, Unlit and Decal materials: Lit graphs render through every InfinityLit pass
   (Deferred / Forward routes, translucent T0–T2, shadows, motion, lightmaps, probes, APV, decals, Meta) with Unreal-style
   Roughness and Specular Level blocks and a material GUI for routing and subsurface.
+- Render Pipeline Wizard (Window/Infinity/Render Pipeline Wizard) with Fix / Fix All: color space, graphics API, pipeline
+  asset and quality levels, GlobalSettings, default Volume profile, SRP Batcher, mixed lighting mode, baking sky, light
+  shape sync and realtime-only tube lights. Window/Infinity/Append Missing Default Volume Components.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

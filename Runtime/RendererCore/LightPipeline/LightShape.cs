@@ -175,18 +175,14 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        // Writes the native fields Unity derives from the shape (type, shapeRadius, areaSize, shadowAngle). Returns
-        // true when anything changed. Callers record Undo on the Light first.
-        public static bool ApplyToUnityLight(Light light, in FLightShape shape)
+        // The native fields Unity derives from the shape (type, shapeRadius, areaSize, shadowAngle), starting from the
+        // light's current values so fields a shape does not own keep them.
+        static void DeriveNative(Light light, in FLightShape shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle)
         {
-            if (light == null) throw new ArgumentNullException(nameof(light));
-            bool changed = false;
-            LightType type = NativeType(shape);
-            if (light.type != type) { light.type = type; changed = true; }
-
-            float shapeRadius = light.shapeRadius;
-            Vector2 areaSize = light.areaSize;
-            float shadowAngle = light.shadowAngle;
+            type = NativeType(shape);
+            shapeRadius = light.shapeRadius;
+            areaSize = light.areaSize;
+            shadowAngle = light.shadowAngle;
             switch (shape.type)
             {
                 case EInfinityLightType.Directional:
@@ -208,7 +204,25 @@ namespace InfinityTech.Rendering.LightPipeline
                     areaSize = new Vector2(shape.sourceRadius, areaSize.y);
                     break;
             }
+        }
 
+        // True when the light's native fields already match the shape (nothing for ApplyToUnityLight to write).
+        public static bool IsInSync(Light light, in FLightShape shape)
+        {
+            if (light == null) throw new ArgumentNullException(nameof(light));
+            DeriveNative(light, shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle);
+            return light.type == type && Mathf.Approximately(light.shapeRadius, shapeRadius) && light.areaSize == areaSize
+                && Mathf.Approximately(light.shadowAngle, shadowAngle);
+        }
+
+        // Writes the native fields Unity derives from the shape. Returns true when anything changed. Callers record Undo
+        // on the Light first.
+        public static bool ApplyToUnityLight(Light light, in FLightShape shape)
+        {
+            if (light == null) throw new ArgumentNullException(nameof(light));
+            DeriveNative(light, shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle);
+            bool changed = false;
+            if (light.type != type) { light.type = type; changed = true; }
             if (!Mathf.Approximately(light.shapeRadius, shapeRadius)) { light.shapeRadius = shapeRadius; changed = true; }
             if (light.areaSize != areaSize) { light.areaSize = areaSize; changed = true; }
             if (!Mathf.Approximately(light.shadowAngle, shadowAngle)) { light.shadowAngle = shadowAngle; changed = true; }

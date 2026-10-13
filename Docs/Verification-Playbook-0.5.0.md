@@ -200,6 +200,16 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15b — Render Pipeline Wizard
+
+1. Run `RenderPipelineWizardTests`.
+2. Window/Infinity/Render Pipeline Wizard on the Example project: every Project check passes (green) except settings you
+   changed on purpose. Set Color Space to Gamma → the check turns yellow, Fix restores Linear.
+3. Remove one component from the default Volume profile → "Default Volume profile complete" fails; Window/Infinity/Append
+   Missing Default Volume Components (or Fix) adds it back with packaged values, others unchanged; Undo removes it.
+4. Edit a light's native Type through the Debug Inspector → "Light shapes synced" fails; Fix restores it (Undo works).
+5. Scene with Baked GI and the default skybox → "Baking sky" fails; Fix runs Use Atmosphere As Baking Sky.
+
 ## S15a — Shader Graph target
 
 1. Compile. The Shader Graph package compiles the `Editor/ShaderGraph` asmref into `Unity.ShaderGraph.Editor`; record

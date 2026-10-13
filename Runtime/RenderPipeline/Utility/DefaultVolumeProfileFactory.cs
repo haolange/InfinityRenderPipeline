@@ -142,6 +142,30 @@ namespace InfinityTech.Rendering.Pipeline
             parameter.value = value;
         }
 
+        // Number of default component types the profile lacks (what ValidateAndComplete would add). Read-only.
+        public static int CountMissing(VolumeProfile profile)
+        {
+            if (profile == null)
+                throw new System.ArgumentNullException(nameof(profile));
+            VolumeProfile defaults = CreateInMemory();
+            try
+            {
+                int missing = 0;
+                foreach (VolumeComponent template in defaults.components)
+                {
+                    if (!profile.TryGet(template.GetType(), out VolumeComponent existing) || existing == null)
+                        missing++;
+                }
+                return missing;
+            }
+            finally
+            {
+                foreach (VolumeComponent component in defaults.components)
+                    Object.DestroyImmediate(component);
+                Object.DestroyImmediate(defaults);
+            }
+        }
+
 #if UNITY_EDITOR
         // Explicit authoring operation. Existing components, values and flags are untouched.
         // Returns the number of added components; validation does not save assets.

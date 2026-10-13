@@ -29,8 +29,15 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             Lightmapping.bakeStarted += OnBakeStarted;
         }
 
+        // True when the active scene's lightmapper environment is the pipeline atmosphere.
+        internal static bool SceneUsesBakingSky()
+        {
+            Material skybox = RenderSettings.skybox;
+            return skybox != null && skybox.shader != null && skybox.shader.name == ShaderName;
+        }
+
         [MenuItem("Window/Infinity/Lighting/Use Atmosphere As Baking Sky")]
-        static void UseAtmosphereAsBakingSky()
+        internal static void UseAtmosphereAsBakingSky()
         {
             Scene scene = SceneManager.GetActiveScene();
             if (!TryUpdateFaces(scene, out Texture2DArray faces, out string error))
