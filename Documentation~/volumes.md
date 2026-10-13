@@ -8,7 +8,7 @@ Optional features (`SSR`, `SSGI`, `SSAO`, fog, cloud, contact shadow, SSS, RTAO)
 
 ## Quality presets
 
-Features with a cost/quality trade-off (SSR, GTAO, RTAO, volumetric fog, volumetric cloud; SSGI and contact shadows as they are rebuilt in 0.5.0) have a **Quality** parameter:
+Features with a cost/quality trade-off (SSR, SSGI, GTAO, RTAO, contact shadows, volumetric fog, volumetric cloud) have a **Quality** parameter:
 
 - **Low / Medium / High / Ultra** select a preset that is hardcoded in `Runtime/RenderPipeline/Quality/QualityPresets.<Feature>.cs`. The quality parameters (sample counts, steps, resolution, temporal weights) are shown read-only.
 - **Custom** uses the quality parameters authored on the Volume. This is the default, so profiles created before 0.5.0 keep their values.
@@ -36,4 +36,20 @@ Stochastic SSR after Frostbite (Stachowiak 2015). Per frame:
 The reflected color is the current frame's opaque lighting (one bounce). Rendering Debugger → Debug View offers
 SSR Tile Class (blue Hi-Z, orange linear, gray skipped), SSR Ray Hit (green hit, red miss), SSR Confidence and SSR
 History Age.
+
+## Screen Space Indirect Diffuse
+
+SSGI runs on the SSR core (same tiles, trace, ray reuse and denoising) with a cosine lobe:
+
+1. **Classify** 8x8 trace tiles: tiles without a deferred pixel are skipped. Forward-route pixels keep their own
+   indirect diffuse.
+2. **Trace** one cosine-distributed ray per trace pixel with the Hi-Z walk (**Num Steps**), at **Half Resolution**
+   by default.
+3. **Resolve** reuses **Resolve Samples** rays within **Resolve Radius** and reads the lit color pyramid at the mip of
+   each ray's cone, scaled by **Intensity Scale**. Missed rays add no light: that share of the pixel keeps its
+   lightmap, probe or sky ambient. Screen edges, back faces and the last 10% of **Max Distance** lower the confidence.
+4. **Temporal** accumulation follows the surface, clips history to the neighborhood (**Temporal Scale**) and tracks
+   per-pixel history age up to **Temporal Weight**; an optional a-trous **Spatial** pass follows.
+
+The gathered light is the current frame's opaque lighting (one bounce per frame). Debug View **SSGI** shows the result.
 

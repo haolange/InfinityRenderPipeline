@@ -11,12 +11,12 @@ namespace InfinityTech.Rendering.Pipeline
         static DateTime s_LastRequestWrite;
         static bool s_ArgumentsRead;
 
-        internal static bool IsSupportedBuffer(string name) => name == "TAAInput" || name == "TAAHistoryColor" || name == "TAAHistoryDepth" || name == "TAAAccumulation" || name == "TAADepth" || name == "TAAReprojection" || name == "MotionMetadata" || name == "AOTrace" || name == "AOSpatialX" || name == "AOSpatialY" || name == "AOTemporal" || name == "SSGISpatial" || name == "DisplayColor" || name == "PostProcess" ||
+        internal static bool IsSupportedBuffer(string name) => name == "TAAInput" || name == "TAAHistoryColor" || name == "TAAHistoryDepth" || name == "TAAAccumulation" || name == "TAADepth" || name == "TAAReprojection" || name == "MotionMetadata" || name == "AOTrace" || name == "AOSpatialX" || name == "AOSpatialY" || name == "AOTemporal" || name == "DisplayColor" || name == "PostProcess" ||
             name == "Lighting" || name == "Motion" || name == "Depth" || name == "GBufferA" ||
             name == "GBufferB" || name == "GBufferC" || name == "Occlusion" || name == "SSR" ||
             name == "SSGI" || name == "SceneColor" || name == "AntiAliasing" ||
             name == "CascadeShadow" || name == "HiZ" || name == "SSRRayHit" || name == "SSRResolved" ||
-            name == "SSRTemporal" || name == "SSGIRadiance" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
+            name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGIResolved" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
             name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal";
 
         internal static MeshPipeline.EMeshBackendPolicy BackendFor(Camera camera)

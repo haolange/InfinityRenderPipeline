@@ -27,8 +27,6 @@ namespace InfinityTech.Rendering.Pipeline
             ResolveKernelName, TemporalKernelName, SpatialKernelName, DebugKernelName
         };
 
-        internal const int TileSize = 8;
-        internal const int ResolveGroupSize = 8;
         // Tile classes; also the order of the argument triplets and of the tile list segments.
         internal const int ClassHiZ = 0;
         internal const int ClassLinear = 1;
@@ -110,11 +108,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static bool IsDebugView(EDebugView view) =>
             view == EDebugView.SSRTileClass || view == EDebugView.SSRRayHit || view == EDebugView.SSRConfidence || view == EDebugView.SSRHistoryAge;
 
-        internal static int2 TraceSize(int2 fullSize, bool halfResolution) =>
-            halfResolution ? math.max(new int2(1, 1), (fullSize + 1) / 2) : fullSize;
-
-        internal static int2 TileCount(int2 traceSize) => (traceSize + (TileSize - 1)) / TileSize;
-
         internal static TextureDescriptor CreateDescriptor(int width, int height, string name, GraphicsFormat format, FilterMode filter)
         {
             TextureDescriptor descriptor = ScreenSpaceHistoryUtility.CreateFilterDescriptor(width, height, name, format, true);
@@ -184,8 +177,8 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);
-            int2 traceResolution = SSRPassUtilityData.TraceSize(resolution, settings.halfResolution);
-            int2 tileCount = SSRPassUtilityData.TileCount(traceResolution);
+            int2 traceResolution = ScreenSpaceTraceUtility.TraceSize(resolution, settings.halfResolution);
+            int2 tileCount = ScreenSpaceTraceUtility.TileCount(traceResolution);
             int maxTiles = tileCount.x * tileCount.y;
             EDebugView debugView = InfinityDebugDisplaySettings.current.debugView;
             bool runDebug = SSRPassUtilityData.IsDebugView(debugView);
@@ -345,8 +338,8 @@ namespace InfinityTech.Rendering.Pipeline
                     RecordSSRTrace(cmdEncoder, shader, SSRPassUtilityData.TraceLinearKernelName, SSRPassUtilityData.ClassLinear, maxTiles, passData);
                     cmdEncoder.EndSample("SSR_Trace");
 
-                    int groupsX = (resolution.x + SSRPassUtilityData.ResolveGroupSize - 1) / SSRPassUtilityData.ResolveGroupSize;
-                    int groupsY = (resolution.y + SSRPassUtilityData.ResolveGroupSize - 1) / SSRPassUtilityData.ResolveGroupSize;
+                    int groupsX = (resolution.x + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
+                    int groupsY = (resolution.y + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
 
                     // Resolve
                     cmdEncoder.BeginSample("SSR_Resolve");

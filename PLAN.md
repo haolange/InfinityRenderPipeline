@@ -53,7 +53,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S11 | Cookie and IES atlas | S6, S7 | done |
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
-| S14 | SSGI on the SSR trace/resolve/denoise core | S5 | pending |
+| S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
 | S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | pending |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
@@ -61,6 +61,29 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S14
+
+- Shared trace core: `RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl` (tile packing, half-resolution quad
+  rotation, ray record encoding, Vogel-disk ray reuse offsets, cone mip) with `ScreenSpaceTraceUtility` (C#: tile size,
+  trace size, tile count). SSR and SSGI both use it, together with `SSRTRayCast.hlsl` (Hi-Z walk) and
+  `ScreenSpaceDenoise/{TemporalAccumulation,AtrousFilter}.hlsl`.
+- One compute pass `ComputeScreenSpaceIndirect`, kernels in `Compute_ScreenSpaceIndirectDiffuse.compute`:
+  `SSGIClassify` (8x8 trace tiles: trace when a valid deferred pixel is inside, else skip) → `SSGIClearSkipped` /
+  `SSGITrace` (indirect per class; cosine-distributed direction, pdf NoL / pi, Hi-Z walk) → `SSGIResolve` (ratio
+  estimator with f = NoL / pi over `resolveSamples` reused rays, cone mip of the lighting pyramid) → `SSGITemporal`
+  (surface reprojection, variance clip, history age) → `SSGISpatial` (when `spatialPasses > 0`).
+- Pass-local: `SSGITileArgs` (6 uints; triplets trace, skip), `SSGITileList` (2 × tile count).
+- Graph textures: `SSGIRayHitBuffer` (trace resolution, RGBA32F, same record as SSR), `SSGIResolvedBuffer` /
+  `SSGITemporalBuffer` / `SSGIBuffer` (RGBA16F: Lambert-convolved radiance (irradiance / pi) premultiplied by
+  confidence, a = confidence), `SSGIMetaBuffer` (octahedral normal, raw depth, history age). `SSGIBuffer` is the spatial
+  output, or the temporal texture without a spatial pass.
+- History: `HistorySSGIRadianceBuffer` ← Temporal, `HistorySSGIMetaBuffer` ← Meta (`CopyHistorySSGI`, through the
+  same `CopyHistoryRadianceMeta` as SSR).
+- Composite unchanged: `lighting - IndirectDiffuse * a + albedo * rgb`; a miss keeps the baked / probe / sky diffuse.
+- Registry: SSGI requires the six kernels, `utilityShader.ClearIndirectArgs` and the blue-noise textures; depends on
+  HiZ and OpaqueLightingPyramid.
+- Settings: `FSSGISettings` / `QualityPresets.SSGI`; Volume `ScreenSpaceIndirectDiffuse.Resolve()`.
 
 ### S13
 

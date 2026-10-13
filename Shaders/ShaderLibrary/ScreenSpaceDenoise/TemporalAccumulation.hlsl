@@ -1,6 +1,6 @@
 #ifndef INFINITY_SCREEN_SPACE_TEMPORAL_ACCUMULATION
 #define INFINITY_SCREEN_SPACE_TEMPORAL_ACCUMULATION
-// Temporal accumulation shared by the screen-space signals (SSR; SSGI moves onto it in 0.5.0 S14).
+// Temporal accumulation shared by the screen-space signals (SSR, SSGI).
 // History is stored with its age in frames. A pixel blends the current sample with weight
 // max(1 - maxHistoryWeight, 1 / (age + 1)): a running mean right after a reset, then the configured exponential
 // weight. A rejected history restarts at age 0, so the current sample is taken as is.

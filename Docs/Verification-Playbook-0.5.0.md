@@ -200,6 +200,24 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S14 — SSGI on the SSR core
+
+1. Compile; run `QualityPresetTests`, `StochasticSSGINumericTests` (GPU) and `StochasticSSRNumericTests` (SSR now uses
+   the shared `ScreenSpaceTraceTiles.hlsl`; its results must not change). The 0.4.0 SSGI kernels are gone from
+   `ScreenSpaceNumericContract_ProductionKernels`.
+2. Screen Space Indirect Diffuse Volume: removed parameters `NumRays`, `SpatialRadius`, `SpatialSample`,
+   `BilateralSample`, `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight` (their values are
+   dropped). Kept names: `MaxDistance`, `Thickness`, `IntensityScale`, `NumSteps` (now the Hi-Z budget, range 4–64),
+   `TemporalWeight`, `TemporalScale` (now the variance-clip width). New: `quality`, `HalfResolution`,
+   `ResolveSamples`, `ResolveRadius`, `SpatialPasses`.
+3. A room with a bright red wall and a white floor, SSGI enabled: the floor near the wall picks up red bounce light;
+   Debug View **SSGI** shows it. Looking away from the wall (wall off screen) the bounce fades back to the baked / probe
+   ambient instead of turning black.
+4. Orbit slowly: no crawling noise after ~16 frames; disocclusions settle within a few frames. Report ghosting behind
+   moving objects.
+5. Frame Debugger: `SSGI_Classify`, `SSGI_Trace` (two indirect dispatches), `SSGI_Resolve`, `SSGI_Temporal`,
+   `SSGI_Spatial`, then `CopyHistorySSGI` copies two textures. Quality Low → Ultra trades noise for cost.
+
 ## S13 — reflection probes
 
 1. Compile; run `ReflectionProbeTests`, `AtmosphereCacheTests`.

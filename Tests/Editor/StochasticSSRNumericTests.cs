@@ -119,8 +119,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader = Track(UnityEngine.Object.Instantiate(asset));
                 m_Width = width;
                 m_Height = height;
-                Unity.Mathematics.int2 trace = SSRPassUtilityData.TraceSize(new Unity.Mathematics.int2(width, height), halfResolution);
-                Unity.Mathematics.int2 tiles = SSRPassUtilityData.TileCount(trace);
+                Unity.Mathematics.int2 trace = ScreenSpaceTraceUtility.TraceSize(new Unity.Mathematics.int2(width, height), halfResolution);
+                Unity.Mathematics.int2 tiles = ScreenSpaceTraceUtility.TileCount(trace);
                 m_Trace = new Vector2Int(trace.x, trace.y);
                 TileCount = new Vector2Int(tiles.x, tiles.y);
 

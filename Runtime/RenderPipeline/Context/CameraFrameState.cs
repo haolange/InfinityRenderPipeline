@@ -38,7 +38,6 @@ namespace InfinityTech.Rendering.Pipeline
         public bool hasResolvedBackbufferFormat;
         public GraphicsFormat lastResolvedBackbufferFormat;
         public CameraRenderPolicy renderPolicy;
-        public int ssgiValidFrames;
         public int gtaoValidFrames;
 
         internal const int GameUnseenFramesToRecycle = 8;
@@ -77,7 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
             combineLutCache.RollbackPending();
             executeSucceeded = false;
             requiresHistoryReset = true;
-            ssgiValidFrames = gtaoValidFrames = 0;
+            gtaoValidFrames = 0;
         }
 
         internal void CommitFrame()

@@ -53,6 +53,10 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   box projection; the sky fills the remaining weight. Deferred and Forward share the evaluation. Probe cubes are
   GGX-filtered into one cube-array atlas (RP Asset Reflection Probe Resolution, Max Reflection Probes) by
   `Compute_CubeFilter.compute`, which the sky prefilter now uses as well.
+- SSGI rebuilt on the stochastic SSR core: tile classification (trace / skip) with indirect dispatch, half-resolution
+  cosine-distributed rays traced with the Hi-Z walk, ray-reuse resolve with filtered importance sampling, temporal
+  accumulation with per-pixel history age and an optional a-trous pass; Quality presets on the Volume. Missed rays
+  keep the baked, probe or sky indirect diffuse. SSR and SSGI share `ScreenSpaceTraceTiles.hlsl`.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
@@ -88,6 +92,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   unreferenced `Compute_SpatialTemporalVarianceFilter.compute`.
 - The z-binning compute (`Compute_ZBinningLightList`), the ZBin overflow counter and its capture path
   (`includeZBinOverflow`, counter readback).
+- Screen Space Indirect Diffuse parameters `NumRays`, `SpatialRadius`, `SpatialSample`, `BilateralSample`,
+  `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight`; the SSGI moments and depth-normal
+  histories; capture stages `SSGIRadiance` and `SSGISpatial` (now `SSGIRayHit`, `SSGIResolved`).
 
 ## [0.4.0] - 2026-09-11
 

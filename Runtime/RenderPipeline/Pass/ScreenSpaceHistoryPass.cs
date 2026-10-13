@@ -42,21 +42,6 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        internal static TextureDescriptor CreateRadianceDescriptor(int width, int height, string name)
-        {
-            return CreateFilterDescriptor(width, height, name, GraphicsFormat.R16G16B16A16_SFloat, true);
-        }
-
-        internal static TextureDescriptor CreateMomentsDescriptor(int width, int height, string name)
-        {
-            return CreateFilterDescriptor(width, height, name, GraphicsFormat.R16G16B16A16_SFloat, true);
-        }
-
-        internal static TextureDescriptor CreateDepthNormalDescriptor(int width, int height, string name)
-        {
-            return CreateFilterDescriptor(width, height, name, GraphicsFormat.R16G16B16A16_SFloat, true);
-        }
-
         internal static TextureDescriptor CreateHistoryDescriptor(int width, int height, string name, GraphicsFormat format)
         {
             return CreateFilterDescriptor(width, height, name, format, false);
@@ -65,79 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        struct CopyHistoryScreenSpacePassData
-        {
-            public RGTextureRef radianceSource;
-            public RGTextureRef radianceHistory;
-            public RGTextureRef momentsSource;
-            public RGTextureRef momentsHistory;
-            public RGTextureRef depthNormalSource;
-            public RGTextureRef depthNormalHistory;
-        }
-
-        void CopyHistoryScreenSpace(
-            HistoryCache historyCache,
-            Camera camera,
-            CustomSamplerId samplerId,
-            int radianceSourceId,
-            int momentsSourceId,
-            int depthNormalSourceId,
-            int radianceHistoryId,
-            int momentsHistoryId,
-            int depthNormalHistoryId,
-            string radianceName,
-            string momentsName,
-            string depthNormalName)
-        {
-            if (!m_RGScoper.TryQueryTexture(radianceSourceId, out RGTextureRef radianceSource) ||
-                !m_RGScoper.TryQueryTexture(momentsSourceId, out RGTextureRef momentsSource) ||
-                !m_RGScoper.TryQueryTexture(depthNormalSourceId, out RGTextureRef depthNormalSource))
-            {
-                return;
-            }
-
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
-            GraphicsFormat format = GraphicsFormat.R16G16B16A16_SFloat;
-
-            TextureDescriptor radianceDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, radianceName, format);
-            TextureDescriptor momentsDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, momentsName, format);
-            TextureDescriptor depthNormalDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, depthNormalName, format);
-
-            RGTextureRef radianceHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(radianceHistoryId, radianceDsc));
-            RGTextureRef momentsHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(momentsHistoryId, momentsDsc));
-            RGTextureRef depthNormalHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(depthNormalHistoryId, depthNormalDsc));
-            historyCache.MarkProduced(radianceHistoryId);
-            historyCache.MarkProduced(momentsHistoryId);
-            historyCache.MarkProduced(depthNormalHistoryId);
-
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryScreenSpacePassData>(ProfilingSampler.Get(samplerId)))
-            {
-                passRef.ReadTexture(radianceSource);
-                passRef.WriteTexture(radianceHistory);
-                passRef.ReadTexture(momentsSource);
-                passRef.WriteTexture(momentsHistory);
-                passRef.ReadTexture(depthNormalSource);
-                passRef.WriteTexture(depthNormalHistory);
-
-                ref CopyHistoryScreenSpacePassData passData = ref passRef.GetPassData<CopyHistoryScreenSpacePassData>();
-                passData.radianceSource = radianceSource;
-                passData.radianceHistory = radianceHistory;
-                passData.momentsSource = momentsSource;
-                passData.momentsHistory = momentsHistory;
-                passData.depthNormalSource = depthNormalSource;
-                passData.depthNormalHistory = depthNormalHistory;
-
-                passRef.SetExecuteFunc((in CopyHistoryScreenSpacePassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    cmdEncoder.CopyTexture(passData.radianceSource, passData.radianceHistory);
-                    cmdEncoder.CopyTexture(passData.momentsSource, passData.momentsHistory);
-                    cmdEncoder.CopyTexture(passData.depthNormalSource, passData.depthNormalHistory);
-                });
-            }
-        }
-
-        struct CopyHistorySSRPassData
+        struct CopyHistoryRadianceMetaPassData
         {
             public RGTextureRef radianceSource;
             public RGTextureRef radianceHistory;
@@ -149,59 +62,61 @@ namespace InfinityTech.Rendering.Pipeline
         // its meta texture (normal, depth, history age).
         void CopyHistorySSR(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRTemporalBuffer, out RGTextureRef radianceSource) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRMetaBuffer, out RGTextureRef metaSource))
+            CopyHistoryRadianceMeta(historyCache, CustomSamplerId.CopyHistorySSR,
+                InfinityShaderIDs.SSRTemporalBuffer, InfinityShaderIDs.SSRMetaBuffer,
+                InfinityShaderIDs.HistorySSRRadianceBuffer, InfinityShaderIDs.HistorySSRMetaBuffer,
+                SSRPassUtilityData.HistoryRadianceName, SSRPassUtilityData.HistoryMetaName);
+        }
+
+        // SSGI keeps the same history shape as SSR.
+        void CopyHistorySSGI(RenderContext renderContext, HistoryCache historyCache, Camera camera)
+        {
+            CopyHistoryRadianceMeta(historyCache, CustomSamplerId.CopyHistorySSGI,
+                InfinityShaderIDs.SSGITemporalBuffer, InfinityShaderIDs.SSGIMetaBuffer,
+                InfinityShaderIDs.HistorySSGIRadianceBuffer, InfinityShaderIDs.HistorySSGIMetaBuffer,
+                SSGIPassUtilityData.HistoryRadianceName, SSGIPassUtilityData.HistoryMetaName);
+        }
+
+        // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA16F meta (point).
+        void CopyHistoryRadianceMeta(HistoryCache historyCache, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId,
+            int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
+        {
+            if (!m_RGScoper.TryQueryTexture(radianceSourceId, out RGTextureRef radianceSource) ||
+                !m_RGScoper.TryQueryTexture(metaSourceId, out RGTextureRef metaSource))
             {
                 return;
             }
 
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
-            TextureDescriptor radianceDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat);
-            TextureDescriptor metaDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R16G16B16A16_SFloat);
+            TextureDescriptor radianceDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, radianceName, GraphicsFormat.R16G16B16A16_SFloat);
+            TextureDescriptor metaDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, metaName, GraphicsFormat.R16G16B16A16_SFloat);
             metaDsc.filterMode = FilterMode.Point;
 
-            RGTextureRef radianceHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, radianceDsc));
-            RGTextureRef metaHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistorySSRMetaBuffer, metaDsc));
-            historyCache.MarkProduced(InfinityShaderIDs.HistorySSRRadianceBuffer);
-            historyCache.MarkProduced(InfinityShaderIDs.HistorySSRMetaBuffer);
+            RGTextureRef radianceHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(radianceHistoryId, radianceDsc));
+            RGTextureRef metaHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(metaHistoryId, metaDsc));
+            historyCache.MarkProduced(radianceHistoryId);
+            historyCache.MarkProduced(metaHistoryId);
 
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistorySSRPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySSR)))
+            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryRadianceMetaPassData>(ProfilingSampler.Get(samplerId)))
             {
                 passRef.ReadTexture(radianceSource);
                 passRef.WriteTexture(radianceHistory);
                 passRef.ReadTexture(metaSource);
                 passRef.WriteTexture(metaHistory);
 
-                ref CopyHistorySSRPassData passData = ref passRef.GetPassData<CopyHistorySSRPassData>();
+                ref CopyHistoryRadianceMetaPassData passData = ref passRef.GetPassData<CopyHistoryRadianceMetaPassData>();
                 passData.radianceSource = radianceSource;
                 passData.radianceHistory = radianceHistory;
                 passData.metaSource = metaSource;
                 passData.metaHistory = metaHistory;
 
-                passRef.SetExecuteFunc((in CopyHistorySSRPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CopyHistoryRadianceMetaPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     cmdEncoder.CopyTexture(passData.radianceSource, passData.radianceHistory);
                     cmdEncoder.CopyTexture(passData.metaSource, passData.metaHistory);
                 });
             }
-        }
-
-        void CopyHistorySSGI(RenderContext renderContext, HistoryCache historyCache, Camera camera)
-        {
-            CopyHistoryScreenSpace(
-                historyCache,
-                camera,
-                CustomSamplerId.CopyHistorySSGI,
-                InfinityShaderIDs.SSGITemporalBuffer,
-                InfinityShaderIDs.SSGIMomentsBuffer,
-                InfinityShaderIDs.SSGIDepthNormalBuffer,
-                InfinityShaderIDs.HistorySSGIRadianceBuffer,
-                InfinityShaderIDs.HistorySSGIMomentsBuffer,
-                InfinityShaderIDs.HistorySSGIDepthNormalBuffer,
-                "HistorySSGIRadiance",
-                "HistorySSGIMoments",
-                "HistorySSGIDepthNormal");
         }
 
         void ResolveOpaqueSceneColor()

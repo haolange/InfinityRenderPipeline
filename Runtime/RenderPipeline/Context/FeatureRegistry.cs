@@ -124,8 +124,13 @@ namespace InfinityTech.Rendering.Pipeline
                 id = EFrameFeature.SSGI,
                 requiresTemporal = true,
                 dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.OpaqueLightingPyramid },
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssgiShader), s => s.ssgiShader,
-                    "Raytracing", "SpatialFilter", "TemporalFilter", "BilateralFilter"), composite }
+                shaders = new[]
+                {
+                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssgiShader), s => s.ssgiShader, SSGIPassUtilityData.RequiredKernels),
+                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.utilityShader), s => s.utilityShader, ComputeUtility.ClearIndirectArgsKernelName),
+                    composite
+                },
+                customSupport = c => c.textures != null && c.textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures."
             });
             Add(new FeatureDescriptor
             {

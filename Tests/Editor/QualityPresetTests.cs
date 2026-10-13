@@ -17,6 +17,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.VolumetricFog.Length);
             Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.VolumetricCloud.Length);
             Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.SSR.Length);
+            Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.SSGI.Length);
             Assert.Throws<System.ArgumentException>(() => QualityPresets.Select(QualityPresets.GTAO, EQualityLevel.Custom));
         }
 
@@ -139,15 +140,54 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
+        [Test]
+        [Category("Unverified-0.5")]
+        public void SSGIPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable()
+        {
+            var ssgi = Create<ScreenSpaceIndirectDiffuse>();
+            try
+            {
+                foreach (FSSGISettings p in QualityPresets.SSGI)
+                {
+                    Assert.That(p.hiZSteps, Is.InRange(ssgi.NumSteps.min, ssgi.NumSteps.max));
+                    Assert.That(p.resolveSamples, Is.InRange(ssgi.ResolveSamples.min, ssgi.ResolveSamples.max));
+                    Assert.That(p.resolveRadius, Is.InRange(ssgi.ResolveRadius.min, ssgi.ResolveRadius.max));
+                    Assert.That(p.temporalWeight, Is.InRange(ssgi.TemporalWeight.min, ssgi.TemporalWeight.max));
+                    Assert.That(p.temporalClampScale, Is.InRange(ssgi.TemporalScale.min, ssgi.TemporalScale.max));
+                    Assert.That(p.spatialPasses, Is.InRange(ssgi.SpatialPasses.min, ssgi.SpatialPasses.max));
+                }
+
+                FSSGISettings medium = QualityPresets.SSGI[(int)EQualityLevel.Medium];
+                Assert.AreEqual(medium.halfResolution, ssgi.HalfResolution.value, "Medium equals the Volume defaults.");
+                Assert.AreEqual(medium.hiZSteps, ssgi.NumSteps.value);
+                Assert.AreEqual(medium.resolveSamples, ssgi.ResolveSamples.value);
+                Assert.AreEqual(medium.resolveRadius, ssgi.ResolveRadius.value);
+                Assert.AreEqual(medium.temporalWeight, ssgi.TemporalWeight.value);
+                Assert.AreEqual(medium.temporalClampScale, ssgi.TemporalScale.value);
+                Assert.AreEqual(medium.spatialPasses, ssgi.SpatialPasses.value);
+
+                ssgi.IntensityScale.value = 0.5f;
+                ssgi.quality.value = EQualityLevel.Ultra;
+                FSSGISettings ultra = ssgi.Resolve();
+                Assert.IsFalse(ultra.halfResolution);
+                Assert.AreEqual(QualityPresets.SSGI[(int)EQualityLevel.Ultra].hiZSteps, ultra.hiZSteps);
+                Assert.AreEqual(0.5f, ultra.intensity, "Artistic parameters never come from a preset.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(ssgi);
+            }
+        }
+
         [TestCase(1920, 1080, false, 1920, 1080, 240, 135)]
         [TestCase(1920, 1080, true, 960, 540, 120, 68)]
         [TestCase(17, 19, true, 9, 10, 2, 2)]
         [TestCase(1, 1, true, 1, 1, 1, 1)]
         [Category("Unverified-0.5")]
-        public void SSRTraceAndTileSizes(int width, int height, bool half, int traceX, int traceY, int tilesX, int tilesY)
+        public void ScreenSpaceTraceAndTileSizes(int width, int height, bool half, int traceX, int traceY, int tilesX, int tilesY)
         {
-            Unity.Mathematics.int2 trace = SSRPassUtilityData.TraceSize(new Unity.Mathematics.int2(width, height), half);
-            Unity.Mathematics.int2 tiles = SSRPassUtilityData.TileCount(trace);
+            Unity.Mathematics.int2 trace = ScreenSpaceTraceUtility.TraceSize(new Unity.Mathematics.int2(width, height), half);
+            Unity.Mathematics.int2 tiles = ScreenSpaceTraceUtility.TileCount(trace);
             Assert.AreEqual(traceX, trace.x);
             Assert.AreEqual(traceY, trace.y);
             Assert.AreEqual(tilesX, tiles.x);

@@ -9,11 +9,8 @@
 //   SSRSpatial       full resolution: optional 5x5 a-trous pass with roughness-scaled spacing
 //   SSRDebug         full resolution: tile class, ray result, confidence and history age views
 //
-// Trace resolution is full or half. At half resolution each trace pixel traces a different full-resolution pixel of
-// its 2x2 quad every frame, and the resolve reuses the rays around the quad.
-//
-// Ray record (RGBA32F, trace resolution): hit = (uv, raw depth, +pdf); miss = (octahedral world direction, 0, -pdf);
-// no ray = 0. The pdf is the solid-angle pdf of the reflected direction.
+// Trace resolution is full or half; tiles, quad rotation, ray records and ray reuse are shared with SSGI
+// (RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl).
 // Resolved / Temporal / SSRTexture (RGBA16F): rgb = radiance premultiplied by confidence, a = confidence.
 // Meta (RGBA16F): octahedral world normal, raw depth, history age in frames (0 = no history).
 
@@ -32,11 +29,12 @@
 #include "../../ShaderLibrary/GBufferPack.hlsl"
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+#include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceDenoise/TemporalAccumulation.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceDenoise/AtrousFilter.hlsl"
 #include "../../ShaderLibrary/DebugViewModes.hlsl"
 
-#define SSR_TILE_SIZE 8
+#define SSR_TILE_SIZE SCREEN_SPACE_TRACE_TILE_SIZE
 #define SSR_CLASS_HIZ 0
 #define SSR_CLASS_LINEAR 1
 #define SSR_CLASS_SKIP 2
@@ -144,17 +142,12 @@ bool LoadSurface(uint2 pixel, out FSSRSurface surface)
 
 uint2 TraceToFullPixel(uint2 tracePixel)
 {
-    if (SSR_TraceScale <= 1)
-    {
-        return tracePixel;
-    }
-    static const uint2 kQuadOrder[4] = { uint2(0, 0), uint2(1, 1), uint2(1, 0), uint2(0, 1) };
-    return min(tracePixel * 2 + kQuadOrder[SSR_FrameIndex & 3], (uint2)SSR_Resolution.xy - 1);
+    return TraceToFullPixel(tracePixel, SSR_TraceScale, SSR_FrameIndex, (uint2)SSR_Resolution.xy);
 }
 
 uint2 FullToTracePixel(uint2 pixel)
 {
-    return min(pixel / max(SSR_TraceScale, 1u), (uint2)SSR_TraceResolution.xy - 1);
+    return FullToTracePixel(pixel, SSR_TraceScale, (uint2)SSR_TraceResolution.xy);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -195,16 +188,14 @@ void SSRClassify(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThrea
         }
         uint slot;
         InterlockedAdd(UAV_TileArgs[tileClass * 3], 1u, slot);
-        UAV_TileList[tileClass * SSR_MaxTiles + slot] = groupId.x | (groupId.y << 16);
+        UAV_TileList[tileClass * SSR_MaxTiles + slot] = PackTraceTile(groupId.xy);
         UAV_TileClass[groupId.xy] = tileClass;
     }
 }
 
 uint2 TileTracePixel(uint3 groupId, uint3 groupThreadId)
 {
-    uint packed = SRV_TileList[SSR_TileListOffset + groupId.x];
-    uint2 tile = uint2(packed & 0xFFFFu, packed >> 16);
-    return tile * SSR_TILE_SIZE + groupThreadId.xy;
+    return UnpackTraceTile(SRV_TileList[SSR_TileListOffset + groupId.x]) * SSR_TILE_SIZE + groupThreadId.xy;
 }
 
 [numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
@@ -272,8 +263,7 @@ void TraceTilePixel(uint3 groupId, uint3 groupThreadId, bool linearMarch)
         ? TraceScreenSpaceRayLinear(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_LinearSteps, jitter, Matrix_Proj, SRV_HiZTexture, SSR_TraceScale - 1, hit)
         : TraceScreenSpaceRay(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_HiZSteps, jitter, Matrix_Proj, SRV_HiZTexture, hit);
 
-    pdf = max(pdf, 1e-5);
-    UAV_RayHit[tracePixel] = found ? float4(hit, pdf) : float4(UnitVectorToOctahedron(L), 0, -pdf);
+    UAV_RayHit[tracePixel] = found ? EncodeRayHit(hit, pdf) : EncodeRayMiss(L, pdf);
 }
 
 [numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
@@ -331,15 +321,7 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
     [loop]
     for (uint i = 0; i < sampleCount; ++i)
     {
-        int2 offset = 0;
-        if (i > 0)
-        {
-            // Vogel disk, rotated per pixel.
-            float radius = sqrt((i + 0.5) / sampleCount) * SSR_ResolveRadius;
-            float theta = i * 2.39996323 + rotation;
-            offset = (int2)round(float2(cos(theta), sin(theta)) * radius);
-        }
-        int2 samplePixel = clamp(int2(traceCenter) + offset, 0, int2(SSR_TraceResolution.xy) - 1);
+        int2 samplePixel = clamp(int2(traceCenter) + RayReuseOffset(i, sampleCount, SSR_ResolveRadius, rotation), 0, int2(SSR_TraceResolution.xy) - 1);
         float4 ray = SRV_RayHit[samplePixel];
         if (ray.w == 0)
         {
@@ -369,15 +351,8 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
             float distanceFade = saturate((SSR_MaxDistance - hitDistance) / max(0.1 * SSR_MaxDistance, 1e-3));
             hitConfidence = GetScreenFadeBord(ray.xy, SSR_EdgeFade) * facing * distanceFade;
 
-            // Filtered importance sampling (Krivanek and Colbert 2008): each reused ray stands for a solid angle of
-            // 1 / (count * pdf); the color pyramid mip covers that cone's footprint at the hit.
-            float mip = 0;
-            if (!mirror)
-            {
-                float solidAngle = rcp(sampleCount * pdf);
-                float footprint = 2 * hitDistance * sqrt(solidAngle / 3.14159265) * projectionScale / max(ScreenSpaceLinearEyeDepth(ray.z), 1e-4);
-                mip = clamp(log2(max(footprint, 1)), 0, (float)lightingMips - 1);
-            }
+            // Filtered importance sampling: mirrors read the full-resolution image.
+            float mip = mirror ? 0 : RayConeMip(pdf, sampleCount, hitDistance, projectionScale, ScreenSpaceLinearEyeDepth(ray.z), lightingMips);
             radiance = SRV_LightingPyramid.SampleLevel(Global_trilinear_clamp_sampler, ray.xy, mip).rgb;
         }
         else

@@ -76,8 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
                 switch (buffer)
                 {
                     case "TAAInput": case "TAAHistoryColor": case "TAAHistoryDepth":
-                    case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal":
-                    case "SSGISpatial": id = Shader.PropertyToID("Capture_" + buffer); break;
+                    case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal": id = Shader.PropertyToID("Capture_" + buffer); break;
                     case "BakedDiffuse": id = InfinityShaderIDs.BakedDiffuseBuffer; break;
                     case "BakedOcclusion": id = InfinityShaderIDs.BakedOcclusionBuffer; break;
                     case "IndirectDiffuse": id = InfinityShaderIDs.IndirectDiffuseBuffer; break;
@@ -88,7 +87,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SSRRayHit": id = InfinityShaderIDs.SSRRayHitBuffer; break;
                     case "SSRResolved": id = InfinityShaderIDs.SSRResolvedBuffer; break;
                     case "SSRTemporal": id = InfinityShaderIDs.SSRTemporalBuffer; break;
-                    case "SSGIRadiance": id = Shader.PropertyToID("Capture_SSGIRadiance"); break;
+                    case "SSGIRayHit": id = InfinityShaderIDs.SSGIRayHitBuffer; break;
+                    case "SSGIResolved": id = InfinityShaderIDs.SSGIResolvedBuffer; break;
                     case "SSGITemporal": id = InfinityShaderIDs.SSGITemporalBuffer; break;
                     case "DisplayColor": id = InfinityShaderIDs.DisplayColorBuffer; break;
                     case "PostProcess": id = InfinityShaderIDs.PostProcessBuffer; break;

@@ -283,23 +283,49 @@ namespace InfinityTech.Rendering.Editor
     }
 
     [CustomEditor(typeof(ScreenSpaceIndirectDiffuse))]
-    sealed class ScreenSpaceIndirectDiffuseEditor : VolumeComponentEditor
+    sealed class ScreenSpaceIndirectDiffuseEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_NumRays, m_Intensity;
+        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_Intensity;
+        SerializedDataParameter m_HalfResolution, m_HiZSteps, m_ResolveSamples, m_ResolveRadius, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceIndirectDiffuse>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
             m_MaxDistance = Unpack(o.Find(x => x.MaxDistance));
             m_Thickness = Unpack(o.Find(x => x.Thickness));
-            m_NumRays = Unpack(o.Find(x => x.NumRays));
             m_Intensity = Unpack(o.Find(x => x.IntensityScale));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
+            m_HalfResolution = Unpack(o.Find(x => x.HalfResolution));
+            m_HiZSteps = Unpack(o.Find(x => x.NumSteps));
+            m_ResolveSamples = Unpack(o.Find(x => x.ResolveSamples));
+            m_ResolveRadius = Unpack(o.Find(x => x.ResolveRadius));
+            m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
+            m_TemporalScale = Unpack(o.Find(x => x.TemporalScale));
+            m_SpatialPasses = Unpack(o.Find(x => x.SpatialPasses));
         }
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            EditorGUILayout.LabelField("Trace", EditorStyles.boldLabel);
-            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_NumRays); PropertyField(m_Intensity);
+            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_Intensity);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_HalfResolution, l => Preset(l).halfResolution);
+            QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
+            QualityField(m_ResolveSamples, l => Preset(l).resolveSamples);
+            QualityField(m_ResolveRadius, l => Preset(l).resolveRadius);
+            QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
+            QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
+            QualityField(m_SpatialPasses, l => Preset(l).spatialPasses);
+        }
+        static FSSGISettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSGI, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FSSGISettings preset = Preset(level);
+            Set(m_HalfResolution, preset.halfResolution);
+            Set(m_HiZSteps, preset.hiZSteps);
+            Set(m_ResolveSamples, preset.resolveSamples); Set(m_ResolveRadius, preset.resolveRadius);
+            Set(m_TemporalWeight, preset.temporalWeight); Set(m_TemporalScale, preset.temporalClampScale);
+            Set(m_SpatialPasses, preset.spatialPasses);
         }
     }
 
