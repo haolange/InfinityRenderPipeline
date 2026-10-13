@@ -8,3 +8,8 @@
 6. Use `Window > Analysis > Rendering Debugger` for Infinity panels, and `Window > Infinity` for remaining validation entry points (fixtures, dumps, Validate Default Volume Profile).
 
 The pipeline never migrates or rewrites assets when the Editor loads them.
+
+Create objects from `GameObject > Light > Infinity` (every light shape) and `GameObject > Rendering > Infinity`
+(volumes, decal projector, reflection probes, light probe group); assets from `Assets > Create > Rendering > Infinity`
+and `Assets > Create > Shader Graph > Infinity`. Convert existing Built-in / URP / HDRP materials with
+`Window > Infinity > Material Conversion Wizard`.

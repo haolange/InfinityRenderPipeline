@@ -7,7 +7,7 @@ using InfinityTech.Rendering.Feature;
 namespace InfinityTech.Rendering.Pipeline
 {
     [ExecuteInEditMode]
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/InfinityRenderPipelineAsset", order = 360)]
+    [CreateAssetMenu(menuName = "Rendering/Infinity/Pipeline Asset", order = 360)]
     [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "pipeline-asset.md")]
     public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>, IProbeVolumeEnabledRenderPipeline
     {

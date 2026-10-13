@@ -5,7 +5,7 @@ using InfinityTech.Rendering.Pipeline;
 namespace InfinityTech.Rendering.Feature
 {
     [ExecuteInEditMode]
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/AtmosphericalProfile", order = 359)]
+    [CreateAssetMenu(menuName = "Rendering/Infinity/Atmosphere Profile", order = 359)]
     public sealed class AtmosphericalProfile : ScriptableObject
     {
         [Header("Planet")]

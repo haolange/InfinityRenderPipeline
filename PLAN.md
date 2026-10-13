@@ -54,7 +54,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles, S15f Rendering Debugger panels, S15g RenderGraph Viewer done) |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles, S15f Rendering Debugger panels, S15g RenderGraph Viewer, S15h material conversion and create menus done) |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
@@ -130,6 +130,18 @@ queue, culled, cullable, wait / signal pass, reads, writes, allocates, releases)
 acceleration structures; name, imported, size / format, first / last live use, allocating / releasing pass).
 Window/Analysis/Infinity Render Graph Viewer draws passes × resources with the pool lifetime band, filters (culled,
 imported, unused, name), pause, copy as text and a details pane.
+
+S15h — Material conversion and create menus: `InfinityMaterialUpgraders` (CoreRP `MaterialUpgrader` subclasses
+registered through `IMaterialUpgradersProvider` with `[SupportedOnRenderPipeline]`): Built-in Standard / Specular /
+Legacy / Unlit, URP Lit / Complex Lit / Simple Lit / Unlit, HDRP Lit / LitTessellation / Unlit → InfinityLit /
+InfinityUnlit (roughness = 1 − smoothness, metallic → `_Reflectance`, base map tiling x → `_BaseColorTile`, emission
+color when enabled, transparent → T0, finalizer applies the base map keyword and `MaterialRouteUtility.ApplyPassState`).
+Window/Infinity/Material Conversion Wizard lists convertible materials (project or selection) with the dropped inputs;
+the Render Pipeline Wizard gains "Scene materials use Infinity shaders". GameObject/Light/Infinity creates every shape;
+GameObject/Rendering/Infinity creates volumes, a decal projector (shared `Assets/InfinityDefaultDecal.mat`), box /
+sphere reflection probes and a light probe group; Assets/Create/Rendering/Infinity holds the pipeline asset, profiles,
+mesh asset, Global Settings and a Volume profile with the default components; Assets/Create/Shader Graph/Infinity
+creates Lit / Unlit / Decal graphs.
 
 - Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
   variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.

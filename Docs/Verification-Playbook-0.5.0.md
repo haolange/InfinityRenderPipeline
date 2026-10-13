@@ -200,6 +200,24 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15h — Material conversion and create menus
+
+1. Run `MaterialUpgraderTests`.
+2. Import a few Standard materials (e.g. from an Asset Store pack) and URP Lit materials if available; Window/Infinity/
+   Material Conversion Wizard → Scan Project lists them with their source shader and dropped maps. Convert Selected:
+   the materials switch to InfinityLit with the same color, map and tiling; glossy stays glossy (roughness = 1 −
+   smoothness); a Standard Fade material becomes translucent T0. Undo restores the source shader.
+3. Edit/Rendering/Materials/Convert Selected Built-In Materials to Current SRP converts with the same result.
+4. Render Pipeline Wizard: a scene with a Standard material fails "Scene materials use Infinity shaders"; Fix opens the
+   conversion window with those materials.
+5. GameObject/Light/Infinity: each entry creates the named shape (Inspector Shape section agrees; Tube shows a line
+   handle). GameObject/Rendering/Infinity: Global / Local Volume, Decal Projector (projects a gray box; the material
+   `Assets/InfinityDefaultDecal.mat` is created once), Reflection Probe (Box / Sphere), Light Probe Group. Undo removes
+   each object.
+6. Assets/Create/Rendering/Infinity/Volume Profile (Defaults) creates a profile with Exposure, Tonemap, Color Grading
+   and the optional components; Assets/Create/Shader Graph/Infinity/Lit Shader Graph opens with Base Color, Normal,
+   Metallic, Roughness, Specular Level and Emission blocks.
+
 ## S15g — Render Graph Viewer
 
 1. Run `RenderGraphViewerTests`.
@@ -208,8 +226,8 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    header names the pass; clicking shows its queue, wait / signal passes and resource lists.
 3. Rows: GBufferA/B/C are written by RenderGBuffer and read by DeferredShading; the blue band spans from the
    allocating pass to the releasing pass. Imported rows (•) such as history textures have no band.
-4. Turn SSR off in the Volume: its passes disappear (not recorded); a debug view on SSR Tile Class brings the SSR debug
-   pass back. Pause freezes the capture; Copy puts the graph as text on the clipboard.
+4. Turn SSR off in the Volume: its passes disappear (not recorded). Pause freezes the capture; Copy puts the graph as
+   text on the clipboard.
 5. Close the window: no further capture (no allocations from the viewer in the Profiler).
 
 ## S15f — Rendering Debugger panels and Draw Modes

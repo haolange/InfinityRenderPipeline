@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering
         public Vector4 parameters;
     }
 
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/DiffusionProfile", order = 361)]
+    [CreateAssetMenu(menuName = "Rendering/Infinity/Diffusion Profile", order = 361)]
     public sealed class DiffusionProfile : ScriptableObject
     {
         public Color scatterColor = new Color(1.0f, 0.2f, 0.1f, 1.0f);

@@ -77,6 +77,11 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   probe captures and previews no longer render the active debug view.
 - Render Graph Viewer (Window/Analysis/Infinity Render Graph Viewer): the last compiled graph per camera with passes,
   queues, culling, resource reads / writes and pool lifetimes; captured only while the window is open.
+- Material Conversion Wizard (Window/Infinity) and Edit/Rendering/Materials converters from Built-in, URP and HDRP
+  Lit / Unlit materials to InfinityLit / InfinityUnlit. GameObject/Light/Infinity for every light shape,
+  GameObject/Rendering/Infinity for volumes, decal projector, reflection probes and light probe group;
+  Assets/Create/Shader Graph/Infinity graphs. The asset create menus moved from Create/InfinityRenderPipeline to
+  Create/Rendering/Infinity.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

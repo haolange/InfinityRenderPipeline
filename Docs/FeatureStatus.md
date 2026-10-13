@@ -50,6 +50,7 @@ Columns:
 | DebugView | Yes | Partial | Open | — | macOS Metal | |
 | Rendering Debugger panels, debug views 19–29, Scene view Draw Modes, pass timings (0.5.0) | Yes | Unverified-0.5 (catalog, mode sync) | Open | — | None | Never compiled by Unity yet |
 | Render Graph Viewer (0.5.0) | While open | Unverified-0.5 (snapshot contract) | Open | — | None | |
+| Material conversion (Built-in / URP / HDRP → Infinity) and create menus (0.5.0) | Editor | Unverified-0.5 (Standard conversion) | Open | — | None | Masks, occlusion, detail, height and emission maps are dropped |
 
 ## Out of scope
 

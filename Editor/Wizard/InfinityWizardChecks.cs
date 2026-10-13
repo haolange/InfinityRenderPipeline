@@ -151,6 +151,14 @@ namespace InfinityTech.Rendering.Editor
                     }
                 },
             },
+            new InfinityWizardCheck
+            {
+                title = "Scene materials use Infinity shaders",
+                description = "No renderer in the loaded scenes uses a Built-in, URP or HDRP material the Material Conversion Wizard can convert.",
+                scope = EWizardScope.Scene,
+                isSatisfied = () => ConvertibleSceneMaterials().Count == 0,
+                fix = () => InfinityMaterialConversionWizard.Open(ConvertibleSceneMaterials()),
+            },
         };
 
         static GraphicsDeviceType FirstApi(BuildTarget target)
@@ -282,6 +290,9 @@ namespace InfinityTech.Rendering.Editor
 
         static FLightShape ShapeOf(Light light) =>
             light.TryGetComponent(out InfinityAdditionalLightData data) ? data.shape : LightShapeUtility.FromUnityLight(light);
+
+        static List<Material> ConvertibleSceneMaterials() => LoadedSceneComponents<Renderer>()
+            .SelectMany(r => r.sharedMaterials).Where(m => InfinityMaterialUpgraders.Find(m) != null).Distinct().ToList();
 
         static List<Light> BakedTubeLights() => LoadedSceneComponents<Light>()
             .Where(l => l.lightmapBakeType != LightmapBakeType.Realtime && ShapeOf(l).IsTube).ToList();

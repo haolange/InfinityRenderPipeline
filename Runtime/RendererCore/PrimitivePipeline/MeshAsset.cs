@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }
 
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/StaticMeshAsset", order = 358)]
+    [CreateAssetMenu(menuName = "Rendering/Infinity/Static Mesh Asset", order = 358)]
     public class MeshAsset : ScriptableObject
     {
 #if UNITY_EDITOR
