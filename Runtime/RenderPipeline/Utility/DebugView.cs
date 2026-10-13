@@ -26,6 +26,22 @@ namespace InfinityTech.Rendering.Pipeline
         // First moment of the cascade moment atlas, or of the local one when the sun has none.
         ShadowMoments,
         // Light cookie / IES atlas (mip 0, stretched).
-        LightCookieAtlas
+        LightCookieAtlas,
+        // Material (GBuffer): metallic, specular level, shading model / route, rendering layer mask.
+        Metallic,
+        Specular,
+        ShadingModel,
+        RenderingLayers,
+        // Lighting: clustered-list heat maps (local lights / reflection probes a pixel's loop visits).
+        LightComplexity,
+        ReflectionProbeComplexity,
+        // Lighting: deferred indirect terms (baked irradiance before albedo, indirect diffuse, environment specular).
+        BakedDiffuse,
+        IndirectDiffuse,
+        IndirectSpecular,
+        // Lighting: the six faces of one reflection probe in the probe atlas (InfinityDebugDisplaySettingsLighting).
+        ReflectionProbeAtlas,
+        // Lighting: screen space trace shadow of the sun.
+        ContactShadows
     }
 }

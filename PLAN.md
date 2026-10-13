@@ -54,7 +54,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles done) |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles, S15f Rendering Debugger panels done) |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
@@ -109,6 +109,19 @@ Shadows, Volumetric, Layers & Distance) and an Additional Properties toggle; Sce
 objects. Infinity reflection probe data draws a sphere-radius handle. Decal projectors: box handle on the transform,
 UV scale / bias and start / end angle fade (`DecalProjection.hlsl`, per-renderer property block, depth-derived normal).
 `[HelpURL]` on the RP Asset, GlobalSettings and the Infinity components (`InfinityDocumentation.BaseUrl`).
+
+S15f — Rendering Debugger panels and Scene view Draw Modes: `DebugViewCatalog` assigns every `EDebugView` to one panel
+(Material, Lighting, Screen Space, Rendering); each panel's view field and the master Debug View drive the one
+`InfinityDebugDisplaySettings.debugView`. New views (appended, DEBUGVIEW_* 19–29): Metallic, Specular, ShadingModel,
+RenderingLayers (GBuffer), LightComplexity / ReflectionProbeComplexity (kernel `DebugViewLightLoop`: the clustered
+loop's visited count at the render pixel, heat ramp to `complexityRange`), BakedDiffuse / IndirectDiffuse /
+IndirectSpecular (deferred outputs), ReflectionProbeAtlas (kernel `DebugViewProbeAtlas`: six faces of one probe from
+`LightContext.ReflectionProbeFirstSlice`), ContactShadows (sun trace). Volume panel = CoreRP `DebugDisplaySettingsVolume`
+widgets in its own "Volume" panel; Infinity Timings toggles `ProfilingSampler.enableRecording` for every
+`CustomSamplerId` and lists GPU / CPU ms. Per camera: `CameraFrameState.debugView =
+InfinityDebugDisplaySettings.ResolveDebugView(camera)` (Draw Mode override by camera entity id, else the debugger;
+None for probe captures and previews); SSR and TAA diagnostics read it. `Editor/Debug/InfinitySceneViewDrawModes`
+registers `SceneView.AddCameraMode(DisplayName, "Infinity <Panel>")` and syncs in `SceneView.beforeSceneGui`.
 
 - Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
   variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.

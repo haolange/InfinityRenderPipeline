@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
             var accumulation = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAAAccumulationBuffer, TemporalColorDescriptor(width, height, "TAAAccumulation", true));
             var temporalDepth = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.TAADepthBuffer, TemporalDepthDescriptor(width, height, "TAASurfaceDepth", true));
             var input = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            bool diagnostics = InfinityDebugDisplaySettings.current.debugView != EDebugView.None ||
+            bool diagnostics = m_ActiveFrameState.debugView != EDebugView.None ||
                 (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
             RGTextureRef confidence = default, reprojection = default;
             if (diagnostics)

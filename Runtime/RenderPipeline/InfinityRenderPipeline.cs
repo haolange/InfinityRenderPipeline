@@ -402,6 +402,7 @@ namespace InfinityTech.Rendering.Pipeline
                             m_ActiveFrameState = frameState;
                             RenderCaptureService.current?.PrepareCamera(camera, frameState, pipelineAsset);
                             RenderFaultValidation.BeforeCamera(camera, frameState);
+                            frameState.debugView = InfinityDebugDisplaySettings.current.ResolveDebugView(camera);
                             ConfigureFrameFeatures(frameState);
                             // Declare camera outputs before Unity camera setup and culling.
                             if (ShouldRecordFeature(EFrameFeature.Motion))
@@ -480,6 +481,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                                     lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
                                     lightingDebug.lastLocalCount = renderContext.lightContext.LocalLightCount;
+                                    lightingDebug.lastReflectionProbeCount = renderContext.lightContext.ReflectionProbeCount;
                                     lightingDebug.lastUnsupportedShapeCount = renderContext.lightContext.UnsupportedShapeCount;
                                     lightingDebug.lastDistanceCulledCount = renderContext.lightContext.DistanceCulledCount;
 
@@ -629,7 +631,7 @@ namespace InfinityTech.Rendering.Pipeline
                                         CopyHistoryDepth(renderContext, historyCache, camera);
                                     }
                                     ComputePostProcessing(renderContext, camera, frameState);
-                                    ComputeDebugView(camera);
+                                    ComputeDebugView(renderContext, camera);
                                 #if UNITY_EDITOR
                                     ResolveDisplayDepth();
                                     RenderWireOverlay(renderContext, camera);

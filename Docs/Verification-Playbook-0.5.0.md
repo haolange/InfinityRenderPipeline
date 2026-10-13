@@ -200,6 +200,25 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15f — Rendering Debugger panels and Draw Modes
+
+1. Run `DebugViewCatalogTests` and `DebugViewModeTests`.
+2. Window/Analysis/Rendering Debugger: panels Infinity Material, Infinity Lighting, Infinity Screen Space, Infinity
+   Rendering, Volume, Infinity Timings, Infinity Mesh. Picking a view in one panel resets the others to None.
+3. Material: Metallic / Specular are grayscale; Shading Model shows forward-route objects blue, subsurface orange,
+   default lit gray, sky black; Rendering Layers colors objects by their layer mask.
+4. Lighting: Light Complexity is dark where no local light reaches the tile and warms toward red at Complexity Range;
+   it changes with depth along a wall crossing a light's range (z-bins). Reflection Probe Complexity counts probes.
+   Baked Diffuse shows lightmap / probe irradiance; Indirect Diffuse and Indirect Specular show the deferred terms
+   (forward pixels black). Reflection Probe Atlas shows six faces; Reflection Probe Index switches probes. Contact
+   Shadows shows the sun trace (white = lit). Missing producers show magenta.
+5. Volume: select the Game camera and a component (e.g. Exposure); the table lists each influencing volume.
+6. Timings: Record Pass Timings on; the Passes foldout fills with GPU / CPU ms (previous frame, summed over cameras).
+7. Scene view Draw Mode menu: sections Infinity Material / Lighting / Screen Space / Rendering. Choosing one changes
+   only that Scene view (the Game view keeps the debugger's view); Shaded returns it to the debugger's view. Shadow
+   Cascades, Overdraw, Mipmaps and the Deferred modes are disabled.
+8. Bake a Reflection Probe with a debug view active: the probe stays normally shaded.
+
 ## S15e — Inspectors and handles
 
 1. Run `DecalProjectionTests`.

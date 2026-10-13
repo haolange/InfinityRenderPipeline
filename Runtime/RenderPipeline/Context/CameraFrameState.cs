@@ -39,6 +39,8 @@ namespace InfinityTech.Rendering.Pipeline
         public GraphicsFormat lastResolvedBackbufferFormat;
         public CameraRenderPolicy renderPolicy;
         public FResolvedFrameSettings frameSettings;
+        // Debug view of this camera this frame (InfinityDebugDisplaySettings.ResolveDebugView).
+        public EDebugView debugView;
         public int gtaoValidFrames;
 
         internal const int GameUnseenFramesToRecycle = 8;

@@ -70,6 +70,11 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Light inspector sections with Additional Properties and Scene view handles for range, angles and every source shape;
   sphere-influence handle for reflection probes; decal box handle, UV scale / bias and angle fade; Help links to the
   documentation on assets and components.
+- Rendering Debugger panels Infinity Material, Infinity Lighting, Infinity Screen Space, Volume (CoreRP) and Infinity
+  Timings (per-pass GPU / CPU time); new debug views Metallic, Specular, Shading Model, Rendering Layers, Light and
+  Reflection Probe Complexity heat maps, Baked Diffuse, Indirect Diffuse, Indirect Specular, Reflection Probe Atlas and
+  Contact Shadows. Scene view Draw Modes list every debug view per panel and apply to that Scene view only. Reflection
+  probe captures and previews no longer render the active debug view.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

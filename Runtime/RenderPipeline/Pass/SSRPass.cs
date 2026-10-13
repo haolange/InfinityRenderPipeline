@@ -180,7 +180,7 @@ namespace InfinityTech.Rendering.Pipeline
             int2 traceResolution = ScreenSpaceTraceUtility.TraceSize(resolution, settings.halfResolution);
             int2 tileCount = ScreenSpaceTraceUtility.TileCount(traceResolution);
             int maxTiles = tileCount.x * tileCount.y;
-            EDebugView debugView = InfinityDebugDisplaySettings.current.debugView;
+            EDebugView debugView = m_ActiveFrameState.debugView;
             bool runDebug = SSRPassUtilityData.IsDebugView(debugView);
             bool runSpatial = settings.spatialPasses > 0;
 

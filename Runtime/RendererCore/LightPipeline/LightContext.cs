@@ -215,6 +215,8 @@ namespace InfinityTech.Rendering.LightPipeline
         internal GraphicsBuffer ProbeZBinBuffer => m_ProbeZBinBuffer;
         // Reflection probes of this camera (record order = blending priority).
         internal int ReflectionProbeCount => m_Probes.Count;
+        // First probe-atlas slice of list entry index (six faces from there; record parameters.y).
+        internal int ReflectionProbeFirstSlice(int index) => (int)m_Probes[index].parameters.y;
         internal int ProbeTileWordCount => LightBinning.WordCount(m_Probes.Count);
         // x, y = screen size; z = tiles per row; w = mask words per tile.
         internal Vector4 ProbeTileParams => new Vector4(m_ScreenSize.x, m_ScreenSize.y, TileCount.x, ProbeTileWordCount);
