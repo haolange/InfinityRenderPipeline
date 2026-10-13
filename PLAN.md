@@ -55,12 +55,28 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
 | S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | done |
-| S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
+| S16 | Tests, user documentation, FeatureStatus, verification playbook | all | done |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S16
+
+- Tests: `ShadowAllocator.SelectWithinBudget` (pure greedy budget, extracted unchanged) → `ShadowBudgetTests`;
+  GPU contracts `CubeFilterGpuTests` (constant cube stays constant × intensity at roughness 0 / 0.5 / 1; slice f =
+  cube face f) and `LightTileMaskGpuTests` (45 lights, 7 × 5 tiles, every word against the CPU reference);
+  `ImageComparisonTests`.
+- Image regression (`Editor/Tools/Validation`): `ImageComparison` decodes RGBA8 / RGBA16F / RGBA32F readbacks (alpha
+  ignored, NaN / Inf = full-scale) → rmse, max error, outlier fraction over a per-pixel threshold.
+  `ImageRegressionRunner` (Window/Infinity/Image Regression): per case open (or create) the fixture scene → Play mode →
+  `RenderCaptureService` DisplayColor of camera "Camera" after the warm-up → leave Play mode → record into
+  `ImageBaselines/<GraphicsDeviceType>/<case>.bin|.json` or compare (default rmse ≤ 0.01, outliers ≤ 0.5% at 4/255).
+  State in `Library/InfinityImageRegression/state.json` survives the Play-mode domain reload; report.json per run.
+- Documentation~: shadows, baked-gi, screen-space, quality, shader-graph, editor, upgrade-0.4-to-0.5; lights,
+  pipeline-asset, cameras, materials, rendering-debugger updated. README feature list, AGENTS known gaps,
+  FeatureStatus rows, CHANGELOG, playbook in stage order.
 
 ### S15
 
@@ -418,5 +434,4 @@ reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, 
 ## Verification at home
 
 The user verifies in commit order with
-[Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (written in S16; each stage appends its
-steps as it lands).
+[Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (one section per stage, in stage order).

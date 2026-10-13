@@ -84,6 +84,10 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   Create/Rendering/Infinity.
 - Validation fixture creators for shadows, cookies / IES, reflection probes, baked lighting and screen-space
   reflections / GI (Window/Infinity/Create … Fixture).
+- Image regression (Window/Infinity/Image Regression): records or compares the DisplayColor of every validation fixture
+  in Play mode against per-graphics-API baselines kept outside `Assets`.
+- Documentation pages for shadows, baked lighting, screen-space effects, quality, Shader Graph, editor tools and the
+  0.4 → 0.5 upgrade.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
@@ -101,6 +105,7 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Diffuse / Specular light weights were applied to the whole BRDF (diffuse weight) for punctual lights; each now scales
   its own term.
 - RuntimeTextures: the three blue-noise Sobol textures (imported uncompressed, single channel).
+- Reflection probe captures and preview cameras rendered the active Rendering Debugger view (a baked probe kept it).
 
 ### Changed
 - `EFilmTonemapMode.Film` is renamed `ACES`. The serialized value is unchanged (1). Tonemapping is None or ACES only.

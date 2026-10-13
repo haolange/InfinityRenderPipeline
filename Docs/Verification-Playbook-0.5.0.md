@@ -186,6 +186,15 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 4. Switch Shadowmask Mode to Distance Shadowmask: the cube is drawn into the shadow maps again.
 5. With a MeshComponent (Static mobility) using a lightmapped renderer as its baked source: same result as step 3.
 
+## S9e — shadow debug views
+
+1. Run `DebugViewModeTests`.
+2. Rendering Debugger → Debug View = Cascade Shadow Atlas: a 2x2 grid (only the first Cascade Count tiles filled),
+   casters bright, background black. Local Shadow Atlas: one tile per spot / rect / disk, six per point.
+3. Cached Shadow Atlas with an OnEnable light: its tile is visible; with no cached light the view is magenta.
+4. Shadow Moments with an EVSM sun: a blurred, half-resolution version of the cascade atlas; magenta without any
+   VSM / EVSM light.
+
 ## S10 — screen-space traced shadows
 
 1. Compile; run `ContactShadowAllocationTests`.
@@ -199,6 +208,189 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 5. A forward-route material (InfinityLit with the Forward surface route): it now receives contact shadows like the
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
+
+## S11 — cookies and IES
+
+1. Compile; run `LightCookieAtlasTests`.
+2. A spot light with a 2D cookie (any RGB texture): the pattern is projected inside the cone, colored. An Alpha8 cookie
+   (Unity's default cookie import) projects its alpha as gray. Rendering Debugger → Debug View = Light Cookie Atlas
+   shows the texture in its block.
+3. A point light with a Cubemap cookie: the pattern surrounds the light; a 2D cookie on a point light shows the inspector
+   warning and no pattern.
+4. A directional light with a cookie and Cookie Size (10, 10): the pattern tiles every 10 m on the ground.
+5. A rect light with a cookie: glossy reflections of the rect show the texture; diffuse lighting takes its average
+   color.
+6. Import an .ies file (Assets → Import): the asset's prefab has an Infinity Additional Light Data with IES Profile set;
+   drop it in the scene and compare with the profile's shape. Assign the Cube texture of the .ies asset to a spot light:
+   the profile applies by direction.
+7. Volumetric fog with a cookie spot: the shafts carry the pattern.
+8. Change a cookie texture's import settings: the atlas block re-uploads once (Frame Debugger `ComputeLightCookies`
+   appears for one frame).
+
+## S12 — baked GI
+
+0. Window/Infinity → Append Missing Default Volume Components (adds Adaptive Probe Volumes Options).
+1. Compile; run `BakedGITests`.
+2. Shadows: with a cascade and a spot light, casters now appear in the shadow maps from the light's view (Debug View
+   Cascade / Local Shadow Atlas). If shadows looked camera-aligned or missing before, this was the cause.
+3. Lightmaps: Window/Infinity/Lighting/Use Atmosphere As Baking Sky, then Generate Lighting. Static InfinityLit objects
+   get lightmaps; sky color in the bake matches the realtime sky (blue fill on the shadow side). Check
+   Assets/InfinityBakingSky/<scene>_BakingSkyFaces.asset in the Inspector preview: six faces, sky up on +Y.
+4. Shadowmask: Mixed lights + Shadowmask: static shadows beyond the shadow distance come from the mask; Distance
+   Shadowmask uses realtime shadows inside the distance.
+5. Terrain: mark the terrain Contribute GI and bake: the terrain receives lightmaps and casts realtime shadows
+   (ShadowCaster pass).
+6. Light probes: a dynamic MeshComponent moving through a probe group changes its ambient; a static one keeps its
+   sample until the next bake (Profiler: one CalculateInterpolatedLightAndOcclusionProbes call per frame at most).
+7. LPPV: a large dynamic renderer with a Light Probe Proxy Volume (Use Proxy Volume) shows a probe gradient across it.
+8. APV: RP Asset → Light Probe System = Adaptive Probe Volumes; add an Adaptive Probe Volume, bake from Lighting →
+   Adaptive Probe Volumes. Unlightmapped objects show the APV lighting; Rendering Debugger → Probe Volume shows the
+   probes. Switch the band count L1 / L2.
+
+## S13 — reflection probes
+
+1. Compile; run `ReflectionProbeTests`, `AtmosphereCacheTests`.
+2. Sky IBL is unchanged: with no probe in the scene, glossy and rough spheres look as before (the sky prefilter moved
+   to `Compute_CubeFilter`; Frame Debugger `ComputeAtmosphericLUT` dispatches `FilterArrayToArray` once per mip).
+3. Add a Reflection Probe (Baked) around an indoor room and bake: glossy surfaces inside show the room instead of the
+   sky; Frame Debugger shows `ComputeReflectionProbes` for one frame (and again after a re-bake), then
+   `ComputeProbeTileMask` every frame.
+4. Blend Distance 1 m: walking out of the probe, the reflection fades to the sky over 1 m. Box Projection on: a mirror
+   floor's reflection lines up with the room walls.
+5. Two overlapping probes: the higher Importance wins; at equal importance the smaller one wins inside it.
+6. Add Infinity Additional Reflection Probe Data, Influence = Sphere: the influence becomes a sphere (radius = Sphere
+   Radius, or the largest box half extent when 0).
+7. A Realtime probe (Every Frame): a moving object appears in the reflection; `ComputeReflectionProbes` runs every
+   frame once, also with two cameras.
+8. A Forward-route material inside the probe reflects the same as a deferred one.
+9. RP Asset Max Reflection Probes = 0: probes disappear, only the sky remains; `ComputeReflectionProbes` is gone.
+
+## S14 — SSGI on the SSR core
+
+1. Compile; run `QualityPresetTests`, `StochasticSSGINumericTests` (GPU) and `StochasticSSRNumericTests` (SSR now uses
+   the shared `ScreenSpaceTraceTiles.hlsl`; its results must not change). The 0.4.0 SSGI kernels are gone from
+   `ScreenSpaceNumericContract_ProductionKernels`.
+2. Screen Space Indirect Diffuse Volume: removed parameters `NumRays`, `SpatialRadius`, `SpatialSample`,
+   `BilateralSample`, `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight` (their values are
+   dropped). Kept names: `MaxDistance`, `Thickness`, `IntensityScale`, `NumSteps` (now the Hi-Z budget, range 4–64),
+   `TemporalWeight`, `TemporalScale` (now the variance-clip width). New: `quality`, `HalfResolution`,
+   `ResolveSamples`, `ResolveRadius`, `SpatialPasses`.
+3. A room with a bright red wall and a white floor, SSGI enabled: the floor near the wall picks up red bounce light;
+   Debug View **SSGI** shows it. Looking away from the wall (wall off screen) the bounce fades back to the baked / probe
+   ambient instead of turning black.
+4. Orbit slowly: no crawling noise after ~16 frames; disocclusions settle within a few frames. Report ghosting behind
+   moving objects.
+5. Frame Debugger: `SSGI_Classify`, `SSGI_Trace` (two indirect dispatches), `SSGI_Resolve`, `SSGI_Temporal`,
+   `SSGI_Spatial`, then `CopyHistorySSGI` copies two textures. Quality Low → Ultra trades noise for cost.
+
+## S15a — Shader Graph target
+
+1. Compile. The Shader Graph package compiles the `Editor/ShaderGraph` asmref into `Unity.ShaderGraph.Editor`; record
+   any Console error from that assembly first.
+2. Create → Shader Graph → (any) graph, Graph Settings → Active Targets → Infinity. Material: Lit, Unlit, Decal appear.
+   Lit blocks: Base Color, Normal (Tangent Space), Metallic, Roughness, Specular Level, Emission (+ Alpha with clipping or
+   a translucent stage). Save: the shader compiles without errors (Inspector of the graph asset → no error list).
+3. A Lit graph with a texture into Base Color and a normal map, on a cube next to an InfinityLit cube with the same
+   inputs: both look the same in Deferred; switch the material's Surface Route to Forward: still the same, Frame
+   Debugger draws it in `ForwardPass`.
+4. Translucent Stage T1 on the material: refraction through the color pyramid; T0: fog applies; T2: plain blend. Motion
+   vectors: Debug View Motion shows the moving object.
+5. Bake lighting with a static Lit-graph object: it receives the lightmap (Meta pass gives the right albedo / emission).
+6. Unlit graph: drawn in T2 with alpha. Decal graph on a Decal Projector: the projected texture shows on the GBuffer
+   surfaces, its normal follows the projector.
+7. A Scene Color node in a T1 graph samples the opaque scene; Scene Depth outside decal graphs returns Shader Graph's constant 1
+   (known gap).
+
+## S15b — Render Pipeline Wizard
+
+1. Run `RenderPipelineWizardTests`.
+2. Window/Infinity/Render Pipeline Wizard on the Example project: every Project check passes (green) except settings you
+   changed on purpose. Set Color Space to Gamma → the check turns yellow, Fix restores Linear.
+3. Remove one component from the default Volume profile → "Default Volume profile complete" fails; Window/Infinity/Append
+   Missing Default Volume Components (or Fix) adds it back with packaged values, others unchanged; Undo removes it.
+4. Edit a light's native Type through the Debug Inspector → "Light shapes synced" fails; Fix restores it (Undo works).
+5. Scene with Baked GI and the default skybox → "Baking sky" fails; Fix runs Use Atmosphere As Baking Sky.
+
+## S15c — Frame Settings
+
+1. Run `FrameSettingsTests`.
+2. RP Asset → Frame Settings: all camera settings on; reflection probe captures have AO, RTAO, Contact Shadows, SSR and
+   SSGI off. Existing assets show the same (new fields).
+3. Camera → Custom Frame Settings → override Screen Space Reflection off: SSR disappears for that camera only
+   (Frame Debugger has no `ComputeScreenSpaceReflection`); Rendering Debugger → Infinity Rendering → Frame Settings shows
+   "Off (CameraOverride)".
+4. Override Reflection Probes off: reflections fall back to the sky. Light Cookies off: cookie patterns vanish.
+5. Bake a Reflection Probe with SSR enabled in the Volume: the probe capture does not record SSR (ReflectionDefault).
+
+## S15d — Light Explorer and Lighting window
+
+1. Window/Rendering/Light Explorer: tabs Lights, Infinity Lights, Reflection Probes, Infinity Probes, Light Probes,
+   Volumes, Static Emissives. Editing Shadow Filter / Contact Shadows / Volume Priority in the table changes the object
+   (Undo works); the Infinity Lights Shape column is read-only text (Sphere, Tube, Cone Spot, Rect, ...).
+2. Window/Rendering/Lighting → Environment: Atmosphere Profile field edits the RP Asset; Baking Sky shows the scene
+   skybox until Use Atmosphere As Baking Sky is pressed, then "Atmosphere".
+
+## S15e — Inspectors and handles
+
+1. Run `DecalProjectionTests`.
+2. Select a point light with Source Radius 0.2 and Source Length 1: the Scene view shows the range sphere, the source
+   sphere and the tube line with an end handle; dragging changes the inspector values, Undo restores them, and the native
+   Light (Debug Inspector) follows (Type Tube, Area Size x = length).
+3. Spot cone / pyramid: outline at the range with a rim handle for the outer angle; rect: a size box; disk: radius handle.
+4. Light inspector Additional Properties shows soft source radius / angle, barn doors, shadow near plane and biases,
+   weights and distance fade; off hides them.
+5. Decal: drag a face of the box handle; the opposite face stays. UV Scale 2 tiles the texture; Start / End Angle Fade
+   30 / 60 removes the decal from vertical walls under a downward projector.
+6. Reflection probe with Infinity data Influence = Sphere: a sphere handle edits Sphere Radius.
+
+## S15f — Rendering Debugger panels and Draw Modes
+
+1. Run `DebugViewCatalogTests` and `DebugViewModeTests`.
+2. Window/Analysis/Rendering Debugger: panels Infinity Material, Infinity Lighting, Infinity Screen Space, Infinity
+   Rendering, Volume, Infinity Timings, Infinity Mesh. Picking a view in one panel resets the others to None.
+3. Material: Metallic / Specular are grayscale; Shading Model shows forward-route objects blue, subsurface orange,
+   default lit gray, sky black; Rendering Layers colors objects by their layer mask.
+4. Lighting: Light Complexity is dark where no local light reaches the tile and warms toward red at Complexity Range;
+   it changes with depth along a wall crossing a light's range (z-bins). Reflection Probe Complexity counts probes.
+   Baked Diffuse shows lightmap / probe irradiance; Indirect Diffuse and Indirect Specular show the deferred terms
+   (forward pixels black). Reflection Probe Atlas shows six faces; Reflection Probe Index switches probes. Contact
+   Shadows shows the sun trace (white = lit). Missing producers show magenta.
+5. Volume: select the Game camera and a component (e.g. Exposure); the table lists each influencing volume.
+6. Timings: Record Pass Timings on; the Passes foldout fills with GPU / CPU ms (previous frame, summed over cameras).
+7. Scene view Draw Mode menu: sections Infinity Material / Lighting / Screen Space / Rendering. Choosing one changes
+   only that Scene view (the Game view keeps the debugger's view); Shaded returns it to the debugger's view. Shadow
+   Cascades, Overdraw, Mipmaps and the Deferred modes are disabled.
+8. Bake a Reflection Probe with a debug view active: the probe stays normally shaded.
+
+## S15g — Render Graph Viewer
+
+1. Run `RenderGraphViewerTests`.
+2. Window/Analysis/Infinity Render Graph Viewer with the Game view playing: the camera popup lists the Game and Scene
+   cameras; columns show every pass (orange = async compute such as the light tile mask, gray = culled). Hovering a
+   header names the pass; clicking shows its queue, wait / signal passes and resource lists.
+3. Rows: GBufferA/B/C are written by RenderGBuffer and read by DeferredShading; the blue band spans from the
+   allocating pass to the releasing pass. Imported rows (•) such as history textures have no band.
+4. Turn SSR off in the Volume: its passes disappear (not recorded). Pause freezes the capture; Copy puts the graph as
+   text on the clipboard.
+5. Close the window: no further capture (no allocations from the viewer in the Profiler).
+
+## S15h — Material conversion and create menus
+
+1. Run `MaterialUpgraderTests`.
+2. Import a few Standard materials (e.g. from an Asset Store pack) and URP Lit materials if available; Window/Infinity/
+   Material Conversion Wizard → Scan Project lists them with their source shader and dropped maps. Convert Selected:
+   the materials switch to InfinityLit with the same color, map and tiling; glossy stays glossy (roughness = 1 −
+   smoothness); a Standard Fade material becomes translucent T0. Undo restores the source shader.
+3. Edit/Rendering/Materials/Convert Selected Built-In Materials to Current SRP converts with the same result.
+4. Render Pipeline Wizard: a scene with a Standard material fails "Scene materials use Infinity shaders"; Fix opens the
+   conversion window with those materials.
+5. GameObject/Light/Infinity: each entry creates the named shape (Inspector Shape section agrees; Tube shows a line
+   handle). GameObject/Rendering/Infinity: Global / Local Volume, Decal Projector (projects a gray box; the material
+   `Assets/InfinityDefaultDecal.mat` is created once), Reflection Probe (Box / Sphere), Light Probe Group. Undo removes
+   each object.
+6. Assets/Create/Rendering/Infinity/Volume Profile (Defaults) creates a profile with Exposure, Tonemap, Color Grading
+   and the optional components; Assets/Create/Shader Graph/Infinity/Lit Shader Graph opens with Base Color, Normal,
+   Metallic, Roughness, Specular Level and Emission blocks.
 
 ## S15i — Validation fixtures
 
@@ -223,195 +415,15 @@ updating, then use the fixture for the stage it names.
    strip another); SSGI tints the white walls near the blocks and the emissive bar; SSR Confidence falls at screen
    edges.
 
-## S15h — Material conversion and create menus
+## S16 — tests, image regression, documentation
 
-1. Run `MaterialUpgraderTests`.
-2. Import a few Standard materials (e.g. from an Asset Store pack) and URP Lit materials if available; Window/Infinity/
-   Material Conversion Wizard → Scan Project lists them with their source shader and dropped maps. Convert Selected:
-   the materials switch to InfinityLit with the same color, map and tiling; glossy stays glossy (roughness = 1 −
-   smoothness); a Standard Fade material becomes translucent T0. Undo restores the source shader.
-3. Edit/Rendering/Materials/Convert Selected Built-In Materials to Current SRP converts with the same result.
-4. Render Pipeline Wizard: a scene with a Standard material fails "Scene materials use Infinity shaders"; Fix opens the
-   conversion window with those materials.
-5. GameObject/Light/Infinity: each entry creates the named shape (Inspector Shape section agrees; Tube shows a line
-   handle). GameObject/Rendering/Infinity: Global / Local Volume, Decal Projector (projects a gray box; the material
-   `Assets/InfinityDefaultDecal.mat` is created once), Reflection Probe (Box / Sphere), Light Probe Group. Undo removes
-   each object.
-6. Assets/Create/Rendering/Infinity/Volume Profile (Defaults) creates a profile with Exposure, Tonemap, Color Grading
-   and the optional components; Assets/Create/Shader Graph/Infinity/Lit Shader Graph opens with Base Color, Normal,
-   Metallic, Roughness, Specular Level and Emission blocks.
-
-## S15g — Render Graph Viewer
-
-1. Run `RenderGraphViewerTests`.
-2. Window/Analysis/Infinity Render Graph Viewer with the Game view playing: the camera popup lists the Game and Scene
-   cameras; columns show every pass (orange = async compute such as the light tile mask, gray = culled). Hovering a
-   header names the pass; clicking shows its queue, wait / signal passes and resource lists.
-3. Rows: GBufferA/B/C are written by RenderGBuffer and read by DeferredShading; the blue band spans from the
-   allocating pass to the releasing pass. Imported rows (•) such as history textures have no band.
-4. Turn SSR off in the Volume: its passes disappear (not recorded). Pause freezes the capture; Copy puts the graph as
-   text on the clipboard.
-5. Close the window: no further capture (no allocations from the viewer in the Profiler).
-
-## S15f — Rendering Debugger panels and Draw Modes
-
-1. Run `DebugViewCatalogTests` and `DebugViewModeTests`.
-2. Window/Analysis/Rendering Debugger: panels Infinity Material, Infinity Lighting, Infinity Screen Space, Infinity
-   Rendering, Volume, Infinity Timings, Infinity Mesh. Picking a view in one panel resets the others to None.
-3. Material: Metallic / Specular are grayscale; Shading Model shows forward-route objects blue, subsurface orange,
-   default lit gray, sky black; Rendering Layers colors objects by their layer mask.
-4. Lighting: Light Complexity is dark where no local light reaches the tile and warms toward red at Complexity Range;
-   it changes with depth along a wall crossing a light's range (z-bins). Reflection Probe Complexity counts probes.
-   Baked Diffuse shows lightmap / probe irradiance; Indirect Diffuse and Indirect Specular show the deferred terms
-   (forward pixels black). Reflection Probe Atlas shows six faces; Reflection Probe Index switches probes. Contact
-   Shadows shows the sun trace (white = lit). Missing producers show magenta.
-5. Volume: select the Game camera and a component (e.g. Exposure); the table lists each influencing volume.
-6. Timings: Record Pass Timings on; the Passes foldout fills with GPU / CPU ms (previous frame, summed over cameras).
-7. Scene view Draw Mode menu: sections Infinity Material / Lighting / Screen Space / Rendering. Choosing one changes
-   only that Scene view (the Game view keeps the debugger's view); Shaded returns it to the debugger's view. Shadow
-   Cascades, Overdraw, Mipmaps and the Deferred modes are disabled.
-8. Bake a Reflection Probe with a debug view active: the probe stays normally shaded.
-
-## S15e — Inspectors and handles
-
-1. Run `DecalProjectionTests`.
-2. Select a point light with Source Radius 0.2 and Source Length 1: the Scene view shows the range sphere, the source
-   sphere and the tube line with an end handle; dragging changes the inspector values, Undo restores them, and the native
-   Light (Debug Inspector) follows (Type Tube, Area Size x = length).
-3. Spot cone / pyramid: outline at the range with a rim handle for the outer angle; rect: a size box; disk: radius handle.
-4. Light inspector Additional Properties shows soft source radius / angle, barn doors, shadow near plane and biases,
-   weights and distance fade; off hides them.
-5. Decal: drag a face of the box handle; the opposite face stays. UV Scale 2 tiles the texture; Start / End Angle Fade
-   30 / 60 removes the decal from vertical walls under a downward projector.
-6. Reflection probe with Infinity data Influence = Sphere: a sphere handle edits Sphere Radius.
-
-## S15d — Light Explorer and Lighting window
-
-1. Window/Rendering/Light Explorer: tabs Lights, Infinity Lights, Reflection Probes, Infinity Probes, Light Probes,
-   Volumes, Static Emissives. Editing Shadow Filter / Contact Shadows / Volume Priority in the table changes the object
-   (Undo works); the Infinity Lights Shape column is read-only text (Sphere, Tube, Cone Spot, Rect, ...).
-2. Window/Rendering/Lighting → Environment: Atmosphere Profile field edits the RP Asset; Baking Sky shows the scene
-   skybox until Use Atmosphere As Baking Sky is pressed, then "Atmosphere".
-
-## S15c — Frame Settings
-
-1. Run `FrameSettingsTests`.
-2. RP Asset → Frame Settings: all camera settings on; reflection probe captures have AO, RTAO, Contact Shadows, SSR and
-   SSGI off. Existing assets show the same (new fields).
-3. Camera → Custom Frame Settings → override Screen Space Reflection off: SSR disappears for that camera only
-   (Frame Debugger has no `ComputeScreenSpaceReflection`); Rendering Debugger → Infinity Rendering → Frame Settings shows
-   "Off (CameraOverride)".
-4. Override Reflection Probes off: reflections fall back to the sky. Light Cookies off: cookie patterns vanish.
-5. Bake a Reflection Probe with SSR enabled in the Volume: the probe capture does not record SSR (ReflectionDefault).
-
-## S15b — Render Pipeline Wizard
-
-1. Run `RenderPipelineWizardTests`.
-2. Window/Infinity/Render Pipeline Wizard on the Example project: every Project check passes (green) except settings you
-   changed on purpose. Set Color Space to Gamma → the check turns yellow, Fix restores Linear.
-3. Remove one component from the default Volume profile → "Default Volume profile complete" fails; Window/Infinity/Append
-   Missing Default Volume Components (or Fix) adds it back with packaged values, others unchanged; Undo removes it.
-4. Edit a light's native Type through the Debug Inspector → "Light shapes synced" fails; Fix restores it (Undo works).
-5. Scene with Baked GI and the default skybox → "Baking sky" fails; Fix runs Use Atmosphere As Baking Sky.
-
-## S15a — Shader Graph target
-
-1. Compile. The Shader Graph package compiles the `Editor/ShaderGraph` asmref into `Unity.ShaderGraph.Editor`; record
-   any Console error from that assembly first.
-2. Create → Shader Graph → (any) graph, Graph Settings → Active Targets → Infinity. Material: Lit, Unlit, Decal appear.
-   Lit blocks: Base Color, Normal (Tangent Space), Metallic, Roughness, Specular Level, Emission (+ Alpha with clipping or
-   a translucent stage). Save: the shader compiles without errors (Inspector of the graph asset → no error list).
-3. A Lit graph with a texture into Base Color and a normal map, on a cube next to an InfinityLit cube with the same
-   inputs: both look the same in Deferred; switch the material's Surface Route to Forward: still the same, Frame
-   Debugger draws it in `ForwardPass`.
-4. Translucent Stage T1 on the material: refraction through the color pyramid; T0: fog applies; T2: plain blend. Motion
-   vectors: Debug View Motion shows the moving object.
-5. Bake lighting with a static Lit-graph object: it receives the lightmap (Meta pass gives the right albedo / emission).
-6. Unlit graph: drawn in T2 with alpha. Decal graph on a Decal Projector: the projected texture shows on the GBuffer
-   surfaces, its normal follows the projector.
-7. A Scene Color node in a T1 graph samples the opaque scene; Scene Depth outside decal graphs returns Shader Graph's constant 1
-   (known gap).
-
-## S14 — SSGI on the SSR core
-
-1. Compile; run `QualityPresetTests`, `StochasticSSGINumericTests` (GPU) and `StochasticSSRNumericTests` (SSR now uses
-   the shared `ScreenSpaceTraceTiles.hlsl`; its results must not change). The 0.4.0 SSGI kernels are gone from
-   `ScreenSpaceNumericContract_ProductionKernels`.
-2. Screen Space Indirect Diffuse Volume: removed parameters `NumRays`, `SpatialRadius`, `SpatialSample`,
-   `BilateralSample`, `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight` (their values are
-   dropped). Kept names: `MaxDistance`, `Thickness`, `IntensityScale`, `NumSteps` (now the Hi-Z budget, range 4–64),
-   `TemporalWeight`, `TemporalScale` (now the variance-clip width). New: `quality`, `HalfResolution`,
-   `ResolveSamples`, `ResolveRadius`, `SpatialPasses`.
-3. A room with a bright red wall and a white floor, SSGI enabled: the floor near the wall picks up red bounce light;
-   Debug View **SSGI** shows it. Looking away from the wall (wall off screen) the bounce fades back to the baked / probe
-   ambient instead of turning black.
-4. Orbit slowly: no crawling noise after ~16 frames; disocclusions settle within a few frames. Report ghosting behind
-   moving objects.
-5. Frame Debugger: `SSGI_Classify`, `SSGI_Trace` (two indirect dispatches), `SSGI_Resolve`, `SSGI_Temporal`,
-   `SSGI_Spatial`, then `CopyHistorySSGI` copies two textures. Quality Low → Ultra trades noise for cost.
-
-## S13 — reflection probes
-
-1. Compile; run `ReflectionProbeTests`, `AtmosphereCacheTests`.
-2. Sky IBL is unchanged: with no probe in the scene, glossy and rough spheres look as before (the sky prefilter moved
-   to `Compute_CubeFilter`; Frame Debugger `ComputeAtmosphericLUT` dispatches `FilterArrayToArray` once per mip).
-3. Add a Reflection Probe (Baked) around an indoor room and bake: glossy surfaces inside show the room instead of the
-   sky; Frame Debugger shows `ComputeReflectionProbes` for one frame (and again after a re-bake), then
-   `ComputeProbeTileMask` every frame.
-4. Blend Distance 1 m: walking out of the probe, the reflection fades to the sky over 1 m. Box Projection on: a mirror
-   floor's reflection lines up with the room walls.
-5. Two overlapping probes: the higher Importance wins; at equal importance the smaller one wins inside it.
-6. Add Infinity Additional Reflection Probe Data, Influence = Sphere: the influence becomes a sphere (radius = Sphere
-   Radius, or the largest box half extent when 0).
-7. A Realtime probe (Every Frame): a moving object appears in the reflection; `ComputeReflectionProbes` runs every
-   frame once, also with two cameras.
-8. A Forward-route material inside the probe reflects the same as a deferred one.
-9. RP Asset Max Reflection Probes = 0: probes disappear, only the sky remains; `ComputeReflectionProbes` is gone.
-
-## S12 — baked GI
-
-0. Window/Infinity → Append Missing Default Volume Components (adds Adaptive Probe Volumes Options).
-1. Compile; run `BakedGITests`.
-2. Shadows: with a cascade and a spot light, casters now appear in the shadow maps from the light's view (Debug View
-   Cascade / Local Shadow Atlas). If shadows looked camera-aligned or missing before, this was the cause.
-3. Lightmaps: Window/Infinity/Lighting/Use Atmosphere As Baking Sky, then Generate Lighting. Static InfinityLit objects
-   get lightmaps; sky color in the bake matches the realtime sky (blue fill on the shadow side). Check
-   Assets/InfinityBakingSky/<scene>_BakingSkyFaces.asset in the Inspector preview: six faces, sky up on +Y.
-4. Shadowmask: Mixed lights + Shadowmask: static shadows beyond the shadow distance come from the mask; Distance
-   Shadowmask uses realtime shadows inside the distance.
-5. Terrain: mark the terrain Contribute GI and bake: the terrain receives lightmaps and casts realtime shadows
-   (ShadowCaster pass).
-6. Light probes: a dynamic MeshComponent moving through a probe group changes its ambient; a static one keeps its
-   sample until the next bake (Profiler: one CalculateInterpolatedLightAndOcclusionProbes call per frame at most).
-7. LPPV: a large dynamic renderer with a Light Probe Proxy Volume (Use Proxy Volume) shows a probe gradient across it.
-8. APV: RP Asset → Light Probe System = Adaptive Probe Volumes; add an Adaptive Probe Volume, bake from Lighting →
-   Adaptive Probe Volumes. Unlightmapped objects show the APV lighting; Rendering Debugger → Probe Volume shows the
-   probes. Switch the band count L1 / L2.
-
-## S11 — cookies and IES
-
-1. Compile; run `LightCookieAtlasTests`.
-2. A spot light with a 2D cookie (any RGB texture): the pattern is projected inside the cone, colored. An Alpha8 cookie
-   (Unity's default cookie import) projects its alpha as gray. Rendering Debugger → Debug View = Light Cookie Atlas
-   shows the texture in its block.
-3. A point light with a Cubemap cookie: the pattern surrounds the light; a 2D cookie on a point light shows the inspector
-   warning and no pattern.
-4. A directional light with a cookie and Cookie Size (10, 10): the pattern tiles every 10 m on the ground.
-5. A rect light with a cookie: glossy reflections of the rect show the texture; diffuse lighting takes its average
-   color.
-6. Import an .ies file (Assets → Import): the asset's prefab has an Infinity Additional Light Data with IES Profile set;
-   drop it in the scene and compare with the profile's shape. Assign the Cube texture of the .ies asset to a spot light:
-   the profile applies by direction.
-7. Volumetric fog with a cookie spot: the shafts carry the pattern.
-8. Change a cookie texture's import settings: the atlas block re-uploads once (Frame Debugger `ComputeLightCookies`
-   appears for one frame).
-
-## S9e — shadow debug views
-
-1. Run `DebugViewModeTests`.
-2. Rendering Debugger → Debug View = Cascade Shadow Atlas: a 2x2 grid (only the first Cascade Count tiles filled),
-   casters bright, background black. Local Shadow Atlas: one tile per spot / rect / disk, six per point.
-3. Cached Shadow Atlas with an OnEnable light: its tile is visible; with no cached light the view is magenta.
-4. Shadow Moments with an EVSM sun: a blurred, half-resolution version of the cascade atlas; magenta without any
-   VSM / EVSM light.
-
+1. Run the whole EditMode suite; new in S16: `ShadowBudgetTests`, `CubeFilterGpuTests`, `LightTileMaskGpuTests`,
+   `ImageComparisonTests`. Report every failure of the `Unverified-0.5` category with its message.
+2. Create the fixtures you verified visually (Window → Infinity → Create … Fixture). Then Window → Infinity → Image
+   Regression → Record Baselines: the Editor opens each fixture, enters Play mode, captures and leaves Play mode
+   (a few seconds per fixture). The Console ends with "Completed: N case(s)"; `ImageBaselines/<API>/` next to `Assets`
+   holds one `.bin` + `.json` per fixture. Commit that folder in the Example project if you want to keep them.
+3. Image Regression → Run Comparison right after: every case logs **Pass** (rmse ≈ 0). Change one light's intensity in a
+   fixture, save, run again: that case logs **Fail** with the rmse; the report is
+   `Library/InfinityImageRegression/<run>/report.json`.
+4. Documentation~ links resolve (index → every page); the pages match what you see in the inspectors.

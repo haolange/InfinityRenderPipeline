@@ -30,8 +30,22 @@ tube, rect, disk or sun disk to the reflection ray) with energy normalization; d
 horizon-clipped form factor for spheres and disks, the Karis line irradiance for lines and tubes and the polygon form
 factor for rects. Every shape converges to the punctual result far away, so changing a light's size does not change
 its overall brightness. **Soft Source Radius / Angle** widen highlights without moving them. Rect barn doors narrow the
-emission cone as Barn Door Length grows relative to the emitter. Pyramid, box, rect and disk lights do not cast
-realtime shadows until S9.
+emission cone as Barn Door Length grows relative to the emitter. Every shape casts realtime shadows (see
+[Shadows](shadows.md)).
+
+## Cookies and IES
+
+The cookie is the native Light's Cookie (directional lights tile it over Cookie Size). Spot, pyramid and box lights
+project 2D cookies, point lights use cube cookies, rect and disk lights use the cookie as their emission texture
+(blurred by roughness in highlights). **IES Profile** on the Infinity component takes the texture CoreRP's IES
+importer produces (cube for any local light, 2D for cone and pyramid spots); importing an .ies file while Infinity is
+active also creates a ready-made light prefab. Cookies and profiles share one atlas (RP Asset → Cookie Atlas
+Resolution, Cookie Max Size).
+
+## Light layers
+
+**Light Layers** on the Infinity component must intersect a renderer's rendering layer mask for the light to affect it;
+the native Light's Rendering Layer Mask chooses which renderers cast its shadows.
 
 ## Baking
 

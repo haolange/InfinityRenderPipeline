@@ -18,21 +18,30 @@ passes, resources and features, with a modern feature baseline as the default de
 
 The pipeline currently records:
 
-- ThinGBuffer deferred shading plus a forward route, a clustered local-light list (logarithmic depth bins + tile bitmasks) shared by every lit pass
+- ThinGBuffer deferred shading plus a forward route, a clustered list (logarithmic depth bins + tile bitmasks) of
+  local lights and reflection probes shared by every lit pass
 - Mesh Drawing Pipeline: SoA `MeshScene`, RenderGraph DrawLists, CPU and GPU-indirect backends, GPU frustum culling
-- Cascade and local (spot, point 6-face) shadow atlases; contact shadows
+- Lights authored in Unreal form (point / sphere / line / tube, cone / pyramid / box spots, rect, disk, sun disk) with
+  Karis representative-point specular; cookies and IES in one atlas
+- Cascade and local shadows for every shape with Hard / PCF / PCSS / VSM / EVSM filters, cached (OnEnable / OnDemand)
+  local shadows, shadowmask; screen-space traced contact shadows
+- Baked GI: lightmaps, Shadowmask / Distance Shadowmask, light probes, LPPV, Adaptive Probe Volumes, baking sky;
+  reflection probes in a prefiltered atlas
 - Hillaire atmosphere LUTs with sky IBL (SH + GGX prefilter); volumetric fog and clouds
-- GTAO, RTAO (UnifiedRayTracing), SSR and SSGI with temporal and spatial denoising
+- GTAO, RTAO (UnifiedRayTracing), stochastic SSR and SSGI (tile classification, ray reuse, temporal and spatial
+  denoising), quality presets
 - Burley subsurface scattering, DBuffer decals, three-stage translucency (T0 / T1 refraction / T2)
 - TAA, fixed-ratio super resolution, exposure (manual / histogram), bloom, ACES tonemapping and grading LUT, vignette,
   film grain, display-transfer encoding in the final Present pass
-- Rendering Debugger panels and debug views, normal-frame capture service, shader stripping
+- Editor: Shader Graph target (Lit / Unlit / Decal), Render Pipeline Wizard, Frame Settings, Light Explorer, Rendering
+  Debugger panels and Scene view Draw Modes, Render Graph Viewer, material conversion, create menus, validation
+  fixtures and image regression, shader stripping
 
 Verification state differs per feature; [Docs/FeatureStatus.md](Docs/FeatureStatus.md) is authoritative. Nothing in
 this README claims image or performance acceptance.
 
-The 0.5.0 upgrade ([PLAN.md](PLAN.md)) adds stochastic SSR, area lights, a full baked-GI and reflection-probe stack,
-cookies/IES, PCSS/VSM/EVSM shadows, screen-space traced shadows, quality presets and HDRP-level Editor tooling.
+Everything added by 0.5.0 ([PLAN.md](PLAN.md)) passed only the offline gate; it has not been compiled by Unity yet
+([Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md)).
 
 Not supported: hardware ray tracing outside UnifiedRayTracing, depth of field, motion blur, XR, MSAA, dynamic
 resolution, VFX Graph outputs.
