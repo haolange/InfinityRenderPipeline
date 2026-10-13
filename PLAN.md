@@ -49,7 +49,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S7 | Clustered light list v2 (CPU z-bins + GPU tile bitmasks) and one shared light loop | S6, S3 | done |
 | S8 | Area shapes: sphere, tube, line, rect, disk, sun disk (Karis representative point + Frostbite diffuse) | S7 | done |
 | S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | done |
-| S10 | Screen-space traced shadows (sun + up to 32 local lights) | S7 | pending |
+| S10 | Screen-space traced shadows (sun + up to 24 local lights) | S7 | done |
 | S11 | Cookie and IES atlas | S6, S7 | pending |
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | pending |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | pending |
@@ -61,6 +61,27 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S10
+
+- `ContactShadowAllocation.Assign` (after the depth sort, before shadow allocation): every contact-enabled local light
+  gets a bit in `record.misc.z` (−1 without one), at most 24, largest tile rectangle first. 24 instead of the planned
+  32: the mask keeps the HDRP layout, bits 24..31 hold the occlusion strength, so consumers need no extra constants.
+- Content feature: `EFrameFeature.ContactShadow` is requested after `LightContext.Build` when the Volume is active and
+  the sun or a local light has Contact Shadows on.
+- `ContactShadowPass` (`Compute_ContactShadow.compute`, kernel `ContactShadowCS`, internal resolution) writes
+  `ContactShadowBuffer` (`ContactShadowSun`, R8, 1 = lit) and `ContactShadowMaskBuffer` (R32_UInt). Per pixel: one ray
+  toward the sun, then one ray per light of the clustered list (`LightLoop.hlsl`) that owns a bit and reaches the
+  pixel (`LocalLightWindow`); rays stop at the emitter (sphere radius); box spots trace along −forward. Hits compare
+  linear view depths (`ContactShadow_DepthParams` = GPU m22, m23, ortho) with the Volume thickness; IGN jitter per
+  frame.
+- Consumers: `ContactShadowFromMask(light, mask)` (`LightRecord.hlsl`); `EvaluateLocal(..., contactMask)`; the sun's
+  `EvaluateDirectional` receives the sun term, other directional lights 1. Deferred binds under
+  `DEFERRED_CONTACT_SHADOW`; Forward reads `SRV_ContactShadowSun` / `SRV_ContactShadowMask` when
+  `g_ContactShadowEnabled`. Volumetrics do not read contact shadows (they are a surface term).
+- `FLightLoopInputs` binds `g_SunRecordIndex` for every light-loop consumer (it was only bound by the contact pass).
+- `FContactShadowSettings` / `QualityPresets.ContactShadow` (numSteps, sunNumSteps); Volume `ContactShadow.Resolve()`
+  adds `quality` and `SunNumSteps`.
 
 ### S9
 

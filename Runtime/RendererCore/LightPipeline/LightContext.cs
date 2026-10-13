@@ -52,6 +52,7 @@ namespace InfinityTech.Rendering.LightPipeline
         int m_DistanceCulledCount;
         int m_OffscreenCount;
         int m_SunRecordIndex;
+        int m_ContactLightCount;
         int2 m_ScreenSize;
         Vector4 m_ZBinParams;
         GraphicsBuffer m_LightRecordBuffer;
@@ -109,6 +110,11 @@ namespace InfinityTech.Rendering.LightPipeline
 
         internal int DirectionalLightCount => m_DirectionalCount;
         internal int LocalLightCount => m_LocalCount;
+        // Local lights with a contact shadow bit this frame (record.misc.z >= 0).
+        internal int ContactLightCount => m_ContactLightCount;
+        // The sun record traces contact shadows.
+        internal bool SunHasContactShadow => m_SunRecordIndex >= 0 && m_SunRecordIndex < m_Records.Length
+            && (m_Records[m_SunRecordIndex].flags & FLightRecordFlags.EnableContactShadow) != 0;
         // Visible lights skipped because their shape is invalid (for example a zero-area rect) or their native type is
         // unknown; they are counted, never substituted.
         internal int UnsupportedShapeCount => m_UnsupportedShapeCount;
@@ -154,6 +160,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_DistanceCulledCount = 0;
             m_OffscreenCount = 0;
             m_SunRecordIndex = -1;
+            m_ContactLightCount = 0;
             m_ShadowAllocator.Reset();
         }
 
@@ -258,6 +265,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 m_SunRecordIndex = 0;
             }
 
+            m_ContactLightCount = ContactShadowAllocation.Assign(m_Records, m_DirectionalCount, m_TileRects, m_LocalCount);
             m_ShadowAllocator.Allocate(m_Records, cullingResults, camera, settings);
             EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
         }

@@ -24,6 +24,8 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef occlusion;
             public bool hasOcclusion;
             public FShadowInputs shadows;
+            public bool hasContactShadow;
+            public RGTextureRef contactShadowSun, contactShadowMask;
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
             public RGBufferRef atmosphereSH;
@@ -38,6 +40,12 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, directionalLightmap);
                 commands.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, shadowmask);
                 shadows.BindGlobal(commands);
+                commands.SetGlobalInt(ContactShadowPassUtilityData.ContactShadowEnabledID, hasContactShadow ? 1 : 0);
+                if (hasContactShadow)
+                {
+                    commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowSunID, contactShadowSun);
+                    commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowMaskID, contactShadowMask);
+                }
                 commands.SetGlobalInt(Shader.PropertyToID("_InfinityHasProbes"), hasProbes);
                 lightLoop.BindGlobal(commands);
                 commands.SetGlobalBuffer(LightShaderIDs.LightRecordBuffer, lightRecords);
@@ -81,6 +89,12 @@ namespace InfinityTech.Rendering.Pipeline
                     FShadowInputs shadows = QueryShadowInputs(renderContext);
                     shadows.Read(passRef);
                     passData.shadows = shadows;
+                    passData.hasContactShadow = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureRef contactShadowSun);
+                    if (passData.hasContactShadow)
+                    {
+                        passData.contactShadowSun = passRef.ReadTexture(contactShadowSun);
+                        passData.contactShadowMask = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
+                    }
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.hasOcclusion = m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureRef occlusion);
                     if (passData.hasOcclusion) passData.occlusion = passRef.ReadTexture(occlusion);

@@ -6,6 +6,11 @@
 #include "Lighting/LightShapes.hlsl"
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
+// Screen-space traced shadows (ContactShadowPass): sun visibility and the local-light contact mask. Deferred binds them
+// under DEFERRED_CONTACT_SHADOW; Forward reads them when g_ContactShadowEnabled != 0.
+Texture2D<float> SRV_ContactShadowSun;
+Texture2D<uint> SRV_ContactShadowMask;
+int g_ContactShadowEnabled;
 // Specular microfacet term (GGX, height-correlated Smith, Schlick); unclamped so HDR highlights keep their energy.
 float3 SpecularBRDF(float3 N, float3 V, float3 L, MicrofaceContext microfaceCtx)
 {
@@ -37,7 +42,7 @@ float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, f
     return (diffuse + specular) * LightRadiance(light) * shadow;
 }
 
-float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth)
+float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask)
 {
     float window = LocalLightWindow(light, worldPos);
     if (window <= 0)
@@ -50,6 +55,7 @@ float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 
     float3 specular = SpecularBRDF(normal, viewDir, shape.specularL, microfaceCtx) * shape.specularNoL * shape.specularFalloff
         * shape.specularEnergy * LightSpecularWeight(light);
     float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
+    shadow *= ContactShadowFromMask(light, contactMask);
     return (diffuse + specular) * LightRadiance(light) * window * shadow;
 }
 
@@ -57,10 +63,17 @@ float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 
 float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, MicrofaceContext material, float4 mask, float viewDepth, uint layer, uint2 positionSS)
 {
     float3 direct = 0;
+    float contactSun = 1;
+    uint contactMask = 0;
+    if (g_ContactShadowEnabled != 0)
+    {
+        contactSun = SRV_ContactShadowSun.Load(int3(positionSS, 0));
+        contactMask = SRV_ContactShadowMask.Load(int3(positionSS, 0));
+    }
     for (int i = 0; i < g_DirectionalLightCount; i++)
     {
         FLightRecord light = g_LightRecordBuffer[i];
-        if ((light.lightLayer & layer) != 0) direct += EvaluateDirectional(light, position, normal, view, material, 1, viewDepth, mask);
+        if ((light.lightLayer & layer) != 0) direct += EvaluateDirectional(light, position, normal, view, material, i == g_SunRecordIndex ? contactSun : 1, viewDepth, mask);
     }
     FLightLoop lightLoop = BeginLightLoop(positionSS, viewDepth);
     uint recordIndex;
@@ -68,7 +81,7 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
     while (NextLight(lightLoop, recordIndex))
     {
         FLightRecord light = g_LightRecordBuffer[recordIndex];
-        if ((light.lightLayer & layer) != 0) direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth);
+        if ((light.lightLayer & layer) != 0) direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth, contactMask);
     }
     return direct;
 }

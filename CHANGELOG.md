@@ -34,10 +34,15 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   come from the shadowmask), for RendererList objects and MeshScene instances alike. Distance Shadowmask is unchanged.
 - Rendering Debugger → Debug View: Cascade / Local / Cached Shadow Atlas and Shadow Moments; Infinity Lighting panel
   counts cached shadow tiles and re-renders.
+- Contact shadows for local lights: up to 24 contact-enabled lights per camera trace toward their position into a
+  per-pixel bit mask shared by Deferred and Forward; the sun keeps its own trace. Thickness is tested in linear view
+  depth, ray starts are jittered, and the Contact Shadow Volume has quality presets and a separate sun step count.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Forward lighting ignored contact shadows, and `g_SunRecordIndex` was never bound for Deferred, Forward and the
+  volumetrics (only the contact pass set it).
 - Volumetric fog and clouds filtered cascade shadows with twice the real texel size (they passed the per-cascade tile
   resolution as the atlas size). Deferred, Forward, fog and clouds now bind shadows through one `FShadowInputs`.
 - Rect lights contributed no diffuse light: the polygon form factor was wound backwards and clamped to zero. Rect

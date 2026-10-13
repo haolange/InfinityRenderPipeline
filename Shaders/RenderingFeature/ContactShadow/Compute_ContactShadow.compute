@@ -1,71 +1,66 @@
+// Screen-space traced (contact) shadows from the depth buffer.
+//   Sun: one ray toward the sun record (g_SunRecordIndex) -> UAV_ContactShadowSun (R8, 1 = lit), soft by intensity and
+//        distance fade.
+//   Local lights: every light of the pixel's clustered list that owns a contact bit (record.misc.z) traces toward its
+//        position -> UAV_ContactShadowMask (R32_UInt: bits 0..23 = occluded lights, bits 24..31 = strength).
+// Hits compare linear view depths against a constant surface thickness; ray starts are jittered per pixel and frame.
 #pragma kernel ContactShadowCS
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
+#include "../../ShaderLibrary/Lighting/LightLoop.hlsl"
+#include "../../ShaderLibrary/Lighting/LightShapes.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 
 int ContactShadow_NumSteps;
+int ContactShadow_SunNumSteps;
+int ContactShadow_FrameIndex;
 float ContactShadow_MaxDistance;
 float ContactShadow_Thickness;
 float ContactShadow_Intensity;
 float ContactShadow_FadeDistance;
 float4 ContactShadow_Resolution;
+// x, y = m22, m23 of the GPU projection; z = 1 for orthographic cameras.
+float4 ContactShadow_DepthParams;
 
 float4x4 Matrix_ViewProj;
 float4x4 Matrix_InvViewProj;
 float3 _WorldSpaceCameraPos;
 
 Texture2D<float> SRV_DepthTexture;
-RWTexture2D<float> UAV_ContactShadowTexture;
+RWTexture2D<float> UAV_ContactShadowSun;
+RWTexture2D<uint> UAV_ContactShadowMask;
 
-// Screen-space ray march for contact shadows
-// Returns 1.0 = fully lit, 0.0 = fully shadowed
-float RayMarchContactShadow(float3 worldPos, float3 lightDir, float2 screenUV, float screenDepth)
+float ContactLinearDepth(float rawDepth)
 {
-    // Project ray end to screen space
-    float3 rayEnd = worldPos + lightDir * ContactShadow_MaxDistance;
-    float4 rayEndClip = mul(Matrix_ViewProj, float4(rayEnd, 1.0));
-    float2 rayEndUV = rayEndClip.xy / rayEndClip.w * 0.5 + 0.5;
-    #if UNITY_UV_STARTS_AT_TOP
-        rayEndUV.y = 1.0 - rayEndUV.y;
-    #endif
-    float rayEndDepth = rayEndClip.z / rayEndClip.w;
+    return ContactShadow_DepthParams.z != 0
+        ? (ContactShadow_DepthParams.y - rawDepth) / ContactShadow_DepthParams.x
+        : ContactShadow_DepthParams.y / (rawDepth + ContactShadow_DepthParams.x);
+}
 
-    // Screen-space ray direction
-    float2 rayDirUV = rayEndUV - screenUV;
-    float rayDirDepth = rayEndDepth - screenDepth;
-
-    float stepSize = 1.0 / max(ContactShadow_NumSteps, 1);
-    float occlusion = 0;
-
+// True when the ray from worldPos along dir (rayLength meters) passes behind the depth buffer within the thickness.
+bool TraceContactShadow(float3 worldPos, float3 dir, float rayLength, int steps, float jitter)
+{
+    steps = max(steps, 1);
     [loop]
-    for (int i = 1; i <= ContactShadow_NumSteps; ++i)
+    for (int i = 0; i < steps; ++i)
     {
-        float t = (float)i * stepSize;
-
-        float2 sampleUV = screenUV + rayDirUV * t;
-        float expectedDepth = screenDepth + rayDirDepth * t;
-
-        // Out-of-bounds check
-        if (any(sampleUV < 0) || any(sampleUV > 1))
-            break;
-
-        float sampledDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, sampleUV, 0);
-
-        // In reversed-Z, closer = larger depth value
-        float depthDiff = sampledDepth - expectedDepth;
-
-        // Hit: sampled depth is closer than expected (depthDiff > 0) and within thickness
-        if (depthDiff > 0 && depthDiff < ContactShadow_Thickness)
-        {
-            // Fade shadow based on distance along ray
-            float fadeFactor = 1.0 - saturate(t);
-            occlusion = max(occlusion, fadeFactor);
-            break;
-        }
+        float t = (i + jitter) / steps;
+        float4 clip = mul(Matrix_ViewProj, float4(worldPos + dir * (rayLength * t), 1.0));
+        if (clip.w <= 0.0) return false;
+        float3 ndc = clip.xyz / clip.w;
+        float2 uv = ndc.xy * 0.5 + 0.5;
+#if UNITY_UV_STARTS_AT_TOP
+        uv.y = 1.0 - uv.y;
+#endif
+        if (any(uv < 0.0) || any(uv > 1.0)) return false;
+        float sceneDepth = ContactLinearDepth(SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0));
+        float rayDepth = ContactShadow_DepthParams.z != 0 ? ContactLinearDepth(ndc.z) : clip.w;
+        float delta = rayDepth - sceneDepth;
+        // A small relative bias keeps the receiver itself from occluding the start of its ray.
+        if (delta > 1e-3 * rayDepth && delta < ContactShadow_Thickness) return true;
     }
-
-    return 1.0 - occlusion * ContactShadow_Intensity;
+    return false;
 }
 
 [numthreads(8, 8, 1)]
@@ -76,40 +71,65 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
 
     float2 screenUV = (id.xy + 0.5) * ContactShadow_Resolution.zw;
     float rawDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float sun = 1.0;
+    uint mask = 0u;
 
-    // Sky pixels
-    if (rawDepth <= 1e-7)
-    {
-        UAV_ContactShadowTexture[id.xy] = 1.0;
-        return;
-    }
-
-    // Reconstruct world position
-    float3 ndcPos = GetNDCPos(screenUV, rawDepth);
-    float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
-
-    // Distance fade
+    float viewDepth = ContactLinearDepth(rawDepth);
+    float3 worldPos = GetWorldSpacePos(GetNDCPos(screenUV, rawDepth), Matrix_InvViewProj);
     float viewDist = length(worldPos - _WorldSpaceCameraPos);
     float distanceFade = 1.0 - saturate((viewDist - ContactShadow_FadeDistance * 0.8) / (ContactShadow_FadeDistance * 0.2));
-
-    if (distanceFade <= 0)
+    float strength = ContactShadow_Intensity * distanceFade;
+    // Sky pixels and faded-out pixels trace nothing.
+    if (rawDepth > 1e-7 && strength > 0)
     {
-        UAV_ContactShadowTexture[id.xy] = 1.0;
-        return;
-    }
+        float jitter = InterleavedGradientNoise(id.xy, ContactShadow_FrameIndex);
 
-    // Sample directional light direction
-    float shadow = 1.0;
-    if (g_SunRecordIndex >= 0 && g_SunRecordIndex < g_DirectionalLightCount)
-    {
-        FLightRecord dirLight = g_LightRecordBuffer[g_SunRecordIndex];
-        if ((dirLight.flags & LIGHT_FLAG_CONTACT) != 0)
+        if (g_SunRecordIndex >= 0 && g_SunRecordIndex < g_DirectionalLightCount)
         {
-            float3 lightDir = DirectionalLightL(dirLight);
-            shadow = RayMarchContactShadow(worldPos, lightDir, screenUV, rawDepth);
+            FLightRecord sunLight = g_LightRecordBuffer[g_SunRecordIndex];
+            if ((sunLight.flags & LIGHT_FLAG_CONTACT) != 0
+                && TraceContactShadow(worldPos, DirectionalLightL(sunLight), ContactShadow_MaxDistance, ContactShadow_SunNumSteps, jitter))
+            {
+                sun = 1.0 - strength;
+            }
+        }
+
+        FLightLoop lightLoop = BeginLightLoop(id.xy, viewDepth);
+        uint recordIndex;
+        [loop]
+        while (NextLight(lightLoop, recordIndex))
+        {
+            FLightRecord light = g_LightRecordBuffer[recordIndex];
+            int bit = LightContactShadowBit(light);
+            if (bit < 0 || LocalLightWindow(light, worldPos) <= 0)
+            {
+                continue;
+            }
+            float3 dir;
+            float rayLength = ContactShadow_MaxDistance;
+            if (LightHasFlag(light, LIGHT_FLAG_SPOT_BOX))
+            {
+                dir = -light.forward.xyz;
+            }
+            else
+            {
+                float3 toLight = light.positionRange.xyz - worldPos;
+                float distance = length(toLight);
+                dir = toLight / max(distance, 1e-4);
+                // Stop before the emitter: a sphere or tube source does not occlude its own ray.
+                rayLength = min(rayLength, max(distance - light.shape.x, 0.0));
+            }
+            if (rayLength > 0 && TraceContactShadow(worldPos, dir, rayLength, ContactShadow_NumSteps, jitter))
+            {
+                mask |= 1u << (uint)bit;
+            }
+        }
+        if (mask != 0u)
+        {
+            mask |= (uint)round(saturate(strength) * 255.0) << 24;
         }
     }
 
-    shadow = lerp(1.0, shadow, distanceFade);
-    UAV_ContactShadowTexture[id.xy] = shadow;
+    UAV_ContactShadowSun[id.xy] = sun;
+    UAV_ContactShadowMask[id.xy] = mask;
 }

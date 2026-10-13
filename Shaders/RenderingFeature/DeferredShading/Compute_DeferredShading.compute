@@ -26,9 +26,6 @@ Texture2D<float> SRV_DepthTexture;
 #if defined(DEFERRED_AO)
 Texture2D<float> SRV_OcclusionTexture;
 #endif
-#if defined(DEFERRED_CONTACT_SHADOW)
-Texture2D<float> SRV_ContactShadowTexture;
-#endif
 
 Texture2D<float4> SRV_BakedDiffuse, SRV_BakedOcclusion;
 RWTexture2D<float4> UAV_IndirectDiffuse, UAV_IndirectSpecular;
@@ -83,9 +80,11 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float ao = 1.0;
 #endif
 #if defined(DEFERRED_CONTACT_SHADOW)
-    float contactShadow = SRV_ContactShadowTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float contactShadow = SRV_ContactShadowSun[pixelCoord];
+    uint contactMask = SRV_ContactShadowMask[pixelCoord];
 #else
     float contactShadow = 1.0;
+    uint contactMask = 0;
 #endif
     float4 bakedMask = 1 - SRV_BakedOcclusion[pixelCoord];
     float3 lighting = 0;
@@ -93,7 +92,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     for (int d = 0; d < g_DirectionalLightCount; ++d)
     {
         if ((g_LightRecordBuffer[d].lightLayer & gbufferData.RenderingLayer) == 0) continue;
-        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, contactShadow, viewDepth, bakedMask);
+        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, d == g_SunRecordIndex ? contactShadow : 1.0, viewDepth, bakedMask);
     }
 
     FLightLoop lightLoop = BeginLightLoop(pixelCoord, viewDepth);
@@ -103,7 +102,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     {
         FLightRecord light = g_LightRecordBuffer[recordIndex];
         if ((light.lightLayer & gbufferData.RenderingLayer) == 0) continue;
-        lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth);
+        lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth, contactMask);
     }
 
     float4 baked = SRV_BakedDiffuse[pixelCoord];

@@ -19,7 +19,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_OcclusionTextureID = Shader.PropertyToID("SRV_OcclusionTexture");
         internal const string AOKeyword = "DEFERRED_AO";
         internal const string ContactShadowKeyword = "DEFERRED_CONTACT_SHADOW";
-        internal static int SRV_ContactShadowTextureID = Shader.PropertyToID("SRV_ContactShadowTexture");
         internal static int UAV_LightingTextureID = Shader.PropertyToID("UAV_LightingTexture");
         internal static int DeferredShading_FarDepthID = Shader.PropertyToID("DeferredShading_FarDepth");
     }
@@ -46,6 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
             public RGTextureRef occlusionTexture;
             public RGTextureRef contactShadowTexture;
+            public RGTextureRef contactShadowMask;
             public RGTextureRef lightingTexture;
             public RGTextureRef atmosphereGGXPrefilter;
             public RGBufferRef atmosphereSkySH;
@@ -127,6 +127,7 @@ namespace InfinityTech.Rendering.Pipeline
                 if (hasContactShadow)
                 {
                     passData.contactShadowTexture = passRef.ReadTexture(contactShadowTexture);
+                    passData.contactShadowMask = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
                 }
                 passData.lightingTexture = passRef.WriteTexture(lightingTexture);
                 passData.atmosphereGGXPrefilter = passRef.ReadTexture(atmosphereGGXPrefilter);
@@ -162,7 +163,8 @@ namespace InfinityTech.Rendering.Pipeline
                     shader.SetKeyword(new LocalKeyword(shader, DeferredShadingPassUtilityData.ContactShadowKeyword), passData.hasContactShadow != 0);
                     if (passData.hasContactShadow != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_ContactShadowTextureID, passData.contactShadowTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, 0, ContactShadowPassUtilityData.SRV_ContactShadowSunID, passData.contactShadowTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, 0, ContactShadowPassUtilityData.SRV_ContactShadowMaskID, passData.contactShadowMask);
                     }
                     cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);
                     cmdEncoder.SetComputeTextureParam(shader, 0, InfinityShaderIDs.AtmosphereGGXPrefilter, passData.atmosphereGGXPrefilter);

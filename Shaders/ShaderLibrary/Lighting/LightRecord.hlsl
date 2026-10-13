@@ -60,6 +60,18 @@ float LightDiffuseWeight(FLightRecord light) { return light.weights.x; }
 float LightSpecularWeight(FLightRecord light) { return light.weights.y; }
 float LightShadowStrength(FLightRecord light) { return light.misc.x; }
 
+// Contact (screen-space traced) shadows of local lights: record.misc.z is the light's bit in the contact mask, -1
+// without one. The mask holds 24 light bits and the occlusion strength in bits 24..31 (ContactShadowAllocation.cs).
+#define CONTACT_SHADOW_LIGHT_MASK 0x00FFFFFFu
+int LightContactShadowBit(FLightRecord light) { return (int)light.misc.z; }
+
+float ContactShadowFromMask(FLightRecord light, uint contactMask)
+{
+    int bit = LightContactShadowBit(light);
+    if (bit < 0 || ((contactMask >> (uint)bit) & 1u) == 0u) return 1.0;
+    return 1.0 - (contactMask >> 24) / 255.0;
+}
+
 // Realtime radiance; zero when the direct contribution is baked into the lightmaps.
 float3 LightRadiance(FLightRecord light)
 {

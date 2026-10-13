@@ -27,6 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
         public Vector4 zBinParams;
         public int directionalCount;
         public int localCount;
+        public int sunRecordIndex;
 
         public void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
         {
@@ -36,6 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
             commands.SetComputeVectorParam(shader, LightShaderIDs.LightZBinParams, zBinParams);
             commands.SetComputeIntParam(shader, LightShaderIDs.DirectionalLightCount, directionalCount);
             commands.SetComputeIntParam(shader, LightShaderIDs.LocalLightCount, localCount);
+            commands.SetComputeIntParam(shader, LightShaderIDs.SunRecordIndex, sunRecordIndex);
         }
 
         public void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
@@ -46,6 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
             commands.SetGlobalVector(LightShaderIDs.LightZBinParams, zBinParams);
             commands.SetGlobalInt(LightShaderIDs.DirectionalLightCount, directionalCount);
             commands.SetGlobalInt(LightShaderIDs.LocalLightCount, localCount);
+            commands.SetGlobalInt(LightShaderIDs.SunRecordIndex, sunRecordIndex);
         }
     }
 
@@ -76,6 +79,7 @@ namespace InfinityTech.Rendering.Pipeline
                 zBinParams = context.ZBinParams,
                 directionalCount = context.DirectionalLightCount,
                 localCount = context.LocalLightCount,
+                sunRecordIndex = context.SunRecordIndex,
             };
         }
 

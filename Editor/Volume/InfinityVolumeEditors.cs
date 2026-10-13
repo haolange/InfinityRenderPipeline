@@ -421,14 +421,16 @@ namespace InfinityTech.Rendering.Editor
     }
 
     [CustomEditor(typeof(ContactShadow))]
-    sealed class ContactShadowEditor : VolumeComponentEditor
+    sealed class ContactShadowEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_Steps, m_Distance, m_Thickness, m_Intensity, m_Fade;
+        SerializedDataParameter m_Enable, m_Steps, m_SunSteps, m_Distance, m_Thickness, m_Intensity, m_Fade;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ContactShadow>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
             m_Steps = Unpack(o.Find(x => x.NumSteps));
+            m_SunSteps = Unpack(o.Find(x => x.SunNumSteps));
             m_Distance = Unpack(o.Find(x => x.MaxDistance));
             m_Thickness = Unpack(o.Find(x => x.Thickness));
             m_Intensity = Unpack(o.Find(x => x.Intensity));
@@ -437,7 +439,17 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_Steps); PropertyField(m_Distance); PropertyField(m_Thickness); PropertyField(m_Intensity); PropertyField(m_Fade);
+            PropertyField(m_Distance); PropertyField(m_Thickness); PropertyField(m_Intensity); PropertyField(m_Fade);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_Steps, l => Preset(l).numSteps);
+            QualityField(m_SunSteps, l => Preset(l).sunNumSteps);
+        }
+        static FContactShadowSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.ContactShadow, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FContactShadowSettings preset = Preset(level);
+            Set(m_Steps, preset.numSteps); Set(m_SunSteps, preset.sunNumSteps);
         }
     }
 }

@@ -186,6 +186,20 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
 4. Switch Shadowmask Mode to Distance Shadowmask: the cube is drawn into the shadow maps again.
 5. With a MeshComponent (Static mobility) using a lightmapped renderer as its baked source: same result as step 3.
 
+## S10 — screen-space traced shadows
+
+1. Compile; run `ContactShadowAllocationTests`.
+2. Contact Shadow Volume on, Max Distance 0.3, a sun with Contact Shadows on: small crevices and contact points get
+   dark lines (as before). Quality Low → Ultra raises the sun steps 8 → 32; existing profiles stay Custom and now use
+   Sun Num Steps 16 for the sun (it used Num Steps 8 before).
+3. A point light with Contact Shadows on near a small object on a floor: the object's contact shadow toward the point
+   light appears; turning the light's Contact Shadows off removes it. Frame Debugger: `ComputeContactShadow` writes
+   `ContactShadowSun` and `ContactShadowMask`.
+4. Turn Contact Shadows off on every light: `ComputeContactShadow` is no longer recorded.
+5. A forward-route material (InfinityLit with the Forward surface route): it now receives contact shadows like the
+   deferred floor.
+6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
+
 ## S9e — shadow debug views
 
 1. Run `DebugViewModeTests`.

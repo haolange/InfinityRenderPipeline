@@ -1119,11 +1119,6 @@ namespace InfinityTech.Rendering.Pipeline
                 features.Request(EFrameFeature.GTAO);
             }
 
-            if (VolumeComponentActive(stack.GetComponent<ContactShadow>()))
-            {
-                features.Request(EFrameFeature.ContactShadow);
-            }
-
             EScreenSpaceMode screenSpaceMode = ScreenSpaceModeUtility.Resolve(
                 stack.GetComponent<ScreenSpaceReflection>(),
                 stack.GetComponent<ScreenSpaceIndirectDiffuse>());
@@ -1165,6 +1160,12 @@ namespace InfinityTech.Rendering.Pipeline
             if (renderContext.lightContext.HasLocalLightList())
             {
                 features.Request(EFrameFeature.LocalLightList);
+            }
+            LightContext lightContext = renderContext.lightContext;
+            if ((lightContext.SunHasContactShadow || lightContext.ContactLightCount > 0)
+                && VolumeComponentActive(frameState.volumeStack.GetComponent<ContactShadow>()))
+            {
+                features.Request(EFrameFeature.ContactShadow);
             }
             ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
             if (shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0)

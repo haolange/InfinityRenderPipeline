@@ -133,6 +133,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey HistoryOcclusionBuffer = new RGResourceKey("_HistoryOcclusionTexture");
         public static readonly RGResourceKey HistoryOcclusionDepthBuffer = new RGResourceKey("_HistoryOcclusionDepthTexture");
         public static readonly RGResourceKey ContactShadowBuffer = new RGResourceKey("_ContactShadowTexture");
+        public static readonly RGResourceKey ContactShadowMaskBuffer = new RGResourceKey("_ContactShadowMaskTexture");
         public static readonly RGResourceKey LightTileMaskBuffer = new RGResourceKey("_LightTileMaskBuffer");
         public static readonly RGResourceKey SSRBuffer = new RGResourceKey("_SSRTexture");
         public static readonly RGResourceKey SSRRayHitBuffer = new RGResourceKey("_SSRRayHitTexture");
