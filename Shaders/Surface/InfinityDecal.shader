@@ -31,6 +31,7 @@ Shader "InfinityPipeline/InfinityDecal"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/ShaderVariables.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "../ShaderLibrary/DecalProjection.hlsl"
 
 			CBUFFER_START(UnityPerMaterial)
 				float _Roughness;
@@ -68,11 +69,11 @@ Shader "InfinityPipeline/InfinityDecal"
 				float3 objectPos = mul(unity_WorldToObject, float4(worldPos, 1.0)).xyz;
 				clip(0.5 - abs(objectPos));
 
-				float2 uv = objectPos.xz + 0.5;
-				float4 albedo = _MainTex.Sample(sampler_MainTex, uv) * _BaseColor;
-				clip(albedo.a - 1e-4);
-
+				float2 uv = DecalProjectedUV(objectPos);
 				float3 decalNormalWS = normalize(mul((float3x3)UNITY_MATRIX_M, float3(0, 1, 0)));
+				float4 albedo = _MainTex.Sample(sampler_MainTex, uv) * _BaseColor;
+				albedo.a *= DecalAngleFade(worldPos, decalNormalWS, _WorldSpaceCameraPos);
+				clip(albedo.a - 1e-4);
 
 				DBufferA = float4(albedo.rgb, albedo.a);
 				DBufferB = float4(decalNormalWS * 0.5 + 0.5, albedo.a);

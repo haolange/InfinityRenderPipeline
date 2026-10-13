@@ -14,6 +14,7 @@ namespace InfinityTech.Component
     [DisallowMultipleComponent]
     [RequireComponent(typeof(ReflectionProbe))]
     [AddComponentMenu("InfinityRenderer/Additional Reflection Probe Data")]
+    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "reflection-probes.md")]
     public sealed class InfinityAdditionalReflectionProbeData : MonoBehaviour
     {
         public EReflectionProbeInfluence influence = EReflectionProbeInfluence.Box;

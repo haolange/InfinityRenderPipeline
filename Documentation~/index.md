@@ -9,6 +9,8 @@ InfinityRP is a RenderGraph-native Scriptable Render Pipeline. This documentatio
 - [Pipeline Asset and quality](pipeline-asset.md)
 - [Cameras](cameras.md)
 - [Lights](lights.md)
+- [Reflection probes](reflection-probes.md)
+- [Decals](decals.md)
 - [Volumes](volumes.md)
 - [Materials](materials.md)
 - [Rendering Debugger](rendering-debugger.md)

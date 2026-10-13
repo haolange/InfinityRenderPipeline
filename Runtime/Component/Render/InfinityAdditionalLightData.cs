@@ -10,6 +10,7 @@ namespace InfinityTech.Component
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Light))]
     [AddComponentMenu("InfinityRenderer/Additional Light Data")]
+    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "lights.md")]
     public sealed class InfinityAdditionalLightData : BaseComponent
     {
         Light m_UnityLight;

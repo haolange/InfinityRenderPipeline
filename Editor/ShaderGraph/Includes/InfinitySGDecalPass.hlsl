@@ -2,6 +2,7 @@
 #define INFINITY_SG_DECAL_PASS
 // DBufferPass of InfinityDecal: the fragment reconstructs the opaque surface behind the decal box and evaluates the
 // graph there (position, uv0 = object xz + 0.5, the projector's frame; projection along -Y).
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/DecalProjection.hlsl"
 #if !defined(REQUIRE_DEPTH_TEXTURE)
 Texture2D _DepthTexture;
 #endif
@@ -31,9 +32,10 @@ void frag(PackedVaryings packedInput, out float4 DBufferA : SV_Target0, out floa
     projected.tangentWS = float4(tangentWS, 1);
 #endif
 #if defined(VARYINGS_NEED_TEXCOORD0)
-    projected.texCoord0 = float4(objectPos.xz + 0.5, 0, 0);
+    projected.texCoord0 = float4(DecalProjectedUV(objectPos), 0, 0);
 #endif
     FInfinitySurface surface = EvaluateInfinitySurface(projected);
+    surface.alpha *= DecalAngleFade(positionWS, normalWS, _WorldSpaceCameraPos);
     clip(surface.alpha - 1e-4);
 
     // Tangent frame of the projector: x = right, y = forward (object z), z = up.

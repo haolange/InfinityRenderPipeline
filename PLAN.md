@@ -54,7 +54,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer done) |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles done) |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
@@ -102,6 +102,13 @@ Probes, Light Probes and Static Emissives tabs plus Infinity Lights (shape read-
 contact shadows, volumetric, max distance, weights, light layers), Infinity Probes (influence, sphere radius) and Volumes
 (global, priority, weight, blend distance, profile). Lighting window → Environment (`InfinityLightingEnvironmentSection`):
 atmosphere profile of the RP Asset, baking sky status / command, baked ambient and reflection intensity.
+
+S15e — Inspectors and handles: the Light inspector has foldout sections (General, Shape, Emission, Baking, Cookie & IES,
+Shadows, Volumetric, Layers & Distance) and an Additional Properties toggle; Scene view handles edit range, outer angle
+(cone / pyramid outline), source radius, tube length, rect size and disk radius through `SetShape` with Undo on both
+objects. Infinity reflection probe data draws a sphere-radius handle. Decal projectors: box handle on the transform,
+UV scale / bias and start / end angle fade (`DecalProjection.hlsl`, per-renderer property block, depth-derived normal).
+`[HelpURL]` on the RP Asset, GlobalSettings and the Infinity components (`InfinityDocumentation.BaseUrl`).
 
 - Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
   variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.

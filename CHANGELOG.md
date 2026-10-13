@@ -67,6 +67,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   inspector, and a Rendering Debugger list of the effective values and their source.
 - Light Explorer tabs for Infinity lights, Infinity probe data and Volumes; Lighting window Environment section for the
   atmosphere and the baking sky.
+- Light inspector sections with Additional Properties and Scene view handles for range, angles and every source shape;
+  sphere-influence handle for reflection probes; decal box handle, UV scale / bias and angle fade; Help links to the
+  documentation on assets and components.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

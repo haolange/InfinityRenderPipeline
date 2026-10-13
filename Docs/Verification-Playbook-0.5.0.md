@@ -200,6 +200,19 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15e — Inspectors and handles
+
+1. Run `DecalProjectionTests`.
+2. Select a point light with Source Radius 0.2 and Source Length 1: the Scene view shows the range sphere, the source
+   sphere and the tube line with an end handle; dragging changes the inspector values, Undo restores them, and the native
+   Light (Debug Inspector) follows (Type Tube, Area Size x = length).
+3. Spot cone / pyramid: outline at the range with a rim handle for the outer angle; rect: a size box; disk: radius handle.
+4. Light inspector Additional Properties shows soft source radius / angle, barn doors, shadow near plane and biases,
+   weights and distance fade; off hides them.
+5. Decal: drag a face of the box handle; the opposite face stays. UV Scale 2 tiles the texture; Start / End Angle Fade
+   30 / 60 removes the decal from vertical walls under a downward projector.
+6. Reflection probe with Infinity data Influence = Sphere: a sphere handle edits Sphere Radius.
+
 ## S15d — Light Explorer and Lighting window
 
 1. Window/Rendering/Light Explorer: tabs Lights, Infinity Lights, Reflection Probes, Infinity Probes, Light Probes,
