@@ -51,7 +51,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | done |
 | S10 | Screen-space traced shadows (sun + up to 24 local lights) | S7 | done |
 | S11 | Cookie and IES atlas | S6, S7 | done |
-| S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | in progress |
+| S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | pending |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | pending |
 | S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | pending |
@@ -78,6 +78,13 @@ Each stage fills in its section before its code lands.
 - InfinityLit-Instanced gains `ShadowCaster` and `Meta` (its own UnityPerMaterial layout). TerrainLit gains lightmaps
   (`LIGHTMAP_ON`, `DIRLIGHTMAP_COMBINED`, `SHADOWS_SHADOWMASK`, APV) writing the baked GBuffer targets (add passes
   write 0), `ShadowCaster` and `Meta` (splat-mixed albedo).
+- MeshScene probes: `RenderContext.InterpolateMeshProbes` gathers every MeshComponent whose probe anchor moved or
+  whose probe data changed (`LightProbes.lightProbesUpdated` / `needsRetetrahedralization` bump
+  `MeshBakedLighting.ProbeVersion`) and interpolates them in one `CalculateInterpolatedLightAndOcclusionProbes` call.
+- Baking sky: Editor `InfinityBakingSky` (Window/Infinity/Lighting/Use Atmosphere As Baking Sky) saves the atmosphere
+  cubemap faces (`InfinityRenderPipeline.TryGetAtmosphereCubemap`) as a Texture2DArray asset and sets the scene skybox
+  to `Hidden/InfinityPipeline/BakingSky` (same face layout as the pipeline); `Lightmapping.bakeStarted` refreshes the
+  faces of scenes that use it.
 - Shadow casters: both shadow passes set `Matrix_ViewFlipYProj` (what every caster shader projects with) as well as
   `Matrix_ViewProj` to the shadow matrix, and restore the camera's values.
 

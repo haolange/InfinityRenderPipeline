@@ -58,7 +58,40 @@ namespace InfinityTech.Component
         [Header("Lighting")]
         [SerializeField] private Renderer m_BakedLightingSource;
         private FMeshBakedLighting m_LastBakedLighting;
-        private FMeshBakedLighting ReadBakedLighting() => MeshBakedLighting.Capture(m_BakedLightingSource != null ? m_BakedLightingSource : GetComponent<Renderer>(), transform.position);
+        // Probe sample interpolated by RenderContext's per-frame batch, valid for m_ProbePosition at m_ProbeVersion.
+        private bool m_HasProbeSample;
+        private Vector3 m_ProbePosition;
+        private int m_ProbeVersion;
+        private UnityEngine.Rendering.SphericalHarmonicsL2 m_ProbeSH;
+        private Vector4 m_ProbeOcclusion;
+
+        private Renderer BakedLightingSource => m_BakedLightingSource != null ? m_BakedLightingSource : GetComponent<Renderer>();
+
+        private FMeshBakedLighting ReadBakedLighting()
+        {
+            Renderer source = BakedLightingSource;
+            bool current = m_HasProbeSample && m_ProbeVersion == MeshBakedLighting.ProbeVersion
+                && MeshBakedLighting.UsesProbes(source, transform.position, out Vector3 probePosition) && probePosition == m_ProbePosition;
+            return MeshBakedLighting.Capture(source, transform.position, current, m_ProbeSH, m_ProbeOcclusion);
+        }
+
+        // Batch step 1: the probe position this mesh needs a sample for, or false when its sample is current or it
+        // uses no probes.
+        internal bool NeedsProbeSample(out Vector3 probePosition)
+        {
+            if (!MeshBakedLighting.UsesProbes(BakedLightingSource, transform.position, out probePosition)) return false;
+            return !m_HasProbeSample || m_ProbeVersion != MeshBakedLighting.ProbeVersion || probePosition != m_ProbePosition;
+        }
+
+        // Batch step 2: the interpolated sample.
+        internal void SetProbeSample(Vector3 probePosition, UnityEngine.Rendering.SphericalHarmonicsL2 sh, Vector4 occlusion)
+        {
+            m_HasProbeSample = true;
+            m_ProbePosition = probePosition;
+            m_ProbeVersion = MeshBakedLighting.ProbeVersion;
+            m_ProbeSH = sh;
+            m_ProbeOcclusion = occlusion;
+        }
         public ECastShadowMethod castShadow = ECastShadowMethod.Off;
         public bool receiveShadow = true;
         public bool affectIndirectLighting = true;

@@ -200,6 +200,26 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S12 — baked GI
+
+0. Window/Infinity → Append Missing Default Volume Components (adds Adaptive Probe Volumes Options).
+1. Compile; run `BakedGITests`.
+2. Shadows: with a cascade and a spot light, casters now appear in the shadow maps from the light's view (Debug View
+   Cascade / Local Shadow Atlas). If shadows looked camera-aligned or missing before, this was the cause.
+3. Lightmaps: Window/Infinity/Lighting/Use Atmosphere As Baking Sky, then Generate Lighting. Static InfinityLit objects
+   get lightmaps; sky color in the bake matches the realtime sky (blue fill on the shadow side). Check
+   Assets/InfinityBakingSky/<scene>_BakingSkyFaces.asset in the Inspector preview: six faces, sky up on +Y.
+4. Shadowmask: Mixed lights + Shadowmask: static shadows beyond the shadow distance come from the mask; Distance
+   Shadowmask uses realtime shadows inside the distance.
+5. Terrain: mark the terrain Contribute GI and bake: the terrain receives lightmaps and casts realtime shadows
+   (ShadowCaster pass).
+6. Light probes: a dynamic MeshComponent moving through a probe group changes its ambient; a static one keeps its
+   sample until the next bake (Profiler: one CalculateInterpolatedLightAndOcclusionProbes call per frame at most).
+7. LPPV: a large dynamic renderer with a Light Probe Proxy Volume (Use Proxy Volume) shows a probe gradient across it.
+8. APV: RP Asset → Light Probe System = Adaptive Probe Volumes; add an Adaptive Probe Volume, bake from Lighting →
+   Adaptive Probe Volumes. Unlightmapped objects show the APV lighting; Rendering Debugger → Probe Volume shows the
+   probes. Switch the band count L1 / L2.
+
 ## S11 — cookies and IES
 
 1. Compile; run `LightCookieAtlasTests`.

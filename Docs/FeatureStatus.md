@@ -34,7 +34,7 @@ Columns:
 | Burley SSS | Yes | No | Open | Open | macOS Metal | |
 | Volumetric fog / cloud | Yes | Partial | Open | Open | macOS Metal | |
 | Translucent T0 / T1 / T2 | Yes | Partial | Failing | Open | macOS Metal | Validation_Translucent artifacts |
-| Baked lighting (lightmap, probe SH, shadowmask) | Partial | Partial | Open | Open | macOS Metal | 0.5.0 S12 completes it |
+| Baked lighting: lightmap, Shadowmask / Distance Shadowmask, probes, LPPV, APV, terrain, baking sky (0.5.0) | Yes | Unverified-0.5 (asset interface, passes) | Open | Open | None | APV / baking sky never run in the Editor yet |
 
 ## Temporal, post and output
 

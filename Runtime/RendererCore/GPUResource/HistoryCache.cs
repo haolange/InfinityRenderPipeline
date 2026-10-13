@@ -196,6 +196,13 @@ namespace InfinityTech.Rendering.GPUResource
             }
         }
 
+        // The committed texture of a slot without creating or resizing it (editor tools read the last frame's result).
+        public bool TryGetCommittedTexture(int id, out RTHandle texture)
+        {
+            texture = m_Textures.TryGetValue(id, out TextureSlot slot) ? slot.committed : null;
+            return texture != null && texture.rt != null;
+        }
+
         public void DiscardPending(int id)
         {
             if (m_Textures.TryGetValue(id, out TextureSlot texture))

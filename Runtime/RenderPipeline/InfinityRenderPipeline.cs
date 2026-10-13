@@ -237,6 +237,14 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_PreviousUseScriptableRenderPipelineBatching;
 
         static InfinityRenderPipeline s_GlobalStateOwner;
+
+        // The active pipeline's atmosphere cubemap from the last submitted frame (Editor baking-sky tool).
+        internal static bool TryGetAtmosphereCubemap(out RenderTexture cubemap)
+        {
+            cubemap = null;
+            InfinityRenderPipeline owner = s_GlobalStateOwner;
+            return owner != null && owner.m_AtmosphereSharedCache != null && owner.m_AtmosphereSharedCache.TryGetCubemap(out cubemap);
+        }
         InfinityRenderPipeline m_PreviousGlobalStateOwner;
         SupportedRenderingFeatures m_InstalledSupportedFeatures;
         Material m_PreviousBlitMaterial;

@@ -38,6 +38,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   the default Volume profile) and Light Probe Proxy Volumes feed unlightmapped surfaces in Deferred and Forward, for
   RendererList objects and MeshScene instances; terrain receives lightmaps, Shadowmask and probes; InfinityLit-
   Instanced and TerrainLit get ShadowCaster and Meta passes. Unused APV variants are stripped from builds.
+  MeshScene instances interpolate light probes in one batch per frame (static meshes only after a probe bake).
+  Window/Infinity/Lighting/Use Atmosphere As Baking Sky makes the lightmapper's environment the pipeline's atmosphere.
 - Light cookies and IES profiles: one mip-mapped atlas with buddy-allocated blocks, compute uploads (2D copy, cube
   to octahedral, mips), cookies on spot / pyramid / box / point / directional (tiled) lights and emitter textures on
   rect / disk lights, IES profiles by direction (Cube) or projected (2D spots); Deferred, Forward, fog and clouds share
