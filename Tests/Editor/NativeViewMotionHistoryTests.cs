@@ -30,14 +30,14 @@ namespace InfinityTech.Rendering.Tests
         public void MotionAndTranslucent_RequestUnityMotionVectors_WithoutNativeVertexUpload()
         {
             string motion = File.ReadAllText(Path.GetFullPath(
-                "Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/MotionPass.cs"));
+                "Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Geometry/MotionPass.cs"));
             Assert.IsTrue(motion.Contains("PerObjectData.MotionVectors"));
             Assert.IsFalse(motion.Contains("preferNativeMotionVectors"));
             Assert.IsFalse(motion.Contains("NativePreviousVertices"));
             Assert.IsFalse(motion.Contains("UploadNativeMotionVertices"));
 
             string translucent = File.ReadAllText(Path.GetFullPath(
-                "Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/TranslucentPass.cs"));
+                "Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Translucent/TranslucentPass.cs"));
             Assert.IsTrue(translucent.Contains("PerObjectData.MotionVectors"));
             Assert.IsFalse(translucent.Contains("NativePreviousVertices"));
 

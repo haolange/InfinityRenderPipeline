@@ -30,7 +30,7 @@ This document defines coding conventions and collaboration rules for `com.infini
 
 ## Organization
 
-- Extend `InfinityRenderPipeline` only via `partial` files under `Runtime/RenderPipeline/Pass/`.
+- Extend `InfinityRenderPipeline` only via `partial` files under `Runtime/RenderPipeline/Pass/<domain>/` (Geometry, Lighting, Shadow, ScreenSpace, Volumetric, Translucent, Temporal, Post, Output, Debug). Volume components live in `Runtime/Volume/<domain>/`.
 - Pass file pattern: `XxxPassData` struct + optional `XxxPassUtilityData` + pipeline method.
 - Prefer `#region` in Editor inspectors; avoid in hot Runtime paths.
 - One primary type per file unless Pass/Feature grouping clearly benefits.

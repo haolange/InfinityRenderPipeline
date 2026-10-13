@@ -56,11 +56,27 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
 | S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | done |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | done |
-| S17 | Folder layout (`git mv` only) | all | pending |
+| S17 | Folder layout (`git mv` only) | all | done |
 
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S17
+
+- `git mv` only (files and their `.meta`, GUIDs and namespaces unchanged; new folder `.meta` files only):
+  `Runtime/RenderPipeline/Pass/` → Geometry (Depth, GBuffer, Motion, DBuffer, MeshGpuCull, HiZ, HalfResDownsample),
+  Lighting (DeferredShading, Forward, LightTileMask, LightUpload, LightCookie, ReflectionProbe, Subsurface), Shadow
+  (CascadeShadow, LocalShadow, ShadowCasterCulling, ShadowInputs, ShadowMoment, ContactShadow), ScreenSpace (SSR,
+  SSGI, GTAO, RTAO, ScreenSpaceComposite, ScreenSpaceHistory, OpaqueLightingPyramid), Volumetric (AtmosphericLUT,
+  AtmosphericSkyFog, VolumetricFog, VolumetricCloud, FogComposite), Translucent (Translucent, ColorPyramid), Temporal
+  (AntiAliasing, SuperResolution), Post (PostProcessing, CombineLut), Output (Utility: display depth, wire overlay,
+  gizmos, present; UIOverlay), Debug (DebugView, RenderCapture).
+- `Runtime/PostProcess/` (every Volume component) → `Runtime/Volume/`: `IInfinityVolumeActivity` at the root,
+  Lighting (SubsurfaceScattering), Shadow (ContactShadow), ScreenSpace (SSR, SSGI, SSAO, RTAO), Volumetric (fog,
+  cloud), Post (Bloom, ColorGrading, Exposure, FilmGrain, FilmTonemap, Vignette). The namespace stays
+  `InfinityTech.Rendering.PostProcess`, so serialized Volume profiles are unaffected.
+- Source paths updated in `NativeViewMotionHistoryTests`, `ScreenSpaceDenoiseTests`, AGENTS and this ledger.
 
 ### S16
 
@@ -317,7 +333,7 @@ reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, 
   VSM (d, d²) and EVSM (e+, e+², e−, e−²), Chebyshev with minimum deviation and light-bleeding reduction.
   `_ShadowMomentParams` = (EVSM exponent, bleeding reduction, minimum deviation, 0). `FLocalShadowSlice` gains
   `momentParams`.
-- `FShadowInputs` (`Pass/ShadowInputs.cs`: `QueryShadowInputs`, `Read`, `Bind`, `BindGlobal`) is the one consumer
+- `FShadowInputs` (`Pass/Shadow/ShadowInputs.cs`: `QueryShadowInputs`, `Read`, `Bind`, `BindGlobal`) is the one consumer
   contract for Deferred, Forward, fog and clouds; moment atlases bind `Texture2D.blackTexture` when absent.
 - Cached shadows (S9c): `EShadowUpdateMode { EveryFrame, OnEnable, OnDemand }` on `InfinityAdditionalLightData`
   (`shadowUpdateMode`, `RequestShadowMapRendering()`), local lights only. `LocalShadowCache` (one per pipeline):
