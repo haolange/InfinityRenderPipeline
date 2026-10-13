@@ -49,6 +49,7 @@ Columns:
 | SceneView sizing / UI overlay gate | Yes | Yes | Accepted 2026-09-13 | — | macOS Metal | |
 | DebugView | Yes | Partial | Open | — | macOS Metal | |
 | Rendering Debugger panels, debug views 19–29, Scene view Draw Modes, pass timings (0.5.0) | Yes | Unverified-0.5 (catalog, mode sync) | Open | — | None | Never compiled by Unity yet |
+| Render Graph Viewer (0.5.0) | While open | Unverified-0.5 (snapshot contract) | Open | — | None | |
 
 ## Out of scope
 

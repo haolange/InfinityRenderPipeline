@@ -200,6 +200,18 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15g — Render Graph Viewer
+
+1. Run `RenderGraphViewerTests`.
+2. Window/Analysis/Infinity Render Graph Viewer with the Game view playing: the camera popup lists the Game and Scene
+   cameras; columns show every pass (orange = async compute such as the light tile mask, gray = culled). Hovering a
+   header names the pass; clicking shows its queue, wait / signal passes and resource lists.
+3. Rows: GBufferA/B/C are written by RenderGBuffer and read by DeferredShading; the blue band spans from the
+   allocating pass to the releasing pass. Imported rows (•) such as history textures have no band.
+4. Turn SSR off in the Volume: its passes disappear (not recorded); a debug view on SSR Tile Class brings the SSR debug
+   pass back. Pause freezes the capture; Copy puts the graph as text on the clipboard.
+5. Close the window: no further capture (no allocations from the viewer in the Profiler).
+
 ## S15f — Rendering Debugger panels and Draw Modes
 
 1. Run `DebugViewCatalogTests` and `DebugViewModeTests`.

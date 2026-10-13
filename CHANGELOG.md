@@ -75,6 +75,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   Reflection Probe Complexity heat maps, Baked Diffuse, Indirect Diffuse, Indirect Specular, Reflection Probe Atlas and
   Contact Shadows. Scene view Draw Modes list every debug view per panel and apply to that Scene view only. Reflection
   probe captures and previews no longer render the active debug view.
+- Render Graph Viewer (Window/Analysis/Infinity Render Graph Viewer): the last compiled graph per camera with passes,
+  queues, culling, resource reads / writes and pool lifetimes; captured only while the window is open.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

@@ -54,7 +54,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles, S15f Rendering Debugger panels done) |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer, S15e inspectors and handles, S15f Rendering Debugger panels, S15g RenderGraph Viewer done) |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
@@ -122,6 +122,14 @@ widgets in its own "Volume" panel; Infinity Timings toggles `ProfilingSampler.en
 InfinityDebugDisplaySettings.ResolveDebugView(camera)` (Draw Mode override by camera entity id, else the debugger;
 None for probe captures and previews); SSR and TAA diagnostics read it. `Editor/Debug/InfinitySceneViewDrawModes`
 registers `SceneView.AddCameraMode(DisplayName, "Infinity <Panel>")` and syncs in `SceneView.beforeSceneGui`.
+
+S15g — RenderGraph Viewer: `RGDebugSession` (Runtime/RendererCore/RenderGraph/RGDebug.cs) is the hook; while
+`captureEnabled` (the viewer window is open) `RGBuilder.Execute` publishes `CaptureDebugSnapshot()` right after
+`CompilePass`, keyed by `RGBuilder.debugLabel` (the camera name). `RGGraphSnapshot`: passes in record order (type,
+queue, culled, cullable, wait / signal pass, reads, writes, allocates, releases) and every resource (buffers, textures,
+acceleration structures; name, imported, size / format, first / last live use, allocating / releasing pass).
+Window/Analysis/Infinity Render Graph Viewer draws passes × resources with the pool lifetime band, filters (culled,
+imported, unused, name), pause, copy as text and a details pane.
 
 - Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
   variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.

@@ -25,3 +25,11 @@ previews ignore it.
 The Scene view Draw Mode menu has a section per panel (Infinity Material, Infinity Lighting, Infinity Screen Space,
 Infinity Rendering). A mode applies to that Scene view only; Shaded returns it to the debugger's view. Built-in modes
 the pipeline does not render (Shadow Cascades, Overdraw, Mipmaps, Deferred buffers, validation modes) are disabled.
+
+## Render Graph Viewer
+
+`Window > Analysis > Infinity Render Graph Viewer` shows the last compiled render graph of each camera: passes in
+record order as columns (orange = async compute, gray = culled), resources as rows, the pass reading (green), writing
+(red) or both (yellow), and the pool lifetime of each resource from its allocating to its releasing pass. Click a pass
+header or a resource for details; **Pause** freezes the capture, **Copy** puts the graph on the clipboard as text. The
+graph is captured only while the window is open.

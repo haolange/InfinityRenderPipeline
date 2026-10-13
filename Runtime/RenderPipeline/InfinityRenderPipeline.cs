@@ -649,6 +649,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
                                 {
                                     // ReleaseAllDrawLists releases per-Declare visibility refs (exception-safe).
+                                    m_RGBuilder.debugLabel = RGDebugSession.captureEnabled ? camera.name : null;
                                     m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
                                     frameState.executeSucceeded = true;
                                     RenderCaptureService.current?.CameraExecuted(camera, frameState.executeSucceeded);
