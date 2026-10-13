@@ -54,7 +54,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings done) |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph, S15b Wizard, S15c Frame Settings, S15d Light Explorer done) |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
@@ -96,6 +96,12 @@ Ray-Traced AO, Contact Shadows, SSR, SSGI, Volumetric Fog, Volumetric Clouds, Re
 `customFrameSettings` + `frameSettings` (per-setting overrides). `FrameSettingsUtility.Resolve` runs per camera before
 `ConfigureFrameFeatures`; a disabled setting withholds its feature requests (RTAO falls back to GTAO; cookies / probes
 resolve no atlas entries). Rendering Debugger → Infinity Rendering → Frame Settings shows each value and its source.
+
+S15d — Light Explorer (`InfinityLightingExplorerExtension`, `[SupportedOnRenderPipeline]`): Unity's Lights, Reflection
+Probes, Light Probes and Static Emissives tabs plus Infinity Lights (shape read-only, shadow filter / update mode,
+contact shadows, volumetric, max distance, weights, light layers), Infinity Probes (influence, sphere radius) and Volumes
+(global, priority, weight, blend distance, profile). Lighting window → Environment (`InfinityLightingEnvironmentSection`):
+atmosphere profile of the RP Asset, baking sky status / command, baked ambient and reflection intensity.
 
 - Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
   variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.

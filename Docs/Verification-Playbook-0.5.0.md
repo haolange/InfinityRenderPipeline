@@ -200,6 +200,14 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15d — Light Explorer and Lighting window
+
+1. Window/Rendering/Light Explorer: tabs Lights, Infinity Lights, Reflection Probes, Infinity Probes, Light Probes,
+   Volumes, Static Emissives. Editing Shadow Filter / Contact Shadows / Volume Priority in the table changes the object
+   (Undo works); the Infinity Lights Shape column is read-only text (Sphere, Tube, Cone Spot, Rect, ...).
+2. Window/Rendering/Lighting → Environment: Atmosphere Profile field edits the RP Asset; Baking Sky shows the scene
+   skybox until Use Atmosphere As Baking Sky is pressed, then "Atmosphere".
+
 ## S15c — Frame Settings
 
 1. Run `FrameSettingsTests`.

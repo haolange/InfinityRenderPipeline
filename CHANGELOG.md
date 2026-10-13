@@ -65,6 +65,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   shape sync and realtime-only tube lights. Window/Infinity/Append Missing Default Volume Components.
 - Frame Settings: RP Asset defaults for cameras and for reflection probe captures, per-camera overrides on the Camera
   inspector, and a Rendering Debugger list of the effective values and their source.
+- Light Explorer tabs for Infinity lights, Infinity probe data and Volumes; Lighting window Environment section for the
+  atmosphere and the baking sky.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
