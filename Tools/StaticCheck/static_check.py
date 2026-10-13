@@ -158,12 +158,40 @@ def check_records(repo, out):
 def check_sgstrings(repo, out):
     d = os.path.join(repo, 'Editor/ShaderGraph')
     if not os.path.isdir(d): return
+    pkg = 'Packages/com.infinity.render-pipeline'
+    rel = lambda p: os.path.relpath(p, repo)
     for p in all_files(d, {'.cs', '.template', '.hlsl'}):
         t = read(p)
         for m in re.finditer(r'"(Packages/com\.infinity\.render-pipeline/[^"]+)"', t):
-            target = os.path.join(repo, m.group(1)[len('Packages/com.infinity.render-pipeline/'):])
-            if not os.path.exists(target):
-                out.append(('ERROR', 'sgstrings', f'{os.path.relpath(p, repo)}: missing {m.group(1)}'))
+            if not os.path.exists(os.path.join(repo, m.group(1)[len(pkg) + 1:])):
+                out.append(('ERROR', 'sgstrings', f'{rel(p)}: missing {m.group(1)}'))
+        if not p.endswith('.cs'):
+            continue
+        # Paths composed from the target's constants.
+        for m in re.finditer(r'kPackagePath \+ "(/[^"]+)"', t):
+            if not os.path.exists(os.path.join(repo, m.group(1)[1:])):
+                out.append(('ERROR', 'sgstrings', f'{rel(p)}: missing {pkg}{m.group(1)}'))
+        for m in re.finditer(r'kIncludePath \+ "([^"]+)"', t):
+            if not os.path.exists(os.path.join(d, 'Includes', m.group(1))):
+                out.append(('ERROR', 'sgstrings', f'{rel(p)}: missing include {m.group(1)}'))
+        # Type names: the pipeline asset (Runtime) and material GUIs (Editor assembly).
+        for m in re.finditer(r'"(InfinityTech\.[\w.]+)"', t):
+            ns, _, cls = m.group(1).rpartition('.')
+            root = 'Runtime' if '.Pipeline.' in m.group(1) + '.' and cls.endswith('Asset') else 'Editor'
+            found = False
+            for q in all_files(os.path.join(repo, root), {'.cs'}):
+                if q.startswith(d): continue
+                qt = read(q)
+                if re.search(r'namespace\s+' + re.escape(ns) + r'\b', qt) and re.search(r'class\s+' + re.escape(cls) + r'\b', qt):
+                    found = True; break
+            if not found:
+                out.append(('ERROR', 'sgstrings', f'{rel(p)}: type {m.group(1)} not found in {root}'))
+    declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', read(os.path.join(repo, 'Runtime/RenderPipeline/Utility/PipelineIDs.cs'))))
+    passes = os.path.join(d, 'InfinityPasses.cs')
+    if os.path.exists(passes):
+        for m in re.finditer(r'const string k\w+ = "(\w+)";', read(passes)):
+            if m.group(1) not in declared and m.group(1) not in UNITY_LIGHTMODES:
+                out.append(('ERROR', 'sgstrings', f'InfinityPasses.cs: LightMode "{m.group(1)}" not in InfinityPassIDs'))
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')

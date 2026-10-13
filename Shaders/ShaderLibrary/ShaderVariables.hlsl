@@ -93,7 +93,7 @@ CBUFFER_END
 #define UNITY_MATRIX_P     Matrix_Proj
 #define UNITY_MATRIX_I_P   Matrix_InvProj
 #define UNITY_MATRIX_VP    Matrix_ViewJitterProj
-#define UNITY_MATRIX_I_VP  _InvCameraViewProj
+#define UNITY_MATRIX_I_VP  Matrix_InvViewJitterProj
 #define UNITY_MATRIX_MV    mul(UNITY_MATRIX_V, UNITY_MATRIX_M)
 #define UNITY_MATRIX_T_MV  transpose(UNITY_MATRIX_MV)
 #define UNITY_MATRIX_IT_MV transpose(mul(UNITY_MATRIX_I_M, UNITY_MATRIX_I_V))

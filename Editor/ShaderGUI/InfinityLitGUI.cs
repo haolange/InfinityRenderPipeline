@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Editor
             EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
-        static void DrawSssIndexWarning(Material material)
+        internal static void DrawSssIndexWarning(Material material)
         {
             if (material == null || !material.HasProperty("_SSSProfileIndex"))
             {
@@ -107,7 +107,7 @@ namespace InfinityTech.Rendering.Editor
             return material != null && material.HasProperty(name) ? material.GetFloat(name) : float.NaN;
         }
 
-        static void ApplyTargets(MaterialEditor materialEditor, bool routeChanged)
+        internal static void ApplyTargets(MaterialEditor materialEditor, bool routeChanged)
         {
             if (!routeChanged)
             {
@@ -125,7 +125,7 @@ namespace InfinityTech.Rendering.Editor
             }
         }
 
-        static void DirtyMeshComponents(Material material)
+        internal static void DirtyMeshComponents(Material material)
         {
             MeshComponent[] meshes = Object.FindObjectsByType<MeshComponent>();
             for (int i = 0; i < meshes.Length; ++i)

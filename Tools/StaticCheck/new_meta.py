@@ -15,7 +15,6 @@ IMPORTERS = {
     '.md': "TextScriptImporter:\n" + TAIL,
     '.txt': "TextScriptImporter:\n" + TAIL,
     '.json': "TextScriptImporter:\n" + TAIL,
-    '.template': "TextScriptImporter:\n" + TAIL,
     '.asmdef': "AssemblyDefinitionImporter:\n" + TAIL,
     '.asmref': "AssemblyDefinitionReferenceImporter:\n" + TAIL,
     '.uss': "ScriptedImporter:\n  internalIDToNameTable: []\n  externalObjects: {}\n  serializedVersion: 2\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n  script: {fileID: 12385, guid: 0000000000000000e000000000000000, type: 0}\n  disableValidation: 0\n",

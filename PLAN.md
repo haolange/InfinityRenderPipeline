@@ -54,13 +54,36 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
-| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | pending |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | in progress (S15a Shader Graph done) |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
 | S17 | Folder layout (`git mv` only) | all | pending |
 
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S15
+
+S15a — Shader Graph target (`Editor/ShaderGraph/`, compiled into `Unity.ShaderGraph.Editor` by
+`Unity.RenderPipelines.Infinity.ShaderGraph.asmref`):
+
+- `InfinityTarget` (active when the current pipeline asset's type is `InfinityTech.Rendering.Pipeline.InfinityRenderPipelineAsset`),
+  sub-targets Lit, Unlit, Decal. Target settings: Surface Route, Translucent Stage, Blending Mode, Render Face, Alpha
+  Clipping, Custom Editor GUI.
+- Lit emits every LightMode of InfinityLit (ShadowPass, ShadowCaster, DepthPass, GBufferPass, ForwardPass, MotionPass,
+  TranslucentDepthPass, TranslucentT0/T1/T2Pass, Meta) with InfinityLit's keywords (lightmap, shadowmask, APV, DBuffer,
+  forward AO, fog, aerial perspective, refraction). Hidden UnityPerMaterial floats `_SurfaceRoute`, `_TranslucentStage`,
+  `_RefractionStrength`, `_Subsurface`, `_SSSProfileIndex`, `_SSSThickness`: `MaterialRouteUtility` treats graph
+  materials like InfinityLit. Material GUI `InfinityTech.Rendering.Editor.InfinityShaderGraphLitGUI`.
+- Blocks: Base Color, Normal (Tangent Space), Metallic (= reflectance), Roughness and Specular Level
+  (`InfinityBlockFields`, Unreal form), Emission, Alpha, Alpha Clip Threshold; Decal adds Occlusion. Unlit draws in T2
+  only (as InfinityUnlit); Decal draws a DBufferPass through the decal box (uv0 = object xz + 0.5).
+- Includes (`Editor/ShaderGraph/Includes`): `InfinitySGCore` (pass ids, globals, Shader Graph library) → pass pre-graph
+  (`BakedLighting`, `SurfaceLighting`, `Translucent`) → `InfinitySGGraphFunctions` (Scene Color in T1, Scene Depth in
+  DBuffer, Baked GI in GBuffer / Forward, Reflection Probe in Forward, then SG `Functions.hlsl`) → graph →
+  `InfinitySGVaryings` → the pass fragment. Motion uses the world position and `unity_MatrixPreviousM` (rigid motion).
+- Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
+  variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.
 
 ### S14
 

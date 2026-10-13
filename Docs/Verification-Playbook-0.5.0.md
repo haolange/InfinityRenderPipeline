@@ -200,6 +200,24 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S15a — Shader Graph target
+
+1. Compile. The Shader Graph package compiles the `Editor/ShaderGraph` asmref into `Unity.ShaderGraph.Editor`; record
+   any Console error from that assembly first.
+2. Create → Shader Graph → (any) graph, Graph Settings → Active Targets → Infinity. Material: Lit, Unlit, Decal appear.
+   Lit blocks: Base Color, Normal (Tangent Space), Metallic, Roughness, Specular Level, Emission (+ Alpha with clipping or
+   a translucent stage). Save: the shader compiles without errors (Inspector of the graph asset → no error list).
+3. A Lit graph with a texture into Base Color and a normal map, on a cube next to an InfinityLit cube with the same
+   inputs: both look the same in Deferred; switch the material's Surface Route to Forward: still the same, Frame
+   Debugger draws it in `ForwardPass`.
+4. Translucent Stage T1 on the material: refraction through the color pyramid; T0: fog applies; T2: plain blend. Motion
+   vectors: Debug View Motion shows the moving object.
+5. Bake lighting with a static Lit-graph object: it receives the lightmap (Meta pass gives the right albedo / emission).
+6. Unlit graph: drawn in T2 with alpha. Decal graph on a Decal Projector: the projected texture shows on the GBuffer
+   surfaces, its normal follows the projector.
+7. A Scene Color node in a T1 graph samples the opaque scene; Scene Depth outside decal graphs returns Shader Graph's constant 1
+   (known gap).
+
 ## S14 — SSGI on the SSR core
 
 1. Compile; run `QualityPresetTests`, `StochasticSSGINumericTests` (GPU) and `StochasticSSRNumericTests` (SSR now uses

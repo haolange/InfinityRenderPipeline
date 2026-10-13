@@ -57,6 +57,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   cosine-distributed rays traced with the Hi-Z walk, ray-reuse resolve with filtered importance sampling, temporal
   accumulation with per-pixel history age and an optional a-trous pass; Quality presets on the Volume. Missed rays
   keep the baked, probe or sky indirect diffuse. SSR and SSGI share `ScreenSpaceTraceTiles.hlsl`.
+- Shader Graph target "Infinity" with Lit, Unlit and Decal materials: Lit graphs render through every InfinityLit pass
+  (Deferred / Forward routes, translucent T0–T2, shadows, motion, lightmaps, probes, APV, decals, Meta) with Unreal-style
+  Roughness and Specular Level blocks and a material GUI for routing and subsurface.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
