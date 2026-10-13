@@ -239,6 +239,44 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
+        // Local shadow budget: candidates in descending score (record order on ties) are accepted while both the light
+        // count and the atlas tile budget allow; one that does not fit is dropped and a later, smaller one may still fit.
+        // Writes the accepted record indices in acceptance order and returns their count.
+        internal static int SelectWithinBudget(float[] scores, int[] recordIndices, int[] faceCounts, int maxLocalLights, int tileBudget,
+            int[] acceptedRecords, out int tilesUsed, out int dropped)
+        {
+            int count = scores.Length;
+            var order = new int[count];
+            for (int i = 0; i < count; ++i)
+            {
+                order[i] = i;
+            }
+
+            Array.Sort(order, (a, b) =>
+            {
+                int cmp = scores[b].CompareTo(scores[a]);
+                return cmp != 0 ? cmp : recordIndices[a].CompareTo(recordIndices[b]);
+            });
+
+            tilesUsed = 0;
+            dropped = 0;
+            int accepted = 0;
+            for (int o = 0; o < count; ++o)
+            {
+                int candidate = order[o];
+                int faces = faceCounts[candidate];
+                if (accepted >= maxLocalLights || accepted >= acceptedRecords.Length || tilesUsed + faces > tileBudget)
+                {
+                    dropped++;
+                    continue;
+                }
+
+                acceptedRecords[accepted++] = recordIndices[candidate];
+                tilesUsed += faces;
+            }
+            return accepted;
+        }
+
         void AllocateLocal(
             NativeList<FLightRecord> records,
             in CullingResults cullingResults,
@@ -285,39 +323,19 @@ namespace InfinityTech.Rendering.LightPipeline
                 write++;
             }
 
-            var order = new int[write];
-            for (int i = 0; i < write; ++i)
+            var faceCounts = new int[write];
+            var candidateScores = new float[write];
+            var candidateRecords = new int[write];
+            for (int c = 0; c < write; ++c)
             {
-                order[i] = i;
+                candidateScores[c] = scores[c];
+                candidateRecords[c] = recordIndices[c];
+                faceCounts[c] = FLightRecordPack.LocalShadowSliceCount(records[recordIndices[c]]);
             }
 
-            Array.Sort(order, (a, b) =>
-            {
-                int cmp = scores[b].CompareTo(scores[a]);
-                if (cmp != 0)
-                {
-                    return cmp;
-                }
-
-                return recordIndices[a].CompareTo(recordIndices[b]);
-            });
-
-            int tilesUsed = 0;
-            int accepted = 0;
             var acceptedRecords = new int[math.min(maxLocalLights, write)];
-            for (int o = 0; o < write; ++o)
-            {
-                int recordIndex = recordIndices[order[o]];
-                int faces = FLightRecordPack.LocalShadowSliceCount(records[recordIndex]);
-                if (accepted >= maxLocalLights || tilesUsed + faces > tileBudget)
-                {
-                    MeshPipelineDiagnostics.LocalShadowBudgetDropped++;
-                    continue;
-                }
-
-                acceptedRecords[accepted++] = recordIndex;
-                tilesUsed += faces;
-            }
+            int accepted = SelectWithinBudget(candidateScores, candidateRecords, faceCounts, maxLocalLights, tileBudget, acceptedRecords, out int tilesUsed, out int dropped);
+            MeshPipelineDiagnostics.LocalShadowBudgetDropped += dropped;
 
             EnsureLocalCapacity(math.max(1, tilesUsed));
             LocalSliceCount = 0;
