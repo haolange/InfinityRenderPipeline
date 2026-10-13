@@ -107,7 +107,10 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 
     float4 baked = SRV_BakedDiffuse[pixelCoord];
     float3 diffuse = microfaceCtx.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(normal, _AtmosphereSkySH)) * ao;
-    float3 specularIBL = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflect(-viewDir, normal), microfaceCtx.RoughnessClamp, _AtmosphereIBLMaxMip)
+    // Specular environment: reflection probes front to back, the sky for the remainder (SSR replaces it by confidence).
+    float3 reflectionWS = reflect(-viewDir, normal);
+    float3 sky = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflectionWS, microfaceCtx.RoughnessClamp, _AtmosphereIBLMaxMip);
+    float3 specularIBL = BlendReflectionProbesWithSky(worldPos, reflectionWS, microfaceCtx.RoughnessClamp, pixelCoord, viewDepth, sky)
         * EnvBRDFApprox(microfaceCtx.SpecularColor, microfaceCtx.RoughnessClamp, saturate(dot(normal, viewDir))).rgb * ao;
     UAV_IndirectDiffuse[pixelCoord] = float4(diffuse, 1);
     UAV_IndirectSpecular[pixelCoord] = float4(specularIBL, 1);

@@ -44,6 +44,9 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/RenderingFeature/LightTileMask/Compute_LightTileMask.compute")]
         public ComputeShader lightTileMaskShader;
 
+        [ResourcePath("Shaders/RenderingFeature/CubeFilter/Compute_CubeFilter.compute")]
+        public ComputeShader cubeFilterShader;
+
         [ResourcePath("Shaders/RenderingFeature/LightCookie/Compute_LightCookie.compute")]
         public ComputeShader lightCookieShader;
 

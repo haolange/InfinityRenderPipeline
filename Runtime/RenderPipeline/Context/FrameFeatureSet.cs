@@ -30,7 +30,9 @@ namespace InfinityTech.Rendering.Pipeline
         // A shadowed light filters with VSM / EVSM.
         ShadowMoments,
         // A visible light has a cookie or IES profile in the atlas.
-        LightCookies
+        LightCookies,
+        // Reflection probes reach the screen.
+        ReflectionProbes
     }
 
     public class FrameFeatureSet

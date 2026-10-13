@@ -22,6 +22,8 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeAtmosphericLUT,
         ComputeLightTileMask,
         ComputeLightCookies,
+        ComputeReflectionProbes,
+        ComputeProbeTileMask,
         ComputeGroundTruthOcclusion,
         ComputeRayTracedOcclusion,
         ComputeContactShadow,
@@ -115,6 +117,8 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey MotionBuffer = new RGResourceKey("_MotionTexture");
         public static readonly RGResourceKey CascadeShadowMap = new RGResourceKey("_CascadeShadowMapTexture");
         public static readonly RGResourceKey LocalShadowMap = new RGResourceKey("_LocalShadowMapTexture");
+        public static readonly RGResourceKey ReflectionProbeAtlas = new RGResourceKey("_ReflectionProbeAtlasTexture");
+        public static readonly RGResourceKey ProbeTileMaskBuffer = new RGResourceKey("_ProbeTileMaskBuffer");
         public static readonly RGResourceKey LightCookieAtlas = new RGResourceKey("_LightCookieAtlasTexture");
         public static readonly RGResourceKey CachedLocalShadowMap = new RGResourceKey("_CachedLocalShadowMapTexture");
         public static readonly RGResourceKey CascadeShadowMoments = new RGResourceKey("_CascadeShadowMomentsTexture");

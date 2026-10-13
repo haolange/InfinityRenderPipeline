@@ -68,6 +68,13 @@ namespace InfinityTech.Rendering.Pipeline
         [System.Obsolete("This property is no longer necessary. #from(2023.3)")]
         public ProbeVolumeSceneData probeVolumeSceneData => null;
 
+        // Reflection probe atlas: face resolution (power of two, GGX mips) and probe slots (6 slices each); 0 disables
+        // probes (the sky reflects everything).
+        [Min(0)]
+        public int reflectionProbeResolution = 128;
+        [Range(0, 128)]
+        public int maxReflectionProbes = 32;
+
         // Light cookie / IES atlas (power of two, RGBA8 with mips); 0 disables cookies.
         [Min(0)]
         public int cookieAtlasResolution = 2048;

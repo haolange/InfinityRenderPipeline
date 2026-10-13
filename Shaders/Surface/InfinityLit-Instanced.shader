@@ -403,7 +403,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
                 SampleMeshBakedLighting(In.PrimitiveId, In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, renderingLayerBuffer[In.PrimitiveId], baked, mask);
                 float viewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
                 float3 diffuse = microfaceContext.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
-                float3 specular = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflect(-cameraDirWS, pnormalWS), microfaceContext.RoughnessClamp, _AtmosphereIBLMaxMip)
+                float3 reflectionWS = reflect(-cameraDirWS, pnormalWS);
+                float3 sky = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflectionWS, microfaceContext.RoughnessClamp, _AtmosphereIBLMaxMip);
+                float3 specular = BlendReflectionProbesWithSky(positionWS, reflectionWS, microfaceContext.RoughnessClamp, (uint2)In.vertexCS.xy, viewDepth, sky)
                     * EnvBRDFApprox(microfaceContext.SpecularColor, microfaceContext.RoughnessClamp, saturate(dot(pnormalWS, cameraDirWS))).rgb;
                 #if defined(INFINITY_FORWARD_AO)
                 float ao = SRV_ForwardOcclusion.Load(int3(In.vertexCS.xy, 0));

@@ -33,6 +33,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_CachedShadowAtlasWidth;
         SerializedProperty m_CookieAtlasResolution;
         SerializedProperty m_LightProbeSystem;
+        SerializedProperty m_ReflectionProbeResolution;
+        SerializedProperty m_MaxReflectionProbes;
         SerializedProperty m_ProbeVolumeMemoryBudget;
         SerializedProperty m_ProbeVolumeBlendingMemoryBudget;
         SerializedProperty m_ProbeVolumeSHBands;
@@ -74,6 +76,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_CachedShadowAtlasWidth = serializedObject.FindProperty("cachedShadowAtlasWidth");
             m_CookieAtlasResolution = serializedObject.FindProperty("cookieAtlasResolution");
             m_LightProbeSystem = serializedObject.FindProperty("lightProbeSystem");
+            m_ReflectionProbeResolution = serializedObject.FindProperty("reflectionProbeResolution");
+            m_MaxReflectionProbes = serializedObject.FindProperty("maxReflectionProbes");
             m_ProbeVolumeMemoryBudget = serializedObject.FindProperty("probeVolumeMemoryBudget");
             m_ProbeVolumeBlendingMemoryBudget = serializedObject.FindProperty("probeVolumeBlendingMemoryBudget");
             m_ProbeVolumeSHBands = serializedObject.FindProperty("probeVolumeSHBands");
@@ -192,6 +196,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 DrawShadowFilter();
                 EditorGUILayout.PropertyField(m_CookieAtlasResolution, new GUIContent("Cookie Atlas Resolution", "Power-of-two atlas for light cookies and IES profiles (RGBA8 with mips). 0 disables cookies."));
                 EditorGUILayout.PropertyField(m_CookieMaxSize, new GUIContent("Cookie Max Size", "Largest atlas block of one cookie; larger textures are minified."));
+                EditorGUILayout.PropertyField(m_ReflectionProbeResolution, new GUIContent("Reflection Probe Resolution", "Face size of each probe in the probe atlas (GGX-prefiltered mips). 0 disables probes."));
+                EditorGUILayout.PropertyField(m_MaxReflectionProbes, new GUIContent("Max Reflection Probes", "Probe slots in the atlas (6 slices each)."));
                 EditorGUILayout.PropertyField(m_LightProbeSystem, new GUIContent("Light Probe System", "Light Probe Groups (with Light Probe Proxy Volumes) or Adaptive Probe Volumes. Changing it recreates the pipeline."));
                 if (m_LightProbeSystem.enumValueIndex == (int)ELightProbeSystem.ProbeVolumes || m_LightProbeSystem.hasMultipleDifferentValues)
                 {

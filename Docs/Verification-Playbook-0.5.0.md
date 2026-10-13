@@ -200,6 +200,24 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S13 — reflection probes
+
+1. Compile; run `ReflectionProbeTests`, `AtmosphereCacheTests`.
+2. Sky IBL is unchanged: with no probe in the scene, glossy and rough spheres look as before (the sky prefilter moved
+   to `Compute_CubeFilter`; Frame Debugger `ComputeAtmosphericLUT` dispatches `FilterArrayToArray` once per mip).
+3. Add a Reflection Probe (Baked) around an indoor room and bake: glossy surfaces inside show the room instead of the
+   sky; Frame Debugger shows `ComputeReflectionProbes` for one frame (and again after a re-bake), then
+   `ComputeProbeTileMask` every frame.
+4. Blend Distance 1 m: walking out of the probe, the reflection fades to the sky over 1 m. Box Projection on: a mirror
+   floor's reflection lines up with the room walls.
+5. Two overlapping probes: the higher Importance wins; at equal importance the smaller one wins inside it.
+6. Add Infinity Additional Reflection Probe Data, Influence = Sphere: the influence becomes a sphere (radius = Sphere
+   Radius, or the largest box half extent when 0).
+7. A Realtime probe (Every Frame): a moving object appears in the reflection; `ComputeReflectionProbes` runs every
+   frame once, also with two cameras.
+8. A Forward-route material inside the probe reflects the same as a deferred one.
+9. RP Asset Max Reflection Probes = 0: probes disappear, only the sky remains; `ComputeReflectionProbes` is gone.
+
 ## S12 — baked GI
 
 0. Window/Infinity → Append Missing Default Volume Components (adds Adaptive Probe Volumes Options).

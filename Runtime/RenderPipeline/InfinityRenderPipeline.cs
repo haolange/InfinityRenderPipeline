@@ -230,6 +230,7 @@ namespace InfinityTech.Rendering.Pipeline
         private LocalShadowCache m_LocalShadowCache;
         private LightCookieAtlas m_LightCookieAtlas;
         private ProbeVolumeIntegration m_ProbeVolumes;
+        private ReflectionProbeAtlas m_ReflectionProbeAtlas;
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
         bool m_PreviousLightsUseLinearIntensity;
@@ -304,6 +305,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_LocalShadowCache = new LocalShadowCache();
                 m_LightCookieAtlas = new LightCookieAtlas();
                 m_ProbeVolumes = new ProbeVolumeIntegration(asset);
+                m_ReflectionProbeAtlas = new ReflectionProbeAtlas();
             }
             catch (Exception constructionFailure)
             {
@@ -342,6 +344,7 @@ namespace InfinityTech.Rendering.Pipeline
                     m_AtmosphereSharedCache.BeginFrame();
                     m_LocalShadowCache.BeginFrame();
                     m_LightCookieAtlas.BeginFrame();
+                    m_ReflectionProbeAtlas.BeginFrame();
                     for (int i = 0; i < cameras.Count; ++i)
                     {
                         Camera camera = cameras[i];
@@ -465,6 +468,8 @@ namespace InfinityTech.Rendering.Pipeline
                                     renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize);
                                     m_LightCookieAtlas.Configure(pipelineAsset.cookieAtlasResolution, pipelineAsset.cookieMaxSize);
                                     renderContext.lightContext.ResolveCookies(m_LightCookieAtlas, cullingResults, renderContext.GetWorldLight(), Time.frameCount);
+                                    m_ReflectionProbeAtlas.Configure(pipelineAsset.reflectionProbeResolution, pipelineAsset.maxReflectionProbes);
+                                    renderContext.lightContext.ResolveReflectionProbes(m_ReflectionProbeAtlas, cullingResults, Time.frameCount);
                                     ConfigureContentFeatures(frameState);
                                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                                     lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
@@ -544,6 +549,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     // so the whole geometry raster window can overlap them.
                                     UploadLightData(renderContext.lightContext);
                                     ComputeLightCookies(renderContext);
+                                    ComputeReflectionProbes(renderContext);
                                     ComputeCombineLuts(frameState, combineLutParameterDescriptor);
                                     ComputeAtmosphericLUT(renderContext, camera);
 
@@ -680,8 +686,8 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     frameValid &= m_RGBuilder.CanRetireSubmittedResources;
                     CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
-                    if (frameValid) { m_LocalShadowCache.CommitFrame(); m_LightCookieAtlas.CommitFrame(); }
-                    else { m_LocalShadowCache.RollbackPending(); m_LightCookieAtlas.RollbackPending(); }
+                    if (frameValid) { m_LocalShadowCache.CommitFrame(); m_LightCookieAtlas.CommitFrame(); m_ReflectionProbeAtlas.CommitFrame(); }
+                    else { m_LocalShadowCache.RollbackPending(); m_LightCookieAtlas.RollbackPending(); m_ReflectionProbeAtlas.RollbackPending(); }
                     if (!frameValid)
                         RenderCaptureService.current?.Fail(firstCameraException?.ToString() ?? "Frame submission failed.");
                     if (submitted)
@@ -747,6 +753,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_AtmosphereSharedCache.FlushRetired();
             m_LocalShadowCache.FlushRetired();
             m_LightCookieAtlas.FlushRetired();
+            m_ReflectionProbeAtlas.FlushRetired();
             foreach (CameraFrameState state in m_CameraStates.Values)
             {
                 state.historyCache.FlushRetired();
@@ -866,7 +873,9 @@ namespace InfinityTech.Rendering.Pipeline
             m_InstalledBestFitTexture = resources.textures.bestFitNormalTexture;
             var installedFeatures = new SupportedRenderingFeatures()
             {
-                reflectionProbeModes = SupportedRenderingFeatures.ReflectionProbeModes.Rotation,
+                // Probes are axis aligned (their capture is world aligned); influence and projection boxes blend.
+                reflectionProbeModes = SupportedRenderingFeatures.ReflectionProbeModes.None,
+                reflectionProbesBlendDistance = true,
                 defaultMixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly,
                 mixedLightingModes = SupportedRenderingFeatures.LightmapMixedBakeModes.IndirectOnly | SupportedRenderingFeatures.LightmapMixedBakeModes.Shadowmask,
                 lightmapBakeTypes = LightmapBakeType.Baked | LightmapBakeType.Mixed | LightmapBakeType.Realtime,
@@ -1030,6 +1039,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_LightCookieAtlas = null;
             Release(() => m_ProbeVolumes?.Dispose());
             m_ProbeVolumes = null;
+            Release(() => m_ReflectionProbeAtlas?.Dispose());
+            m_ReflectionProbeAtlas = null;
             if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
             Release(RestoreGraphicsState);
             if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);
@@ -1195,6 +1206,10 @@ namespace InfinityTech.Rendering.Pipeline
             if (lightContext.CookieCount > 0)
             {
                 features.Request(EFrameFeature.LightCookies);
+            }
+            if (lightContext.ReflectionProbeCount > 0)
+            {
+                features.Request(EFrameFeature.ReflectionProbes);
             }
             ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
             if (shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0)

@@ -48,6 +48,11 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 - Contact shadows for local lights: up to 24 contact-enabled lights per camera trace toward their position into a
   per-pixel bit mask shared by Deferred and Forward; the sun keeps its own trace. Thickness is tested in linear view
   depth, ray starts are jittered, and the Contact Shadow Volume has quality presets and a separate sun step count.
+- Reflection probes: baked, custom and realtime probes join the clustered list as a second index space (own z-bins
+  and tile bitmasks) and blend front to back by importance and size, with box or sphere influence, blend distance and
+  box projection; the sky fills the remaining weight. Deferred and Forward share the evaluation. Probe cubes are
+  GGX-filtered into one cube-array atlas (RP Asset Reflection Probe Resolution, Max Reflection Probes) by
+  `Compute_CubeFilter.compute`, which the sky prefilter now uses as well.
 - VSM and EVSM shadow filters: a half-resolution moment atlas per shadow atlas, built only for the slices that need it,
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 

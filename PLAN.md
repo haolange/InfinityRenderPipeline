@@ -52,7 +52,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S10 | Screen-space traced shadows (sun + up to 24 local lights) | S7 | done |
 | S11 | Cookie and IES atlas | S6, S7 | done |
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
-| S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | pending |
+| S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | pending |
 | S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | pending |
 | S16 | Tests, user documentation, FeatureStatus, verification playbook | all | pending |
@@ -61,6 +61,35 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S13
+
+- Authority: Unity `ReflectionProbe` / `VisibleReflectionProbe` (mode, bounds, blend distance, box projection,
+  importance, intensity via `hdrData.x`). `InfinityAdditionalReflectionProbeData` adds only the sphere influence
+  (`influence`, `sphereRadius`). Probes are axis aligned: `SupportedRenderingFeatures.reflectionProbeModes = None`,
+  `reflectionProbesBlendDistance = true`.
+- `FReflectionProbeRecord` (`LightContext.cs` GPU-RECORD ↔ `Lighting/ReflectionProbes.hlsl`, 7 × float4):
+  `worldToBox0..2`, `extents` (influence half extents incl. blend; w = blend), `capture` (box-space capture position;
+  w = box projection), `projection` (projection half extents), `parameters` (intensity, first atlas slice, mip count
+  - 1, sphere flag).
+- List order is the blending priority (`ReflectionProbePriority`: importance descending, then volume ascending); a probe
+  without a free atlas slot this frame is skipped (`maxReflectionProbes` slots shared by the frame's cameras). Probes are the clustered list's second index space: own
+  log z-bins (`_ProbeZBinBuffer`, same `LightBinning.BuildZBins`), tile rectangles (`_ProbeTileRectBuffer`) and GPU tile
+  bitmasks (`_ProbeTileMaskBuffer`, `RecordTileMaskPass` shared with the light list).
+- `ReflectionProbeAtlas` (one per pipeline): persistent RGBA16F Texture2DArray, `reflectionProbeResolution`² (power of
+  two, full mip chain), 6 slices per slot, `maxReflectionProbes` slots (0 disables). Keyed by (probe identity, texture
+  identity); filtered when new or when `Texture.updateCount` changes; realtime probes once per frame. LRU slot reuse
+  excluding probes used this frame. Transaction as the cookie atlas (pending → produced on queue → commit / rollback).
+- `Compute_CubeFilter.compute` (`FilterCubeToArray`, `FilterArrayToArray`) is the only GGX prefilter: the sky
+  (`ComputeAtmosphericLUT`) and the probe atlas (`ComputeReflectionProbes`) both use it; mip m = roughness
+  m / (mipCount - 1).
+- Passes: `ComputeReflectionProbes` (feature `ReflectionProbes`, requested when a probe reaches the screen) writes the
+  atlas (`InfinityShaderIDs.ReflectionProbeAtlas`) and `ComputeProbeTileMask` writes the probe tile masks.
+  `FLightLoopInputs` carries both to Deferred and Forward; without probes it binds a 1×1 empty atlas and count 0.
+- Shading: `BlendReflectionProbesWithSky` accumulates probes front to back (influence × remaining weight, stopping at
+  1) and gives the remainder to the sky prefilter; the result replaces the sky term before `EnvBRDFApprox` in
+  Deferred and Forward (`UAV_IndirectSpecular` / `indirectSpecular`), so SSR still replaces it by confidence.
+  Translucent T0 has no specular environment term and is unchanged.
 
 ### S12
 

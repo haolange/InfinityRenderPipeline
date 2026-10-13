@@ -5,6 +5,7 @@
 #include "ShadowSampling.hlsl"
 #include "Lighting/LightShapes.hlsl"
 #include "Lighting/LightCookie.hlsl"
+#include "Lighting/ReflectionProbes.hlsl"
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
 // Screen-space traced shadows (ContactShadowPass): sun visibility and the local-light contact mask. Deferred binds them

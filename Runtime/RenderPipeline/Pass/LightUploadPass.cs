@@ -22,6 +22,9 @@ namespace InfinityTech.Rendering.Pipeline
                 m_RGScoper.RegisterBuffer(LightShaderIDs.LocalShadowMatrixBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowMatrixBuffer, "LocalShadowMatrixBuffer")));
                 m_RGScoper.RegisterBuffer(LightShaderIDs.LocalShadowRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LocalShadowRectBuffer, "LocalShadowRectBuffer")));
                 m_RGScoper.RegisterBuffer(LightShaderIDs.LightCookieBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.CookieBuffer, "LightCookieBuffer")));
+                m_RGScoper.RegisterBuffer(LightShaderIDs.ReflectionProbeBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ReflectionProbeBuffer, "ReflectionProbeBuffer")));
+                m_RGScoper.RegisterBuffer(LightShaderIDs.ProbeTileRectBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ProbeTileRectBuffer, "ProbeTileRectBuffer")));
+                m_RGScoper.RegisterBuffer(LightShaderIDs.ProbeZBinBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.ProbeZBinBuffer, "ProbeZBinBuffer")));
                 pass.SetExecuteFunc((in LightUploadPassData data, in RGTransferEncoder commands, RGObjectPool pool) => data.context.Upload(commands));
             }
         }

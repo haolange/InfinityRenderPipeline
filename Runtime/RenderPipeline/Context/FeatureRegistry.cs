@@ -176,6 +176,15 @@ namespace InfinityTech.Rendering.Pipeline
             });
             Add(new FeatureDescriptor
             {
+                id = EFrameFeature.ReflectionProbes,
+                shaders = new[]
+                {
+                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.cubeFilterShader), s => s.cubeFilterShader, CubeFilterUtilityData.KernelCubeToArray),
+                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.lightTileMaskShader), s => s.lightTileMaskShader, LightTileMaskPassUtilityData.KernelName),
+                }
+            });
+            Add(new FeatureDescriptor
+            {
                 id = EFrameFeature.Display,
                 customSupport = c => c.presentAvailable ? null : "The GlobalSettings blit material has no Present pass."
             });

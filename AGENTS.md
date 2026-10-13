@@ -137,6 +137,7 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 - Validation scenes (Decal, LocalLights, Translucent) show sky black bands, large dark triangles and cube blotches. Their cause is undiagnosed.
 - Cached (OnEnable / OnDemand) local shadows keep the casters of their last render; moving objects do not update them, and there is no dynamic-caster overlay.
 - Rect and disk shadow tiles cover a 120° cone in front of the emitter; receivers at grazing angles outside it are unshadowed.
+- Reflection probes are axis aligned (no rotation) and limited to the RP Asset Max Reflection Probes per frame (atlas slots; further probes are skipped in priority order); probe rendering layers are not supported. Unity culls probes by their box bounds, so a sphere influence larger than the box can be culled while still visible. Translucent T0 surfaces have no specular environment term.
 - Contact shadows cover at most 24 local lights per camera (largest on screen first); directional lights other than the sun get none.
 - `TAAJitter` has SuperResolution consumers. TAA uses explicit current/previous framebuffer jitter UV and per-pixel sample age; do not remove the shared upload without checking SR consumers.
 - TAA accumulation and color history are RGBA16F. `ComputeTemporalSharpen` is a separate output pass at strength 0.35; only unsharpened accumulation is copied into history. A single-dispatch TAA + sharpen is not implemented.

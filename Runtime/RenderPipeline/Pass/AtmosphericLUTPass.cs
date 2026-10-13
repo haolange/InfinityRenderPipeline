@@ -41,14 +41,11 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int Atmo_SunIlluminanceID = Shader.PropertyToID("Atmo_SunIlluminance");
         internal static int Atmo_CubemapSizeID = Shader.PropertyToID("Atmo_CubemapSize");
         internal static int Atmo_SHPartialCountID = Shader.PropertyToID("Atmo_SHPartialCount");
-        internal static int Atmo_PrefilterMipID = Shader.PropertyToID("Atmo_PrefilterMip");
-        internal static int Atmo_PrefilterRoughnessID = Shader.PropertyToID("Atmo_PrefilterRoughness");
         internal static int UAV_TransmittanceLUTID = Shader.PropertyToID("UAV_TransmittanceLUT");
         internal static int UAV_MultiScatteringLUTID = Shader.PropertyToID("UAV_MultiScatteringLUT");
         internal static int UAV_SkyViewLUTID = Shader.PropertyToID("UAV_SkyViewLUT");
         internal static int UAV_AerialPerspectiveLUTID = Shader.PropertyToID("UAV_AerialPerspectiveLUT");
         internal static int UAV_AtmosphereCubemapID = Shader.PropertyToID("UAV_AtmosphereCubemap");
-        internal static int UAV_GGXPrefilterID = Shader.PropertyToID("UAV_GGXPrefilter");
         internal static int UAV_SunBufferID = Shader.PropertyToID("UAV_SunBuffer");
         internal static int UAV_SHPartialID = Shader.PropertyToID("UAV_SHPartial");
         internal static int UAV_SHCoefficientsID = Shader.PropertyToID("UAV_SHCoefficients");
@@ -63,7 +60,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int KernelSunBuffer = 5;
         internal static int KernelSHProject = 7;
         internal static int KernelSHReduce = 8;
-        internal static int KernelGGXPrefilter = 9;
 
         internal static int GGXMipCount(int cubemapSize)
         {
@@ -94,6 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int ggxMipCount;
             public int shPartialCount;
             public ComputeShader atmosphericLUTShader;
+            public ComputeShader cubeFilterShader;
             public RGTextureRef transmittanceLUT;
             public RGTextureRef multiScatteringLUT;
             public RGTextureRef skyViewLUT;
@@ -185,7 +182,8 @@ namespace InfinityTech.Rendering.Pipeline
             if (!GraphicsUtility.HasRequiredKernels(shaders.atmosphericLUTShader,
                 "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT",
                 "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite",
-                "AtmosphereSHProject", "AtmosphereSHReduce", "AtmosphereGGXPrefilter"))
+                "AtmosphereSHProject", "AtmosphereSHReduce")
+                || !GraphicsUtility.HasRequiredKernels(shaders.cubeFilterShader, CubeFilterUtilityData.KernelArrayToArray))
             {
                 throw new InvalidOperationException("InfinityRP: Atmosphere is designed on but atmosphericLUTShader is missing a required kernel.");
             }
@@ -275,6 +273,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.ggxMipCount = ggxMipCount;
                 passData.shPartialCount = shPartialCount;
                 passData.atmosphericLUTShader = shaders.atmosphericLUTShader;
+                passData.cubeFilterShader = shaders.cubeFilterShader;
 
                 if (generateShared)
                 {
@@ -376,12 +375,8 @@ namespace InfinityTech.Rendering.Pipeline
                             cmdEncoder.BeginSample(ggxMarker);
                             int mipSize = Mathf.Max(1, passData.parameter.cubemapSize >> mip);
                             float roughness = passData.ggxMipCount > 1 ? mip / (float)(passData.ggxMipCount - 1) : 0.0f;
-                            cmdEncoder.SetComputeIntParam(shader, AtmosphericLUTPassUtilityData.Atmo_PrefilterMipID, mip);
-                            cmdEncoder.SetComputeFloatParam(shader, AtmosphericLUTPassUtilityData.Atmo_PrefilterRoughnessID, roughness);
-                            cmdEncoder.SetComputeTextureParam(shader, AtmosphericLUTPassUtilityData.KernelGGXPrefilter, AtmosphericLUTPassUtilityData.SRV_AtmosphereCubemapID, passData.atmosphereCubemap);
-                            cmdEncoder.SetComputeTextureParam(shader, AtmosphericLUTPassUtilityData.KernelGGXPrefilter, AtmosphericLUTPassUtilityData.UAV_GGXPrefilterID, passData.ggxPrefilter, mip);
-                            int mipGroups = Mathf.CeilToInt(mipSize / 8.0f);
-                            cmdEncoder.DispatchCompute(shader, AtmosphericLUTPassUtilityData.KernelGGXPrefilter, mipGroups, mipGroups, 6);
+                            CubeFilterUtilityData.FilterArrayToArray(cmdEncoder, passData.cubeFilterShader, passData.atmosphereCubemap, passData.ggxPrefilter,
+                                passData.parameter.cubemapSize, mip, roughness, 0, 32);
                             cmdEncoder.EndSample(ggxMarker);
                         }
                     }
