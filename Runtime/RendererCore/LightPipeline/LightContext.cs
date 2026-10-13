@@ -31,6 +31,24 @@ namespace InfinityTech.Rendering.LightPipeline
         public static readonly int LightTileRectBuffer = Shader.PropertyToID("_LightTileRectBuffer");
         public static readonly int LightZBinBuffer = Shader.PropertyToID("_LightZBinBuffer");
         public static readonly int EmptyLightTileMaskBuffer = Shader.PropertyToID("_EmptyLightTileMaskBuffer");
+        // Light cookies (Lighting/LightCookie.hlsl).
+        public static readonly int LightCookies = Shader.PropertyToID("SRV_LightCookies");
+        public static readonly int LightCookieAtlas = Shader.PropertyToID("SRV_LightCookieAtlas");
+        public static readonly int LightCookieBuffer = Shader.PropertyToID("_LightCookieBuffer");
+    }
+
+    // Cookie and IES data of one light (record.cookieIndex). Rects are atlas uv (offset xy, scale zw); z = 0 means none.
+    // GPU-RECORD: FLightCookie Shaders/ShaderLibrary/Lighting/LightCookie.hlsl
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct FLightCookieGPU
+    {
+        public Vector4 cookieRect;
+        public Vector4 iesRect;
+        // x = 1 when the IES block is octahedral (cube profile), 0 when projected (2D profile); y = cookie block mip
+        // count - 1; z = IES block mip count - 1.
+        public Vector4 layout;
+        // Directional cookies: x, y = 1 / cookieSize2D; z, w = light position along right / up, divided by the size.
+        public Vector4 tiling;
     }
 
     internal class LightContext : IDisposable
@@ -61,6 +79,11 @@ namespace InfinityTech.Rendering.LightPipeline
         GraphicsBuffer m_EmptyTileMaskBuffer;
         GraphicsBuffer m_LocalShadowMatrixBuffer;
         GraphicsBuffer m_LocalShadowRectBuffer;
+        GraphicsBuffer m_CookieBuffer;
+        int m_CookieCapacity;
+        readonly List<FLightCookieGPU> m_Cookies = new List<FLightCookieGPU>();
+        FLightCookieGPU[] m_CookieUpload = new FLightCookieGPU[1];
+        static readonly int CookieStride = Marshal.SizeOf<FLightCookieGPU>();
         NativeList<FLightRecord> m_Records;
         NativeList<int4> m_TileRects;
         NativeArray<uint> m_ZBins;
@@ -101,6 +124,8 @@ namespace InfinityTech.Rendering.LightPipeline
             m_EmptyTileMaskBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, sizeof(uint));
             m_LocalShadowMatrixBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, 64);
             m_LocalShadowRectBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_LocalMatrixCapacity, LocalShadowSliceStride);
+            m_CookieCapacity = 1;
+            m_CookieBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_CookieCapacity, CookieStride);
             m_Records = new NativeList<FLightRecord>(8, Allocator.Persistent);
             m_TileRects = new NativeList<int4>(8, Allocator.Persistent);
             m_ZBins = new NativeArray<uint>(LightBinning.ZBinCount, Allocator.Persistent);
@@ -135,6 +160,9 @@ namespace InfinityTech.Rendering.LightPipeline
         internal GraphicsBuffer EmptyTileMaskBuffer => m_EmptyTileMaskBuffer;
         internal GraphicsBuffer LocalShadowMatrixBuffer => m_LocalShadowMatrixBuffer;
         internal GraphicsBuffer LocalShadowRectBuffer => m_LocalShadowRectBuffer;
+        internal GraphicsBuffer CookieBuffer => m_CookieBuffer;
+        // Records with a cookie or IES profile in the atlas this camera.
+        internal int CookieCount => m_Cookies.Count;
         internal ShadowAllocator ShadowAllocator => m_ShadowAllocator;
         internal NativeArray<uint> ZBins => m_ZBins;
 
@@ -161,6 +189,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_OffscreenCount = 0;
             m_SunRecordIndex = -1;
             m_ContactLightCount = 0;
+            m_Cookies.Clear();
             m_ShadowAllocator.Reset();
         }
 
@@ -270,6 +299,96 @@ namespace InfinityTech.Rendering.LightPipeline
             EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
         }
 
+        // Assigns cookie / IES atlas blocks to this camera's records (record.cookieIndex) and queues the uploads of new or
+        // changed textures. The cookie texture is the Unity Light's; the IES profile is InfinityAdditionalLightData's.
+        // Point lights need cubemap cookies (stored octahedral); every other shape takes a 2D cookie. Cube IES profiles
+        // apply to every local shape by direction; 2D IES profiles only to cone and pyramid spots.
+        internal void ResolveCookies(LightCookieAtlas atlas, in CullingResults cullingResults,
+            Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup, int frame)
+        {
+            m_Cookies.Clear();
+            NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
+            for (int i = 0; i < m_Records.Length; ++i)
+            {
+                FLightRecord record = m_Records[i];
+                record.cookieIndex = -1;
+                if (atlas != null && atlas.Enabled && record.visibleLightIndex >= 0 && record.visibleLightIndex < visibleLights.Length)
+                {
+                    Light light = visibleLights[record.visibleLightIndex].light;
+                    InfinityAdditionalLightData ext = null;
+                    if (light != null && (worldLightLookup == null || !worldLightLookup.TryGetValue(UnityEntityId.ToUInt64(light), out ext)))
+                    {
+                        light.TryGetComponent(out ext);
+                    }
+                    if (light != null && TryResolveCookie(atlas, record, light, ext, frame, out FLightCookieGPU cookie))
+                    {
+                        record.cookieIndex = m_Cookies.Count;
+                        m_Cookies.Add(cookie);
+                    }
+                }
+                m_Records[i] = record;
+            }
+
+            if (m_CookieBuffer == null || m_CookieCapacity < m_Cookies.Count)
+            {
+                int capacity = math.max(m_Cookies.Count, m_CookieCapacity * 2);
+                ReplaceBuffer(ref m_CookieBuffer, capacity, CookieStride);
+                m_CookieCapacity = capacity;
+            }
+        }
+
+        static bool TryResolveCookie(LightCookieAtlas atlas, in FLightRecord record, Light light, InfinityAdditionalLightData ext, int frame, out FLightCookieGPU cookie)
+        {
+            cookie = default;
+            bool directional = record.IsDirectional;
+            bool point = !directional && (record.flags & (FLightRecordFlags.SpotCone | FLightRecordFlags.SpotPyramid | FLightRecordFlags.SpotBox | FLightRecordFlags.Planar)) == 0;
+            bool projectedSpot = (record.flags & (FLightRecordFlags.SpotCone | FLightRecordFlags.SpotPyramid)) != 0;
+
+            Texture texture = light.cookie;
+            if (texture != null)
+            {
+                bool cube = texture.dimension == TextureDimension.Cube;
+                if (cube == point && (cube || texture.dimension == TextureDimension.Tex2D)
+                    && Acquire(atlas, texture, cube ? ECookieLayout.Octahedral : ECookieLayout.Projected, frame, out cookie.cookieRect, out int mips))
+                {
+                    cookie.layout.y = mips;
+                    if (directional)
+                    {
+                        Vector2 size = light.cookieSize2D;
+                        float invX = 1.0f / Mathf.Max(size.x, 1e-4f), invY = 1.0f / Mathf.Max(size.y, 1e-4f);
+                        Vector3 position = light.transform.position;
+                        Vector3 right = new Vector3(record.right.x, record.right.y, record.right.z);
+                        Vector3 up = Vector3.Cross(new Vector3(record.forward.x, record.forward.y, record.forward.z), right);
+                        cookie.tiling = new Vector4(invX, invY, Vector3.Dot(position, right) * invX, Vector3.Dot(position, up) * invY);
+                    }
+                }
+            }
+
+            Texture ies = ext != null && !directional ? ext.iesProfile : null;
+            if (ies != null)
+            {
+                bool cube = ies.dimension == TextureDimension.Cube;
+                if ((cube || (projectedSpot && ies.dimension == TextureDimension.Tex2D))
+                    && Acquire(atlas, ies, cube ? ECookieLayout.Octahedral : ECookieLayout.Projected, frame, out cookie.iesRect, out int mips))
+                {
+                    cookie.layout.x = cube ? 1 : 0;
+                    cookie.layout.z = mips;
+                }
+            }
+            return cookie.cookieRect.z > 0 || cookie.iesRect.z > 0;
+        }
+
+        static bool Acquire(LightCookieAtlas atlas, Texture texture, ECookieLayout layout, int frame, out Vector4 rect, out int maxMip)
+        {
+            UnityEngine.Experimental.Rendering.GraphicsFormat format = texture.graphicsFormat;
+            ECookieChannels channels = UnityEngine.Experimental.Rendering.GraphicsFormatUtility.IsAlphaOnlyFormat(format) ? ECookieChannels.Alpha
+                : UnityEngine.Experimental.Rendering.GraphicsFormatUtility.GetComponentCount(format) == 1 ? ECookieChannels.Red
+                : ECookieChannels.RGB;
+            bool ok = atlas.Acquire(texture, layout, channels, UnityEntityId.ToUInt64(texture), texture.updateCount, texture.width, texture.height, frame, out rect);
+            maxMip = ok ? (int)math.round(math.log2(math.max(1.0f, rect.z * atlas.AtlasSize))) : 0;
+            return ok;
+        }
+
         internal void EnsureCapacity(int recordCount, int rectCount, int localMatrixCount)
         {
             int records = math.max(1, recordCount);
@@ -343,6 +462,13 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             cmdBuffer.SetBufferData(m_EmptyTileMaskBuffer, s_EmptyMask, 0, 0, 1);
+
+            if (m_Cookies.Count > 0)
+            {
+                if (m_CookieUpload.Length < m_Cookies.Count) m_CookieUpload = new FLightCookieGPU[m_Cookies.Count];
+                m_Cookies.CopyTo(m_CookieUpload);
+                cmdBuffer.SetBufferData(m_CookieBuffer, m_CookieUpload, 0, 0, m_Cookies.Count);
+            }
         }
 
         internal bool TryGetSunRecord(out FLightRecord record)
@@ -419,6 +545,7 @@ namespace InfinityTech.Rendering.LightPipeline
             m_EmptyTileMaskBuffer?.Release();
             m_LocalShadowMatrixBuffer?.Release();
             m_LocalShadowRectBuffer?.Release();
+            m_CookieBuffer?.Release();
             if (m_Records.IsCreated) m_Records.Dispose();
             if (m_TileRects.IsCreated) m_TileRects.Dispose();
             if (m_ZBins.IsCreated) m_ZBins.Dispose();

@@ -31,6 +31,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_MaxShadowedLocalLights;
         SerializedProperty m_CascadeCount;
         SerializedProperty m_CachedShadowAtlasWidth;
+        SerializedProperty m_CookieAtlasResolution;
+        SerializedProperty m_CookieMaxSize;
         SerializedProperty m_CascadeBlendWidth;
         SerializedProperty m_ShadowFilterQuality;
         SerializedProperty m_CustomShadowFilter;
@@ -62,6 +64,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_MaxShadowedLocalLights = serializedObject.FindProperty("maxShadowedLocalLights");
             m_CascadeCount = serializedObject.FindProperty("cascadeCount");
             m_CachedShadowAtlasWidth = serializedObject.FindProperty("cachedShadowAtlasWidth");
+            m_CookieAtlasResolution = serializedObject.FindProperty("cookieAtlasResolution");
+            m_CookieMaxSize = serializedObject.FindProperty("cookieMaxSize");
             m_CascadeBlendWidth = serializedObject.FindProperty("cascadeBlendWidth");
             m_ShadowFilterQuality = serializedObject.FindProperty("shadowFilterQuality");
             m_CustomShadowFilter = serializedObject.FindProperty("customShadowFilter");
@@ -170,6 +174,8 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_MaxShadowedLocalLights, new GUIContent("Max Shadowed Local Lights"));
                 EditorGUILayout.PropertyField(m_CachedShadowAtlasWidth, new GUIContent("Cached Shadow Atlas Width", "Atlas for local lights whose Shadow Update Mode is OnEnable or OnDemand; its height is the Local Shadow Map Resolution. 0 disables caching."));
                 DrawShadowFilter();
+                EditorGUILayout.PropertyField(m_CookieAtlasResolution, new GUIContent("Cookie Atlas Resolution", "Power-of-two atlas for light cookies and IES profiles (RGBA8 with mips). 0 disables cookies."));
+                EditorGUILayout.PropertyField(m_CookieMaxSize, new GUIContent("Cookie Max Size", "Largest atlas block of one cookie; larger textures are minified."));
             }
             InfinityInspectorGUI.EndFoldout();
 

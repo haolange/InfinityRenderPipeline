@@ -50,7 +50,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 | S8 | Area shapes: sphere, tube, line, rect, disk, sun disk (Karis representative point + Frostbite diffuse) | S7 | done |
 | S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | done |
 | S10 | Screen-space traced shadows (sun + up to 24 local lights) | S7 | done |
-| S11 | Cookie and IES atlas | S6, S7 | pending |
+| S11 | Cookie and IES atlas | S6, S7 | done |
 | S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | pending |
 | S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | pending |
 | S14 | SSGI on the SSR trace/resolve/denoise core | S5 | pending |
@@ -61,6 +61,28 @@ Out of scope: new post effects, LTC, Player builds and packaging.
 ## Interface contracts
 
 Each stage fills in its section before its code lands.
+
+### S11
+
+- Authority: the cookie texture is the Unity Light's `cookie` (and `cookieSize2D` for directional lights); the IES
+  profile is `InfinityAdditionalLightData.iesProfile` (Cube texture: every local light by direction; 2D texture: cone
+  and pyramid spots, projected).
+- `LightCookieAtlas` (one per pipeline): persistent RGBA8 atlas `cookieAtlasResolution` (power of two, full mip chain,
+  0 disables), `AtlasQuadAllocator` buddy blocks (16..`cookieMaxSize`, aligned to their size so every mip stays in its
+  block), keyed by (texture identity, layout) and re-uploaded when `Texture.updateCount` changes; LRU eviction of
+  blocks not used this frame. Transaction as the cached shadow atlas (pending → produced on queue → commit /
+  rollback).
+- `LightContext.ResolveCookies` (after `Build`): `record.cookieIndex` → `FLightCookieGPU` (`// GPU-RECORD` ↔
+  `Lighting/LightCookie.hlsl FLightCookie`: cookieRect, iesRect, layout, tiling) in `_LightCookieBuffer`
+  (`SRV_LightCookies`).
+- Content feature `EFrameFeature.LightCookies` → `LightCookiePass` (`lightCookieShader`, `Compute_LightCookie.compute`:
+  `CookieCopy2D`, `CookieCubeToOctahedral`, `CookieDownsample` reading mip m−1 and writing mip m as two UAVs) imports
+  the atlas as `LightCookieAtlas` and uploads queued textures once per frame.
+- `FLightLoopInputs` carries the cookie buffer and atlas (`Read`, `Bind`, `BindGlobal`; white texture when absent).
+  `LightCookieColor` applies to Deferred, Forward, fog and clouds; rect / disk cookies are emitter textures
+  (`LightPlanarCookie`: specular at the representative point, blurred by roughness; diffuse from the last mip).
+- Editor: `InfinityIESImporter` completes CoreRP's IES importer prefab (Infinity component, profile texture, candela
+  from the file maximum when enabled) while an Infinity asset is active.
 
 ### S10
 

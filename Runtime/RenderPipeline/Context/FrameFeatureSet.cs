@@ -28,7 +28,9 @@ namespace InfinityTech.Rendering.Pipeline
         // Local lights are visible.
         LocalLightList,
         // A shadowed light filters with VSM / EVSM.
-        ShadowMoments
+        ShadowMoments,
+        // A visible light has a cookie or IES profile in the atlas.
+        LightCookies
     }
 
     public class FrameFeatureSet

@@ -21,6 +21,8 @@ struct FLightShapeSample
     float specularNoL;
     float specularFalloff;
     float specularEnergy;
+    // Rect / disk: representative point on the emitter in [0, 1]^2 (emitter textures); 0.5 for other shapes.
+    float2 emitterUV;
 };
 
 // Frostbite illuminance of a sphere or disk subtending sin^2(sigma), with the horizon clip (returns E / L).
@@ -62,7 +64,7 @@ float3 SegmentRepresentativePoint(float3 p0, float3 p1, float3 R)
 }
 
 // Point of a planar emitter closest to where the reflection ray meets its plane; rect (halfSize) or disk (radius).
-float3 PlanarRepresentativePoint(FLightRecord light, float3 center, float3 R, bool rect, float2 halfSize, float radius)
+float3 PlanarRepresentativePoint(FLightRecord light, float3 center, float3 R, bool rect, float2 halfSize, float radius, out float2 emitterUV)
 {
     float3 normal = light.forward.xyz;
     float denominator = dot(R, normal);
@@ -80,6 +82,7 @@ float3 PlanarRepresentativePoint(FLightRecord light, float3 center, float3 R, bo
         float len = length(planar);
         planar *= len > radius ? radius / len : 1.0;
     }
+    emitterUV = planar / (rect ? 2.0 * max(halfSize, 1e-4) : 2.0 * max(radius, 1e-4)) + 0.5;
     return center + right * planar.x + up * planar.y;
 }
 
@@ -135,6 +138,7 @@ FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS,
     float softRadius = light.shape.y;
     float sourceLength = light.shape.z;
     s.specularEnergy = 1;
+    s.emitterUV = 0.5;
 
     if (LightHasFlag(light, LIGHT_FLAG_SPOT_BOX))
     {
@@ -163,7 +167,7 @@ FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS,
             illuminance = IlluminanceSphereOrDisk(dot(N, Lc), sinSigmaSqr) * saturate(dot(light.forward.xyz, -Lc));
         }
         s.diffuseIrradiance = illuminance / max(area, 1e-6);
-        float3 representative = PlanarRepresentativePoint(light, center, R, rect, halfSize, radius);
+        float3 representative = PlanarRepresentativePoint(light, center, R, rect, halfSize, radius, s.emitterUV);
         float repDistSqr = max(dot(representative, representative), 1e-8);
         s.specularL = representative * rsqrt(repDistSqr);
         s.specularNoL = saturate(dot(N, s.specularL));

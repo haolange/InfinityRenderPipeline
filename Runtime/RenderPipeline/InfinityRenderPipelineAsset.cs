@@ -53,6 +53,12 @@ namespace InfinityTech.Rendering.Pipeline
         // resolution); 0 disables caching and every light renders every frame.
         [Min(0)]
         public int cachedShadowAtlasWidth = 4096;
+        // Light cookie / IES atlas (power of two, RGBA8 with mips); 0 disables cookies.
+        [Min(0)]
+        public int cookieAtlasResolution = 2048;
+        // Largest atlas block of one cookie; bigger textures are minified into it.
+        [Min(16)]
+        public int cookieMaxSize = 512;
         // Directional cascades used (1-4); the atlas keeps the 2x2 layout.
         [Range(1, 4)]
         public int cascadeCount = 4;

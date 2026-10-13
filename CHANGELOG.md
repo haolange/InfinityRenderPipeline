@@ -34,6 +34,11 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   come from the shadowmask), for RendererList objects and MeshScene instances alike. Distance Shadowmask is unchanged.
 - Rendering Debugger → Debug View: Cascade / Local / Cached Shadow Atlas and Shadow Moments; Infinity Lighting panel
   counts cached shadow tiles and re-renders.
+- Light cookies and IES profiles: one mip-mapped atlas with buddy-allocated blocks, compute uploads (2D copy, cube
+  to octahedral, mips), cookies on spot / pyramid / box / point / directional (tiled) lights and emitter textures on
+  rect / disk lights, IES profiles by direction (Cube) or projected (2D spots); Deferred, Forward, fog and clouds share
+  the evaluation. CoreRP's IES importer creates Infinity light prefabs. RP Asset: Cookie Atlas Resolution, Cookie Max
+  Size. Debug View: Light Cookie Atlas.
 - Contact shadows for local lights: up to 24 contact-enabled lights per camera trace toward their position into a
   per-pixel bit mask shared by Deferred and Forward; the sun keeps its own trace. Thickness is tested in linear view
   depth, ray starts are jittered, and the Contact Shadow Volume has quality presets and a separate sun step count.

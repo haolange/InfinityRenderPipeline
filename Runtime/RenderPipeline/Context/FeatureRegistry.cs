@@ -170,6 +170,12 @@ namespace InfinityTech.Rendering.Pipeline
             });
             Add(new FeatureDescriptor
             {
+                id = EFrameFeature.LightCookies,
+                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.lightCookieShader), s => s.lightCookieShader,
+                    LightCookiePassUtilityData.KernelCopy2D, LightCookiePassUtilityData.KernelCubeToOctahedral, LightCookiePassUtilityData.KernelDownsample) }
+            });
+            Add(new FeatureDescriptor
+            {
                 id = EFrameFeature.Display,
                 customSupport = c => c.presentAvailable ? null : "The GlobalSettings blit material has no Present pass."
             });

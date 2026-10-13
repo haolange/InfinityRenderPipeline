@@ -106,8 +106,7 @@ namespace InfinityTech.Rendering.Pipeline
                         AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).cubemapSize) - 1;
                     passData.lightRecords = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                     FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
-                    lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
-                    lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
+                    lightLoop.Read(passRef);
                     passData.lightLoop = lightLoop;
                 }
 

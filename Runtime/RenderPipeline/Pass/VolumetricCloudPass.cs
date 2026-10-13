@@ -143,8 +143,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_WorldToView = m_CameraUniform.matrix_WorldToView;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
-                lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
-                lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
+                lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 FShadowInputs shadows = QueryShadowInputs(renderContext);
                 shadows.Read(passRef);

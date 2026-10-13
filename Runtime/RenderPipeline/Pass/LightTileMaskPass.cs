@@ -17,20 +17,42 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int UAV_LightTileMasksID = Shader.PropertyToID("UAV_LightTileMasks");
     }
 
-    // Inputs of the shared light loop (Shaders/ShaderLibrary/Lighting/LightLoop.hlsl). Query once at record time, then
-    // declare the two buffers on the consuming pass with ReadBuffer before binding.
+    // Inputs of the shared light loop (Shaders/ShaderLibrary/Lighting/LightLoop.hlsl) and of the light cookies
+    // (Lighting/LightCookie.hlsl). Query once at record time, declare the reads with Read, then bind. Without cookies
+    // this frame the atlas binds a white texture; no record references it then.
     internal struct FLightLoopInputs
     {
         public RGBufferRef zBins;
         public RGBufferRef tileMasks;
+        public RGBufferRef cookies;
+        public RGTextureRef cookieAtlas;
+        public bool hasCookieAtlas;
         public Vector4 tileParams;
         public Vector4 zBinParams;
         public int directionalCount;
         public int localCount;
         public int sunRecordIndex;
 
+        public void Read(RGComputePassRef passRef)
+        {
+            passRef.ReadBuffer(zBins);
+            passRef.ReadBuffer(tileMasks);
+            passRef.ReadBuffer(cookies);
+            if (hasCookieAtlas) passRef.ReadTexture(cookieAtlas);
+        }
+
+        public void Read(RGRasterPassRef passRef)
+        {
+            passRef.ReadBuffer(zBins);
+            passRef.ReadBuffer(tileMasks);
+            passRef.ReadBuffer(cookies);
+            if (hasCookieAtlas) passRef.ReadTexture(cookieAtlas);
+        }
+
         public void Bind<TCommands>(in TCommands commands, ComputeShader shader, int kernel) where TCommands : struct, IComputeCommands
         {
+            commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightCookies, cookies);
+            commands.SetComputeTextureParam(shader, kernel, LightShaderIDs.LightCookieAtlas, hasCookieAtlas ? (RenderTargetIdentifier)cookieAtlas : Texture2D.whiteTexture);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightZBins, zBins);
             commands.SetComputeBufferParam(shader, kernel, LightShaderIDs.LightTileMasks, tileMasks);
             commands.SetComputeVectorParam(shader, LightShaderIDs.LightTileParams, tileParams);
@@ -42,6 +64,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void BindGlobal<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
         {
+            commands.SetGlobalBuffer(LightShaderIDs.LightCookies, cookies);
+            commands.SetGlobalTexture(LightShaderIDs.LightCookieAtlas, hasCookieAtlas ? (RenderTargetIdentifier)cookieAtlas : Texture2D.whiteTexture);
             commands.SetGlobalBuffer(LightShaderIDs.LightZBins, zBins);
             commands.SetGlobalBuffer(LightShaderIDs.LightTileMasks, tileMasks);
             commands.SetGlobalVector(LightShaderIDs.LightTileParams, tileParams);
@@ -69,8 +93,12 @@ namespace InfinityTech.Rendering.Pipeline
         FLightLoopInputs QueryLightLoop(RenderContext renderContext)
         {
             LightContext context = renderContext.lightContext;
+            bool hasCookieAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureRef cookieAtlas);
             return new FLightLoopInputs
             {
+                cookies = m_RGScoper.QueryBuffer(LightShaderIDs.LightCookieBuffer),
+                cookieAtlas = cookieAtlas,
+                hasCookieAtlas = hasCookieAtlas,
                 zBins = m_RGScoper.QueryBuffer(LightShaderIDs.LightZBinBuffer),
                 tileMasks = context.HasLocalLightList()
                     ? m_RGScoper.QueryBuffer(InfinityShaderIDs.LightTileMaskBuffer)

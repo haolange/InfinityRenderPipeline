@@ -1,0 +1,70 @@
+// Uploads a cookie / IES texture into its block of the light cookie atlas (LightCookieAtlas.cs) and builds the
+// block's mip chain. No Blit: every write is a compute dispatch over the block.
+//   CookieCopy2D:            2D source -> block (trilinear minification from the source's own mips).
+//   CookieCubeToOctahedral:  cube source -> octahedral square (Lighting/LightCookie.hlsl CookieOctahedralEncode).
+//   CookieDownsample:        mip m-1 -> mip m of the block, 2x2 box.
+#pragma kernel CookieCopy2D
+#pragma kernel CookieCubeToOctahedral
+#pragma kernel CookieDownsample
+
+#include "../../ShaderLibrary/Common.hlsl"
+
+// Block position (xy) and size (z) in atlas texels at the written mip; w = source lod bias (log2 source / block).
+float4 Cookie_Block;
+// 0 = rgb, 1 = alpha -> rgb, 2 = red -> rgb (ECookieChannels).
+int Cookie_Channels;
+
+Texture2D<float4> SRV_CookieSource;
+TextureCube<float4> SRV_CookieCube;
+RWTexture2D<float4> UAV_CookieAtlas;
+RWTexture2D<float4> UAV_CookieAtlasSource;
+
+float4 SelectChannels(float4 value)
+{
+    if (Cookie_Channels == 1) return float4(value.aaa, 1);
+    if (Cookie_Channels == 2) return float4(value.rrr, 1);
+    return float4(value.rgb, 1);
+}
+
+float3 CookieOctahedralDecode(float2 uv)
+{
+    float2 e = uv * 2.0 - 1.0;
+    float3 n = float3(e, 1.0 - abs(e.x) - abs(e.y));
+    if (n.z < 0)
+    {
+        n.xy = (1.0 - abs(n.yx)) * float2(n.x >= 0 ? 1.0 : -1.0, n.y >= 0 ? 1.0 : -1.0);
+    }
+    return normalize(n);
+}
+
+[numthreads(8, 8, 1)]
+void CookieCopy2D(uint3 id : SV_DispatchThreadID)
+{
+    uint size = (uint)Cookie_Block.z;
+    if (any(id.xy >= size)) return;
+    float2 uv = (id.xy + 0.5) / size;
+    float4 value = SRV_CookieSource.SampleLevel(Global_trilinear_clamp_sampler, uv, max(Cookie_Block.w, 0.0));
+    UAV_CookieAtlas[(uint2)Cookie_Block.xy + id.xy] = SelectChannels(value);
+}
+
+[numthreads(8, 8, 1)]
+void CookieCubeToOctahedral(uint3 id : SV_DispatchThreadID)
+{
+    uint size = (uint)Cookie_Block.z;
+    if (any(id.xy >= size)) return;
+    float3 dir = CookieOctahedralDecode((id.xy + 0.5) / size);
+    float4 value = SRV_CookieCube.SampleLevel(Global_trilinear_clamp_sampler, dir, max(Cookie_Block.w, 0.0));
+    UAV_CookieAtlas[(uint2)Cookie_Block.xy + id.xy] = SelectChannels(value);
+}
+
+// UAV_CookieAtlasSource is the atlas bound at mip m-1, UAV_CookieAtlas at mip m (different subresources).
+[numthreads(8, 8, 1)]
+void CookieDownsample(uint3 id : SV_DispatchThreadID)
+{
+    uint size = (uint)Cookie_Block.z;
+    if (any(id.xy >= size)) return;
+    uint2 source = ((uint2)Cookie_Block.xy + id.xy) * 2;
+    float4 sum = UAV_CookieAtlasSource[source] + UAV_CookieAtlasSource[source + uint2(1, 0)]
+               + UAV_CookieAtlasSource[source + uint2(0, 1)] + UAV_CookieAtlasSource[source + uint2(1, 1)];
+    UAV_CookieAtlas[(uint2)Cookie_Block.xy + id.xy] = 0.25 * sum;
+}

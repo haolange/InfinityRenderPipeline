@@ -3,6 +3,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
 #include "../../ShaderLibrary/ShadowSampling.hlsl"
+#include "../../ShaderLibrary/Lighting/LightCookie.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 #include "../../ShaderLibrary/AtmosphereCommon.hlsl"
 
@@ -165,7 +166,7 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, L.y, VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
     float phase = CloudPhase(dot(rayDir, L));
     shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
-    float3 radiance = VolumeLightRadiance(light) * sunTransmittance * lightEnergy * phase * shadow * att;
+    float3 radiance = VolumeLightRadiance(light) * LightCookieColor(light, samplePos) * sunTransmittance * lightEnergy * phase * shadow * att;
     float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
     return (radiance + ambient) * density;
 }

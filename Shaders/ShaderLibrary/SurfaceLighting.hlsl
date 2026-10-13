@@ -4,6 +4,7 @@
 #include "ShadingModel.hlsl"
 #include "ShadowSampling.hlsl"
 #include "Lighting/LightShapes.hlsl"
+#include "Lighting/LightCookie.hlsl"
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
 // Screen-space traced shadows (ContactShadowPass): sun visibility and the local-light contact mask. Deferred binds them
@@ -39,7 +40,7 @@ float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, f
     if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
     float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * NoL * LightDiffuseWeight(light);
     float3 specular = SpecularBRDF(normal, viewDir, specularL, microfaceCtx) * specularNoL * specularEnergy * LightSpecularWeight(light);
-    return (diffuse + specular) * LightRadiance(light) * shadow;
+    return (diffuse + specular) * LightRadiance(light) * LightCookieColor(light, worldPos) * shadow;
 }
 
 float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask)
@@ -54,6 +55,14 @@ float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 
     float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * shape.diffuseIrradiance * LightDiffuseWeight(light);
     float3 specular = SpecularBRDF(normal, viewDir, shape.specularL, microfaceCtx) * shape.specularNoL * shape.specularFalloff
         * shape.specularEnergy * LightSpecularWeight(light);
+    if (LightHasCookie(light))
+    {
+        float3 cookie = LightCookieColor(light, worldPos);
+        float3 planarDiffuse, planarSpecular;
+        LightPlanarCookie(light, shape.emitterUV, microfaceCtx.RoughnessClamp, planarDiffuse, planarSpecular);
+        diffuse *= cookie * planarDiffuse;
+        specular *= cookie * planarSpecular;
+    }
     float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
     shadow *= ContactShadowFromMask(light, contactMask);
     return (diffuse + specular) * LightRadiance(light) * window * shadow;

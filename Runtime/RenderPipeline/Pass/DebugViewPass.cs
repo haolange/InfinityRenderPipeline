@@ -202,6 +202,19 @@ namespace InfinityTech.Rendering.Pipeline
                         bindSet = 4;
                     }
                     break;
+                case EDebugView.LightCookieAtlas:
+                    if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out optionalTexture))
+                    {
+                        kernelName = "DebugViewOptional";
+                        bindSet = 3;
+                        needOptional = true;
+                    }
+                    else
+                    {
+                        kernelName = "DebugViewMissing";
+                        bindSet = 4;
+                    }
+                    break;
                 default:
                     throw new InvalidOperationException($"InfinityRP: DebugView '{view}' is not implemented.");
             }

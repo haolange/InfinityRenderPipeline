@@ -5,6 +5,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
 #include "../../ShaderLibrary/ShadowSampling.hlsl"
+#include "../../ShaderLibrary/Lighting/LightCookie.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 #include "../../ShaderLibrary/AtmosphereCommon.hlsl"
 
@@ -98,7 +99,7 @@ float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, 
 
     float cosTheta = dot(viewDir, L);
     float phase = HGPhase(VolFog_Anisotropy, cosTheta);
-    return scattering * VolumeLightRadiance(light) * phase * shadow * att;
+    return scattering * VolumeLightRadiance(light) * LightCookieColor(light, worldPos) * phase * shadow * att;
 }
 
 void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, float2 screenUV, inout float3 inScatter, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)

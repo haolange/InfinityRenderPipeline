@@ -27,6 +27,8 @@ namespace InfinityTech.Component
         public float maxDrawDistance = 128;
         [Tooltip("Distance over which the light fades out before Maximum Distance (meters).")]
         public float maxDrawDistanceFade = 1;
+        [Tooltip("IES profile from an imported .ies file: the Cube texture applies to every local light by direction, the 2D texture to cone and pyramid spots. The cookie is the Light's own Cookie.")]
+        public Texture iesProfile;
 
         // Source shape in Unreal form. Authority over the native shape fields (type, shapeRadius, areaSize,
         // shadowAngle) once authored; until then the shape is read from the native Light.

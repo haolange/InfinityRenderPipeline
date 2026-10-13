@@ -118,6 +118,22 @@ namespace InfinityTech.Component.Editor
                 EditorGUILayout.HelpBox("Tube and line lights are not baked; the lightmapper skips them.", MessageType.Warning);
 
             EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Cookie & IES", EditorStyles.boldLabel);
+            Field(serializedObject, "m_Cookie", "Cookie");
+            if (!mixedType && type == EInfinityLightType.Directional) Field(serializedObject, "m_CookieSize2D", "Cookie Size");
+            SerializedProperty cookieProperty = serializedObject.FindProperty("m_Cookie");
+            if (!mixedType && cookieProperty != null && !cookieProperty.hasMultipleDifferentValues && cookieProperty.objectReferenceValue is Texture cookieTexture)
+            {
+                bool cube = cookieTexture.dimension == UnityEngine.Rendering.TextureDimension.Cube;
+                if (type == EInfinityLightType.Point && !cube)
+                    EditorGUILayout.HelpBox("Point lights take a Cubemap cookie; this 2D cookie is ignored.", MessageType.Warning);
+                else if (type != EInfinityLightType.Point && cube)
+                    EditorGUILayout.HelpBox("Only point lights take a Cubemap cookie; this one is ignored.", MessageType.Warning);
+                if (type == EInfinityLightType.Rect || type == EInfinityLightType.Disk)
+                    EditorGUILayout.HelpBox("On rect and disk lights the cookie is the emitter texture.", MessageType.None);
+            }
+
+            EditorGUILayout.Space();
             EditorGUILayout.LabelField("Shadows", EditorStyles.boldLabel);
             Field(serializedObject, "m_Shadows.m_Type", "Mode");
             Field(serializedObject, "m_Shadows.m_NearPlane", "Near Plane");
@@ -158,6 +174,14 @@ namespace InfinityTech.Component.Editor
             }
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Infinity", EditorStyles.boldLabel);
+            if (mixedType || type != EInfinityLightType.Directional)
+            {
+                Field(m_Additional, "iesProfile", "IES Profile");
+                SerializedProperty iesProperty = m_Additional.FindProperty("iesProfile");
+                if (!mixedType && iesProperty != null && !iesProperty.hasMultipleDifferentValues && iesProperty.objectReferenceValue is Texture iesTexture
+                    && iesTexture.dimension == UnityEngine.Rendering.TextureDimension.Tex2D && type != EInfinityLightType.Spot)
+                    EditorGUILayout.HelpBox("A 2D IES profile applies to cone and pyramid spots only; use the profile's Cube texture.", MessageType.Warning);
+            }
             Field(m_Additional, "lightLayer", "Light Layers");
             Field(m_Additional, "diffuse", "Diffuse Weight");
             Field(m_Additional, "specular", "Specular Weight");

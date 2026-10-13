@@ -24,6 +24,8 @@ namespace InfinityTech.Rendering.Pipeline
         LocalShadowAtlas,
         CachedShadowAtlas,
         // First moment of the cascade moment atlas, or of the local one when the sun has none.
-        ShadowMoments
+        ShadowMoments,
+        // Light cookie / IES atlas (mip 0, stretched).
+        LightCookieAtlas
     }
 }

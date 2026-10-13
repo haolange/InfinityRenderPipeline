@@ -96,8 +96,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
                 FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
-                lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
-                lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
+                lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 passData.contactShadowShader = shaders.contactShadowShader;

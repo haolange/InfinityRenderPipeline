@@ -200,6 +200,24 @@ Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_che
    deferred floor.
 6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
 
+## S11 — cookies and IES
+
+1. Compile; run `LightCookieAtlasTests`.
+2. A spot light with a 2D cookie (any RGB texture): the pattern is projected inside the cone, colored. An Alpha8 cookie
+   (Unity's default cookie import) projects its alpha as gray. Rendering Debugger → Debug View = Light Cookie Atlas
+   shows the texture in its block.
+3. A point light with a Cubemap cookie: the pattern surrounds the light; a 2D cookie on a point light shows the inspector
+   warning and no pattern.
+4. A directional light with a cookie and Cookie Size (10, 10): the pattern tiles every 10 m on the ground.
+5. A rect light with a cookie: glossy reflections of the rect show the texture; diffuse lighting takes its average
+   color.
+6. Import an .ies file (Assets → Import): the asset's prefab has an Infinity Additional Light Data with IES Profile set;
+   drop it in the scene and compare with the profile's shape. Assign the Cube texture of the .ies asset to a spot light:
+   the profile applies by direction.
+7. Volumetric fog with a cookie spot: the shafts carry the pattern.
+8. Change a cookie texture's import settings: the atlas block re-uploads once (Frame Debugger `ComputeLightCookies`
+   appears for one frame).
+
 ## S9e — shadow debug views
 
 1. Run `DebugViewModeTests`.

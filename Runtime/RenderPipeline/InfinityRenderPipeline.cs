@@ -228,6 +228,7 @@ namespace InfinityTech.Rendering.Pipeline
         private int m_DiffusionProfileCapacity;
         private AtmosphereSharedCache m_AtmosphereSharedCache;
         private LocalShadowCache m_LocalShadowCache;
+        private LightCookieAtlas m_LightCookieAtlas;
         SupportedRenderingFeatures m_PreviousSupportedFeatures;
         string m_PreviousGlobalRenderPipeline;
         bool m_PreviousLightsUseLinearIntensity;
@@ -292,6 +293,7 @@ namespace InfinityTech.Rendering.Pipeline
                 MeshDrawGPUBackend.SetShader(shaders.meshDrawPipelineCS);
                 m_AtmosphereSharedCache = new AtmosphereSharedCache();
                 m_LocalShadowCache = new LocalShadowCache();
+                m_LightCookieAtlas = new LightCookieAtlas();
             }
             catch (Exception constructionFailure)
             {
@@ -329,6 +331,7 @@ namespace InfinityTech.Rendering.Pipeline
                     contextBegan = true;
                     m_AtmosphereSharedCache.BeginFrame();
                     m_LocalShadowCache.BeginFrame();
+                    m_LightCookieAtlas.BeginFrame();
                     for (int i = 0; i < cameras.Count; ++i)
                     {
                         Camera camera = cameras[i];
@@ -448,6 +451,8 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.cascadeBlendWidth = pipelineAsset.cascadeBlendWidth;
                                     shadowSettings.filterGuardTexels = pipelineAsset.ResolveShadowFilter().pcfRadius + 1;
                                     renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize);
+                                    m_LightCookieAtlas.Configure(pipelineAsset.cookieAtlasResolution, pipelineAsset.cookieMaxSize);
+                                    renderContext.lightContext.ResolveCookies(m_LightCookieAtlas, cullingResults, renderContext.GetWorldLight(), Time.frameCount);
                                     ConfigureContentFeatures(frameState);
                                     InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
                                     lightingDebug.lastDirectionalCount = renderContext.lightContext.DirectionalLightCount;
@@ -526,6 +531,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     // PHASE 0: frame-constant async. Zero RG-resource inputs; submit first
                                     // so the whole geometry raster window can overlap them.
                                     UploadLightData(renderContext.lightContext);
+                                    ComputeLightCookies(renderContext);
                                     ComputeCombineLuts(frameState, combineLutParameterDescriptor);
                                     ComputeAtmosphericLUT(renderContext, camera);
 
@@ -662,8 +668,8 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     frameValid &= m_RGBuilder.CanRetireSubmittedResources;
                     CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
-                    if (frameValid) m_LocalShadowCache.CommitFrame();
-                    else m_LocalShadowCache.RollbackPending();
+                    if (frameValid) { m_LocalShadowCache.CommitFrame(); m_LightCookieAtlas.CommitFrame(); }
+                    else { m_LocalShadowCache.RollbackPending(); m_LightCookieAtlas.RollbackPending(); }
                     if (!frameValid)
                         RenderCaptureService.current?.Fail(firstCameraException?.ToString() ?? "Frame submission failed.");
                     if (submitted)
@@ -728,6 +734,7 @@ namespace InfinityTech.Rendering.Pipeline
             renderContext.lightContext.FlushRetiredBuffers();
             m_AtmosphereSharedCache.FlushRetired();
             m_LocalShadowCache.FlushRetired();
+            m_LightCookieAtlas.FlushRetired();
             foreach (CameraFrameState state in m_CameraStates.Values)
             {
                 state.historyCache.FlushRetired();
@@ -1005,6 +1012,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_AtmosphereSharedCache = null;
             Release(() => m_LocalShadowCache?.Dispose());
             m_LocalShadowCache = null;
+            Release(() => m_LightCookieAtlas?.Dispose());
+            m_LightCookieAtlas = null;
             if (ownsSharedResources) Release(() => InfinityRayTracingEnvironment.current?.Dispose());
             Release(RestoreGraphicsState);
             if (failures.Count > 0) throw new AggregateException("InfinityRP resource disposal failed.", failures);
@@ -1166,6 +1175,10 @@ namespace InfinityTech.Rendering.Pipeline
                 && VolumeComponentActive(frameState.volumeStack.GetComponent<ContactShadow>()))
             {
                 features.Request(EFrameFeature.ContactShadow);
+            }
+            if (lightContext.CookieCount > 0)
+            {
+                features.Request(EFrameFeature.LightCookies);
             }
             ShadowAllocator shadowAllocator = renderContext.lightContext.ShadowAllocator;
             if (shadowAllocator.CascadeUsesMoments || shadowAllocator.LocalMomentSliceCount > 0)

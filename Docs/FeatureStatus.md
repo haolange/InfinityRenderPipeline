@@ -22,6 +22,7 @@ Columns:
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
 | Light shapes and record v2 (0.5.0) | Yes | Unverified-0.5 (shape, record layout, GPU far-field) | Open | Open | None | Karis representative point + Frostbite / Karis diffuse (S8) |
 | Lightmapper delegate (0.5.0) | Editor bakes | No | Open | — | None | |
+| Light cookies + IES atlas (0.5.0) | Yes | Unverified-0.5 (allocator, atlas state) | Open | Open | None | IES prefab import unverified |
 | Clustered light list v2 (log z-bins + tile bitmasks, 0.5.0) | Yes | Unverified-0.5 (binning, rectangles) | Open | Open | None | Deferred, Forward, fog and clouds share LightLoop.hlsl |
 | Cascade + local shadows (1–4 cascades with blending; tent PCF, PCSS, VSM, EVSM; every light shape, 0.5.0) | Yes | Unverified-0.5 (slice counts, frustums, moment math) | Open | Open | None | Moment atlases at half resolution; cached local shadows (OnEnable / OnDemand) |
 | Screen-space traced (contact) shadows: sun + 24 local lights (0.5.0) | Yes | Unverified-0.5 (bit allocation) | Open | Open | None | Deferred and Forward |

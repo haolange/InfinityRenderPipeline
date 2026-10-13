@@ -108,8 +108,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.hasAO = hasAO ? 1 : 0;
                 passData.hasContactShadow = hasContactShadow ? 1 : 0;
                 FLightLoopInputs lightLoop = QueryLightLoop(renderContext);
-                lightLoop.zBins = passRef.ReadBuffer(lightLoop.zBins);
-                lightLoop.tileMasks = passRef.ReadBuffer(lightLoop.tileMasks);
+                lightLoop.Read(passRef);
                 passData.lightLoop = lightLoop;
                 passData.lightRecordBuffer = passRef.ReadBuffer(m_RGScoper.QueryBuffer(LightShaderIDs.LightRecordBuffer));
                 FShadowInputs shadows = QueryShadowInputs(renderContext);
