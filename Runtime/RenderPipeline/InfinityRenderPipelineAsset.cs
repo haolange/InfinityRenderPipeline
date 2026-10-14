@@ -7,8 +7,9 @@ using InfinityTech.Rendering.Feature;
 namespace InfinityTech.Rendering.Pipeline
 {
     [ExecuteInEditMode]
-    [CreateAssetMenu(menuName = "InfinityRenderPipeline/InfinityRenderPipelineAsset", order = 360)]
-    public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>
+    [CreateAssetMenu(menuName = "Rendering/Infinity/Pipeline Asset", order = 360)]
+    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "pipeline-asset.md")]
+    public sealed class InfinityRenderPipelineAsset : RenderPipelineAsset<InfinityRenderPipeline>, IProbeVolumeEnabledRenderPipeline
     {
         public VolumeProfile qualityVolumeProfile
         {
@@ -42,7 +43,63 @@ namespace InfinityTech.Rendering.Pipeline
 
         public int cascadeShadowMapResolution = 2048;
         public int localShadowMapResolution = 2048;
+        [Min(0.0f)]
         public float shadowDistance = 128;
+        // Cascade split positions as fractions of shadowDistance (the last cascade ends at shadowDistance).
+        public Vector3 cascadeSplitRatios = new Vector3(0.067f, 0.2f, 0.467f);
+        // Upper bound on local lights considered for the shadow atlas before tile budgeting.
+        [Range(1, 64)]
+        public int maxShadowedLocalLights = 16;
+        // Width of the cached shadow atlas for OnEnable / OnDemand local lights (its height is the local atlas
+        // resolution); 0 disables caching and every light renders every frame.
+        [Min(0)]
+        public int cachedShadowAtlasWidth = 4096;
+        // Light probe system: Light Probe Groups (+ Light Probe Proxy Volumes) or Adaptive Probe Volumes.
+        public ELightProbeSystem lightProbeSystem = ELightProbeSystem.LegacyLightProbes;
+        public ProbeVolumeTextureMemoryBudget probeVolumeMemoryBudget = ProbeVolumeTextureMemoryBudget.MemoryBudgetMedium;
+        public ProbeVolumeBlendingTextureMemoryBudget probeVolumeBlendingMemoryBudget = ProbeVolumeBlendingTextureMemoryBudget.MemoryBudgetMedium;
+        public ProbeVolumeSHBands probeVolumeSHBands = ProbeVolumeSHBands.SphericalHarmonicsL1;
+        public bool supportProbeVolumeGPUStreaming;
+        public bool supportProbeVolumeDiskStreaming;
+        public bool supportProbeVolumeScenarios;
+        public bool supportProbeVolumeScenarioBlending;
+
+        public bool supportProbeVolume => lightProbeSystem == ELightProbeSystem.ProbeVolumes;
+        public ProbeVolumeSHBands maxSHBands => supportProbeVolume ? probeVolumeSHBands : ProbeVolumeSHBands.SphericalHarmonicsL1;
+        [System.Obsolete("This property is no longer necessary. #from(2023.3)")]
+        public ProbeVolumeSceneData probeVolumeSceneData => null;
+
+        // Frame Settings: features each camera may request (Game / SceneView / Preview cameras use the camera defaults,
+        // reflection probe captures the reflection defaults; InfinityAdditionalCameraData can override single settings).
+        public FFrameSettings defaultFrameSettings = FFrameSettings.AllEnabled;
+        public FFrameSettings reflectionFrameSettings = FFrameSettings.ReflectionDefaults;
+
+        // Reflection probe atlas: face resolution (power of two, GGX mips) and probe slots (6 slices each); 0 disables
+        // probes (the sky reflects everything).
+        [Min(0)]
+        public int reflectionProbeResolution = 128;
+        [Range(0, 128)]
+        public int maxReflectionProbes = 32;
+
+        // Light cookie / IES atlas (power of two, RGBA8 with mips); 0 disables cookies.
+        [Min(0)]
+        public int cookieAtlasResolution = 2048;
+        // Largest atlas block of one cookie; bigger textures are minified into it.
+        [Min(16)]
+        public int cookieMaxSize = 512;
+        // Directional cascades used (1-4); the atlas keeps the 2x2 layout.
+        [Range(1, 4)]
+        public int cascadeCount = 4;
+        // Fraction of each cascade, at its outer edge, blended into the next cascade.
+        [Range(0.0f, 0.5f)]
+        public float cascadeBlendWidth = 0.1f;
+        // Shadow filtering quality: Low..Ultra pick QualityPresets.ShadowFilter; Custom uses customShadowFilter.
+        public EQualityLevel shadowFilterQuality = EQualityLevel.Medium;
+        public FShadowFilterSettings customShadowFilter = QualityPresets.ShadowFilter[(int)EQualityLevel.Medium];
+
+        public FShadowFilterSettings ResolveShadowFilter() => shadowFilterQuality == EQualityLevel.Custom
+            ? customShadowFilter
+            : QualityPresets.Select(QualityPresets.ShadowFilter, shadowFilterQuality);
 
         [SerializeField] Shader m_DefaultShader;
         [SerializeField] Material m_DefaultMaterial;

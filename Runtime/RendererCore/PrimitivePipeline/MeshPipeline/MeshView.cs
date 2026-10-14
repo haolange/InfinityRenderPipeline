@@ -20,6 +20,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int subviewIndex;
         public int planeCount;
         public bool enableVisibility;
+        // Instances with any of these EMeshInstanceFlags are culled from this view.
+        public uint excludeInstanceFlags;
         public Plane plane0;
         public Plane plane1;
         public Plane plane2;
@@ -143,7 +145,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             float3 viewPosition,
             int layerMask,
             uint renderingLayerMask,
-            int cascadeIndex)
+            int cascadeIndex,
+            uint excludeInstanceFlags = 0)
         {
             return FromShadow(
                 lightViewKey,
@@ -152,7 +155,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 viewPosition,
                 layerMask,
                 renderingLayerMask,
-                cascadeIndex);
+                cascadeIndex,
+                excludeInstanceFlags);
         }
 
         public static MeshView FromLocalShadow(
@@ -161,7 +165,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             float3 viewPosition,
             int layerMask,
             uint renderingLayerMask,
-            int face)
+            int face,
+            uint excludeInstanceFlags = 0)
         {
             return FromShadow(
                 lightViewKey,
@@ -170,7 +175,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 viewPosition,
                 layerMask,
                 renderingLayerMask,
-                face);
+                face,
+                excludeInstanceFlags);
         }
 
         static MeshView FromShadow(
@@ -180,7 +186,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             float3 viewPosition,
             int layerMask,
             uint renderingLayerMask,
-            int subviewIndex)
+            int subviewIndex,
+            uint excludeInstanceFlags)
         {
             var view = new MeshView
             {
@@ -190,7 +197,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layerMask = layerMask,
                 renderingLayerMask = renderingLayerMask,
                 subviewIndex = subviewIndex,
-                enableVisibility = true
+                enableVisibility = true,
+                excludeInstanceFlags = excludeInstanceFlags
             };
             CopyPlanes(ref view, planes);
             return view;

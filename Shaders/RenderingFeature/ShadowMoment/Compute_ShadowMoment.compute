@@ -1,0 +1,83 @@
+// Moment atlas for VSM / EVSM shadows (Shaders/ShaderLibrary/ShadowMoments.hlsl). One dispatch per shadow slice:
+// MomentFromDepth averages the moments of 2x2 depth texels into one moment texel (the moment atlas has half the
+// resolution of the depth atlas and the same UV layout), then MomentBlurH / MomentBlurV apply a separable Gaussian
+// that never reads outside the slice.
+#pragma kernel MomentFromDepth
+#pragma kernel MomentBlurH
+#pragma kernel MomentBlurV
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/ShadowMoments.hlsl"
+
+// Slice rectangle in moment-atlas pixels (x, y, width, height).
+float4 _MomentSliceRect;
+// depthParams of the slice (FLocalShadowSlice.depthParams; cascades are orthographic).
+float4 _MomentDepthParams;
+// x = mode (0 VSM, 1 EVSM), y = EVSM exponent, z = 1 / far, w = blur radius in moment texels.
+float4 _MomentParams;
+
+Texture2D<float> SRV_ShadowDepth;
+Texture2D<float4> SRV_MomentInput;
+RWTexture2D<float4> UAV_Moments;
+
+[numthreads(8, 8, 1)]
+void MomentFromDepth(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_MomentSliceRect.zw))
+    {
+        return;
+    }
+    int2 pixel = (int2)_MomentSliceRect.xy + (int2)id.xy;
+    int mode = (int)_MomentParams.x;
+    float4 sum = 0;
+    [unroll]
+    for (int y = 0; y < 2; ++y)
+    {
+        [unroll]
+        for (int x = 0; x < 2; ++x)
+        {
+            float z = SRV_ShadowDepth.Load(int3(pixel * 2 + int2(x, y), 0));
+            sum += ShadowMomentsFromDepth(ShadowMomentDepth(z, _MomentDepthParams, _MomentParams.z), mode, _MomentParams.y);
+        }
+    }
+    UAV_Moments[pixel] = 0.25 * sum;
+}
+
+float4 BlurMoments(uint2 id, int2 direction)
+{
+    int2 sliceMin = (int2)_MomentSliceRect.xy;
+    int2 sliceMax = sliceMin + (int2)_MomentSliceRect.zw - 1;
+    int2 pixel = sliceMin + (int2)id;
+    int radius = (int)_MomentParams.w;
+    float sigma = 0.5 * radius + 0.5;
+    float4 sum = 0;
+    float weightSum = 0;
+    [loop]
+    for (int i = -radius; i <= radius; ++i)
+    {
+        float weight = exp(-(i * i) / (2.0 * sigma * sigma));
+        sum += weight * SRV_MomentInput.Load(int3(clamp(pixel + direction * i, sliceMin, sliceMax), 0));
+        weightSum += weight;
+    }
+    return sum / weightSum;
+}
+
+[numthreads(8, 8, 1)]
+void MomentBlurH(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_MomentSliceRect.zw))
+    {
+        return;
+    }
+    UAV_Moments[(int2)_MomentSliceRect.xy + (int2)id.xy] = BlurMoments(id.xy, int2(1, 0));
+}
+
+[numthreads(8, 8, 1)]
+void MomentBlurV(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_MomentSliceRect.zw))
+    {
+        return;
+    }
+    UAV_Moments[(int2)_MomentSliceRect.xy + (int2)id.xy] = BlurMoments(id.xy, int2(0, 1));
+}

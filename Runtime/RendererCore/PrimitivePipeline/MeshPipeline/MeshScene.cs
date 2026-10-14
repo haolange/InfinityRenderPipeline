@@ -674,6 +674,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             MeshDraw draw = m_Draws[(int)drawId.Index];
+            // A revision of the same material (e.g. its queue) is invalidated per pass through
+            // NotifyMaterialRevision. Switching to a different material changes the command key of every pass the
+            // draw belongs to, so those bins must rebuild as well.
+            bool switchedMaterial = !draw.material.Equals(materialId) || draw.materialUnityId != materialUnityId;
             if (!draw.material.Equals(materialId))
             {
                 ReleaseMaterialRef(draw.material);
@@ -685,6 +689,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             draw.material = materialId;
             m_Draws[(int)drawId.Index] = draw;
             ContentRevision++;
+            if (switchedMaterial)
+            {
+                PassBinStore.NotifyMembershipInvalidated();
+            }
         }
 
         internal void SetDrawPriority(MeshDrawId drawId, int priority)
@@ -708,9 +716,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             MeshDraw draw = m_Draws[(int)drawId.Index];
+            bool changed = draw.eligibility != eligibility;
             draw.eligibility = eligibility;
             m_Draws[(int)drawId.Index] = draw;
             ContentRevision++;
+            if (changed)
+            {
+                StructuralRevision++;
+            }
             PassBinStore.NotifyMembershipInvalidated();
         }
 
@@ -1109,6 +1122,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             ClearTransformOwnerForInstance(index);
             m_InstanceGenerations[index] = NextGeneration(m_InstanceGenerations[index]);
             m_Instances[index] = default;
+            // The GPU copy of this slot (bounds, flags, transform index) must be rewritten so a freed slot is never
+            // culled or compacted with its previous owner's data.
+            MarkBoundsDirty(index);
             m_InstanceFreeList.Add(index);
             m_LogicalInstanceCount = math.max(0, m_LogicalInstanceCount - 1);
         }

@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 ssr.active = true;
-                ssr.NumRays.overrideState = true;
+                ssr.ResolveSamples.overrideState = true;
                 Assert.IsFalse(GraphicsUtility.VolumeComponentActive(ssr));
                 ssr.enable.value = true;
                 Assert.IsTrue(GraphicsUtility.VolumeComponentActive(ssr));
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 film.active = true;
                 film.mode.value = EFilmTonemapMode.None;
                 Assert.IsFalse(film.IsActive());
-                film.mode.value = EFilmTonemapMode.Film;
+                film.mode.value = EFilmTonemapMode.ACES;
                 Assert.IsTrue(film.IsActive());
             }
             finally

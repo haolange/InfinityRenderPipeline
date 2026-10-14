@@ -8,11 +8,15 @@ namespace InfinityTech.Component
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Camera))]
     [AddComponentMenu("InfinityRenderer/Additional Camera Data")]
+    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "cameras.md")]
     public sealed class InfinityAdditionalCameraData : BaseComponent
     {
         public LayerMask volumeLayerMask = ~0;
         public Transform volumeTrigger;
         public ESuperResolutionOverride superResolutionOverride = ESuperResolutionOverride.UseAsset;
+        // Frame Settings overrides of this camera; settings not overridden follow the RP Asset defaults.
+        public bool customFrameSettings;
+        public FFrameSettingsOverride frameSettings;
         [System.NonSerialized] public ProfilingSampler viewProfiler;
 
         public Camera attachedCamera => GetComponent<Camera>();

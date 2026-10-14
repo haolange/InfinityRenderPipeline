@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
 using UnityEngine;
@@ -29,8 +30,66 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly GlobalKeyword s_Shadowmask = GlobalKeyword.Create("INFINITY_MESH_SHADOWMASK");
         internal static readonly int BufferID = Shader.PropertyToID("meshBakedLightingBuffer");
 
+        // Light probe data version: bumps when Unity reports new probe data (bake, scene load, additive scenes), so
+        // cached probe samples of static meshes are refreshed exactly then.
+        static int s_ProbeVersion;
+        static bool s_ProbeEventsHooked;
+        internal static int ProbeVersion
+        {
+            get
+            {
+                if (!s_ProbeEventsHooked)
+                {
+                    s_ProbeEventsHooked = true;
+                    LightProbes.lightProbesUpdated += () => ++s_ProbeVersion;
+                    LightProbes.needsRetetrahedralization += () => ++s_ProbeVersion;
+                }
+                return s_ProbeVersion;
+            }
+        }
+
+        // Whether a source samples light probes (no lightmap, probes enabled) and where.
+        internal static bool UsesProbes(Renderer source, Vector3 position, out Vector3 probePosition)
+        {
+            int index = source != null ? source.lightmapIndex : -1;
+            probePosition = source != null ? (source.probeAnchor != null ? source.probeAnchor.position : source.bounds.center) : position;
+            bool lightmapped = index >= 0 && index < 65534;
+            return !lightmapped && LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0
+                && (source == null || source.lightProbeUsage != LightProbeUsage.Off);
+        }
+
+        static readonly List<Vector3> s_BatchPositions = new List<Vector3>();
+        static readonly List<SphericalHarmonicsL2> s_BatchProbes = new List<SphericalHarmonicsL2>();
+        static readonly List<Vector4> s_BatchOcclusion = new List<Vector4>();
+
+        // One interpolation call for many probe positions (main thread). Results are in the same order.
+        internal static void InterpolateProbes(List<Vector3> positions, List<SphericalHarmonicsL2> probes, List<Vector4> occlusion)
+        {
+            probes.Clear();
+            occlusion.Clear();
+            for (int i = 0; i < positions.Count; ++i)
+            {
+                probes.Add(default);
+                occlusion.Add(Vector4.one);
+            }
+            if (positions.Count > 0)
+            {
+                LightProbes.CalculateInterpolatedLightAndOcclusionProbes(positions, probes, occlusion);
+            }
+        }
+
+        internal static List<Vector3> BatchPositions => s_BatchPositions;
+        internal static List<SphericalHarmonicsL2> BatchProbes => s_BatchProbes;
+        internal static List<Vector4> BatchOcclusion => s_BatchOcclusion;
+
         // Called on the main thread while collecting entity changes, never by a Burst job.
         internal static FMeshBakedLighting Capture(Renderer source, Vector3 position)
+        {
+            return Capture(source, position, false, default, default);
+        }
+
+        // As Capture, with a probe sample interpolated earlier this frame (InterpolateProbes) instead of a single call.
+        internal static FMeshBakedLighting Capture(Renderer source, Vector3 position, bool hasProbeSample, SphericalHarmonicsL2 probe, Vector4 probeOcclusion)
         {
             FMeshBakedLighting data = default;
             data.occlusion = new float4(1);
@@ -47,14 +106,19 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (data.TextureSet == 0 && LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 &&
                 (source == null || source.lightProbeUsage != LightProbeUsage.Off))
             {
-                s_Positions[0] = source != null ? (source.probeAnchor != null ? source.probeAnchor.position : source.bounds.center) : position;
-                LightProbes.CalculateInterpolatedLightAndOcclusionProbes(s_Positions, s_Probes, s_Occlusion);
-                SphericalHarmonicsL2 sh = s_Probes[0];
+                if (!hasProbeSample)
+                {
+                    s_Positions[0] = source != null ? (source.probeAnchor != null ? source.probeAnchor.position : source.bounds.center) : position;
+                    LightProbes.CalculateInterpolatedLightAndOcclusionProbes(s_Positions, s_Probes, s_Occlusion);
+                    probe = s_Probes[0];
+                    probeOcclusion = s_Occlusion[0];
+                }
+                SphericalHarmonicsL2 sh = probe;
                 data.metadata.y = 1;
                 data.shAr = PackA(sh, 0); data.shAg = PackA(sh, 1); data.shAb = PackA(sh, 2);
                 data.shBr = PackB(sh, 0); data.shBg = PackB(sh, 1); data.shBb = PackB(sh, 2);
                 data.shC = new float4(sh[0, 8], sh[1, 8], sh[2, 8], 1);
-                Vector4 occlusion = s_Occlusion[0];
+                Vector4 occlusion = probeOcclusion;
                 data.occlusion = new float4(occlusion.x, occlusion.y, occlusion.z, occlusion.w);
             }
             return data;

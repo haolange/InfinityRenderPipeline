@@ -134,6 +134,15 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void DiscardUnproducedPending() => m_History.DiscardUnproducedPending();
 
+        // The committed atmosphere cubemap (6-slice Texture2DArray, CubemapFaceDirection layout), if one was produced.
+        public bool TryGetCubemap(out RenderTexture cubemap)
+        {
+            cubemap = null;
+            if (!m_HasIBL || !m_History.TryGetCommittedTexture(InfinityShaderIDs.AtmosphereCubemap, out RTHandle handle)) return false;
+            cubemap = handle.rt;
+            return true;
+        }
+
         public void RollbackPending()
         {
             m_History.RollbackPending();

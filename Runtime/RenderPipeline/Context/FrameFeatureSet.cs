@@ -22,7 +22,17 @@ namespace InfinityTech.Rendering.Pipeline
         PostProcess,
         Display,
         DBuffer,
-        OpaqueLightingPyramid
+        OpaqueLightingPyramid,
+        HalfResDownsample,
+        // Content-phase features: requested after LightContext.Build from what is visible.
+        // Local lights are visible.
+        LocalLightList,
+        // A shadowed light filters with VSM / EVSM.
+        ShadowMoments,
+        // A visible light has a cookie or IES profile in the atlas.
+        LightCookies,
+        // Reflection probes reach the screen.
+        ReflectionProbes
     }
 
     public class FrameFeatureSet
@@ -32,9 +42,13 @@ namespace InfinityTech.Rendering.Pipeline
             public bool requested;
             public bool supported;
             public bool produced;
+            // Why a requested feature cannot record (null when supported). Filled by FeatureRegistry.Resolve.
+            public string unsupportedReason;
         }
 
         readonly FeatureState[] m_States = new FeatureState[FeatureCount];
+
+        public static int Count => FeatureCount;
 
         static readonly int FeatureCount = Enum.GetNames(typeof(EFrameFeature)).Length;
 
@@ -61,6 +75,29 @@ namespace InfinityTech.Rendering.Pipeline
             m_States[Index(feature)].produced = true;
         }
 
+        public bool IsRequested(EFrameFeature feature)
+        {
+            return m_States[Index(feature)].requested;
+        }
+
+        public bool IsSupported(EFrameFeature feature)
+        {
+            return m_States[Index(feature)].supported;
+        }
+
+        public string GetUnsupportedReason(EFrameFeature feature)
+        {
+            return m_States[Index(feature)].unsupportedReason;
+        }
+
+        internal void SetResolved(EFrameFeature feature, bool requested, bool supported, string reason)
+        {
+            ref FeatureState state = ref m_States[Index(feature)];
+            state.requested = requested;
+            state.supported = supported;
+            state.unsupportedReason = supported ? null : reason;
+        }
+
         public bool IsProduced(EFrameFeature feature)
         {
             return m_States[Index(feature)].produced;
@@ -80,13 +117,14 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void EnsureRequiredProducers(bool superResolutionEnabled)
+        // TAA is a required producer only for temporal cameras that do not use super resolution.
+        public void EnsureRequiredProducers(bool requiresTemporalAntiAliasing)
         {
             EnsureProduced(EFrameFeature.Depth);
             EnsureProduced(EFrameFeature.GBuffer);
             EnsureProduced(EFrameFeature.DeferredShading);
             EnsureProduced(EFrameFeature.Display);
-            if (!superResolutionEnabled)
+            if (requiresTemporalAntiAliasing)
             {
                 EnsureProduced(EFrameFeature.TAA);
             }

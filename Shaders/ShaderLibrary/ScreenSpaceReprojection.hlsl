@@ -35,4 +35,15 @@ float HistoryDepthConfidence(Texture2D history, float2 uv, float expectedDepth, 
     float margin = 0.5 * (high - low) + max(0.01 * expected, 0.001);
     return expected >= low - margin && expected <= high + margin ? 1 : 0;
 }
+// Reprojects the virtual image of a reflection (hit-point reprojection, Stachowiak 2015): for a planar mirror the
+// reflected object appears behind the surface, along the view ray, at the reflected ray's hit distance. Rough lobes
+// have no single virtual point; callers blend toward surface reprojection by roughness. Assumes a static reflected
+// object (there is no motion vector for the virtual point).
+float2 ReprojectVirtualPoint(float3 surfaceWS, float3 viewRayWS, float hitDistance, float4x4 previousJitteredVP)
+{
+    float3 virtualWS = surfaceWS + viewRayWS * hitDistance;
+    float4 previous = mul(previousJitteredVP, float4(virtualWS, 1));
+    if (previous.w <= 0) return -1;
+    return previous.xy / previous.w * 0.5 + 0.5;
+}
 #endif

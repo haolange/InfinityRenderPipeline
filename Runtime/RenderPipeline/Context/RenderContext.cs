@@ -190,9 +190,42 @@ namespace InfinityTech.Rendering.Pipeline
             m_DynamicMeshList.Add(meshComponent);
         }
 
+        readonly List<MeshComponent> m_ProbeBatch = new List<MeshComponent>();
+
+        // One light-probe interpolation for every mesh whose probe position moved or whose probe data changed this
+        // frame, instead of one call per mesh (static meshes are sampled again only after a probe bake).
+        void InterpolateMeshProbes()
+        {
+            List<Vector3> positions = MeshBakedLighting.BatchPositions;
+            positions.Clear();
+            m_ProbeBatch.Clear();
+            CollectProbeRequests(m_StaticMeshList, positions);
+            CollectProbeRequests(m_DynamicMeshList, positions);
+            if (positions.Count == 0) return;
+            MeshBakedLighting.InterpolateProbes(positions, MeshBakedLighting.BatchProbes, MeshBakedLighting.BatchOcclusion);
+            for (int i = 0; i < m_ProbeBatch.Count; ++i)
+            {
+                m_ProbeBatch[i].SetProbeSample(positions[i], MeshBakedLighting.BatchProbes[i], MeshBakedLighting.BatchOcclusion[i]);
+            }
+        }
+
+        void CollectProbeRequests(List<MeshComponent> meshes, List<Vector3> positions)
+        {
+            for (int i = 0; i < meshes.Count; ++i)
+            {
+                MeshComponent mesh = meshes[i];
+                if (mesh != null && mesh.NeedsProbeSample(out Vector3 position))
+                {
+                    m_ProbeBatch.Add(mesh);
+                    positions.Add(position);
+                }
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InvokeWorldDynamicMeshUpdate()
         {
+            InterpolateMeshProbes();
             // Static geometry can change lightmap assignments or probe lighting without moving.
             for (int i = 0; i < m_StaticMeshList.Count; i++) m_StaticMeshList[i].RefreshBakedLighting();
             if (m_DynamicMeshList.Count == 0) { return; }

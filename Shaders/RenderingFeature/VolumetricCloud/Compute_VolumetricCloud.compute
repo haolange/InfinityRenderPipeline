@@ -3,6 +3,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
 #include "../../ShaderLibrary/ShadowSampling.hlsl"
+#include "../../ShaderLibrary/Lighting/LightCookie.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 #include "../../ShaderLibrary/AtmosphereCommon.hlsl"
 
@@ -22,10 +23,6 @@ float VolCloud_TemporalWeight;
 int VolCloud_FrameIndex;
 float VolCloud_PlanetRadius;
 float VolCloud_AtmosphereHeight;
-int VolCloud_HasTileList;
-int VolCloud_NumTilesX;
-int VolCloud_NumBins;
-float4 VolCloud_NearFar;
 float4x4 Matrix_WorldToView;
 
 float4x4 Matrix_InvViewProj;
@@ -152,21 +149,15 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     float3 viewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
     float viewDepth = -viewPos.z;
     float shadow;
-    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
+    if (IsDirectionalLight(light))
     {
-        L = light.directionSpot.xyz;
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, samplePos, viewDepth, light.shadowType) : 1);
+        L = DirectionalLightL(light);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, samplePos, viewDepth) : 1);
     }
     else
     {
-        float3 toLight = light.positionRange.xyz - samplePos;
-        float distance = length(toLight);
-        L = toLight / max(distance, 1e-4);
-        att = DistanceAttenuation(distance, light.positionRange.w);
-        if (light.lightType == LIGHT_TYPE_SPOT)
-        {
-            att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
-        }
+        L = LocalLightL(light, samplePos);
+        att = LocalLightAttenuation(light, samplePos);
         shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
     }
 
@@ -174,8 +165,8 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
     float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
     float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, L.y, VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
     float phase = CloudPhase(dot(rayDir, L));
-    shadow = VolumeShadowWeight(light, lerp(1, shadow, light.shape.z));
-    float3 radiance = VolumeLightRadiance(light) * sunTransmittance * lightEnergy * phase * shadow * att;
+    shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
+    float3 radiance = VolumeLightRadiance(light) * LightCookieColor(light, samplePos) * sunTransmittance * lightEnergy * phase * shadow * att;
     float3 ambient = VolumeLightRadiance(light) * sunTransmittance * VolCloud_AmbientIntensity * (0.5 + 0.5 * normalizedHeight);
     return (radiance + ambient) * density;
 }
@@ -248,48 +239,13 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
             luminance += EvaluateCloudLight(g_LightRecordBuffer[d], samplePos, rayDir, density, normalizedHeight);
         }
 
-        if (g_LocalLightCount > 0)
+        float3 sampleViewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
+        FLightLoop lightLoop = BeginLightLoopUV(screenUV, -sampleViewPos.z);
+        uint recordIndex;
+        [loop]
+        while (NextLight(lightLoop, recordIndex))
         {
-            if (VolCloud_HasTileList != 0)
-            {
-                uint2 pixelCoord = uint2(screenUV * (VolCloud_Resolution.xy * 2.0));
-                uint2 tile = pixelCoord / 16u;
-                uint tileIndex = tile.y * (uint)VolCloud_NumTilesX + tile.x;
-                uint2 range = SRV_TileLightRange[tileIndex];
-                float3 viewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
-                float viewDepth = -viewPos.z;
-                float binT = saturate((viewDepth - VolCloud_NearFar.x) / max(VolCloud_NearFar.y - VolCloud_NearFar.x, 1e-4));
-                uint pixelBin = min((uint)(binT * VolCloud_NumBins), (uint)VolCloud_NumBins - 1);
-                uint2 zRange = SRV_ZBinRange[pixelBin];
-                [loop]
-                for (uint li = 0; li < range.y; ++li)
-                {
-                    uint lightIdx = SRV_TileLightList[range.x + li];
-                    bool inBin = false;
-                    [loop]
-                    for (uint zi = 0; zi < zRange.y; ++zi)
-                    {
-                        if (SRV_ZBinLightList[zRange.x + zi] == lightIdx)
-                        {
-                            inBin = true;
-                            break;
-                        }
-                    }
-                    if (!inBin && zRange.y > 0)
-                    {
-                        continue;
-                    }
-                    luminance += EvaluateCloudLight(g_LightRecordBuffer[lightIdx], samplePos, rayDir, density, normalizedHeight);
-                }
-            }
-            else
-            {
-                [loop]
-                for (int l = 0; l < g_LocalLightCount; ++l)
-                {
-                    luminance += EvaluateCloudLight(g_LightRecordBuffer[g_DirectionalLightCount + l], samplePos, rayDir, density, normalizedHeight);
-                }
-            }
+            luminance += EvaluateCloudLight(g_LightRecordBuffer[recordIndex], samplePos, rayDir, density, normalizedHeight);
         }
 
         float sampleExtinction = density * 0.04;

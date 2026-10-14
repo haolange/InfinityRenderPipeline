@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEditor.Rendering;
 using UnityEngine;
 using InfinityTech.Rendering.PostProcess;
+using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
@@ -86,7 +87,7 @@ namespace InfinityTech.Rendering.Editor
             PropertyField(m_Mode);
             if (((FilmTonemap)target).mode.value == EFilmTonemapMode.None)
             {
-                EditorGUILayout.HelpBox("None disables the film curve. Closing a scene Volume inherits the default profile, which is Film.", MessageType.Info);
+                EditorGUILayout.HelpBox("None disables tonemapping. A scene Volume that does not override the mode inherits the default profile, which is ACES.", MessageType.Info);
                 return;
             }
             PropertyField(m_Slope); PropertyField(m_Toe); PropertyField(m_Shoulder); PropertyField(m_Black); PropertyField(m_White);
@@ -140,7 +141,7 @@ namespace InfinityTech.Rendering.Editor
     }
 
     [CustomEditor(typeof(RayTracingAmbientOcclusion))]
-    sealed class RayTracingAmbientOcclusionEditor : VolumeComponentEditor
+    sealed class RayTracingAmbientOcclusionEditor : InfinityQualityVolumeEditor
     {
         SerializedDataParameter m_Enable, m_Radius, m_Rays;
 
@@ -148,6 +149,7 @@ namespace InfinityTech.Rendering.Editor
         {
             var o = new PropertyFetcher<RayTracingAmbientOcclusion>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
             m_Radius = Unpack(o.Find(x => x.Radius));
             m_Rays = Unpack(o.Find(x => x.NumRays));
         }
@@ -158,7 +160,14 @@ namespace InfinityTech.Rendering.Editor
             if (!SystemInfo.supportsRayTracing)
                 EditorGUILayout.HelpBox("This machine has no hardware RT. Infinity uses CoreRP UnifiedRayTracing compute on Metal.", MessageType.Info);
             PropertyField(m_Radius);
-            PropertyField(m_Rays);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_Rays, l => QualityPresets.Select(QualityPresets.RTAO, l).numRays);
+        }
+
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            Set(m_Rays, QualityPresets.Select(QualityPresets.RTAO, level).numRays);
         }
     }
 
@@ -216,80 +225,158 @@ namespace InfinityTech.Rendering.Editor
     }
 
     [CustomEditor(typeof(ScreenSpaceReflection))]
-    sealed class ScreenSpaceReflectionEditor : VolumeComponentEditor
+    sealed class ScreenSpaceReflectionEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_NumRays, m_NumSteps, m_Bias, m_Fade, m_Roughness;
+        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_MaxRoughness, m_Fade;
+        SerializedDataParameter m_HalfResolution, m_MirrorRoughness, m_LinearRoughness, m_HiZSteps, m_LinearSteps;
+        SerializedDataParameter m_ResolveSamples, m_ResolveRadius, m_BrdfBias, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceReflection>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
             m_MaxDistance = Unpack(o.Find(x => x.MaxDistance));
             m_Thickness = Unpack(o.Find(x => x.Thickness));
-            m_NumRays = Unpack(o.Find(x => x.NumRays));
-            m_NumSteps = Unpack(o.Find(x => x.NumSteps));
-            m_Bias = Unpack(o.Find(x => x.BrdfBias));
+            m_MaxRoughness = Unpack(o.Find(x => x.MaxRoughness));
             m_Fade = Unpack(o.Find(x => x.fade));
-            m_Roughness = Unpack(o.Find(x => x.MaxRoughness));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
+            m_HalfResolution = Unpack(o.Find(x => x.HalfResolution));
+            m_MirrorRoughness = Unpack(o.Find(x => x.MirrorRoughness));
+            m_LinearRoughness = Unpack(o.Find(x => x.LinearRoughness));
+            m_HiZSteps = Unpack(o.Find(x => x.NumSteps));
+            m_LinearSteps = Unpack(o.Find(x => x.LinearSteps));
+            m_ResolveSamples = Unpack(o.Find(x => x.ResolveSamples));
+            m_ResolveRadius = Unpack(o.Find(x => x.ResolveRadius));
+            m_BrdfBias = Unpack(o.Find(x => x.BrdfBias));
+            m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
+            m_TemporalScale = Unpack(o.Find(x => x.TemporalScale));
+            m_SpatialPasses = Unpack(o.Find(x => x.SpatialPasses));
         }
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            EditorGUILayout.LabelField("Trace", EditorStyles.boldLabel);
-            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_NumRays); PropertyField(m_NumSteps); PropertyField(m_Bias); PropertyField(m_Fade); PropertyField(m_Roughness);
+            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_MaxRoughness); PropertyField(m_Fade);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_HalfResolution, l => Preset(l).halfResolution);
+            QualityField(m_MirrorRoughness, l => Preset(l).mirrorRoughness);
+            QualityField(m_LinearRoughness, l => Preset(l).linearRoughness);
+            QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
+            QualityField(m_LinearSteps, l => Preset(l).linearSteps);
+            QualityField(m_ResolveSamples, l => Preset(l).resolveSamples);
+            QualityField(m_ResolveRadius, l => Preset(l).resolveRadius);
+            QualityField(m_BrdfBias, l => Preset(l).brdfBias);
+            QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
+            QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
+            QualityField(m_SpatialPasses, l => Preset(l).spatialPasses);
+        }
+        static FSSRSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSR, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FSSRSettings preset = Preset(level);
+            Set(m_HalfResolution, preset.halfResolution);
+            Set(m_MirrorRoughness, preset.mirrorRoughness); Set(m_LinearRoughness, preset.linearRoughness);
+            Set(m_HiZSteps, preset.hiZSteps); Set(m_LinearSteps, preset.linearSteps);
+            Set(m_ResolveSamples, preset.resolveSamples); Set(m_ResolveRadius, preset.resolveRadius);
+            Set(m_BrdfBias, preset.brdfBias); Set(m_TemporalWeight, preset.temporalWeight);
+            Set(m_TemporalScale, preset.temporalClampScale); Set(m_SpatialPasses, preset.spatialPasses);
         }
     }
 
     [CustomEditor(typeof(ScreenSpaceIndirectDiffuse))]
-    sealed class ScreenSpaceIndirectDiffuseEditor : VolumeComponentEditor
+    sealed class ScreenSpaceIndirectDiffuseEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_NumRays, m_Intensity;
+        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_Intensity;
+        SerializedDataParameter m_HalfResolution, m_HiZSteps, m_ResolveSamples, m_ResolveRadius, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceIndirectDiffuse>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
             m_MaxDistance = Unpack(o.Find(x => x.MaxDistance));
             m_Thickness = Unpack(o.Find(x => x.Thickness));
-            m_NumRays = Unpack(o.Find(x => x.NumRays));
             m_Intensity = Unpack(o.Find(x => x.IntensityScale));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
+            m_HalfResolution = Unpack(o.Find(x => x.HalfResolution));
+            m_HiZSteps = Unpack(o.Find(x => x.NumSteps));
+            m_ResolveSamples = Unpack(o.Find(x => x.ResolveSamples));
+            m_ResolveRadius = Unpack(o.Find(x => x.ResolveRadius));
+            m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
+            m_TemporalScale = Unpack(o.Find(x => x.TemporalScale));
+            m_SpatialPasses = Unpack(o.Find(x => x.SpatialPasses));
         }
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            EditorGUILayout.LabelField("Trace", EditorStyles.boldLabel);
-            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_NumRays); PropertyField(m_Intensity);
+            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_Intensity);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_HalfResolution, l => Preset(l).halfResolution);
+            QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
+            QualityField(m_ResolveSamples, l => Preset(l).resolveSamples);
+            QualityField(m_ResolveRadius, l => Preset(l).resolveRadius);
+            QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
+            QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
+            QualityField(m_SpatialPasses, l => Preset(l).spatialPasses);
+        }
+        static FSSGISettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSGI, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FSSGISettings preset = Preset(level);
+            Set(m_HalfResolution, preset.halfResolution);
+            Set(m_HiZSteps, preset.hiZSteps);
+            Set(m_ResolveSamples, preset.resolveSamples); Set(m_ResolveRadius, preset.resolveRadius);
+            Set(m_TemporalWeight, preset.temporalWeight); Set(m_TemporalScale, preset.temporalClampScale);
+            Set(m_SpatialPasses, preset.spatialPasses);
         }
     }
 
     [CustomEditor(typeof(ScreenSpaceAmbientOcclusion))]
-    sealed class ScreenSpaceAmbientOcclusionEditor : VolumeComponentEditor
+    sealed class ScreenSpaceAmbientOcclusionEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_Rays, m_Steps, m_Power, m_Radius, m_Intensity, m_Sharpness;
+        SerializedDataParameter m_Enable, m_Rays, m_Steps, m_Power, m_Radius, m_Intensity, m_Sharpness, m_TemporalScale, m_TemporalWeight;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceAmbientOcclusion>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
             m_Rays = Unpack(o.Find(x => x.NumRays));
             m_Steps = Unpack(o.Find(x => x.NumSteps));
             m_Power = Unpack(o.Find(x => x.Power));
             m_Radius = Unpack(o.Find(x => x.Radius));
             m_Intensity = Unpack(o.Find(x => x.Intensity));
             m_Sharpness = Unpack(o.Find(x => x.sharpness));
+            m_TemporalScale = Unpack(o.Find(x => x.TemporalScale));
+            m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
         }
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_Rays); PropertyField(m_Steps); PropertyField(m_Power); PropertyField(m_Radius); PropertyField(m_Intensity); PropertyField(m_Sharpness);
+            PropertyField(m_Power); PropertyField(m_Radius); PropertyField(m_Intensity);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_Rays, l => Preset(l).numRays);
+            QualityField(m_Steps, l => Preset(l).numSteps);
+            QualityField(m_Sharpness, l => Preset(l).sharpness);
+            QualityField(m_TemporalScale, l => Preset(l).temporalScale);
+            QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
+        }
+        static FGTAOSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.GTAO, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FGTAOSettings preset = Preset(level);
+            Set(m_Rays, preset.numRays); Set(m_Steps, preset.numSteps); Set(m_Sharpness, preset.sharpness);
+            Set(m_TemporalScale, preset.temporalScale); Set(m_TemporalWeight, preset.temporalWeight);
         }
     }
 
     [CustomEditor(typeof(VolumetricFog))]
-    sealed class VolumetricFogEditor : VolumeComponentEditor
+    sealed class VolumetricFogEditor : InfinityQualityVolumeEditor
     {
         SerializedDataParameter m_Enable, m_Density, m_Height, m_Falloff, m_Albedo, m_Aniso, m_Ambient, m_Slices, m_Distance, m_Temporal;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<VolumetricFog>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
             m_Density = Unpack(o.Find(x => x.Density));
             m_Height = Unpack(o.Find(x => x.Height));
             m_Falloff = Unpack(o.Find(x => x.HeightFalloff));
@@ -304,18 +391,29 @@ namespace InfinityTech.Rendering.Editor
         {
             PropertyField(m_Enable);
             PropertyField(m_Density); PropertyField(m_Height); PropertyField(m_Falloff); PropertyField(m_Albedo);
-            PropertyField(m_Aniso); PropertyField(m_Ambient); PropertyField(m_Slices); PropertyField(m_Distance); PropertyField(m_Temporal);
+            PropertyField(m_Aniso); PropertyField(m_Ambient); PropertyField(m_Distance);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_Slices, l => Preset(l).depthSlices);
+            QualityField(m_Temporal, l => Preset(l).temporalWeight);
+        }
+        static FVolumetricFogSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.VolumetricFog, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FVolumetricFogSettings preset = Preset(level);
+            Set(m_Slices, preset.depthSlices); Set(m_Temporal, preset.temporalWeight);
         }
     }
 
     [CustomEditor(typeof(VolumetricCloud))]
-    sealed class VolumetricCloudEditor : VolumeComponentEditor
+    sealed class VolumetricCloudEditor : InfinityQualityVolumeEditor
     {
         SerializedDataParameter m_Enable, m_Bottom, m_Thickness, m_Density, m_Shape, m_Erosion, m_Aniso, m_Silver, m_Spread, m_Ambient, m_Primary, m_Light, m_Temporal;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<VolumetricCloud>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
             m_Bottom = Unpack(o.Find(x => x.CloudLayerBottom));
             m_Thickness = Unpack(o.Find(x => x.CloudLayerThickness));
             m_Density = Unpack(o.Find(x => x.DensityMultiplier));
@@ -333,19 +431,32 @@ namespace InfinityTech.Rendering.Editor
         {
             PropertyField(m_Enable);
             PropertyField(m_Bottom); PropertyField(m_Thickness); PropertyField(m_Density); PropertyField(m_Shape); PropertyField(m_Erosion);
-            PropertyField(m_Aniso); PropertyField(m_Silver); PropertyField(m_Spread); PropertyField(m_Ambient); PropertyField(m_Primary); PropertyField(m_Light); PropertyField(m_Temporal);
+            PropertyField(m_Aniso); PropertyField(m_Silver); PropertyField(m_Spread); PropertyField(m_Ambient);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_Primary, l => Preset(l).numPrimarySteps);
+            QualityField(m_Light, l => Preset(l).numLightSteps);
+            QualityField(m_Temporal, l => Preset(l).temporalWeight);
+        }
+        static FVolumetricCloudSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.VolumetricCloud, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FVolumetricCloudSettings preset = Preset(level);
+            Set(m_Primary, preset.numPrimarySteps); Set(m_Light, preset.numLightSteps); Set(m_Temporal, preset.temporalWeight);
         }
     }
 
     [CustomEditor(typeof(ContactShadow))]
-    sealed class ContactShadowEditor : VolumeComponentEditor
+    sealed class ContactShadowEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_Steps, m_Distance, m_Thickness, m_Intensity, m_Fade;
+        SerializedDataParameter m_Enable, m_Steps, m_SunSteps, m_Distance, m_Thickness, m_Intensity, m_Fade;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ContactShadow>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
+            SetQualityParameter(Unpack(o.Find(x => x.quality)));
             m_Steps = Unpack(o.Find(x => x.NumSteps));
+            m_SunSteps = Unpack(o.Find(x => x.SunNumSteps));
             m_Distance = Unpack(o.Find(x => x.MaxDistance));
             m_Thickness = Unpack(o.Find(x => x.Thickness));
             m_Intensity = Unpack(o.Find(x => x.Intensity));
@@ -354,7 +465,17 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_Steps); PropertyField(m_Distance); PropertyField(m_Thickness); PropertyField(m_Intensity); PropertyField(m_Fade);
+            PropertyField(m_Distance); PropertyField(m_Thickness); PropertyField(m_Intensity); PropertyField(m_Fade);
+            EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
+            DrawQuality();
+            QualityField(m_Steps, l => Preset(l).numSteps);
+            QualityField(m_SunSteps, l => Preset(l).sunNumSteps);
+        }
+        static FContactShadowSettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.ContactShadow, level);
+        protected override void CopyPresetToCustom(EQualityLevel level)
+        {
+            FContactShadowSettings preset = Preset(level);
+            Set(m_Steps, preset.numSteps); Set(m_SunSteps, preset.sunNumSteps);
         }
     }
 }

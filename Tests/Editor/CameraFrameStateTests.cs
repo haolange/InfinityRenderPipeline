@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.MarkSupported(EFrameFeature.Display);
             features.MarkProduced(EFrameFeature.Display);
 
-            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(superResolutionEnabled: false));
+            Assert.DoesNotThrow(() => features.EnsureRequiredProducers(requiresTemporalAntiAliasing: true));
             Assert.IsFalse(features.ShouldRecord(EFrameFeature.DBuffer));
         }
 
@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             features.Request(EFrameFeature.Depth);
             features.MarkSupported(EFrameFeature.Depth);
             features.MarkProduced(EFrameFeature.Depth);
-            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(superResolutionEnabled: false));
+            Assert.Throws<InvalidOperationException>(() => features.EnsureRequiredProducers(requiresTemporalAntiAliasing: true));
         }
 
         [Test]

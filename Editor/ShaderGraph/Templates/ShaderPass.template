@@ -1,0 +1,123 @@
+Pass
+{
+    $splice(PassName)
+    Tags
+    {
+        $splice(LightMode)
+    }
+
+// Render State
+$splice(RenderState)
+
+// Debug
+$splice(Debug)
+
+// --------------------------------------------------
+// Pass
+
+HLSLPROGRAM
+
+// Pragmas
+$splice(PassPragmas)
+
+// Keywords
+$splice(PassKeywords)
+$splice(GraphKeywords)
+
+// Defines
+$Attributes.normalOS: #define ATTRIBUTES_NEED_NORMAL
+$Attributes.tangentOS: #define ATTRIBUTES_NEED_TANGENT
+$Attributes.uv0: #define ATTRIBUTES_NEED_TEXCOORD0
+$Attributes.uv1: #define ATTRIBUTES_NEED_TEXCOORD1
+$Attributes.uv2: #define ATTRIBUTES_NEED_TEXCOORD2
+$Attributes.uv3: #define ATTRIBUTES_NEED_TEXCOORD3
+$Attributes.uv4: #define ATTRIBUTES_NEED_TEXCOORD4
+$Attributes.uv5: #define ATTRIBUTES_NEED_TEXCOORD5
+$Attributes.uv6: #define ATTRIBUTES_NEED_TEXCOORD6
+$Attributes.uv7: #define ATTRIBUTES_NEED_TEXCOORD7
+$Attributes.color: #define ATTRIBUTES_NEED_COLOR
+$Attributes.vertexID: #define ATTRIBUTES_NEED_VERTEXID
+$Attributes.instanceID: #define ATTRIBUTES_NEED_INSTANCEID
+$Varyings.positionWS: #define VARYINGS_NEED_POSITION_WS
+$Varyings.positionPredisplacementWS: #define VARYINGS_NEED_POSITIONPREDISPLACEMENT_WS
+$Varyings.normalWS: #define VARYINGS_NEED_NORMAL_WS
+$Varyings.tangentWS: #define VARYINGS_NEED_TANGENT_WS
+$Varyings.texCoord0: #define VARYINGS_NEED_TEXCOORD0
+$Varyings.texCoord1: #define VARYINGS_NEED_TEXCOORD1
+$Varyings.texCoord2: #define VARYINGS_NEED_TEXCOORD2
+$Varyings.texCoord3: #define VARYINGS_NEED_TEXCOORD3
+$Varyings.texCoord4: #define VARYINGS_NEED_TEXCOORD4
+$Varyings.texCoord5: #define VARYINGS_NEED_TEXCOORD5
+$Varyings.texCoord6: #define VARYINGS_NEED_TEXCOORD6
+$Varyings.texCoord7: #define VARYINGS_NEED_TEXCOORD7
+$Varyings.color: #define VARYINGS_NEED_COLOR
+$Varyings.screenPosition: #define VARYINGS_NEED_SCREENPOSITION
+$Varyings.vertexID: #define VARYINGS_NEED_VERTEXID
+$Varyings.instanceID: #define VARYINGS_NEED_INSTANCEID
+$Varyings.cullFace: #define VARYINGS_NEED_CULLFACE
+$features.graphVertex: #define FEATURES_GRAPH_VERTEX
+$SurfaceDescription.BaseColor: #define INFINITY_SG_BASECOLOR 1
+$SurfaceDescription.NormalTS: #define INFINITY_SG_NORMALTS 1
+$SurfaceDescription.Metallic: #define INFINITY_SG_METALLIC 1
+$SurfaceDescription.Roughness: #define INFINITY_SG_ROUGHNESS 1
+$SurfaceDescription.SpecularLevel: #define INFINITY_SG_SPECULARLEVEL 1
+$SurfaceDescription.Occlusion: #define INFINITY_SG_OCCLUSION 1
+$SurfaceDescription.Emission: #define INFINITY_SG_EMISSION 1
+$SurfaceDescription.Alpha: #define INFINITY_SG_ALPHA 1
+$SurfaceDescription.AlphaClipThreshold: #define INFINITY_SG_ALPHACLIPTHRESHOLD 1
+$splice(PassInstancing)
+$splice(GraphDefines)
+
+// custom interpolator pre-include
+$splice(sgci_CustomInterpolatorPreInclude)
+
+// Includes
+$splice(PreGraphIncludes)
+
+// --------------------------------------------------
+// Structs and Packing
+
+// custom interpolators pre packing
+$splice(CustomInterpolatorPrePacking)
+
+$splice(PassStructs)
+
+$splice(InterpolatorPack)
+
+// --------------------------------------------------
+// Graph
+
+// Graph Properties
+$splice(GraphProperties)
+
+// Graph Includes
+$splice(GraphIncludes)
+
+// Graph Functions
+$splice(GraphFunctions)
+
+// Custom interpolators pre vertex
+$splice(CustomInterpolatorPreVertex)
+
+// Graph Vertex
+$splice(GraphVertex)
+
+// Custom interpolators, pre surface
+$splice(CustomInterpolatorPreSurface)
+
+// Graph Pixel
+$splice(GraphPixel)
+
+// --------------------------------------------------
+// Build Graph Inputs
+
+$features.graphVertex:  $include("BuildVertexDescriptionInputs.template.hlsl")
+$features.graphPixel:   $include("BuildSurfaceDescriptionInputs.template.hlsl")
+
+// --------------------------------------------------
+// Main
+
+$splice(PostGraphIncludes)
+
+ENDHLSL
+}

@@ -1,0 +1,40 @@
+// Builds the per-tile light bitmasks of the clustered light list (Shaders/ShaderLibrary/Lighting/LightLoop.hlsl).
+// One thread writes one 32-bit word of one tile: bit b is set when local light (word * 32 + b) has a CPU-computed
+// screen tile rectangle that covers the tile. The rectangles are conservative sphere projections; lights that reach
+// the near plane cover every tile. Tiles are not culled by opaque depth: transparents and fog use the same list.
+#pragma kernel BuildTileMask
+
+uint LightTile_LocalCount;
+uint LightTile_WordCount;
+float4 LightTile_TileCount;
+
+StructuredBuffer<int4> SRV_LightTileRects;
+RWStructuredBuffer<uint> UAV_LightTileMasks;
+
+[numthreads(64, 1, 1)]
+void BuildTileMask(uint3 id : SV_DispatchThreadID)
+{
+    uint2 tileCount = (uint2)LightTile_TileCount.xy;
+    uint total = tileCount.x * tileCount.y * LightTile_WordCount;
+    if (id.x >= total)
+    {
+        return;
+    }
+
+    uint word = id.x % LightTile_WordCount;
+    uint tileIndex = id.x / LightTile_WordCount;
+    int2 tile = int2(tileIndex % tileCount.x, tileIndex / tileCount.x);
+    uint first = word * 32u;
+    uint count = min(32u, LightTile_LocalCount - min(first, LightTile_LocalCount));
+    uint mask = 0;
+    [loop]
+    for (uint bit = 0; bit < count; ++bit)
+    {
+        int4 rect = SRV_LightTileRects[first + bit];
+        if (all(tile >= rect.xy) && all(tile <= rect.zw))
+        {
+            mask |= 1u << bit;
+        }
+    }
+    UAV_LightTileMasks[id.x] = mask;
+}

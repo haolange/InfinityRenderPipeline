@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.GPUResource;
@@ -66,6 +67,23 @@ namespace InfinityTech.Rendering.RenderGraph
             RGBuffer buffer = Resolve();
             if (buffer.graphicsResource != null) commands.SetGlobalBuffer(nameID, buffer.graphicsResource);
             else commands.SetGlobalBuffer(nameID, buffer.resource);
+        }
+
+        internal void DispatchIndirect(CommandBuffer commands, ComputeShader shader, int kernel, uint argsOffset)
+        {
+            RGBuffer buffer = Resolve();
+            if (buffer.graphicsResource != null)
+            {
+                if ((buffer.graphicsTarget & GraphicsBuffer.Target.IndirectArguments) == 0)
+                    throw new InvalidOperationException($"RG buffer {buffer.GetName()} is not an IndirectArguments buffer.");
+                commands.DispatchCompute(shader, kernel, buffer.graphicsResource, argsOffset);
+            }
+            else
+            {
+                if ((buffer.descriptor.type & ComputeBufferType.IndirectArguments) == 0)
+                    throw new InvalidOperationException($"RG buffer {buffer.GetName()} is not an IndirectArguments buffer.");
+                commands.DispatchCompute(shader, kernel, buffer.resource, argsOffset);
+            }
         }
 
         internal void BindCompute(CommandBuffer commands, ComputeShader shader, int kernel, int nameID)
@@ -242,6 +260,37 @@ namespace InfinityTech.Rendering.RenderGraph
         internal string GetResourceName(in RGResourceHandle handle)
         {
             return m_Resources[handle.iType][handle.index].GetName();
+        }
+
+        internal int GetResourceCount(int type) => m_Resources[type].size;
+
+        // RenderGraph Viewer: name, import state and a one-line size / format of a resource.
+        internal void DescribeResource(int type, int index, out string name, out bool imported, out string description)
+        {
+            IRGResource resource = m_Resources[type][index];
+            name = resource.GetName();
+            imported = resource.imported;
+            description = string.Empty;
+            if (resource is RGTexture texture)
+            {
+                TextureDescriptor descriptor = texture.descriptor;
+                RenderTexture importedTexture = texture.resource != null ? texture.resource.rt : null;
+                if (string.IsNullOrEmpty(name) && texture.resource != null) name = texture.resource.name;
+                if (descriptor.width > 0)
+                {
+                    string format = descriptor.colorFormat != GraphicsFormat.None ? descriptor.colorFormat.ToString() : "Depth" + (int)descriptor.depthBufferBits;
+                    description = descriptor.width + "x" + descriptor.height + (descriptor.slices > 1 ? "x" + descriptor.slices : "") + " " + format;
+                }
+                else if (importedTexture != null)
+                {
+                    description = importedTexture.width + "x" + importedTexture.height + (importedTexture.volumeDepth > 1 ? "x" + importedTexture.volumeDepth : "") + " " + importedTexture.graphicsFormat;
+                }
+            }
+            else if (resource is RGBuffer buffer)
+            {
+                description = buffer.descriptor.count + " x " + buffer.descriptor.stride + " B";
+            }
+            if (string.IsNullOrEmpty(name)) name = ((ERGResourceType)type) + " " + index;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

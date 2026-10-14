@@ -107,6 +107,8 @@ namespace InfinityTech.Rendering.RenderGraph
     public class RGBuilder 
     {
         public string name;
+        // Label of the next Execute in the RenderGraph Viewer (the pipeline sets the camera name).
+        public string debugLabel;
         RGResourceFactory m_Resources;
         Stack<int> m_CullingStack = new Stack<int>();
         List<IRGPass> m_PassList = new List<IRGPass>(64);
@@ -116,7 +118,7 @@ namespace InfinityTech.Rendering.RenderGraph
         RGDrawListContext m_DrawListRecords = new RGDrawListContext();
         RGRendererListContext m_RendererListRecords = new RGRendererListContext();
         MeshWorld m_MeshWorld;
-        readonly Dictionary<ulong, RGBufferRef> m_GpuCullVisibility = new Dictionary<ulong, RGBufferRef>(8);
+        readonly Dictionary<MeshGpuVisibilityKey, RGBufferRef> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferRef>(8);
 
         public RGBuilder(string name)
         {
@@ -190,7 +192,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 return;
             }
 
-            ulong key = MeshGpuVisibilityCache.MakeKey(view);
+            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view);
             if (m_GpuCullVisibility.TryGetValue(key, out RGBufferRef existing))
             {
                 if (m_DrawListRecords.IsLiveRef(draws))
@@ -393,6 +395,88 @@ namespace InfinityTech.Rendering.RenderGraph
             return text.ToString();
         }
 
+        // The compiled graph for the RenderGraph Viewer; valid between CompilePass and ClearPass.
+        internal RGGraphSnapshot CaptureDebugSnapshot()
+        {
+            var snapshot = new RGGraphSnapshot { label = string.IsNullOrEmpty(debugLabel) ? name : debugLabel, frame = Time.frameCount };
+            int[] offsets = new int[(int)ERGResourceType.Max];
+            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+            {
+                offsets[type] = snapshot.resources.Count;
+                int count = m_Resources.GetResourceCount(type);
+                for (int i = 0; i < count; ++i)
+                {
+                    m_Resources.DescribeResource(type, i, out string resourceName, out bool imported, out string description);
+                    snapshot.resources.Add(new RGResourceSnapshot
+                    {
+                        type = (ERGResourceType)type, index = i, name = resourceName, imported = imported, description = description,
+                        firstUse = -1, lastUse = -1, createPass = -1, releasePass = -1
+                    });
+                }
+            }
+
+            var scratch = new List<int>(16);
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            {
+                ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
+                IRGPass pass = info.pass;
+                int[] reads = FlattenHandles(pass.resourceReadLists, offsets, scratch);
+                int[] writes = FlattenHandles(pass.resourceWriteLists, offsets, scratch);
+                int[] creates = FlattenIndices(info.resourceCreateList, offsets, scratch);
+                int[] releases = FlattenIndices(info.resourceReleaseList, offsets, scratch);
+                snapshot.passes.Add(new RGPassSnapshot
+                {
+                    name = pass.name, type = pass.passType, asyncCompute = pass.enableAsyncCompute, culled = info.culled,
+                    allowCulling = pass.enablePassCulling, waitsForPass = info.syncToPassIndex, signalsToPass = info.syncFromPassIndex,
+                    graphicsFence = info.needGraphicsFence, reads = reads, writes = writes, creates = creates, releases = releases
+                });
+
+                if (!info.culled)
+                {
+                    MarkUse(snapshot, reads, passIndex);
+                    MarkUse(snapshot, writes, passIndex);
+                }
+                foreach (int resource in creates)
+                {
+                    RGResourceSnapshot entry = snapshot.resources[resource];
+                    if (!entry.imported) { entry.createPass = passIndex; snapshot.resources[resource] = entry; }
+                }
+                foreach (int resource in releases)
+                {
+                    RGResourceSnapshot entry = snapshot.resources[resource];
+                    if (!entry.imported) { entry.releasePass = passIndex; snapshot.resources[resource] = entry; }
+                }
+            }
+            return snapshot;
+        }
+
+        static int[] FlattenHandles(List<RGResourceHandle>[] lists, int[] offsets, List<int> scratch)
+        {
+            scratch.Clear();
+            for (int type = 0; type < lists.Length && type < offsets.Length; ++type)
+                foreach (RGResourceHandle handle in lists[type]) scratch.Add(offsets[type] + handle.index);
+            return scratch.ToArray();
+        }
+
+        static int[] FlattenIndices(List<int>[] lists, int[] offsets, List<int> scratch)
+        {
+            scratch.Clear();
+            for (int type = 0; type < lists.Length && type < offsets.Length; ++type)
+                foreach (int index in lists[type]) scratch.Add(offsets[type] + index);
+            return scratch.ToArray();
+        }
+
+        static void MarkUse(RGGraphSnapshot snapshot, int[] resources, int passIndex)
+        {
+            foreach (int resource in resources)
+            {
+                RGResourceSnapshot entry = snapshot.resources[resource];
+                if (entry.firstUse < 0) entry.firstUse = passIndex;
+                entry.lastUse = passIndex;
+                snapshot.resources[resource] = entry;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTransferPassRef AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
@@ -520,6 +604,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
                 m_Resources.BeginRender();
                 CompilePass();
+                if (RGDebugSession.captureEnabled)
+                {
+                    RGDebugSession.Publish(CaptureDebugSnapshot());
+                }
                 if (m_RendererListRecords.LiveCount > 0)
                 {
                     if (renderContext == null)

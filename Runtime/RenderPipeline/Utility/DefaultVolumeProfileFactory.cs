@@ -37,7 +37,9 @@ namespace InfinityTech.Rendering.Pipeline
             typeof(VolumetricCloud),
             typeof(ContactShadow),
             typeof(SubsurfaceScattering),
-            typeof(RayTracingAmbientOcclusion)
+            typeof(RayTracingAmbientOcclusion),
+            // CoreRP's Adaptive Probe Volume options (sampling bias, leak reduction, intensity).
+            typeof(ProbeVolumesOptions)
         };
 
         internal static System.Collections.Generic.IReadOnlyList<System.Type> OptionalComponentTypes => s_OptionalComponentTypes;
@@ -65,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (profile.TryGet(out FilmTonemap film))
             {
                 film.mode.overrideState = true;
-                film.mode.value = EFilmTonemapMode.Film;
+                film.mode.value = EFilmTonemapMode.ACES;
                 Override(film.slope, PackagedFilmSlope);
                 Override(film.toe, PackagedFilmToe);
                 Override(film.shoulder, PackagedFilmShoulder);
@@ -138,6 +140,30 @@ namespace InfinityTech.Rendering.Pipeline
         {
             parameter.overrideState = true;
             parameter.value = value;
+        }
+
+        // Number of default component types the profile lacks (what ValidateAndComplete would add). Read-only.
+        public static int CountMissing(VolumeProfile profile)
+        {
+            if (profile == null)
+                throw new System.ArgumentNullException(nameof(profile));
+            VolumeProfile defaults = CreateInMemory();
+            try
+            {
+                int missing = 0;
+                foreach (VolumeComponent template in defaults.components)
+                {
+                    if (!profile.TryGet(template.GetType(), out VolumeComponent existing) || existing == null)
+                        missing++;
+                }
+                return missing;
+            }
+            finally
+            {
+                foreach (VolumeComponent component in defaults.components)
+                    Object.DestroyImmediate(component);
+                Object.DestroyImmediate(defaults);
+            }
         }
 
 #if UNITY_EDITOR

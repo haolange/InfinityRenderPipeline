@@ -3,12 +3,21 @@
 #pragma kernel DebugViewSceneColor DV_KERNEL_SCENECOLOR
 #pragma kernel DebugViewOptional DV_KERNEL_OPTIONAL
 #pragma kernel DebugViewMissing DV_KERNEL_MISSING
+#pragma kernel DebugViewShadow DV_KERNEL_SHADOW
+#pragma kernel DebugViewLightLoop DV_KERNEL_LIGHTLOOP
+#pragma kernel DebugViewProbeAtlas DV_KERNEL_PROBEATLAS
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/DebugViewModes.hlsl"
+#if defined(DV_KERNEL_LIGHTLOOP)
+#include "../../ShaderLibrary/Lighting/ReflectionProbes.hlsl"
+#endif
 
 float4 DV_Resolution;
 int DV_Mode;
+// x = first probe-atlas slice (ReflectionProbeAtlas), y = complexity heat-map range.
+float4 DV_Params;
 
 #if defined(DV_KERNEL_GBUFFER)
 Texture2D SRV_GBufferTextureA;
@@ -28,7 +37,55 @@ Texture2D SRV_SceneColorTexture;
 Texture2D SRV_OptionalTexture;
 #endif
 
+#if defined(DV_KERNEL_SHADOW)
+// A depth atlas (.r = device depth) or a moment atlas (.x = first moment).
+Texture2D SRV_ShadowAtlasTexture;
+#endif
+
+#if defined(DV_KERNEL_LIGHTLOOP)
+float4x4 DV_InvProj;
+float DV_FarDepth;
+Texture2D<float> SRV_DepthTexture;
+#endif
+
+#if defined(DV_KERNEL_PROBEATLAS)
+Texture2DArray<float4> SRV_ProbeAtlasTexture;
+#endif
+
 RWTexture2D<float4> UAV_PostProcessTexture;
+
+// Black (0) -> blue -> cyan -> green -> yellow -> red (1).
+float3 DebugHeatColor(float t)
+{
+    t = saturate(t);
+    float3 color = lerp(float3(0, 0, 0.3), float3(0, 0.2, 1), saturate(t * 5.0));
+    color = lerp(color, float3(0, 1, 1), saturate(t * 5.0 - 1.0));
+    color = lerp(color, float3(0, 1, 0), saturate(t * 5.0 - 2.0));
+    color = lerp(color, float3(1, 1, 0), saturate(t * 5.0 - 3.0));
+    color = lerp(color, float3(1, 0, 0), saturate(t * 5.0 - 4.0));
+    return color;
+}
+
+// One color per rendering layer bit, averaged over the set bits.
+float3 DebugLayerColor(uint mask)
+{
+    static const float3 kLayerColors[8] =
+    {
+        float3(1.0, 0.25, 0.25), float3(0.25, 1.0, 0.25), float3(0.3, 0.45, 1.0), float3(1.0, 1.0, 0.25),
+        float3(1.0, 0.25, 1.0), float3(0.25, 1.0, 1.0), float3(1.0, 0.6, 0.2), float3(0.7, 0.7, 0.7)
+    };
+    float3 color = 0;
+    uint count = 0;
+    [unroll] for (uint bit = 0; bit < 8; ++bit)
+    {
+        if ((mask >> bit) & 1u)
+        {
+            color += kLayerColors[bit];
+            count++;
+        }
+    }
+    return count > 0 ? color / count : float3(0, 0, 0);
+}
 
 #if defined(DV_KERNEL_GBUFFER)
 [numthreads(8, 8, 1)]
@@ -45,13 +102,34 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     SRV_GBufferTextureA.GetDimensions(width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     DecodeGBuffer(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbuffer);
-    if (DV_Mode == 1)
+    bool validSurface = (gbuffer.Flags & GBUFFER_FLAG_VALID_SURFACE) != 0;
+    if (DV_Mode == DEBUGVIEW_ALBEDO)
     {
         color = gbuffer.Albedo;
     }
-    else if (DV_Mode == 2)
+    else if (DV_Mode == DEBUGVIEW_NORMAL)
     {
         color = gbuffer.Normal * 0.5 + 0.5;
+    }
+    else if (DV_Mode == DEBUGVIEW_METALLIC)
+    {
+        color = gbuffer.Reflactance.xxx;
+    }
+    else if (DV_Mode == DEBUGVIEW_SPECULAR)
+    {
+        color = gbuffer.Specular.xxx;
+    }
+    else if (DV_Mode == DEBUGVIEW_SHADINGMODEL)
+    {
+        // Black: no surface; blue: forward route (shaded in the forward pass); orange: subsurface; gray: default lit.
+        color = !validSurface ? float3(0, 0, 0)
+            : (gbuffer.Flags & GBUFFER_FLAG_FORWARD) != 0 ? float3(0.2, 0.4, 1.0)
+            : gbuffer.ShadingModel == GBUFFER_SHADING_MODEL_SUBSURFACE ? float3(1.0, 0.5, 0.2)
+            : float3(0.7, 0.7, 0.7);
+    }
+    else if (DV_Mode == DEBUGVIEW_RENDERINGLAYERS)
+    {
+        color = validSurface ? DebugLayerColor(gbuffer.RenderingLayer) : float3(0, 0, 0);
     }
     else
     {
@@ -109,10 +187,123 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     SRV_OptionalTexture.GetDimensions(width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     float3 color = SRV_OptionalTexture[inputPixel].rgb;
-    if (DV_Mode == 4) color = color.r.xxx;
-    else if (DV_Mode == 8) color = color.g.xxx; // Final TAA history weight; R is geometric coverage.
+    if (DV_Mode == DEBUGVIEW_AO || DV_Mode == DEBUGVIEW_CONTACTSHADOWS) color = color.r.xxx;
+    else if (DV_Mode == DEBUGVIEW_TAACONFIDENCE) color = color.g.xxx; // Final TAA history weight; R is geometric coverage.
 
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_SHADOW)
+[numthreads(8, 8, 1)]
+void DebugViewShadow(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    // Letterbox: the atlas fills the largest centered square; the rest is mid gray.
+    float side = min(DV_Resolution.x, DV_Resolution.y);
+    float2 origin = 0.5 * (DV_Resolution.xy - side);
+    float2 uv = (id.xy + 0.5 - origin) / side;
+    if (any(uv < 0.0) || any(uv > 1.0))
+    {
+        UAV_PostProcessTexture[id.xy] = float4(0.18, 0.18, 0.18, 1.0);
+        return;
+    }
+
+    uint width, height;
+    SRV_ShadowAtlasTexture.GetDimensions(width, height);
+    uint2 inputPixel = min((uint2)(uv * float2(width, height)), uint2(width, height) - 1);
+    float value = SRV_ShadowAtlasTexture[inputPixel].r;
+    float3 color;
+    if (DV_Mode == DEBUGVIEW_SHADOWMOMENTS)
+    {
+        // VSM stores depth in [0, 1]; EVSM stores exp(c (2d - 1)) with c <= 5.54. Both map to [0, 1], near = bright.
+        float depth = value > 1.0 || value < 0.0 ? 0.5 + 0.5 * log(max(value, 1e-4)) / 5.54 : value;
+        color = (1.0 - saturate(depth)).xxx;
+    }
+    else
+    {
+#if UNITY_REVERSED_Z
+        float nearness = value;
+#else
+        float nearness = 1.0 - value;
+#endif
+        // Perspective depth crowds near 0 (reversed) far away; the square root spreads it out.
+        color = sqrt(saturate(nearness)).xxx;
+    }
+    UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_LIGHTLOOP)
+// Heat map of the clustered list: the local lights (or reflection probes) a pixel's loop visits, i.e. the set bits of
+// its tile mask inside its depth bin's index range. That is the loop's cost, not the lights that reach the pixel.
+[numthreads(8, 8, 1)]
+void DebugViewLightLoop(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    uint width, height;
+    SRV_DepthTexture.GetDimensions(width, height);
+    uint2 pixelCoord = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
+    float rawDepth = SRV_DepthTexture[pixelCoord];
+    if (abs(rawDepth - DV_FarDepth) <= 1e-5)
+    {
+        UAV_PostProcessTexture[id.xy] = float4(0.05, 0.05, 0.05, 1.0);
+        return;
+    }
+
+    float2 screenUV = (pixelCoord + 0.5) / float2(width, height);
+    float viewDepth = -GetViewSpacePos(GetNDCPos(screenUV, rawDepth), DV_InvProj).z;
+    uint count = 0;
+    uint index;
+    if (DV_Mode == DEBUGVIEW_REFLECTIONPROBECOMPLEXITY)
+    {
+        FLightLoop loop = BeginProbeLoop(pixelCoord, viewDepth);
+        [loop] while (NextProbe(loop, index)) count++;
+    }
+    else
+    {
+        FLightLoop loop = BeginLightLoop(pixelCoord, viewDepth);
+        [loop] while (NextLight(loop, index)) count++;
+    }
+
+    float3 color = count == 0 ? float3(0.1, 0.1, 0.1) : DebugHeatColor(count / max(DV_Params.y, 1.0));
+    UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
+}
+#endif
+
+#if defined(DV_KERNEL_PROBEATLAS)
+// The six faces of one probe (slices DV_Params.x .. +5) in a 3 x 2 grid, letterboxed: +X -X +Y / -Y +Z -Z.
+[numthreads(8, 8, 1)]
+void DebugViewProbeAtlas(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)DV_Resolution.xy))
+    {
+        return;
+    }
+
+    float face = min(DV_Resolution.x / 3.0, DV_Resolution.y / 2.0);
+    float2 origin = 0.5 * (DV_Resolution.xy - face * float2(3.0, 2.0));
+    float2 grid = (id.xy + 0.5 - origin) / face;
+    if (any(grid < 0.0) || grid.x >= 3.0 || grid.y >= 2.0)
+    {
+        UAV_PostProcessTexture[id.xy] = float4(0.18, 0.18, 0.18, 1.0);
+        return;
+    }
+
+    uint2 cell = (uint2)grid;
+    uint width, height, slices;
+    SRV_ProbeAtlasTexture.GetDimensions(width, height, slices);
+    uint slice = min((uint)DV_Params.x + cell.y * 3u + cell.x, slices - 1u);
+    uint2 texel = min((uint2)(frac(grid) * float2(width, height)), uint2(width, height) - 1);
+    UAV_PostProcessTexture[id.xy] = float4(SRV_ProbeAtlasTexture[uint3(texel, slice)].rgb, 1.0);
 }
 #endif
 

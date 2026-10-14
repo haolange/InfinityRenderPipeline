@@ -77,6 +77,16 @@ namespace InfinityTech.Component.Editor
             EditorGUILayout.PropertyField(m_Additional.FindProperty("superResolutionOverride"), new GUIContent("Super Resolution"));
 
             EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Frame Settings", EditorStyles.boldLabel);
+            SerializedProperty custom = m_Additional.FindProperty("customFrameSettings");
+            EditorGUILayout.PropertyField(custom, new GUIContent("Custom Frame Settings", "Override single settings of the RP Asset's camera Frame Settings."));
+            if (custom.boolValue || custom.hasMultipleDifferentValues)
+            {
+                FFrameSettings baseline = GraphicsSettings.currentRenderPipeline is InfinityRenderPipelineAsset asset ? asset.defaultFrameSettings : FFrameSettings.AllEnabled;
+                InfinityTech.Rendering.Editor.InfinityFrameSettingsGUI.DrawOverrides(m_Additional.FindProperty("frameSettings"), baseline);
+            }
+
+            EditorGUILayout.Space();
             EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(m_TargetTexture, new GUIContent("Target Texture"));
             EditorGUILayout.PropertyField(m_Viewport, new GUIContent("Viewport Rect"));

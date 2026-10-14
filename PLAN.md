@@ -1,179 +1,453 @@
-# InfinityRP — Editor convergence execution ledger
+# InfinityRP 0.5.0 — upgrade and convergence ledger
 
-User-approved C0–C7 replaces the prior normalization completion claims as the active execution scope. Previous ledger is preserved verbatim in Docs/History/PLAN-0.4.0-before-editor-convergence.md; its PASS records remain historical and do not pass these gates.
+This is the only active task ledger. The 0.4.0 C0–C7 Editor convergence ledger is archived verbatim in
+[Docs/History/PLAN-0.4.0-editor-convergence.md](Docs/History/PLAN-0.4.0-editor-convergence.md); its receipts are
+historical and do not pass any 0.5.0 gate.
 
-## Contract and roles
+## Goals (user direction, 2026-10-11)
 
-Main agent implements and performs self-tests and visual inspection. Independent GPT-6 Astra verifies candidates. Luna is read-only search/inventory only. No branches, commits, push, PR, Player builds, packaging or Player acceptance. All Editor quality gaps are in scope. Current user-approved contract takes priority over prior native-motion/two-pass/output-transform constraints.
+1. **SSR** rebuilt on Frostbite's stochastic SSR: tile classification picks Hi-Z or linear tracing, half-resolution
+   tracing, ray-reuse resolve, temporal accumulation and denoising.
+2. **Documents agree with each other and with the code.**
+3. **Post-processing** gets no new features. Tonemapping is None or ACES only.
+4. **Lighting baseline**: baked GI (lightmaps, Shadowmask, Distance Shadowmask, light probes, LPPV, APV), reflection
+   probes in the same clustered list structure as lights (one structure and one evaluation for Deferred and Forward),
+   cookies and IES, PCF/PCSS/VSM/EVSM shadows, screen-space traced (contact) shadows, and area lights shaded with the
+   Karis representative-point approximation (no LTC). Sphere, tube, line, rect and disk shapes are derived from light
+   parameters, not hardcoded light classes.
+5. **Editor parity with HDRP**, including Shader Graph support.
+6. **Architecture and governance healthy.** Volume quality uses hardcoded preset tables in code that resolve to
+   low-level settings; passes consume only low-level settings; `Custom` lets experts drive the low-level values.
 
-Production targets: Unity native motion for native Renderers; retain only necessary custom MeshDrawing history; one-dispatch TAA+sharpen; linear DisplayColorBuffer with transfer encoding in final Present; functional SR/UI/Volume/Debugger; no legacy compatibility shims. No in-scope unknown is relabeled complete.
+Out of scope: new post effects, LTC, Player builds and packaging.
 
-## Active stages
+## Delivery rules
 
-| Stage | Dependencies | Status | Required result |
+- Branch `claude/infinityrp-0.5`, based on `main` at c92be77. Each stage has one or more commits whose subject starts
+  with `SNN:`. Commits are never squashed.
+- Every commit compiles on its own: the Runtime, Editor and Tests consumers of a change move in the same commit. New
+  subsystems land unwired with CPU tests first, then a separate commit wires them in.
+- No Editor is available while 0.5.0 is written. Every stage passes the offline gate before the next stage starts:
+  1. Differential C# semantic compile against UnityCsReference + CoreRP 17.6 sources (no new diagnostics).
+  2. DXC compile of every compute kernel and shader pass entry (no new failures).
+  3. `Tools/StaticCheck/static_check.py` clean.
+- A Unity or CoreRP API that cannot be verified from source is not wired; the stage records it as "designed, not wired".
+- Image results stay `TODO(UNVERIFIED)` until the user captures them. New tests carry `[Category("Unverified-0.5")]`.
+- Before writing code, each stage records its interface contract below (record layouts, buffer names, pass read/write sets).
+
+## Stages
+
+| Stage | Scope | Depends on | Status |
 |---|---|---|---|
-| C0 | — | passed (Astra candidate 2) | Full current input snapshot; active Editor/dirty state; Spazon and all validation baselines; full effective Volume/LUT; source-bound evidence |
-| C1 | C0 | implementing | Lossless configuration, explicit setup/reset, resources, lifecycle ownership and consumer-correct shader stripping |
-| C2 | C1 | pending | Camera/Light/Material user flows, scoped auto-add, Undo/mixed/prefab/reload, canonical default object materials |
-| C3 | C2 | pending | Complete Volume editors, real effective-state Debugger, all fields and producer-backed diagnostics |
-| C4 | C3 | pending | Production per-camera render dimensions, fixed SR and complete TMP/Canvas fixture |
-| C5 | C4 | pending | Native Renderer motion, view discontinuity handling, single-dispatch TAA and fused final output |
-| C6 | C5 | pending | Editor lighting/shadow/SSR/SSGI/SSS/fog/cloud/translucent/particles and correct denoised URT |
-| C7 | C6 | pending | Full regression, performance, one-hour stability, obsolete-path retirement, docs and disk cleanup |
+| S0 | Offline gate (`Tools/StaticCheck/`) | — | done |
+| S1 | Documents and governance; repository hygiene; Film→ACES | S0 | done |
+| S2 | Contract defects: Reflection/Preview camera policy, every `LightType` mapped, hardcoded shadow values, feature-gate gaps, DebugView enum, Mesh GPU table invalidation | S1 | done |
+| S3 | RenderGraph: indirect dispatch on `RGBufferRef`, utility kernels, typed resource keys, two-phase feature registry | S2 | done |
+| S4 | Quality presets: `EQualityLevel`, low-level settings structs, hardcoded preset tables, Volume `Resolve()` | S3 | done |
+| S5 | Stochastic SSR (classify, Hi-Z/linear trace, ray-reuse resolve, temporal, spatial) + shared denoise library | S3, S4 | done |
+| S6 | Light data model v2 (UE-form shape data, implicit Unity Light sync, lightmapper delegate, record v2) | S2 | done |
+| S7 | Clustered light list v2 (CPU z-bins + GPU tile bitmasks) and one shared light loop | S6, S3 | done |
+| S8 | Area shapes: sphere, tube, line, rect, disk, sun disk (Karis representative point + Frostbite diffuse) | S7 | done |
+| S9 | Shadows: settings on the RP Asset, Gather-PCF, PCSS, VSM/EVSM moment atlas, cached shadows, area-light shadows, Shadowmask object filtering | S6, S7 | done |
+| S10 | Screen-space traced shadows (sun + up to 24 local lights) | S7 | done |
+| S11 | Cookie and IES atlas | S6, S7 | done |
+| S12 | Baked GI: lightmaps, Shadowmask, Distance Shadowmask, probes, LPPV, APV, baking sky | S2, S6 | done |
+| S13 | Reflection probes in the clustered list; shared cube filter | S2, S7, S12 | done |
+| S14 | SSGI on the SSR trace/resolve/denoise core | S5 | done |
+| S15 | Editor parity: Shader Graph target, Wizard, Frame Settings, Light Explorer, inspectors and handles, Rendering Debugger panels, RenderGraph Viewer, material converter, menus | all | done |
+| S16 | Tests, user documentation, FeatureStatus, verification playbook | all | done |
+| S17 | Folder layout (`git mv` only) | all | done |
 
-## U-task closure map
+## Interface contracts
 
-- [ ] U00: reopened for full user-approved Editor acceptance; prior scoped gate: Ledger, archive, AGENTS/DESIGN/runbook agree with this wave
-- [ ] U01: reopened for full user-approved Editor acceptance; prior scoped gate: CoreRP 17.6 research pack in Docs/History
-- [ ] U02: reopened for full user-approved Editor acceptance; prior scoped gate: Baseline + Spazon Game frames + LUT hash; SceneView capture still blocked by historyReset
-- [ ] U10: reopened for full user-approved Editor acceptance; prior scoped gate: GlobalSettings generic order + settingsList ownership; ResolveDefaultVolumeProfile throws when empty (no Resources.Load fallback)
-- [ ] U11: reopened for full user-approved Editor acceptance; prior scoped gate: RP Asset schema + renderScale; Example second-save / no-op byte-identical
-- [ ] U12: reopened for full user-approved Editor acceptance; prior scoped gate: Dispose restores graphics state; Infinity→Builtin→Infinity midPipe empty
-- [ ] U13: reopened for full user-approved Editor acceptance; prior scoped gate: Editor/ShaderStripper IPreprocess* ; Player preprocess variant receipt (Mono)
-- [ ] U20: reopened for full user-approved Editor acceptance; prior scoped gate: Additional camera data + InfinityCameraEditor
-- [ ] U21: reopened for full user-approved Editor acceptance; prior scoped gate: Additional light data GUID c8dcc11eda3e9404e884a2332f3a4890; GameObject/Light Undo auto-add
-- [ ] U22: reopened for full user-approved Editor acceptance; prior scoped gate: SceneView/Preview Volume rule in ResolveVolumeSelection
-- [ ] U23: reopened for full user-approved Editor acceptance; prior scoped gate: RenderGraphView / PipelineAssetConfiguration / FoliagePipeline retired
-- [ ] U30: reopened for full user-approved Editor acceptance; prior scoped gate: Pipeline filter, taxonomy, IsActive, enable, tonemap mode
-- [ ] U31: reopened for full user-approved Editor acceptance; prior scoped gate: IsActive gating; VolumeHasOverrides deleted
-- [ ] U32: reopened for full user-approved Editor acceptance; prior scoped gate: SSS quality = Volume numSamples only
-- [ ] U33: reopened for full user-approved Editor acceptance; prior scoped gate: Dedicated VolumeComponentEditors for shipped components
-- [ ] U34: reopened for full user-approved Editor acceptance; prior scoped gate: Validate & Complete + confirmed Reset; EnsureAsset deleted
-- [ ] U35: reopened for full user-approved Editor acceptance; prior scoped gate: Debugger panels; DebugView reads runtime settings
-- [ ] U40: reopened for full user-approved Editor acceptance; prior scoped gate: LitGUI blocks + YAML property rename; migrate menu retired in U80
-- [ ] U41: reopened for full user-approved Editor acceptance; prior scoped gate: InfinityUnlit + T2 SRPDefaultUnlit/untagged
-- [ ] U42: reopened for full user-approved Editor acceptance; prior scoped gate: DiffusionProfile index / unreferenced warning
-- [ ] U50: reopened for full user-approved Editor acceptance; prior scoped gate: UIOverlay + TMP Validation_UI Game capture; Player/HDR UI TODO(UNVERIFIED)
-- [ ] U60: reopened for full user-approved Editor acceptance; prior scoped gate: Custom motion retained; native A/B flag only. See Docs/History/U60-U61-Experiment.md
-- [ ] U61: reopened for full user-approved Editor acceptance; prior scoped gate: Two-pass TAA retained; fusion flag reserved. See Docs/History/U60-U61-Experiment.md
-- [ ] U70: reopened for full user-approved Editor acceptance; prior scoped gate: URT VisibilityRTAO + accel; Metal Compute frame captured; Player/D3D12 TODO(UNVERIFIED)
-- [ ] U80: reopened for full user-approved Editor acceptance; prior scoped gate: One-off Migrate/Upgrade menus stripped; Window/Infinity validation + CLI remain
-- [ ] U81: reopened for full user-approved Editor acceptance; prior scoped gate: package 0.4.0 / 6000.6 / 17.6; CHANGELOG + Documentation~ synced
-- [ ] U82: reopened for full user-approved Editor acceptance; prior scoped gate: Editor vs U02 match; Player beauty/UI TODO(UNVERIFIED) (Burst fd rebuild + Metal MRT)
+Each stage fills in its section before its code lands.
 
-## Evidence and acceptance
+### S17
 
-Every candidate binds complete source/asset hashes, applicable test XML, actual new Editor.log delta, normal-frame images and independent Astra verdict. Test failure/skip, missing frame, or missing source identity blocks closure. Stable ROI changed-pixel ratio <0.5% at 8/255 unless explicitly justified; fused history bit-identical and output max error <=1/1024; three warmed 300-frame CPU/GPU samples, median/P95 regression <=5%, fused TAA faster; one-hour stability and steady resources. Never infer these from means, partial LUT keys, field existence or HEAD alone.
+- `git mv` only (files and their `.meta`, GUIDs and namespaces unchanged; new folder `.meta` files only):
+  `Runtime/RenderPipeline/Pass/` → Geometry (Depth, GBuffer, Motion, DBuffer, MeshGpuCull, HiZ, HalfResDownsample),
+  Lighting (DeferredShading, Forward, LightTileMask, LightUpload, LightCookie, ReflectionProbe, Subsurface), Shadow
+  (CascadeShadow, LocalShadow, ShadowCasterCulling, ShadowInputs, ShadowMoment, ContactShadow), ScreenSpace (SSR,
+  SSGI, GTAO, RTAO, ScreenSpaceComposite, ScreenSpaceHistory, OpaqueLightingPyramid), Volumetric (AtmosphericLUT,
+  AtmosphericSkyFog, VolumetricFog, VolumetricCloud, FogComposite), Translucent (Translucent, ColorPyramid), Temporal
+  (AntiAliasing, SuperResolution), Post (PostProcessing, CombineLut), Output (Utility: display depth, wire overlay,
+  gizmos, present; UIOverlay), Debug (DebugView, RenderCapture).
+- `Runtime/PostProcess/` (every Volume component) → `Runtime/Volume/`: `IInfinityVolumeActivity` at the root,
+  Lighting (SubsurfaceScattering), Shadow (ContactShadow), ScreenSpace (SSR, SSGI, SSAO, RTAO), Volumetric (fog,
+  cloud), Post (Bloom, ColorGrading, Exposure, FilmGrain, FilmTonemap, Vignette). The namespace stays
+  `InfinityTech.Rendering.PostProcess`, so serialized Volume profiles are unaffected.
+- Source paths updated in `NativeViewMotionHistoryTests`, `ScreenSpaceDenoiseTests`, AGENTS and this ledger.
 
-## Current attempt / compressed working state
+### S16
 
-- C0 input owner: intermediate/editor-convergence/c0-input. Verified preimage copies: 972 files, 25,197,833 bytes. Full package source hash inventory and new-log byte mark in manifest.json. Retained for C0 baseline and subsequent approved migration integrity checks; remove after final consumer C7.
-- Editor PID 96357 is alive and CLI ready via authorized host execution. Sandboxed discovery falsely reported no instance. Initial loaded scene: Assets/Scene/Spazon/Scene_Spazon.unity, dirty=false; Play stopped. No restart needed.
-- One read-only eval initially failed due missing return/semicolon; corrected query succeeded. This is an agent command diagnostic, not a source compile failure.
-- C0 next: normal Game/SceneView baselines and full effective Volume/LUT capture; no rendering source changed yet. Capture failures remain recorded failed baselines, not runtime acceptance.
-- Cleanup: no task data deleted yet. No capture/readback producer active at this checkpoint. Only the recorded task directory is owned; no shared/Library/user-log deletion.
+- Tests: `ShadowAllocator.SelectWithinBudget` (pure greedy budget, extracted unchanged) → `ShadowBudgetTests`;
+  GPU contracts `CubeFilterGpuTests` (constant cube stays constant × intensity at roughness 0 / 0.5 / 1; slice f =
+  cube face f) and `LightTileMaskGpuTests` (45 lights, 7 × 5 tiles, every word against the CPU reference);
+  `ImageComparisonTests`.
+- Image regression (`Editor/Tools/Validation`): `ImageComparison` decodes RGBA8 / RGBA16F / RGBA32F readbacks (alpha
+  ignored, NaN / Inf = full-scale) → rmse, max error, outlier fraction over a per-pixel threshold.
+  `ImageRegressionRunner` (Window/Infinity/Image Regression): per case open (or create) the fixture scene → Play mode →
+  `RenderCaptureService` DisplayColor of camera "Camera" after the warm-up → leave Play mode → record into
+  `ImageBaselines/<GraphicsDeviceType>/<case>.bin|.json` or compare (default rmse ≤ 0.01, outliers ≤ 0.5% at 4/255).
+  State in `Library/InfinityImageRegression/state.json` survives the Play-mode domain reload; report.json per run.
+- Documentation~: shadows, baked-gi, screen-space, quality, shader-graph, editor, upgrade-0.4-to-0.5; lights,
+  pipeline-asset, cameras, materials, rendering-debugger updated. README feature list, AGENTS known gaps,
+  FeatureStatus rows, CHANGELOG, playbook in stage order.
 
-### C0 independent verdict
+### S15
 
-GPT-6 Astra `/root/c0_astra_verifier`: candidate 2 baseline PASS. 972 preimages, 1391 candidate entries, 10 three-frame captures/60 buffers, 10 full LUTs and 42-field descriptors verified; 275 tests passed. Exact review in Docs/Editor-Convergence-C0.md. Existing visual failures remain assigned C4/C5/C6, no quality PASS. C1 unlocked.
+S15a — Shader Graph target (`Editor/ShaderGraph/`, compiled into `Unity.ShaderGraph.Editor` by
+`Unity.RenderPipelines.Infinity.ShaderGraph.asmref`):
 
-### C1 current checkpoint
+- `InfinityTarget` (active when the current pipeline asset's type is `InfinityTech.Rendering.Pipeline.InfinityRenderPipelineAsset`),
+  sub-targets Lit, Unlit, Decal. Target settings: Surface Route, Translucent Stage, Blending Mode, Render Face, Alpha
+  Clipping, Custom Editor GUI.
+- Lit emits every LightMode of InfinityLit (ShadowPass, ShadowCaster, DepthPass, GBufferPass, ForwardPass, MotionPass,
+  TranslucentDepthPass, TranslucentT0/T1/T2Pass, Meta) with InfinityLit's keywords (lightmap, shadowmask, APV, DBuffer,
+  forward AO, fog, aerial perspective, refraction). Hidden UnityPerMaterial floats `_SurfaceRoute`, `_TranslucentStage`,
+  `_RefractionStrength`, `_Subsurface`, `_SSSProfileIndex`, `_SSSThickness`: `MaterialRouteUtility` treats graph
+  materials like InfinityLit. Material GUI `InfinityTech.Rendering.Editor.InfinityShaderGraphLitGUI`.
+- Blocks: Base Color, Normal (Tangent Space), Metallic (= reflectance), Roughness and Specular Level
+  (`InfinityBlockFields`, Unreal form), Emission, Alpha, Alpha Clip Threshold; Decal adds Occlusion. Unlit draws in T2
+  only (as InfinityUnlit); Decal draws a DBufferPass through the decal box (uv0 = object xz + 0.5).
+- Includes (`Editor/ShaderGraph/Includes`): `InfinitySGCore` (pass ids, globals, Shader Graph library) → pass pre-graph
+  (`BakedLighting`, `SurfaceLighting`, `Translucent`) → `InfinitySGGraphFunctions` (Scene Color in T1, Scene Depth in
+  DBuffer, Baked GI in GBuffer / Forward, Reflection Probe in Forward, then SG `Functions.hlsl`) → graph →
+  `InfinitySGVaryings` → the pass fragment. Motion uses the world position and `unity_MatrixPreviousM` (rigid motion).
+S15b — Render Pipeline Wizard (`Editor/Wizard`, Window/Infinity/Render Pipeline Wizard): `InfinityWizardChecks.All`
+lists read-only checks with optional fixes. Project: linear color space, compute-capable first graphics API, Infinity
+default pipeline, no foreign quality-level overrides, GlobalSettings registered and complete, default Volume profile
+complete (`DefaultVolumeProfileFactory.CountMissing`), SRP Batcher. Loaded scenes: mixed lighting not Subtractive, baking
+sky with Baked GI on, light shapes in sync with native lights (`LightShapeUtility.IsInSync`), tube / line lights
+realtime. Window/Infinity/Append Missing Default Volume Components runs `ValidateAndComplete` on the default profile.
 
-- Implemented (not gate-accepted): pure GlobalSettings Require; explicit fresh creation; lossless missing-component completion; real settings/property editor; reset byte/value backups and Undo; resource preflight; constructor cleanup; immutable installed-global ownership; shader callback scope and compatible-pass preservation. Old Ensure/auto-load-create/force-override/unused-pass stripper owners removed.
-- Verified current attempt: c1-tests-a 280/280 passed, 0 failed/skipped. c1-authoring/receipt.json proves fresh settings, 13 preserved components, one required addition, identities/reopen/second-save/no-op, original source bytes unchanged, temporary Assets fixture directory deleted. Later code review fixes require a new complete test run.
-- Independent Astra pre-gate review found and main fixed: native VolumeProfileEditor implicit repair; partial graphics-state installation; graphics sentinel incorrectly controlling shared-resource cleanup; mutable installed quality/material/texture comparison; missing default-state refresh after Reset. Await renewed verification; no C1 PASS.
-- c1-tests-b blocked before discovery by Spazon save prompt; dialog canceled without Save/Don't Save. Test cancel requested; no result XML/PASS. Read-only dirty-object query identified Directional Light (with space), GameObject/Transform/Light/AdditionalLightData, native local IDs 1873545565/68/67/66. User asked whether this is their change; pending. Preserve current dirty scene, do not clear flags or reload it. C1 live switch/full TestRunner gates depend on this clarification.
-- New C1 source compilation briefly failed because test assigned read-only VolumeManager.globalDefaultProfile; replaced with public SetGlobalDefaultProfile and recompiled. Keep failed attempt in logs. New shader callback/lifecycle/editor tests are not yet signed off.
-- C1 disk consumers: c1-authoring before/after copies and script -> C1 independent asset review, then cleanup; c1-tests-a/b -> C1 final report, then cleanup. C0 comparison/preimage consumers remain C1–C7. No unrelated data cleanup.
+S15c — Frame Settings (`Runtime/RenderPipeline/Context/FrameSettings.cs`): `EFrameSetting` (Decals, Ambient Occlusion,
+Ray-Traced AO, Contact Shadows, SSR, SSGI, Volumetric Fog, Volumetric Clouds, Reflection Probes, Light Cookies);
+`FFrameSettings` stores a disabled mask (zero = all enabled). RP Asset `defaultFrameSettings` (cameras) and
+`reflectionFrameSettings` (probe captures; AO, RTAO, contact shadows, SSR, SSGI off); `InfinityAdditionalCameraData`
+`customFrameSettings` + `frameSettings` (per-setting overrides). `FrameSettingsUtility.Resolve` runs per camera before
+`ConfigureFrameFeatures`; a disabled setting withholds its feature requests (RTAO falls back to GTAO; cookies / probes
+resolve no atlas entries). Rendering Debugger → Infinity Rendering → Frame Settings shows each value and its source.
 
-- C1 full current checkpoint and unresolved gates: Docs/Editor-Convergence-C1.md. Latest source compiles; final gate remains open. Native Graphics tab was present in page middle; earlier navigation inference of missing UI is retracted. Current custom drawer was visually reached.
+S15d — Light Explorer (`InfinityLightingExplorerExtension`, `[SupportedOnRenderPipeline]`): Unity's Lights, Reflection
+Probes, Light Probes and Static Emissives tabs plus Infinity Lights (shape read-only, shadow filter / update mode,
+contact shadows, volumetric, max distance, weights, light layers), Infinity Probes (influence, sphere radius) and Volumes
+(global, priority, weight, blend distance, profile). Lighting window → Environment (`InfinityLightingEnvironmentSection`):
+atmosphere profile of the RP Asset, baking sky status / command, baked ambient and reflection intensity.
 
-- C0 superseded-data cleanup: exact 64-file manifest independently verified by Astra and hash-bound before deletion; 2,421,310 bytes reclaimed, originals absent/replacements present. c0-structured-v2 state/LUT, baseline raw frames/windows, preimages and original failure indexes remain for C1–C7 named consumers. See cleanup-c0-superseded.json; no overall cleanup PASS.
+S15e — Inspectors and handles: the Light inspector has foldout sections (General, Shape, Emission, Baking, Cookie & IES,
+Shadows, Volumetric, Layers & Distance) and an Additional Properties toggle; Scene view handles edit range, outer angle
+(cone / pyramid outline), source radius, tube length, rect size and disk radius through `SetShape` with Undo on both
+objects. Infinity reflection probe data draws a sphere-radius handle. Decal projectors: box handle on the transform,
+UV scale / bias and start / end angle fade (`DecalProjection.hlsl`, per-renderer property block, depth-derived normal).
+`[HelpURL]` on the RP Asset, GlobalSettings and the Infinity components (`InfinityDocumentation.BaseUrl`).
 
-- c1-reset-a: isolated persisted Profile verification passed current-byte backup, 14 identities, effective Reset/Undo/Redo, source not implicitly saved, explicit save/reopen/second-save, fixture deletion, original asset and dirty scene preservation. Backup consumer is independent C1 asset review. Full suite still blocked; synchronous mode cannot bypass scene-save safely or cover UnityTests.
+S15f — Rendering Debugger panels and Scene view Draw Modes: `DebugViewCatalog` assigns every `EDebugView` to one panel
+(Material, Lighting, Screen Space, Rendering); each panel's view field and the master Debug View drive the one
+`InfinityDebugDisplaySettings.debugView`. New views (appended, DEBUGVIEW_* 19–29): Metallic, Specular, ShadingModel,
+RenderingLayers (GBuffer), LightComplexity / ReflectionProbeComplexity (kernel `DebugViewLightLoop`: the clustered
+loop's visited count at the render pixel, heat ramp to `complexityRange`), BakedDiffuse / IndirectDiffuse /
+IndirectSpecular (deferred outputs), ReflectionProbeAtlas (kernel `DebugViewProbeAtlas`: six faces of one probe from
+`LightContext.ReflectionProbeFirstSlice`), ContactShadows (sun trace). Volume panel = CoreRP `DebugDisplaySettingsVolume`
+widgets in its own "Volume" panel; Infinity Timings toggles `ProfilingSampler.enableRecording` for every
+`CustomSamplerId` and lists GPU / CPU ms. Per camera: `CameraFrameState.debugView =
+InfinityDebugDisplaySettings.ResolveDebugView(camera)` (Draw Mode override by camera entity id, else the debugger;
+None for probe captures and previews); SSR and TAA diagnostics read it. `Editor/Debug/InfinitySceneViewDrawModes`
+registers `SceneView.AddCameraMode(DisplayName, "Infinity <Panel>")` and syncs in `SceneView.beforeSceneGui`.
 
-### Exact current intermediate consumers
+S15g — RenderGraph Viewer: `RGDebugSession` (Runtime/RendererCore/RenderGraph/RGDebug.cs) is the hook; while
+`captureEnabled` (the viewer window is open) `RGBuilder.Execute` publishes `CaptureDebugSnapshot()` right after
+`CompilePass`, keyed by `RGBuilder.debugLabel` (the camera name). `RGGraphSnapshot`: passes in record order (type,
+queue, culled, cullable, wait / signal pass, reads, writes, allocates, releases) and every resource (buffers, textures,
+acceleration structures; name, imported, size / format, first / last live use, allocating / releasing pass).
+Window/Analysis/Infinity Render Graph Viewer draws passes × resources with the pool lifetime band, filters (culled,
+imported, unused, name), pause, copy as text and a details pane.
 
-All paths below are relative to `/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/editor-convergence/`; remove each after its listed final consumer, with the final report/hash receipt retained.
+S15h — Material conversion and create menus: `InfinityMaterialUpgraders` (CoreRP `MaterialUpgrader` subclasses
+registered through `IMaterialUpgradersProvider` with `[SupportedOnRenderPipeline]`): Built-in Standard / Specular /
+Legacy / Unlit, URP Lit / Complex Lit / Simple Lit / Unlit, HDRP Lit / LitTessellation / Unlit → InfinityLit /
+InfinityUnlit (roughness = 1 − smoothness, metallic → `_Reflectance`, base map tiling x → `_BaseColorTile`, emission
+color when enabled, transparent → T0, finalizer applies the base map keyword and `MaterialRouteUtility.ApplyPassState`).
+Window/Infinity/Material Conversion Wizard lists convertible materials (project or selection) with the dropped inputs;
+the Render Pipeline Wizard gains "Scene materials use Infinity shaders". GameObject/Light/Infinity creates every shape;
+GameObject/Rendering/Infinity creates volumes, a decal projector (shared `Assets/InfinityDefaultDecal.mat`), box /
+sphere reflection probes and a light probe group; Assets/Create/Rendering/Infinity holds the pipeline asset, profiles,
+mesh asset, Global Settings and a Volume profile with the default components; Assets/Create/Shader Graph/Infinity
+creates Lit / Unlit / Decal graphs.
 
-| Retained path | Named verification consumer |
-|---|---|
-| c0-input/preimage and manifest.json | C2/C3 explicit asset-delta preflight and C7 original-input/final-candidate integrity review |
-| c0-spazon/capture and window.png | C1 Spazon unchanged-region comparison; C7 final protected-baseline comparison |
-| c0-sceneview/capture and window.png | C4 viewport defect comparison and C5 intermittent-view temporal comparison |
-| c0-Validation_Output/capture and window.png | C5 final output encoding and C6 gray-card comparison |
-| c0-Validation_LocalLights, c0-Validation_Decal, c0-Validation_Translucent captures/windows | C6 respective lighting, decal and translucency repair comparisons |
-| c0-Validation_Temporal/capture and window.png | C5 temporal history/fusion and C6 SSR/SSGI comparison |
-| c0-Validation_Volume/full-lut-CameraA/capture, full-lut-CameraB/capture and windows | C3 actual per-camera Volume mixing comparison |
-| c0-Validation_UI/capture and window.png | C4 TMP/Canvas/mask/viewport repair comparison |
-| c0-*/structured-v2-* state, descriptor and full LUT | C1 value-preservation comparison; C3 complete effective Volume/LUT validation |
-| c0 failure indexes, log/test/identity receipts and cleanup manifests | C7 final evidence audit; preserve selected summaries in final report before retiring raw copies |
-| c0-structured-v2.py and swift-cache | Next C1 normal-frame/settings-window evidence collection after scene clarification |
-| c1-authoring and c1-reset-a | Independent C1 persisted-profile/Undo/reset evidence review; then delete raw fixtures/backups/scripts |
-| c1-tests-a and c1-tests-b | C1 final test review; retain 280-pass and canceled-before-discovery facts, then retire raw attempts |
+S15i — Validation fixtures (`ValidationFixture` builder; Window/Infinity/Create … Fixture, scenes under
+`Assets/Scene/Validation`): Shadows (one spot per filter, PCSS sphere light, OnDemand cached spot, PCSS sun, contact
+shadow pebbles with the ContactShadow Volume), Cookies (spot / pyramid / tiled sun checker, cube cookie, IES rings
+through CoreRP's importer), Reflection Probes (baked + realtime box probes by importance, sphere-influence probe,
+roughness ramp), Baked Lighting (static room, Shadowmask sun, baked bulb, emissive panel, probe grid, LPPV, baked
+reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, SSR + SSGI High, GTAO).
 
-Old c0-capture.py and c0-full-luts.py were deleted after verifying the corrected v2 exporter is standalone. Exact hashes in cleanup-c0-producers.json; 13,195 additional bytes reclaimed. Combined C0 superseded cleanup: 2,434,505 bytes. Use corrected explicit-JSON exporter for new evidence.
+- Offline checks: `Tools/StaticCheck/shadergraph_check.py` compiles an emulated generated shader for every pass and keyword
+  variant; `static_check.py sgstrings` resolves include / template paths, type names and LightMode constants.
 
-- Final waiting checkpoint: c1-editor-checkpoint.json confirms Spazon remains dirty with the same four Directional Light objects, Play stopped, native TestRunner job inactive, capture Idle and outstanding readbacks 0. Latest compilation completed with no compiler errors; no preexisting asset/meta byte changes detected. Awaiting the user's ownership clarification before any scene-save/reload-dependent acceptance.
+### S14
 
-## SceneView specialization (approved priority override)
+- Shared trace core: `RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl` (tile packing, half-resolution quad
+  rotation, ray record encoding, Vogel-disk ray reuse offsets, cone mip) with `ScreenSpaceTraceUtility` (C#: tile size,
+  trace size, tile count). SSR and SSGI both use it, together with `SSRTRayCast.hlsl` (Hi-Z walk) and
+  `ScreenSpaceDenoise/{TemporalAccumulation,AtrousFilter}.hlsl`.
+- One compute pass `ComputeScreenSpaceIndirect`, kernels in `Compute_ScreenSpaceIndirectDiffuse.compute`:
+  `SSGIClassify` (8x8 trace tiles: trace when a valid deferred pixel is inside, else skip) → `SSGIClearSkipped` /
+  `SSGITrace` (indirect per class; cosine-distributed direction, pdf NoL / pi, Hi-Z walk) → `SSGIResolve` (ratio
+  estimator with f = NoL / pi over `resolveSamples` reused rays, cone mip of the lighting pyramid) → `SSGITemporal`
+  (surface reprojection, variance clip, history age) → `SSGISpatial` (when `spatialPasses > 0`).
+- Pass-local: `SSGITileArgs` (6 uints; triplets trace, skip), `SSGITileList` (2 × tile count).
+- Graph textures: `SSGIRayHitBuffer` (trace resolution, RGBA32F, same record as SSR), `SSGIResolvedBuffer` /
+  `SSGITemporalBuffer` / `SSGIBuffer` (RGBA16F: Lambert-convolved radiance (irradiance / pi) premultiplied by
+  confidence, a = confidence), `SSGIMetaBuffer` (octahedral normal, raw depth, history age). `SSGIBuffer` is the spatial
+  output, or the temporal texture without a spatial pass.
+- History: `HistorySSGIRadianceBuffer` ← Temporal, `HistorySSGIMetaBuffer` ← Meta (`CopyHistorySSGI`, through the
+  same `CopyHistoryRadianceMeta` as SSR).
+- Composite unchanged: `lighting - IndirectDiffuse * a + albedo * rgb`; a miss keeps the baked / probe / sky diffuse.
+- Registry: SSGI requires the six kernels, `utilityShader.ClearIndirectArgs` and the blue-noise textures; depends on
+  HiZ and OpaqueLightingPyramid.
+- Settings: `FSSGISettings` / `QualityPresets.SSGI`; Volume `ScreenSpaceIndirectDiffuse.Resolve()`.
 
-User approved implementing the SceneView plan ahead of remaining C2/C3 work, after necessary C1 verification. All original C0-C7 goals remain open unless separately accepted. Current live Spazon is clean; prior dirty-scene blocker is resolved. Owner: intermediate/editor-convergence/sceneview-20260912, initial budget 2 GiB. Stage SV0 input/C1 tests in progress; SV1 dimensions/viewport; SV2 linear target + fused Present and targeted resource retirement; SV3 real frame/interaction/performance and Astra verification; SV4 cleanup. No Player build, branch, commit or push.
+### S13
 
-### SV0 prerequisite checkpoint — 2026-09-12
+- Authority: Unity `ReflectionProbe` / `VisibleReflectionProbe` (mode, bounds, blend distance, box projection,
+  importance, intensity via `hdrData.x`). `InfinityAdditionalReflectionProbeData` adds only the sphere influence
+  (`influence`, `sphereRadius`). Probes are axis aligned: `SupportedRenderingFeatures.reflectionProbeModes = None`,
+  `reflectionProbesBlendDistance = true`.
+- `FReflectionProbeRecord` (`LightContext.cs` GPU-RECORD ↔ `Lighting/ReflectionProbes.hlsl`, 7 × float4):
+  `worldToBox0..2`, `extents` (influence half extents incl. blend; w = blend), `capture` (box-space capture position;
+  w = box projection), `projection` (projection half extents), `parameters` (intensity, first atlas slice, mip count
+  - 1, sphere flag).
+- List order is the blending priority (`ReflectionProbePriority`: importance descending, then volume ascending); a probe
+  without a free atlas slot this frame is skipped (`maxReflectionProbes` slots shared by the frame's cameras). Probes are the clustered list's second index space: own
+  log z-bins (`_ProbeZBinBuffer`, same `LightBinning.BuildZBins`), tile rectangles (`_ProbeTileRectBuffer`) and GPU tile
+  bitmasks (`_ProbeTileMaskBuffer`, `RecordTileMaskPass` shared with the light list).
+- `ReflectionProbeAtlas` (one per pipeline): persistent RGBA16F Texture2DArray, `reflectionProbeResolution`² (power of
+  two, full mip chain), 6 slices per slot, `maxReflectionProbes` slots (0 disables). Keyed by (probe identity, texture
+  identity); filtered when new or when `Texture.updateCount` changes; realtime probes once per frame. LRU slot reuse
+  excluding probes used this frame. Transaction as the cookie atlas (pending → produced on queue → commit / rollback).
+- `Compute_CubeFilter.compute` (`FilterCubeToArray`, `FilterArrayToArray`) is the only GGX prefilter: the sky
+  (`ComputeAtmosphericLUT`) and the probe atlas (`ComputeReflectionProbes`) both use it; mip m = roughness
+  m / (mipCount - 1).
+- Passes: `ComputeReflectionProbes` (feature `ReflectionProbes`, requested when a probe reaches the screen) writes the
+  atlas (`InfinityShaderIDs.ReflectionProbeAtlas`) and `ComputeProbeTileMask` writes the probe tile masks.
+  `FLightLoopInputs` carries both to Deferred and Forward; without probes it binds a 1×1 empty atlas and count 0.
+- Shading: `BlendReflectionProbesWithSky` accumulates probes front to back (influence × remaining weight, stopping at
+  1) and gives the remainder to the sky prefilter; the result replaces the sky term before `EnvBRDFApprox` in
+  Deferred and Forward (`UAV_IndirectSpecular` / `indirectSpecular`), so SSR still replaces it by confidence.
+  Translucent T0 has no specular environment term and is unchanged.
 
-- Initial live Scene_Spazon was clean. Full EditMode candidate discovered 291: 290 passed, 1 failed, 0 skipped. Failure was the foreign-pipeline shader test destroying a transient Shader and receiving `attempt to write a readonly database`; immutable fixture now replaces the transient Shader lifecycle. This failed receipt remains a failure.
-- A rerun encountered the modified-scene prompt and was cancelled without saving/discarding; subsequent reload records InterruptedByAssemblyReload, not PASS. Live state has the original `DirectionalLight` clean and an additional dirty `Directional Light` (Light local ID 1411122354). Ownership question sent to the user; no scene save/reopen/delete is authorized by that unanswered question.
-- Removed Light factory hierarchy/object-change scans; only ObjectFactory-created Light is targeted. Corrected duplicate Undo rollback in default-profile tests, including no retry after a rollback exception and finally cleanup. Independent Astra source review supports the normal-path changes but does not close C1; source review identified Inspector OnEnable and global Undo/state boundaries requiring runtime checks.
-- Compilation passed after the final rollback-exception refinement; `git diff --check` passed. SV1–SV4 remain pending; no SceneView visual/size or output-fusion completion is claimed.
-- Owned run: `intermediate/editor-convergence/sceneview-20260912/`, 2 GiB budget. Failed test originals and input identity remain consumers of SV0 repair; do not delete before evidence closure. Checkpoint allocated size: 2,359,296 bytes; destination volume available: 3,565,158,400,000 bytes. No final cleanup claimed.
+### S12
 
-### SV0–SV2 execution checkpoint — 2026-09-12, continued request
+- Baked diffuse priority (`Lightmap.hlsl SampleBakedLighting`, `MeshBakedLighting.hlsl SampleMeshBakedLighting`):
+  lightmap → Adaptive Probe Volumes (`PROBE_VOLUMES_L1 / L2` and `_EnableProbeVolumes`) → Light Probe Proxy Volume
+  (`unity_ProbeVolumeParams.x == 1`, RendererList draws only) → light probe SH → sky SH (deferred / forward, alpha 0).
+  Shadowmask / probe occlusion come from the same source. GBuffer and Forward renderer lists request
+  `LightProbeProxyVolume | OcclusionProbeProxyVolume`; `SupportedRenderingFeatures.lightProbeProxyVolumes = true`.
+- APV: `ProbeVolumeIntegration` (Runtime/RenderPipeline/Lighting) initializes `ProbeReferenceVolume` with the pipeline
+  and, per camera before culling, `SetEnableStateFromSRP`, `PerformPendingOperations`, `UpdateCellStreaming` (not
+  Reflection / Preview), `BindAPVRuntimeResources`, `RenderDebug`, `UpdateShaderVariablesProbeVolumes`, keywords.
+  RP Asset implements `IProbeVolumeEnabledRenderPipeline` (`lightProbeSystem`, SH bands, budgets, streaming,
+  scenarios); `overridesLightProbeSystem` / `skyOcclusion` follow it. `ProbeVolumesOptions` joins the default Volume
+  registry. The stripper drops `PROBE_VOLUMES_L1 / L2` variants no Infinity asset of the build uses.
+- InfinityLit-Instanced gains `ShadowCaster` and `Meta` (its own UnityPerMaterial layout). TerrainLit gains lightmaps
+  (`LIGHTMAP_ON`, `DIRLIGHTMAP_COMBINED`, `SHADOWS_SHADOWMASK`, APV) writing the baked GBuffer targets (add passes
+  write 0), `ShadowCaster` and `Meta` (splat-mixed albedo).
+- MeshScene probes: `RenderContext.InterpolateMeshProbes` gathers every MeshComponent whose probe anchor moved or
+  whose probe data changed (`LightProbes.lightProbesUpdated` / `needsRetetrahedralization` bump
+  `MeshBakedLighting.ProbeVersion`) and interpolates them in one `CalculateInterpolatedLightAndOcclusionProbes` call.
+- Baking sky: Editor `InfinityBakingSky` (Window/Infinity/Lighting/Use Atmosphere As Baking Sky) saves the atmosphere
+  cubemap faces (`InfinityRenderPipeline.TryGetAtmosphereCubemap`) as a Texture2DArray asset and sets the scene skybox
+  to `Hidden/InfinityPipeline/BakingSky` (same face layout as the pipeline); `Lightmapping.bakeStarted` refreshes the
+  faces of scenes that use it.
+- Shadow casters: both shadow passes set `Matrix_ViewFlipYProj` (what every caster shader projects with) as well as
+  `Matrix_ViewProj` to the shadow matrix, and restore the camera's values.
 
-- SV0 necessary C1 test-pollution gate: independently accepted by GPT-6 Astra for the bounded prerequisite. Fresh full EditMode XML has 291 test cases, all Passed, zero failed/skipped/inconclusive. Receipt `sceneview-20260912/c1-tests-clean/results.xml` SHA-256 `ad40eec0d060c565d729645fb12c773f629c87d51c5a849b551f89d1c44c3495`. This does not close all C1. Original failures remain unchanged.
-- Unsaved scene preserved with SaveScene(saveAsCopy=true) at `sceneview-20260912/preserved-unsaved-Spazon.unity`, 115856 bytes, SHA-256 `42a91b6af9f43c4d0120b5195f1e10f63bd261b0778574f39f9d5d7207f924de`. Preview reopen compared 163 objects' transforms/components and matched. Disk original reopened without saving it; after full tests Spazon stayed clean with only original DirectionalLight. The snapshot remains protected because extra light ownership is not established.
-- SV1 candidate implemented: existing per-camera dimensions integrated into internal/display consumers and history reset; Scene/Preview bypass Game SR; SR enabled distinct from downscaled; internal-grid jitter and SR input sampling; record-time Present viewport/UV; raster viewport/scissor reset; output-sized editor overlay depth and display ScreenParams. Runtime/visual acceptance remains pending.
-- SV2 candidate implemented: display-linear source published directly, output transfer in new Present Raster shader; SceneView/Preview/RT storage semantics; native SceneView post-process gate; independent DebugView with correctly mapped source texels and independent UAV output; post bypass copies into its own color resource; capture includes dimensions/viewport/color encoding metadata. Old output compute pass/kernel/resource field remain temporarily uncalled, pending replacement verification and authorized retirement. Auto-review rejected premature deletion; no deletion was performed.
-- Independent Astra found and main fixed three integration gaps: mismatched SR overlay color/depth, DebugView internal input indexing, and DebugView being hidden with post effects. Follow-up identified SRV/UAV alias on post bypass; DebugView now allocates a separate output. No actual-frame PASS issued.
-- Performance: 900 CPU samples after 120 warmups in `performance-before.csv`; GPU values are zero and invalid for GPU gates. CoreRP sampler probe threw on an empty GPU recorder sample; the exact diagnostic callback was removed, recording stopped, and failures retained in log. No performance PASS.
-- Editor infrastructure: old PID 96357 accumulated 1146 numeric descriptors including 986 databases, dominated by repeatedly opened ShaderCache.db; Bee failed to register fd 1149. CLI recompile_status reported completed despite stale loaded RenderPresent signature, so those responses were explicitly invalidated as live-code proof. Normal exit followed clean scene/view-state checkpoint. Original project restarted as PID 94446, no Library deletion or project migration.
-- New Editor compiled the candidate but then stalled during early SceneView native RendererList CPU scheduling. `editor-restart-sample.txt` has 1977/1977 main-thread samples in PrepareDrawRenderersCommand/PrepareScriptableDrawRenderersJob/ujob scheduling; not a proven GPU readback wait. CLI main-thread and CUA connections time out. Auto-review rejected SIGTERM due possible non-scene unsaved state; user confirmation requested, not received at this checkpoint. Process was not forcibly stopped.
-- Isolated Csc checks use only the actual Editor response files and write to the owned run; they do not run tests, validate shaders, or constitute Player builds. Runtime/Editor/Tests first check passed; subsequent source refinement receives a separate receipt. Compiler-observed obsolete VolumeComponentEditor attribute and FindObjectsSortMode call replaced with current APIs.
-- SV3 live visual/resize/SR/camera/encoding/interaction/performance gates and SV4 retirement/migration/no-op/cleanup are NOT COMPLETE. Current source is a candidate, not an accepted rendering fix. Whole C0–C7 remains open.
+### S11
 
-- Latest static checkpoint: `sceneview-20260912/editor-static-compile-04/receipt.json`, Runtime/Editor/Tests each exit 0 with empty diagnostics; `candidate-source-04.json` binds 892 owned Runtime/Editor/Shaders/Tests files. This includes independent DebugView output, independent post-bypass copy, snapshot-based editor post/lighting state, HDR device probing skipped for texture targets, and current assembly enumeration API. No full Unity test run or shader/frame acceptance for this candidate yet.
-- GlobalSettings source and meta still exactly match migration-before hashes (`3ef43263a8cc1d3c94b739d7aceddde51ec8ce573c06c8bb9349411e03213c42`, `09677976e5af1df19fa63616630ee2236159ea8f543cae07c74e93dbe12bbf38`); resource field retirement has not occurred. `git diff --check` passes. PID 94446 remains the blocked original-path restart instance. Approval request to force-stop remains pending; no forced termination or second Editor performed.
+- Authority: the cookie texture is the Unity Light's `cookie` (and `cookieSize2D` for directional lights); the IES
+  profile is `InfinityAdditionalLightData.iesProfile` (Cube texture: every local light by direction; 2D texture: cone
+  and pyramid spots, projected).
+- `LightCookieAtlas` (one per pipeline): persistent RGBA8 atlas `cookieAtlasResolution` (power of two, full mip chain,
+  0 disables), `AtlasQuadAllocator` buddy blocks (16..`cookieMaxSize`, aligned to their size so every mip stays in its
+  block), keyed by (texture identity, layout) and re-uploaded when `Texture.updateCount` changes; LRU eviction of
+  blocks not used this frame. Transaction as the cached shadow atlas (pending → produced on queue → commit /
+  rollback).
+- `LightContext.ResolveCookies` (after `Build`): `record.cookieIndex` → `FLightCookieGPU` (`// GPU-RECORD` ↔
+  `Lighting/LightCookie.hlsl FLightCookie`: cookieRect, iesRect, layout, tiling) in `_LightCookieBuffer`
+  (`SRV_LightCookies`).
+- Content feature `EFrameFeature.LightCookies` → `LightCookiePass` (`lightCookieShader`, `Compute_LightCookie.compute`:
+  `CookieCopy2D`, `CookieCubeToOctahedral`, `CookieDownsample` reading mip m−1 and writing mip m as two UAVs) imports
+  the atlas as `LightCookieAtlas` and uploads queued textures once per frame.
+- `FLightLoopInputs` carries the cookie buffer and atlas (`Read`, `Bind`, `BindGlobal`; white texture when absent).
+  `LightCookieColor` applies to Deferred, Forward, fog and clouds; rect / disk cookies are emitter textures
+  (`LightPlanarCookie`: specular at the representative point, blurred by roughness; diffuse from the last mip).
+- Editor: `InfinityIESImporter` completes CoreRP's IES importer prefab (Infinity component, profile texture, candela
+  from the file maximum when enabled) while an Infinity asset is active.
 
-### SV startup-crash follow-up — 2026-09-12 22:09 onward
+### S10
 
-- User reported crashes. PID 94446 no longer existed; no SIGTERM was executed. New Hub Editor PIDs 3064/3297 aborted within approximately 0.84/0.76 seconds, SIGABRT, with `stoull: no conversion` in startup log. Separate from previously sampled native RendererList scheduling stall.
-- Confirmed `Library/DataStore/._UDSData_9.bin` and `._UDSData_10.bin` were 4096-byte AppleDouble files (magic 00051607, com.apple.provenance); moved only those sidecars reversibly to `sceneview-20260912/startup-crash-2209`, preserving crash reports and receipt. Original UDSData_9/10 SHA-256 verified unchanged before/after. No Library deletion.
-- Original-path recovery PID 4123 passed startup, initially responded to eval, loaded the three-argument Present implementation and clean Spazon. The sidecars reappeared with the same hashes, so this does not resolve recurrence. Subsequent CUA and main-thread eval timed out again; a fresh two-second thread sample is preserved. No rendering/stability PASS. The previous forced-termination request for PID94446 is obsolete; no authorization inferred for force-stopping PID4123.
+- `ContactShadowAllocation.Assign` (after the depth sort, before shadow allocation): every contact-enabled local light
+  gets a bit in `record.misc.z` (−1 without one), at most 24, largest tile rectangle first. 24 instead of the planned
+  32: the mask keeps the HDRP layout, bits 24..31 hold the occlusion strength, so consumers need no extra constants.
+- Content feature: `EFrameFeature.ContactShadow` is requested after `LightContext.Build` when the Volume is active and
+  the sun or a local light has Contact Shadows on.
+- `ContactShadowPass` (`Compute_ContactShadow.compute`, kernel `ContactShadowCS`, internal resolution) writes
+  `ContactShadowBuffer` (`ContactShadowSun`, R8, 1 = lit) and `ContactShadowMaskBuffer` (R32_UInt). Per pixel: one ray
+  toward the sun, then one ray per light of the clustered list (`LightLoop.hlsl`) that owns a bit and reaches the
+  pixel (`LocalLightWindow`); rays stop at the emitter (sphere radius); box spots trace along −forward. Hits compare
+  linear view depths (`ContactShadow_DepthParams` = GPU m22, m23, ortho) with the Volume thickness; IGN jitter per
+  frame.
+- Consumers: `ContactShadowFromMask(light, mask)` (`LightRecord.hlsl`); `EvaluateLocal(..., contactMask)`; the sun's
+  `EvaluateDirectional` receives the sun term, other directional lights 1. Deferred binds under
+  `DEFERRED_CONTACT_SHADOW`; Forward reads `SRV_ContactShadowSun` / `SRV_ContactShadowMask` when
+  `g_ContactShadowEnabled`. Volumetrics do not read contact shadows (they are a surface term).
+- `FLightLoopInputs` binds `g_SunRecordIndex` for every light-loop consumer (it was only bound by the contact pass).
+- `FContactShadowSettings` / `QualityPresets.ContactShadow` (numSteps, sunNumSteps); Volume `ContactShadow.Resolve()`
+  adds `quality` and `SunNumSteps`.
 
+### S9
 
-## SceneView upper-left display correction — 2026-09-13 candidate
+- RP Asset: `cascadeCount` [1, 4] (default 4), `cascadeSplitRatios` (first `cascadeCount − 1` used),
+  `cascadeBlendWidth` [0, 0.5], `shadowFilterQuality` (`EQualityLevel`) + `customShadowFilter`;
+  `ResolveShadowFilter()` → `FShadowFilterSettings` (`QualityPresets.ShadowFilter`, pcf radius, PCSS blocker / filter
+  samples and max penumbra, EVSM exponent, light-bleeding reduction, moment blur radius).
+- `ShadowAllocator`: `ActiveCascadeCount`, `CascadeParams[4]` (texel world size, GPU m22, m23, blend width) → shader
+  `_CascadeShadowParams[4]`; `_ShadowFilterParams` (pcf radius, blocker samples, filter samples, max penumbra).
+  `LocalShadowFrustum(record, light, face, tile, guardTexels)` builds every local tile from the record flags: six cube
+  faces (+X, −X, +Y, −Y, +Z, −Z) for point / sphere / line / tube; one tile for cone, pyramid (perspective with the
+  pyramid tangents), box (orthographic) and rect / disk (perspective whose apex sits behind the emitter, 120° field of
+  view). Frustums are widened by `filterGuardTexels` = pcf radius + 1. Culling uses the frustum's own planes.
+- `FLocalShadowSliceGPU` (`// GPU-RECORD` ↔ `ShadowSampling.hlsl FLocalShadowSlice`): atlasRect, depthParams (GPU m22,
+  m23, texel world size at unit depth, orthographic flag). `SRV_LocalShadowMatrices`, `SRV_LocalShadowRects` live in
+  `ShadowSampling.hlsl`.
+- `ShadowSampling.hlsl`: `SampleShadowHard`, `SampleShadowTent` (GatherRed + manual compare, bilinear tent weights; no
+  comparison sampler), `SampleShadowPCSS` (Vogel disk blocker search + penumbra, light size from `sourceRadius` /
+  source angle), `FilterShadow` (per-record `shadowFilter`), `SampleCascadeShadow(map, light, worldPos, viewDepth,
+  normal)` blends into the next cascade over the blend width, `SampleLocalShadow`, `MixBakedAndRealtimeShadow`.
+- Moments (S9b): content feature `EFrameFeature.ShadowMoments` (requested when the cascaded light or any valid local
+  slice uses VSM / EVSM; a blocked feature throws at record). `ShadowMomentPass` (`shadowMomentShader`,
+  `Compute_ShadowMoment.compute`: `MomentFromDepth`, `MomentBlurH`, `MomentBlurV`, one dispatch set per slice) writes
+  `CascadeShadowMoments` / `LocalShadowMoments` (RGBA16F, half the depth atlas resolution, same UV layout).
+  `ShadowMoments.hlsl`: moment depth (orthographic device depth, else linear depth × `momentParams.x` = 1 / far),
+  VSM (d, d²) and EVSM (e+, e+², e−, e−²), Chebyshev with minimum deviation and light-bleeding reduction.
+  `_ShadowMomentParams` = (EVSM exponent, bleeding reduction, minimum deviation, 0). `FLocalShadowSlice` gains
+  `momentParams`.
+- `FShadowInputs` (`Pass/Shadow/ShadowInputs.cs`: `QueryShadowInputs`, `Read`, `Bind`, `BindGlobal`) is the one consumer
+  contract for Deferred, Forward, fog and clouds; moment atlases bind `Texture2D.blackTexture` when absent.
+- Cached shadows (S9c): `EShadowUpdateMode { EveryFrame, OnEnable, OnDemand }` on `InfinityAdditionalLightData`
+  (`shadowUpdateMode`, `RequestShadowMapRendering()`), local lights only. `LocalShadowCache` (one per pipeline):
+  persistent depth atlas `cachedShadowAtlasWidth` × `localShadowMapResolution` (same height so copy regions keep their
+  row on every API), frame-atlas tile size, slots keyed by (light instance id, face), LRU eviction excluding tiles of
+  the current frame; a light without a slot renders every frame. Content hash = shadow matrix, caster bias, tile size,
+  culling mask, rendering layers; OnEnable re-renders on hash or enable change, OnDemand on request.
+  Stale tiles draw into the cleared frame atlas; `CopyCachedLocalShadow` (transfer pass) saves them into the cache and
+  loads current tiles into the frame atlas. Transaction: `Acquire` marks pending, the copy pass's queue observer marks
+  produced, `CommitFrame` validates produced tiles, `RollbackPending` invalidates every tile written in a failed frame.
+- Shadowmask casters (S9d): `CascadeShadowPassUtilityData.ShadowmaskExcludesStatic(light)` (baked Mixed + Shadowmask
+  mixed mode + `QualitySettings.shadowmaskMode == Shadowmask`) → `ShadowDrawingSettings.objectsFilter = DynamicOnly`
+  and `MeshView.excludeInstanceFlags = EMeshInstanceFlags.ShadowmaskStatic` (Static `MeshComponent` whose renderer has a
+  lightmap). The flag mask is part of `MeshVisibilitySignature` and `MeshGpuVisibilityKey`; CPU culling
+  (`MeshInstanceCullingJob`) and GPU `CullFrustum` (`_ViewExcludeFlags`) both apply it.
+- Debug views (S9e): `EDebugView.CascadeShadowAtlas`, `LocalShadowAtlas`, `CachedShadowAtlas`, `ShadowMoments`
+  (kernel `DebugViewShadow`, letterboxed, near = bright); a missing atlas shows the magenta Missing view.
 
-Scope: approved SceneView-size specialization of C1/C4/C5, preserving current colors and post. C0–C7 remains open. Main owns implementation/live visual inspection; independent GPT-6 Astra (`sceneview_prerequisite_review`) owns verification. No build/package/branch/commit/push.
+### S8
 
-Owned temporary root: `intermediate/editor-convergence/sceneview-size-20260912-2315`, initial 1 GiB budget; producers: normal-frame readbacks, bounded diagnostic callbacks, screenshots, EditMode results and CPU measurements. Cleanup remains pending until selected evidence and final verification are retained. Older `sceneview-20260912`/C0 inputs have separate historical consumers and are not blanket deletion targets.
+- `Shaders/ShaderLibrary/Lighting/LightShapes.hlsl`: `LocalLightWindow` (range, spot, emitter side, barn doors),
+  `EvaluateLocalLightShape` → `FLightShapeSample` (diffuse E / I; specular L, N.L, falloff, energy) and
+  `SunDiskSpecularL`. Intensity convention: `radiance` is the on-axis intensity I; area sources emit I / A.
+- `SurfaceLighting.hlsl`: `SpecularBRDF` (unclamped GGX × Smith × Schlick) + Lambert, diffuse and specular weights
+  separate; `DefultLit` removed (it clamped the BRDF to 1).
+- Volumetrics keep the punctual approximation (`LocalLightAttenuation`).
+- Tests: `LightShapeGpuTests` (`Tests/Editor/Shaders/LightShapeContract.compute`).
 
-- [x] Failure localization: actual PID 20238 connected after normal Editor recovery. Failed normal capture `capture-152029495` completed 3/3. Source, actual SceneView target and viewport were all 1638x1768, scale/bias (1,1,0,0); a full actual target readback ruled out a quarter-sized source. Explicit target import alone did not fix the window.
-- [x] Root fix: `RenderUIOverlay` now runs only for Game cameras with no targetTexture, matching HDRP's main-game-view overlay ownership. SceneView was incorrectly invoking this native display-overlay list. Camera/World Canvas remain in T2. The exact native GUI/projection state altered by the invalid call is not asserted.
-- [x] Main visual: real docked, maximized and resized floating windows now fill their drawable regions. Two simultaneous SceneViews used independent native targets (1638x1768 and 1588x1108). `capture-153403382` completed 3/3 after successful Submit; Present recorded, no SceneView UIOverlay and no independent OutputTransform compute.
-- [x] Protected image: all-image encoded differences above 8/255 are 0.11433%, 0.12269%, 0.11098%, below 0.5%. Exposure/Tonemap/Volume authoring parameters unchanged.
-- [x] Explicit Unity-owned target imports retain actual dimensions/format; identifier wrapper ownership test passed. Dimensions freeze after BeginCameraRendering callbacks; Present uses record-time viewport/source/UV metadata.
-- [x] Controlled retirement: old OutputTransform pass/kernel/marker/resource field/meta removed after replacement evidence and independent Astra permission to retire. Fresh source-byte backup and full semantic/stable-reference snapshots precede the explicit GlobalSettings save. Only outputTransformShader and its reference removed. Reopen, second save and separate no-op bytes equal. Asset before `3ef43263a8cc1d3c94b739d7aceddde51ec8ce573c06c8bb9349411e03213c42`; after `cabd163193f185a27d3564ea735abcbaee81de103a49fdbf7dcbcb818be7ab3f`; meta unchanged `09677976e5af1df19fa63616630ee2236159ea8f543cae07c74e93dbe12bbf38`. Astra independently checked structural/reference identity; intermediate byte observations remain explicitly the main-agent receipts.
-- [x] Actual GPU gray-card test: linear FP16 ~0.18; UNorm shader encoding and sRGB hardware encoding in [0.44,0.48]. Old compute test coverage migrated to real Present for 1x1, 17x13 and 1919x1079, five policies and sentinel padding; targeted 3/3 passed.
-- [ ] Final full EditMode: earlier 299/300 failed obsolete UNorm-intermediate assertion, then 298/301 failed three retired-kernel callers. These failures remain preserved; fixes passed targeted tests, final XML pending.
-- [ ] Interaction/camera-isolation matrix: Game SR 0.5/0.75/1 and Camera Off normal captures completed; final consolidated evidence, Preview and interaction cases pending.
-- [ ] Performance: candidate CPU sampling in progress. Metal GPU recorder valid but sample Count=0 even with profiling and bounded repaint; no GPU PASS. Available Xcode templates lack Metal trace and `xctrace list instruments` is empty. No sample is converted to a zero-time result.
-- [ ] Final unique-source/asset identity, independent Astra final verdict and owned-intermediate cleanup.
+### S7
 
-This is an implemented and visually verified size correction, not a complete specialization or full-convergence PASS while any remaining gate is open.
+- `LightPipeline/LightBinning.cs` (pure C#): `TileSize = 16`, `ZBinCount = 128` logarithmic bins
+  (`ZBinParams` = count, scale, bias), bin encoding `min | max << 16` (empty = `0x0000FFFF`), `BuildZBins`,
+  `TryComputeTileRect` (GPU projection with `renderIntoTexture = true`, one pixel margin for jitter).
+- `LightContext.Build(..., screenSize)`: directional records first, local records sorted by view depth; uploads
+  records, `_LightTileRectBuffer` (int4 per local light), `_LightZBinBuffer` (128 uint), `_EmptyLightTileMaskBuffer`.
+  Local lights whose rectangle is off screen are dropped (`OffscreenCount`).
+- `LightTileMaskPass` (async compute, kernel `BuildTileMask`, `lightTileMaskShader`) writes `_LightTileMaskBuffer`
+  (tiles × ⌈N/32⌉ uint). `FLightLoopInputs` (`QueryLightLoop`, `Bind`, `BindGlobal`) is the consumer contract.
+- `Lighting/LightLoop.hlsl`: `g_LightTileParams` (screen size, tiles per row, words per tile), `g_LightZBinParams`,
+  `SRV_LightZBins`, `SRV_LightTileMasks`, `BeginLightLoop` / `BeginLightLoopUV` / `NextLight`.
+- Removed: `ZBinningPass`, `Compute_ZBinningLightList`, `FLightBounds`, the empty tile/bin buffers, the ZBin overflow
+  counter and its capture. Probes join the list as a second index space in S13.
 
+### S6
 
-### SceneView final functional receipt and native recovery blocker — 2026-09-13 02:xx
+- `LightPipeline/LightShape.cs`: `EInfinityLightType { Directional, Point, Spot, Rect, Disk }`, `ESpotShape { Cone,
+  Pyramid, Box }`, `EShadowFilter { Hard, PCF, PCSS, VSM, EVSM }` (PCSS/VSM/EVSM sample as PCF until S9),
+  `FLightShape` (Unreal form) and `LightShapeUtility` (`FromUnityLight`, `NativeType`, `ApplyToUnityLight`,
+  `IsBakeable`, `IsValid`, `PyramidTangents`).
+- `InfinityAdditionalLightData`: `m_Shape`, `m_ShapeAuthored`, `m_ShadowFilter`; `shape` returns the authored shape or
+  the native-derived one; `SetShape` and the inspector write the native fields; `Reset` and the inspector adopt the
+  native shape (`AdoptNativeShape`). Nothing writes on load.
+- `FLightRecord` v2 (`// GPU-RECORD` ↔ `Shaders/ShaderLibrary/Lighting/LightRecord.hlsl`): radiance, positionRange,
+  forward (w = cone cos outer), right (w = 1 / (cos inner − cos outer)), shape (radius, soft radius, length,
+  tan sun half angle), area (rect size + barn doors / pyramid tangents / box size), weights (diffuse, specular,
+  volumetric intensity, volumetric shadow), misc (shadow strength, tan soft sun half angle), shadowAtlasRect;
+  lightLayer, flags, shadowMatrixIndex, shadowSliceCount, shadowFilter, visibleLightIndex, bakedOcclusionChannel,
+  cookieIndex (−1 until S11). Flags: shadow, contact, volumetric, shadowmask, baked, directional, spot cone / pyramid /
+  box, planar.
+- `FLightRecordPack.TryPack` applies Maximum Distance fade on the CPU (per camera) and rejects invalid shapes;
+  `LocalShadowSliceCount` replaces the light-type switch in `ShadowAllocator`.
+- `InfinityLightmapperDelegate` is installed with the pipeline's global state (Editor only) and restored on Dispose.
 
-- Independent Astra verified the full 1318-file candidate manifest `f0c799741015ccad0507907b7ff9caea0dcb0912e9dce7a62669730dc038e423`, 301/301 final Infinity EditMode XML (0 failed/skipped), actual final paired window, all three paired raw differences (0.11004895%, 0.17306725%, 0.14730744%), explicit target ownership and resource migration. Functional correction and resource retirement PASS; not full specialization PASS.
-- The exact old Overlay gate was reproduced visibly in the bounded CPU counterfactual; current production gate is restored. CPU 3x300 narrow-delta median no regression, P95 maximum +0.6573%.
-- GPU discovery correction: sandboxed Xcode enumeration was incomplete; elevated read-only enumeration exposed Metal tools. Native 2-second Metal Application + GPU segments succeeded. Candidate collected 919 qualified native frames; all segments replayed through one strengthened parser and first 900 selected in segment/start-time order, 3x300. This is not an uninterrupted 900-frame window. Native interval unions/channel unions/span and all exclusions are retained. No before/after GPU PASS exists.
-- Long/native-finalization failures were cancelled by scoped sampler limits and their partial traces removed. They are not performance evidence. Task budget revision to 4 GiB was recorded; the anomalous 65-second run exceeded it during native finalization, was cancelled and its ~15.6 GB partial trace deleted. Subsequent failed segments are separately recorded/cleaned. User Library/logs were not swept.
-- GPU control transition hit native `AssetDatabase.Refresh -> ShaderGraphImporter.GetIcon -> MatchAsset`, with `LMDB MDB_BAD_RSLOT` and SIGTRAP, in PID 20238. This is separate from the earlier `stoull` UDS startup signature. Before-transition scene dirty=false; no signal was sent to that Editor. The finally path restored candidate source; post-crash full hash recheck found 0/1318 mismatches.
-- Normal original-path recovery launched PID 58885. CLI/UI timed out; 2168/2168 sampled main-thread observations are in `SearchIndexArtifactGeneration -> ImportScheduler -> ujob_allocate_sync_job`. Current unsaved state cannot be queried. No force-termination authorization has been received; do not signal this Editor without user confirmation.
-- Selected report: `Docs/Editor-Convergence-SceneView-Size.md`; selected evidence: `Documentation~/Evidence/SceneView-Size-2026-09-13/` (ignored by Unity importer). Old failed/unpaired receipts remain represented, not rewritten into PASS.
-- Remaining: approved force-end decision if necessary, original-path Editor recovery, loaded-candidate check, GPU control/relative gate, final live-file cleanup. The current Editor owns task-local recovery log handles; the task root cannot yet be declared absent. C0–C7 remains open.
+### S5
 
-- SceneView size partial cleanup 2026-09-13: 删除已完成中间数据 4026 文件 / 722,318,080 逻辑字节；分配大小 1,719,402,496 字节。保留 pending-gpu-native（GPU 对照/原始输入审查消费者）和 PID 58885 持有的两个恢复日志；专项目录仍存在，清理 gate 未关闭。回执：Documentation~/Evidence/SceneView-Size-2026-09-13/partial-cleanup-receipt.json。
+- One compute pass `ComputeScreenSpaceReflection`, kernels in `Compute_ScreenSpaceReflection.compute`:
+  `SSRClassify` (one group per 8x8 trace tile) → `SSRClearSkipped` / `SSRTraceHiZ` / `SSRTraceLinear` (indirect, one
+  group per tile of the class) → `SSRResolve` → `SSRTemporal` → `SSRSpatial` (when `spatialPasses > 0`) → `SSRDebug`
+  (only for the SSR debug views).
+- Pass-local: `SSRTileArgs` (9 uints, `IndirectArguments`; triplets Hi-Z, linear, skip; cleared with
+  `ComputeUtility.ClearIndirectDispatchArgs`), `SSRTileList` (3 × tile count, segment per class, `x | y << 16`),
+  `SSRTileClass` (R32_UInt).
+- Graph textures: `SSRRayHitBuffer` (trace resolution, RGBA32F: hit `(uv, raw depth, +pdf)`, miss
+  `(octahedral dir, 0, -pdf)`, none 0), `SSRResolvedBuffer` / `SSRTemporalBuffer` / `SSRBuffer` (RGBA16F, rgb
+  premultiplied by confidence in a), `SSRHitDistanceBuffer` (R16F), `SSRMetaBuffer` (RGBA16F: octahedral normal, raw
+  depth, history age), `SSRDebugBuffer`. `SSRBuffer` is the spatial output, or the temporal texture when there is no
+  spatial pass.
+- History: `HistorySSRRadianceBuffer` ← Temporal, `HistorySSRMetaBuffer` ← Meta (`CopyHistorySSR`).
+- Reads: Depth, HiZ, GBufferA/B/C (forward-route and invalid pixels are not reflective), OpaqueLightingPyramid, Motion,
+  RuntimeTextures blue-noise Sobol textures. Matrices are the `FlipY` jittered set.
+- Registry: SSR requires the eight kernels, `utilityShader.ClearIndirectArgs` and the blue-noise textures.
+- Settings: `FSSRSettings` / `QualityPresets.SSR`; Volume `ScreenSpaceReflection.Resolve()`.
 
+### S4
 
-用户要求全量中间清理后的现状核验：项目 intermediate/ 已不存在。该目录在本次只读盘点与删除前置校验之间消失，删除脚本在 assertion 处停止，未执行删除；不能归因于本 agent，不能报告本次回收字节。此前 pending-gpu-native 及两个恢复日志保留状态已失效，GPU 对照仍为 NOT PASS。PID 58885 已不存在，本次未发送结束信号，未启动任何采样。详见 Documentation~/Evidence/SceneView-Size-2026-09-13/user-requested-cleanup.json。
+- `Runtime/RenderPipeline/Quality/`: `EQualityLevel { Low, Medium, High, Ultra, Custom }`, `QualityLevelParameter`, `QualityPresets.Select`.
+- Per feature: `F<Feature>Settings` (quality fields + artistic fields) and a hardcoded `QualityPresets.<Feature>` table of four presets. Medium matches the 0.4.0 defaults.
+- Volume components gain `quality` (default `Custom`, so existing profiles keep their values) and `Resolve()`. Artistic fields always come from the Volume.
+- Wired in S4: GTAO, RTAO, volumetric fog, volumetric cloud. SSR (S5), contact shadows (S10) and SSGI (S14) adopt the same shape when rewritten.
+- Editor: `InfinityQualityVolumeEditor` shows preset values read-only outside Custom and offers "Copy Preset To Custom".
+
+### S3
+
+- `IComputeCommands.DispatchComputeIndirect(shader, kernel, RGBufferRef args, uint argsOffset)`; the args buffer is created with `ComputeBufferType.IndirectArguments` and declared with `ReadBuffer`.
+- `Shaders/Utility/Compute_Utility.compute` (`ClearBufferUInt`, `ClearIndirectArgs`) + `ComputeUtility` helper; resource `InfinityRenderPipelineRuntimeShaders.utilityShader`.
+- `RGResourceKey` (`id` = `Shader.PropertyToID(name)`, implicit `int`) for every semantic graph resource in `InfinityShaderIDs`; RGScoper errors name the resource.
+- `FeatureRegistry`: one descriptor per `EFrameFeature` (kernels, dependencies, temporal requirement, custom predicate). `ConfigureFrameFeatures` only requests; `Resolve` decides, requests dependencies of supported features, and records reasons (Rendering Debugger → Frame Features). `ConfigureContentFeatures` runs after `LightContext.Build` (first content feature: `LocalLightList`).
+
+### S2
+
+- `CameraRenderPolicy` (`Runtime/RenderPipeline/Camera/`): Full (Game, SceneView), Preview, Capture (Reflection). `temporal` gates jitter, TAA/SR and history features (SSR, SSGI, GTAO, volumetrics); `postProcessing` is false for Capture, whose Present writes linear into the float probe target.
+- `FrameFeatureSet.EnsureRequiredProducers(requiresTemporalAntiAliasing)`; new `EFrameFeature.HalfResDownsample`.
+- RP Asset: `cascadeSplitRatios` (validated at record), `maxShadowedLocalLights`; culling uses `shadowDistance`.
+- `FLightRecordPack.TryMapUnityType`; unsupported shapes are skipped and counted (`LightContext.UnsupportedShapeCount`).
+- `PassBinStore.GetBuildSerial` drives `MeshCandidateTableStore` invalidation; `MeshGpuVisibilityKey` is a structured key.
+- `Shaders/ShaderLibrary/DebugViewModes.hlsl` mirrors `EDebugView`.
+
+### S1
+
+- Product and architecture documents state current code facts only. Process and evidence (model names, receipts,
+  hashes, PIDs, cleanup logs) live in `Docs/History/`.
+- `Docs/FeatureStatus.md` is the single place that states how verified a feature is.
+
+## Verification at home
+
+The user verifies in commit order with
+[Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (one section per stage, in stage order).

@@ -31,6 +31,8 @@ StructuredBuffer<uint> _InstanceRenderingLayer;
 uint _ViewLayerMask;
 uint _ViewRenderingLayerMask;
 uint _FilterRenderingLayers;
+// EMeshInstanceFlags that cull an instance from this view (e.g. ShadowmaskStatic for Shadowmask light views).
+uint _ViewExcludeFlags;
 RWStructuredBuffer<uint> _Visibility;
 
 StructuredBuffer<uint> _CommandMeta;
@@ -68,7 +70,7 @@ void CullFrustum(uint3 id : SV_DispatchThreadID)
     }
 
     uint flags = _InstanceFlags[instanceIndex];
-    if ((flags & 4u) == 0u)
+    if ((flags & 4u) == 0u || (flags & _ViewExcludeFlags) != 0u)
     {
         _Visibility[instanceIndex] = 0u;
         return;

@@ -1,0 +1,34 @@
+// Small graph utilities shared by features. Buffers are bound as RWStructuredBuffer<uint>, which Unity also
+// accepts for ComputeBufferType.IndirectArguments buffers (see Compute_MeshDrawPipeline).
+
+#pragma kernel ClearBufferUInt
+#pragma kernel ClearIndirectArgs
+
+RWStructuredBuffer<uint> _ClearTarget;
+uint _ClearCount;
+uint _ClearValue;
+
+// Writes _ClearValue into elements [0, _ClearCount).
+[numthreads(64, 1, 1)]
+void ClearBufferUInt(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _ClearCount)
+    {
+        return;
+    }
+    _ClearTarget[id.x] = _ClearValue;
+}
+
+// Resets _ClearCount dispatch-argument triplets to (0, 1, 1) so producers can InterlockedAdd thread groups into X.
+[numthreads(64, 1, 1)]
+void ClearIndirectArgs(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _ClearCount)
+    {
+        return;
+    }
+    uint base = id.x * 3u;
+    _ClearTarget[base + 0u] = 0u;
+    _ClearTarget[base + 1u] = 1u;
+    _ClearTarget[base + 2u] = 1u;
+}

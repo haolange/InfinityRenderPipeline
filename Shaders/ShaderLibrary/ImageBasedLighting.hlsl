@@ -181,15 +181,6 @@ float3 IBL_Hair_FullIntegrated(float3 V, float3 N, float3 SpecularColor, float R
 	return Lighting;
 }
 
-// Enviornment BRDF
-float4 PreintegratedDGF_LUT(sampler2D PreintegratedLUT, inout float3 EnergyCompensation, float3 SpecularColor, float Roughness, float NoV)
-{
-    float3 Enviorfilter_GFD = tex2Dlod( PreintegratedLUT, float4(Roughness, NoV, 0, 0) ).rgb;
-    float3 ReflectionGF = lerp( saturate(50 * SpecularColor.g) * Enviorfilter_GFD.ggg, Enviorfilter_GFD.rrr, SpecularColor );
-    EnergyCompensation = 1 + SpecularColor * (1 / Enviorfilter_GFD.r - 1);
-    return float4(ReflectionGF, Enviorfilter_GFD.b);
-}
-
 float4 EnvBRDFApprox(float3 SpecularColor, float Roughness, float NoV)
 {
 	float2 AB = IBL_Defualt_SpecularIntegrated_Approx(Roughness, NoV);

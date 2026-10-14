@@ -27,18 +27,10 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
                 return;
             }
 
-            bool buildOK = false;
             GameObject prefab = (GameObject)activeObject;
-
-            if (prefab.GetComponent<LODGroup>() == null)
-            {
-                buildOK = true;
-            }
-
-            if (prefab.GetComponent<MeshFilter>() == null || prefab.GetComponent<MeshRenderer>() == null)
-            {
-                buildOK = true;
-            }
+            // A MeshAsset is built either from a LODGroup or from a MeshFilter + MeshRenderer pair.
+            bool buildOK = prefab.GetComponent<LODGroup>() != null
+                || (prefab.GetComponent<MeshFilter>() != null && prefab.GetComponent<MeshRenderer>() != null);
 
             if (buildOK)
             {
@@ -51,7 +43,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
 
                 ProjectWindowUtil.StartNameEditingIfProjectWindowExists(EntityId.None, meshAssetFactory, "SM_" + prefab.name + ".asset", null, null);
             } else {
-                Debug.LogWarning("select prefab doesn't have LODGroup or MeshRenderer");
+                Debug.LogWarning("The selected prefab needs a LODGroup, or a MeshFilter with a MeshRenderer.");
             }
         }
 

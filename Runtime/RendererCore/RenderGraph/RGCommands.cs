@@ -23,12 +23,16 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetComputeVectorParam(ComputeShader computeShader, int nameID, Vector4 val);
         void SetComputeVectorArrayParam(ComputeShader computeShader, int nameID, Vector4[] values);
         void SetComputeMatrixParam(ComputeShader computeShader, int nameID, Matrix4x4 val);
+        void SetComputeMatrixArrayParam(ComputeShader computeShader, int nameID, Matrix4x4[] values);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel);
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, ComputeBuffer buffer);
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferRef buffer);
         void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, ComputeBuffer buffer, int offset, int size);
         void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ);
+        // Thread-group counts come from three uints at argsOffset (bytes) in a graph buffer created with
+        // ComputeBufferType.IndirectArguments. The pass must declare the buffer with ReadBuffer.
+        void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset);
         void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst);
         void BeginSample(string name);
         void EndSample(string name);
@@ -154,6 +158,11 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.SetComputeVectorArrayParam(computeShader, nameID, values);
         }
 
+        public void SetComputeMatrixArrayParam(ComputeShader computeShader, int nameID, Matrix4x4[] values)
+        {
+            m_CommandBuffer.SetComputeMatrixArrayParam(computeShader, nameID, values);
+        }
+
         public void SetComputeMatrixParam(ComputeShader computeShader, int nameID, Matrix4x4 val)
         {
             m_CommandBuffer.SetComputeMatrixParam(computeShader, nameID, val);
@@ -182,6 +191,11 @@ namespace InfinityTech.Rendering.RenderGraph
         public void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ)
         {
             m_CommandBuffer.DispatchCompute(computeShader, kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
+        }
+
+        public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset)
+        {
+            argsBuffer.DispatchIndirect(m_CommandBuffer, computeShader, kernelIndex, argsOffset);
         }
 
         public void BeginSample(string name)

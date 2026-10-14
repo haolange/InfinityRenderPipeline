@@ -399,6 +399,11 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.DispatchCompute(computeShader, kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
         }
 
+        public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset)
+        {
+            argsBuffer.DispatchIndirect(m_CommandBuffer, computeShader, kernelIndex, argsOffset);
+        }
+
         public void DispatchCompute(ComputeShader computeShader, in int kernelIndex, ComputeBuffer indirectBuffer, in uint argsOffset)
         {
             m_CommandBuffer.DispatchCompute(computeShader, kernelIndex, indirectBuffer, argsOffset);

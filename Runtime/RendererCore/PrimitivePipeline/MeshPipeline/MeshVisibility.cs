@@ -48,7 +48,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             bool enable,
             int viewLayerMask = ~0,
             uint viewRenderingLayerMask = (uint)ERenderingLayer.Everything,
-            bool filterRenderingLayers = false)
+            bool filterRenderingLayers = false,
+            uint excludeInstanceFlags = 0)
         {
             if (!enable || scene == null || planes == null || planes.Length < 6)
             {
@@ -82,7 +83,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                         instanceVisibility = result.instanceVisibility,
                         viewLayerMask = viewLayerMask,
                         viewRenderingLayerMask = viewRenderingLayerMask,
-                        filterRenderingLayers = filterRenderingLayers ? 1 : 0
+                        filterRenderingLayers = filterRenderingLayers ? 1 : 0,
+                        excludeInstanceFlags = excludeInstanceFlags
                     };
                     job.Schedule(instanceCount, 256).Complete();
                 }
@@ -141,6 +143,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int viewLayerMask;
         public uint viewRenderingLayerMask;
         public int filterRenderingLayers;
+        public uint excludeInstanceFlags;
 
         public void Execute(int index)
         {
@@ -148,7 +151,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (generations[index] != 0)
             {
                 MeshInstanceRecord instance = instances[index];
-                bool flagVisible = (instance.flags & EMeshInstanceFlags.Visible) != 0;
+                bool flagVisible = (instance.flags & EMeshInstanceFlags.Visible) != 0
+                    && ((uint)instance.flags & excludeInstanceFlags) == 0;
                 bool layerVisible = (instance.layerMask & viewLayerMask) != 0;
                 bool renderingVisible = filterRenderingLayers == 0
                     || (instance.renderingLayerMask & viewRenderingLayerMask) != 0;

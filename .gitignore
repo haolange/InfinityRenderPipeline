@@ -40,3 +40,6 @@ Runtime/Scripting.meta
 # AppleDouble / resource fork junk
 ._*
 **/._*
+
+# Task-generated intermediate data (AGENTS.md: never committed)
+intermediate/

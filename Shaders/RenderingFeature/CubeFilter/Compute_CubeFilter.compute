@@ -1,0 +1,104 @@
+// GGX prefiltering of cubemaps into cube arrays (6 slices per cube, AtmosphereCommon CubemapFaceDirection layout),
+// shared by the sky (Compute_AtmosphericLUT output) and the reflection probe atlas. Mip m holds roughness
+// m / (mipCount - 1), matching SampleGGXCubemapArray / SampleReflectionProbe. Filtered importance sampling reads the
+// source mip whose texel solid angle matches each sample's lobe footprint (Krivanek and Colbert 2008).
+//   FilterCubeToArray:  a TextureCube (baked / custom / realtime probe) -> slices [base, base + 6) at mip m.
+//   FilterArrayToArray: a cube array (the sky, mip 0 only) -> slices [base, base + 6) at mip m.
+#pragma kernel FilterCubeToArray
+#pragma kernel FilterArrayToArray
+
+#include "../../ShaderLibrary/Common.hlsl"
+#include "../../ShaderLibrary/Montcalo.hlsl"
+#include "../../ShaderLibrary/AtmosphereCommon.hlsl"
+
+// x = destination mip 0 size, y = destination mip, z = roughness, w = first destination slice.
+float4 CubeFilter_Params;
+// x = source face size, y = source mip count, z = intensity scale, w = sample count.
+float4 CubeFilter_Source;
+
+TextureCube<float4> SRV_CubeSource;
+Texture2DArray<float4> SRV_CubeArraySource;
+RWTexture2DArray<float4> UAV_CubeArray;
+
+float3 CubemapFaceDirection(uint face, float2 uv)
+{
+    float2 st = uv * 2.0 - 1.0;
+    float3 dir;
+    if (face == 0) dir = float3(1.0, -st.y, -st.x);
+    else if (face == 1) dir = float3(-1.0, -st.y, st.x);
+    else if (face == 2) dir = float3(st.x, 1.0, st.y);
+    else if (face == 3) dir = float3(st.x, -1.0, -st.y);
+    else if (face == 4) dir = float3(st.x, -st.y, 1.0);
+    else dir = float3(-st.x, -st.y, -1.0);
+    return normalize(dir);
+}
+
+float3 SampleSource(bool fromCube, float3 direction, float lod)
+{
+    if (fromCube)
+    {
+        return SRV_CubeSource.SampleLevel(Global_trilinear_clamp_sampler, direction, lod).rgb;
+    }
+    uint face;
+    float2 uv;
+    CubemapDirectionToFaceUv(direction, face, uv);
+    return SRV_CubeArraySource.SampleLevel(Global_bilinear_clamp_sampler, float3(uv, face), 0).rgb;
+}
+
+float D_GGXForFilter(float NoH, float alpha)
+{
+    float a2 = alpha * alpha;
+    float d = NoH * NoH * (a2 - 1.0) + 1.0;
+    return a2 / (3.14159265 * d * d);
+}
+
+float3 PrefilterGGX(bool fromCube, float3 n, float roughness)
+{
+    if (roughness < 1e-4)
+    {
+        return SampleSource(fromCube, n, 0);
+    }
+    float3 up = abs(n.z) < 0.999 ? float3(0, 0, 1) : float3(1, 0, 0);
+    float3 tangent = normalize(cross(up, n));
+    float3 bitangent = cross(n, tangent);
+    uint sampleCount = (uint)max(CubeFilter_Source.w, 1);
+    float sourceSize = max(CubeFilter_Source.x, 1);
+    float maxLod = max(CubeFilter_Source.y - 1, 0);
+    float texelSolidAngle = 4.0 * 3.14159265 / (6.0 * sourceSize * sourceSize);
+    float alpha = roughness * roughness;
+
+    float3 color = 0;
+    float weight = 0;
+    [loop]
+    for (uint i = 0; i < sampleCount; ++i)
+    {
+        float2 e = Hammersley(i, sampleCount);
+        float3 hLocal = ImportanceSampleGGX(e, roughness).xyz;
+        float3 h = normalize(tangent * hLocal.x + bitangent * hLocal.y + n * hLocal.z);
+        float3 l = normalize(2.0 * dot(n, h) * h - n);
+        float noL = saturate(dot(n, l));
+        if (noL <= 0.0) continue;
+        // V = N: pdf(l) = D(NoH) / 4.
+        float pdf = D_GGXForFilter(saturate(dot(n, h)), alpha) * 0.25;
+        float sampleSolidAngle = 1.0 / (sampleCount * max(pdf, 1e-6));
+        float lod = clamp(0.5 * log2(sampleSolidAngle / texelSolidAngle) + 1.0, 0.0, maxLod);
+        color += SampleSource(fromCube, l, lod) * noL;
+        weight += noL;
+    }
+    return color / max(weight, 1e-6);
+}
+
+void Filter(bool fromCube, uint3 id)
+{
+    uint mipSize = max((uint)CubeFilter_Params.x >> (uint)CubeFilter_Params.y, 1u);
+    if (id.x >= mipSize || id.y >= mipSize || id.z >= 6) return;
+    float3 n = CubemapFaceDirection(id.z, (id.xy + 0.5) / mipSize);
+    float3 color = PrefilterGGX(fromCube, n, CubeFilter_Params.z) * CubeFilter_Source.z;
+    UAV_CubeArray[uint3(id.xy, (uint)CubeFilter_Params.w + id.z)] = float4(color, 1.0);
+}
+
+[numthreads(8, 8, 1)]
+void FilterCubeToArray(uint3 id : SV_DispatchThreadID) { Filter(true, id); }
+
+[numthreads(8, 8, 1)]
+void FilterArrayToArray(uint3 id : SV_DispatchThreadID) { Filter(false, id); }

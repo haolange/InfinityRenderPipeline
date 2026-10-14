@@ -14,15 +14,10 @@ Texture2DArray<float4> _AtmosphereGGXPrefilter;
 float _AtmosphereIBLMaxMip;
 
 float4 DeferredShading_Resolution;
-int DeferredShading_TileSize;
 float DeferredShading_FarDepth;
 float4x4 Matrix_InvProj;
 float4x4 Matrix_InvViewProj;
 float3 _WorldSpaceCameraPos;
-int DeferredShading_HasTileList;
-int DeferredShading_NumTilesX;
-int DeferredShading_NumBins;
-float4 DeferredShading_NearFar;
 
 Texture2D SRV_GBufferTextureA;
 Texture2D SRV_GBufferTextureB;
@@ -30,9 +25,6 @@ Texture2D SRV_GBufferTextureC;
 Texture2D<float> SRV_DepthTexture;
 #if defined(DEFERRED_AO)
 Texture2D<float> SRV_OcclusionTexture;
-#endif
-#if defined(DEFERRED_CONTACT_SHADOW)
-Texture2D<float> SRV_ContactShadowTexture;
 #endif
 
 Texture2D<float4> SRV_BakedDiffuse, SRV_BakedOcclusion;
@@ -88,9 +80,11 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float ao = 1.0;
 #endif
 #if defined(DEFERRED_CONTACT_SHADOW)
-    float contactShadow = SRV_ContactShadowTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float contactShadow = SRV_ContactShadowSun[pixelCoord];
+    uint contactMask = SRV_ContactShadowMask[pixelCoord];
 #else
     float contactShadow = 1.0;
+    uint contactMask = 0;
 #endif
     float4 bakedMask = 1 - SRV_BakedOcclusion[pixelCoord];
     float3 lighting = 0;
@@ -98,57 +92,25 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     for (int d = 0; d < g_DirectionalLightCount; ++d)
     {
         if ((g_LightRecordBuffer[d].lightLayer & gbufferData.RenderingLayer) == 0) continue;
-        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, contactShadow, viewDepth, bakedMask);
+        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, d == g_SunRecordIndex ? contactShadow : 1.0, viewDepth, bakedMask);
     }
 
-    if (g_LocalLightCount > 0)
+    FLightLoop lightLoop = BeginLightLoop(pixelCoord, viewDepth);
+    uint recordIndex;
+    [loop]
+    while (NextLight(lightLoop, recordIndex))
     {
-        if (DeferredShading_HasTileList != 0)
-        {
-            uint2 tile = pixelCoord / (uint)DeferredShading_TileSize;
-            uint tileIndex = tile.y * (uint)DeferredShading_NumTilesX + tile.x;
-            uint2 range = SRV_TileLightRange[tileIndex];
-            uint pixelBin = 0;
-            float t = saturate((viewDepth - DeferredShading_NearFar.x) / max(DeferredShading_NearFar.y - DeferredShading_NearFar.x, 1e-4));
-            pixelBin = min((uint)(t * DeferredShading_NumBins), (uint)DeferredShading_NumBins - 1);
-            uint2 zRange = SRV_ZBinRange[pixelBin];
-
-            [loop]
-            for (uint i = 0; i < range.y; ++i)
-            {
-                uint lightIdx = SRV_TileLightList[range.x + i];
-                bool inBin = false;
-                [loop]
-                for (uint z = 0; z < zRange.y; ++z)
-                {
-                    if (SRV_ZBinLightList[zRange.x + z] == lightIdx)
-                    {
-                        inBin = true;
-                        break;
-                    }
-                }
-                if (!inBin && zRange.y > 0)
-                {
-                    continue;
-                }
-
-                if ((g_LightRecordBuffer[lightIdx].lightLayer & gbufferData.RenderingLayer) == 0) continue;
-                lighting += EvaluateLocal(g_LightRecordBuffer[lightIdx], worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth);
-            }
-        }
-        else
-        {
-            for (int l = 0; l < g_LocalLightCount; ++l)
-            {
-                if ((g_LightRecordBuffer[g_DirectionalLightCount + l].lightLayer & gbufferData.RenderingLayer) == 0) continue;
-                lighting += EvaluateLocal(g_LightRecordBuffer[g_DirectionalLightCount + l], worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth);
-            }
-        }
+        FLightRecord light = g_LightRecordBuffer[recordIndex];
+        if ((light.lightLayer & gbufferData.RenderingLayer) == 0) continue;
+        lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth, contactMask);
     }
 
     float4 baked = SRV_BakedDiffuse[pixelCoord];
     float3 diffuse = microfaceCtx.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(normal, _AtmosphereSkySH)) * ao;
-    float3 specularIBL = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflect(-viewDir, normal), microfaceCtx.RoughnessClamp, _AtmosphereIBLMaxMip)
+    // Specular environment: reflection probes front to back, the sky for the remainder (SSR replaces it by confidence).
+    float3 reflectionWS = reflect(-viewDir, normal);
+    float3 sky = SampleGGXCubemapArray(_AtmosphereGGXPrefilter, reflectionWS, microfaceCtx.RoughnessClamp, _AtmosphereIBLMaxMip);
+    float3 specularIBL = BlendReflectionProbesWithSky(worldPos, reflectionWS, microfaceCtx.RoughnessClamp, pixelCoord, viewDepth, sky)
         * EnvBRDFApprox(microfaceCtx.SpecularColor, microfaceCtx.RoughnessClamp, saturate(dot(normal, viewDir))).rgb * ao;
     UAV_IndirectDiffuse[pixelCoord] = float4(diffuse, 1);
     UAV_IndirectSpecular[pixelCoord] = float4(specularIBL, 1);

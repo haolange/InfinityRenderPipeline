@@ -80,6 +80,52 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             }
         }
 
+        [Test]
+        [Category("Unverified-0.5")]
+        public void CommittedEdit_ChangesBuildSerial()
+        {
+            using (var scene = new MeshScene(16))
+            using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
+            {
+                MeshSceneUpdate update = scene.BeginUpdate();
+                Create(update, 1);
+                update.Commit();
+                int before = bins.GetBuildSerial(MeshPassId.GBuffer);
+                Assert.AreEqual(before, bins.GetBuildSerial(MeshPassId.GBuffer), "No edit, no rebuild.");
+
+                using (MeshSceneUpdate change = scene.BeginUpdate())
+                {
+                    Create(change, 1);
+                    change.Commit();
+                }
+
+                // The GPU candidate table caches on this serial; a committed edit must change it.
+                Assert.AreNotEqual(before, bins.GetBuildSerial(MeshPassId.GBuffer));
+            }
+        }
+
+        [Test]
+        [Category("Unverified-0.5")]
+        public void SwitchingMaterial_RebuildsCommands()
+        {
+            using (var scene = new MeshScene(16))
+            using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
+            {
+                MeshSceneUpdate update = scene.BeginUpdate();
+                Create(update, 0);
+                update.Commit();
+                Assert.AreEqual(20ul, bins.GetCommands(MeshPassId.GBuffer)[0].key.materialUnityId);
+
+                using (MeshSceneUpdate change = scene.BeginUpdate())
+                {
+                    change.SetMaterial(FindDraw(scene, EPassEligibility.GBuffer), 30, 2000);
+                    change.Commit();
+                }
+
+                Assert.AreEqual(30ul, bins.GetCommands(MeshPassId.GBuffer)[0].key.materialUnityId);
+            }
+        }
+
         static MeshInstanceId Create(MeshSceneUpdate update, int textureSet)
         {
             MeshInstanceId instance = CreateInstance(update, textureSet);

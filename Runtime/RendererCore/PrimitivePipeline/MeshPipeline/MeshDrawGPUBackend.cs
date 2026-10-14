@@ -228,6 +228,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private static readonly int ID_ViewLayerMask = Shader.PropertyToID("_ViewLayerMask");
         private static readonly int ID_ViewRenderingLayerMask = Shader.PropertyToID("_ViewRenderingLayerMask");
         private static readonly int ID_FilterRenderingLayers = Shader.PropertyToID("_FilterRenderingLayers");
+        private static readonly int ID_ViewExcludeFlags = Shader.PropertyToID("_ViewExcludeFlags");
         private static readonly int ID_CommandMeta = Shader.PropertyToID("_CommandMeta");
         private static readonly int ID_CommandBases = Shader.PropertyToID("_CommandBases");
         private static readonly int ID_CandidateTable = Shader.PropertyToID("_CandidateTable");
@@ -321,6 +322,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeIntParam(shader, ID_ViewLayerMask, view.layerMask);
             commands.SetComputeIntParam(shader, ID_ViewRenderingLayerMask, (int)view.renderingLayerMask);
             commands.SetComputeIntParam(shader, ID_FilterRenderingLayers, view.FilterRenderingLayers ? 1 : 0);
+            commands.SetComputeIntParam(shader, ID_ViewExcludeFlags, unchecked((int)view.excludeInstanceFlags));
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsCenter, boundsCenter);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, boundsExtent);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceFlags, instanceFlags);
@@ -385,14 +387,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Alias for <see cref="FlushRetiredPayloads"/>. Prefer the Flush name at frame-end call sites.
-        /// </summary>
-        public static void ReleaseFrameResources()
-        {
-            FlushRetiredPayloads();
-        }
-
-        /// <summary>
         /// Max command / instance capacities required across all planned batches.
         /// <paramref name="maxCommands"/> is 0 when planning fails (caller should CPU-fallback).
         /// Instances per batch = max(batchCandidates, boundsCount).
@@ -424,17 +418,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 maxCommands = math.max(maxCommands, batch.batchCommands);
                 maxInstances = math.max(maxInstances, math.max(batchCandidates, safeBounds));
             }
-        }
-
-        /// <summary>
-        /// True when the draw list fits a single payload; false means split batches or CPU fallback.
-        /// </summary>
-        public static bool CanSubmitSinglePayload(in PassView drawList)
-        {
-            return drawList.isValid
-                && drawList.commandCount > 0
-                && drawList.commandCount <= MaxCommands
-                && drawList.instanceCount <= MaxInstances;
         }
 
         /// <summary>

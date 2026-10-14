@@ -33,12 +33,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void ScreenSpaceReflection_NumRaysDefaultIsAtLeastTwo()
+        public void ScreenSpaceReflection_ResolveReusesAtLeastTwoRaysByDefault()
         {
             ScreenSpaceReflection ssr = ScriptableObject.CreateInstance<ScreenSpaceReflection>();
             try
             {
-                Assert.GreaterOrEqual(ssr.NumRays.value, 2);
+                Assert.GreaterOrEqual(ssr.ResolveSamples.value, 2);
             }
             finally
             {
@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void CompositePass_DoesNotBindCOMPOSITE_AO()
         {
-            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/ScreenSpaceCompositePass.cs"));
+            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/ScreenSpace/ScreenSpaceCompositePass.cs"));
             Assert.IsTrue(File.Exists(passPath), passPath);
             string source = File.ReadAllText(passPath);
             Assert.IsFalse(source.Contains("COMPOSITE_AO"));
@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void DeferredShading_QueriesOcclusionOnlyWhenRegistered()
         {
-            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/DeferredShadingPass.cs"));
+            string passPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Lighting/DeferredShadingPass.cs"));
             Assert.IsTrue(File.Exists(passPath), passPath);
             string source = File.ReadAllText(passPath);
             Assert.IsTrue(source.Contains("TryQueryTexture(InfinityShaderIDs.OcclusionBuffer"));

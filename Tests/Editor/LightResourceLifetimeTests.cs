@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             using (var context = new LightContext())
             {
                 var records = context.LightRecordBuffer;
-                var bounds = context.LightBoundsBuffer;
+                var bounds = context.TileRectBuffer;
                 var matrices = context.LocalShadowMatrixBuffer;
                 var rects = context.LocalShadowRectBuffer;
                 context.EnsureCapacity(4, 3, 6);

@@ -24,8 +24,8 @@ void TraceContract(uint3 id : SV_DispatchThreadID)
 void MixedShadowContract(uint3 id : SV_DispatchThreadID)
 {
     FLightRecord light = (FLightRecord)0;
-    light.flags = 8;
-    light.shape.z = ShadowStrength;
+    light.flags = LIGHT_FLAG_SHADOWMASK;
+    light.misc.x = ShadowStrength;
     light.bakedOcclusionChannel = id.x % 4;
     float distance = id.x < 4 ? 50 : id.x < 8 ? 95 : 100;
     Results[id.x] = MixBakedAndRealtimeShadow(light, 0.6, float4(0.1, 0.2, 0.3, 0.4), distance);
@@ -43,8 +43,9 @@ void ReceiverPlaneContract(uint3 id : SV_DispatchThreadID)
 {
     float2 uv = float2(0.511, 0.507);
     float z = 0.4 + 0.2 * uv.x + 0.1 * uv.y;
-    Results[id.x] = SampleShadowPCF3x3(ShadowRamp, uv, z, 1.0 / 64,
-        float4(0, 0, 1, 1), id.x, float2(0.2, 0.1));
+    Results[id.x] = id.x == 0
+        ? SampleShadowHard(ShadowRamp, uv, z, 1.0 / 64, float4(0, 0, 1, 1), float2(0.2, 0.1))
+        : SampleShadowTent(ShadowRamp, uv, z, 1.0 / 64, float4(0, 0, 1, 1), id.x, float2(0.2, 0.1));
 }
 
 float4x4 ObjectToWorld;

@@ -13,8 +13,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public static float MatrixDuplicateRatio;
         public static int TempAllocCount;
         public static int CulledPassSkippedBuilds;
-        public static int TemplateCacheHits;
-        public static int TemplateCacheMisses;
         public static int GpuOverflowCount;
         public static int LocalShadowBudgetDropped;
         public static int VisibilityProductionsPerFrame;
@@ -33,8 +31,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             public float MatrixDuplicateRatio;
             public int TempAllocCount;
             public int CulledPassSkippedBuilds;
-            public int TemplateCacheHits;
-            public int TemplateCacheMisses;
             public int GpuOverflowCount;
             public int LocalShadowBudgetDropped;
             public int VisibilityProductionsPerFrame;
@@ -56,8 +52,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 MatrixDuplicateRatio = MatrixDuplicateRatio,
                 TempAllocCount = TempAllocCount,
                 CulledPassSkippedBuilds = CulledPassSkippedBuilds,
-                TemplateCacheHits = TemplateCacheHits,
-                TemplateCacheMisses = TemplateCacheMisses,
                 GpuOverflowCount = GpuOverflowCount,
                 LocalShadowBudgetDropped = LocalShadowBudgetDropped,
                 VisibilityProductionsPerFrame = VisibilityProductionsPerFrame,
@@ -78,8 +72,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             MatrixDuplicateRatio = 0.0f;
             TempAllocCount = 0;
             CulledPassSkippedBuilds = 0;
-            TemplateCacheHits = 0;
-            TemplateCacheMisses = 0;
             GpuOverflowCount = 0;
             LocalShadowBudgetDropped = 0;
             VisibilityProductionsPerFrame = 0;

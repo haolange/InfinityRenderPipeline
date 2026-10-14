@@ -17,6 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
 #endif
     [SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]
     [DisplayName("Infinity RP")]
+    [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "global-settings.md")]
     public sealed class InfinityRenderPipelineGlobalSettings : RenderPipelineGlobalSettings<InfinityRenderPipelineGlobalSettings, InfinityRenderPipeline>
     {
         public const string PackagePath = InfinityRenderPipelineRuntimeShaders.PackagePath;

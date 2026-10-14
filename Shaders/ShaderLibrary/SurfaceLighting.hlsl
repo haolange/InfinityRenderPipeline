@@ -3,90 +3,95 @@
 #include "BSDF.hlsl"
 #include "ShadingModel.hlsl"
 #include "ShadowSampling.hlsl"
+#include "Lighting/LightShapes.hlsl"
+#include "Lighting/LightCookie.hlsl"
+#include "Lighting/ReflectionProbes.hlsl"
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
+// Screen-space traced shadows (ContactShadowPass): sun visibility and the local-light contact mask. Deferred binds them
+// under DEFERRED_CONTACT_SHADOW; Forward reads them when g_ContactShadowEnabled != 0.
+Texture2D<float> SRV_ContactShadowSun;
+Texture2D<uint> SRV_ContactShadowMask;
+int g_ContactShadowEnabled;
+// Specular microfacet term (GGX, height-correlated Smith, Schlick); unclamped so HDR highlights keep their energy.
+float3 SpecularBRDF(float3 N, float3 V, float3 L, MicrofaceContext microfaceCtx)
+{
+    float3 H = normalize(V + L);
+    BSDFContext ctx = InitBXDFContext(N, V, L, H);
+    float NoL = saturate(ctx.NoL);
+    float NoV = max(saturate(ctx.NoV), 1e-4);
+    return D_GGX(ctx.NoH, microfaceCtx.RoughnessPow4) * Vis_SmithJointApprox_NoPI(NoL, NoV, microfaceCtx.RoughnessPow4)
+        * F_Schlick(microfaceCtx.SpecularColor, 1, ctx.LoH);
+}
+
 float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask)
 {
-    float3 L = light.directionSpot.xyz;
-    float3 H = normalize(viewDir + L);
-    BSDFContext bsdfCtx = InitBXDFContext(normal, viewDir, L, H);
-    float NoL = saturate(bsdfCtx.NoL);
-    if (NoL <= 0)
+    float3 L = DirectionalLightL(light);
+    float NoL = saturate(dot(normal, L));
+    float specularEnergy;
+    float3 specularL = SunDiskSpecularL(light, reflect(-viewDir, normal), microfaceCtx.RoughnessClamp, specularEnergy);
+    float specularNoL = saturate(dot(normal, specularL));
+    if (NoL <= 0 && specularNoL <= 0)
     {
         return 0;
     }
 
-    float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, worldPos, viewDepth, light.shadowType, normal) : 1.0;
+    float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, worldPos, viewDepth, normal) : 1.0;
     shadow = MixBakedAndRealtimeShadow(light, shadow, bakedMask, viewDepth);
     if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
-    float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
-    return brdf * LightRadiance(light) * NoL * shadow * light.axisX.w;
+    float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * NoL * LightDiffuseWeight(light);
+    float3 specular = SpecularBRDF(normal, viewDir, specularL, microfaceCtx) * specularNoL * specularEnergy * LightSpecularWeight(light);
+    return (diffuse + specular) * LightRadiance(light) * LightCookieColor(light, worldPos) * shadow;
 }
 
-float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth)
+float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask)
 {
-    if (light.lightType == LIGHT_TYPE_RECT)
-    {
-        float3 R = reflect(-viewDir, normal);
-        float3 specPos = KarisRectRepresentativePoint(worldPos, R, light);
-        float3 Lspec = normalize(specPos - worldPos);
-        float3 H = normalize(viewDir + Lspec);
-        BSDFContext specCtx = InitBXDFContext(normal, viewDir, Lspec, H);
-        float3 spec = 0;
-        if (specCtx.NoL > 0)
-        {
-            MicrofaceContext specMicro = microfaceCtx;
-            specMicro.AlbedoColor = 0;
-            spec = DefultLit(specCtx, specMicro) * LightRadiance(light) * saturate(specCtx.NoL) * light.axisY.w;
-        }
-
-        float form = FrostbiteRectFormFactor(worldPos, normal, light);
-        float3 diff = microfaceCtx.AlbedoColor * LightRadiance(light) * form * light.axisX.w * (1.0 / 3.14159265);
-        float dist = length(light.positionRange.xyz - worldPos);
-        float att = DistanceAttenuation(dist, light.positionRange.w);
-        return (diff + spec) * att * MixBakedAndRealtimeShadow(light, 1, bakedMask, viewDepth);
-    }
-
-    float3 toLight = light.positionRange.xyz - worldPos;
-    float dist = length(toLight);
-    float3 L = toLight / max(dist, 1e-4);
-    float att = DistanceAttenuation(dist, light.positionRange.w);
-    if (light.lightType == LIGHT_TYPE_SPOT)
-    {
-        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
-    }
-
-    if (att <= 0)
+    float window = LocalLightWindow(light, worldPos);
+    if (window <= 0)
     {
         return 0;
     }
 
-    float3 H = normalize(viewDir + L);
-    BSDFContext bsdfCtx = InitBXDFContext(normal, viewDir, L, H);
-    float NoL = saturate(bsdfCtx.NoL);
-    if (NoL <= 0)
+    FLightShapeSample shape = EvaluateLocalLightShape(light, worldPos, normal, viewDir, microfaceCtx.RoughnessClamp);
+    float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * shape.diffuseIrradiance * LightDiffuseWeight(light);
+    float3 specular = SpecularBRDF(normal, viewDir, shape.specularL, microfaceCtx) * shape.specularNoL * shape.specularFalloff
+        * shape.specularEnergy * LightSpecularWeight(light);
+    if (LightHasCookie(light))
     {
-        return 0;
+        float3 cookie = LightCookieColor(light, worldPos);
+        float3 planarDiffuse, planarSpecular;
+        LightPlanarCookie(light, shape.emitterUV, microfaceCtx.RoughnessClamp, planarDiffuse, planarSpecular);
+        diffuse *= cookie * planarDiffuse;
+        specular *= cookie * planarSpecular;
     }
-
     float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
-    float3 brdf = DefultLit(bsdfCtx, microfaceCtx);
-    return brdf * LightRadiance(light) * NoL * att * shadow * light.axisX.w;
+    shadow *= ContactShadowFromMask(light, contactMask);
+    return (diffuse + specular) * LightRadiance(light) * window * shadow;
 }
 
-
-float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, MicrofaceContext material, float4 mask, float viewDepth, uint layer)
+// Forward / translucent evaluation of every light that reaches positionSS (SV_Position.xy) at viewDepth.
+float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, MicrofaceContext material, float4 mask, float viewDepth, uint layer, uint2 positionSS)
 {
     float3 direct = 0;
+    float contactSun = 1;
+    uint contactMask = 0;
+    if (g_ContactShadowEnabled != 0)
+    {
+        contactSun = SRV_ContactShadowSun.Load(int3(positionSS, 0));
+        contactMask = SRV_ContactShadowMask.Load(int3(positionSS, 0));
+    }
     for (int i = 0; i < g_DirectionalLightCount; i++)
     {
         FLightRecord light = g_LightRecordBuffer[i];
-        if ((light.lightLayer & layer) != 0) direct += EvaluateDirectional(light, position, normal, view, material, 1, viewDepth, mask);
+        if ((light.lightLayer & layer) != 0) direct += EvaluateDirectional(light, position, normal, view, material, i == g_SunRecordIndex ? contactSun : 1, viewDepth, mask);
     }
-    for (int i = 0; i < g_LocalLightCount; i++)
+    FLightLoop lightLoop = BeginLightLoop(positionSS, viewDepth);
+    uint recordIndex;
+    [loop]
+    while (NextLight(lightLoop, recordIndex))
     {
-        FLightRecord light = g_LightRecordBuffer[g_DirectionalLightCount + i];
-        if ((light.lightLayer & layer) != 0) direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth);
+        FLightRecord light = g_LightRecordBuffer[recordIndex];
+        if ((light.lightLayer & layer) != 0) direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth, contactMask);
     }
     return direct;
 }

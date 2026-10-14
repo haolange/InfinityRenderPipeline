@@ -5,6 +5,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
 #include "../../ShaderLibrary/ShadowSampling.hlsl"
+#include "../../ShaderLibrary/Lighting/LightCookie.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 #include "../../ShaderLibrary/AtmosphereCommon.hlsl"
 
@@ -20,10 +21,6 @@ int VolFog_DepthSlices;
 float VolFog_MaxDistance;
 float VolFog_TemporalWeight;
 int VolFog_FrameIndex;
-int VolFog_HasTileList;
-int VolFog_NumTilesX;
-int VolFog_NumBins;
-float4 VolFog_NearFar;
 float4x4 Matrix_WorldToView;
 
 float4x4 Matrix_InvViewProj;
@@ -78,20 +75,7 @@ float3 FroxelToWorld(uint3 froxelCoord)
 
 float VolumeLightAttenuation(FLightRecord light, float3 worldPos)
 {
-    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
-    {
-        return 1.0;
-    }
-
-    float3 toLight = light.positionRange.xyz - worldPos;
-    float distance = length(toLight);
-    float att = DistanceAttenuation(distance, light.positionRange.w);
-    if (light.lightType == LIGHT_TYPE_SPOT)
-    {
-        float3 L = toLight / max(distance, 1e-4);
-        att *= SpotAttenuation(L, light.directionSpot.xyz, light.shape.x, light.directionSpot.w);
-    }
-    return att;
+    return IsDirectionalLight(light) ? 1.0 : LocalLightAttenuation(light, worldPos);
 }
 
 float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
@@ -99,25 +83,23 @@ float3 EvaluateVolumeLight(FLightRecord light, float3 worldPos, float3 viewDir, 
     float3 L;
     float att = 1.0;
     float shadow;
-    if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
+    if (IsDirectionalLight(light))
     {
-        L = light.directionSpot.xyz;
-        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, worldPos, viewDepth, light.shadowType) : 1);
+        L = DirectionalLightL(light);
+        shadow = ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(cascadeShadowMap, light, worldPos, viewDepth) : 1);
     }
     else
     {
-        float3 toLight = light.positionRange.xyz - worldPos;
-        float distance = length(toLight);
-        L = toLight / max(distance, 1e-4);
+        L = LocalLightL(light, worldPos);
         att = VolumeLightAttenuation(light, worldPos);
         shadow = SampleLocalShadow(localShadowMap, light, worldPos);
     }
 
-    shadow = VolumeShadowWeight(light, lerp(1, shadow, light.shape.z));
+    shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
 
     float cosTheta = dot(viewDir, L);
     float phase = HGPhase(VolFog_Anisotropy, cosTheta);
-    return scattering * VolumeLightRadiance(light) * phase * shadow * att;
+    return scattering * VolumeLightRadiance(light) * LightCookieColor(light, worldPos) * phase * shadow * att;
 }
 
 void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, float viewDepth, float2 screenUV, inout float3 inScatter, Texture2D<float> cascadeShadowMap, Texture2D<float> localShadowMap)
@@ -127,45 +109,12 @@ void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, f
         return;
     }
 
-    if (VolFog_HasTileList != 0)
+    FLightLoop lightLoop = BeginLightLoopUV(screenUV, viewDepth);
+    uint recordIndex;
+    [loop]
+    while (NextLight(lightLoop, recordIndex))
     {
-        uint2 pixelCoord = uint2(screenUV * VolFog_ScreenSize.xy);
-        uint2 tile = pixelCoord / 16u;
-        uint tileIndex = tile.y * (uint)VolFog_NumTilesX + tile.x;
-        uint2 range = SRV_TileLightRange[tileIndex];
-        float t = saturate((viewDepth - VolFog_NearFar.x) / max(VolFog_NearFar.y - VolFog_NearFar.x, 1e-4));
-        uint pixelBin = min((uint)(t * VolFog_NumBins), (uint)VolFog_NumBins - 1);
-        uint2 zRange = SRV_ZBinRange[pixelBin];
-
-        [loop]
-        for (uint i = 0; i < range.y; ++i)
-        {
-            uint lightIdx = SRV_TileLightList[range.x + i];
-            bool inBin = false;
-            [loop]
-            for (uint z = 0; z < zRange.y; ++z)
-            {
-                if (SRV_ZBinLightList[zRange.x + z] == lightIdx)
-                {
-                    inBin = true;
-                    break;
-                }
-            }
-            if (!inBin && zRange.y > 0)
-            {
-                continue;
-            }
-
-            inScatter += EvaluateVolumeLight(g_LightRecordBuffer[lightIdx], worldPos, viewDir, scattering, viewDepth, cascadeShadowMap, localShadowMap);
-        }
-    }
-    else
-    {
-        [loop]
-        for (int l = 0; l < g_LocalLightCount; ++l)
-        {
-            inScatter += EvaluateVolumeLight(g_LightRecordBuffer[g_DirectionalLightCount + l], worldPos, viewDir, scattering, viewDepth, cascadeShadowMap, localShadowMap);
-        }
+        inScatter += EvaluateVolumeLight(g_LightRecordBuffer[recordIndex], worldPos, viewDir, scattering, viewDepth, cascadeShadowMap, localShadowMap);
     }
 }
 

@@ -14,6 +14,9 @@ namespace InfinityTech.Rendering.Pipeline
         public int version => m_Version;
         public bool isAvailableInPlayerBuild => true;
 
+        [ResourcePath("Shaders/Utility/Compute_Utility.compute")]
+        public ComputeShader utilityShader;
+
         [ResourcePath("Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute")]
         public ComputeShader meshDrawPipelineCS;
 
@@ -38,8 +41,17 @@ namespace InfinityTech.Rendering.Pipeline
         [ResourcePath("Shaders/RenderingFeature/HalfResDownsample/Compute_HalfResDownsample.compute")]
         public ComputeShader halfResDownsampleShader;
 
-        [ResourcePath("Shaders/RenderingFeature/ZBinningLightList/Compute_ZBinningLightList.compute")]
-        public ComputeShader zBinningShader;
+        [ResourcePath("Shaders/RenderingFeature/LightTileMask/Compute_LightTileMask.compute")]
+        public ComputeShader lightTileMaskShader;
+
+        [ResourcePath("Shaders/RenderingFeature/CubeFilter/Compute_CubeFilter.compute")]
+        public ComputeShader cubeFilterShader;
+
+        [ResourcePath("Shaders/RenderingFeature/LightCookie/Compute_LightCookie.compute")]
+        public ComputeShader lightCookieShader;
+
+        [ResourcePath("Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute")]
+        public ComputeShader shadowMomentShader;
 
         [ResourcePath("Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute")]
         public ComputeShader contactShadowShader;

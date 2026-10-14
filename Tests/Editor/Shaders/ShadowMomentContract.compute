@@ -1,0 +1,31 @@
+// Numeric contracts of Shaders/ShaderLibrary/ShadowMoments.hlsl (0.5.0 S9).
+// Results[i] = (VSM visibility, EVSM visibility, 0, 0) for case i:
+//   0: receiver in front of a single occluder depth  -> 1
+//   1: receiver at the occluder depth                -> 1
+//   2: receiver far behind the occluder              -> 0
+//   3: receiver behind a 50/50 mix of two depths     -> 0 for EVSM, < 0.5 for VSM (light bleeding)
+//   4: receiver between the two depths of the mix    -> strictly inside (0, 1) for EVSM
+#pragma kernel MomentVisibility
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "../../../Shaders/ShaderLibrary/ShadowMoments.hlsl"
+
+RWStructuredBuffer<float4> Results;
+
+float4 Moments(float a, float b, int mode)
+{
+    return 0.5 * (ShadowMomentsFromDepth(a, mode, 5.4) + ShadowMomentsFromDepth(b, mode, 5.4));
+}
+
+[numthreads(1, 1, 1)]
+void MomentVisibility(uint3 id : SV_DispatchThreadID)
+{
+    float4 params = float4(5.4, 0.25, 0.001, 0);
+    float a = 0.3, b = 0.3, receiver = 0.29;
+    if (id.x == 1) receiver = 0.3;
+    if (id.x == 2) receiver = 0.6;
+    if (id.x == 3) { b = 0.9; receiver = 0.95; }
+    if (id.x == 4) { b = 0.9; receiver = 0.6; }
+    float vsm = ShadowMomentVisibility(Moments(a, b, SHADOW_MOMENT_VSM), receiver, SHADOW_MOMENT_VSM, params);
+    float evsm = ShadowMomentVisibility(Moments(a, b, SHADOW_MOMENT_EVSM), receiver, SHADOW_MOMENT_EVSM, params);
+    Results[id.x] = float4(vsm, evsm, 0, 0);
+}

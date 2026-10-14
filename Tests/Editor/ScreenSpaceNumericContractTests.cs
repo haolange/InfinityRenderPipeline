@@ -22,11 +22,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Directory.CreateDirectory(output);
             using (var fixture = new ScreenSpaceNumericGpuRun(width, height, output))
             {
-                fixture.RunReflection();
-                fixture.RunIndirectDiffuse();
                 fixture.RunOcclusion();
             }
-            File.WriteAllText(Path.Combine(output, "PASS.txt"), $"13 production kernels; full={width}x{height}; half={Mathf.Max(1, width >> 1)}x{Mathf.Max(1, height >> 1)}; raw finite, active writes, padded dispatch guards, plane self-hit rejection, constant radiance preservation, and bounded AO chain.\n");
+            File.WriteAllText(Path.Combine(output, "PASS.txt"), $"5 production GTAO kernels (SSR and SSGI are covered by StochasticSSRNumericTests and StochasticSSGINumericTests); full={width}x{height}; half={Mathf.Max(1, width >> 1)}x{Mathf.Max(1, height >> 1)}; raw finite, active writes, padded dispatch guards and bounded AO chain.\n");
             TestContext.Progress.WriteLine(output);
         }
 
@@ -46,8 +44,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     RequireGpu();
                     using (var fixture = new ScreenSpaceNumericGpuRun(size.x, size.y, caseOutput))
                     {
-                        fixture.RunReflection();
-                        fixture.RunIndirectDiffuse();
                         fixture.RunOcclusion();
                     }
                     ++passed;
@@ -77,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly float m_PlaneDepth;
             readonly string m_Output;
             readonly List<UnityEngine.Object> m_Resources = new List<UnityEngine.Object>();
-            readonly Texture2D m_Depth, m_Normal, m_Color, m_Motion, m_Roughness;
+            readonly Texture2D m_Depth, m_Motion;
             readonly Vector4 m_PreviousZ, m_PreviousProjection;
             readonly StringBuilder m_Report = new StringBuilder();
             int m_Sequence;
@@ -89,18 +85,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Output = output;
                 m_PreviousZ = Shader.GetGlobalVector("_ZBufferParams");
                 m_PreviousProjection = Shader.GetGlobalVector("_ProjectionParams");
-                // A real perspective camera viewing one unobstructed plane. Rays leaving
-                // its front hemisphere must miss; self-intersection is not a positive signal.
+                // A real perspective camera viewing one plane.
                 m_Projection = GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(60, (float)width / height, 0.1f, 100), false);
                 Vector4 planeClip = m_Projection * new Vector4(0, 0, -5, 1);
                 m_PlaneDepth = planeClip.z / planeClip.w;
-                Vector3 normal = Vector3.forward;
                 m_Depth = Solid(width, height, new Color(m_PlaneDepth, 0, 0, 0));
-                m_Normal = Solid(width, height, new Color(normal.x * 0.5f + 0.5f, normal.y * 0.5f + 0.5f, normal.z * 0.5f + 0.5f, 1));
-                m_Color = Solid(width, height, new Color(0.8f, 0.4f, 0.2f, 1));
                 m_Motion = Solid(width, height, Color.clear);
-                m_Roughness = Solid(width, height, new Color(0, 0, 0.25f, 0));
-                File.WriteAllText(Path.Combine(output, "fixture.txt"), $"UTC={DateTime.UtcNow:O}\nGPU={SystemInfo.graphicsDeviceName}\nAPI={SystemInfo.graphicsDeviceType}\nUnity={Application.unityVersion}\nfull={width}x{height}\nhalf=max(1, full >> 1)\nDepth={m_PlaneDepth}; constant plane at view Z=-5; perspective near=0.1 far=100; normal={normal}; scene radiance=(0.8,0.4,0.2); no output sanitization.\nInactive padded allocation sentinel={k_Sentinel}\n");
+                File.WriteAllText(Path.Combine(output, "fixture.txt"), $"UTC={DateTime.UtcNow:O}\nGPU={SystemInfo.graphicsDeviceName}\nAPI={SystemInfo.graphicsDeviceType}\nUnity={Application.unityVersion}\nfull={width}x{height}\nhalf=max(1, full >> 1)\nDepth={m_PlaneDepth}; constant plane at view Z=-5; perspective near=0.1 far=100; no output sanitization.\nInactive padded allocation sentinel={k_Sentinel}\n");
             }
 
             ComputeShader Load(string path)
@@ -111,84 +102,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.hideFlags = HideFlags.HideAndDontSave;
                 m_Resources.Add(shader);
                 return shader;
-            }
-
-            public void RunReflection()
-            {
-                ComputeShader shader = Load("Shaders/RenderingFeature/ScreenSpaceReflection/Compute_ScreenSpaceReflection.compute");
-                SetupScreenSpace(shader, "SSR");
-                shader.SetInt("SSR_NumRays", 1);
-                shader.SetInt("SSR_NumSteps", 32);
-                shader.SetFloat("SSR_BRDFBias", 0.3f);
-                shader.SetFloat("SSR_Roughness", 1);
-                shader.SetFloat("SSR_Fadeness", 0.1f);
-                Texture2D[] ray = Dispatch(shader, "Raytracing", m_Width, m_Height, false,
-                    new[] { "UAV_HitPDFTexture", "UAV_ColorMaskTexture" },
-                    ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal),
-                    ("SRV_RoughnessTexture", m_Roughness), ("SRV_HiZTexture", m_Depth), ("SRV_HiCTexture", m_Color));
-                RequireNoHit(ray[1], "SSR unobstructed plane must not reflect itself");
-                Texture2D spatial = Dispatch(shader, "SpatialFilter", m_Width, m_Height, false,
-                    new[] { "UAV_SpatialTexture" }, ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal),
-                    ("SRV_RoughnessTexture", m_Roughness), ("SRV_HitPDFTexture", ray[0]), ("SRV_ColorMaskTexture", ray[1]))[0];
-                // Only the jittered inverse is a production reconstruction input. The two
-                // nonjittered hit-motion VPs remain identical, so static velocity stays zero.
-                Matrix4x4 jittered = Matrix4x4.Translate(new Vector3(0.03125f, -0.046875f, 0)) * m_Projection;
-                shader.SetMatrix("Matrix_HistoryViewProj", jittered);
-                shader.SetMatrix("Matrix_InvViewProj", jittered.inverse);
-                Texture2D[] temporal = Dispatch(shader, "TemporalFilter", m_Width, m_Height, false,
-                    new[] { "UAV_AccmulateTexture", "UAV_MomentsTexture", "UAV_DepthNormalTexture" },
-                    ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal), ("SRV_HitPDFTexture", ray[0]),
-                    ("SRV_MotionTexture", m_Motion), ("SRV_AliasingTexture", spatial),
-                    ("SRV_HistoryTexture", spatial), ("SRV_HistoryMoments", m_Color), ("SRV_HistoryDepthNormal", DepthNormal(m_Width, m_Height)));
-                foreach (Color moments in temporal[1].GetPixels())
-                    Assert.That(moments.b, Is.EqualTo(0.9f).Within(1e-5f), "Static SSR hit motion must not include raster jitter");
-                // A zero legal color/normal weight used to produce 0/0 even at the center tap.
-                shader.SetFloat("SVGF_ColorWeight", 0);
-                shader.SetFloat("SVGF_NormalWeight", 0);
-                Texture2D bilateral = Dispatch(shader, "BilateralFilter", m_Width, m_Height, false,
-                    new[] { "UAV_BilateralColor" }, ("SRV_AliasingTexture", temporal[0]),
-                    ("SRV_NormalTexture", m_Normal), ("SRV_DepthTexture", m_Depth))[0];
-                RequireNoHit(bilateral, "SSR denoising must preserve a miss");
-                // Constant radiance and confidence must stay constant across weighted spatial taps.
-                var constant = Solid(m_Width, m_Height, new Color(0.18f, 0.18f, 0.18f, 0.7f));
-                Texture2D constantSpatial = Dispatch(shader, "SpatialFilter", m_Width, m_Height, false,
-                    new[] { "UAV_SpatialTexture" }, ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal),
-                    ("SRV_RoughnessTexture", m_Roughness), ("SRV_HitPDFTexture", ray[0]), ("SRV_ColorMaskTexture", constant))[0];
-                foreach (Color value in constantSpatial.GetPixels())
-                {
-                    Assert.That(value.r, Is.EqualTo(0.18f).Within(1e-4f), "SSR normalized radiance");
-                    Assert.That(value.a, Is.EqualTo(0.7f).Within(1e-4f), "SSR normalized confidence");
-                }
-                // A large signed history discrepancy must remain finite before history rejection.
-                Dispatch(shader, "TemporalFilter", m_Width, m_Height, false,
-                    new[] { "UAV_AccmulateTexture", "UAV_MomentsTexture", "UAV_DepthNormalTexture" },
-                    ("SRV_DepthTexture", m_Depth), ("SRV_NormalTexture", m_Normal), ("SRV_HitPDFTexture", ray[0]),
-                    ("SRV_MotionTexture", m_Motion), ("SRV_AliasingTexture", constant),
-                    ("SRV_HistoryTexture", m_Motion), ("SRV_HistoryMoments", m_Color), ("SRV_HistoryDepthNormal", DepthNormal(m_Width, m_Height)));
-            }
-
-            public void RunIndirectDiffuse()
-            {
-                ComputeShader shader = Load("Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute");
-                SetupScreenSpace(shader, "SSGi");
-                shader.SetInt("SSGi_NumRays", 4);
-                shader.SetInt("SSGi_NumSteps", 32);
-                shader.SetFloat("SSGi_Intensity", 1);
-                Texture2D ray = Dispatch(shader, "Raytracing", m_Width, m_Height, false,
-                    new[] { "UAV_ScreenIrradiance" }, ("SRV_SceneDepth", m_Depth), ("SRV_GBufferNormal", m_Normal),
-                    ("SRV_PyramidDepth", m_Depth), ("SRV_PyramidColor", m_Color))[0];
-                RequireNoHit(ray, "SSGI unobstructed plane must not illuminate itself");
-                Texture2D spatial = Dispatch(shader, "SpatialFilter", m_Width, m_Height, false,
-                    new[] { "UAV_SpatialTexture" }, ("SRV_SceneDepth", m_Depth), ("SRV_GBufferNormal", m_Normal), ("SRV_ColorMaskTexture", ray))[0];
-                Texture2D[] temporal = Dispatch(shader, "TemporalFilter", m_Width, m_Height, false,
-                    new[] { "UAV_AccmulateTexture", "UAV_MomentsTexture", "UAV_DepthNormalTexture" },
-                    ("SRV_SceneDepth", m_Depth), ("SRV_GBufferNormal", m_Normal), ("SRV_MotionTexture", m_Motion),
-                    ("SRV_AliasingTexture", spatial), ("SRV_HistoryTexture", spatial),
-                    ("SRV_HistoryMoments", m_Color), ("SRV_HistoryDepthNormal", DepthNormal(m_Width, m_Height)));
-                Texture2D result = Dispatch(shader, "BilateralFilter", m_Width, m_Height, false,
-                    new[] { "UAV_BilateralColor" }, ("SRV_AliasingTexture", temporal[0]),
-                    ("SRV_GBufferNormal", m_Normal), ("SRV_SceneDepth", m_Depth))[0];
-                RequireNoHit(result, "SSGI denoising must preserve a miss");
             }
 
             public void RunOcclusion()
@@ -224,24 +137,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     ("SRV_NormalTexture", Solid(m_Width, m_Height, new Color(0.5f, 0.5f, 1, 0))), ("SRV_OcclusionTexture", temporal))[0];
                 foreach (Color value in result.GetPixels()) Assert.That(value.r, Is.InRange(0.0f, 1.0001f), "GTAO range");
                 RequireSignal(result, "GTAO final occlusion", 0.01f);
-            }
-
-            void SetupScreenSpace(ComputeShader shader, string prefix)
-            {
-                SetMatrices(shader);
-                shader.SetVector(prefix == "SSR" ? "SSR_Resolution" : "SSGi_TraceResolution", Resolution(m_Width, m_Height));
-                shader.SetVector(prefix + "_FilterResolution", Resolution(m_Width, m_Height));
-                shader.SetInt(prefix + "_FrameIndex", 0);
-                shader.SetFloat(prefix + "_MaxDistance", 50);
-                shader.SetFloat(prefix + "_Thickness", 0.1f);
-                shader.SetFloat(prefix + "_SpatialRadius", 1);
-                shader.SetFloat(prefix + "_TemporalScale", 1);
-                shader.SetFloat(prefix + "_TemporalWeight", 0.9f);
-                shader.SetVector("SVGF_BilateralSize", Resolution(m_Width, m_Height));
-                shader.SetFloat("SVGF_BilateralRadius", 1);
-                shader.SetFloat("SVGF_ColorWeight", 0.1f);
-                shader.SetFloat("SVGF_NormalWeight", 0.1f);
-                shader.SetFloat("SVGF_DepthWeight", 0.1f);
             }
 
             void SetMatrices(ComputeShader shader)
@@ -325,24 +220,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     File.WriteAllText(Path.Combine(m_Output, "kernel-results.txt"), m_Report.ToString());
                 }
                 return result;
-            }
-
-            Texture2D DepthNormal(int width, int height)
-            {
-                Color normal = m_Normal.GetPixel(0, 0);
-                normal.a = m_PlaneDepth;
-                return Solid(width, height, normal);
-            }
-
-            static void RequireNoHit(Texture2D texture, string message)
-            {
-                foreach (Color value in texture.GetPixels())
-                {
-                    Assert.That(value.r, Is.EqualTo(0).Within(1e-6), message);
-                    Assert.That(value.g, Is.EqualTo(0).Within(1e-6), message);
-                    Assert.That(value.b, Is.EqualTo(0).Within(1e-6), message);
-                    Assert.That(value.a, Is.EqualTo(0).Within(1e-6), message);
-                }
             }
 
             static void RequireSignal(Texture2D texture, string label, float minimum)

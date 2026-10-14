@@ -73,7 +73,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (!TryQueryBuffer(handle, out RGBufferRef bufferRef))
             {
-                throw new InvalidOperationException($"RGScoper.QueryBuffer: handle {handle} is not registered.");
+                throw new InvalidOperationException($"RGScoper.QueryBuffer: {RGResourceKey.NameOf(handle)} is not registered this frame. Its producer did not record, or the consumer runs before it.");
             }
 
             return bufferRef;
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (m_BufferMap.TryGet(handle, out RGBufferRef existing) && existing.IsValid() && !SameBufferRef(existing, bufferRef))
             {
-                throw new InvalidOperationException($"RGScoper.RegisterBuffer: handle {handle} already has a different owner this frame.");
+                throw new InvalidOperationException($"RGScoper.RegisterBuffer: {RGResourceKey.NameOf(handle)} already has a different owner this frame.");
             }
 
             m_BufferMap.Set(handle, bufferRef);
@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (!TryQueryTexture(handle, out RGTextureRef textureRef))
             {
-                throw new InvalidOperationException($"RGScoper.QueryTexture: handle {handle} is not registered.");
+                throw new InvalidOperationException($"RGScoper.QueryTexture: {RGResourceKey.NameOf(handle)} is not registered this frame. Its producer did not record, or the consumer runs before it.");
             }
 
             return textureRef;
@@ -126,7 +126,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (m_TextureMap.TryGet(handle, out RGTextureRef existing) && existing.IsValid() && !SameTextureRef(existing, textureRef))
             {
-                throw new InvalidOperationException($"RGScoper.RegisterTexture: handle {handle} already has a different owner this frame.");
+                throw new InvalidOperationException($"RGScoper.RegisterTexture: {RGResourceKey.NameOf(handle)} already has a different owner this frame.");
             }
 
             m_TextureMap.Set(handle, textureRef);

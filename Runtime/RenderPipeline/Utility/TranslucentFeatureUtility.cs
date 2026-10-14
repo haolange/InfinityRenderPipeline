@@ -1,3 +1,4 @@
+using InfinityTech.Rendering.RenderGraph;
 namespace InfinityTech.Rendering.Pipeline
 {
     public static class TranslucentFeatureUtility
@@ -12,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline
             return taaPathActive;
         }
 
-        public static int ResolveTemporalSceneColorId()
+        public static RGResourceKey ResolveTemporalSceneColorId()
         {
             return InfinityShaderIDs.FoggedSceneColorBuffer;
         }

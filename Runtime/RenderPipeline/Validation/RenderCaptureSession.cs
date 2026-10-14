@@ -24,7 +24,6 @@ namespace InfinityTech.Rendering.Pipeline
         public int width, height, warmupFrames = 120, frameCount = 3, frameInterval = 1;
         public float timeoutSeconds = 120;
         public bool includeConfidence = true;
-        public bool includeZBinOverflow;
         public MeshPipeline.EMeshBackendPolicy meshBackend = MeshPipeline.EMeshBackendPolicy.Auto;
         public string[] buffers = { "DisplayColor", "Lighting" };
         public RectInt roi;
@@ -60,7 +59,6 @@ namespace InfinityTech.Rendering.Pipeline
             public long bytes;
             public string resourceKind = "Texture", bufferTarget;
             public int bufferCount, bufferStride;
-            public uint counter;
             public bool historyReset, submitted, readbackTerminal, retired;
             public TextureDescriptor sourceDescriptor;
             public RectInt sourceRoi;
@@ -106,7 +104,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal sealed class Staging : RenderGraph.IRGPassQueueObserver
         {
             public RenderTexture texture;
-            public GraphicsBuffer buffer;
             public RTHandle handle;
             public readonly CaptureRetirement lifetime = new CaptureRetirement();
             public BufferEvidence evidence;
@@ -289,21 +286,6 @@ namespace InfinityTech.Rendering.Pipeline
             return new RectInt(left, bottom, right - left, top - bottom);
         }
 
-        internal Staging ReserveCounter(string semantic, GraphicsBuffer source, string producer, string queue)
-        {
-            if (!m_CaptureThisFrame || m_StopRecording) throw new InvalidOperationException("No capture frame was prepared.");
-            if (source.count != 1 || source.stride != sizeof(uint) || (source.target & GraphicsBuffer.Target.CopySource) == 0)
-                throw new InvalidOperationException("Counter capture requires one copyable uint.");
-            var buffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.CopyDestination, 1, sizeof(uint));
-            var evidence = new BufferEvidence { semantic = semantic, producer = producer, sourceQueue = queue,
-                resourceKind = "GraphicsBuffer", format = "UInt32", bufferTarget = source.target.ToString(),
-                bufferCount = source.count, bufferStride = source.stride, producerFrame = Time.frameCount, captureIndex = m_CaptureIndex };
-            var staging = new Staging { buffer = buffer, evidence = evidence, owner = this };
-            m_Staging.Add(staging); m_Evidence.buffers.Add(evidence); m_DidCapture = true;
-            Save();
-            return staging;
-        }
-
         internal void CameraExecuted(Camera camera, bool success, Exception exception = null)
         {
             if (Finished) return;
@@ -399,18 +381,9 @@ namespace InfinityTech.Rendering.Pipeline
                 staging.evidence.bytes = bytes.LongLength;
                 staging.evidence.file = staging.evidence.semantic + "-" + staging.evidence.captureIndex + "-" + staging.evidence.producerFrame + ".bin";
                 File.WriteAllBytes(Path.Combine(request.outputDirectory, staging.evidence.file), bytes);
-                if (staging.buffer != null)
-                {
-                    if (bytes.Length != sizeof(uint)) throw new InvalidOperationException("Counter readback byte count mismatch.");
-                    staging.evidence.counter = BitConverter.ToUInt32(bytes, 0);
-                    if (staging.evidence.counter != 0) Fail("ZBin overflow detected; raw counter preserved.");
-                }
-                else
-                {
-                    staging.evidence.statistics = RawCaptureStatistics.Compute(bytes, staging.readbackFormat,
-                        staging.evidence.width, staging.evidence.height, staging.evidence.sourceRoi);
-                    if (staging.evidence.statistics.nonFinite != 0) Fail("Raw GPU data contains NaN/Inf; preserved without sanitization.");
-                }
+                staging.evidence.statistics = RawCaptureStatistics.Compute(bytes, staging.readbackFormat,
+                    staging.evidence.width, staging.evidence.height, staging.evidence.sourceRoi);
+                if (staging.evidence.statistics.nonFinite != 0) Fail("Raw GPU data contains NaN/Inf; preserved without sanitization.");
             }
             catch (Exception error) { staging.evidence.error = error.ToString(); Fail(error.ToString()); }
             finally
@@ -445,7 +418,6 @@ namespace InfinityTech.Rendering.Pipeline
                 if (!staging.lifetime.CanRetire || (!staging.lifetime.recorded && !m_StopRecording)) continue;
                 staging.lifetime.Retire();
                 if (staging.handle != null) RTHandles.Release(staging.handle);
-                staging.buffer?.Release();
                 staging.evidence.retired = true;
                 m_Staging.RemoveAt(i); m_Evidence.retired++;
             }
