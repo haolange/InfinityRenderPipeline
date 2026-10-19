@@ -18,6 +18,26 @@ git log --reverse --format='%h %s' origin/main..claude/infinityrp-0.5
 
 If a stage fails to compile, stop there: later stages build on it.
 
+The shared `infinity_tests_start` command accepts `outputDirectory` (a new owned task directory), `filter` (literal
+name substring), `category` (exact category name), and `allAssemblies` (default false: Infinity tests only).
+Name, category and assembly selections are combined with AND. Run stage filters first, then run with
+`allAssemblies=true` and no name/category filter for the whole Example EditMode suite. Check discovery and final
+XML counts; a zero-match run, cancellation or incomplete reload is not a pass. `run.json` records counts and
+reload identity. `reload-checkpoint.json` stores the original UniqueName selection and actual completed leaf XML;
+`progress.jsonl` retains callback progress, with failed-test XML saved separately. Across reload the runner
+reattaches to the same TestRunner run without executing it again.
+Missing, malformed, duplicate, unexpected or mismatched outcomes fail the evidence gate.
+
+`results.xml` is the unchanged framework result. UTF 1.8.0 can omit already-finished skipped leaves when rebuilding
+its result tree after a script reload. In that case `callback-results.xml` is a separately named derived report:
+it may restore only exact, completed, checkpointed skipped XML nodes. Check `frameworkComplete`,
+`callbacksComplete`, `frameworkMissingSkipped` and both roots. A Skipped/Ignored root stays Skipped/Ignored;
+a completed command or zero failed leaves does not imply every discovered test passed. Preserve skip reasons.
+For runner regression checks, retain hashes of a completed run's JSON/XML, execute a second run into a fresh
+directory, and confirm the first run's artifacts stay byte-identical (including zero-match and failure results).
+Before starting, use an idle Editor with clean scenes: a native save-dialog cancellation before RunStarted has
+zero discovered/started tests and cannot be accepted as a completed test run.
+
 ## Report template
 
 ```
@@ -44,9 +64,17 @@ still fails. Retain the original failed check; these missing historical images a
 
 1. Compile. The deleted tools in `Editor/Tools/Validation` had no entry points; any compile error there is a missed consumer.
 2. Add a Camera to a scene: `InfinityAdditionalCameraData` appears, and Undo removes both.
-3. A FilmTonemap Volume component shows mode **ACES** where it showed **Film**; images are unchanged.
+3. A FilmTonemap Volume component shows mode **ACES** where it showed **Film**. Compare the same scene,
+   camera dimensions, exposure, grading and serialized mode value 1 on the pre-S1 and S1 endpoints. Capture normal
+   advancing Game frames after warmup; compare both pre-post input and display-linear output. Record a mode None
+   control, then restore it without saving the shared Profile. Retain actual Inspector and frame evidence.
 4. Rendering Debugger → Infinity Temporal panel is gone; other panels are unchanged.
-5. Optional Player build: the Console prints an "InfinityRP shader stripping" summary that now includes LightMode-stripped variants
+5. Run `ShaderStrippingTests`: native and empty LightModes in Infinity-tagged shaders are kept; untagged system
+   shaders keep TerrainAdd/SystemLUT; undrawn Infinity LightModes and exclusively foreign shaders are stripped.
+   Native tag identity, rather than the spelling returned by `ShaderTagId.name`, determines the result. The tests
+   load real single-pass shader fixtures without modifying or destroying their assets and invoke the production callback; they do not prove build-time callback
+   scheduling or Player output. Do not start a Player build in the staged Editor-only verification run.
+6. Optional Player build outside this Editor-only run: the Console prints an "InfinityRP shader stripping" summary that now includes LightMode-stripped variants
    (Infinity-tagged passes whose LightMode the pipeline never draws). Expected count is 0 for the shipped shaders.
 
 ## S2 — contract defects

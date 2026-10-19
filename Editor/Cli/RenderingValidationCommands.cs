@@ -77,9 +77,9 @@ namespace InfinityTech.Rendering.Editor
                 ?? throw new MissingMethodException(type.FullName, name);
         }
 
-        [CliCommand("infinity_tests_start", "Run the shared Infinity EditMode test engine with real XML and a new evidence directory.")]
-        public static object TestsStart(string outputDirectory, string filter = null)
-            => TestMethod("RunValidation").Invoke(null, new object[] { outputDirectory, filter });
+        [CliCommand("infinity_tests_start", "Run the shared EditMode test engine with optional name/category filters, Infinity or all assemblies, and real XML.")]
+        public static object TestsStart(string outputDirectory, string filter = null, string category = null, bool allAssemblies = false)
+            => TestMethod("RunValidation").Invoke(null, new object[] { outputDirectory, filter, category, allAssemblies });
 
         [CliCommand("infinity_tests_status", "Read the active XML test run identity and evidence directory.")]
         public static object TestsStatus() => TestMethod("Status").Invoke(null, null);

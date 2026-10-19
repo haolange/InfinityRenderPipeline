@@ -92,6 +92,14 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Shader stripping compares native `ShaderTagId` identities instead of case-sensitive names, preserving used
+  native passes when Unity returns canonicalized tag spellings. Callback fixtures now select real single-pass
+  shaders instead of changing a snippet name while still addressing an unrelated pass.
+- The shared EditMode runner selects exact categories and all Example assemblies, checkpoints actual test identities
+  and XML outcomes across script reloads, and reattaches without restarting the run. Missing or inconsistent evidence
+  fails closed. Raw framework XML stays unchanged; any recovered checkpointed skips have a separate derived report.
+- Completed test runs unregister their global callback even when Unity has already destroyed the API object;
+  later runs cannot overwrite earlier XML or zero-match/failure results.
 - Offline validation ignores hidden macOS metadata before parsing assets and ignores commented-out LightMode tags.
   Historical replay can report individually reviewed, SHA-bound missing evidence links as warnings; changed sources
   and unlisted broken links still fail. Real orphan metadata, duplicate GUIDs and unknown live LightModes still fail.

@@ -55,15 +55,16 @@ namespace InfinityTech.Rendering.Editor.Build
     {
         static readonly ShaderTagId s_RenderPipelineTag = new ShaderTagId("RenderPipeline");
         static readonly ShaderTagId s_LightModeTag = new ShaderTagId("LightMode");
+        static readonly ShaderTagId s_InfinityPipelineTag = new ShaderTagId("InfinityRenderPipeline");
         // LightModes the pipeline actually draws. An empty LightMode is SRPDefaultUnlit. ShadowCaster is drawn by
         // the Unity shadow RendererList; Meta is consumed by the lightmapper.
-        static readonly HashSet<string> s_UsedLightModes = new HashSet<string>
+        static readonly HashSet<ShaderTagId> s_UsedLightModes = new HashSet<ShaderTagId>
         {
-            "", "SRPDefaultUnlit", "ShadowCaster", "Meta",
-            InfinityPassIDs.DepthPass.name, InfinityPassIDs.DBufferPass.name, InfinityPassIDs.GBufferPass.name,
-            InfinityPassIDs.ShadowPass.name, InfinityPassIDs.MotionPass.name, InfinityPassIDs.ForwardPass.name,
-            InfinityPassIDs.TranslucentDepthPass.name, InfinityPassIDs.TranslucentT0Pass.name,
-            InfinityPassIDs.TranslucentT1Pass.name, InfinityPassIDs.TranslucentT2Pass.name,
+            ShaderTagId.none, new ShaderTagId("SRPDefaultUnlit"), new ShaderTagId("ShadowCaster"), new ShaderTagId("Meta"),
+            InfinityPassIDs.DepthPass, InfinityPassIDs.DBufferPass, InfinityPassIDs.GBufferPass,
+            InfinityPassIDs.ShadowPass, InfinityPassIDs.MotionPass, InfinityPassIDs.ForwardPass,
+            InfinityPassIDs.TranslucentDepthPass, InfinityPassIDs.TranslucentT0Pass,
+            InfinityPassIDs.TranslucentT1Pass, InfinityPassIDs.TranslucentT2Pass,
         };
         static int s_Kept;
         static int s_StrippedForeignTag;
@@ -145,17 +146,17 @@ namespace InfinityTech.Rendering.Editor.Build
         {
             int subshader = (int)snippet.pass.SubshaderIndex;
             if (subshader < 0 || subshader >= shader.subshaderCount) return false;
-            if (shader.FindSubshaderTagValue(subshader, s_RenderPipelineTag).name != "InfinityRenderPipeline") return false;
-            string lightMode = shader.FindPassTagValue(subshader, (int)snippet.pass.PassIndex, s_LightModeTag).name;
-            return !s_UsedLightModes.Contains(lightMode ?? string.Empty);
+            if (shader.FindSubshaderTagValue(subshader, s_RenderPipelineTag) != s_InfinityPipelineTag) return false;
+            ShaderTagId lightMode = shader.FindPassTagValue(subshader, (int)snippet.pass.PassIndex, s_LightModeTag);
+            return !s_UsedLightModes.Contains(lightMode);
         }
 
         internal static bool HasCompatibleSubShader(Shader shader)
         {
             for (int index = 0; index < shader.subshaderCount; index++)
             {
-                string tag = shader.FindSubshaderTagValue(index, s_RenderPipelineTag).name;
-                if (string.IsNullOrEmpty(tag) || tag == "InfinityRenderPipeline") return true;
+                ShaderTagId tag = shader.FindSubshaderTagValue(index, s_RenderPipelineTag);
+                if (tag == ShaderTagId.none || tag == s_InfinityPipelineTag) return true;
             }
             return false;
         }

@@ -449,21 +449,47 @@ reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, 
 
 ## Verification at home
 
-### Local staged verification — 2026-10-19
+### Local staged verification — 2026-10-20
 
-- Original range frozen: c92be7707f45a1789688e5cc16e0845f183b2910..eab18e5ff74b207e52186e5bfa3290fdbebb6efa,
-  39 commits / 18 stage endpoints. Local main fast-forwarded to the original 0.5 head; remote main is unchanged.
-- User-approved execution: historical detached checks in the original Example; Fix SNN commits on local main pushed
-  explicitly to claude/infinityrp-0.5. No new branches, Player builds, forced pushes or history rewriting.
-- Owned run: InfinityExample/intermediate/verification-0.5/20261019-run01, 4 GiB initial budget. Input hashes and
-  targeted native-asset preimages are retained for stage migrations and the final original-asset audit.
-- S0 original static check FAILED (51 errors). Corrected S0 offline tools passed 10/10 regression tests and the full
-  stage check (0 errors, 8 explicit historical warnings), independently verified. Main integration also passed
-  10/10 and its normal full check (0 errors, 0 warnings). Historical missing evidence remains explicitly recorded.
-- Original Example startup aborted with native `std::invalid_argument: stoull: no conversion`, before a C# compile
-  result. A verified AppleDouble UDSData sidecar was moved reversibly; real database bytes were unchanged. Recovery
-  and S1–S17 Editor gates remain pending. The sidecar/provenance recurred on ExFAT and the held-session startup also
-  aborted with the same signature. No Unity compilation, EditMode, image or performance PASS is claimed.
+- Frozen original range: c92be7707f45a1789688e5cc16e0845f183b2910..eab18e5ff74b207e52186e5bfa3290fdbebb6efa,
+  39 commits / 18 endpoints. The endpoint table and receipts are in
+  `Documentation~/Evidence/Verification-0.5-2026-10-19/S1-report.md` and `S1-results.json`.
+  Work remains on local main; accepted fixes target only origin/claude/infinityrp-0.5. No new branch or Player build.
+- S0 bounded tool contract is accepted in 6b57678: 10/10 offline controls and main static 0 errors / 0 warnings.
+  The later S0 Film-reference checkout has a separate static FAIL24 (17 directory/meta states, 7 historical links);
+  its reference images do not replace that failure or re-accept the original stage.
+- S1 replay 2276094 plus the minimal repair passed shader callbacks 12/12 and Infinity EditMode 329/329.
+  Final full Example callbacks: 1535 discovered/started/finished, 1482 Passed, 0 Failed, 53 original Skipped,
+  root Skipped:Ignored. Unchanged framework XML has1502 leaves; separate callback-derived XML restores only33
+  actual checkpointed skipped leaves omitted by UTF1.8.0 after reload. No1535/1535 PASS claim is made.
+- Shared-runner source, real reload/immutability/negative controls and shader callback fixtures received independent
+  review. SDK-local corrections preserve original assertions: IPv4 loopback endpoint, config Save cache invalidation,
+  explicit UI material with bounded normal repaint, and exact owned-object cleanup across reload/Undo. The ownership
+  control preserves an unregistered same-name sentinel and unrelated Undo; final cleanup leaves original9 Spazon roots.
+  SDK patches/hashes remain separate from package commits; no external package production-rendering path was changed.
+- S1 Camera auto-add/Undo/Redo, Film→ACES and Debugger behavior received independent acceptance. The same640×360
+  normal Game-frame AntiAliasing and DisplayColor buffers are byte-identical between S0 Film and S1 ACES;
+  mode None retains the input and changes the output. Effective parameters, native Inspector and all retained
+  Debugger panels were checked. The S1 native screenshot contains an earlier operator command error and is not
+  evidence of a globally clean Console. Returning to S1 matched all5 candidate source hashes, compiled normally,
+  passed static0/0 and restored original SceneSetup/selection. Main compilation succeeds; main shader integration failed13=4Passed/9Failed and stays explicitly unaccepted.
+- Original Example remains in place. An approved lightweight APFS Library entrance links large ExFAT caches.
+  A failed98.22MiB SourceAssetDB/ArtifactDB control was rolled back. The useful DataStore-root control copied only
+  uds.db9,797,632bytes and linked262 original entries; large bins stayed on ExFAT. Multiple real runs/cold starts
+  and normal exits now work. This does not establish the precise Unity native root cause. Keep this active cache
+  layout; do not treat its live database/new bins as disposable intermediate data.
+- Original427-input audit:425 byte-identical, two native settings-format changes recorded. The external suite's
+  enterPlayModeOptions3→1 was restored only at that field and independently reopened/no-op checked. No TimeManager
+  value was assigned and no old binary settings were blindly restored. User edits stay outside repair commits.
+- Owned intermediate root: InfinityExample/intermediate/verification-0.5/20261020-run02; budget4GiB, last allocated
+  size about1.33GiB. Required preimages, failed controls, final XML, raw Film buffers and concise reports remain for
+  independent review/final audit. Avoid more cache copies or whole-tree hashes; retire completed consumers' redundant
+  scratch data after their evidence is collected. Final cleanup is not yet complete.
+- Independent verification accepts the bounded historical S1 checkpoint and allows S2 historical replay after its
+  Fix S1 commit. The cumulative main integration failures remain blockers for final delivery, owned by the relevant
+  later stages. Three-way S12 shadow evidence, S16 regression positive/negative
+  controls, S17 baseline reuse, final HEAD acceptance and valid GPU timing are unexecuted. FeatureStatus and
+  Unverified-0.5 markers remain unchanged. PR #11 remains Draft; the overall task is not complete.
 
 The user verifies in commit order with
 [Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (one section per stage, in stage order).
