@@ -1,0 +1,14 @@
+{
+  "stage": "S0",
+  "original": "d2ca231b17263779314df955362b95650cc8dc99",
+  "results": {
+    "self-tests-final": 0,
+    "static-final": 0
+  },
+  "paths": {
+    "Tools/StaticCheck/static_check.py": "1c633f244fe4681e3dd5a773a7365043cc60c5ce773c59caa548f3466d356d4e",
+    "Tools/StaticCheck/test_static_check.py": "075ad24e9f397f22b374238fad12668f26fa1e60cfa8a54813fa4c09f8186998",
+    "Tools/StaticCheck/test_static_check.py.meta": "0a6bf0efc261fb356df47f5606569a0ca9525a11927f54caff32d2bed2797da3"
+  },
+  "scope": "offline tools only; no Editor compile/image acceptance"
+}

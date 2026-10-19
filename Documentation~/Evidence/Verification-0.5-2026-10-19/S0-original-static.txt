@@ -1,0 +1,52 @@
+ERROR [meta] orphan meta: Editor/._Build.meta
+ERROR [meta] orphan meta: Editor/Action/._ActorAction.meta
+ERROR [meta] orphan meta: Editor/Action/ActorAction/._MeshComponent.meta
+ERROR [meta] orphan meta: Editor/Action/ActorAction/._MeshRenderer.meta
+ERROR [meta] orphan meta: Editor/Action/AssetAction/._Shader.meta
+ERROR [meta] orphan meta: Editor/RenderPipeline/._DiffusionProfileEditor.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/._VFXGraph.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._CreateDecalValidationScene.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._CreateLocalLightsValidationScene.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._CreateTemporalValidationScene.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._CreateTranslucentValidationScene.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._CreateOutputValidationScene.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._PlayerBuildValidation.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._TintABSession.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._ValidationSceneUtility.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._NativeProbeImport.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._RenderFaultValidationMenus.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._PostEffectValidationMenus.cs.meta
+ERROR [meta] orphan meta: Editor/Tools/Validation/._MaterialRouteValidation.cs.meta
+ERROR [meta] orphan meta: Runtime/._Tool.meta
+ERROR [meta] orphan meta: Runtime/RenderPipeline/Validation/._RenderFaultValidation.cs.meta
+ERROR [meta] orphan meta: Runtime/RenderPipeline/Validation/._PostEffectValidation.cs.meta
+ERROR [meta] orphan meta: Runtime/RenderPipeline/Validation/._VisualLightingValidation.cs.meta
+ERROR [meta] orphan meta: Runtime/RenderPipeline/Utility/._ScreenSpaceMode.cs.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._PyramidColor.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._PyramidDepth.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._RayTracingAmbientOcclusion.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._RayTracingIndirectDiffuse.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._ScreenSpaceAmbientOcclusion.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._ScreenSpaceIndirectDiffuse.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._ScreenSpaceReflection.meta
+ERROR [meta] orphan meta: Runtime/RenderingFeature/._SpatialTemporalVarianceFilter.meta
+ERROR [meta] orphan meta: Runtime/Resources/Textures/MonteCarlo/._RankingTile256SPP.png.meta
+ERROR [meta] orphan meta: Runtime/Resources/Textures/MonteCarlo/._ScrambledNoise_Owen.png.meta
+ERROR [meta] orphan meta: Runtime/Resources/Textures/MonteCarlo/._ScramblingTile256SPP.png.meta
+ERROR [meta] orphan meta: Runtime/Tool/._VFXGraph.meta
+ERROR [meta] orphan meta: Shaders/RenderingFeature/._AtmosphericalFog.meta
+ERROR [meta] orphan meta: Shaders/RenderingFeature/._RayTracingAmbientOcclusion.meta
+ERROR [meta] orphan meta: Shaders/RenderingFeature/._RayTracingIndirectDiffuse.meta
+ERROR [meta] orphan meta: Tests/Editor/._ScreenSpaceModeTests.cs.meta
+ERROR [meta] orphan meta: Tests/Editor/._FogTranslucentFeatureTests.cs.meta
+ERROR [meta] orphan meta: Tests/Editor/._DefaultVolumeOutputTests.cs.meta
+ERROR [lightmode] Shaders/Surface/InfinityLit.shader: LightMode "RayTraceAmbientOcclusion" not in InfinityPassIDs
+ERROR [links] Docs/FullRendering-Delivery-Report.md: broken link /private/tmp/InfinityRP-T06a1-source-neutral-r2-20260906.png
+ERROR [links] Docs/FullRendering-Delivery-Report.md: broken link /private/tmp/InfinityRP-T02b-Spazon-after-animation-repair.png
+ERROR [links] Docs/FullRendering-Delivery-Report.md: broken link /private/tmp/InfinityRP-T02c-Atmosphere-live-inspector.png
+ERROR [links] Docs/FullRendering-Delivery-Report.md: broken link /private/tmp/InfinityRP-T02c-Atmosphere-after-source-schema.png
+ERROR [links] Docs/FullRendering-Delivery-Report.md: broken link /private/tmp/InfinityRP-T02-Validation-Decal-after-schema.png
+ERROR [links] Docs/FullRendering-Delivery-Report.md: broken link /private/tmp/InfinityRP-T02-Validation-LocalLights-after-schema.png
+ERROR [links] Docs/FullRendering-Delivery-Report.md: broken link /private/tmp/InfinityRP-T02-Validation-Translucent-after-schema.png
+ERROR [links] Docs/History/PLAN-0.4.0-before-editor-convergence.md: broken link Docs/History/PLAN-2026-09-N00-N15.md
+static_check: 51 error(s), 0 warning(s)

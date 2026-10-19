@@ -92,6 +92,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Offline validation ignores hidden macOS metadata before parsing assets and ignores commented-out LightMode tags.
+  Historical replay can report individually reviewed, SHA-bound missing evidence links as warnings; changed sources
+  and unlisted broken links still fail. Real orphan metadata, duplicate GUIDs and unknown live LightModes still fail.
 - Shadow casters projected with the camera matrix: caster shaders read `Matrix_ViewFlipYProj`, which the shadow passes
   never replaced (they only set `Matrix_ViewProj`). Both are now set to the shadow matrix and restored afterwards.
 - The InfinityLit Meta pass assigned to a read-only global (`unity_OneOverOutputBoost`).

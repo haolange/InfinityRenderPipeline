@@ -1,0 +1,10 @@
+{
+  "unity": "6000.6.0f1",
+  "original_project": "/Volumes/DataDisk/Projects/Unity/InfinityExample",
+  "filesystem": "ExFAT",
+  "startup_signature": "libc++abi: terminating due to uncaught exception of type std::invalid_argument: stoull: no conversion",
+  "editor_compile_result": "NOT OBTAINED",
+  "recovery": "exact AppleDouble sidecar quarantine and provenance removal did not provide durable recovery; no real Library data deleted",
+  "assets_changed_from_input": [],
+  "gate": "S1-S17 pending"
+}

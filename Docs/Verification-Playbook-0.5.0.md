@@ -30,7 +30,15 @@ Notes:
 
 ## S0 — offline gate
 
-Nothing to verify in the Editor. Optional: `python3 Tools/StaticCheck/static_check.py --repo .` prints 0 errors.
+Nothing to verify in the Editor. Run `python3 Tools/StaticCheck/static_check.py --repo .` and the offline regression
+tests (`python3 -B Tools/StaticCheck/test_static_check.py -v`, with `TMPDIR` set to the owned task directory).
+Hidden macOS sidecars and commented-out LightMode tags are not assets or live passes. Real orphan metadata,
+duplicate GUIDs and unknown live tags must still fail.
+
+When replaying S0 before historical reports were archived, the eight missing historical links may be reported as
+explicit warnings using `--historical-link-receipt Documentation~/Evidence/Verification-0.5-2026-10-19/S0-historical-links.json`.
+The receipt binds each document path, full SHA-256 and exact link. A changed document or an unlisted broken link
+still fails. Retain the original failed check; these missing historical images are not current image evidence.
 
 ## S1 — documents and hygiene
 

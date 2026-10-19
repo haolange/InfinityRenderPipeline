@@ -1,0 +1,24 @@
+[
+  {
+    "path": "Docs/FullRendering-Delivery-Report.md",
+    "sha256": "ded7b99c3af19fd29caa1e34f88640298a2403dbfa553e1d535acdac086aaa20",
+    "links": [
+      "/private/tmp/InfinityRP-T06a1-source-neutral-r2-20260906.png",
+      "/private/tmp/InfinityRP-T02b-Spazon-after-animation-repair.png",
+      "/private/tmp/InfinityRP-T02c-Atmosphere-live-inspector.png",
+      "/private/tmp/InfinityRP-T02c-Atmosphere-after-source-schema.png",
+      "/private/tmp/InfinityRP-T02-Validation-Decal-after-schema.png",
+      "/private/tmp/InfinityRP-T02-Validation-LocalLights-after-schema.png",
+      "/private/tmp/InfinityRP-T02-Validation-Translucent-after-schema.png"
+    ],
+    "reason": "Immutable 0.4 historical evidence, byte-identical to the final archived document; currently unresolved and not used for 0.5 acceptance."
+  },
+  {
+    "path": "Docs/History/PLAN-0.4.0-before-editor-convergence.md",
+    "sha256": "e16a7b4b1fa5413446ccda13f55c59ad1151c7a37c452f47a1842a5cf8481522",
+    "links": [
+      "Docs/History/PLAN-2026-09-N00-N15.md"
+    ],
+    "reason": "Immutable 0.4 historical evidence, byte-identical to the final archived document; currently unresolved and not used for 0.5 acceptance."
+  }
+]

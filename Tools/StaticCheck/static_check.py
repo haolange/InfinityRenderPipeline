@@ -13,7 +13,7 @@ Checks
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct field order/types
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
 """
-import argparse, json, os, re, sys
+import argparse, hashlib, json, os, re, sys
 
 IGNORED_DIRS = {'.git', '.cursor', 'Documentation~', '.github'}
 UNITY_LIGHTMODES = {'ShadowCaster', 'Meta', 'SRPDefaultUnlit', 'Always', 'ForwardBase', 'DepthOnly', 'MotionVectors', 'RTAO'}
@@ -28,19 +28,22 @@ def check_meta(repo, out):
     ignored = set()
     gi = os.path.join(repo, '.gitignore')
     if os.path.exists(gi):
-        ignored = {l.strip().lstrip('/') for l in open(gi) if l.strip().endswith('.meta')}
+        with open(gi) as source:
+            ignored = {l.strip().lstrip('/') for l in source if l.strip().endswith('.meta')}
     for dp, dns, fns in walk(repo):
         rel = os.path.relpath(dp, repo)
         if '.bundle' in rel:
             continue
         names = set(fns) | set(dns)
         for n in list(fns) + list(dns):
+            if n.startswith('.'):
+                continue
             if n.endswith('.meta'):
                 asset = n[:-5]
                 if asset not in names:
                     out.append(('ERROR', 'meta', f'orphan meta: {os.path.join(rel, n)}'))
                 try:
-                    m = re.search(r'^guid:\s*([0-9a-f]{32})', open(os.path.join(dp, n), encoding='utf-8', errors='replace').read(), re.M)
+                    m = re.search(r'^guid:\s*([0-9a-f]{32})', read(os.path.join(dp, n)), re.M)
                 except IsADirectoryError:
                     continue
                 if m:
@@ -51,8 +54,6 @@ def check_meta(repo, out):
                 continue
             if rel == '.' and n in ('Tools', 'README.md', 'LICENSE', 'package.json', 'CHANGELOG.md') and False:
                 pass
-            if n.startswith('.'):
-                continue
             if n + '.meta' in ignored and rel == '.':
                 continue
             if n + '.meta' not in names:
@@ -60,12 +61,13 @@ def check_meta(repo, out):
     return guids
 
 def read(p):
-    return open(p, encoding='utf-8', errors='replace').read()
+    with open(p, encoding='utf-8', errors='replace') as source:
+        return source.read()
 
 def all_files(repo, exts):
     for dp, _, fns in walk(repo):
         for f in fns:
-            if os.path.splitext(f)[1] in exts:
+            if not f.startswith('.') and os.path.splitext(f)[1] in exts:
                 yield os.path.join(dp, f)
 
 def check_kernels(repo, out):
@@ -91,26 +93,56 @@ def check_respath(repo, out):
                 out.append(('ERROR', 'respath', f'{os.path.relpath(p, repo)}: missing resource {m.group(1)}'))
 
 def check_lightmode(repo, out):
-    declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', read(os.path.join(repo, 'Runtime/RenderPipeline/Utility/PipelineIDs.cs'))))
+    declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', without_comments(read(os.path.join(repo, 'Runtime/RenderPipeline/Utility/PipelineIDs.cs')))))
     for p in all_files(repo, {'.shader', '.template'}):
         if os.sep + 'Tests' + os.sep in p:
             continue  # test fixtures deliberately use foreign LightModes
-        for m in re.finditer(r'"LightMode"\s*=\s*"(\w+)"', read(p)):
+        for m in re.finditer(r'"LightMode"\s*=\s*"(\w+)"', without_comments(read(p))):
             if m.group(1) not in declared and m.group(1) not in UNITY_LIGHTMODES:
                 out.append(('ERROR', 'lightmode', f'{os.path.relpath(p, repo)}: LightMode "{m.group(1)}" not in InfinityPassIDs'))
 
-def check_links(repo, out):
+def without_comments(text):
+    # Preserve strings, including escaped quotes and comment delimiters in strings.
+    return re.sub(r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')|//[^\n]*|/\*.*?\*/',
+                  lambda m: m.group(1) if m.group(1) is not None else re.sub(r'[^\n]', ' ', m.group(0)),
+                  text, flags=re.S)
+
+def load_historical_links(repo, receipt, out):
+    repo = os.path.realpath(repo)
+    accepted = {}
+    with open(receipt, encoding='utf-8') as source:
+        entries = json.load(source)
+    for entry in entries:
+        path = entry['path']
+        target = os.path.realpath(os.path.join(repo, path))
+        if os.path.commonpath([repo, target]) != repo or not os.path.isfile(target):
+            out.append(('ERROR', 'links', f'historical receipt source missing or outside repository: {path}'))
+            continue
+        with open(target, 'rb') as source:
+            digest = hashlib.sha256(source.read()).hexdigest()
+        if digest != entry['sha256'] or not entry.get('reason'):
+            out.append(('ERROR', 'links', f'historical receipt identity or reason invalid: {path}'))
+            continue
+        for link in entry['links']:
+            accepted[(path, link)] = entry['reason']
+    return accepted
+
+def check_links(repo, out, historical_links=None):
+    historical_links = historical_links or {}
     for dp, _, fns in os.walk(repo):
         if '/.git' in dp or os.sep + os.path.join('Docs', 'History') in dp: continue  # History is immutable evidence
         for f in fns:
-            if not f.endswith('.md'): continue
+            if f.startswith('.') or not f.endswith('.md'): continue
             p = os.path.join(dp, f)
             for m in re.finditer(r'\]\(([^)\s#]+)(?:#[^)]*)?\)', read(p)):
                 link = m.group(1)
                 if re.match(r'^[a-z]+://', link) or link.startswith('mailto:'): continue
                 target = os.path.normpath(os.path.join(dp, link.replace('%20', ' ')))
                 if not os.path.exists(target):
-                    out.append(('ERROR', 'links', f'{os.path.relpath(p, repo)}: broken link {link}'))
+                    relative = os.path.relpath(p, repo)
+                    reason = historical_links.get((relative, link))
+                    out.append(('WARN' if reason else 'ERROR', 'links',
+                                f'{relative}: broken link {link}' + (f' (historical receipt: {reason})' if reason else '')))
 
 CS_SIZES = {'float': ('float', 1), 'int': ('int', 1), 'uint': ('uint', 1), 'Vector4': ('float4', 4), 'float4': ('float4', 4),
             'Vector3': ('float3', 3), 'float3': ('float3', 3), 'Vector2': ('float2', 2), 'float2': ('float2', 2),
@@ -195,11 +227,15 @@ def check_sgstrings(repo, out):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
+    ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
     a = ap.parse_args(); repo = os.path.abspath(a.repo); out = []
+    historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
                      ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings)):
-        if name not in skip: fn(repo, out)
+        if name not in skip:
+            if name == 'links': fn(repo, out, historical_links)
+            else: fn(repo, out)
     for sev, chk, msg in out: print(f'{sev} [{chk}] {msg}')
     if a.json: json.dump(out, open(a.json, 'w'), indent=1)
     errs = sum(1 for o in out if o[0] == 'ERROR')

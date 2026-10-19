@@ -1,0 +1,221 @@
+{
+  "base": "c92be7707f45a1789688e5cc16e0845f183b2910",
+  "original_head": "eab18e5ff74b207e52186e5bfa3290fdbebb6efa",
+  "commits": [
+    {
+      "sha": "3f1480328c8b1a2bde128fdcacadab0579ad29ed",
+      "subject": "S0: add offline static checks and record the 0.5.0 branch override",
+      "stage": "S0"
+    },
+    {
+      "sha": "d2ca231b17263779314df955362b95650cc8dc99",
+      "subject": "S0: mark stages by commit prefix instead of tags",
+      "stage": "S0"
+    },
+    {
+      "sha": "1cff849ea7099e1cf6c7483c4d220f847392f9d7",
+      "subject": "S1: remove unreachable tooling and dead code; finish documented code promises",
+      "stage": "S1"
+    },
+    {
+      "sha": "26465b0ebda2712ae279587404b1737012aefa01",
+      "subject": "S1: converge documents on current code facts (part 1)",
+      "stage": "S1"
+    },
+    {
+      "sha": "a23d914fd4d6cfda414310c8e8877a8edf408605",
+      "subject": "S1: restate Mesh Drawing Pipeline docs from the code",
+      "stage": "S1"
+    },
+    {
+      "sha": "227609417100c060fc109ce22a76a11a07eb9762",
+      "subject": "S1: name the real DrawList entry point; S1 done",
+      "stage": "S1"
+    },
+    {
+      "sha": "7e2a697c13655ba14ef4d069a3fb9ad4b22b95d3",
+      "subject": "S2: camera render policy, light type safety, shadow settings, gate gaps",
+      "stage": "S2"
+    },
+    {
+      "sha": "e18a7db4e11c499ea48a22fc57db8eec4b61dcc4",
+      "subject": "S2: fix Mesh GPU table invalidation and dead backend members",
+      "stage": "S2"
+    },
+    {
+      "sha": "aaf975126a01e650a0b0272b21d9495a98154f99",
+      "subject": "S2: apply the dead-member removal and ledger updates",
+      "stage": "S2"
+    },
+    {
+      "sha": "80327044caee4928f2aa512103e3d5c1af0cde34",
+      "subject": "S3: indirect dispatch, utility kernels, typed resource keys, feature registry",
+      "stage": "S3"
+    },
+    {
+      "sha": "f70837766999be3453987e11df75e2933e2995a0",
+      "subject": "S4: quality preset framework (GTAO, RTAO, volumetric fog and cloud)",
+      "stage": "S4"
+    },
+    {
+      "sha": "b8a582d287fa0bd56c3c6bafb20f0db68aea2da9",
+      "subject": "S5: stochastic screen-space reflections (Frostbite)",
+      "stage": "S5"
+    },
+    {
+      "sha": "834f41de69b241c585a5ef6fb07b852208b089f3",
+      "subject": "S6: light data model v2 (Unreal-form shapes, record v2, lightmapper delegate)",
+      "stage": "S6"
+    },
+    {
+      "sha": "e6155f32fbb67fac2df7532108550ada67be5ee6",
+      "subject": "S7: clustered light list v2 and one shared light loop",
+      "stage": "S7"
+    },
+    {
+      "sha": "7bbf86db97b5e92f026aa19894829342a990657a",
+      "subject": "S8: area light shapes (Karis representative point, Frostbite diffuse)",
+      "stage": "S8"
+    },
+    {
+      "sha": "b95603758f683e8eaa4b70a25dc74a8a5ad495a3",
+      "subject": "S9: shadow settings, cascade count and blending, tent PCF, PCSS, shadows for every light shape",
+      "stage": "S9"
+    },
+    {
+      "sha": "9f0232b6a15d8846de901cf70a6ef898efc4c5e6",
+      "subject": "S9: VSM / EVSM moment atlases and one shadow-input contract",
+      "stage": "S9"
+    },
+    {
+      "sha": "a06253cf03c319e409f204b8a2b7c417372fe653",
+      "subject": "S9: cached local shadows (OnEnable / OnDemand) with a slot transaction",
+      "stage": "S9"
+    },
+    {
+      "sha": "9d916a47f65b81d06de4b8754b7ab0aea8438a5a",
+      "subject": "S9: Shadowmask mode draws dynamic casters only for Mixed Shadowmask lights",
+      "stage": "S9"
+    },
+    {
+      "sha": "939361c7b185ed7f469e8263fb5efa1c4f8dfe6b",
+      "subject": "S9: shadow atlas debug views; S9 complete",
+      "stage": "S9"
+    },
+    {
+      "sha": "02c1dff784b590882072ef98eec2535a04075c60",
+      "subject": "S10: screen-space traced shadows for the sun and 24 local lights",
+      "stage": "S10"
+    },
+    {
+      "sha": "6e0f3717d95f5f30bd79628eb6ad17c023ffe2c8",
+      "subject": "S11: light cookie and IES atlas",
+      "stage": "S11"
+    },
+    {
+      "sha": "8f19f4c66902d452b99fd30670c19b09b05361d2",
+      "subject": "S12: APV, LPPV and probe chain; terrain lightmaps; caster matrix fix",
+      "stage": "S12"
+    },
+    {
+      "sha": "ccc04407a3486054d27eebee5df00d6d592af587",
+      "subject": "S12: batched probe interpolation, baking sky, baked GI tests; S12 complete",
+      "stage": "S12"
+    },
+    {
+      "sha": "2d524d7fb715891e4cbe25338a7f2dfa566061e2",
+      "subject": "S13: reflection probes in the clustered list; shared GGX cube filter",
+      "stage": "S13"
+    },
+    {
+      "sha": "4c2e6485ce852bba9675f96ccd0c5d624e2672be",
+      "subject": "S14: SSGI on the stochastic SSR core",
+      "stage": "S14"
+    },
+    {
+      "sha": "8caa9a721cc9f23e8f717190f9d0d007a86c406d",
+      "subject": "S15: Shader Graph target (Lit, Unlit, Decal) via asmref",
+      "stage": "S15"
+    },
+    {
+      "sha": "2f267607aad6d3e39ad240b66defc2b40f688a27",
+      "subject": "S15: Render Pipeline Wizard with Fix / Fix All",
+      "stage": "S15"
+    },
+    {
+      "sha": "274a9d96aab9ec7be390fdcdecfd676a10b0cf9b",
+      "subject": "S15: Frame Settings (asset defaults, probe-capture defaults, camera overrides)",
+      "stage": "S15"
+    },
+    {
+      "sha": "92af43363cb375b7e42f2fb10de2773434ae1334",
+      "subject": "S15: Light Explorer extension and Lighting window environment section",
+      "stage": "S15"
+    },
+    {
+      "sha": "ab1d0b2b9108386c9157c3bdc586b9839082f5ea",
+      "subject": "S15: Light inspector sections and handles, probe and decal handles, help links",
+      "stage": "S15"
+    },
+    {
+      "sha": "96fa4be3cad2195215217c46e6bc34412020eb93",
+      "subject": "S15: Rendering Debugger panels, debug views, Scene view Draw Modes, pass timings",
+      "stage": "S15"
+    },
+    {
+      "sha": "20f4615e3f48fa10961cac46f734c0220842c334",
+      "subject": "S15: RenderGraph Viewer window and RGBuilder debug snapshot hook",
+      "stage": "S15"
+    },
+    {
+      "sha": "25e30df52241f8dc0542eef0bc46313b4d70f919",
+      "subject": "S15: Material Conversion Wizard, create menus, Shader Graph templates",
+      "stage": "S15"
+    },
+    {
+      "sha": "e57efcb9c47191c7055a21f56c55765f6036688f",
+      "subject": "S15: validation fixture creators for shadows, cookies, probes, baked GI, screen space",
+      "stage": "S15"
+    },
+    {
+      "sha": "bf4ce52e1df49626cf19a9c39f324c3f46847e33",
+      "subject": "S16: shadow budget, cube filter and tile mask tests; image regression runner",
+      "stage": "S16"
+    },
+    {
+      "sha": "38b4620be0643bc38e595144454a5b7f872e3656",
+      "subject": "S16: documentation pages, README, known gaps, FeatureStatus, playbook in stage order",
+      "stage": "S16"
+    },
+    {
+      "sha": "939eaa027781bd66de61e317e87204cea06ecdd7",
+      "subject": "S17: folder layout by domain (git mv only)",
+      "stage": "S17"
+    },
+    {
+      "sha": "eab18e5ff74b207e52186e5bfa3290fdbebb6efa",
+      "subject": "S17: changelog and playbook entries for the folder layout",
+      "stage": "S17"
+    }
+  ],
+  "stage_ends": {
+    "S0": "d2ca231b17263779314df955362b95650cc8dc99",
+    "S1": "227609417100c060fc109ce22a76a11a07eb9762",
+    "S2": "aaf975126a01e650a0b0272b21d9495a98154f99",
+    "S3": "80327044caee4928f2aa512103e3d5c1af0cde34",
+    "S4": "f70837766999be3453987e11df75e2933e2995a0",
+    "S5": "b8a582d287fa0bd56c3c6bafb20f0db68aea2da9",
+    "S6": "834f41de69b241c585a5ef6fb07b852208b089f3",
+    "S7": "e6155f32fbb67fac2df7532108550ada67be5ee6",
+    "S8": "7bbf86db97b5e92f026aa19894829342a990657a",
+    "S9": "939361c7b185ed7f469e8263fb5efa1c4f8dfe6b",
+    "S10": "02c1dff784b590882072ef98eec2535a04075c60",
+    "S11": "6e0f3717d95f5f30bd79628eb6ad17c023ffe2c8",
+    "S12": "ccc04407a3486054d27eebee5df00d6d592af587",
+    "S13": "2d524d7fb715891e4cbe25338a7f2dfa566061e2",
+    "S14": "4c2e6485ce852bba9675f96ccd0c5d624e2672be",
+    "S15": "e57efcb9c47191c7055a21f56c55765f6036688f",
+    "S16": "38b4620be0643bc38e595144454a5b7f872e3656",
+    "S17": "eab18e5ff74b207e52186e5bfa3290fdbebb6efa"
+  }
+}

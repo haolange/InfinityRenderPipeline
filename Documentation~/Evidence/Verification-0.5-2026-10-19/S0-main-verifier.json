@@ -1,0 +1,79 @@
+{
+  "verifier": "independent stage_verifier agent",
+  "verified_utc": "2026-10-19T15:53:43.239416+00:00",
+  "verdict": "PASS",
+  "scope": "Main integration of corrected S0 offline checker/tests/documentation only. No Unity compilation, EditMode, runtime, image, performance, or S1-S17 acceptance.",
+  "base_head": "eab18e5ff74b207e52186e5bfa3290fdbebb6efa",
+  "candidate_paths": {
+    "CHANGELOG.md": "49dbb7a47ad1bec295ad2a06a79af91354f420ed779aec3f33c85ca4de8f6375",
+    "Docs/Verification-Playbook-0.5.0.md": "cf3372e013fc21b8f83358e01451d2566e9516094d3383eeacf289bdeefcab31",
+    "PLAN.md": "c2b027dc0f251dab6ff76d9d999d91a3ee4454c5c11d9e171b5f52832e044b20",
+    "Tools/StaticCheck/README.md": "9c8cf8ac9e6d2ef0c15a985dad4776bf322e8c6985209a393049380b9b19ab43",
+    "Tools/StaticCheck/static_check.py": "17c0664976f7e35a8a63d0d288f8c6d6cfc1900cdcbbf43b77cab576df863153",
+    "Tools/StaticCheck/test_static_check.py": "075ad24e9f397f22b374238fad12668f26fa1e60cfa8a54813fa4c09f8186998",
+    "Tools/StaticCheck/test_static_check.py.meta": "0a6bf0efc261fb356df47f5606569a0ca9525a11927f54caff32d2bed2797da3"
+  },
+  "source_identity": {
+    "baseline_tracked_paths": 1261,
+    "allowed_changed_tracked_paths": [
+      "CHANGELOG.md",
+      "Docs/Verification-Playbook-0.5.0.md",
+      "PLAN.md",
+      "Tools/StaticCheck/README.md",
+      "Tools/StaticCheck/static_check.py"
+    ],
+    "all_other_baseline_paths_byte_identical": true,
+    "new_test_paths": [
+      "Tools/StaticCheck/test_static_check.py",
+      "Tools/StaticCheck/test_static_check.py.meta"
+    ]
+  },
+  "independent_runs": [
+    {
+      "command": "python3 -B Tools/StaticCheck/static_check.py --repo .",
+      "historical_receipt_used": false,
+      "exit_code": 0,
+      "errors": 0,
+      "warnings": 0,
+      "tool_chunk": "bad57b"
+    },
+    {
+      "command": "TMPDIR=/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261019-run01 python3 -B Tools/StaticCheck/test_static_check.py -v",
+      "permissions": "escalated for explicit task-owned TMPDIR",
+      "exit_code": 0,
+      "passed": 10,
+      "total": 10,
+      "tool_chunk": "263e41"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "tool_chunk": "19c224"
+    }
+  ],
+  "review": [
+    "Checker/test/meta/README/Changelog/Playbook are byte-identical to saved reviewed main variant. PLAN differs only by subsequently reviewed accurate bounded acceptance/status prose.",
+    "Corrected S0 helper equivalence and original failed-attempt provenance remain in S0-corrected/verifier.json.",
+    "Selected S0 candidate/static/tests/verifier and stage-map copies were independently byte-compared to their originating run files.",
+    "No runtime source mutation; all baseline tracked paths outside exact five-path documentation/tool set retain original main hashes."
+  ],
+  "limitations": [
+    "No Editor operated by this verifier. Native startup assertions in PLAN are parent-owned evidence, not a new independent Unity validation.",
+    "No commit or push verified here; receipt binds pre-commit file content.",
+    "Historical missing links remain unresolved. Main archival link-scan policy predates this patch.",
+    "Final retention/cleanup and any subsequent candidate changes require parent closure."
+  ],
+  "evidence_sha256": {
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-candidate.json": "7e163599479065dcc81651d5a92f7c915e4bd60c792c9e17f0c687e681aa1f75",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-corrected-static.txt": "0f4f5543b9290a06d68708de1c0978d5490186af530661d1bda3e00f011d4f8e",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-historical-links.json": "cc4a38a2c7ac12235c954cc0211cb239c2ceca69b4aca78a5bc21aacb678914e",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-main-static.txt": "50e5210bb1a6bae273a6369ff195bf6d9a8e73def1c41b82e7d5faad06462b83",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-main-tests.txt": "567eaadb906ddc521a8ef9a3402b52df5cb842eac8c1fd7c358ce895b36e0561",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-original-static.txt": "7f32c3b199de21b1486ef3c62b59302f6dc64dcbb8213a3113eff36087ea1e36",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-tests.txt": "1d415d9452f8cbce03b1afdeef03aa9e857cfaaa497357a1d554cf0ff0326033",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-verifier.json": "92e191ec83bc585db607a90ce6be6e03f3efb3393ab6d52185de98a82a26c2a3",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/stage-map.json": "e2229f022605712e9637bc7c7ff230607578f306463a353fbce3b8d79668c73a",
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/startup-summary.json": "ce40bc47819a45cd48aa58f29d883fe8bb5c9212a9eb35f094fd41be4ecc24bb"
+  },
+  "prior_stage_verifier_sha256": "92e191ec83bc585db607a90ce6be6e03f3efb3393ab6d52185de98a82a26c2a3"
+}

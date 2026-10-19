@@ -1,0 +1,68 @@
+{
+  "verifier": "independent stage_verifier agent",
+  "verified_utc": "2026-10-19T15:50:23.170537+00:00",
+  "verdict": "PASS",
+  "scope": "S0 corrected offline tools only, at the exact original HEAD plus candidate file hashes below. Not original S0 PASS and not Unity compile, EditMode, GPU, image, performance or S1-S17 acceptance.",
+  "original_head": "d2ca231b17263779314df955362b95650cc8dc99",
+  "candidate_paths": {
+    "Tools/StaticCheck/static_check.py": "1c633f244fe4681e3dd5a773a7365043cc60c5ce773c59caa548f3466d356d4e",
+    "Tools/StaticCheck/test_static_check.py": "075ad24e9f397f22b374238fad12668f26fa1e60cfa8a54813fa4c09f8186998",
+    "Tools/StaticCheck/test_static_check.py.meta": "0a6bf0efc261fb356df47f5606569a0ca9525a11927f54caff32d2bed2797da3"
+  },
+  "historical_receipt": {
+    "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S0-historical-links.json",
+    "sha256": "cc4a38a2c7ac12235c954cc0211cb239c2ceca69b4aca78a5bc21aacb678914e",
+    "entries": 2,
+    "explicit_unresolved_links": 8
+  },
+  "independent_runs": [
+    {
+      "command": "TMPDIR=/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261019-run01/S0-corrected python3 -B Tools/StaticCheck/test_static_check.py -v",
+      "permissions": "escalated for explicit owned TMPDIR",
+      "passed": 10,
+      "total": 10,
+      "exit_code": 0,
+      "tool_chunk": "9e9990"
+    },
+    {
+      "command": "python3 -B Tools/StaticCheck/static_check.py --repo . --historical-link-receipt Documentation~/Evidence/Verification-0.5-2026-10-19/S0-historical-links.json",
+      "errors": 0,
+      "warnings": 8,
+      "exit_code": 0,
+      "tool_chunk": "55c3ce"
+    }
+  ],
+  "prior_attempts_preserved": [
+    {
+      "original_S0": "51 static errors; remains original failure"
+    },
+    {
+      "candidate_initial": "17 orphan-folder errors; candidate.json and static.txt retain failure; separately documented reconstruction restored 17 directories supported by tracked folderAsset=yes metadata"
+    },
+    {
+      "independent_previous_tests": "8 of 9 passed before final fix. Sandbox denied intended TMPDIR; tempfile silently fell back to /tmp. repo /tmp versus canonical /private/tmp triggered false outside-repository diagnostic. Output tool_chunk165a7c; diagnosis chunk4e13da. Explicit owned-directory rerun passed9/9 but did not erase root-normalization defect."
+    }
+  ],
+  "fix_review": [
+    "Hidden filenames excluded before meta parsing; real orphan, missing meta and duplicate GUID controls still fail.",
+    "Comment-aware LightMode matching preserves strings and rejects live unknown tags.",
+    "Historical exceptions require exact path, full source SHA-256, listed link and nonempty reason; changed hash, unlisted broken link and outside path fail.",
+    "Canonical repo containment fixes symlink-root rejection; dedicated regression passes.",
+    "TemporaryDirectory(dir=explicit TMPDIR) prevents silent fallback; missing TMPDIR raises.",
+    "Saved main variant load_historical_links, without_comments and check_meta ASTs equal stage variant; tests byte-identical. Existing main History and fixture scanning policy unchanged."
+  ],
+  "limitations": [
+    "Eight historical links remain unresolved and cannot support current acceptance.",
+    "Original native Editor startup failure and all Unity checks remain parent-owned and unverified here.",
+    "Only S0 tool scope accepted. No runtime source changed or runtime behavior verified.",
+    "Main integration needs its own fresh source identity and full static rerun after restoration.",
+    "Input/preimage earlier audit was sparse; targeted backup remains required before any unbacked asset mutation."
+  ],
+  "evidence_sha256": {
+    "S0-corrected/candidate-final.json": "7e163599479065dcc81651d5a92f7c915e4bd60c792c9e17f0c687e681aa1f75",
+    "S0-corrected/candidate-final.diff": "8a1053f381725c2560adf003b60e9e5d280411bc58d88f6e5f58630711d70077",
+    "S0-corrected/self-tests-final.txt": "1d415d9452f8cbce03b1afdeef03aa9e857cfaaa497357a1d554cf0ff0326033",
+    "S0-corrected/static-final.txt": "0f4f5543b9290a06d68708de1c0978d5490186af530661d1bda3e00f011d4f8e",
+    "S0-corrected/empty-folder-reconstruction.json": "4c81709ea3cfcf8dc680bbafab1db7c4fae459ed437ead98b5d2a004c787440c"
+  }
+}

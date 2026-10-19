@@ -449,5 +449,21 @@ reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, 
 
 ## Verification at home
 
+### Local staged verification — 2026-10-19
+
+- Original range frozen: c92be7707f45a1789688e5cc16e0845f183b2910..eab18e5ff74b207e52186e5bfa3290fdbebb6efa,
+  39 commits / 18 stage endpoints. Local main fast-forwarded to the original 0.5 head; remote main is unchanged.
+- User-approved execution: historical detached checks in the original Example; Fix SNN commits on local main pushed
+  explicitly to claude/infinityrp-0.5. No new branches, Player builds, forced pushes or history rewriting.
+- Owned run: InfinityExample/intermediate/verification-0.5/20261019-run01, 4 GiB initial budget. Input hashes and
+  targeted native-asset preimages are retained for stage migrations and the final original-asset audit.
+- S0 original static check FAILED (51 errors). Corrected S0 offline tools passed 10/10 regression tests and the full
+  stage check (0 errors, 8 explicit historical warnings), independently verified. Main integration also passed
+  10/10 and its normal full check (0 errors, 0 warnings). Historical missing evidence remains explicitly recorded.
+- Original Example startup aborted with native `std::invalid_argument: stoull: no conversion`, before a C# compile
+  result. A verified AppleDouble UDSData sidecar was moved reversibly; real database bytes were unchanged. Recovery
+  and S1–S17 Editor gates remain pending. The sidecar/provenance recurred on ExFAT and the held-session startup also
+  aborted with the same signature. No Unity compilation, EditMode, image or performance PASS is claimed.
+
 The user verifies in commit order with
 [Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (one section per stage, in stage order).

@@ -1,0 +1,15 @@
+test_changed_historical_source_invalidates_receipt (__main__.StaticCheckTests.test_changed_historical_source_invalidates_receipt) ... ok
+test_comment_delimiters_in_strings_and_newlines_are_preserved (__main__.StaticCheckTests.test_comment_delimiters_in_strings_and_newlines_are_preserved) ... ok
+test_commented_tags_are_ignored_but_live_unknown_tag_fails (__main__.StaticCheckTests.test_commented_tags_are_ignored_but_live_unknown_tag_fails) ... ok
+test_hidden_sidecar_meta_is_not_an_asset (__main__.StaticCheckTests.test_hidden_sidecar_meta_is_not_an_asset) ... ok
+test_historical_receipt_rejects_source_outside_repository (__main__.StaticCheckTests.test_historical_receipt_rejects_source_outside_repository) ... ok
+test_historical_receipt_warns_only_for_exact_link (__main__.StaticCheckTests.test_historical_receipt_warns_only_for_exact_link) ... ok
+test_live_broken_document_link_still_fails (__main__.StaticCheckTests.test_live_broken_document_link_still_fails) ... ok
+test_missing_meta_still_fails (__main__.StaticCheckTests.test_missing_meta_still_fails) ... ok
+test_real_orphan_and_duplicate_guid_still_fail (__main__.StaticCheckTests.test_real_orphan_and_duplicate_guid_still_fail) ... ok
+test_symlinked_repository_root_preserves_exact_link_matching (__main__.StaticCheckTests.test_symlinked_repository_root_preserves_exact_link_matching) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.038s
+
+OK
