@@ -93,6 +93,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
 
 ### Fixed
 
+- Normal-frame SSR capture exposes classification and history metadata without changing Debug View or history. Requested
+  classification uses graph-owned lifetime through Transfer readback; ordinary frames retain pass-local classification.
+
 - Volumetric clouds use the Atmospherical Profile planet radius and a consistent planet-centered shell for view and
   light rays. Cloud intervals exclude the inner cavity and planet, clip at opaque depth, and retain both visible grazing
   segments; layer rejection uses unclamped height. Sky depth no longer clips clouds at the camera far plane.

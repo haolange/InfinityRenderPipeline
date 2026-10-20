@@ -16,7 +16,7 @@ namespace InfinityTech.Rendering.Pipeline
             name == "GBufferB" || name == "GBufferC" || name == "Occlusion" || name == "SSR" ||
             name == "SSGI" || name == "SceneColor" || name == "AntiAliasing" ||
             name == "CascadeShadow" || name == "HiZ" || name == "SSRRayHit" || name == "SSRResolved" ||
-            name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGIResolved" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
+            name == "SSRTileClass" || name == "SSRMeta" || name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGIResolved" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
             name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal" || name == "VolumetricCloud";
 
         internal static MeshPipeline.EMeshBackendPolicy BackendFor(Camera camera)

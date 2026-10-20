@@ -122,7 +122,7 @@ still fails. Retain the original failed check; these missing historical images a
 
 ## S5 — stochastic SSR
 
-1. Compile; run `QualityPresetTests` and `StochasticSSRNumericTests` (GPU; three plane cases plus constant spatial).
+1. Compile; run `QualityPresetTests` and `StochasticSSRNumericTests` (GPU; three plane cases, rough-plane skip and constant spatial).
    The 0.4.0 SSR kernels are gone from `ScreenSpaceNumericContract_ProductionKernels`.
 2. The three textures in `Runtime/Resources/Textures/MonteCarlo/` (RankingTile256SPP, ScramblingTile256SPP,
    ScrambledNoise_Owen) reimport as uncompressed single-channel. GlobalSettings → RuntimeTextures shows the three
@@ -137,11 +137,19 @@ still fails. Retain the original failed check; these missing historical images a
    - **SSR Ray Hit**: green where reflected objects are on screen, red elsewhere; with Half Resolution the pattern is
      a 2x2 rotating checker.
    - **SSR Confidence** fades at screen edges and near Max Distance; **SSR History Age** goes white within ~16 frames
-     on a still camera and drops to black on disocclusion.
+     on a still camera. On disocclusion a valid surface restarts at age 1 (near black), while invalid pixels have age 0.
+     Use Dynamic MeshComponents for moving-object controls and confirm the actual Depth change before judging rejection.
    - Final image: mirror reflections sharp and stable while orbiting; rough reflections blurred without fireflies.
      Report ghosting on moving objects and any reflection of an object's back side.
-5. Quality Low → Ultra visibly trades noise and blur for cost; Frame Debugger shows `SSR_Classify`, `SSR_Trace`
+5. Compare Quality Low → Ultra for noise, blur and coverage; measure frame cost separately rather than assuming every
+   scene improves monotonically. Frame Debugger shows `SSR_Classify`, `SSR_Trace`
    (three indirect dispatches), `SSR_Resolve`, `SSR_Temporal` and, below Ultra, `SSR_Spatial`.
+
+6. For passive numerical evidence with Debug View still None, normal capture accepts `SSRTileClass` (R32 UInt tile
+   values), `SSRMeta` (RGBA16F normal/depth/history age), `SSRRayHit`, `SSRResolved`, `SSRTemporal` and `SSR`.
+   Classification is graph-owned only on the explicitly requested capture frame. Verify successful readback/retirement
+   and compare matched normal output with/without these diagnostics. Debug View captures remain rejected by the
+   normal-beauty guard; inspect those modes separately in the actual window.
 
 ## S6 — light data model
 

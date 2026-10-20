@@ -88,6 +88,8 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SSRRayHit": id = InfinityShaderIDs.SSRRayHitBuffer; break;
                     case "SSRResolved": id = InfinityShaderIDs.SSRResolvedBuffer; break;
                     case "SSRTemporal": id = InfinityShaderIDs.SSRTemporalBuffer; break;
+                    case "SSRMeta": id = InfinityShaderIDs.SSRMetaBuffer; break;
+                    case "SSRTileClass": id = Shader.PropertyToID("Capture_SSRTileClass"); break;
                     case "SSGIRayHit": id = InfinityShaderIDs.SSGIRayHitBuffer; break;
                     case "SSGIResolved": id = InfinityShaderIDs.SSGIResolvedBuffer; break;
                     case "SSGITemporal": id = InfinityShaderIDs.SSGITemporalBuffer; break;

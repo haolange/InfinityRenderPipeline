@@ -264,7 +264,14 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passData.tileArgs = passRef.CreateTemporaryBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * 3, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "SSRTileArgs" });
                 passData.tileList = passRef.CreateTemporaryBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * maxTiles, sizeof(uint), ComputeBufferType.Structured) { name = "SSRTileList" });
-                passData.tileClass = passRef.CreateTemporaryTexture(SSRPassUtilityData.CreateDescriptor(tileCount.x, tileCount.y, "SSRTileClass", GraphicsFormat.R32_UInt, FilterMode.Point));
+                TextureDescriptor tileClassDescriptor = SSRPassUtilityData.CreateDescriptor(tileCount.x, tileCount.y, "SSRTileClass", GraphicsFormat.R32_UInt, FilterMode.Point);
+                RenderCaptureSession capture = RenderCaptureService.current;
+                bool captureTileClass = capture != null && capture.CaptureThisFrame && capture.request.Matches(camera)
+                    && System.Array.IndexOf(capture.request.buffers, "SSRTileClass") >= 0;
+                // A captured classification must outlive this pass for the graph-owned Transfer readback.
+                passData.tileClass = captureTileClass
+                    ? passRef.WriteTexture(m_RGScoper.CreateAndRegisterTexture(Shader.PropertyToID("Capture_SSRTileClass"), tileClassDescriptor))
+                    : passRef.CreateTemporaryTexture(tileClassDescriptor);
                 passData.rayHit = passRef.WriteTexture(rayHit);
                 passData.resolved = passRef.WriteTexture(resolved);
                 passData.hitDistance = passRef.WriteTexture(hitDistance);

@@ -19,6 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
                 case GraphicsFormat.R16_SFloat: channels = 1; stride = 2; encoding = 16; break;
                 case GraphicsFormat.R16G16_SFloat: channels = 2; stride = 4; encoding = 16; break;
                 case GraphicsFormat.R16G16B16A16_SFloat: channels = 4; stride = 8; encoding = 16; break;
+                case GraphicsFormat.R32_UInt:
                 case GraphicsFormat.R32_SFloat:
                 case GraphicsFormat.D32_SFloat: channels = 1; stride = 4; encoding = 32; break;
                 case GraphicsFormat.R32G32_SFloat: channels = 2; stride = 8; encoding = 32; break;
@@ -42,7 +43,8 @@ namespace InfinityTech.Rendering.Pipeline
                 for (int channel = 0; channel < channels; channel++)
                 {
                     double value;
-                    if (encoding == 32) value = BitConverter.ToSingle(bytes, pixel + channel * 4);
+                    if (encoding == 32) value = format == GraphicsFormat.R32_UInt
+                        ? BitConverter.ToUInt32(bytes, pixel) : (double)BitConverter.ToSingle(bytes, pixel + channel * 4);
                     else if (encoding == 16) value = DecodeFloat(BitConverter.ToUInt16(bytes, pixel + channel * 2), 10, true);
                     else if (encoding == 11)
                     {

@@ -621,3 +621,49 @@ The user verifies in commit order with
   Only the exact replay patch/identity (149447 bytes) remain for S5; cleanup.json lists identities. Active caches were untouched.
 - User clarified session scope: manage only this task's original Example Editor. Other sessions' Unity processes are neither
   operated on nor waited for; asset-import workers are not additional Editor sessions for this task.
+
+### S5 local Editor validation (2026-10-21)
+
+- Historical b8a582d287fa plus accepted predecessors compiles. StochasticSSRNumeric5/5 and quality9/9;
+  original full Example1566=1513Passed/0Failed/53Skipped. Diagnostic replay1567=1514/0/53, reload/resume2/2.
+  Independent audit matches every discovered/started/finished identity, unchanged53 skips and only one new UInt32 test.
+  Native XML1534 lacks33 actual checkpointed skips; callbacks preserve them. Roots stay Skipped:Ignored;
+  frameworkComplete=false and callbacksComplete=true are separate facts, not an all-PASS root.
+- Passive capture exposes SSRMeta and requested R32_UInt tile class with graph-owned Transfer lifetime, preserving the
+  ordinary pass-local path, normal-beauty guard, Debug View and history. UInt32 decoding preserves uint.MaxValue and ROI.
+  Main compile, SSR numeric5/5 and configured capture13/13 passed. Original default-Profile and then cubeFilter-resource
+  failures are retained; explicit memory-only configuration enables these tests without claiming a durable asset upgrade.
+- Four main normal A/B runs use matched matrices, jitter and phase129 mod256. Stable Lighting, RayHit, Resolve,
+  Temporal, SSR and Meta are byte-identical with/without requested classification. Display has tiny repeat variation;
+  its all-output bit identity and cause are not claimed. R32 tile values {0:144,1:16,2:80} decode correctly.
+- Original Example normal frames: four native SSR DebugViews plus Custom Frame Debugger8 events (Classify2, Trace3,
+  Resolve1, Temporal1, Spatial1). Compute details were blank. Only actual viewport pixels count; native menu selection
+  itself was driven by public runtime control. No inputs were sent to another session's Editor.
+- Independent physical-floor ROI512 pixels grows age1/5/9/13/17. Four quad phases give zero mismatches only for their
+  correct2x2 offsets. Dynamic cube actual Depth change exposes629 floor pixels: all restart at1 with Temporal=Resolved,
+  then628 advance2/3; one edge remains1. Unoccluded control stays64, camera historyReset=false. Initial Static motion
+  harness was invalid and is recorded separately. Vector serialization/cleanup failures were fixed in scratch harness.
+- Small0/4/8/12deg orbit and four qualities show moving, clear mirrors and blurred rough receivers without an observed
+  firefly burst. Old-reflection ROI562 pixels retains45/30/25 red Temporal-Resolved differences>.01 over three frames;
+  no obvious whole-object tail was observed, but zero ghosting is not claimed. Legacy black sky horizon remains outside
+  this SSR-specific repair. No general image, motion or platform quality acceptance is inferred.
+- Two Confidence controls independently reconstruct31800 mirror pixels each: errors<.000488 at tolerance.001,
+  36 edge-fade pixels,163 near MaxDistance and4 valid sampled backfaces per case with zero alpha. Four actual trace
+  sizes160x90/160x90/320x180/320x180; rough receiver measured115/255. Ultra SSR=Temporal bytewise, other qualities differ.
+  Medium/Ultra CPU marker positive/negative and output route prove spatial gating; GPU marker counts were all0,
+  so they are not GPU execution telemetry or an Ultra native Frame Debugger screenshot.
+- Public FrameTimingManager supplies four quality sets, each128 warmup + three300 unique valid CPU/GPU timings at
+  320x180. Whole-Editor frame medians/P95 are retained; GPU medians are not monotonic. No SSR-pass cost, general
+  speedup, isolated GPU load or pre-0.5 performance baseline is claimed.
+- Editors56088/59923/64172/70233/70619 have exited. Final owned70619 capture/probe drain0, clean untitled roots/transforms,
+  backgroundfalse/options1 and full original GS JSON restored. All15 small protected inputs,42 historical source and21
+  main-owned fixture identities pass. A reused initial-bind filename lost the64172 receipt; the70619 receipt is explicitly
+  separate and never relabeled as the earlier one. Direct public Exit after clean guards ended the unfocused Editor
+  when a scheduled delayCall did not exit; the expected disconnected CLI reply is not a failed runtime gate.
+- Static_check0/0 and diff check pass. Main production/test code is the same previously Unity-tested candidate;
+  final documentation/report review and commit/push are the remaining S5 unlock conditions. FeatureStatus and pending
+  test markers await final staged acceptance; durable Profile/resources, S6-S17 and final HEAD remain open. PR11 Draft.
+- Deliberate report/evidence: Documentation~/Evidence/Verification-0.5-2026-10-19/S5-report.md and S5/.
+  Current S5 intermediates feed only final evidence review/cleanup and S6 replay construction. The sole post-cleanup
+  carry is s5-final-replay.patch plus s5-final-replay-identity.json; delete after S6 replay is frozen. Active Library/DataStore
+  are untouched. Root preimage/input-manifest remains solely for final protected-source audit; overall cleanup incomplete.

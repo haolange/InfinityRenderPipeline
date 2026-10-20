@@ -21,6 +21,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         };
 
         [Test]
+        [Category("Unverified_0_5")]
+        public void UInt32Statistics_PreserveIntegerRangeAndRoi()
+        {
+            uint[] values = { 0, 1, uint.MaxValue, 17, 65536, 42 };
+            var bytes = new byte[values.Length * sizeof(uint)];
+            Buffer.BlockCopy(values, 0, bytes, 0, bytes.Length);
+            RawCaptureStatistics statistics = RawCaptureStatistics.Compute(bytes, GraphicsFormat.R32_UInt,
+                3, 2, new RectInt(1, 0, 2, 2));
+            Assert.AreEqual(6, statistics.samples);
+            Assert.AreEqual(0, statistics.nonFinite);
+            Assert.AreEqual(4, statistics.roiSamples);
+            Assert.IsTrue(statistics.hasFiniteRoiSamples);
+            Assert.AreEqual(1, statistics.minimum);
+            Assert.AreEqual((double)uint.MaxValue, statistics.maximum);
+            Assert.AreEqual((1.0 + uint.MaxValue + 65536 + 42) / 4, statistics.mean);
+        }
+
+        [Test]
         public void CancelBeforeCamera_PersistsTerminalStateAndImmutableRequest()
         {
             string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot, "capture-test-" + Guid.NewGuid().ToString("N"));
