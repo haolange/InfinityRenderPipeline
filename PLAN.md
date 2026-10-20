@@ -536,3 +536,39 @@ reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, 
 
 The user verifies in commit order with
 [Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (one section per stage, in stage order).
+
+- S3 original8032704 plus accepted S1/S2 repairs compiled and passed FeatureRegistry5/5. The first all-Example run
+  discovered/started/finished1549:1495Passed/1Failed/53Skipped; the sole failure was resource preflight with a null
+  Utility slot. A full-main explicit assignment initially passed current-schema JSON/Undo/second-save/cold-read
+  checks but dropped historical zBinningShader, which main no longer declares. That preservation conclusion was
+  withdrawn; the second full run failed the same preflight on zBinning. After normal Editor exit, exact file/meta
+  guards allowed only that task-owned save operation to be reverted to the current-byte preimage cabd1631.
+- The accepted S3 replay explicitly binds Utility in memory without dirtying/saving the original asset. Original
+  zBinning and all other references remain intact. Resource preflight passed1/1; allExample1549 callbacks were
+  1496Passed/0Failed/53Skipped after two reload/resumes. Raw framework1516=1496Passed/0Failed/20Skipped;
+  the separate derived XML recovers only33 actual checkpointed skipped leaves. Stable identities and the53skip
+  set were independently matched; no full1549PASS or persistent resource upgrade is claimed.
+- S3 actual GPU controls cover utility clears, sentinel bounds, both argument-buffer types, offset12 and zero
+  dispatch. A normal-frame FGraphics task also executed two real graph compute encoders with declared reads/writes
+  and two terminal Transfer readbacks, then disposed688bytes of control resources. An earlier null-sampler harness
+  failed before graph Execute; its tiny unsubmitted native resources reached their cleanup boundary at normal
+  Editor exit. It is retained as a failed verification setup, not a production path failure or successful release.
+- SSR Off/Records/Blocked/recovery each have32 distinct normal frames and actual Debugger images; all11 captured
+  frames/22buffers completed and retired. Matching S2/S3 view/projection/current+previous jitter gives byte-identical
+  Lighting. DisplayColor is visually equivalent in this fixture but not exact:2794 changed pixels, RGB mean absolute
+  difference1.2100914e-5/max0.4486694 (6pixels over0.1). No cause for those few differences is established. Old SSR
+  uninitialized-variable warnings remain a later S5 shader-quality item, not an accepted algorithm/performance result.
+- Final32 normal accepted frames produced0 new errors/exceptions in the exact new log interval. Temporary SSR and
+  Utility references restored the complete original JSON. Exiting Play restored the user's clean untitled two-root
+  scene, root GameObject/Transform snapshots, backgroundfalse, options1 and selectionnull. Normal native Quit ended
+  PID16585; source GS/meta match original bytes, and all13 separately protected small inputs remain unchanged.
+  Independent verification accepts this bounded historical S3 checkpoint; main's persistent resource/profile
+  integration and all later-stage/final gates remain open. Source/history/schema and rendering gates stay separate.
+- S3 exact documentation/report candidate439faef9 received independent acceptance. Deliberate reports, original/final
+  XML, key native images and compact receipts live under Documentation~/Evidence/Verification-0.5-2026-10-19/S3.
+  With producers stopped,407 consumed files were retired, including S2's six inputs and owned fixture: combined
+  allocation332800→768KiB, releasing332032KiB. Raw paths in statistics are historical source identities, not retained
+  openable payloads. Only run02/S3/original-failure-replay.patch and final-source-identity.json remain for S4 replay
+  construction; retire them immediately after that patch is frozen. Existing run02/preimage remains solely for final
+  source audit, without the duplicate S3 GS preimage. Main's durable resource/profile configuration, S4–S17,
+  final HEAD, valid GPU timing and overall cleanup remain incomplete. PR11 stays Draft.
