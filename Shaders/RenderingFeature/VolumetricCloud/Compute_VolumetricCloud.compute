@@ -6,6 +6,7 @@
 #include "../../ShaderLibrary/Lighting/LightCookie.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 #include "../../ShaderLibrary/AtmosphereCommon.hlsl"
+#include "../../ShaderLibrary/CloudShell.hlsl"
 
 float4 VolCloud_Resolution;
 float VolCloud_CloudLayerBottom;
@@ -36,22 +37,11 @@ Texture2D<float4> SRV_HistoryVolumetricCloud;
 RWTexture2D<float4> UAV_VolumetricCloudTexture;
 
 float GetCloudLayerBottom() { return VolCloud_CloudLayerBottom; }
-float GetCloudLayerTop() { return VolCloud_CloudLayerBottom + VolCloud_CloudLayerThickness; }
-
-float2 RayCloudLayerIntersect(float3 origin, float3 dir, float shellRadius)
-{
-    float b = dot(origin, dir);
-    float c = dot(origin, origin) - shellRadius * shellRadius;
-    float d = b * b - c;
-    if (d < 0) return float2(-1, -1);
-    float sqrtD = sqrt(d);
-    return float2(-b - sqrtD, -b + sqrtD);
-}
 
 float GetNormalizedHeight(float3 worldPos)
 {
-    float h = length(worldPos) - (6371000.0 + GetCloudLayerBottom());
-    return saturate(h / VolCloud_CloudLayerThickness);
+    return CloudNormalizedHeight(worldPos, VolCloud_PlanetRadius,
+        GetCloudLayerBottom(), VolCloud_CloudLayerThickness);
 }
 
 float Hash31(float3 p)
@@ -119,17 +109,21 @@ float CloudPhase(float cosTheta)
     return max(forward + silver, Inv_Pi * 0.25);
 }
 
-float LightMarch(float3 startPos, float3 lightDir)
+float LightMarch(float3 startPos, float3 lightDir, float lightDistance)
 {
-    float3 earthCenter = float3(0, -(6371000.0), 0);
-    float3 relPos = startPos - earthCenter;
-    float rayLen = max(0, GetCloudLayerTop() - (length(relPos) - 6371000.0));
+    float2 ground = CloudSphereIntersection(startPos - CloudPlanetCenter(VolCloud_PlanetRadius), lightDir, VolCloud_PlanetRadius);
+    if (ground.x >= 0 && ground.y > 0 && ground.x < lightDistance)
+        return 0;
+    float4 segments = CloudRaySegments(startPos, lightDir, VolCloud_PlanetRadius,
+        GetCloudLayerBottom(), VolCloud_CloudLayerThickness, lightDistance);
+    float rayLen = (segments.y - segments.x) + (segments.w - segments.z);
+    if (rayLen <= 0) return 1;
     float stepSize = rayLen / max(VolCloud_NumLightSteps, 1);
     float totalDensity = 0;
     [loop]
     for (int i = 0; i < VolCloud_NumLightSteps; ++i)
     {
-        float3 samplePos = startPos + lightDir * (i + 0.5) * stepSize;
+        float3 samplePos = startPos + lightDir * CloudRayDistance(segments, (i + 0.5) * stepSize);
         float h = GetNormalizedHeight(samplePos);
         if (h >= 0 && h <= 1)
         {
@@ -161,9 +155,11 @@ float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, f
         shadow = SampleLocalShadow(SRV_LocalShadowMap, light, samplePos);
     }
 
-    float lightEnergy = LightMarch(samplePos, L);
+    float lightDistance = IsDirectionalLight(light) ? 1e20 : length(light.positionRange.xyz - samplePos);
+    float lightEnergy = LightMarch(samplePos, L, lightDistance);
     float altitude = GetCloudLayerBottom() + normalizedHeight * VolCloud_CloudLayerThickness;
-    float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, L.y, VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
+    float3 radialUp = normalize(samplePos - CloudPlanetCenter(VolCloud_PlanetRadius));
+    float3 sunTransmittance = SampleAtmosphereTransmittanceLUT(SRV_TransmittanceLUT, altitude, dot(L, radialUp), VolCloud_PlanetRadius, VolCloud_AtmosphereHeight);
     float phase = CloudPhase(dot(rayDir, L));
     shadow = VolumeShadowWeight(light, lerp(1, shadow, LightShadowStrength(light)));
     float3 radiance = VolumeLightRadiance(light) * LightCookieColor(light, samplePos) * sunTransmittance * lightEnergy * phase * shadow * att;
@@ -186,32 +182,23 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
     float3 worldPos = worldPosH.xyz / worldPosH.w;
     float3 rayDir = normalize(worldPos - _WorldSpaceCameraPos);
 
-    float earthRadius = 6371000.0;
-    float3 earthCenter = float3(0, -earthRadius, 0);
-    float3 rayOrigin = _WorldSpaceCameraPos - earthCenter;
-
-    float2 tBottom = RayCloudLayerIntersect(rayOrigin, rayDir, earthRadius + GetCloudLayerBottom());
-    float2 tTop = RayCloudLayerIntersect(rayOrigin, rayDir, earthRadius + GetCloudLayerTop());
-    float tStart = max(0, min(tBottom.x > 0 ? tBottom.x : tTop.x, tTop.x > 0 ? tTop.x : 1e20));
-    float tEnd = max(tBottom.y, tTop.y);
-
-    if (tStart >= tEnd || tStart < 0)
-    {
-        UAV_VolumetricCloudTexture[id.xy] = float4(0, 0, 0, 1);
-        return;
-    }
-
     float rawDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
-    float3 sceneNdc = GetNDCPos(screenUV, rawDepth);
-    float3 sceneWorld = GetWorldSpacePos(sceneNdc, Matrix_InvViewProj);
-    float sceneDist = length(sceneWorld - _WorldSpaceCameraPos);
-    if (sceneDist < tStart)
+#if UNITY_REVERSED_Z
+    const bool reversedZ = true;
+#else
+    const bool reversedZ = false;
+#endif
+    float sceneDist = CloudSceneRayLimit(rawDepth, screenUV, Matrix_InvViewProj,
+        _WorldSpaceCameraPos, rayDir, reversedZ);
+    float4 segments = CloudRaySegments(_WorldSpaceCameraPos, rayDir, VolCloud_PlanetRadius,
+        GetCloudLayerBottom(), VolCloud_CloudLayerThickness, sceneDist);
+    float totalLength = (segments.y - segments.x) + (segments.w - segments.z);
+    if (totalLength <= 0)
     {
         UAV_VolumetricCloudTexture[id.xy] = float4(0, 0, 0, 1);
         return;
     }
 
-    float totalLength = tEnd - tStart;
     float stepSize = totalLength / max(VolCloud_NumPrimarySteps, 1);
     float3 accumulatedLight = 0;
     float transmittance = 1.0;
@@ -222,8 +209,8 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
         if (transmittance < 0.01)
             break;
 
-        float t = tStart + (i + jitter) * stepSize;
-        float3 samplePos = (rayOrigin + rayDir * t) + earthCenter;
+        float t = CloudRayDistance(segments, (i + jitter) * stepSize);
+        float3 samplePos = _WorldSpaceCameraPos + rayDir * t;
         float normalizedHeight = GetNormalizedHeight(samplePos);
         if (normalizedHeight < 0 || normalizedHeight > 1)
             continue;

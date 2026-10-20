@@ -572,3 +572,52 @@ The user verifies in commit order with
   construction; retire them immediately after that patch is frozen. Existing run02/preimage remains solely for final
   source audit, without the duplicate S3 GS preimage. Main's durable resource/profile configuration, S4–S17,
   final HEAD, valid GPU timing and overall cleanup remain incomplete. PR11 stays Draft.
+
+
+### S4 local Editor validation (active, 2026-10-20)
+
+- Historical f70837766999 plus accepted S1/S2 fixes compiled. QualityPresetTests4/4; original full Example1553
+  identities=1500Passed/0Failed/53Skipped. After the cloud repair, final full1556=1503Passed/0Failed/53Skipped,
+  reload/resume2/2. Independent review checked discovery, callbacks and all stable leaf identities. Native XML omits33
+  actual pre-reload skipped leaves; callback XML preserves their original checkpoint results. Roots stay Skipped:Ignored;
+  frameworkComplete=false and callbacksComplete=true are separate facts, not an all-PASS result.
+- Four production Volume inspectors passed bounded Custom/preset preservation, editable artistic fields, native Copy
+  Preset To Custom button clicks and exact Undo/Redo. Initial scratch-host NotEditable was removed before effective tests.
+- Original cloud five-level normal frames failed: foreground bright speckles and missing sky clouds. Native Frame Debugger
+  identified ComputeVolumetricCloud > VolCloud_Trace > Compute_VolumetricCloud. The fix uses Profile planet radius,
+  unclamped world-to-planet height, ordered outer-minus-inner intervals, planet/opaque clipping and shared light-ray geometry.
+  New GPU tests3/3 cover two planet radii, independent double boundary classification and exact clear versus distant depth.
+- Repaired production five-level frames and valid foreground/inside-layer near/far wall controls completed and retired.
+  Invalid initial material and stale-bounds wall captures are recorded separately and excluded from acceptance.
+- Actual S3/S4 Custom A/B uses the same cloud geometry fix on both sides to isolate presets: all11 pairs of buffers
+  across GTAO/RTAO/fog/cloud are byte-identical. Each capture has128 accepted warmup frames, phase1 modulo16, equal camera
+  matrices/current+previous jitter and equal low-level Volume JSON after excluding quality. All22 buffers were independently
+  read, then retired (7948800 logical bytes; allocation386048->370688KiB). Fixed simulation time limits this evidence.
+- New CloudShell Metal potentially-uninitialized warnings are preserved, not attributed to old SSR warnings; no matching
+  unassigned source path or runtime failure has been established. Full shader/artistic quality and performance are not passed.
+- Editors26152/37499/44517 exited normally. The latest reference restored clean original roots/transforms, background=false,
+  Play options1 and full original GS JSON without saving; GS/meta bytes stayed identical. Its33 source files and21 main-owned
+  fixture files passed guards before main checkout. The first session initial-bind receipt was overwritten by a later session;
+  the remaining original context restoration and source/log identities are retained without relabeling the later receipt.
+- main now contains the exact helper/tests and cloud fix, adapting only LightRecord directional detection; cloud capture maps
+  to the real graph output. Final main DXC3kernels, static_check0/0 and diff check pass. Main Unity compile passed;
+  main targeted results: Cloud3/3 and quality-name-filter10/10. The unchanged default Profile still blocks main rendering.
+  Dedicated grazing/far-plane and real Point positive/zero controls now pass independent review; independent review accepts Fix S4. S5 unlocks after its commit/push.
+- S1 compacted31 payloads;2037 consumed files retired (1189888->1024KiB). Only its guarded startup helper, one4096-byte
+  specimen and quarantine parent remain for final environment audit. S3's two carry inputs were consumed into S4 replay,
+  then deleted; S3 intermediate is absent. Active Library caches were untouched.
+- Current carry-over consumer: S5 historical replay construction uses only run02/S4/s4-final-replay.patch and
+  s4-final-replay-identity.json. All S4 runtime, main targeted and report reviews are complete.
+  Budget512MiB logical/max20 retained320x180 normal frames; consumed raw captures are deleted after exact stats/hash review.
+  Root preimage/input-manifest remain solely for final protected-source audit. Overall validation/cleanup incomplete; PR11 Draft.
+- Supplement Editor51277 restored original configuration and exited normally; all38 historical source identities and21
+  main fixture identities passed before main return. Production grazing center segments37842..130660m and243446..336264m
+  lie beyond far100m with clear depth. Real Point positive/zero controls change cloud radiance, while Lighting is identical;
+  distinct jitter/sample phases prevent treating them as a quantitative energy-only image equality claim.
+- Deliberate S4 evidence is27 payloads (8294192 bytes) plus one8123118-byte index under Documentation~/Evidence/
+  Verification-0.5-2026-10-19/S4; original/final XML, checkpoints, key native images, capture identities and failures remain.
+  After raw review48 more buffers/15206400 logical bytes retired (420352->389632KiB), in addition to earlier raw retirements.
+  After final report acceptance,607 consumed scratch files/60170712 logical bytes were retired; allocation391168->768KiB.
+  Only the exact replay patch/identity (149447 bytes) remain for S5; cleanup.json lists identities. Active caches were untouched.
+- User clarified session scope: manage only this task's original Example Editor. Other sessions' Unity processes are neither
+  operated on nor waited for; asset-import workers are not additional Editor sessions for this task.

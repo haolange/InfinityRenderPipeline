@@ -111,6 +111,14 @@ still fails. Retain the original failed check; these missing historical images a
 2. Open a Volume with GTAO, RTAO, Volumetric Fog or Volumetric Cloud: a Quality section shows `Quality = Custom` and the existing values (images unchanged).
 3. Switch Quality to Low/Medium/High/Ultra: the quality fields become read-only and show the preset values; the image changes accordingly. Artistic fields (intensity, radius, density, ...) stay editable.
 4. "Copy Preset To Custom" copies the preset into the parameters and switches to Custom; Undo restores the previous state.
+5. Run `CloudShellGpuTests`: the production shell helper must match the independent double-precision boundary oracle
+   for both planet radii, below/inside/above the layer, tangents, both grazing segments, planet blocking and depth clips.
+6. In a task-owned cloud fixture, inspect the actual `ComputeVolumetricCloud` dispatch in Frame Debugger, then resume
+   normal frames. Compare Low/Medium/High/Ultra/Custom with sky and opaque foreground visible; clouds must remain above
+   the layer bottom and in front of the scene depth. Check sky beyond camera far plane, an observer inside the layer,
+   a grazing view, and directional/local light paths. Capture before/after, preserve the original failure, and confirm
+   normal capture retirement and original source/configuration restoration. Frame completion alone is not image acceptance.
+
 
 ## S5 — stochastic SSR
 

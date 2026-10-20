@@ -1,0 +1,47 @@
+#pragma kernel CloudShellContract
+#pragma kernel CloudDepthContract
+#include "../../../Shaders/ShaderLibrary/CloudShell.hlsl"
+
+StructuredBuffer<float4> Cases;
+RWStructuredBuffer<float4> Results;
+float PlanetRadius;
+int CaseCount;
+
+[numthreads(1, 1, 1)]
+void CloudShellContract(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)CaseCount) return;
+    float4 origin = Cases[id.x * 2];
+    float3 direction = normalize(Cases[id.x * 2 + 1].xyz);
+    float4 segments = CloudRaySegments(origin.xyz, direction, PlanetRadius, 500, 1500, origin.w);
+    Results[id.x * 2] = segments;
+    float total = segments.y - segments.x + segments.w - segments.z;
+    float minimum = 1, maximum = 0;
+    if (total > 0)
+    {
+        for (int i = 0; i < 16; ++i)
+        {
+            float t = CloudRayDistance(segments, total * (i + 0.5) / 16);
+            float height = CloudNormalizedHeight(origin.xyz + direction * t, PlanetRadius, 500, 1500);
+            minimum = min(minimum, height);
+            maximum = max(maximum, height);
+        }
+    }
+    Results[id.x * 2 + 1] = float4(CloudNormalizedHeight(origin.xyz, PlanetRadius, 500, 1500), minimum, maximum, total);
+}
+
+[numthreads(1, 1, 1)]
+void CloudDepthContract(uint3 id : SV_DispatchThreadID)
+{
+    float4 test = Cases[id.x];
+    bool reversedZ = test.z != 0;
+    float near = test.y, far = 65536;
+    float slope = reversedZ ? far - near : near - far;
+    float intercept = reversedZ ? near : far;
+    // Perspective inverse VP looking radially upward from world origin.
+    float4x4 inverseVP = float4x4(1, 0, 0, 0,
+        0, 0, 0, near * far,
+        0, 1, 0, 0, 0, 0, slope, intercept);
+    float limit = CloudSceneRayLimit(test.x, float2(.5, .5), inverseVP, float3(0, 0, 0), float3(0, 1, 0), reversedZ);
+    Results[id.x] = CloudRaySegments(float3(0, 0, 0), float3(0, 1, 0), PlanetRadius, 500, 150000, limit);
+}

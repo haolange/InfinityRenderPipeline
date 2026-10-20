@@ -92,6 +92,10 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+
+- Volumetric clouds use the Atmospherical Profile planet radius and a consistent planet-centered shell for view and
+  light rays. Cloud intervals exclude the inner cavity and planet, clip at opaque depth, and retain both visible grazing
+  segments; layer rejection uses unclamped height. Sky depth no longer clips clouds at the camera far plane.
 - S3 resource verification no longer assumes ordinary reload completes existing GlobalSettings or recommends whole-container Reset for one missing slot. Historical replay uses an explicit temporary binding and restoration; persistent upgrades must account for native fields absent from the current schema before saving.
 - Inspector section foldouts allow nested serialized arrays, including Diffusion Profiles in Lighting & Shadows,
   and keep layout groups paired when selecting mixed Light types.

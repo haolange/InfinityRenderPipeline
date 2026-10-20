@@ -83,6 +83,7 @@ namespace InfinityTech.Rendering.Pipeline
                     case "IndirectSpecular": id = InfinityShaderIDs.IndirectSpecularBuffer; break;
                     case "HalfResDepth": id = InfinityShaderIDs.HalfResDepthBuffer; break;
                     case "HalfResNormal": id = InfinityShaderIDs.HalfResNormalBuffer; break;
+                    case "VolumetricCloud": id = InfinityShaderIDs.VolumetricCloudBuffer; break;
                     case "CascadeShadow": id = InfinityShaderIDs.CascadeShadowMap; break;
                     case "SSRRayHit": id = InfinityShaderIDs.SSRRayHitBuffer; break;
                     case "SSRResolved": id = InfinityShaderIDs.SSRResolvedBuffer; break;

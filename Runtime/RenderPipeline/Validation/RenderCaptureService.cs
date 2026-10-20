@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.Pipeline
             name == "SSGI" || name == "SceneColor" || name == "AntiAliasing" ||
             name == "CascadeShadow" || name == "HiZ" || name == "SSRRayHit" || name == "SSRResolved" ||
             name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGIResolved" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
-            name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal";
+            name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal" || name == "VolumetricCloud";
 
         internal static MeshPipeline.EMeshBackendPolicy BackendFor(Camera camera)
         {
