@@ -667,3 +667,9 @@ The user verifies in commit order with
   Current S5 intermediates feed only final evidence review/cleanup and S6 replay construction. The sole post-cleanup
   carry is s5-final-replay.patch plus s5-final-replay-identity.json; delete after S6 replay is frozen. Active Library/DataStore
   are untouched. Root preimage/input-manifest remains solely for final protected-source audit; overall cleanup incomplete.
+- Independent final report/source/identity review accepted S5. Completed final cleanup of780 remaining scratch
+  files/40361661 logical bytes, allocation237056->768KiB; two S6 replay inputs
+  (160905 bytes) remain. AppleDouble handling caused the first cleanup precheck to stop and the next to stop
+  after deleting budget.json/its sidecar; the final receipt distinguishes that tiny earlier deletion from these measured
+  remaining files. Source commit ecd3c7b preceded cleanup because later shell commands ran after the first Python failure;
+  this follow-up records actual cleanup without rewriting history. Push/remote/clean checks unlock S6.
