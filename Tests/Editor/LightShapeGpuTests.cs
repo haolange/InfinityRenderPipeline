@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [TestCase(5.0f, 0.02f)]
         [TestCase(50.0f, 0.001f)]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void EveryShape_ConvergesToThePunctualIrradiance(float distance, float tolerance)
         {
             Vector4[] results = Run(distance);
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void LargerSources_LowerSpecularPeakNormalization()
         {
             Vector4[] near = Run(2.0f);

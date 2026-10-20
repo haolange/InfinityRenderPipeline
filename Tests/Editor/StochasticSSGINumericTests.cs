@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [TestCase(32, 32, false)]
         [TestCase(17, 19, true)]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void UnobstructedPlane_TracesMissesAndKeepsBakedDiffuse(int width, int height, bool halfResolution)
         {
             RequireGpu();
@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Sky_SkipsEveryTile()
         {
             RequireGpu();
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Spatial_PreservesConstantSignal()
         {
             RequireGpu();

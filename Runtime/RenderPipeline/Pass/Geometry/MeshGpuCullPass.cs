@@ -44,7 +44,8 @@ namespace InfinityTech.Rendering.Pipeline
                         camera.transform.position,
                         shadowLight.cullingMask,
                         shadowRenderingLayerMask,
-                        cascade));
+                        cascade,
+                        sceneCullingMask: mainView.sceneCullingMask));
                 }
             }
 
@@ -73,7 +74,8 @@ namespace InfinityTech.Rendering.Pipeline
                     lightPosition,
                     shadowLight.cullingMask,
                     shadowRenderingLayerMask,
-                    local.face));
+                    local.face,
+                    sceneCullingMask: mainView.sceneCullingMask));
             }
         }
     }

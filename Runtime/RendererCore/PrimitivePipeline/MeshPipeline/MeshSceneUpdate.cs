@@ -105,7 +105,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             EMotionType motionType,
             ECastShadowMethod castShadow,
             EGeometrySourceKind geometrySource = EGeometrySourceKind.IndexedMesh,
-            uint deformationDataId = 0)
+            uint deformationDataId = 0,
+            ulong sceneCullingMask = ulong.MaxValue)
         {
             ThrowIfClosed();
 
@@ -124,6 +125,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 transform = transform,
                 worldBounds = worldBounds,
                 layerMask = layerMask,
+                sceneCullingMask = sceneCullingMask,
                 renderingLayerMask = renderingLayerMask,
                 flags = flags,
                 motionType = motionType,
@@ -184,6 +186,23 @@ namespace InfinityTech.Rendering.MeshPipeline
             });
 
             m_Scene.SetInstanceFlags(id, flags);
+        }
+
+        public void SetInstanceSceneCullingMask(MeshInstanceId id, ulong sceneCullingMask)
+        {
+            ThrowIfClosed();
+            if (!m_Scene.TryGetInstance(id, out MeshInstanceRecord previous))
+                throw new ArgumentException("Scene visibility requires a live instance.", nameof(id));
+            if (previous.sceneCullingMask == sceneCullingMask) return;
+            Push(new MeshSceneUndoEntry
+            {
+                op = EMeshSceneUndoOp.RestoreInstanceRecord,
+                index = id.Index,
+                generation = id.Generation,
+                instanceRecord = previous
+            });
+            previous.sceneCullingMask = sceneCullingMask;
+            m_Scene.WriteInstanceRecord(id, previous);
         }
 
         public void SetInstanceBakedLighting(MeshInstanceId id, in FMeshBakedLighting data)

@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void LightRecord_MatchesHlslFieldForField()
         {
             List<(string type, string name)> hlsl = ParseHlslStruct(File.ReadAllText(Path.GetFullPath(RecordPath)), "FLightRecord");
@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void LightRecordFlags_MatchHlslDefines()
         {
             string text = File.ReadAllText(Path.GetFullPath(RecordPath));

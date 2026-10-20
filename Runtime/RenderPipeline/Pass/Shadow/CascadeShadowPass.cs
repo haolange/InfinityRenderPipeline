@@ -122,7 +122,8 @@ namespace InfinityTech.Rendering.Pipeline
                         shadowLight.cullingMask,
                         shadowRenderingLayerMask,
                         cascade,
-                        CascadeShadowPassUtilityData.ExcludedCasterFlags(excludeStatic));
+                        CascadeShadowPassUtilityData.ExcludedCasterFlags(excludeStatic),
+                        MeshView.SceneCullingMaskFor(camera));
                     cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(cascadeView, MeshPassId.Shadow);
 
                     ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIndex);

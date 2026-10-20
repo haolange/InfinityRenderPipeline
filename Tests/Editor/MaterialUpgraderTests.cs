@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class MaterialUpgraderTests
     {
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Standard_ConvertsToInfinityLit()
         {
             Shader standard = Shader.Find("Standard");
@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Upgraders_TargetInfinityShaders_AndSourcesAreUnique()
         {
             var sources = new System.Collections.Generic.HashSet<string>();

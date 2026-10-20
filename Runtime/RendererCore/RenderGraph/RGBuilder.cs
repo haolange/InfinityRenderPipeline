@@ -33,6 +33,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGBufferRef boundsExtent;
         public RGBufferRef instanceFlags;
         public RGBufferRef instanceLayerMask;
+        public RGBufferRef instanceSceneCullingMask;
         public RGBufferRef instanceRenderingLayer;
     }
 
@@ -209,6 +210,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 || residency.BoundsExtentBuffer.buffer == null
                 || residency.InstanceFlagsBuffer.buffer == null
                 || residency.InstanceLayerMaskBuffer.buffer == null
+                || residency.InstanceSceneCullingMaskBuffer.buffer == null
                 || residency.InstanceRenderingLayerBuffer.buffer == null)
             {
                 throw new InvalidOperationException("MeshGpuCull requires uploaded GpuScene instance buffers.");
@@ -226,6 +228,7 @@ namespace InfinityTech.Rendering.RenderGraph
             RGBufferRef boundsExtent = ImportBuffer(residency.BoundsExtentBuffer);
             RGBufferRef instanceFlags = ImportBuffer(residency.InstanceFlagsBuffer);
             RGBufferRef instanceLayerMask = ImportBuffer(residency.InstanceLayerMaskBuffer);
+            RGBufferRef instanceSceneCullingMask = ImportBuffer(residency.InstanceSceneCullingMaskBuffer);
             RGBufferRef instanceRenderingLayer = ImportBuffer(residency.InstanceRenderingLayerBuffer);
 
             var frustumPlanes = new Vector4[6];
@@ -244,6 +247,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 passData.boundsExtent = passRef.ReadBuffer(boundsExtent);
                 passData.instanceFlags = passRef.ReadBuffer(instanceFlags);
                 passData.instanceLayerMask = passRef.ReadBuffer(instanceLayerMask);
+                passData.instanceSceneCullingMask = passRef.ReadBuffer(instanceSceneCullingMask);
                 passData.instanceRenderingLayer = passRef.ReadBuffer(instanceRenderingLayer);
                 passRef.EnablePassCulling(true);
                 passRef.SetExecuteFunc((in MeshGpuCullPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
@@ -262,6 +266,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         passData.boundsExtent,
                         passData.instanceFlags,
                         passData.instanceLayerMask,
+                        passData.instanceSceneCullingMask,
                         passData.instanceRenderingLayer,
                         passData.visibility);
                     passData.world?.MarkGpuCulled(passData.view);

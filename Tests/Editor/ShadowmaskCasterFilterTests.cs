@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class ShadowmaskCasterFilterTests
     {
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ExcludedFlags_CullStaticLightmappedInstancesOnly()
         {
             var scene = new MeshScene(16);
@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ExcludedFlags_SplitVisibilitySignatures()
         {
             var view = new MeshView { viewKey = 7, kind = EMeshViewKind.LocalShadow, layerMask = ~0, renderingLayerMask = 1 };

@@ -8,6 +8,50 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class CameraFrameStateTests
     {
+        [TestCase(CameraType.Preview)]
+        [TestCase(CameraType.Reflection)]
+        public void CameraUniform_NonTemporalCamerasNeverJitterAcrossCommits(CameraType type)
+        {
+            var go = new GameObject("NonTemporalCameraHistory");
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                camera.cameraType = type;
+                var data = new CameraUniform();
+                for (int frame = 0; frame < 16; frame++)
+                {
+                    data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360));
+                    Assert.AreEqual(frame == 0, data.historyReset);
+                    Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
+                    Assert.AreEqual(data.matrix_Proj, data.matrix_JitterProj);
+                    Assert.AreEqual(data.matrix_FlipYProj, data.matrix_FlipYJitterProj);
+                    data.Commit();
+                }
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void CameraUniform_GameJittersOnlyAfterSuccessfulHistoryAndResetsOnCut()
+        {
+            var go = new GameObject("TemporalCameraHistory");
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                var data = new CameraUniform();
+                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360));
+                Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
+                data.Commit();
+                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360));
+                Assert.IsFalse(data.historyReset);
+                Assert.AreNotEqual(Unity.Mathematics.float2.zero, data.jitter);
+                data.UpdateCurrFrameData(camera, new Unity.Mathematics.int2(640, 360), true);
+                Assert.IsTrue(data.historyReset);
+                Assert.AreEqual(Unity.Mathematics.float2.zero, data.jitter);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
         [Test]
         public void CameraUniform_ResetSeedsFinitePreviousProjectionWithoutCommittingHistory()
         {

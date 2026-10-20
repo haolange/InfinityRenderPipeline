@@ -60,7 +60,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Identity of a cached tile's content: the shadow matrix (position, orientation, projection), caster bias and
-        // the caster filters. Camera independent.
+        // the caster filters. Scene visibility is part of the exact cache key.
         static int CachedShadowHash(in FLocalShadowSlice slice, Light light, bool excludeStatic)
         {
             var hash = new System.HashCode();
@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
-                    cacheKeys[slice] = new FShadowCacheKey(lightInstanceId, local.face);
+                    cacheKeys[slice] = new FShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(camera));
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
                         CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
                     if (cacheSlots[slice] >= 0 && !cacheRender[slice])
@@ -164,7 +164,8 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowLight.cullingMask,
                     shadowRenderingLayerMask,
                     local.face,
-                    CascadeShadowPassUtilityData.ExcludedCasterFlags(excludeStatic));
+                    CascadeShadowPassUtilityData.ExcludedCasterFlags(excludeStatic),
+                    MeshView.SceneCullingMaskFor(camera));
                 sliceDraws[slice] = m_RGBuilder.CreateDrawList(localView, MeshPassId.Shadow);
 
                 ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);

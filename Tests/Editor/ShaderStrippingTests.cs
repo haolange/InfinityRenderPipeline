@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader()
         {
             Assert.IsTrue(InfinityShaderStripper.IsInfinityActive);

@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void IdenticalImages_HaveNoError()
         {
             byte[] image = { 10, 20, 30, 255, 40, 50, 60, 255 };
@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void OneChangedPixel_IsOneOutlier_AlphaIgnored()
         {
             byte[] a = { 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255 };
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void HalfImages_DecodeAndFlagNaN()
         {
             byte[] a = Half(0.5f, 0.25f, 1.0f, 1.0f, 0.1f, 0.1f, 0.1f, 1.0f);
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ShortBuffer_IsNotComparable()
         {
             FImageComparison result = ImageComparison.Compare(new byte[4], new byte[8], "R8G8B8A8_UNorm", 2, 1, 0.01f);
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void DefaultCases_HaveCreatorsAndCameras()
         {
             var cases = ImageRegressionRunner.DefaultCases();

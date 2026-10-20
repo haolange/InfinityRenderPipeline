@@ -15,7 +15,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Bits_GoToContactLights_LargestScreenCoverageFirst()
         {
             var records = new NativeList<FLightRecord>(Allocator.Temp);
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Bits_AreCappedAt24()
         {
             var records = new NativeList<FLightRecord>(Allocator.Temp);

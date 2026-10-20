@@ -13,6 +13,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public FMeshBakedLighting bakedLighting;
         public FBound worldBounds;
         public int layerMask;
+        public ulong sceneCullingMask;
         public uint renderingLayerMask;
         public EMeshInstanceFlags flags;
         public EMotionType motionType;

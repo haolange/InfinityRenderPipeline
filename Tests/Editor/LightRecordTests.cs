@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ShadowSliceCounts_Point6_SingleTileShapes1_Directional0()
         {
             Assert.AreEqual(6, FLightRecordPack.LocalShadowSliceCount(new FLightRecord()));
@@ -59,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void DistanceFade_FadesOverFadeLengthBeforeMaximum()
         {
             Assert.AreEqual(1.0f, FLightRecordPack.DistanceFade(10, 128, 1), 1e-6f);
@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void LocalLight_BeyondMaximumDistance_IsNotPacked()
         {
             GameObject go = new GameObject("LightFadeTest");

@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(32, 32, false, 0.25f)]
         [TestCase(17, 19, true, 0.25f)]
         [TestCase(17, 19, false, 0.4f)]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(int width, int height, bool halfResolution, float roughness)
         {
             RequireGpu();
@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void RoughPlane_SkipsEveryTile()
         {
             RequireGpu();
@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Spatial_PreservesConstantSignal()
         {
             RequireGpu();

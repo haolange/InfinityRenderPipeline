@@ -226,8 +226,8 @@ namespace InfinityTech.Rendering.Pipeline
         public void InvokeWorldDynamicMeshUpdate()
         {
             InterpolateMeshProbes();
-            // Static geometry can change lightmap assignments or probe lighting without moving.
-            for (int i = 0; i < m_StaticMeshList.Count; i++) m_StaticMeshList[i].RefreshBakedLighting();
+            // Static geometry can change scene visibility, lightmap assignments or probe lighting without moving.
+            for (int i = 0; i < m_StaticMeshList.Count; i++) m_StaticMeshList[i].RefreshInstanceMetadata();
             if (m_DynamicMeshList.Count == 0) { return; }
 
             for (int i = 0; i < m_DynamicMeshList.Count; ++i)

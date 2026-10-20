@@ -285,6 +285,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 viewKey = viewKey,
                 kind = EMeshViewKind.Main,
                 layerMask = ~0,
+                sceneCullingMask = ulong.MaxValue,
                 renderingLayerMask = (uint)ERenderingLayer.Everything,
                 enableVisibility = true,
                 planeCount = 6

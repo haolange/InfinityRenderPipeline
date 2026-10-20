@@ -16,6 +16,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         public EMeshViewKind kind;
         public float3 viewPosition;
         public int layerMask;
+        // Complement storage preserves unrestricted scene eligibility for zero-initialized views.
+        private ulong m_SceneCullingMaskComplement;
+        public ulong sceneCullingMask
+        {
+            get => ~m_SceneCullingMaskComplement;
+            set => m_SceneCullingMaskComplement = ~value;
+        }
         public uint renderingLayerMask;
         public int subviewIndex;
         public int planeCount;
@@ -129,14 +136,31 @@ namespace InfinityTech.Rendering.MeshPipeline
                 kind = kind,
                 viewPosition = camera.transform.position,
                 layerMask = camera.cullingMask,
+                sceneCullingMask = SceneCullingMaskFor(camera),
                 renderingLayerMask = (uint)ERenderingLayer.Everything,
                 subviewIndex = 0,
                 enableVisibility = camera.cameraType == CameraType.Game
                     || camera.cameraType == CameraType.Reflection
                     || camera.cameraType == CameraType.SceneView
+                    || camera.cameraType == CameraType.Preview
             };
             CopyCullingPlanes(ref view, ref cullingParameters);
             return view;
+        }
+
+        public static ulong SceneCullingMaskFor(Camera camera)
+        {
+#if UNITY_EDITOR
+            if (camera.overrideSceneCullingMask != 0)
+                return camera.overrideSceneCullingMask;
+            if (camera.scene.IsValid())
+                return UnityEditor.SceneManagement.EditorSceneManager.GetSceneCullingMask(camera.scene);
+            return camera.cameraType == CameraType.SceneView
+                ? UnityEditor.SceneManagement.SceneCullingMasks.MainStageSceneViewObjects
+                : UnityEditor.SceneManagement.SceneCullingMasks.GameViewObjects;
+#else
+            return ulong.MaxValue;
+#endif
         }
 
         public static MeshView FromCascadeShadow(
@@ -146,7 +170,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             int layerMask,
             uint renderingLayerMask,
             int cascadeIndex,
-            uint excludeInstanceFlags = 0)
+            uint excludeInstanceFlags = 0,
+            ulong sceneCullingMask = ulong.MaxValue)
         {
             return FromShadow(
                 lightViewKey,
@@ -156,7 +181,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layerMask,
                 renderingLayerMask,
                 cascadeIndex,
-                excludeInstanceFlags);
+                excludeInstanceFlags,
+                sceneCullingMask);
         }
 
         public static MeshView FromLocalShadow(
@@ -166,7 +192,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             int layerMask,
             uint renderingLayerMask,
             int face,
-            uint excludeInstanceFlags = 0)
+            uint excludeInstanceFlags = 0,
+            ulong sceneCullingMask = ulong.MaxValue)
         {
             return FromShadow(
                 lightViewKey,
@@ -176,7 +203,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layerMask,
                 renderingLayerMask,
                 face,
-                excludeInstanceFlags);
+                excludeInstanceFlags,
+                sceneCullingMask);
         }
 
         static MeshView FromShadow(
@@ -187,7 +215,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             int layerMask,
             uint renderingLayerMask,
             int subviewIndex,
-            uint excludeInstanceFlags)
+            uint excludeInstanceFlags,
+            ulong sceneCullingMask)
         {
             var view = new MeshView
             {
@@ -195,6 +224,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 kind = kind,
                 viewPosition = viewPosition,
                 layerMask = layerMask,
+                sceneCullingMask = sceneCullingMask,
                 renderingLayerMask = renderingLayerMask,
                 subviewIndex = subviewIndex,
                 enableVisibility = true,

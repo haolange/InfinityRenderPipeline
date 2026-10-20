@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         const string ShaderPath = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/LightTileMask/Compute_LightTileMask.compute";
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void GpuMasks_MatchCpuReference()
         {
             if (!SystemInfo.supportsComputeShaders || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)

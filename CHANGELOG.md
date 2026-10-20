@@ -92,6 +92,13 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Inspector section foldouts allow nested serialized arrays, including Diffusion Profiles in Lighting & Shadows,
+  and keep layout groups paired when selecting mixed Light types.
+- Preview and Reflection camera uniforms now obey the camera policy when preparing jitter, including after successful history commits.
+- Custom Mesh visibility retains the full Unity scene mask through instance metadata, CPU/GPU culling, shadow views and cache identity; static scene changes refresh without requiring proxy updates. Cached local shadows distinguish cameras with different scene masks.
+- Pending-verification tests use NUnit's legal `Unverified_0_5` category. The former hyphenated name made NUnit
+  reject tests as Failed:Invalid before execution; the rename preserves all pending markers and assertions.
+
 - Shader stripping compares native `ShaderTagId` identities instead of case-sensitive names, preserving used
   native passes when Unity returns canonicalized tag spellings. Callback fixtures now select real single-pass
   shaders instead of changing a snippet name while still addressing an unrelated pass.

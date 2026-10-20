@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         const string ModesPath = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/DebugViewModes.hlsl";
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ShaderDefines_MatchEDebugView()
         {
             string text = File.ReadAllText(Path.GetFullPath(ModesPath));

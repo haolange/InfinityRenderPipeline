@@ -28,6 +28,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private FBufferRef m_InstanceTransformIndexBuffer;
         private FBufferRef m_InstanceFlagsBuffer;
         private FBufferRef m_InstanceLayerMaskBuffer;
+        private FBufferRef m_InstanceSceneCullingMaskBuffer;
         private FBufferRef m_InstanceRenderingLayerBuffer;
         private int m_TransformBufferCapacity;
         private int m_InstanceBufferCapacity;
@@ -42,6 +43,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public FBufferRef InstanceTransformIndexBuffer => m_InstanceTransformIndexBuffer;
         public FBufferRef InstanceFlagsBuffer => m_InstanceFlagsBuffer;
         public FBufferRef InstanceLayerMaskBuffer => m_InstanceLayerMaskBuffer;
+        public FBufferRef InstanceSceneCullingMaskBuffer => m_InstanceSceneCullingMaskBuffer;
         public FBufferRef InstanceRenderingLayerBuffer => m_InstanceRenderingLayerBuffer;
         public int TransformCapacity => m_TransformBufferCapacity;
         public int InstanceCapacity => m_InstanceBufferCapacity;
@@ -100,6 +102,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         m_ResourcePool.ReleaseBuffer(m_InstanceTransformIndexBuffer);
                         m_ResourcePool.ReleaseBuffer(m_InstanceFlagsBuffer);
                         m_ResourcePool.ReleaseBuffer(m_InstanceLayerMaskBuffer);
+                        m_ResourcePool.ReleaseBuffer(m_InstanceSceneCullingMaskBuffer);
                         m_ResourcePool.ReleaseBuffer(m_InstanceRenderingLayerBuffer);
                     }
 
@@ -109,6 +112,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_InstanceTransformIndexBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
                     m_InstanceFlagsBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
                     m_InstanceLayerMaskBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
+                    m_InstanceSceneCullingMaskBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, Marshal.SizeOf<uint2>()));
                     m_InstanceRenderingLayerBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
                     m_HasInstanceBuffer = true;
 
@@ -206,6 +210,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             var transformIndices = new NativeArray<uint>(count, Allocator.Temp);
             var flags = new NativeArray<uint>(count, Allocator.Temp);
             var layerMasks = new NativeArray<uint>(count, Allocator.Temp);
+            var sceneMasks = new NativeArray<uint2>(count, Allocator.Temp);
             var renderingLayers = new NativeArray<uint>(count, Allocator.Temp);
             try
             {
@@ -220,6 +225,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         transformIndices[local] = 0u;
                         flags[local] = 0u;
                         layerMasks[local] = 0u;
+                        sceneMasks[local] = uint2.zero;
                         renderingLayers[local] = 0u;
                         continue;
                     }
@@ -230,6 +236,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     transformIndices[local] = instance.transform.IsValid ? instance.transform.Index : 0u;
                     flags[local] = (uint)instance.flags;
                     layerMasks[local] = (uint)instance.layerMask;
+                    sceneMasks[local] = new uint2((uint)instance.sceneCullingMask, (uint)(instance.sceneCullingMask >> 32));
                     renderingLayers[local] = instance.renderingLayerMask;
                 }
 
@@ -238,8 +245,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_InstanceTransformIndexBuffer.buffer.SetData(transformIndices, 0, begin, count);
                 m_InstanceFlagsBuffer.buffer.SetData(flags, 0, begin, count);
                 m_InstanceLayerMaskBuffer.buffer.SetData(layerMasks, 0, begin, count);
+                m_InstanceSceneCullingMaskBuffer.buffer.SetData(sceneMasks, 0, begin, count);
                 m_InstanceRenderingLayerBuffer.buffer.SetData(renderingLayers, 0, begin, count);
-                AccountUpload(count, Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 4);
+                AccountUpload(count, Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 6);
             }
             finally
             {
@@ -248,6 +256,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 transformIndices.Dispose();
                 flags.Dispose();
                 layerMasks.Dispose();
+                sceneMasks.Dispose();
                 renderingLayers.Dispose();
             }
         }
@@ -285,6 +294,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_ResourcePool.ReleaseBuffer(m_InstanceTransformIndexBuffer);
                 m_ResourcePool.ReleaseBuffer(m_InstanceFlagsBuffer);
                 m_ResourcePool.ReleaseBuffer(m_InstanceLayerMaskBuffer);
+                m_ResourcePool.ReleaseBuffer(m_InstanceSceneCullingMaskBuffer);
                 m_ResourcePool.ReleaseBuffer(m_InstanceRenderingLayerBuffer);
                 m_HasInstanceBuffer = false;
                 m_InstanceBufferCapacity = 0;

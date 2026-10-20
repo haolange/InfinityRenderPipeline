@@ -7,7 +7,8 @@ namespace InfinityTech.Rendering.Editor
         public static bool BeginFoldout(string key, string title, bool defaultOpen = true)
         {
             bool open = SessionState.GetBool(key, defaultOpen);
-            bool next = EditorGUILayout.BeginFoldoutHeaderGroup(open, title);
+            EditorGUILayout.BeginVertical();
+            bool next = EditorGUILayout.Foldout(open, title, true, EditorStyles.foldoutHeader);
             if (next != open)
             {
                 SessionState.SetBool(key, next);
@@ -18,7 +19,7 @@ namespace InfinityTech.Rendering.Editor
 
         public static void EndFoldout()
         {
-            EditorGUILayout.EndFoldoutHeaderGroup();
+            EditorGUILayout.EndVertical();
         }
     }
 }

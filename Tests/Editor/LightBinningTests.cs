@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(fov, aspect, near, far), true);
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void DepthToBin_IsMonotonicAndCoversNearToFar()
         {
             Vector4 bins = LightBinning.ZBinParams(0.1f, 1000, LightBinning.ZBinCount);
@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ZBins_HoldTheIndexRangeOfOverlappingLights()
         {
             Vector4 parameters = LightBinning.ZBinParams(0.1f, 100, 16);
@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void TileRect_ContainsTheProjectionOfEverySurfacePoint()
         {
             int2 screen = new int2(1920, 1080);
@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void SphereReachingTheNearPlane_CoversEveryTile_AndSphereBehindIsRejected()
         {
             int2 screen = new int2(1280, 720);

@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class RenderPipelineWizardTests
     {
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Checks_AreDescribed_AndEvaluateWithoutSideEffects()
         {
             var titles = new HashSet<string>();
@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(EInfinityLightType.Rect)]
         [TestCase(EInfinityLightType.Disk)]
         [TestCase(EInfinityLightType.Directional)]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void LightShape_InSyncAfterApply_OutOfSyncAfterNativeEdit(EInfinityLightType type)
         {
             var go = new GameObject("WizardLight");
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void DefaultVolumeProfile_CountMissing_MatchesValidateAndComplete()
         {
             VolumeProfile defaults = DefaultVolumeProfileFactory.CreateInMemory();

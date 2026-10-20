@@ -23,6 +23,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         static readonly FShadowCacheKey B = new FShadowCacheKey(2, 0);
         static readonly FShadowCacheKey C = new FShadowCacheKey(3, 0);
 
+        [TestCase(EShadowUpdateMode.OnEnable)]
+        [TestCase(EShadowUpdateMode.OnDemand)]
+        public void DifferentSceneMasks_NeverReuseTheOtherCamerasTile(EShadowUpdateMode mode)
+        {
+            var preview = new FShadowCacheKey(1, 0, 1);
+            var game = new FShadowCacheKey(1, 0, 1ul << 63);
+            Assert.AreNotEqual(preview, game);
+            int first = Frame(preview, mode, 10, 0, 1, true, out bool firstRender);
+            Assert.IsTrue(firstRender);
+            m_Cache.CommitFrame();
+            int second = Frame(game, mode, 10, 0, 2, true, out bool secondRender);
+            Assert.IsTrue(secondRender);
+            Assert.AreNotEqual(first, second);
+            m_Cache.CommitFrame();
+            Assert.AreEqual(first, Frame(preview, mode, 10, 0, 3, true, out bool reusedRender));
+            Assert.IsFalse(reusedRender);
+        }
+
         int Frame(FShadowCacheKey key, EShadowUpdateMode mode, int hash, int version, int frame, bool produce, out bool render)
         {
             m_Cache.BeginFrame();
@@ -32,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void EveryFrame_GetsNoSlot()
         {
             int slot = m_Cache.Acquire(A, EShadowUpdateMode.EveryFrame, 1, 0, 1, out bool render);
@@ -41,7 +59,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void OnEnable_RendersOnce_ThenOnParameterChange()
         {
             Frame(A, EShadowUpdateMode.OnEnable, 10, 1, 1, true, out bool render);
@@ -58,7 +76,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void OnDemand_IgnoresParameters_UntilRequested()
         {
             Frame(A, EShadowUpdateMode.OnDemand, 10, 0, 1, true, out bool render);
@@ -72,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void FailedFrame_RollsTheTileBack()
         {
             Frame(A, EShadowUpdateMode.OnEnable, 10, 1, 1, true, out _);
@@ -83,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void UnqueuedPass_DoesNotCommit()
         {
             Frame(A, EShadowUpdateMode.OnEnable, 10, 1, 1, false, out _);
@@ -92,7 +110,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void SecondCameraOfTheFrame_ReusesThePendingTile()
         {
             m_Cache.BeginFrame();
@@ -106,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void FullAtlas_EvictsLeastRecentlyUsed_NeverThisFrame()
         {
             int slotA = Frame(A, EShadowUpdateMode.OnEnable, 1, 0, 1, true, out _);
@@ -125,7 +143,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Resize_EmptiesTheCache()
         {
             Frame(A, EShadowUpdateMode.OnEnable, 1, 0, 1, true, out _);

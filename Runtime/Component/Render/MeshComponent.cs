@@ -27,6 +27,7 @@ namespace InfinityTech.Component
         {
             public bool valid;
             public bool visible;
+            public ulong sceneCullingMask;
             public EStateType movebility;
             public ulong meshAssetId;
             public int subMeshCount;
@@ -113,6 +114,17 @@ namespace InfinityTech.Component
         private bool m_DirtyEnqueued;
         private uint m_GeometryRevision;
         private float4x4 m_LocalToWorldMatrix => transform.localToWorldMatrix;
+        private ulong SceneCullingMask
+        {
+            get
+            {
+#if UNITY_EDITOR
+                return gameObject.sceneCullingMask;
+#else
+                return ulong.MaxValue;
+#endif
+            }
+        }
 
         protected override void OnRegister()
         {
@@ -191,9 +203,10 @@ namespace InfinityTech.Component
             });
         }
 
-        internal void RefreshBakedLighting()
+        internal void RefreshInstanceMetadata()
         {
-            if (m_InstanceId.IsValid && !ReadBakedLighting().Equals(m_LastBakedLighting)) MarkDirty();
+            if (m_InstanceId.IsValid && (m_Snapshot.sceneCullingMask != SceneCullingMask
+                || !ReadBakedLighting().Equals(m_LastBakedLighting))) MarkDirty();
         }
 
         public void MarkDirty()
@@ -442,7 +455,8 @@ namespace InfinityTech.Component
                     flags,
                     motionVector,
                     castShadow,
-                    EGeometrySourceKind.IndexedMesh);
+                    EGeometrySourceKind.IndexedMesh,
+                    sceneCullingMask: SceneCullingMask);
 
                 m_LastBakedLighting = ReadBakedLighting();
                 update.SetInstanceBakedLighting(m_InstanceId, m_LastBakedLighting);
@@ -536,6 +550,7 @@ namespace InfinityTech.Component
             using (MeshSceneUpdate update = scene.BeginUpdate())
             {
                 update.SetInstanceFlags(m_InstanceId, flags);
+                update.SetInstanceSceneCullingMask(m_InstanceId, SceneCullingMask);
                 update.SetInstanceRendering(m_InstanceId, renderingLayerMask, motionVector, castShadow);
 
                 if (m_DrawIds != null)
@@ -677,6 +692,7 @@ namespace InfinityTech.Component
         {
             if (!m_Snapshot.valid
                 || m_Snapshot.visible != visible
+                || m_Snapshot.sceneCullingMask != SceneCullingMask
                 || m_Snapshot.renderingLayer != renderingLayer
                 || m_Snapshot.renderPriority != renderPriority
                 || m_Snapshot.castShadow != castShadow
@@ -741,6 +757,7 @@ namespace InfinityTech.Component
             {
                 valid = m_InstanceId.IsValid,
                 visible = visible,
+                sceneCullingMask = SceneCullingMask,
                 movebility = movebility,
                 meshAssetId = UnityEntityId.ToUInt64(meshAsset),
                 subMeshCount = meshAsset != null ? meshAsset.subMeshCount : 0,

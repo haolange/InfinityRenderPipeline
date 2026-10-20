@@ -32,7 +32,7 @@ Out of scope: new post effects, LTC, Player builds and packaging.
   2. DXC compile of every compute kernel and shader pass entry (no new failures).
   3. `Tools/StaticCheck/static_check.py` clean.
 - A Unity or CoreRP API that cannot be verified from source is not wired; the stage records it as "designed, not wired".
-- Image results stay `TODO(UNVERIFIED)` until the user captures them. New tests carry `[Category("Unverified-0.5")]`.
+- Image results stay `TODO(UNVERIFIED)` until the user captures them. New tests carry `[Category("Unverified_0_5")]`.
 - Before writing code, each stage records its interface contract below (record layouts, buffer names, pass read/write sets).
 
 ## Stages
@@ -485,11 +485,54 @@ reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, 
   size about1.33GiB. Required preimages, failed controls, final XML, raw Film buffers and concise reports remain for
   independent review/final audit. Avoid more cache copies or whole-tree hashes; retire completed consumers' redundant
   scratch data after their evidence is collected. Final cleanup is not yet complete.
+- S2 original exact-category run discovered4 tests and failed all4 as Invalid: NUnit rejects the hyphen in
+  Unverified-0.5 before executing their bodies. A literal-only correction to Unverified_0_5 preserves the same4
+  identities in S2 and all93 pending annotations across30 main test files. No assertions or test bodies change;
+  FeatureStatus stays Open. Main's earlier missing utilityShader/
+  atmosphere-kernel errors remain observed with unconfirmed cause: ResourcePath targets exist. The initial S17
+  missing-path inference was incorrect and withdrawn.
 - Independent verification accepts the bounded historical S1 checkpoint and allows S2 historical replay after its
   Fix S1 commit. The cumulative main integration failures remain blockers for final delivery, owned by the relevant
   later stages. Three-way S12 shadow evidence, S16 regression positive/negative
   controls, S17 baseline reuse, final HEAD acceptance and valid GPU timing are unexecuted. FeatureStatus and
-  Unverified-0.5 markers remain unchanged. PR #11 remains Draft; the overall task is not complete.
+  Pending markers remain set (canonical category `Unverified_0_5`). PR #11 remains Draft; the overall task is not complete.
+- S2 fix-forward candidate repairs Preview jitter and full-width custom Mesh scene eligibility through CPU/GPU,
+  shadow views and cache keys. Historical replay passed camera10/10, Mesh5/5 and pending-category4/4;
+  final all-Example run was1544=1491Passed/0Failed/53Skipped. Independent review matched all1544 identities
+  and the33 checkpointed skipped leaves omitted by raw framework XML after two reloads. Native Preview/Reflection
+  and static additive-scene controls were inspected; Debug View's ten modes and enabled AO/SSR/SSGI ran normally.
+  On2026-10-20 the user confirmed the native menu works and selected Albedo. This is user-manual evidence;
+  a later Editor restart cleared the model, so no post-restart Albedo readback is claimed.
+- S2 shadow-distance128/8 controls changed cascade distances/culling spheres; invalid ratios failed one frame
+  with the expected exception and recovered on seven following frames, preserving original RP JSON/dirty state.
+  Native Inspector inspection exposed nested Foldout Header errors around Diffusion Profiles. The repaired helper
+  uses a styled foldout inside a vertical layout group; its expanded array and collapse/reopen controls passed.
+  The later main Light inspector now pairs the whole Shape group inside its mixed-type condition. Its production
+  OnGUI was exercised in a task native window using transient PreviewScene lights: mixed hides Shape, Point and
+  Directional show their own fields, with no layout errors. Normal Inspector selection of PreviewScene objects
+  did not display them, and an additive-scene control was rejected by Unity before mutation because the user's
+  resumed scene is untitled. Neither setup failure is reported as a production Inspector failure.
+- User resumed with a different Editor PID, clean untitled scene and Play options1. Preserve that new effective
+  context rather than restoring old Spazon/options3. Original RP source asset/meta bytes remain unchanged;
+  cross-stage JSON differs because main has additional serialized fields. Main's default-profile
+  completeness failure is still observed and blocks cumulative rendering acceptance; no silent fallback or asset
+  migration was used. The bounded S2 final source/changed-contract review is accepted below; no marker removal is claimed.
+- Historical S2 gates accepted by the independent verifier on2026-10-20 (Unity6000.6.0f1/macOS Metal):
+  compile, exact-stage category4/4, camera10/10, Mesh5/5, allExample1544=1491Passed/0Failed/53Skipped,
+  the recorded normal-frame/behavior controls and user-manual popup evidence. A final control on the exact same
+  S2 candidate called production TryMapUnityType for nine inputs: supported types map correctly; Disc/Pyramid/
+  Box/Tube/undefined return unsupported. Native culling excluded Disc, so counter1 execution is not claimed.
+  Main changed-contract tests25/25 and the production Light Inspector host control passed. The cumulative main
+  default-profile/APV failure remains a final-HEAD blocker, outside this bounded historical-stage acceptance.
+- S2 deliberate deliverables are under Documentation~/Evidence/Verification-0.5-2026-10-19/S2 (28 key files,
+  compact identities/receipts, original33skip leaves and cleanup receipt), alongside S2-report.md/S2-results.json.
+  With producers stopped,631 consumed intermediate files were retired:418560→7680KiB, releasing410880KiB.
+  Only run02/S2/final-replay-candidate3.patch, its identity, contract-fixture.cs, and gtao-off-mesh-red/
+  {capture.json,Lighting-65-449.bin,DisplayColor-65-449.bin} remain for S3 replay construction and image comparison.
+  Delete those six inputs immediately after S3 acceptance. The owned Assets/InfinityRPVerification_0_5_20261020_run02/S2
+  fixture has the same S3 consumer. Run02/preimage and input-manifest.json remain for the final source audit;
+  they are not a new backup. S3 may start after this Fix S2 batch is committed and pushed. Pending markers and
+  FeatureStatus remain unchanged until the final verification update; the overall task and cleanup are incomplete.
 
 The user verifies in commit order with
 [Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (one section per stage, in stage order).

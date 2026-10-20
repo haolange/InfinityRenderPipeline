@@ -7,26 +7,29 @@ using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
-    // One cached shadow tile: a light (instance id) and a cube face (0 for single-tile shapes).
+    // One cached shadow tile: a light, cube face and exact camera scene eligibility.
     internal readonly struct FShadowCacheKey : IEquatable<FShadowCacheKey>
     {
         public readonly ulong lightId;
         public readonly int face;
+        public readonly ulong sceneCullingMask;
 
-        public FShadowCacheKey(ulong lightId, int face)
+        public FShadowCacheKey(ulong lightId, int face, ulong sceneCullingMask = ulong.MaxValue)
         {
             this.lightId = lightId;
             this.face = face;
+            this.sceneCullingMask = sceneCullingMask;
         }
 
-        public bool Equals(FShadowCacheKey other) => lightId == other.lightId && face == other.face;
+        public bool Equals(FShadowCacheKey other) => lightId == other.lightId && face == other.face
+            && sceneCullingMask == other.sceneCullingMask;
         public override bool Equals(object obj) => obj is FShadowCacheKey other && Equals(other);
-        public override int GetHashCode() => HashCode.Combine(lightId, face);
+        public override int GetHashCode() => HashCode.Combine(lightId, face, sceneCullingMask);
     }
 
     /// <summary>
     /// Cached shadow atlas for OnEnable / OnDemand local lights. Tiles have the frame atlas tile size and are keyed by
-    /// light instance id and face, never by record index. The atlas is one persistent texture; what is transactional
+    /// light instance id, face and scene culling mask, never by record index. The atlas is one persistent texture; what is transactional
     /// is the slot state: a tile rendered this frame is pending until its pass is queued (MarkProduced) and the frame
     /// is submitted (CommitFrame). A frame that fails rolls the produced tiles back to invalid, so they re-render.
     /// Slots are reused least-recently-used when the atlas is full; a light that gets no slot renders every frame.

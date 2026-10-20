@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             Plane[] planes = GeometryUtility.CalculateFrustumPlanes(camera);
-            return CullInstances(scene, planes, enable);
+            return CullInstances(scene, planes, enable, sceneCullingMask: MeshView.SceneCullingMaskFor(camera));
         }
 
         public static MeshViewCullingResult CullInstances(
@@ -49,7 +49,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             int viewLayerMask = ~0,
             uint viewRenderingLayerMask = (uint)ERenderingLayer.Everything,
             bool filterRenderingLayers = false,
-            uint excludeInstanceFlags = 0)
+            uint excludeInstanceFlags = 0,
+            ulong sceneCullingMask = ulong.MaxValue)
         {
             if (!enable || scene == null || planes == null || planes.Length < 6)
             {
@@ -84,7 +85,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                         viewLayerMask = viewLayerMask,
                         viewRenderingLayerMask = viewRenderingLayerMask,
                         filterRenderingLayers = filterRenderingLayers ? 1 : 0,
-                        excludeInstanceFlags = excludeInstanceFlags
+                        excludeInstanceFlags = excludeInstanceFlags,
+                        sceneCullingMask = sceneCullingMask
                     };
                     job.Schedule(instanceCount, 256).Complete();
                 }
@@ -141,6 +143,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<byte> instanceVisibility;
 
         public int viewLayerMask;
+        public ulong sceneCullingMask;
         public uint viewRenderingLayerMask;
         public int filterRenderingLayers;
         public uint excludeInstanceFlags;
@@ -156,7 +159,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 bool layerVisible = (instance.layerMask & viewLayerMask) != 0;
                 bool renderingVisible = filterRenderingLayers == 0
                     || (instance.renderingLayerMask & viewRenderingLayerMask) != 0;
-                if (flagVisible && layerVisible && renderingVisible)
+                if (flagVisible && layerVisible && renderingVisible
+                    && (instance.sceneCullingMask & sceneCullingMask) != 0)
                 {
                     int inside = 1;
                     FBound bound = instance.worldBounds;

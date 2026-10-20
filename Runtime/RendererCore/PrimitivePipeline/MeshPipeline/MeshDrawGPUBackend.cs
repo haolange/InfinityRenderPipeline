@@ -224,6 +224,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         private static readonly int ID_InstanceBoundsExtent = Shader.PropertyToID("_InstanceBoundsExtent");
         private static readonly int ID_InstanceFlags = Shader.PropertyToID("_InstanceFlags");
         private static readonly int ID_InstanceLayerMask = Shader.PropertyToID("_InstanceLayerMask");
+        private static readonly int ID_InstanceSceneCullingMask = Shader.PropertyToID("_InstanceSceneCullingMask");
+        private static readonly int ID_ViewSceneCullingMaskLow = Shader.PropertyToID("_ViewSceneCullingMaskLow");
+        private static readonly int ID_ViewSceneCullingMaskHigh = Shader.PropertyToID("_ViewSceneCullingMaskHigh");
         private static readonly int ID_InstanceRenderingLayer = Shader.PropertyToID("_InstanceRenderingLayer");
         private static readonly int ID_ViewLayerMask = Shader.PropertyToID("_ViewLayerMask");
         private static readonly int ID_ViewRenderingLayerMask = Shader.PropertyToID("_ViewRenderingLayerMask");
@@ -294,6 +297,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferRef boundsExtent,
             RGBufferRef instanceFlags,
             RGBufferRef instanceLayerMask,
+            RGBufferRef instanceSceneCullingMask,
             RGBufferRef instanceRenderingLayer,
             RGBufferRef visibility)
         {
@@ -312,6 +316,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 || !boundsExtent.IsValid()
                 || !instanceFlags.IsValid()
                 || !instanceLayerMask.IsValid()
+                || !instanceSceneCullingMask.IsValid()
                 || !instanceRenderingLayer.IsValid())
             {
                 throw new InvalidOperationException("MeshGpuCull requires GpuScene bounds/flags/layers and a visibility UAV.");
@@ -320,6 +325,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeVectorArrayParam(shader, ID_FrustumPlanes, frustumPlanes);
             commands.SetComputeIntParam(shader, ID_InstanceCount, math.max(0, instanceCount));
             commands.SetComputeIntParam(shader, ID_ViewLayerMask, view.layerMask);
+            commands.SetComputeIntParam(shader, ID_ViewSceneCullingMaskLow, unchecked((int)view.sceneCullingMask));
+            commands.SetComputeIntParam(shader, ID_ViewSceneCullingMaskHigh, unchecked((int)(view.sceneCullingMask >> 32)));
             commands.SetComputeIntParam(shader, ID_ViewRenderingLayerMask, (int)view.renderingLayerMask);
             commands.SetComputeIntParam(shader, ID_FilterRenderingLayers, view.FilterRenderingLayers ? 1 : 0);
             commands.SetComputeIntParam(shader, ID_ViewExcludeFlags, unchecked((int)view.excludeInstanceFlags));
@@ -327,6 +334,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, boundsExtent);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceFlags, instanceFlags);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceLayerMask, instanceLayerMask);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceSceneCullingMask, instanceSceneCullingMask);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceRenderingLayer, instanceRenderingLayer);
             commands.SetComputeBufferParam(shader, kernel, ID_Visibility, visibility);
             int cullGroups = math.max(1, (math.max(instanceCount, 1) + 63) / 64);
@@ -614,6 +622,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 || residency.InstanceTransformIndexBuffer.buffer == null
                 || residency.InstanceFlagsBuffer.buffer == null
                 || residency.InstanceLayerMaskBuffer.buffer == null
+                || residency.InstanceSceneCullingMaskBuffer.buffer == null
                 || residency.InstanceRenderingLayerBuffer.buffer == null
                 || payload == null || staging == null || !staging.isValid)
             {

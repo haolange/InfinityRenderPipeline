@@ -20,6 +20,11 @@ If a stage fails to compile, stop there: later stages build on it.
 
 The shared `infinity_tests_start` command accepts `outputDirectory` (a new owned task directory), `filter` (literal
 name substring), `category` (exact category name), and `allAssemblies` (default false: Infinity tests only).
+The pending-verification category is `Unverified_0_5`. Earlier commits used `Unverified-0.5`, which NUnit rejects
+because category names cannot contain `-`; the affected tests become Failed:Invalid before their bodies execute.
+When replaying S2 or later, carry the literal-name correction and retain the original failed XML. This preserves
+pending status and every test/assertion; it does not accept a feature or remove its verification marker. Match the
+same test identities before/after the rename and require a nonzero exact-category run with executed test bodies.
 Name, category and assembly selections are combined with AND. Run stage filters first, then run with
 `allAssemblies=true` and no name/category filter for the whole Example EditMode suite. Check discovery and final
 XML counts; a zero-match run, cancellation or incomplete reload is not a pass. `run.json` records counts and
@@ -81,12 +86,12 @@ still fails. Retain the original failed check; these missing historical images a
 
 1. Compile; run EditMode tests (new: `DebugViewModeTests`, `ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader`, `CommandTableTests.CommittedEdit_ChangesBuildSerial`, `CommandTableTests.SwitchingMaterial_RebuildsCommands`).
 2. **Reflection probes**: bake a reflection probe in a lit scene. Expected change: the probe stores HDR scene-linear radiance (no TAA ghosting between faces, no exposure, tonemapping or display encoding).
-3. **Material / Inspector previews** render without jitter shimmer; SSR, SSGI, GTAO and volumetrics are off in previews.
-4. **Disc light** in a scene: the camera keeps rendering (it used to throw); Rendering Debugger → Infinity Lighting → Skipped Light Shapes shows 1.
-5. **RP Asset → Lighting & Shadows**: new Cascade Splits and Max Shadowed Local Lights fields; an invalid split order shows an error box and fails rendering with a clear message. Shadow culling follows Shadow Distance (previously fixed at 128 m).
+3. **Material / Inspector previews** render without jitter shimmer; SSR, SSGI, GTAO and volumetrics are off in previews. Record actual multi-frame camera jitter (including committed frames), then rotate the preview. Place a custom Mesh in the open scene within the preview camera frustum: it must not leak into the preview. A custom Mesh inside the PreviewScene must still draw. Verify native and custom Mesh scene eligibility agree for Game additive scenes, SceneView, Reflection and explicit camera scene/override masks. Move a static Mesh between scenes without calling `MarkDirty` or enabling Update Proxy; CPU/GPU visibility and shadow views must update. Run `CameraFrameStateTests` and `MeshViewTests`, including high-bit masks, empty masks, rollback and GPU upload controls.
+4. **Disc light** in a scene: the camera keeps rendering. During historical S2 replay, Disc is unsupported: Skipped Light Shapes counts only unsupported lights actually returned by Unity's visible-light cull. Record both the native visible-light list and the counter; a Disc omitted by Unity leaves the counter at zero and does not exercise the unsupported-record path. Keep a separate mapping test for that path. S6 adds supported Disc shading, so the final version must not count it as unsupported.
+5. **RP Asset → Lighting & Shadows**: Cascade Splits and Max Shadowed Local Lights are visible. Expand Diffusion Profiles alongside the other fields; no nested Foldout Header error appears. An invalid split order shows an error box and fails rendering with a clear message; restoring valid values resumes rendering. Shadow culling follows Shadow Distance (previously fixed at 128 m): compare two distances with the same camera/light/casters and record the resulting cascade distances and culling spheres. Use an unsaved RP Asset copy for the Inspector negative control, and restore any temporary live values without saving the original asset.
 6. **Unified Ray Tracing off** on the RP Asset: RTAO does not record; the Debugger reason says ray tracing is disabled.
 7. **GTAO off**: no HalfResDownsample pass in the Frame Debugger; GTAO on: it is present.
-8. Rendering Debugger → Infinity Rendering → Debug View is an enum popup; every view still works.
+8. Rendering Debugger → Infinity Rendering → Debug View is an enum popup; open it and select an option through native input. Check every view on advancing normal Game frames. AO/SSR/SSGI need both their enabled, valid-texture path and their disabled missing-texture indicator. A programmatic model setter proves mode behavior separately and does not prove the popup's input interaction.
 9. Mesh GPU path: change a MeshComponent's material at runtime and remove/re-add instances; no stale draws or flicker.
 
 ## S3 — RenderGraph and feature registry
@@ -375,6 +380,8 @@ still fails. Retain the original failed check; these missing historical images a
 3. Spot cone / pyramid: outline at the range with a rim handle for the outer angle; rect: a size box; disk: radius handle.
 4. Light inspector Additional Properties shows soft source radius / angle, barn doors, shadow near plane and biases,
    weights and distance fade; off hides them.
+   Select a Point and Directional light together: General shows a mixed Type, Shape is hidden, and the following
+   sections draw without a GUILayout error. Select each separately: Shape reappears with the corresponding fields.
 5. Decal: drag a face of the box handle; the opposite face stays. UV Scale 2 tiles the texture; Start / End Angle Fade
    30 / 60 removes the decal from vertical walls under a downward projector.
 6. Reflection probe with Infinity data Influence = Sphere: a sphere handle edits Sphere Radius.
@@ -454,7 +461,7 @@ updating, then use the fixture for the stage it names.
 ## S16 — tests, image regression, documentation
 
 1. Run the whole EditMode suite; new in S16: `ShadowBudgetTests`, `CubeFilterGpuTests`, `LightTileMaskGpuTests`,
-   `ImageComparisonTests`. Report every failure of the `Unverified-0.5` category with its message.
+   `ImageComparisonTests`. Report every failure of the `Unverified_0_5` category with its message.
 2. Create the fixtures you verified visually (Window → Infinity → Create … Fixture). Then Window → Infinity → Image
    Regression → Record Baselines: the Editor opens each fixture, enters Play mode, captures and leaves Play mode
    (a few seconds per fixture). The Console ends with "Completed: N case(s)"; `ImageBaselines/<API>/` next to `Assets`

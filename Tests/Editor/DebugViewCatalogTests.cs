@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class DebugViewCatalogTests
     {
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void EveryView_BelongsToExactlyOnePanel()
         {
             var seen = new HashSet<EDebugView>();
@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void SceneViewModes_RoundTrip()
         {
             Assert.AreEqual("SSR Tile Class", DebugViewCatalog.DisplayName(EDebugView.SSRTileClass));
@@ -49,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void DebugViews_SkipProbeCapturesAndPreviews()
         {
             Assert.IsTrue(DebugViewCatalog.AppliesTo(CameraType.Game));

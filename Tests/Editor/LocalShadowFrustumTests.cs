@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void PointFaces_EachContainsItsAxis()
         {
             FLightRecord record = Record(0, Vector4.zero, 0.2f);
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void SingleTileShapes_ContainForwardPoint()
         {
             Vector3 ahead = new Vector3(1, 2, 3) + new Vector3(0, 0, 5);
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void BoxSpot_IsOrthographic()
         {
             var frustum = ShadowAllocator.LocalShadowFrustum(Record(FLightRecordFlags.SpotBox, new Vector4(2, 1, 0, 0)), null, 0, 512, 3);

@@ -16,6 +16,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly int subviewIndex;
         public readonly int policyId;
         public readonly int layerMask;
+        public readonly ulong sceneCullingMask;
         public readonly uint renderingLayerMask;
         public readonly bool filterRenderingLayers;
         public readonly uint excludeInstanceFlags;
@@ -26,6 +27,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             subviewIndex = view.subviewIndex;
             policyId = view.PolicyId;
             layerMask = view.layerMask;
+            sceneCullingMask = view.sceneCullingMask;
             renderingLayerMask = view.renderingLayerMask;
             filterRenderingLayers = view.FilterRenderingLayers;
             excludeInstanceFlags = view.excludeInstanceFlags;
@@ -35,6 +37,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             return viewKey == other.viewKey && subviewIndex == other.subviewIndex && policyId == other.policyId
                 && layerMask == other.layerMask && renderingLayerMask == other.renderingLayerMask
+                && sceneCullingMask == other.sceneCullingMask
                 && filterRenderingLayers == other.filterRenderingLayers
                 && excludeInstanceFlags == other.excludeInstanceFlags;
         }
@@ -49,6 +52,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = hash * 31 + subviewIndex;
                 hash = hash * 31 + policyId;
                 hash = hash * 31 + layerMask;
+                hash = hash * 31 + sceneCullingMask.GetHashCode();
                 hash = hash * 31 + (int)renderingLayerMask;
                 hash = hash * 31 + (filterRenderingLayers ? 1 : 0);
                 hash = hash * 31 + (int)excludeInstanceFlags;

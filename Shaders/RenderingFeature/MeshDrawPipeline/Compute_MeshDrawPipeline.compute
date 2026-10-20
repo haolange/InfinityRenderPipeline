@@ -1,173 +1,183 @@
-// Mesh Drawing Pipeline GPU backend kernels.
-// Platform fallback (CPU side):
-// - No compute → CpuDirect
-// - Compute without indirect → CpuDirect procedural
-// - Indirect → one Compact over CandidateTable + BuildIndirectArgs + DrawMeshInstancedIndirect
-// Never read back visible counts on the submitting frame.
-//
-// Index semantics:
-// - CandidateTable / Cull domain: instance indices (MeshInstanceId.Index / InstanceHighWater)
-// - ShadingIndices (shader InstanceIndexBuffer): transform indices (TransformId.Index)
-
-#pragma kernel CullFrustum
-#pragma kernel ClearCounts
-#pragma kernel Compact
-#pragma kernel BuildIndirectArgs
-
-uint _InstanceCount;
-uint _CommandCount;
-uint _CandidateCount;
-uint _CommandBegin;
-uint _CandidateOffset;
-uint _CandidateSpan;
-float4 _FrustumPlanes[6];
-
-StructuredBuffer<float4> _InstanceBoundsCenter;
-StructuredBuffer<float4> _InstanceBoundsExtent;
-StructuredBuffer<uint> _InstanceToTransform;
-StructuredBuffer<uint> _InstanceFlags;
-StructuredBuffer<uint> _InstanceLayerMask;
-StructuredBuffer<uint> _InstanceRenderingLayer;
-uint _ViewLayerMask;
-uint _ViewRenderingLayerMask;
-uint _FilterRenderingLayers;
-// EMeshInstanceFlags that cull an instance from this view (e.g. ShadowmaskStatic for Shadowmask light views).
-uint _ViewExcludeFlags;
-RWStructuredBuffer<uint> _Visibility;
-
-StructuredBuffer<uint> _CommandMeta;
-StructuredBuffer<uint2> _CandidateTable;
-RWStructuredBuffer<uint> _ShadingIndices;
-RWStructuredBuffer<uint> _VisibleCounts;
-RWStructuredBuffer<uint> _IndirectArgs;
-
-bool FrustumCullAABB(float3 center, float3 extent)
-{
-    bool culled = false;
-    [unroll]
-    for (int i = 0; i < 6; ++i)
-    {
-        float4 plane = _FrustumPlanes[i];
-        float3 n = plane.xyz;
-        float distance = dot(n, center) + plane.w;
-        float radius = dot(extent, abs(n));
-        if (distance + radius < 0.0f)
-        {
-            culled = true;
-        }
-    }
-
-    return culled;
-}
-
-[numthreads(64, 1, 1)]
-void CullFrustum(uint3 id : SV_DispatchThreadID)
-{
-    uint instanceIndex = id.x;
-    if (instanceIndex >= _InstanceCount)
-    {
-        return;
-    }
-
-    uint flags = _InstanceFlags[instanceIndex];
-    if ((flags & 4u) == 0u || (flags & _ViewExcludeFlags) != 0u)
-    {
-        _Visibility[instanceIndex] = 0u;
-        return;
-    }
-
-    if ((_InstanceLayerMask[instanceIndex] & _ViewLayerMask) == 0u)
-    {
-        _Visibility[instanceIndex] = 0u;
-        return;
-    }
-
-    if (_FilterRenderingLayers != 0u && (_InstanceRenderingLayer[instanceIndex] & _ViewRenderingLayerMask) == 0u)
-    {
-        _Visibility[instanceIndex] = 0u;
-        return;
-    }
-
-    float3 center = _InstanceBoundsCenter[instanceIndex].xyz;
-    float3 extent = _InstanceBoundsExtent[instanceIndex].xyz;
-    _Visibility[instanceIndex] = FrustumCullAABB(center, extent) ? 0u : 1u;
-}
-
-[numthreads(64, 1, 1)]
-void ClearCounts(uint3 id : SV_DispatchThreadID)
-{
-    uint commandIndex = id.x;
-    if (commandIndex >= _CommandCount)
-    {
-        return;
-    }
-
-    _VisibleCounts[commandIndex] = 0u;
-    uint argsBase = commandIndex * 5u;
-    _IndirectArgs[argsBase + 0u] = 0u;
-    _IndirectArgs[argsBase + 1u] = 0u;
-    _IndirectArgs[argsBase + 2u] = 0u;
-    _IndirectArgs[argsBase + 3u] = 0u;
-    _IndirectArgs[argsBase + 4u] = 0u;
-}
-
-[numthreads(64, 1, 1)]
-void Compact(uint3 id : SV_DispatchThreadID)
-{
-    if (id.x >= _CandidateSpan)
-    {
-        return;
-    }
-
-    uint candidateIndex = _CandidateOffset + id.x;
-    if (candidateIndex >= _CandidateCount)
-    {
-        return;
-    }
-
-    uint2 candidate = _CandidateTable[candidateIndex];
-    uint instanceIndex = candidate.x;
-    uint commandId = candidate.y;
-    if (instanceIndex >= _InstanceCount || commandId < _CommandBegin)
-    {
-        return;
-    }
-
-    uint localCommand = commandId - _CommandBegin;
-    if (localCommand >= _CommandCount)
-    {
-        return;
-    }
-
-    if (_Visibility[instanceIndex] == 0u)
-    {
-        return;
-    }
-
-    uint slot;
-    InterlockedAdd(_VisibleCounts[localCommand], 1u, slot);
-    uint baseOffset = _CommandMeta[localCommand * 4u + 3u];
-    _ShadingIndices[baseOffset + slot] = _InstanceToTransform[instanceIndex];
-}
-
-[numthreads(64, 1, 1)]
-void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
-{
-    uint commandIndex = id.x;
-    if (commandIndex >= _CommandCount)
-    {
-        return;
-    }
-
-    uint metaBase = commandIndex * 4u;
-    uint indexCount = _CommandMeta[metaBase + 0u];
-    uint startIndex = _CommandMeta[metaBase + 1u];
-    uint baseVertex = _CommandMeta[metaBase + 2u];
-    uint instanceCount = _VisibleCounts[commandIndex];
-    uint argsBase = commandIndex * 5u;
-    _IndirectArgs[argsBase + 0u] = indexCount;
-    _IndirectArgs[argsBase + 1u] = instanceCount;
-    _IndirectArgs[argsBase + 2u] = startIndex;
-    _IndirectArgs[argsBase + 3u] = baseVertex;
-    _IndirectArgs[argsBase + 4u] = 0u;
-}
+// Mesh Drawing Pipeline GPU backend kernels.
+// Platform fallback (CPU side):
+// - No compute → CpuDirect
+// - Compute without indirect → CpuDirect procedural
+// - Indirect → one Compact over CandidateTable + BuildIndirectArgs + DrawMeshInstancedIndirect
+// Never read back visible counts on the submitting frame.
+//
+// Index semantics:
+// - CandidateTable / Cull domain: instance indices (MeshInstanceId.Index / InstanceHighWater)
+// - ShadingIndices (shader InstanceIndexBuffer): transform indices (TransformId.Index)
+
+#pragma kernel CullFrustum
+#pragma kernel ClearCounts
+#pragma kernel Compact
+#pragma kernel BuildIndirectArgs
+
+uint _InstanceCount;
+uint _CommandCount;
+uint _CandidateCount;
+uint _CommandBegin;
+uint _CandidateOffset;
+uint _CandidateSpan;
+float4 _FrustumPlanes[6];
+
+StructuredBuffer<float4> _InstanceBoundsCenter;
+StructuredBuffer<float4> _InstanceBoundsExtent;
+StructuredBuffer<uint> _InstanceToTransform;
+StructuredBuffer<uint> _InstanceFlags;
+StructuredBuffer<uint> _InstanceLayerMask;
+StructuredBuffer<uint2> _InstanceSceneCullingMask;
+uint _ViewSceneCullingMaskLow;
+uint _ViewSceneCullingMaskHigh;
+StructuredBuffer<uint> _InstanceRenderingLayer;
+uint _ViewLayerMask;
+uint _ViewRenderingLayerMask;
+uint _FilterRenderingLayers;
+// EMeshInstanceFlags that cull an instance from this view (e.g. ShadowmaskStatic for Shadowmask light views).
+uint _ViewExcludeFlags;
+RWStructuredBuffer<uint> _Visibility;
+
+StructuredBuffer<uint> _CommandMeta;
+StructuredBuffer<uint2> _CandidateTable;
+RWStructuredBuffer<uint> _ShadingIndices;
+RWStructuredBuffer<uint> _VisibleCounts;
+RWStructuredBuffer<uint> _IndirectArgs;
+
+bool FrustumCullAABB(float3 center, float3 extent)
+{
+    bool culled = false;
+    [unroll]
+    for (int i = 0; i < 6; ++i)
+    {
+        float4 plane = _FrustumPlanes[i];
+        float3 n = plane.xyz;
+        float distance = dot(n, center) + plane.w;
+        float radius = dot(extent, abs(n));
+        if (distance + radius < 0.0f)
+        {
+            culled = true;
+        }
+    }
+
+    return culled;
+}
+
+[numthreads(64, 1, 1)]
+void CullFrustum(uint3 id : SV_DispatchThreadID)
+{
+    uint instanceIndex = id.x;
+    if (instanceIndex >= _InstanceCount)
+    {
+        return;
+    }
+
+    uint flags = _InstanceFlags[instanceIndex];
+    if ((flags & 4u) == 0u || (flags & _ViewExcludeFlags) != 0u)
+    {
+        _Visibility[instanceIndex] = 0u;
+        return;
+    }
+
+    if ((_InstanceLayerMask[instanceIndex] & _ViewLayerMask) == 0u)
+    {
+        _Visibility[instanceIndex] = 0u;
+        return;
+    }
+
+    if (_FilterRenderingLayers != 0u && (_InstanceRenderingLayer[instanceIndex] & _ViewRenderingLayerMask) == 0u)
+    {
+        _Visibility[instanceIndex] = 0u;
+        return;
+    }
+
+    uint2 sceneMask = _InstanceSceneCullingMask[instanceIndex];
+    if (!any(sceneMask & uint2(_ViewSceneCullingMaskLow, _ViewSceneCullingMaskHigh)))
+    {
+        _Visibility[instanceIndex] = 0u;
+        return;
+    }
+
+    float3 center = _InstanceBoundsCenter[instanceIndex].xyz;
+    float3 extent = _InstanceBoundsExtent[instanceIndex].xyz;
+    _Visibility[instanceIndex] = FrustumCullAABB(center, extent) ? 0u : 1u;
+}
+
+[numthreads(64, 1, 1)]
+void ClearCounts(uint3 id : SV_DispatchThreadID)
+{
+    uint commandIndex = id.x;
+    if (commandIndex >= _CommandCount)
+    {
+        return;
+    }
+
+    _VisibleCounts[commandIndex] = 0u;
+    uint argsBase = commandIndex * 5u;
+    _IndirectArgs[argsBase + 0u] = 0u;
+    _IndirectArgs[argsBase + 1u] = 0u;
+    _IndirectArgs[argsBase + 2u] = 0u;
+    _IndirectArgs[argsBase + 3u] = 0u;
+    _IndirectArgs[argsBase + 4u] = 0u;
+}
+
+[numthreads(64, 1, 1)]
+void Compact(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _CandidateSpan)
+    {
+        return;
+    }
+
+    uint candidateIndex = _CandidateOffset + id.x;
+    if (candidateIndex >= _CandidateCount)
+    {
+        return;
+    }
+
+    uint2 candidate = _CandidateTable[candidateIndex];
+    uint instanceIndex = candidate.x;
+    uint commandId = candidate.y;
+    if (instanceIndex >= _InstanceCount || commandId < _CommandBegin)
+    {
+        return;
+    }
+
+    uint localCommand = commandId - _CommandBegin;
+    if (localCommand >= _CommandCount)
+    {
+        return;
+    }
+
+    if (_Visibility[instanceIndex] == 0u)
+    {
+        return;
+    }
+
+    uint slot;
+    InterlockedAdd(_VisibleCounts[localCommand], 1u, slot);
+    uint baseOffset = _CommandMeta[localCommand * 4u + 3u];
+    _ShadingIndices[baseOffset + slot] = _InstanceToTransform[instanceIndex];
+}
+
+[numthreads(64, 1, 1)]
+void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
+{
+    uint commandIndex = id.x;
+    if (commandIndex >= _CommandCount)
+    {
+        return;
+    }
+
+    uint metaBase = commandIndex * 4u;
+    uint indexCount = _CommandMeta[metaBase + 0u];
+    uint startIndex = _CommandMeta[metaBase + 1u];
+    uint baseVertex = _CommandMeta[metaBase + 2u];
+    uint instanceCount = _VisibleCounts[commandIndex];
+    uint argsBase = commandIndex * 5u;
+    _IndirectArgs[argsBase + 0u] = indexCount;
+    _IndirectArgs[argsBase + 1u] = instanceCount;
+    _IndirectArgs[argsBase + 2u] = startIndex;
+    _IndirectArgs[argsBase + 3u] = baseVertex;
+    _IndirectArgs[argsBase + 4u] = 0u;
+}

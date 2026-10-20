@@ -81,11 +81,14 @@ namespace InfinityTech.Component.Editor
             }
             InfinityInspectorGUI.EndFoldout();
 
-            if (!mixedType && InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Shape", "Shape"))
+            if (!mixedType)
             {
-                DrawShape(shape, type, spotShape);
+                if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Shape", "Shape"))
+                {
+                    DrawShape(shape, type, spotShape);
+                }
+                InfinityInspectorGUI.EndFoldout();
             }
-            InfinityInspectorGUI.EndFoldout();
             if (EditorGUI.EndChangeCheck())
             {
                 m_Additional.FindProperty("m_ShapeAuthored").boolValue = true;

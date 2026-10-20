@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class BakedGITests
     {
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void Asset_ProbeVolumeInterface_FollowsLightProbeSystem()
         {
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void ProbeVolumeIntegration_DisabledWithoutProbeVolumes()
         {
             using (var integration = new ProbeVolumeIntegration(null))
@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void IESIntensity_LumensSpreadOverTheEmissionSolidAngle()
         {
             var go = new GameObject("IESTest");
@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase("InfinityPipeline/InfinityLit")]
         [TestCase("InfinityPipeline/InfinityLit-Instanced")]
         [TestCase("InfinityPipeline/TerrainLit")]
-        [Category("Unverified-0.5")]
+        [Category("Unverified_0_5")]
         public void SurfaceShaders_HaveMetaAndShadowCasterPasses(string shaderName)
         {
             Shader shader = Shader.Find(shaderName);
