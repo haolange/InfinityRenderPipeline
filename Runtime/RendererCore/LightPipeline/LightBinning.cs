@@ -78,8 +78,8 @@ namespace InfinityTech.Rendering.LightPipeline
         public static int WordCount(int localCount) => math.max(1, (localCount + 31) / 32);
 
         // Conservative tile rectangle (inclusive min / max tile) of a sphere given in Unity view space (camera looks
-        // down -Z). gpuProjection is GL.GetGPUProjectionMatrix(projection, true), the matrix compute passes use to
-        // map view space onto texture rows. Returns false when the sphere is entirely behind the near plane or off
+        // down -Z). gpuProjection follows GraphicsUtility.GetComputeGpuProjection, matching the sampled depth
+        // reconstruction and tile rows used by Deferred, Forward and volumetrics. Returns false behind the near plane or off
         // screen. A sphere that reaches the near plane covers every tile: its projection is unbounded.
         public static bool TryComputeTileRect(Vector3 centerVS, float radius, Matrix4x4 gpuProjection, bool orthographic, float near,
             int2 screenSize, out int4 rect)

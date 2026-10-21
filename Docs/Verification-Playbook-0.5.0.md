@@ -203,10 +203,26 @@ still fails. Retain the original failed check; these missing historical images a
    side; they should match.
 3. Put the camera inside a point light's range: the light still lights everything (it covers every tile). Lights
    behind the camera no longer light pixels in front (the old mirrored-tile bug).
+   Also move a small light above and below the image center. Both influence regions must follow the light in
+   Deferred and Forward. CPU rectangles use `GraphicsUtility.GetComputeGpuProjection`, matching the actual depth
+   consumer; a self-consistent test that projects both its oracle and sphere with the old `true` matrix is insufficient.
 4. Far scenes: local lights 100 m+ away no longer flicker on and off between bins.
-5. Volumetric fog / clouds with local lights: same scattering as S6.
+5. Volumetric fog / clouds with local lights: same scattering as S6. Match the actual camera matrices and jitter.
+   Clouds also sample `Time.frameCount & 15`; compare all 16 global phases with matching jittered inverse VP and
+   history-reset state, including transmittance alpha. A camera cut resets history validity but does not restart
+   the committed jitter counter. Preserve unmatched-phase captures as controls; do not fit exposure or overwrite a baseline.
 6. Frame Debugger: `ComputeLightTileMask` replaces `ComputeZBinningLightList` (one dispatch); no ZBin overflow
    capture remains.
+7. For a missing-light diagnosis, request `DeferredLighting`, `Lighting` and `LightTileMask` on normal Game frames.
+   `DeferredLighting` is copied immediately after Deferred, before Forward/atmosphere. The mask capture is a
+   diagnostic RGBA32F texture: each channel stores one exact byte (0–255), low to high, of a production uint word.
+   Its width is tile-count-X × words-per-tile and its height is tile-count-Y; without local lights it is the existing
+   one-word empty mask. Reconstruct `R | G<<8 | B<<16 | A<<24` and compare with the same frame's CPU rectangles
+   and bin range. Its texture producer is the diagnostic conversion pass; its source is the actual shared light-list
+   buffer. Check both with and without diagnostics because the extra reader extends the mask's graph lifetime.
+   Exercise 0/1/31/32/33/63/64/65 lights, empty bins and nonzero directional offsets; each local record must be
+   visited exactly once when its tile bit and bin range both include it. Shared consumers initialize `FLightLoop`
+   via the caller-owned `out` argument; do not restore a return-by-value wrapper for any consumer.
 
 ## S8 — area light shapes
 

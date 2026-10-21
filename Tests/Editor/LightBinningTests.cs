@@ -9,10 +9,49 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class LightBinningTests
     {
         static Matrix4x4 GpuProjection(float fov, float aspect, float near, float far) =>
-            GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(fov, aspect, near, far), true);
+            GL.GetGPUProjectionMatrix(Matrix4x4.Perspective(fov, aspect, near, far), false);
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TileRect_ContainsPixelsReconstructedByTheActualCameraUniform(bool orthographic)
+        {
+            var go = new GameObject("TileRectConsumerProjection") { hideFlags = HideFlags.DontSave };
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                camera.orthographic = orthographic;
+                camera.orthographicSize = 4;
+                camera.fieldOfView = 60;
+                camera.aspect = 320f / 180;
+                camera.nearClipPlane = .1f;
+                camera.farClipPlane = 300;
+                var screen = new int2(320, 180);
+                var uniform = new CameraUniform();
+                uniform.UpdateCurrFrameData(camera, screen, true);
+                Matrix4x4 consumerProjection = uniform.matrix_InvFlipYJitterProj.inverse;
+                Vector4 projectedDepth = consumerProjection * new Vector4(0, 0, -10, 1);
+                float depth = projectedDepth.z / projectedDepth.w;
+                Matrix4x4 producerProjection = GraphicsUtility.GetComputeGpuProjection(camera);
+                int controlsMissing = 0;
+                foreach (var pixel in new[] { new int2(40, 35), new int2(230, 35), new int2(40, 145), new int2(230, 145) })
+                {
+                    Vector4 view = uniform.matrix_InvFlipYJitterProj * new Vector4(
+                        (pixel.x + .5f) / screen.x * 2 - 1, (pixel.y + .5f) / screen.y * 2 - 1, depth, 1);
+                    Vector3 center = new Vector3(view.x, view.y, view.z) / view.w;
+                    int2 tile = pixel / LightBinning.TileSize;
+                    Assert.IsTrue(LightBinning.TryComputeTileRect(center, .02f, producerProjection, orthographic, .1f, screen, out int4 rect));
+                    Assert.IsTrue(math.all(tile >= rect.xy) && math.all(tile <= rect.zw), $"consumer pixel {pixel} outside producer rect {rect}");
+                    bool controlVisible = LightBinning.TryComputeTileRect(center, .02f,
+                        GL.GetGPUProjectionMatrix(camera.projectionMatrix, true), orthographic, .1f, screen, out int4 control);
+                    if (!controlVisible || math.any(tile < control.xy) || math.any(tile > control.zw)) controlsMissing++;
+                }
+                if (GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) != producerProjection)
+                    Assert.Greater(controlsMissing, 0, "The asymmetric oracle must distinguish the old projection convention.");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void DepthToBin_IsMonotonicAndCoversNearToFar()
         {
             Vector4 bins = LightBinning.ZBinParams(0.1f, 1000, LightBinning.ZBinCount);
@@ -30,7 +69,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void ZBins_HoldTheIndexRangeOfOverlappingLights()
         {
             Vector4 parameters = LightBinning.ZBinParams(0.1f, 100, 16);
@@ -61,7 +99,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void TileRect_ContainsTheProjectionOfEverySurfacePoint()
         {
             int2 screen = new int2(1920, 1080);
@@ -91,7 +128,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void SphereReachingTheNearPlane_CoversEveryTile_AndSphereBehindIsRejected()
         {
             int2 screen = new int2(1280, 720);

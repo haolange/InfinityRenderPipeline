@@ -5,7 +5,8 @@
 // overlaps it (16 bits each); each 16x16 tile holds a bitmask of the lights whose screen rectangle covers it. A pixel
 // visits the set bits of its tile mask inside its bin's index range. Local index i is record g_DirectionalLightCount + i.
 //
-//   FLightLoop loop = BeginLightLoop(pixelCoord, viewDepth);
+//   FLightLoop loop;
+//   BeginLightLoop(pixelCoord, viewDepth, loop);
 //   uint recordIndex;
 //   while (NextLight(loop, recordIndex)) { ... g_LightRecordBuffer[recordIndex] ... }
 
@@ -42,15 +43,17 @@ uint LoadLightLoopWord(FLightLoop loop)
     return mask & (0xFFFFFFFFu << lowBit) & (0xFFFFFFFFu >> (31u - highBit));
 }
 
-FLightLoop BeginLightLoop(uint2 pixelCoord, float viewDepth)
+// Initialize caller-owned integer state. Return-by-value produced incorrect state in the observed Unity 6000.6
+// Metal Deferred kernel: tile base 110 became 0x36dc0000 and mask 1 became 0x33800000.
+void BeginLightLoop(uint2 pixelCoord, float viewDepth, out FLightLoop loop)
 {
-    FLightLoop loop = (FLightLoop)0;
+    loop = (FLightLoop)0;
     loop.mask = 0;
     loop.word = 1;
     loop.lastWord = 0;
     if (g_LocalLightCount <= 0)
     {
-        return loop;
+        return;
     }
 
     uint packed = SRV_LightZBins[LightZBin(viewDepth)];
@@ -58,7 +61,7 @@ FLightLoop BeginLightLoop(uint2 pixelCoord, float viewDepth)
     loop.maxIndex = packed >> 16;
     if (loop.minIndex > loop.maxIndex)
     {
-        return loop;
+        return;
     }
 
     uint2 tile = min(pixelCoord / LIGHT_TILE_SIZE, (uint2)(ceil(g_LightTileParams.xy / LIGHT_TILE_SIZE)) - 1u);
@@ -67,12 +70,12 @@ FLightLoop BeginLightLoop(uint2 pixelCoord, float viewDepth)
     loop.word = loop.minIndex >> 5;
     loop.lastWord = loop.maxIndex >> 5;
     loop.mask = LoadLightLoopWord(loop);
-    return loop;
+    return;
 }
 
-FLightLoop BeginLightLoopUV(float2 screenUV, float viewDepth)
+void BeginLightLoopUV(float2 screenUV, float viewDepth, out FLightLoop loop)
 {
-    return BeginLightLoop((uint2)(saturate(screenUV) * g_LightTileParams.xy), viewDepth);
+    BeginLightLoop((uint2)(saturate(screenUV) * g_LightTileParams.xy), viewDepth, loop);
 }
 
 bool NextLight(inout FLightLoop loop, out uint recordIndex)

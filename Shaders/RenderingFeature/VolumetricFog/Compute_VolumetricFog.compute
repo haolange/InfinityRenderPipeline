@@ -109,7 +109,8 @@ void AccumulateLocalLights(float3 worldPos, float3 viewDir, float3 scattering, f
         return;
     }
 
-    FLightLoop lightLoop = BeginLightLoopUV(screenUV, viewDepth);
+    FLightLoop lightLoop;
+    BeginLightLoopUV(screenUV, viewDepth, lightLoop);
     uint recordIndex;
     [loop]
     while (NextLight(lightLoop, recordIndex))

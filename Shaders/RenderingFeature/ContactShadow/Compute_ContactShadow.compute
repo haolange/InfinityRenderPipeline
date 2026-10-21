@@ -94,7 +94,8 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
             }
         }
 
-        FLightLoop lightLoop = BeginLightLoop(id.xy, viewDepth);
+        FLightLoop lightLoop;
+        BeginLightLoop(id.xy, viewDepth, lightLoop);
         uint recordIndex;
         [loop]
         while (NextLight(lightLoop, recordIndex))

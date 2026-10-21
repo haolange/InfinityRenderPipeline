@@ -95,7 +95,8 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
         lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, d == g_SunRecordIndex ? contactShadow : 1.0, viewDepth, bakedMask);
     }
 
-    FLightLoop lightLoop = BeginLightLoop(pixelCoord, viewDepth);
+    FLightLoop lightLoop;
+    BeginLightLoop(pixelCoord, viewDepth, lightLoop);
     uint recordIndex;
     [loop]
     while (NextLight(lightLoop, recordIndex))

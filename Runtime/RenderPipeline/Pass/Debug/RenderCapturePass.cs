@@ -57,6 +57,55 @@ namespace InfinityTech.Rendering.Pipeline
             RecordCaptureTransfer(session, "Lighting", InfinityShaderIDs.LightingBuffer);
         }
 
+        void RecordDeferredLightingCapture()
+        {
+            var session = RenderCaptureService.current;
+            if (session != null && session.CaptureThisFrame && Array.IndexOf(session.request.buffers, "DeferredLighting") >= 0)
+                RecordCaptureTransfer(session, "DeferredLighting", InfinityShaderIDs.LightingBuffer);
+        }
+
+        struct CaptureLightMaskPassData
+        {
+            public RGBufferRef source;
+            public RGTextureRef destination;
+            public ComputeShader shader;
+            public int width, height;
+        }
+
+        int RecordLightMaskCapture()
+        {
+            var shader = shaders.utilityShader;
+            if (shader == null || !shader.HasKernel("CaptureBufferUIntBytes"))
+                throw new InvalidOperationException("Light mask diagnostics require utilityShader.CaptureBufferUIntBytes.");
+            var context = renderContext.lightContext;
+            bool local = context.HasLocalLightList();
+            int width = local ? context.TileCount.x * context.TileWordCount : 1;
+            int height = local ? context.TileCount.y : 1;
+            int id = Shader.PropertyToID("Capture_LightTileMask");
+            var descriptor = new TextureDescriptor(width, height)
+            {
+                name = "Capture_LightTileMask", dimension = TextureDimension.Tex2D,
+                colorFormat = GraphicsFormat.R32G32B32A32_SFloat, enableRandomWrite = true
+            };
+            var destination = m_RGScoper.CreateAndRegisterTexture(id, descriptor);
+            using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureTransferSampler))
+            {
+                ref var data = ref pass.GetPassData<CaptureLightMaskPassData>();
+                data.source = pass.ReadBuffer(QueryLightLoop(renderContext).tileMasks);
+                data.destination = pass.WriteTexture(destination);
+                data.shader = shader; data.width = width; data.height = height;
+                pass.SetExecuteFunc((in CaptureLightMaskPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
+                {
+                    int kernel = data.shader.FindKernel("CaptureBufferUIntBytes");
+                    commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureBufferSize"), new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeBufferParam(data.shader, kernel, Shader.PropertyToID("SRV_CaptureUInt"), data.source);
+                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("UAV_CaptureUIntBytes"), data.destination);
+                    commands.DispatchCompute(data.shader, kernel, (data.width + 7) / 8, (data.height + 7) / 8, 1);
+                });
+            }
+            return id;
+        }
+
         void RecordNormalFrameCapture(Camera camera)
         {
             RenderCaptureSession session = RenderCaptureService.current;
@@ -64,7 +113,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (Array.IndexOf(session.request.buffers, "CascadeShadow") >= 0) session.RecordShadowState(renderContext.lightContext.ShadowAllocator);
             foreach (string buffer in session.request.buffers)
             {
-                if (buffer == "Lighting") continue;
+                if (buffer == "Lighting" || buffer == "DeferredLighting") continue;
                 if (buffer == "HiZ")
                 {
                     var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGScoper.QueryTexture(InfinityShaderIDs.HiZBuffer));
@@ -75,6 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int id;
                 switch (buffer)
                 {
+                    case "LightTileMask": id = RecordLightMaskCapture(); break;
                     case "TAAInput": case "TAAHistoryColor": case "TAAHistoryDepth":
                     case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal": id = Shader.PropertyToID("Capture_" + buffer); break;
                     case "BakedDiffuse": id = InfinityShaderIDs.BakedDiffuseBuffer; break;

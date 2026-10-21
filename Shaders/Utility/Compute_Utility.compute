@@ -3,10 +3,25 @@
 
 #pragma kernel ClearBufferUInt
 #pragma kernel ClearIndirectArgs
+#pragma kernel CaptureBufferUIntBytes
 
 RWStructuredBuffer<uint> _ClearTarget;
 uint _ClearCount;
 uint _ClearValue;
+
+StructuredBuffer<uint> SRV_CaptureUInt;
+RWTexture2D<float4> UAV_CaptureUIntBytes;
+float4 CaptureBufferSize;
+
+// Four exact byte values preserve every uint bit through the existing float texture readback path.
+// The diagnostic reads the production graph buffer; it never changes the producer or its consumers.
+[numthreads(8, 8, 1)]
+void CaptureBufferUIntBytes(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)CaptureBufferSize.xy)) return;
+    uint value = SRV_CaptureUInt[id.y * (uint)CaptureBufferSize.x + id.x];
+    UAV_CaptureUIntBytes[id.xy] = float4(value & 255u, (value >> 8u) & 255u, (value >> 16u) & 255u, value >> 24u);
+}
 
 // Writes _ClearValue into elements [0, _ClearCount).
 [numthreads(64, 1, 1)]

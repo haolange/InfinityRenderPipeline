@@ -92,6 +92,13 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- CPU light-tile rectangles use the same compute projection convention as sampled-depth reconstruction, preserving
+  upper/lower local-light coverage in Deferred, Forward and volumetrics.
+- Clustered-light loop initialization now writes caller-owned integer state through `out`, including Forward,
+  Deferred, contact-shadow, fog, cloud and complexity consumers. This avoids the incorrect integer state observed
+  when returning the loop struct in the Unity 6000.6 Metal Deferred kernel; the tile/bin algorithm is unchanged.
+- Normal-frame diagnostics can capture `DeferredLighting` before Forward/atmosphere and `LightTileMask` from the
+  actual graph buffer with declared read ownership, using exact low-to-high uint bytes in RGBA32F channels.
 - Cone spot lights square their angular window, matching the smooth inner/outer-cone attenuation used by CoreRP's
   punctual lighting. Surface, fog and cloud consumers share the corrected function; Point, Pyramid and Box support is unchanged.
 - Authored Disk lights use an explicit native Rectangle culling carrier, retaining their Additional Disk shape and GI Disc emitter. Shape and mode-only edits retain native bake modes through Undo/Redo; opening/loading a native Disc does not convert it. The native carrier gizmo is rectangular and the Infinity shape handle is circular.

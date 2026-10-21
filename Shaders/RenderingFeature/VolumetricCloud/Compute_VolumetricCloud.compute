@@ -227,7 +227,8 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
         }
 
         float3 sampleViewPos = mul(Matrix_WorldToView, float4(samplePos, 1.0)).xyz;
-        FLightLoop lightLoop = BeginLightLoopUV(screenUV, -sampleViewPos.z);
+        FLightLoop lightLoop;
+        BeginLightLoopUV(screenUV, -sampleViewPos.z, lightLoop);
         uint recordIndex;
         [loop]
         while (NextLight(lightLoop, recordIndex))

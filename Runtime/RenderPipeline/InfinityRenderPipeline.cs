@@ -597,6 +597,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                                     // PHASE 6: DeferredBase → Forward → OpaqueLightingPyramid → SSR/SSGI → Composite → OpaqueSceneColor
                                     ComputeDeferredShading(renderContext, camera);
+                                    RecordDeferredLightingCapture();
                                     RenderForward(renderContext, camera, mainView, cullingResults);
                                     ComputeBurleySubsurface(renderContext, camera);
                                     RenderAtmosphericSkyAndFog(renderContext, camera);

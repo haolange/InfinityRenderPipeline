@@ -271,7 +271,7 @@ namespace InfinityTech.Rendering.LightPipeline
             Light sun = RenderSettings.sun;
             Vector3 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
             Matrix4x4 worldToView = camera != null ? camera.worldToCameraMatrix : Matrix4x4.identity;
-            Matrix4x4 gpuProjection = camera != null ? GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) : Matrix4x4.identity;
+            Matrix4x4 gpuProjection = camera != null ? Pipeline.GraphicsUtility.GetComputeGpuProjection(camera) : Matrix4x4.identity;
             bool orthographic = camera != null && camera.orthographic;
             float near = camera != null ? camera.nearClipPlane : 0.1f;
             m_WorldToView = worldToView;

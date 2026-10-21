@@ -847,3 +847,34 @@ The user verifies in commit order with
 
 - S6 native Inspector menu blocker closed: moving the owned Example Inspector to the center made native AX menu items actionable. Actual Type choices cover all five types; native records match, Pyramid/Box apply, Disk .025/.85 radius and Realtime/Mixed/Baked retain Rectangle carrier. Full JSON equality verifies single-step Type/radius/mode Undo/Redo. Actual native window shows circular Infinity Disk handle. Legacy Disc setup-only follow-up is not counted as an additional native-menu pass. This round task light was removed, same original Spazon reopened clean after root/hash checks; scene/meta unchanged. No other Editor was controlled. Final candidate review pending; later Profile/GS candidates excluded.
 - Independent verifier accepts final S6 batch (manifest ac6307cf0a410e57d5d2c7fd820959ed755904a807d49942d5a37e6db42d5f10): all17 files match reviewed identity, production/test hashes unchanged; static0/0 and diff clean. Historical full remains1551 Passed/0 Failed/53 Skipped, not1604 Passed. This closes S6 repair/historical validation only; later main failures, performance and final HEAD remain open. Scoped Fix S06 commit/push and remote identity precede S7 replay.
+
+- S6 closure committed/pushed as5b34e14 to origin/claude/infinityrp-0.5; remote main remains unchanged.
+- S7 originale6155f32 + accepted predecessors reproduced invalid NUnit category and missing local Deferred light.
+  Caller-owned out-state restores actual Metal loop indices; CPU tile projection now matches sampled-depth consumers.
+  Historical final full1617 =1564Passed/0Failed/53Skipped; callbacks/checkpoint complete, native XML1584=1564/0/20,
+ 33 earlier Skipped leaves independently reconciled. FrameworkComplete=false remains explicit.
+- Ten no-diagnostic normal cases cover above/below, Deferred/Forward, inside/behind/offscreen and far views.
+  Multi-camera local-list0->1/1->0 transitions independently accepted: positive-red>.001 full-image energy
+  relative difference1.745163e-6, known-jitter-corrected centroid residual<.00017pixel; empty inner ROImax3.814697e-6,
+  full imagemax.003479004 remains separately reported.
+- S6/S7 matched fog8phases accepts Lightingmax3.05176e-5/SceneColormax1.22070e-4. Cloud16 actual global phases
+  with exact jittered matrices/reset, source profile and CPU light records have byte-identical full RGBA Cloud
+  and SceneColor. Earlier saturated/unmatched-phase controls are not accepted.
+- Public-menu/CUA native Frame Debugger primary screenshot8ad2c3aa91f8515956cd6ba8fe5db69f4f6c36bbb4ef04d37e0684f19a50fe6b
+  shows original Spazon MainCamera153events and one actual Compute_LightTileMask leaf. Payload panel is blank;
+  no kernel/group counts claimed. Failed internal-reflection exporter is historical diagnostic only and will not be retried.
+- Original Spazon remained unsaved; task objects restored, owned Editor exited. Main S7 candidate integration pending.
+  Static0errors/0warnings; full offline DXC312targets/2 unchanged GTAO dynamic-unroll failures, not an all-shader pass.
+  Later APV Profile candidate remains separate; S8-S17 not unlocked until S7 final batch accepted and pushed.
+- Main S7 integration: actual Unity compilation0errors/0warnings; focused25/25passed. Full1689=1622Passed/14Failed/53Skipped,
+  same14failure and53skip identities as S6 main-carrier-full;13newcasesallpassed(8DeferredGPU+2projection+3priorAngularGPU).
+  Raw1656 plus33real skipped checkpoints reconcile;callbacksComplete=true/frameworkComplete=false,rootFailed(Child).
+  Main ten normal cases accepted by numeric gate and direct contact-sheet inspection; no diagnostic readers.
+  Clustered-list FeatureStatus and only14actuallyexecuted test cases updated for Unity6000.6.0f1/macOSMetal.
+  Full main is not green; later-stage failure ownership and final HEAD acceptance remain Open.
+- Main timing availability control:60warmup+120attempts gives0valid GPU samples (GPUtime/count0); CPU counts2
+  are not a comparable single-camera timing set. Perf remains Open, no median/P95 or improvement claim. The initial
+  unpumped task probe hit CoreRP ProfilerRecorder.GetSample(0) with no samples; stopped/restored, retained as failed
+  instrumentation control, not a renderer failure or accepted performance run.
+- Final main restoration: original Spazon9roots/source clean, noS7objects, inactive tests/Play/compile/timing recording,
+  completed capture/outstanding0. Independent final20-file S7 review precedes commit; later Profile excluded.

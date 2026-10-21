@@ -270,7 +270,8 @@ void DebugViewLightLoop(uint3 id : SV_DispatchThreadID)
     }
     else
     {
-        FLightLoop loop = BeginLightLoop(pixelCoord, viewDepth);
+        FLightLoop loop;
+        BeginLightLoop(pixelCoord, viewDepth, loop);
         [loop] while (NextLight(loop, index)) count++;
     }
 

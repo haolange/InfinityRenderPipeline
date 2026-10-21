@@ -85,7 +85,8 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
         FLightRecord light = g_LightRecordBuffer[i];
         if ((light.lightLayer & layer) != 0) direct += EvaluateDirectional(light, position, normal, view, material, i == g_SunRecordIndex ? contactSun : 1, viewDepth, mask);
     }
-    FLightLoop lightLoop = BeginLightLoop(positionSS, viewDepth);
+    FLightLoop lightLoop;
+    BeginLightLoop(positionSS, viewDepth, lightLoop);
     uint recordIndex;
     [loop]
     while (NextLight(lightLoop, recordIndex))

@@ -23,7 +23,7 @@ Columns:
 | Light shapes and record v2 (0.5.0) | Yes | Unverified-0.5 (shape, record layout, GPU far-field) | Open | Open | None | Karis representative point + Frostbite / Karis diffuse (S8) |
 | Lightmapper delegate (0.5.0) | Editor bakes | No | Open | — | None | |
 | Light cookies + IES atlas (0.5.0) | Yes | Unverified-0.5 (allocator, atlas state) | Open | Open | None | IES prefab import unverified |
-| Clustered light list v2 (log z-bins + tile bitmasks, 0.5.0) | Yes | Unverified-0.5 (binning, rectangles, GPU tile masks) | Open | Open | None | Deferred, Forward, fog and clouds share LightLoop.hlsl |
+| Clustered light list v2 (log z-bins + tile bitmasks, 0.5.0) | Yes | 2026-10-22 / Unity 6000.6.0f1 / Metal: binning 6, actual Deferred GPU 8; exact-index probe | 2026-10-22 / Unity 6000.6.0f1 / macOS Metal: point-light Deferred/Forward, inside/behind/far, multi-camera; S6-matched fog/cloud | Open | macOS Metal | Caller-owned out state; matched compute projection. Other graphics APIs and performance remain unverified. |
 | Cascade + local shadows (1–4 cascades with blending; tent PCF, PCSS, VSM, EVSM; every light shape, 0.5.0) | Yes | Unverified-0.5 (slice counts, frustums, moment math, budget) | Open | Open | None | Moment atlases at half resolution; cached local shadows (OnEnable / OnDemand) |
 | Screen-space traced (contact) shadows: sun + 24 local lights (0.5.0) | Yes | Unverified-0.5 (bit allocation) | Open | Open | None | Deferred and Forward |
 | Reflection probes in the clustered list + probe atlas (0.5.0) | Yes | Unverified-0.5 (record layout, priority, atlas state, GPU cube filter) | Open | Open | None | Axis-aligned; sphere influence via InfinityAdditionalReflectionProbeData |
