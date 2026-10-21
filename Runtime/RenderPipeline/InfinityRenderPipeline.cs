@@ -287,7 +287,6 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new ArgumentException("InfinityRP requires a pipeline asset with AtmosphericalProfile.", nameof(asset));
             try
             {
-                InfinityDebugDisplaySettings.EnsureRegistered();
                 CaptureGraphicsState();
                 SetGraphicsSetting();
                 QualitySettings.antiAliasing = 0;
@@ -296,6 +295,7 @@ namespace InfinityTech.Rendering.Pipeline
                 m_InstalledQualityProfile = asset.qualityVolumeProfile;
                 VolumeManager.instance.Initialize(resources.defaultVolumeProfile, m_InstalledQualityProfile);
                 m_OwnsVolumeManager = true;
+                InfinityDebugDisplaySettings.EnsureRegistered();
 
                 m_UpdateInit = true;
                 renderContext = new RenderContext();

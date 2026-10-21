@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
 using UnityEditor;
@@ -20,15 +21,47 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public Vector4 row0, row1, row2, extents, capture, projection, parameters;
         }
         // The production kernel checks aggregate contribution across words; the exact-index probe and normal multi-tile frames complement it.
-        [TestCase(0)]
-        [TestCase(1)]
-        [TestCase(31)]
-        [TestCase(32)]
-        [TestCase(33)]
-        [TestCase(63)]
-        [TestCase(64)]
-        [TestCase(65)]
+        [TestCase(0)] [TestCase(1)] [TestCase(31)] [TestCase(32)]
+        [TestCase(33)] [TestCase(63)] [TestCase(64)] [TestCase(65)]
         public void ActualDeferredKernel_AccumulatesLocalLightsAcrossMaskWords(int localCount)
+        {
+            var actual = Dispatch(localCount, false)[0][8 * 16 + 8];
+            float distanceSquared = 1 + 2 * .0625f * .0625f;
+            float window = 1 - Mathf.Pow(Mathf.Sqrt(distanceSquared) / 20, 4);
+            float expected = localCount == 0 ? 0 : .5f / Mathf.PI * 30 * window * window / distanceSquared / Mathf.Sqrt(distanceSquared);
+            for (int channel = 0; channel < 3; ++channel)
+                Assert.That(actual[channel], Is.EqualTo(expected).Within(.015f), "Actual production Deferred kernel, local=" + localCount);
+        }
+
+        [Test]
+        public void ActualDeferredKernel_WeightsScaleOnlyTheirLightingTerm()
+        {
+            var results = Dispatch(1, true);
+            float diffuseEnergy = 0, specularEnergy = 0;
+            for (int pixel = 0; pixel < 16 * 16; ++pixel)
+            {
+                for (int channel = 0; channel < 3; ++channel)
+                {
+                    float ambient = results[0][pixel][channel];
+                    float specularTerm = results[2][pixel][channel] - ambient;
+                    float diffuseTerm = results[3][pixel][channel] - ambient;
+                    diffuseEnergy += diffuseTerm; specularEnergy += specularTerm;
+                    var expected = new[] { ambient + diffuseTerm + specularTerm, ambient + .5f * diffuseTerm + specularTerm, ambient + diffuseTerm + .5f * specularTerm };
+                    var indices = new[] { 1, 4, 5 };
+                    for (int equation = 0; equation < indices.Length; ++equation)
+                    {
+                        float actual = results[indices[equation]][pixel][channel];
+                        Assert.IsFalse(float.IsNaN(actual) || float.IsInfinity(actual));
+                        Assert.That(actual, Is.EqualTo(expected[equation]).Within(1e-5f * Mathf.Max(1, Mathf.Abs(expected[equation]))),
+                            $"Production RGBA32F Deferred: pixel {pixel}, channel {channel}, weight case {indices[equation]}");
+                    }
+                }
+            }
+            Assert.Greater(diffuseEnergy, 0, "Diffuse control must exercise a nonzero term.");
+            Assert.Greater(specularEnergy, 0, "Specular control must exercise a nonzero term.");
+        }
+
+        static Color[][] Dispatch(int localCount, bool weightCases)
         {
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 Assert.Ignore("A compute device with GPU readback is required.");
@@ -68,8 +101,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var black = Texture(Color.clear);
                 var layer = Texture(new Color(64f / 255, 0, 0, 1f / 255));
                 var baked = Texture(new Color(0, 0, 0, 1));
-                var normal = Texture(new Color(.5f, .5f, 0, 0));
-                var albedo = Texture(new Color(.5f, 128f / 255, .65f, 0));
+                var normal = Texture(new Color(.5f, .5f, 0, weightCases ? .5f : 0));
+                var albedo = Texture(new Color(.5f, 128f / 255, weightCases ? .12f : .65f, 0));
                 var environment = new Texture2DArray(1, 1, 6, TextureFormat.RGBAFloat, false, true);
                 owned.Add(environment);
                 for (int i = 0; i < 6; i++) environment.SetPixels(new[] { Color.clear }, i);
@@ -93,7 +126,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var masks = new uint[words];
                 for (int i = 0; i < localCount; i++) masks[i / 32] |= 1u << (i & 31);
                 uint packed = localCount == 0 ? 0x0000ffffu : (uint)(localCount - 1) << 16;
-                shader.SetBuffer(kernel, "g_LightRecordBuffer", Buffer(records, Marshal.SizeOf<FLightRecord>()));
+                var lightBuffer = Buffer(records, Marshal.SizeOf<FLightRecord>());
+                shader.SetBuffer(kernel, "g_LightRecordBuffer", lightBuffer);
                 shader.SetBuffer(kernel, "SRV_LightTileMasks", Buffer(masks, 4));
                 shader.SetBuffer(kernel, "SRV_LightZBins", Buffer(new[] { packed }, 4));
                 shader.SetBuffer(kernel, "SRV_LocalShadowMatrices", Buffer(new[] { Matrix4x4.identity }, 64));
@@ -138,16 +172,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetTexture(kernel, "_AtmosphereGGXPrefilter", environment);
                 shader.SetTexture(kernel, "UAV_LightingTexture", output); shader.SetTexture(kernel, "UAV_IndirectDiffuse", diffuse);
                 shader.SetTexture(kernel, "UAV_IndirectSpecular", specular);
-                shader.Dispatch(kernel, 1, 1, 1);
-                var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
-                Assert.IsFalse(readback.hasError);
-                var actual = readback.GetData<Color>()[8 * size + 8];
-                float distanceSquared = 1 + 2 * .0625f * .0625f;
-                float window = 1 - Mathf.Pow(Mathf.Sqrt(distanceSquared) / 20, 4);
-                float expected = localCount == 0 ? 0 : .5f / Mathf.PI * 30 * window * window / distanceSquared / Mathf.Sqrt(distanceSquared);
-                Assert.That(actual.r, Is.EqualTo(expected).Within(.015f), "Actual production Deferred kernel, local=" + localCount);
-                Assert.That(actual.g, Is.EqualTo(expected).Within(.015f));
-                Assert.That(actual.b, Is.EqualTo(expected).Within(.015f));
+                var weights = weightCases ? new[] { Vector2.zero, Vector2.one, new Vector2(0, 1), new Vector2(1, 0), new Vector2(.5f, 1), new Vector2(1, .5f) } : new[] { Vector2.one };
+                var results = new Color[weights.Length][];
+                for (int w = 0; w < weights.Length; ++w)
+                {
+                    records[directionalCount].weights = new Vector4(weights[w].x, weights[w].y, 1, 1);
+                    lightBuffer.SetData(records);
+                    // Deferred reads the initial lighting target as emissive; every invocation starts from the same zero input.
+                    RenderTexture.active = output; GL.Clear(false, true, Color.clear); RenderTexture.active = previous;
+                    shader.Dispatch(kernel, 1, 1, 1);
+                    var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
+                    Assert.IsFalse(readback.hasError);
+                    results[w] = readback.GetData<Color>().ToArray();
+                }
+                return results;
+
             }
             finally
             {

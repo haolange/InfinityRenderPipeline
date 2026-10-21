@@ -226,16 +226,16 @@ still fails. Retain the original failed check; these missing historical images a
 
 ## S8 — area light shapes
 
-1. Compile; run `LightShapeGpuTests` (GPU).
+1. After a fresh script reload/cold startup, verify a live pipeline and initialized VolumeManager. On current main, where the S15 Volume panel is present, verify that the Rendering Debugger Volume panel is populated; repeated registration must not duplicate panels/widgets. Historical snapshots check only their available panels. Preserve the first startup error if any. Compile; run `LightShapeGpuTests` and `DeferredLightLoopGpuTests` (GPU). The weight case invokes the actual Deferred kernel with six fixed-input controls in RGBA32F and nonzero diffuse/specular terms.
 2. Window/Infinity/Create Area Lights Fixture: on the glossy floor each light's highlight has the light's shape
    (round for the sphere, a streak for the line and tube, a rectangle / ellipse for rect and disk, a soft disk for the
    sun with Source Angle 2°). On the rough floor the highlights widen without becoming brighter than their sources.
 3. Change Source Radius of the sphere from 0 to 0.5: the overall brightness on the rough floor stays nearly the same;
-   the highlight on the glossy floor grows and its peak drops.
+   the highlight on the glossy floor grows and its peak drops. Fix the ROI, exposure and tolerance before capture. Match current/previous camera jitter and actual matrices; compare peak and integrated energy separately. Verify roughness in GBufferA and specular level in GBufferB.
 4. Rect lights now light diffuse surfaces (they only produced a highlight before) and do not light behind the emitter.
-   Barn Door Length 0 → 0.4 at 45° narrows the lit area.
+   Barn Door Length 0 → 0.4 at 45° narrows the lit area. Report the brightness threshold: the faint outer support may shrink while the bright core stays unchanged. For a backface control, keep the same enabled emitter and compare against both weights set to zero.
 5. Expected global changes: brighter, unclamped specular highlights on glossy materials (bloom may react); punctual
-   lights with a Diffuse or Specular weight below 1 now scale only that term.
+   lights with a Diffuse or Specular weight below 1 now scale only that term. Keep production RGBA16F frame measurements separate from the fixed-input RGBA32F numeric oracle; multiple storage/composite stages prevent a final-readback-only half-ULP bound from proving every normal-frame equation.
 
 ## S9a — shadow settings, PCF / PCSS, shadows for every shape
 

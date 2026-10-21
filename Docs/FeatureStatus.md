@@ -20,7 +20,7 @@ Columns:
 | Mesh Drawing Pipeline (CPU + GPU backends) | Yes | Yes | Open | Open | macOS Metal | No HZB occlusion, GPU sort or GPU LOD |
 | ThinGBuffer + Deferred shading | Yes | Yes (pack contract) | Failing | Open | macOS Metal | Validation scenes show sky bands, dark triangles and cube blotches |
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
-| Light shapes and record v2 (0.5.0) | Yes | Unverified-0.5 (shape, record layout, GPU far-field) | Open | Open | None | Karis representative point + Frostbite / Karis diffuse (S8) |
+| Light shapes and record v2 (0.5.0) | Yes | 2026-10-22 / Unity 6000.6.0f1 / Metal: shape GPU 3, record contracts, actual Deferred weight GPU | 2026-10-22 / Unity 6000.6.0f1 / macOS Metal: all shapes, glossy/rough, radius, backface, barn-door and term controls | Open | macOS Metal | Karis / Frostbite approximation. Fixed-input RGBA32F weight equations pass; strict normal RG16F half-ULP decomposition remains unproved. |
 | Lightmapper delegate (0.5.0) | Editor bakes | No | Open | — | None | |
 | Light cookies + IES atlas (0.5.0) | Yes | Unverified-0.5 (allocator, atlas state) | Open | Open | None | IES prefab import unverified |
 | Clustered light list v2 (log z-bins + tile bitmasks, 0.5.0) | Yes | 2026-10-22 / Unity 6000.6.0f1 / Metal: binning 6, actual Deferred GPU 8; exact-index probe | 2026-10-22 / Unity 6000.6.0f1 / macOS Metal: point-light Deferred/Forward, inside/behind/far, multi-camera; S6-matched fog/cloud | Open | macOS Metal | Caller-owned out state; matched compute projection. Other graphics APIs and performance remain unverified. |

@@ -92,6 +92,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Initialize the owned VolumeManager before registering Rendering Debugger panels. The CoreRP Volume panel added in S15 otherwise reads its component registry before initialization during a fresh script domain and aborts pipeline construction.
+- Light-shape verification now checks independent diffuse/specular weights in the actual Deferred kernel with a nonzero specular input; the earlier mask-loop regression exercised diffuse only. The six controls share inputs, clear the emissive/output target between dispatches and preserve the original eight mask-count cases.
 - CPU light-tile rectangles use the same compute projection convention as sampled-depth reconstruction, preserving
   upper/lower local-light coverage in Deferred, Forward and volumetrics.
 - Clustered-light loop initialization now writes caller-owned integer state through `out`, including Forward,
