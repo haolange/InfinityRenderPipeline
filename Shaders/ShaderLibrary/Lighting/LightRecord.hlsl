@@ -110,7 +110,8 @@ float SpotWindow(FLightRecord light, float3 positionWS)
     if (LightHasFlag(light, LIGHT_FLAG_SPOT_CONE))
     {
         float cosAngle = dot(normalize(fromLight), forward);
-        return saturate((cosAngle - light.forward.w) * light.right.w);
+        float window = saturate((cosAngle - light.forward.w) * light.right.w);
+        return window * window;
     }
     float z = dot(fromLight, forward);
     if (LightHasFlag(light, LIGHT_FLAG_SPOT_PYRAMID))

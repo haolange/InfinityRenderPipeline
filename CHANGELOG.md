@@ -92,6 +92,14 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Cone spot lights square their angular window, matching the smooth inner/outer-cone attenuation used by CoreRP's
+  punctual lighting. Surface, fog and cloud consumers share the corrected function; Point, Pyramid and Box support is unchanged.
+- Authored Disk lights use an explicit native Rectangle culling carrier, retaining their Additional Disk shape and GI Disc emitter. Shape and mode-only edits retain native bake modes through Undo/Redo; opening/loading a native Disc does not convert it. The native carrier gizmo is rectangular and the Infinity shape handle is circular.
+- Realtime light radiance linearizes the authored Unity color before applying color temperature and intensity, matching
+  Unity's lightmapper extraction for gray and colored lights. The prior raw-color packing test now checks linear radiance;
+  additional tests compare the installed Unity extraction with and without temperature, rather than assuming a pi factor.
+- Light Inspector adoption of an existing native shape now owns an Undo entry. Pipeline disposal restores the previous
+  lightmapper delegate while preserving a later replacement, including an older disposed pipeline in the owner chain.
 
 - Normal-frame SSR capture exposes classification and history metadata without changing Debug View or history. Requested
   classification uses graph-owned lifetime through Transfer readback; ordinary frames retain pass-local classification.

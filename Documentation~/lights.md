@@ -20,7 +20,7 @@ by a script or imported) renders the shape its native fields describe. Adding th
 | Point | Source Radius (sphere), Soft Source Radius, Source Length (line when the radius is 0, tube otherwise) | Point, or Tube when the length is positive |
 | Spot | Spot Shape: Cone, Pyramid (aspect ratio) or Box (size); cone and pyramid may have a Source Radius | Spot, Pyramid, Box |
 | Rect | Source Width, Source Height, Barn Door Angle / Length; one-sided, emits along the light's forward axis | Rectangle |
-| Disk | Source Radius; one-sided | Disc |
+| Disk | Source Radius; one-sided | Rectangle culling carrier; GI Disc |
 
 A tube's diameter is twice its Source Radius; there is no separate thickness parameter. Tube and line lights are
 realtime only (the lightmapper skips them, as in HDRP).
@@ -58,3 +58,9 @@ physically normalized.
 
 Local lights fade out over **Distance Fade** meters before **Maximum Distance** from the camera and are skipped beyond
 it (0 disables the limit). Rendering Debugger → Infinity Lighting shows how many lights were skipped.
+
+Authored Disk lights use a native Rectangle carrier because native Disc lights are omitted from realtime culling and
+revert to Baked during Unity Undo deserialization. Disk identity and radius remain on Additional Light Data; the
+lightmapper receives a Disc emitter. Explicit shape or baking-mode edits establish the carrier. Loading a scene or
+adopting an existing native Disc in the Inspector does not convert it. A bare native Disc retains Unity's Baked support;
+its native fields alone cannot represent an authored realtime Infinity Disk.

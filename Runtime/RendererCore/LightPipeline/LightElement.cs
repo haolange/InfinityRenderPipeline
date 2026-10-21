@@ -115,7 +115,8 @@ namespace InfinityTech.Rendering.LightPipeline
                 if (fade <= 0) return false;
             }
 
-            Color color = light.color;
+            // Unity Light colors are authored in sRGB; the renderer and lightmapper consume linear radiance.
+            Color color = light.color.linear;
             if (light.useColorTemperature)
                 color *= Mathf.CorrelatedColorTemperatureToRGB(light.colorTemperature);
             record.radiance = Radiance(color, light.intensity * fade);

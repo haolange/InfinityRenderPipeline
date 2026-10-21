@@ -236,6 +236,12 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_PreviousLightsUseLinearIntensity;
         bool m_PreviousLightsUseColorTemperature;
         bool m_PreviousUseScriptableRenderPipelineBatching;
+#if UNITY_EDITOR
+        static InfinityRenderPipeline s_LightmapperStateOwner;
+        InfinityRenderPipeline m_PreviousLightmapperStateOwner;
+        bool m_LightmapperStateReleased;
+        UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate m_PreviousLightmapperDelegate;
+#endif
 
         static InfinityRenderPipeline s_GlobalStateOwner;
 
@@ -781,6 +787,10 @@ namespace InfinityTech.Rendering.Pipeline
         void CaptureGraphicsState()
         {
             m_PreviousGlobalStateOwner = s_GlobalStateOwner;
+#if UNITY_EDITOR
+            m_PreviousLightmapperStateOwner = s_LightmapperStateOwner;
+            m_PreviousLightmapperDelegate = UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate();
+#endif
             m_PreviousSupportedFeatures = SupportedRenderingFeatures.active;
             m_PreviousGlobalRenderPipeline = Shader.globalRenderPipeline;
             m_PreviousLightsUseLinearIntensity = GraphicsSettings.lightsUseLinearIntensity;
@@ -791,8 +801,37 @@ namespace InfinityTech.Rendering.Pipeline
             m_PreviousBestFitTexture = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
         }
 
+#if UNITY_EDITOR
+        void InstallLightmapperState()
+        {
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(InfinityLightmapperDelegate.Delegate);
+            m_LightmapperStateReleased = false;
+            s_LightmapperStateOwner = this;
+        }
+
+        void RestoreLightmapperState()
+        {
+            m_LightmapperStateReleased = true;
+            if (s_LightmapperStateOwner != this) return;
+            var previousOwner = m_PreviousLightmapperStateOwner;
+            var previousDelegate = m_PreviousLightmapperDelegate;
+            while (previousOwner != null && previousOwner.m_LightmapperStateReleased)
+            {
+                if (previousDelegate == InfinityLightmapperDelegate.Delegate)
+                    previousDelegate = previousOwner.m_PreviousLightmapperDelegate;
+                previousOwner = previousOwner.m_PreviousLightmapperStateOwner;
+            }
+            s_LightmapperStateOwner = previousOwner;
+            if (UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate() == InfinityLightmapperDelegate.Delegate)
+                UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(previousDelegate);
+        }
+#endif
+
         void RestoreGraphicsState()
         {
+#if UNITY_EDITOR
+            RestoreLightmapperState();
+#endif
             if (s_GlobalStateOwner != this) return;
             s_GlobalStateOwner = m_PreviousGlobalStateOwner != null && !m_PreviousGlobalStateOwner.m_ResourcesDisposed ? m_PreviousGlobalStateOwner : null;
             // A replacement pipeline may have already installed its own global state.
@@ -812,10 +851,6 @@ namespace InfinityTech.Rendering.Pipeline
                 GraphicsUtility.m_BlitMaterial = m_PreviousBlitMaterial;
             if (Shader.GetGlobalTexture("g_BestFitNormal_LUT") == m_InstalledBestFitTexture)
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousBestFitTexture);
-#if UNITY_EDITOR
-            if (UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate() == InfinityLightmapperDelegate.Delegate)
-                UnityEngine.Experimental.GlobalIllumination.Lightmapping.ResetDelegate();
-#endif
         }
 
         static void ResolveVolumeSelection(Camera camera, List<Camera> cameras, InfinityAdditionalCameraData cameraData, out Transform volumeTrigger, out LayerMask volumeLayerMask)
@@ -916,7 +951,7 @@ namespace InfinityTech.Rendering.Pipeline
             GraphicsSettings.useScriptableRenderPipelineBatching = m_InstalledBatching;
             Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_InstalledBestFitTexture);
 #if UNITY_EDITOR
-            UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(InfinityLightmapperDelegate.Delegate);
+            InstallLightmapperState();
 #endif
         }
 

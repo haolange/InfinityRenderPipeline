@@ -120,6 +120,9 @@ namespace InfinityTech.Rendering.Tests
             if (s_Current != null || !string.IsNullOrEmpty(SessionState.GetString(PendingReloadKey, null))
                 || EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
                 throw new InvalidOperationException("Use an idle EditMode editor with no active validation test run.");
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; ++i)
+                if (UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).isDirty)
+                    throw new InvalidOperationException("Save or cancel scene edits before starting validation tests.");
             var runner = new ValidationTestRunner();
             runner.m_Directory = outputDirectory == null ? Path.GetFullPath(Path.Combine(Application.dataPath, "../intermediate/editor-tests",
                 "editor-tests-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N"))) : Path.GetFullPath(outputDirectory);

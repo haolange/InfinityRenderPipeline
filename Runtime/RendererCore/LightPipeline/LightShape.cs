@@ -170,7 +170,9 @@ namespace InfinityTech.Rendering.LightPipeline
                 case EInfinityLightType.Spot:
                     return shape.spotShape == ESpotShape.Pyramid ? LightType.Pyramid : (shape.spotShape == ESpotShape.Box ? LightType.Box : LightType.Spot);
                 case EInfinityLightType.Rect: return LightType.Rectangle;
-                case EInfinityLightType.Disk: return LightType.Disc;
+                // Native Disc is omitted from realtime culling and coerces bake mode on Undo/reload.
+                // Additional data retains Disk identity; the lightmapper receives DiscLight.
+                case EInfinityLightType.Disk: return LightType.Rectangle;
                 default: throw new ArgumentOutOfRangeException(nameof(shape));
             }
         }
@@ -201,7 +203,8 @@ namespace InfinityTech.Rendering.LightPipeline
                     areaSize = new Vector2(shape.sourceWidth, shape.sourceHeight);
                     break;
                 case EInfinityLightType.Disk:
-                    areaSize = new Vector2(shape.sourceRadius, areaSize.y);
+                    float diskSide = Mathf.Sqrt(Mathf.PI) * shape.sourceRadius;
+                    areaSize = new Vector2(diskSide, diskSide);
                     break;
             }
         }
@@ -221,11 +224,16 @@ namespace InfinityTech.Rendering.LightPipeline
         {
             if (light == null) throw new ArgumentNullException(nameof(light));
             DeriveNative(light, shape, out LightType type, out float shapeRadius, out Vector2 areaSize, out float shadowAngle);
+            // Native Disc assignment changes the bake mode; the shape does not own that setting.
+            LightmapBakeType bakeType = light.lightmapBakeType;
             bool changed = false;
             if (light.type != type) { light.type = type; changed = true; }
             if (!Mathf.Approximately(light.shapeRadius, shapeRadius)) { light.shapeRadius = shapeRadius; changed = true; }
             if (light.areaSize != areaSize) { light.areaSize = areaSize; changed = true; }
             if (!Mathf.Approximately(light.shadowAngle, shadowAngle)) { light.shadowAngle = shadowAngle; changed = true; }
+            if (light.lightmapBakeType != bakeType) light.lightmapBakeType = bakeType;
+            if (light.lightmapBakeType != bakeType)
+                throw new InvalidOperationException("Unity rejected the existing light bake mode after a shape edit.");
             return changed;
         }
 

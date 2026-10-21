@@ -673,3 +673,177 @@ The user verifies in commit order with
   after deleting budget.json/its sidecar; the final receipt distinguishes that tiny earlier deletion from these measured
   remaining files. Source commit ecd3c7b preceded cleanup because later shell commands ran after the first Python failure;
   this follow-up records actual cleanup without rewriting history. Push/remote/clean checks unlock S6.
+
+### S6 local Editor validation (active, 2026-10-21)
+
+- S5 source ecd3c7b plus cleanup ledger98012a125f3e53a8d53119dfcca844fb0d76c404 pushed to the explicit PR ref;
+  remote main remains c92be7707f45a1789688e5cc16e0845f183b2910; clean package worktree verified before S6.
+- S6 original834f41de69b2 plus accepted predecessor replay compiles on owned original Example80423.
+  Shape14/14, layout2/2, record7/7. Full1585=1531Passed/1Failed/53Skipped;2 reloads/resumes.
+  The failure is the known cold-start null Utility Shader; original XML remains unchanged. No later stage is unlocked.
+- Task-owned preview light and public delegate sentinel prove legacy Inspector adoption has no Undo and prior custom
+  Lightmapper delegate is lost. Main candidate adds adoption Undo and an independently owned, idempotent delegate chain,
+  retaining external replacements and live owners across out-of-order release. No user light or source asset was saved.
+- Installed6000.6 public Extract vs realtime pack finds gray0.5 vs0.214041144 and colored/temperature mismatches.
+  Candidate linearizes authored Unity color before CCT/intensity. The old raw-color test assertion is corrected because
+  it disagrees with the installed Unity lightmapper contract; an independent public Extract oracle covers both CCT states.
+- Original80423 exited normally before main checkout. Main82740 compile0errors; lifecycle11/11, record9/9;
+  Inspector shape regression15/15; public radiance probe matches all6 white/gray/color+CCT controls. Unpinned transient Profile was unloaded during test setup,
+  causing6 prerequisite failures in each of two early main lifecycle runs; explicit HideAndDontSave fixes the harness
+  lifetime and the next run11/11 passes. The original failures remain. Missing resource references are supplemented
+  in memory using Unity object validity, not CLR object-null; no durable GlobalSettings upgrade is claimed.
+- All-assembly authentication tests temporarily left CLI bearer discovery stale; connection later recovered before
+  any import/log delta. A reversible own-source pulse was restored exactly and is not credited as the cause.
+- S6 evidence and bounded scratch: original Example intermediate/verification-0.5/20261020-run02/S6 (512MiB cap,
+  max20 retained320x180 normal frames). Producers: owned Editor, XML runner and explicit probes. Next consumers:
+  historical fixed replay, shape/culling/normal-frame/Undo/bake controls and independent S6 acceptance. S5 carry consumed
+  into complete S6 replay and its directory removed. Root preimage/manifest remains only for final source audit.
+- Historical fixed replay84585: full1593=1540Passed/0Failed/53Skipped, callbacks complete,2 reloads/resumes.
+  Stage shape15/15, record9/9, layout2/2, lifecycle11/11. A canceled pre-discovery start is explicitly not a pass.
+  Native SaveModifiedScenes modal was canceled by the user; the stale zero-discovery adapter was retired without
+  saving/discarding a scene. Candidate test runner now rejects dirty scenes before Execute, and the adoption test
+  owns an additive scene so its objects/Undo do not touch the framework bootstrap.
+- Fifteen320x180 normal Game frames each capture Lighting/Depth/DisplayColor: completed,1 captured frame,
+  zero outstanding, all raw buffers retired/no NaN/Inf. Production records are matched to metadata producerFrame;
+  no Camera.Render or extra diagnostic Cull is used for these captures. Receiver Depth reconstructs z=3 exactly
+  in the interior. Rect back is off-equivalent; fade16/18/20m packs radiance30/15/no record and culled count0/0/1.
+  Directional remains present beyond its local-distance threshold. These are behavior observations, not S6 acceptance.
+- Disk is a blocking original S6 failure: both normal Disk frames have zero records. Separate public API controls
+  prove native Disc assignment changes bake mode; restoring Realtime on a bare Disc stays Realtime for6 frames,
+  yet public native culling excludes it. forceVisible and bounding-sphere override do not restore production records.
+  Do not substitute Rectangle/native identity or render Baked lights as realtime. Candidate preserves the caller's
+  bake mode around shape edits; explicit Disk candidate collection and downstream identity closure remain in progress.
+- Fixture scene/resources actually unloaded; Play stopped; temporary full GS JSON restored byte-identically, GS clean;
+  owned84585 exited normally before main checkout. Historical source replay was removed only after every file hash
+  matched its fixed-replay identity. The saved main fix was reapplied. A transient candidate edit missed bakeType's
+  declaration during startup (3 CS0103 errors); declaration fixed, static0/0. Failed startup94284 lacked a CLI close
+  channel and was terminated by official unity close for this exact project; retry94686 uses original Library.
+- Further actual controls reject native-Disc mode preservation alone: both RecordObjects and CompleteObjectUndo
+  change Realtime/Mixed to Baked on Redo. Current main shape18=16Passed/2Failed/0Skipped, failures retained.
+  Adoption test now uses DontSave objects moved to owned PreviewScene and passes with original dirty state preserved.
+  CompleteObjectUndo production experiment was reverted because it did not fix the defect.
+- Independent review accepts explicit authored Disk->native Rectangle as the next candidate after these failures;
+  automatic approval review rejects that API/native/gizmo semantic adjustment pending explicit human authorization.
+  The asynchronous authorization question is pending; carrier code was not applied. NativeType(Disk) remains Disc.
+  Bare native Disc is not silently normalized; no Disk-only scan or native identity substitution was added.
+- BakeHarness exists only as task scratch/dry-run compilation; Setup and Bake never executed and no bake asset folder
+  exists. Review still requires full restoration, cancellation/readback exception safety and cumulative map budget.
+  Current owned94686 exited normally after idle/clean guards and byte-identical GS restoration (dirty=false).
+  Fifteen protected source inputs remain unchanged. No S6 commit/push; PR11 Draft; S7-S17 remain locked.
+- Current retained S6 evidence/scratch116285676 logical bytes (~111MiB),958 files, under512MiB budget; exact next
+  consumer is approved Disk fix, historical replay and independent S6 frame/bake acceptance. Completed discovery
+  scripts/sidecars (3821bytes) deleted; no database/cache copies or migration. See S6/continuation-checkpoint.json.
+- 2026-10-21 user explicitly authorizes authored Disk native Rectangle carrier, retained Disk/Disc baking and full
+  actual verification before commit/push. This supersedes the pending approval blocker above. Main candidate now
+  uses one canonical NativeType(Disk)=Rectangle mapping with equal-area native dimensions. Explicit mode-only
+  edits establish the carrier before applying the selected Light-owned mode; loading/inspector adoption does not.
+  Additional data remains shape authority; the real lightmapper delegate still must emit Disc/radius/mode. No Disk
+  candidate scan, surrogate Light object, global Undo hook or second bake-mode storage is introduced.
+- 2026-10-21 S6 carrier historical replay (834f41de69b2 + accepted predecessors + main candidate patch
+  716db7a5) compiles; shape23/23, record9/9, layout2/2 and lifecycle11/11 pass. Full Example1601 discovered,
+  started and finished =1548Passed/0Failed/53Skipped, callbacks complete,2 reloads/resumes.
+- Disk Realtime/Mixed/Baked save/reopen checks retain Disk Additional data, Rectangle native carrier, native mode,
+  stable scene/object GUID/local IDs and byte-identical second/no-op saves. Normal Point/off/Disk-front/Disk-back
+  frames use an isolated free Layer30 because the original task anchor owns Layer31. All12 raw buffers retire,
+  are finite and match actual producer frames; Disk front/back both produce native visible record0, flags516.
+  Independently reconstructed common receiver interior38532pixels has Disk-front Lighting RGB mean increment
+  0.03155720 over off; Disk-back mean difference -0.0000009904/max0.0000152588. Full-image edge differences remain
+  reported (max0.00747681); jitter differs, so there is no bitwise-equivalence claim.
+- Actual GPU bakes and five normal Game frame captures cover Disk, sun0/2 degrees and Spot Baked/Mixed. Each accepted
+  normal frame has at least33 distinct camera frames before its producer, finite retired buffers and restored Play
+  settings/native light JSON. The first frame1 capture is retained as an invalid progression control. Initial direct
+  lightmap readbacks failed with streamed mip2 residency; only task-generated map importers were subsequently made
+  non-streaming for native256x256 half-float analysis. This does not fix or validate production texture streaming.
+- Independent sun source-angle control accepts all9 sampled shadow edges widening:10-90percent width median
+  0.0802809967m at0degrees ->0.1483922484m at2degrees, identical geometry/camera/atlas ST. Disk baked data is consumed
+  in normal BakedDiffuse/Lighting/Display, with isBaked=true and no duplicate realtime light record. No absolute
+  radiometric calibration is inferred from those captures.
+- S6 remains locked on a newly measured Cone attenuation discrepancy. The original production SpotWindow GPU probe
+  fails4 transition points against CoreRP smooth attenuation (20degrees0.6201871 vs0.384545326). The baked radial data
+  independently fits the squared window; the initial total-Lighting Spot comparison also includes GGX and cannot be
+  used as a diffuse-only acceptance test. Current main candidate squares only the Cone window and adds actual GPU
+  packed-record/transform/Point/Pyramid/Box regressions. Reverification and isolated diffuse normal frames are pending.
+- The current complete-main full suite has14 later-stage failures (S12 defaults/stripper fixtures,S13 layout parser,
+  S15 material numeric/viewer/context lifecycle fixtures,S17 moved-path test), separately classified from S6 tests.
+  They remain blockers for final HEAD and must be fixed at their corresponding replay stages; main full is not green.
+- Owned Editor9252 exited normally after capture/fixture drain, clean FilmParity restoration and exact original GS JSON
+  restoration. All70 replay source hashes matched before targeted removal; main98012a1 and its frozen12-file candidate
+  were restored. Both bake asset folders were deleted after restore; original FilmParity/meta hashes remain unchanged.
+  Four closed diagnostic logs were losslessly compressed from~92MiB to~1.2MiB, with original hashes retained. No data
+  store/cache copies or migration. No S6 commit/push yet; independent final acceptance and S7-S17 remain locked.
+
+- Main angular candidate actual Metal GPU tests:3 discovered/started/finished,3Passed/0Failed/0Skipped, callbacks complete.
+  Initial new-test Component namespace ambiguity caused2CS0118; explicitly qualified UnityEngine.Component. A CLI
+  up-to-date response did not prove the refreshed test assembly was loaded (TypeLoad failure); public targeted import
+  plus CompilationPipeline.RequestScriptCompilation then loaded and executed the new tests. Neither failed start counts
+  as a test pass. DXC67/67 across the oracle, Deferred, Fog, Cloud and InfinityLit; static0/0. Owned18151 exited normally
+  with original GS JSON equal/dirtyfalse and no active tests/Play before historical S6 replay.
+- Cleanup of consumed task-only AppleDouble metadata reduced measured file allocation to~285MiB (real evidence files
+  unchanged by size/mtime checks). The first cleanup journal write was interrupted by ExFAT removing ._Packages while
+  its real compiler directory was removed; exact removed-sidecar list was not retained. Compiler include cleanup now
+  uses explicit symlink/metadata removal and incremental receipts. No symlink targets, DataStore or user assets removed.
+
+- Historical squared-Cone candidate (original834f41de69b2 +75-file replay, main patch SHA005764ac63d3018a)
+  actually passes angular GPU3/3, Shape23/23, Record9/9, Layout2/2 and Lifecycle11/11. Full1604 discovered,
+  started and finished =1551Passed/0Failed/53Skipped; stable-ID callbacks/checkpoint complete,2 reload/resumes.
+  Native XML contains1571 leaves;33 earlier skipped callbacks are retained in checkpoint. XML overall is
+  Skipped:Ignored, not an all-tests-Passed or native-frameworkComplete claim. Independent verifier checked all IDs.
+- Two specular-isolated Spot Baked/Mixed captures with caster have identical material JSON and Specular0,
+  roughness1/metallic0 GBuffer. Unoccluded ROI8434 correlated world samples: Mixed/Baked median1.002581,
+  absolute relative error P95=6.36075percent. Caster shadows visibly differ; root cause is not yet proved.
+- NoCaster control omits only the task caster/black material, keeping light/camera/receiver/bake settings.
+  Both actual bakes and14 raw normal-frame buffers complete/finite/retired,33 advancing frames before producer34.
+  Independent verifier accepts inner plateau and outer support: expected radii0.705308/2.309401m;
+  normalized inner r<0.6m is Baked0.999802..1.000709 /Mixed0.999633..1.000643. Squared-window error over
+  0.8<r<2.1m max0.00115808/0.00055021; full sampled radii including inner corner max0.01001784/0.00481878.
+  Geometry-normalized radial values prove shape only. Unnormalized36372 correlated world samples have
+  Mixed/Baked median1.00246870, P05/P950.93791721/1.07204548, absolute relative error P95=8.201891percent.
+  Residual is under investigation; no exact radiometric equivalence or post-hoc tolerance is claimed.
+- Both Spot task asset folders were restored/deleted with FilmParity/meta unchanged, no pending readback/bake.
+  Owned20790 exited normally with original GS JSON equal/dirtyfalse, clean scene and inactive tests/Play.
+  All75 replay file hashes matched before targeted restoration; local main98012a1 and17-file candidate match
+  frozen main patch. Fresh static_check:0errors/0warnings. No other session Editor was operated.
+- Native Inspector interaction evidence remains unavailable: Computer Use app-name/bundle/exact-install-path
+  binding selects another project's window; no input sent there. Official current6.6 CLI exposes no Inspector
+  window capture/input command. S6 is not accepted/committed/pushed; S7-S17 stay locked. GPU performance
+  has no S6 valid comparable before/after sample set and remains Open.
+
+- Independent fixed-scale Lambert analysis closes S6 Spot intensity scale without relaxing the original8.201891percent
+  spatial-error result: realtime actual/theory P05/median/P95=0.998554/0.999309/0.999931 (absrelP95=0.14465percent),
+  native baked atlas integral/theory=0.998071; normal Mixed/Baked integrated ratio=1.00197687 at radius2.65m.
+  Native atlas centroid(71.50999,71.52485) versus original ST world-origin index(72,72) corresponds to world offset
+  (-0.020417,-0.019798)m, close to independently computed half-texel0.020833m. Actual BakedDiffuse agrees with native
+  map sampled using unmodified ST (absrelP95~0.052percent). Diagnostic centroid-only shift gives baked/theory
+  absrelP95~0.3181percent, with no intensity fit. Production UV was not changed; upstream registration root cause and
+  with-caster shadow difference remain unproved and retained for S12. Source uses Lambert, not commented-out Burley.
+- Native UI retry: local main own25925 opened; only task unsaved additive scene/light created, source FilmParity hash
+  unchanged/clean. Exact install-path CUA still returns another project's window, no input sent there. One consolidated
+  actual-UI evidence request is pending; no source asset save or S6 acceptance inferred from elapsed time.
+
+- User rejects another manual UI handoff and directs reopening the original Example directly into their scene.
+  Previous own25925 was already normally exited (log UDS shutdown, PID absent). Official CLI-openfile launches
+  own32233 directly into Assets/Scene/Spazon/Scene_Spazon.unity; no fixture loaded. CUA now binds correct Example.
+- Real Spazon startup exposes packaged Profile missing ProbeVolumesOptions. Explicit Append menu adds it and targeted
+  save passes unchanged14 current component JSON/local IDs and second-save byte identity. Binary native audit is more
+  precise:15->16objects, new APV3810187332190063959, old component IDs/order preserved;34 semantic differences include
+  current non-overriding S4/S5/S10/S14 defaults,14 retired SSR/SSGI parameters (all overridefalse), and component count.
+  All other native fields and normalized reference identities unchanged. This is a separate later-stage main asset
+  candidate, excluded from Fix S6; original Profile/meta preimage retained for early replay. No APV bake acceptance.
+- Current Example GS lacks eight newer ResourcePath fields in native source. Explicit assignment/save populates them
+  while retiring S7 zBinningShader. Current-JSON eight-reference audit alone was insufficient; read-only v23 mhtt native
+  type-tree parsing proves exactly9 native differences and all other fields/managed IDs/types/PPtr identities unchanged.
+  Old zBinning and new lightTileMask share GUID0a57574d950fac64c9465adeb0908015/pathID7200000; source replacement is
+  e6155f32fbb6, no current consumer of old field. Independent verifier reproduced and accepts this bounded migration.
+  GS meta byte-identical, original cabd1631 preimage retained; current GSf22a4f11 remains outside package fix commits.
+- Spazon actual Game now renders. One disabled DontSave task light in the same scene (no test scene) confirms real
+  Source Radius .025->.85, keyboard Undo .025 and Redo .85, with full native/Additional JSON receipts independently
+  accepted. Type popup lists all5 shapes but AX/coordinate/key/continuous mouse/drag input does not produce selection;
+  no product defect inferred or Inspector workaround added. Type/SpotShape/Mode popup/gizmo gate remains Open.
+- Own task light removed, original9 roots/source scene+meta SHA checked, same Spazon reopened without saving to restore
+  only known task dirty state. Independent accepts single-scene clean=true/owned-light-absent; final-state confirms
+  no Play/compile/bake and25 assigned shader slots. Fresh log observation after retained failure history:562bytes,
+  zero Exceptions/Shader errors/C#errors. Restored actual Game/empty Console screenshot retained. No other Editor operated.
+  Current main source plus separate later asset candidate remain uncommitted; no S6 push or stage unlock inferred.
+
+- S6 native Inspector menu blocker closed: moving the owned Example Inspector to the center made native AX menu items actionable. Actual Type choices cover all five types; native records match, Pyramid/Box apply, Disk .025/.85 radius and Realtime/Mixed/Baked retain Rectangle carrier. Full JSON equality verifies single-step Type/radius/mode Undo/Redo. Actual native window shows circular Infinity Disk handle. Legacy Disc setup-only follow-up is not counted as an additional native-menu pass. This round task light was removed, same original Spazon reopened clean after root/hash checks; scene/meta unchanged. No other Editor was controlled. Final candidate review pending; later Profile/GS candidates excluded.
+- Independent verifier accepts final S6 batch (manifest ac6307cf0a410e57d5d2c7fd820959ed755904a807d49942d5a37e6db42d5f10): all17 files match reviewed identity, production/test hashes unchanged; static0/0 and diff clean. Historical full remains1551 Passed/0 Failed/53 Skipped, not1604 Passed. This closes S6 repair/historical validation only; later main failures, performance and final HEAD remain open. Scoped Fix S06 commit/push and remote identity precede S7 replay.

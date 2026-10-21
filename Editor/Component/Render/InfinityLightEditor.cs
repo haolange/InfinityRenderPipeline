@@ -46,7 +46,10 @@ namespace InfinityTech.Component.Editor
             {
                 var data = (InfinityAdditionalLightData)extra;
                 if (!data.shapeAuthored)
+                {
+                    Undo.RecordObject(data, "Adopt Native Light Shape");
                     data.AdoptNativeShape();
+                }
             }
             m_Additional.Update();
         }
@@ -115,9 +118,25 @@ namespace InfinityTech.Component.Editor
             }
             InfinityInspectorGUI.EndFoldout();
 
+            // Commit other native edits before the mode transaction. A legacy native Disc is converted only
+            // by this explicit edit, never while adopting it on inspector open.
+            serializedObject.ApplyModifiedProperties();
+            serializedObject.Update();
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Baking", "Baking"))
             {
+                EditorGUI.BeginChangeCheck();
                 Field(serializedObject, "m_Lightmapping", "Mode");
+                if (EditorGUI.EndChangeCheck())
+                {
+                    var mode = (LightmapBakeType)serializedObject.FindProperty("m_Lightmapping").intValue;
+                    serializedObject.Update();
+                    foreach (Object extra in m_Additional.targetObjects)
+                    {
+                        var data = (InfinityAdditionalLightData)extra;
+                        ApplyBakeMode(data.attachedLight, data, mode);
+                    }
+                    serializedObject.Update();
+                }
                 if (!mixedType && type == EInfinityLightType.Point && shape.FindPropertyRelative("sourceLength").floatValue > 0 && ((Light)target).lightmapBakeType != LightmapBakeType.Realtime)
                     EditorGUILayout.HelpBox("Tube and line lights are not baked; the lightmapper skips them.", MessageType.Warning);
             }
@@ -266,6 +285,17 @@ namespace InfinityTech.Component.Editor
             var value = (ERenderingLayer)EditorGUILayout.EnumFlagsField("Caster Layers", (ERenderingLayer)layer.uintValue);
             if (EditorGUI.EndChangeCheck()) layer.uintValue = RenderingLayerUtility.Validate((uint)value);
             EditorGUI.showMixedValue = false;
+        }
+
+        static void ApplyBakeMode(Light light, InfinityAdditionalLightData data, LightmapBakeType mode)
+        {
+            Undo.RecordObjects(new Object[] { light, data }, "Light Baking Mode");
+            data.SetShape(data.shape);
+            light.lightmapBakeType = mode;
+            if (light.lightmapBakeType != mode)
+                throw new System.InvalidOperationException("Unity rejected the requested light baking mode.");
+            EditorUtility.SetDirty(light);
+            EditorUtility.SetDirty(data);
         }
 
         void SyncNativeShape()

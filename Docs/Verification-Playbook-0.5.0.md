@@ -154,11 +154,19 @@ still fails. Retain the original failed check; these missing historical images a
 ## S6 — light data model
 
 1. Compile; run `LightShapeTests`, `LightRecordLayoutTests`, `LightRecordTests`.
-2. Open an existing scene: lights render exactly as before (no shape is authored until the Light inspector opens; then
-   the native shape is adopted and the scene becomes dirty once).
+2. Open an existing scene: loading does not change native Light fields. On the same fixed code, adopting the native
+   shape in the Light inspector leaves rendering and native fields unchanged, creates one dirty/Undo operation, and
+   Undo/Redo restores the shape. Separately record the intentional S6 correction from sRGB to linear light color;
+   gray/colored light intensity can differ from earlier stages. On a task-owned legacy light, Undo restores the
+   un-authored Additional JSON and Redo restores adoption; native Light values stay identical throughout.
 3. Light inspector: **Type** offers Directional / Point / Spot / Rect / Disk. Changing it or a shape value updates the
    native type (Point ↔ Tube by Source Length, Spot ↔ Pyramid / Box by Spot Shape) and Unity's gizmo; Undo reverts both
-   the Infinity shape and the native Light in one step.
+   the Infinity shape and the native Light in one step. Authored Disk uses a native Rectangle culling carrier:
+   Unity's native Disc is omitted from realtime culling and resets Realtime/Mixed to Baked on Undo deserialization.
+   Additional data remains the Disk identity; the lightmapper must still receive GI Disc with the authored radius/mode.
+   Check all three bake modes, shape edit and mode-only edit on an adopted native Disc, Undo/Redo, and save/reopen.
+   Plain inspector adoption/loading does not convert an existing native Disc. The native carrier gizmo is rectangular;
+   the Infinity Disk handle is circular. Check the actual window and keep these observations separate.
 4. New shapes render: pyramid and box spots (hard-edged frustum / box), disk (as a square of equal area), sphere and
    tube (at their center for now). Rect lights no longer light surfaces behind them.
 5. Maximum Distance: put the camera beyond a point light's Maximum Distance: it fades out over Distance Fade and
@@ -166,9 +174,25 @@ still fails. Retain the original failed check; these missing historical images a
 6. Bake a scene with a Mixed spot (inner angle 20°, outer 60°), a Baked disk and a Baked sun with Source Angle 2°: the
    baked spot has the same inner cone as the realtime one; the baked sun shadow penumbra widens with Source Angle;
    baked intensity matches realtime (compare a Mixed light in Baked Indirect with its realtime direct lighting). Report
-   if baked lights are now about π times darker or brighter than before.
+   if baked lights are now about π times darker or brighter than before. Before the bake, compare realtime radiance with
+   public `LightmapperUtils.Extract` for white, middle gray and colored light, with temperature off/on. Authored Unity color
+   must be converted to linear before temperature and intensity; record color-space differences separately from pi factors.
+   Run `LightAngularGpuTests`: use real packed records, transition windows 0.25/0.5/0.75, transformed lights and
+   Point/Pyramid/Box controls. For the bake/direct-light comparison, set the task receiver's `_SpecularLevel` to zero
+   and verify the material/GBuffer identity so realtime GGX is not counted as a diffuse intensity discrepancy.
+   Record original failures separately. Read each generated lightmap's actual format, atlas ST and loaded mip before
+   reading texels. If streaming prevents full-resolution analysis, only a task-owned generated lightmap may be imported
+   with streaming disabled after bake/capture/readback stop; record its GUID and importer delta, keep global quality
+   unchanged, and use the same configuration for both cases. This is an analysis configuration, not a streaming fix.
+   Keep angular shape, absolute intensity scale and spatial registration as separate measurements. Compare actual
+   realtime diffuse against fixed-parameter Lambert and integrate native baked irradiance against the same intensity;
+   do not fit a brightness multiplier. Retain the original world-aligned pixel error and native atlas ST/centroid.
+   A diagnostic position shift may explain registration, but must not replace original evidence or modify production UV.
 7. Sun direction is unchanged (directional lights now store the emission axis; contact shadows, fog and clouds read
    `-forward`).
+8. Run the pipeline global-state lifecycle tests: a pre-existing custom Lightmapper delegate is restored on disposal,
+   independently of replacement feature flags; a later delegate replacement is preserved. Use task-owned sentinels,
+   never a user's baking callback as the negative control.
 
 ## S7 — clustered light list v2
 

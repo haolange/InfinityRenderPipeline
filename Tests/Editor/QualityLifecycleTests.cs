@@ -28,10 +28,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsTrue(DefaultVolumeProfileFactory.HasRequiredDefaultComponents(profile));
         }
 
-        [TestCase(false, false)]
-        [TestCase(false, true)]
-        [TestCase(true, true)]
-        public void Pipeline_RestoresOnlyOwnedGraphicsState(bool replacementOwnsState, bool editResourceBindings)
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        public void Pipeline_RestoresOnlyOwnedGraphicsState(bool replacementOwnsState, bool editResourceBindings, bool replacementOwnsLightmapper)
         {
             var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
             var type = typeof(InfinityRenderPipeline);
@@ -55,11 +57,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             bool linear = GraphicsSettings.lightsUseLinearIntensity;
             bool temperature = GraphicsSettings.lightsUseColorTemperature;
             bool batching = GraphicsSettings.useScriptableRenderPipelineBatching;
+            var originalLightmapper = UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate();
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate previousLightmapper = (lights, output) => { };
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate replacementLightmapper = (lights, output) => { };
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(previousLightmapper);
             type.GetMethod("CaptureGraphicsState", flags).Invoke(pipeline, null);
             try
             {
                 type.GetMethod("SetGraphicsSetting", flags).Invoke(pipeline, null);
                 Assert.AreEqual("InfinityRenderPipeline", Shader.globalRenderPipeline);
+                Assert.AreEqual(InfinityLightmapperDelegate.Delegate, UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate());
+                if (replacementOwnsLightmapper)
+                    UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(replacementLightmapper);
                 var replacement = new SupportedRenderingFeatures();
                 if (editResourceBindings)
                 {
@@ -73,6 +82,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     GraphicsSettings.lightsUseLinearIntensity = false;
                 }
                 type.GetMethod("RestoreGraphicsState", flags).Invoke(pipeline, null);
+                Assert.AreEqual(replacementOwnsLightmapper ? replacementLightmapper : previousLightmapper,
+                    UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate(), "Restore the prior delegate independently of feature flags, without overwriting a replacement.");
                 Assert.AreSame(replacementOwnsState ? replacement : supported, SupportedRenderingFeatures.active);
                 Assert.AreEqual(replacementOwnsState ? "ReplacementPipeline" : shader, Shader.globalRenderPipeline);
                 Assert.AreEqual(replacementOwnsState ? false : linear, GraphicsSettings.lightsUseLinearIntensity);
@@ -99,6 +110,55 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 GraphicsUtility.m_BlitMaterial = originalBlit;
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", originalBestFit);
                 QualitySettings.antiAliasing = originalAA;
+                UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(originalLightmapper);
+            }
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void Lightmapper_OutOfOrderReleasePreservesLiveOwnerAndExternalDelegates(int replacementPoint)
+        {
+            var type = typeof(InfinityRenderPipeline);
+            var instanceFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var ownerField = type.GetField("s_LightmapperStateOwner", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            var create = typeof(System.Runtime.CompilerServices.RuntimeHelpers).GetMethod("GetUninitializedObject");
+            var capture = type.GetMethod("CaptureGraphicsState", instanceFlags);
+            var install = type.GetMethod("InstallLightmapperState", instanceFlags);
+            var release = type.GetMethod("RestoreLightmapperState", instanceFlags);
+            var originalOwner = ownerField.GetValue(null);
+            var originalDelegate = UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate();
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate f0 = (lights, output) => { };
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate f1 = (lights, output) => { };
+            UnityEngine.Experimental.GlobalIllumination.Lightmapping.RequestLightsDelegate f2 = (lights, output) => { };
+            var o = (InfinityRenderPipeline)create.Invoke(null, new object[] { type });
+            var a = (InfinityRenderPipeline)create.Invoke(null, new object[] { type });
+            var b = (InfinityRenderPipeline)create.Invoke(null, new object[] { type });
+            try
+            {
+                UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(f0);
+                capture.Invoke(o, null); install.Invoke(o, null);
+                capture.Invoke(a, null); install.Invoke(a, null);
+                if (replacementPoint == 1) UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(f1);
+                capture.Invoke(b, null); install.Invoke(b, null);
+                if (replacementPoint == 2) UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(f2);
+                release.Invoke(a, null);
+                Assert.AreEqual(replacementPoint == 2 ? f2 : InfinityLightmapperDelegate.Delegate,
+                    UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate(), "Releasing an older owner cannot change the live delegate.");
+                release.Invoke(b, null);
+                Assert.AreEqual(replacementPoint == 2 ? f2 : (replacementPoint == 1 ? f1 : InfinityLightmapperDelegate.Delegate),
+                    UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate());
+                release.Invoke(o, null);
+                var expected = replacementPoint == 2 ? f2 : (replacementPoint == 1 ? f1 : f0);
+                Assert.AreEqual(expected, UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate());
+                release.Invoke(b, null); release.Invoke(a, null); release.Invoke(o, null);
+                Assert.AreEqual(expected, UnityEngine.Experimental.GlobalIllumination.Lightmapping.GetDelegate(), "Repeated release is a no-op.");
+            }
+            finally
+            {
+                release.Invoke(b, null); release.Invoke(a, null); release.Invoke(o, null);
+                ownerField.SetValue(null, originalOwner);
+                UnityEngine.Experimental.GlobalIllumination.Lightmapping.SetDelegate(originalDelegate);
             }
         }
 

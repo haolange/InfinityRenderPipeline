@@ -1,6 +1,7 @@
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.Rendering;
 using InfinityTech.Component;
 using InfinityTech.Rendering.LightPipeline;
 
@@ -19,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void PackFromUnityLight_UsesUnityColorTimesIntensityOnce()
+        public void PackFromUnityLight_UsesLinearUnityColorTimesIntensityOnce()
         {
             GameObject go = new GameObject("LightRecordTest");
             try
@@ -34,7 +35,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 FLightShape shape = FLightRecordPack.ResolveShape(light, ext);
                 Assert.AreEqual(EInfinityLightType.Directional, shape.type);
                 Assert.IsTrue(FLightRecordPack.TryPack(light, ext, shape, 0, Vector3.zero, out FLightRecord record));
-                Assert.AreEqual(2.0f, record.radiance.x, 1e-4f);
+                Assert.AreEqual(light.color.linear.r * light.intensity, record.radiance.x, 1e-4f);
                 Assert.AreEqual(1.0f, record.radiance.w, 1e-4f);
                 Assert.IsTrue(record.IsDirectional);
                 Assert.AreEqual(0.35f, record.misc.x, 1e-5f);
@@ -42,6 +43,43 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             finally
             {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Unverified_0_5")]
+        public void RealtimeRadiance_MatchesUnityLightmapperExtraction(bool useTemperature)
+        {
+            var go = new GameObject("LightRadianceOracle");
+            bool previousLinear = GraphicsSettings.lightsUseLinearIntensity;
+            bool previousTemperature = GraphicsSettings.lightsUseColorTemperature;
+            try
+            {
+                GraphicsSettings.lightsUseLinearIntensity = true;
+                GraphicsSettings.lightsUseColorTemperature = true;
+                Light light = go.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.intensity = 4;
+                light.useColorTemperature = useTemperature;
+                light.colorTemperature = 3500;
+                foreach (Color color in new[] { Color.white, new Color(0.5f, 0.5f, 0.5f), new Color(0.2f, 0.5f, 0.8f) })
+                {
+                    light.color = color;
+                    var extracted = new UnityEngine.Experimental.GlobalIllumination.PointLight();
+                    UnityEngine.Experimental.GlobalIllumination.LightmapperUtils.Extract(light, ref extracted);
+                    var expected = extracted.color;
+                    Assert.IsTrue(FLightRecordPack.TryPack(light, null, LightShapeUtility.FromUnityLight(light), 0, Vector3.zero, out FLightRecord record));
+                    Assert.AreEqual(expected.red * expected.intensity, record.radiance.x, 1e-5f, "Red: " + color);
+                    Assert.AreEqual(expected.green * expected.intensity, record.radiance.y, 1e-5f, "Green: " + color);
+                    Assert.AreEqual(expected.blue * expected.intensity, record.radiance.z, 1e-5f, "Blue: " + color);
+                }
+            }
+            finally
+            {
+                GraphicsSettings.lightsUseLinearIntensity = previousLinear;
+                GraphicsSettings.lightsUseColorTemperature = previousTemperature;
                 Object.DestroyImmediate(go);
             }
         }
