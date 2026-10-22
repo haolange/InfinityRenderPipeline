@@ -1,0 +1,43 @@
+{
+  "total": 1753,
+  "counts": {
+    "Passed": 1687,
+    "Skipped": 53,
+    "Failed": 13
+  },
+  "all1742StableUIDVerdictsEqualS10": true,
+  "addedTests": {
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.CommittedTexture_ReuploadsWhenImageContentsChangeWithoutUpdateCount]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.CommittedTexture_ReuploadsWhenSamplingFormatChangesWithoutUpdateCount]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.Discard_RemovesUnrecordedUploadsButKeepsOtherAcceptedBlocks]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.FailedCamera_PreservesAcceptedProductionForSecondCamera]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.FailedCamera_RequeuesConsumedUnacceptedUploadInSameFrame]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.FailedContentChange_RetriesNewContentsAndPreservesUnwrittenOldContents]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.FailedLaterUpdate_DoesNotReviveOverwrittenCommittedVersion]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.FailedUpdate_PreservesCommittedVersionAndRetriesNewVersion]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.SharedTexture_DeduplicatesUnrecordedUploadWithinCamera]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/UncertainQueueAcceptance_InvalidatesOldVersionAtFrameCompletion/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.UncertainQueueAcceptance_InvalidatesOldVersionAtFrameCompletion(True)]": "Passed",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightCookieTransactionTests/UncertainQueueAcceptance_InvalidatesOldVersionAtFrameCompletion/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightCookieTransactionTests.UncertainQueueAcceptance_InvalidatesOldVersionAtFrameCompletion(False)]": "Passed"
+  },
+  "failedUIDs": [
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/DefaultVolumeOutputTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.DefaultVolumeOutputTests.DefaultProfileFactory_RequiredComponentsHaveOverrides]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/MaterialUpgraderTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.MaterialUpgraderTests.Standard_ConvertsToInfinityLit]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/PipelineSeamTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.PipelineSeamTests.GeometryPassFiles_DoNotReferenceRetiredSeamTypes]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ReflectionProbeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ReflectionProbeTests.ProbeRecord_MatchesHlslFieldForField]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderGraphViewerTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderGraphViewerTests.Snapshot_ListsPassesLifetimesAndCulling]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"ShadowCaster\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"SRPDefaultUnlit\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"Meta\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"TerrainAdd\",False)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"SystemLUT\",False)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesRealUnlitPassIdentity]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader]"
+  ],
+  "native": 1720,
+  "actualCheckpointSkipped": 33,
+  "frameworkComplete": false,
+  "callbacksComplete": true,
+  "fullSuitePass": false,
+  "callbackSHA256": "f22219a56b65a37110ad762cc46639dbe6a88a2a1024ab0929937980ca090c54"
+}

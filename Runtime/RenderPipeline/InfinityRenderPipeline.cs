@@ -672,6 +672,10 @@ namespace InfinityTech.Rendering.Pipeline
                                 RenderFaultValidation.CameraResult(camera, false, exception);
                                 frameState.RollbackFrame();
                                 m_AtmosphereSharedCache.DiscardUnproducedPending();
+                                // A queue failure may follow an accepted write but precede OnQueued.
+                                // Keep its pending state so frame completion invalidates uncertain contents.
+                                if (!m_RGBuilder.HasQueueSubmissionFailure)
+                                    m_LightCookieAtlas.DiscardUnproducedPending();
                                 if (firstCameraException == null)
                                 {
                                     firstCameraException = exception;

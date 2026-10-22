@@ -1,0 +1,137 @@
+[
+  {
+    "path": "historical-s11-perf-before-v1-Editor.log",
+    "bytes": 129135,
+    "sha256": "10a9c9b8230c77d2e116d0c464b8c2ece46038bc1f04a14f891b1772e31f095a",
+    "matchingLines": 0,
+    "firstBoundedContexts": []
+  },
+  {
+    "path": "main-s11-final-v4-Editor.log",
+    "bytes": 6311845,
+    "sha256": "e7f9c309301b9aad2dad75c062bda84c1b4af2c8ef6d00bc293d8aa07384b346",
+    "matchingLines": 3,
+    "firstBoundedContexts": [
+      {
+        "line": 27051,
+        "lines": [
+          "(Filename: ./Packages/com.unity.pipeline/Runtime/HotReload/InPlaceReloadProcessor.cs Line: 101)",
+          "",
+          "HotReload: Error invoking override for 'IlInterpreterLineInfoProbe.Compute': ScriptRuntimeException: NullReferenceException: called a host member on a null object at line 13 (IlInterpreterLineInfoProbe_edit.cs)",
+          "UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)",
+          "UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:23)",
+          "UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)",
+          "UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])",
+          "UnityEngine.Logger:Log (UnityEngine.LogType,object)",
+          "UnityEngine.Debug:LogError (object)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReloadResult (string,object,object[],object&) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:369)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReload (string,object,object[]) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:310)"
+        ]
+      },
+      {
+        "line": 27645,
+        "lines": [
+          "(Filename: ./Packages/com.unity.pipeline/Runtime/HotReload/InPlaceReloadProcessor.cs Line: 101)",
+          "",
+          "HotReload: Error invoking override for 'IlInterpreterLineInfoProbe.Compute': ScriptRuntimeException: NullReferenceException: called a host member on a null object at IL+0x0005",
+          "UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)",
+          "UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:23)",
+          "UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)",
+          "UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])",
+          "UnityEngine.Logger:Log (UnityEngine.LogType,object)",
+          "UnityEngine.Debug:LogError (object)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReloadResult (string,object,object[],object&) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:369)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReload (string,object,object[]) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:310)"
+        ]
+      },
+      {
+        "line": 34942,
+        "lines": [
+          "Saving results to: /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/main-s11-final-full-v4/failed-test-1551.xml",
+          "Saving results to: /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/main-s11-final-full-v4/failed-test-1583.xml",
+          "UnauthorizedAccessException: Access to the path '/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/main-s11-final-full-v4/capture-test-a888134fad3547948f6fa50cb72dc467/capture.json' is denied.",
+          "  at System.IO.FileStream..ctor (System.String path, System.IO.FileMode mode, System.IO.FileAccess access, System.IO.FileShare share, System.Int32 bufferSize, System.Boolean anonymous, System.IO.FileOptions options) [0x000e0] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at System.IO.FileStream..ctor (System.String path, System.IO.FileMode mode, System.IO.FileAccess access, System.IO.FileShare share, System.Int32 bufferSize, System.IO.FileOptions options) [0x00000] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at (wrapper remoting-invoke-with-check) System.IO.FileStream..ctor(string,System.IO.FileMode,System.IO.FileAccess,System.IO.FileShare,int,System.IO.FileOptions)",
+          "  at System.IO.StreamWriter..ctor (System.String path, System.Boolean append, System.Text.Encoding encoding, System.Int32 bufferSize) [0x00055] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at System.IO.StreamWriter..ctor (System.String path) [0x00008] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at (wrapper remoting-invoke-with-check) System.IO.StreamWriter..ctor(string)",
+          "  at System.IO.File.WriteAllText (System.String path, System.String contents) [0x00026] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at InfinityTech.Rendering.Pipeline.RenderCaptureSession.Save (System.Boolean requirePersistence) [0x00022] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Validation/RenderCaptureSession.cs:440 "
+        ]
+      }
+    ]
+  },
+  {
+    "path": "historical-s11-repaired-v1-Editor.log",
+    "bytes": 6347718,
+    "sha256": "9caa4bea8569205d44b28c2346bb29dabc3315030b41a70342e3f1c2d6bb3f74",
+    "matchingLines": 4,
+    "firstBoundedContexts": [
+      {
+        "line": 26974,
+        "lines": [
+          "(Filename: ./Packages/com.unity.pipeline/Runtime/HotReload/InPlaceReloadProcessor.cs Line: 101)",
+          "",
+          "HotReload: Error invoking override for 'IlInterpreterLineInfoProbe.Compute': ScriptRuntimeException: NullReferenceException: called a host member on a null object at line 13 (IlInterpreterLineInfoProbe_edit.cs)",
+          "UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)",
+          "UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:23)",
+          "UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)",
+          "UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])",
+          "UnityEngine.Logger:Log (UnityEngine.LogType,object)",
+          "UnityEngine.Debug:LogError (object)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReloadResult (string,object,object[],object&) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:369)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReload (string,object,object[]) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:310)"
+        ]
+      },
+      {
+        "line": 27568,
+        "lines": [
+          "(Filename: ./Packages/com.unity.pipeline/Runtime/HotReload/InPlaceReloadProcessor.cs Line: 101)",
+          "",
+          "HotReload: Error invoking override for 'IlInterpreterLineInfoProbe.Compute': ScriptRuntimeException: NullReferenceException: called a host member on a null object at IL+0x0005",
+          "UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)",
+          "UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:23)",
+          "UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)",
+          "UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])",
+          "UnityEngine.Logger:Log (UnityEngine.LogType,object)",
+          "UnityEngine.Debug:LogError (object)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReloadResult (string,object,object[],object&) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:369)",
+          "Unity.Pipeline.HotReload.HotReloadRegistry:TryInvokeHotReload (string,object,object[]) (at ./Packages/com.unity.pipeline/Runtime/HotReload/HotReloadRegistry.cs:310)"
+        ]
+      },
+      {
+        "line": 35109,
+        "lines": [
+          "Shader warning in 'LightShapeContract(Clone)': use of potentially uninitialized variable (IlluminanceSphereOrDisk) at kernel ShapeIrradiance at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/LightShapes.hlsl(35) (on metal)",
+          "Shader warning in 'LightShapeContract(Clone)': use of potentially uninitialized variable (EvaluateLocalLightShape) at kernel ShapeIrradiance at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/LightShapes.hlsl(178) (on metal)",
+          "UnauthorizedAccessException: Access to the path '/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/historical-s11-repaired-full-v1/capture-test-aa2f1e720bad450391ce3634b41db211/capture.json' is denied.",
+          "  at System.IO.FileStream..ctor (System.String path, System.IO.FileMode mode, System.IO.FileAccess access, System.IO.FileShare share, System.Int32 bufferSize, System.Boolean anonymous, System.IO.FileOptions options) [0x000e0] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at System.IO.FileStream..ctor (System.String path, System.IO.FileMode mode, System.IO.FileAccess access, System.IO.FileShare share, System.Int32 bufferSize, System.IO.FileOptions options) [0x00000] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at (wrapper remoting-invoke-with-check) System.IO.FileStream..ctor(string,System.IO.FileMode,System.IO.FileAccess,System.IO.FileShare,int,System.IO.FileOptions)",
+          "  at System.IO.StreamWriter..ctor (System.String path, System.Boolean append, System.Text.Encoding encoding, System.Int32 bufferSize) [0x00055] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at System.IO.StreamWriter..ctor (System.String path) [0x00008] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at (wrapper remoting-invoke-with-check) System.IO.StreamWriter..ctor(string)",
+          "  at System.IO.File.WriteAllText (System.String path, System.String contents) [0x00026] in <0e19fd8bd8e94908bba2ee4f803bc6a7>:0 ",
+          "  at InfinityTech.Rendering.Pipeline.RenderCaptureSession.Save (System.Boolean requirePersistence) [0x00022] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Validation/RenderCaptureSession.cs:440 "
+        ]
+      },
+      {
+        "line": 35729,
+        "lines": [
+          "(Filename: ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/InfinityRenderPipeline.cs Line: 521)",
+          "",
+          "InvalidOperationException: RGScoper.QueryTexture: _ContactShadowTexture is not registered this frame. Its producer did not record, or the consumer runs before it.",
+          "  at InfinityTech.Rendering.Pipeline.InfinityRenderPipeline.RecordCaptureTransfer (InfinityTech.Rendering.Pipeline.RenderCaptureSession session, System.String semantic, System.Int32 shaderId, System.Int32 sourceMip) [0x00194] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/RenderCapturePass.cs:250 ",
+          "  at InfinityTech.Rendering.Pipeline.InfinityRenderPipeline.RecordNormalFrameCapture (UnityEngine.Camera camera) [0x009bd] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/RenderCapturePass.cs:170 ",
+          "  at InfinityTech.Rendering.Pipeline.InfinityRenderPipeline.Render (UnityEngine.Rendering.ScriptableRenderContext scriptableRenderContext, System.Collections.Generic.List`1[T] cameras) [0x00c87] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/InfinityRenderPipeline.cs:628 ",
+          "--- End of stack trace from previous location where exception was thrown ---",
+          "",
+          "  at InfinityTech.Rendering.Pipeline.InfinityRenderPipeline.Render (UnityEngine.Rendering.ScriptableRenderContext scriptableRenderContext, System.Collections.Generic.List`1[T] cameras) [0x00f7f] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/InfinityRenderPipeline.cs:729 ",
+          "  at UnityEngine.Rendering.RenderPipeline.InternalRender (UnityEngine.Rendering.ScriptableRenderContext context, System.Collections.Generic.List`1[T] cameras) [0x00019] in /Users/bokken/build/output/unity/unity/Runtime/Export/RenderPipeline/RenderPipeline.cs:58 ",
+          "  at UnityEngine.Rendering.RenderPipelineManager.DoRenderLoop_Internal (UnityEngine.Rendering.RenderPipelineAsset pipelineAsset, System.IntPtr loopPtr, System.Object renderRequest, Unity.Collections.LowLevel.Unsafe.AtomicSafetyHandle safety) [0x00025] in /Users/bokken/build/output/unity/unity/Runtime/Export/RenderPipeline/RenderPipelineManager.cs:159 "
+        ]
+      }
+    ]
+  }
+]

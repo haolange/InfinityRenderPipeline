@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.LightPipeline
 
     /// <summary>
     /// Light cookie and IES atlas: one persistent RGBA8 texture with a full mip chain; textures live in power-of-two
-    /// blocks (AtlasQuadAllocator) keyed by texture identity and layout, re-uploaded when Texture.updateCount changes.
+    /// blocks (AtlasQuadAllocator) keyed by texture identity and layout, re-uploaded when the source contents change.
     /// Same transaction as the cached shadow atlas: an upload is pending until its pass is queued (MarkProduced) and
     /// committed with a submitted frame; a failed frame invalidates the blocks it wrote. Blocks of textures not used
     /// this frame are evicted least-recently-used when space runs out.
@@ -64,6 +64,31 @@ namespace InfinityTech.Rendering.LightPipeline
     {
         public static readonly int AtlasID = Shader.PropertyToID("_LightCookieAtlasTexture");
         public const int MinBlockSize = 16;
+
+        readonly struct SourceState : IEquatable<SourceState>
+        {
+            readonly Hash128 imageHash;
+            readonly GraphicsFormat format;
+            readonly int width, height, mipCount;
+            readonly ECookieChannels channels;
+
+            public SourceState(Texture texture, int width, int height, ECookieChannels channels)
+            {
+                imageHash = default;
+#if UNITY_EDITOR
+                // Reimport can preserve both the native texture identity and updateCount.
+                if (texture != null) imageHash = texture.imageContentsHash;
+#endif
+                format = texture != null ? texture.graphicsFormat : GraphicsFormat.None;
+                this.width = width;
+                this.height = height;
+                mipCount = texture != null ? texture.mipmapCount : 0;
+                this.channels = channels;
+            }
+
+            public bool Equals(SourceState other) => imageHash == other.imageHash && format == other.format
+                && width == other.width && height == other.height && mipCount == other.mipCount && channels == other.channels;
+        }
 
         struct Entry
         {
@@ -75,6 +100,8 @@ namespace InfinityTech.Rendering.LightPipeline
             public bool pending;
             public bool produced;
             public uint pendingUpdateCount;
+            public SourceState source;
+            public SourceState pendingSource;
         }
 
         readonly HistoryCache m_History = new HistoryCache();
@@ -177,12 +204,16 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             entry.lastUsedFrame = frame;
-            bool current = entry.pending ? entry.pendingUpdateCount == updateCount : entry.valid && entry.updateCount == updateCount;
+            var source = new SourceState(texture, width, height, channels);
+            bool current = entry.pending
+                ? entry.pendingUpdateCount == updateCount && entry.pendingSource.Equals(source)
+                : entry.valid && entry.updateCount == updateCount && entry.source.Equals(source);
             if (!current)
             {
                 entry.pending = true;
                 entry.produced = false;
                 entry.pendingUpdateCount = updateCount;
+                entry.pendingSource = source;
                 if (texture != null)
                 {
                     m_Uploads.Add(new FCookieUpload { key = key, source = texture, layout = layout, channels = channels, position = entry.position, size = size });
@@ -229,9 +260,34 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 if (m_Entries.TryGetValue(keys[i], out Entry entry) && entry.pending)
                 {
+                    // Queue acceptance overwrites this physical block. The old committed version must
+                    // not become reusable if a later update is discarded before it reaches the queue.
+                    entry.valid = false;
                     entry.produced = true;
                     m_Entries[keys[i]] = entry;
                 }
+            }
+        }
+
+        // Recording can consume the upload list before any pass reaches its queue. A failed camera must
+        // return those reservations so another camera can upload the same texture version this frame.
+        // Keep committed contents and accepted production: neither was changed by an unqueued upload.
+        public void DiscardUnproducedPending()
+        {
+            m_Scratch.Clear();
+            m_Scratch.AddRange(m_Entries.Keys);
+            foreach (FCookieKey key in m_Scratch)
+            {
+                Entry entry = m_Entries[key];
+                if (!entry.pending || entry.produced) continue;
+                entry.pending = false;
+                m_Entries[key] = entry;
+            }
+
+            for (int i = m_Uploads.Count - 1; i >= 0; --i)
+            {
+                if (!m_Entries.TryGetValue(m_Uploads[i].key, out Entry entry) || !entry.pending)
+                    m_Uploads.RemoveAt(i);
             }
         }
 
@@ -245,7 +301,11 @@ namespace InfinityTech.Rendering.LightPipeline
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
                 entry.valid = entry.produced;
-                if (entry.produced) entry.updateCount = entry.pendingUpdateCount;
+                if (entry.produced)
+                {
+                    entry.updateCount = entry.pendingUpdateCount;
+                    entry.source = entry.pendingSource;
+                }
                 entry.pending = false;
                 entry.produced = false;
                 m_Entries[key] = entry;

@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/QuitOwnS11MainFinalV4.cs",
+      "entry": "QuitOwnS11MainFinalV4.Run",
+      "args": "[]"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 29,
+      "executeMs": 0,
+      "assemblyName": "PipelineRunScript_QuitOwnS11MainFinalV4_d851f6f3120b468bbf6b0169bd407c10",
+      "success": true,
+      "result": {
+        "pid": 54090,
+        "exit": "normal",
+        "save": false
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

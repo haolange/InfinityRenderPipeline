@@ -1,0 +1,60 @@
+{
+  "root": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11",
+  "producersStoppedOwnPids": [
+    54090,
+    52101,
+    47515,
+    39652
+  ],
+  "readbacksDrained": true,
+  "deletedFiles": 858,
+  "deletedLogicalBytes": 182463346,
+  "allocatedBeforeBytes": 402653184,
+  "allocatedAfterBytes": 2097152,
+  "reclaimedAllocatedBytes": 400556032,
+  "carry": [
+    {
+      "path": "call-owned.py",
+      "bytes": 669,
+      "sha256": "732a7d2619178f216f7f66852e6de7a0bba72d2ce8d48fef03a3495df55f294a",
+      "consumer": "S12 historical predecessor replay or original Example launch/CLI; remove after final dependent stage"
+    },
+    {
+      "path": "historical-s11-pre-fix-identity.json",
+      "bytes": 22105,
+      "sha256": "907a16e492cce3e610759983b67b55e9bd2539e1e5f3b9d7ee04ad0f9c0be3dd",
+      "consumer": "S12 historical predecessor replay or original Example launch/CLI; remove after final dependent stage"
+    },
+    {
+      "path": "historical-s11-pre-fix.patch",
+      "bytes": 273925,
+      "sha256": "6f6374eb1584fc1879c2615aecd48430e4b632a068f061beefbf517363831e09",
+      "consumer": "S12 historical predecessor replay or original Example launch/CLI; remove after final dependent stage"
+    },
+    {
+      "path": "historical-s11-untracked.tar",
+      "bytes": 204800,
+      "sha256": "b58c0d5e8fee467b38059fd361296172025c67a5710b49e4fd525f42c11f0f00",
+      "consumer": "S12 historical predecessor replay or original Example launch/CLI; remove after final dependent stage"
+    },
+    {
+      "path": "main-s11-final-new-v1.tar",
+      "bytes": 20480,
+      "sha256": "eb7f17fc9917c9c5f524afa931d6ff076c4da551e811a15a6a24ae2bb84032f3",
+      "consumer": "S12 historical predecessor replay or original Example launch/CLI; remove after final dependent stage"
+    },
+    {
+      "path": "main-s11-final-runtime-v1.patch",
+      "bytes": 7196,
+      "sha256": "91407391f86b762873e93d99ba695d712d3a99aa234b4e633ea6002704671a3b",
+      "consumer": "S12 historical predecessor replay or original Example launch/CLI; remove after final dependent stage"
+    },
+    {
+      "path": "owned-launch.py",
+      "bytes": 1709,
+      "sha256": "503748d8568a4583a2564ed906f7bdce11f298d86ad08fc5646a242cd068e34f",
+      "consumer": "S12 historical predecessor replay or original Example launch/CLI; remove after final dependent stage"
+    }
+  ],
+  "noLibraryDataStoreUserLogsDeleted": true
+}

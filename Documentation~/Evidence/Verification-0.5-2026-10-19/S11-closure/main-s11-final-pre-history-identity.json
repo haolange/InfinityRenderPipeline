@@ -1,0 +1,15 @@
+{
+  "head": "05a1bf604e59569bd8dbed48e22effc700ff4d7b",
+  "files": {
+    "Runtime/RenderPipeline/InfinityRenderPipeline.cs": "9881a1191193cbdfcf22ad93da953141905b10d2c88860b7b26844197c2e73c1",
+    "Runtime/RendererCore/LightPipeline/LightCookieAtlas.cs": "9aac7ad5d6c685896daf50b54e5f4adc179d97e84acbc6f49f8a02ba9b57bbb5",
+    "CHANGELOG.md": "56be6e8541e0da7112a22b6a9f4ec12902c43bd1194fd9826d561a1cda1f17e4",
+    "Docs/Verification-Playbook-0.5.0.md": "6e3bd761197b7e198259e620d2bfe1aa226cd2f98b1673240065cb8d972af5c6",
+    "PLAN.md": "7975ebf749eb13743a18a32919b642b3d96291fb03013199625911fec57f2451",
+    "Tests/Editor/LightCookieTransactionTests.cs": "7df92635766a0f53b8ad8052a727bba915f9c5e61ce1c14a32d953204d169c9a",
+    "Tests/Editor/LightCookieTransactionTests.cs.meta": "43557831065774eb3a2acf26c9bb72f9acaccbac7d156b03b48304876e1b5927"
+  },
+  "separateProfileSha256": "fe022b4c0c2d7062b592398b04c26222eff7c6ea8fae5baf3a358eba9e53f692",
+  "sceneSha256": "0b987d060327f5baf5e9d2faefdd9ddafadeddabe962f90016698fbe408de341",
+  "pipeline": "main runtime fix +11 new tests; no GI/APV in this candidate"
+}

@@ -8,7 +8,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class LightCookieAtlasTests
     {
         [Test]
-        [Category("Unverified_0_5")]
         public void Allocator_BlocksAreAlignedToTheirSize_AndMergeBack()
         {
             var allocator = new AtlasQuadAllocator(256, 16);
@@ -29,7 +28,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Allocator_RejectsWhenFull()
         {
             var allocator = new AtlasQuadAllocator(64, 16);
@@ -38,7 +36,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void BlockSize_RoundsUpAndClamps()
         {
             Assert.AreEqual(128, LightCookieAtlas.RequestedSize(100, 60, ECookieLayout.Projected, 512));
@@ -51,7 +48,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             => atlas.Acquire(null, ECookieLayout.Projected, ECookieChannels.RGB, id, updateCount, 64, 64, frame, out rect);
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Atlas_UploadsOnce_ReuploadsOnTextureChange_RollsBackOnFailure()
         {
             var atlas = new LightCookieAtlas();
@@ -85,7 +81,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Atlas_EvictsBlocksUnusedThisFrame()
         {
             var atlas = new LightCookieAtlas();

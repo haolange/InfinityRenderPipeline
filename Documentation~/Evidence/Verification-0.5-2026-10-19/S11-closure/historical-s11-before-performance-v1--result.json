@@ -1,0 +1,53 @@
+{
+  "status": "Completed",
+  "error": null,
+  "finished": true,
+  "frames": 1020,
+  "warmup": 120,
+  "rejected": 0,
+  "validSamples": 900,
+  "groups": [
+    {
+      "group": 1,
+      "cpu": {
+        "samples": 300,
+        "median": 8.3068745,
+        "p95": 8.780709
+      },
+      "gpu": {
+        "samples": 300,
+        "median": 4.0340416780964006,
+        "p95": 5.6105000185198151
+      }
+    },
+    {
+      "group": 2,
+      "cpu": {
+        "samples": 300,
+        "median": 8.3387915,
+        "p95": 8.775041
+      },
+      "gpu": {
+        "samples": 300,
+        "median": 3.8050624971219804,
+        "p95": 5.5485000120825134
+      }
+    },
+    {
+      "group": 3,
+      "cpu": {
+        "samples": 300,
+        "median": 8.3507505,
+        "p95": 8.77125
+      },
+      "gpu": {
+        "samples": 300,
+        "median": 3.9892708336992655,
+        "p95": 5.6313749955734238
+      }
+    }
+  ],
+  "seconds": 8.5293917080000483,
+  "source": "FrameTimingManager actual positive CPU/GPU timing, unique timestamps",
+  "limitations": "Editor frame timing includes UI and profiler/host overhead; fixture320x180, one fixed Game camera"
+}

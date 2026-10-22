@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/S11CleanupOwnedAssetsV1.cs",
+      "entry": "S11CleanupOwnedAssetsV1.Run",
+      "args": "[]"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 35,
+      "executeMs": 90,
+      "assemblyName": "PipelineRunScript_S11CleanupOwnedAssetsV1_13c76b2ac72446f0b75fc3c7393a0f4b",
+      "success": true,
+      "result": {
+        "deleted": "Assets/__InfinityValidation_S11_20261022",
+        "files": 8,
+        "save": false
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

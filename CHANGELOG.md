@@ -92,6 +92,8 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Cookie and IES atlas versions compare full Editor image hashes and sampling format/dimensions/mips/channels as well as runtime updateCount. Reimporting a texture can preserve identity and updateCount; it now refreshes the atlas once instead of retaining stale decoded colors.
+- A camera that fails after recording a cookie upload returns its unqueued reservation before the next camera. Shared textures still upload once, accepted production stays reusable, and a failed unqueued update preserves the previously committed contents while the new version is retried. Queue acceptance invalidates the overwritten committed version, preventing a later failed update from reviving stale contents.
 - Normal-frame capture accepts the explicit ContactShadowSun (R8) and ContactShadowMask (R32 UInt) outputs. Captures keep integer mask bits, use the normal RenderGraph resource lifetime, and fail when a requested producer is absent; no contact feature or history setting is changed by capture.
 - Deferred MeshComponent registration now checks its active state and component registration epoch. Disabling before
   the queued registration runs cannot resurrect an inactive mesh; re-enabling with changed Static/Dynamic mobility

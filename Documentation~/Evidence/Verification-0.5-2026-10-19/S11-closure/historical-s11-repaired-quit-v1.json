@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/QuitOwnS11HistoricalRepairedV1.cs",
+      "entry": "QuitOwnS11HistoricalRepairedV1.Run",
+      "args": "[]"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 22,
+      "executeMs": 0,
+      "assemblyName": "PipelineRunScript_QuitOwnS11HistoricalRepairedV1_db884fa3661a4de1b4e3878cbce4525b",
+      "success": true,
+      "result": {
+        "pid": 47515,
+        "exit": "normal",
+        "save": false
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

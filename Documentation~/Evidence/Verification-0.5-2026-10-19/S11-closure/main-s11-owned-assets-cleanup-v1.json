@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/S11CleanupOwnedAssetsV1.cs",
+      "entry": "S11CleanupOwnedAssetsV1.Run",
+      "args": "[]"
+    },
+    "result": {
+      "diagnostics": [
+        {
+          "severity": "error",
+          "message": "'Convert' does not contain a definition for 'ToHexString'",
+          "line": 0,
+          "column": 990,
+          "id": "CS0117"
+        },
+        {
+          "severity": "error",
+          "message": "'SHA256' does not contain a definition for 'HashData'",
+          "line": 0,
+          "column": 1038,
+          "id": "CS0117"
+        }
+      ],
+      "compileMs": 40,
+      "executeMs": 0,
+      "assemblyName": "PipelineRunScript_S11CleanupOwnedAssetsV1_b7d07881714f475ca310f6169b0c223b",
+      "success": false,
+      "error": "Compilation Failed",
+      "errorDetails": "The script failed to compile. See diagnostics for line/column details."
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

@@ -354,8 +354,7 @@ still fails. Retain the original failed check; these missing historical images a
 2. A spot light with a 2D cookie (any RGB texture): the pattern is projected inside the cone, colored. An Alpha8 cookie
    (Unity's default cookie import) projects its alpha as gray. Rendering Debugger → Debug View = Light Cookie Atlas
    shows the texture in its block.
-3. A point light with a Cubemap cookie: the pattern surrounds the light; a 2D cookie on a point light shows the inspector
-   warning and no pattern.
+3. A point light with a Cubemap cookie: the pattern surrounds the light. On Unity 6000.6 a 2D cookie is cleared by the native setter and SerializedObject submission; verify a null cookie, no cookie record and no pattern. The Infinity Inspector warning for a retained wrong-type reference is conditional on Unity allowing that reference; do not claim that unreachable warning branch was tested.
 4. A directional light with a cookie and Cookie Size (10, 10): the pattern tiles every 10 m on the ground.
 5. A rect light with a cookie: glossy reflections of the rect show the texture; diffuse lighting takes its average
    color.
@@ -363,8 +362,8 @@ still fails. Retain the original failed check; these missing historical images a
    drop it in the scene and compare with the profile's shape. Assign the Cube texture of the .ies asset to a spot light:
    the profile applies by direction.
 7. Volumetric fog with a cookie spot: the shafts carry the pattern.
-8. Change a cookie texture's import settings: the atlas block re-uploads once (Frame Debugger `ComputeLightCookies`
-   appears for one frame).
+8. Change an owned RGB cookie from linear to sRGB in its TextureImporter. Record GUID, EntityID, updateCount, GraphicsFormat and full imageContentsHash before and after: reimport can preserve identity and updateCount. The atlas must upload once for the new contents, then reuse it on stable frames. Check `ComputeLightCookies` in the graph/Frame Debugger and verify the actual lighting changes to sRGB-decoded values; a completed capture alone is not a pass.
+9. With two cameras sharing a cookie, first submit a red version, then change that same texture to green. Fail camera A after it records the new upload but before queue acceptance (an explicit capture of an absent producer covers this point). Preserve A's Failed result. Camera B in the same global frame must upload and sample green; its successful submission does not erase A's error. Verify a healthy 33-frame recovery, ordinary two-camera reuse, and two lights sharing one upload. Also cover committed v1 → queued v2 → unqueued failed v3 → request v1: the overwritten v1 block must upload again. Run `LightCookieTransactionTests`; no substitute texture or early production marker is allowed.
 
 ## S12 — baked GI
 

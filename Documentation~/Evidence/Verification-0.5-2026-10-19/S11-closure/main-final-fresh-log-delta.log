@@ -1,0 +1,56 @@
+Curl error 35: Cert verify failed. Certificate could not be verified (either omitted or unsupported). UnityTls error code: 7
+[Licensing::Client] Successfully resolved entitlement details
+Asset Pipeline Refresh (id=84c0a29cab3af41a9bb579f3c6724ee1): Total: 0.059 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+MonoPathRemapper: Attempts to remap: 314731; Successful remaps: 13798
+Thread 0x178b13000 may have been prematurely finalized
+Serialized file version minimum: 22, current 23
+[LAYOUT] About to save layout /Volumes/DataDisk/Projects/Unity/InfinityExample/UserSettings/Layouts/default-6000.dwlt
+[LAYOUT] About to save layout /Users/gushihao/Library/Preferences/Unity/Editor-5.x/Layouts/current/default-6000.dwlt
+Pipeline Server stopped
+[INFO ] [relay] log Shutdown request received from client editor-54090-4igj99
+[INFO ] [relay] log Unity client requested immediate shutdown - shutting down now, reason: Shutdown requested by client
+[INFO ] [relay] log Shutdown: Initiating graceful shutdown: Shutdown requested by client
+[INFO ] [relay] log Client disconnected - blocking and caching for recovery
+[WARN ] [relay] connection.lost clientId=null
+[WARN ] [relay] log Client disconnected - sessions will persist until auto-shutdown, reason: Client disconnected
+[INFO ] [relay] log Auto-shutdown timer started due to client disconnection
+Importing 'GUID: 0000000000000000b000000000000000 - Path: ProjectSettings/EditorBuildSettings.asset' with importer (LibraryAssetImporter)
+Imported 'GUID: 0000000000000000b000000000000000' -> (Import Result ID: 'a0d3b3b8f357ab52f39bcb93ae10c082') in 0.003 seconds [static dependencies only]. Details - ImportResultOutputID=0a89a5c5f492143e0fa186859e17ba6f DependenciesID=b417e7c7c30169d26335d65791bd0c6b StaticDependenciesID=f9f6d537f95ec5a47370b2462bc0052d 
+Importing 'GUID: 00000000000000006100000000000000 - Path: ProjectSettings/GraphicsSettings.asset' with importer (LibraryAssetImporter)
+Imported 'GUID: 00000000000000006100000000000000' -> (Import Result ID: '92910c42a3153de9dee285665f96ec8b') in 0.000 seconds [static dependencies only]. Details - ImportResultOutputID=a2dcdb8bc9503711bc0f2e2d72cfd36c DependenciesID=3826c50ea7e9f4841ecd772e20bc825d StaticDependenciesID=20b086a2325cedc10c529443d89c9094 
+Thread 0x7166f87000 may have been prematurely finalized
+Asset Pipeline Refresh (id=03763801c7dc04622844ea7116b58281): Total: 0.080 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+正在关闭 MSBuild 服务器...
+正在关闭 VB/C# 编译器服务器...
+Thread 0x178dcf000 may have been prematurely finalized
+Thread 0x178d43000 may have been prematurely finalized
+Thread 0x178e5b000 may have been prematurely finalized
+Thread 0x178cb7000 may have been prematurely finalized
+Thread 0x178fff000 may have been prematurely finalized
+Thread 0x17908b000 may have been prematurely finalized
+Thread 0x1791a3000 may have been prematurely finalized
+Thread 0x178ee7000 may have been prematurely finalized
+Thread 0x179117000 may have been prematurely finalized
+Thread 0x17922f000 may have been prematurely finalized
+Thread 0x178f73000 may have been prematurely finalized
+Thread 0x179347000 may have been prematurely finalized
+Thread 0x1792bb000 may have been prematurely finalized
+Thread 0x1793d3000 may have been prematurely finalized
+Thread 0x17945f000 may have been prematurely finalized
+成功关闭 VB/C# 编译器服务器。
+成功关闭 MSBuild 服务器。
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+[Licensing::IpcConnector] LicenseClient-gushihao-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-gushihao channel disconnected successfully.
+Shut down UDS service system complete
+Lingering sessions upon destruction of worker manager
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+debugger-agent: Unable to listen on 41

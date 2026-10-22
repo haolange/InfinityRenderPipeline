@@ -1,0 +1,15 @@
+{
+  "mainBase": "05a1bf604e59569bd8dbed48e22effc700ff4d7b",
+  "files": {
+    "CHANGELOG.md": "56be6e8541e0da7112a22b6a9f4ec12902c43bd1194fd9826d561a1cda1f17e4",
+    "Docs/FeatureStatus.md": "2bd73465744fb2b43f7f79b88e0f7e3b07e0a14d81725122b9c035e426179424",
+    "Docs/Verification-Playbook-0.5.0.md": "6e3bd761197b7e198259e620d2bfe1aa226cd2f98b1673240065cb8d972af5c6",
+    "PLAN.md": "788bfdf8a6f8fab1d8df8e6e0ae3543bbced655e3b06aa52d924c4650c5b0987",
+    "Runtime/RenderPipeline/InfinityRenderPipeline.cs": "9881a1191193cbdfcf22ad93da953141905b10d2c88860b7b26844197c2e73c1",
+    "Runtime/RendererCore/LightPipeline/LightCookieAtlas.cs": "9aac7ad5d6c685896daf50b54e5f4adc179d97e84acbc6f49f8a02ba9b57bbb5",
+    "Tests/Editor/LightCookieAtlasTests.cs": "62d6769aeb3a175104cb2aab6819a5289138b1c4525203755b4f3f5522b8ad7b",
+    "Tests/Editor/LightCookieTransactionTests.cs": "d9b059302816c60c939ebd7bf8668cf5fec5977bb68cbdc281b0cf52d268144c",
+    "Tests/Editor/LightCookieTransactionTests.cs.meta": "43557831065774eb3a2acf26c9bb72f9acaccbac7d156b03b48304876e1b5927"
+  },
+  "excludedSeparateAPVProfile": "Runtime/Resources/InfinityDefaultVolumeProfile.asset"
+}

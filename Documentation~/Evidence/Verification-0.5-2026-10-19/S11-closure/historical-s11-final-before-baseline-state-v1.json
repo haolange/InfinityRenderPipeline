@@ -1,0 +1,47 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S11/HistoricalS11RepairedControlV1.cs",
+      "entry": "S9StageControl.State",
+      "args": "[]"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 81,
+      "executeMs": 1,
+      "assemblyName": "PipelineRunScript_HistoricalS11RepairedControlV1_775951b27df0438eb9e0dd84bb126dfe",
+      "success": true,
+      "result": {
+        "pid": 47515,
+        "unity": "6000.6.0f1",
+        "platform": "Metal",
+        "pipeline": "InfinityTech.Rendering.Pipeline.InfinityRenderPipeline",
+        "scenes": [
+          {
+            "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+            "name": "Scene_Spazon",
+            "isDirty": false,
+            "rootCount": 9
+          }
+        ],
+        "tests": {
+          "active": false,
+          "evidence": null,
+          "run": null
+        },
+        "compiling": false,
+        "play": false
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}
