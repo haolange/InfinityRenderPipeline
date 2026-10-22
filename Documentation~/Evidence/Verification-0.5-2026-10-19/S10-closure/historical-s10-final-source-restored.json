@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/HistoricalS10SourceCaptureDriverV1.cs",
+      "entry": "HistoricalS10SourceCaptureDriverV1.Finish"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 17,
+      "executeMs": 0,
+      "assemblyName": "PipelineRunScript_HistoricalS10SourceCaptureDriverV1_741819e6c3e94e87812bef225dff8859",
+      "success": true,
+      "result": {
+        "restored": true,
+        "pixelRect": "{\"m_XMin\":0.0,\"m_YMin\":0.0,\"m_Width\":1638.0,\"m_Height\":1754.0}",
+        "capture": {
+          "status": "Completed",
+          "finished": true,
+          "outstanding": 0,
+          "evidence": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/historical-s10-final-spazon-normal-v1"
+        }
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

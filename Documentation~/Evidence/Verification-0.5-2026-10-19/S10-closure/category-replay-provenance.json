@@ -1,0 +1,6 @@
+{
+  "historicalCategory": "Unverified-0.5",
+  "runtimeFailure": "Invalid NUnit category character; actual 0Passed2Failed receipts preserved",
+  "replay": "Existing main canonical Unverified_0_5 spelling only; no method/assertion change",
+  "methodCount": 2
+}

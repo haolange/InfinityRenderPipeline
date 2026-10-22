@@ -1,0 +1,15 @@
+{
+  "total": 1689,
+  "counts": {
+    "Passed": 1636,
+    "Failed": 0,
+    "Skipped": 53
+  },
+  "raw": 1656,
+  "missingNativeSkippedReconciledActualXML": 33,
+  "allStableUIDVerdictsEqualPriorHistorical": true,
+  "callbacksComplete": true,
+  "frameworkComplete": false,
+  "callbackSHA256": "497d595af57bc892a906cf80a09b2e47da8f2b611ee10c55f11f0c7c2932de5f",
+  "verifier": "/root/stage_verifier independently matched run.frameworkMissingSkipped stableUIDs and (fullname,result,label,site) multiset; checkpoint625 empty leaves not used as final verdicts"
+}

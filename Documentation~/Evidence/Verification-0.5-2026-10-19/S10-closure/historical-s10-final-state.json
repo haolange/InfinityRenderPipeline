@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/S10FinalControlV1.cs",
+      "entry": "S9StageControl.State"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 30,
+      "executeMs": 0,
+      "assemblyName": "PipelineRunScript_S10FinalControlV1_a880112cdc964af1a2618fd70eaf0961",
+      "success": true,
+      "result": {
+        "pid": 17678,
+        "unity": "6000.6.0f1",
+        "platform": "Metal",
+        "pipeline": "InfinityTech.Rendering.Pipeline.InfinityRenderPipeline",
+        "scenes": [
+          {
+            "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+            "name": "Scene_Spazon",
+            "isDirty": false,
+            "rootCount": 9
+          }
+        ],
+        "tests": {
+          "active": false,
+          "evidence": null,
+          "run": null
+        },
+        "compiling": false,
+        "play": false
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

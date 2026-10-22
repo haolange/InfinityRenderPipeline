@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/QuitOwnS10FinalHistoricalV1.cs",
+      "entry": "QuitOwnS10FinalHistoricalV1.Run"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 24,
+      "executeMs": 0,
+      "assemblyName": "PipelineRunScript_QuitOwnS10FinalHistoricalV1_081c07aa63a24606a6e23cc1ab90c382",
+      "success": true,
+      "result": {
+        "pid": 17678,
+        "clean": true,
+        "quitting": true
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

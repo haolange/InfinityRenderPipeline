@@ -1,0 +1,26 @@
+{
+  "status": "Completed",
+  "successfulFrames": 33,
+  "capturedFrames": 1,
+  "outstanding": 0,
+  "buffers": [
+    {
+      "semantic": "Lighting",
+      "producer": "RenderAtmosphericSkyAndFog",
+      "nonFinite": 0,
+      "sha256": "8612a707f4064ca23457ba48eaa830b4d8d5c2efa0f4027d4ff8862d0e20a443"
+    },
+    {
+      "semantic": "Depth",
+      "producer": "RenderObjectMotion",
+      "nonFinite": 0,
+      "sha256": "4c7f01d25b3c5493eb537dacf108809dd8bc0755242ac35fdb9a9393a171a904"
+    },
+    {
+      "semantic": "DisplayColor",
+      "producer": "RenderUIOverlay",
+      "nonFinite": 0,
+      "sha256": "c8dfe267e8ccfe63edfcdabe5ffb9e2600252b7fca57058be2a3c2d71fa99c44"
+    }
+  ]
+}

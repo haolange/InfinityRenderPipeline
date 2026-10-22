@@ -1,0 +1,94 @@
+{
+  "status": "Completed",
+  "error": "",
+  "persistenceError": "",
+  "successfulFrames": 33,
+  "capturedFrames": 1,
+  "outstanding": 0,
+  "retired": 4,
+  "fixture": null,
+  "scene": "Scene_Spazon",
+  "camera": "S10-Camera",
+  "buffers": [
+    {
+      "semantic": "Lighting",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderAtmosphericSkyAndFog",
+      "producerFrame": 1305,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 0.1260986328125,
+        "maximum": 1.0,
+        "mean": 0.34725327597724065,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "SceneColor",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderTranslucentT2",
+      "producerFrame": 1305,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 0.1260986328125,
+        "maximum": 1.0,
+        "mean": 0.34725327597724065,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "Depth",
+      "format": "R32_SFloat",
+      "bytes": 230400,
+      "producer": "RenderObjectMotion",
+      "producerFrame": 1305,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 57600,
+        "nonFinite": 0,
+        "roiSamples": 57600,
+        "minimum": 0.017543869093060493,
+        "maximum": 0.01805797405540943,
+        "mean": 0.017548385362347794,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "DisplayColor",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderUIOverlay",
+      "producerFrame": 1305,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 0.12054443359375,
+        "maximum": 1.0,
+        "mean": 0.34321075677871704,
+        "hasFiniteRoiSamples": true
+      }
+    }
+  ]
+}

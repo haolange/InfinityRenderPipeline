@@ -1,0 +1,9 @@
+{
+  "main": "83d72d5c8c41d9e32d929e764f1e6245db78fc47",
+  "stage": "02c1dff784b5",
+  "sourceProfileCandidateSHA256": "fe022b4c0c2d7062b592398b04c26222eff7c6ea8fae5baf3a358eba9e53f692",
+  "profilePatchSHA256": "9282c4fa599142703ad6d7eba3e92699d6fd54a3bc2c6f9820f3ad6e592aa7d9",
+  "platform": "Unity6000.6.0f1/macOSMetal",
+  "dataBudgetMiB": 128,
+  "owner": "S10 stage validation; original Example only; no Player"
+}

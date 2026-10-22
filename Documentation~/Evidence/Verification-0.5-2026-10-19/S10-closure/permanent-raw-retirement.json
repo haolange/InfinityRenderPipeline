@@ -1,0 +1,206 @@
+{
+  "removedArchives": [
+    {
+      "archive": "closed-historical-s10-contact-initial-v1-batch.tar.gz",
+      "bytes": 429741,
+      "sha256": "7e7e3a98a813ae421f9a25093c05b1c46fdeb2a2127a5a3d5f0bb3a8710c5c73"
+    },
+    {
+      "archive": "closed-historical-s10-final-capture-v1-batch.tar.gz",
+      "bytes": 908779,
+      "sha256": "befcfe8cdcfc83dade14796e9c544532b30bba7013f40bd4cf1875e8b5a11fd3"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-batch.tar.gz",
+      "bytes": 869650,
+      "sha256": "f7356b40fba0e9b21d380435164e2e3936d71adf8473dd80138a5f416e9b2c01"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-forward-off-batch.tar.gz",
+      "bytes": 541106,
+      "sha256": "e2b68b9de78b0b4fa7012eedcb1d260216e99e8c6f7c8bf21e015bc5db9c4dd8"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-forward-on-batch.tar.gz",
+      "bytes": 541044,
+      "sha256": "489a0d2e7ce555072ad37da303f3d2ee08352c5266a7f91aaff2651917210ade"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-point-off-batch.tar.gz",
+      "bytes": 567355,
+      "sha256": "d6af64ffa82c6e885eb2af65a4a1f7462880c30bf4d233542704de0d5e7beb21"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-point-on-batch.tar.gz",
+      "bytes": 567550,
+      "sha256": "b42082432767b6ee088f19599a8cf8548b2dfec2b15c6c75a47212508f558ac0"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-sun-low-batch.tar.gz",
+      "bytes": 9989,
+      "sha256": "f938a930f88ae09236ffc3eadcc2d5344f6eab317d3cc52af4a5a3a957770187"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-sun-off-batch.tar.gz",
+      "bytes": 8160,
+      "sha256": "e6de430fc214d43ad32b8160203e56a451de80c974790ae1314ef86a3ca55a69"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-sun-on-batch.tar.gz",
+      "bytes": 10214,
+      "sha256": "0fadf262141174512b28c6540a9ece845b54a7743b19b4f4f94069dc3e5b5b37"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-sun-ultra-batch.tar.gz",
+      "bytes": 10255,
+      "sha256": "35a72761c4a671ab52fd1ace38d6f19efc9926a828f2326d8adda953e9909e98"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-thirty-on-batch.tar.gz",
+      "bytes": 56725,
+      "sha256": "5ca91e8288b9b8e8e803f685becb8905890e8810c219af9d0bd868f60f8fb8c6"
+    },
+    {
+      "archive": "closed-historical-s10-final-frames-v1-volume-off-batch.tar.gz",
+      "bytes": 8198,
+      "sha256": "308961fa4f25523743e70604fade448ccdba9f75f7595eafc1c58d9231ea5e8f"
+    },
+    {
+      "archive": "closed-historical-s10-final-full-v1-batch.tar.gz",
+      "bytes": 402839,
+      "sha256": "952d45880cdc56eb7ec2fa9c3c59c7da663ec786c28bcd4db59539acf20071c3"
+    },
+    {
+      "archive": "closed-main-s10-capture-tests-v1-batch.tar.gz",
+      "bytes": 421204,
+      "sha256": "8886f3bf41b9d027ba83cdc3bf053762a866033e2aff84af123c4ce2c8fb6ae6"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-forward-off-batch.tar.gz",
+      "bytes": 541585,
+      "sha256": "d86c1909bc91c2f7eab6afd7385641aa0dbf9a8763c456a20db5c21c4c7577e4"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-forward-on-batch.tar.gz",
+      "bytes": 541788,
+      "sha256": "542895d147e56b695e6291489eb91635e01ba35c8db441f0a449fdf7b60eb171"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-point-off-batch.tar.gz",
+      "bytes": 566803,
+      "sha256": "33b67c325206201c6e0fc369b5edf3041c8475fad1883484c9d268611ca82f7d"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-point-on-batch.tar.gz",
+      "bytes": 567256,
+      "sha256": "beda68e914020d08cf30bc84397e791cedc6666b9fdab52aa000eb65afffc111"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-sun-low-batch.tar.gz",
+      "bytes": 10158,
+      "sha256": "bbf078fdbceefefb8e19395b6b3b1c9f4c97bbcd313c19d5b1bf343094f7d174"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-sun-off-batch.tar.gz",
+      "bytes": 8273,
+      "sha256": "bdf94204e495a457a85405a9a8419622fbaecc59fcdf5a9cc2e43ef1fe63971d"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-sun-on-batch.tar.gz",
+      "bytes": 10193,
+      "sha256": "814fd61c8e1d3fdb0585cf53e4d9d9ca3d1bef236ad8fc1c000e2c0fba1d332f"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-sun-ultra-batch.tar.gz",
+      "bytes": 10403,
+      "sha256": "f00ceb536ad7c99a3cb51af2320d977d4b6c7bea65257346a7a724bcd3306963"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-thirty-on-batch.tar.gz",
+      "bytes": 56865,
+      "sha256": "13fa9a5102a0cf9317387280c496a7ebd75f87dd2be70a3083f8f6733e4ec096"
+    },
+    {
+      "archive": "closed-main-s10-contact-frames-v5-volume-off-batch.tar.gz",
+      "bytes": 8303,
+      "sha256": "0c1d51d23f83cc2a6818e7911d95d1cd904617423a7db6aa0e407e7648167440"
+    },
+    {
+      "archive": "closed-main-s10-final-capture-v1-batch.tar.gz",
+      "bytes": 7409,
+      "sha256": "163622c424069dda9633de625281986bba3dc5091b0c8928909503922dae1d49"
+    }
+  ],
+  "extractedResults": [
+    "tests/historical-s10-category-v1/callback-results.xml",
+    "tests/historical-s10-category-v1/results.xml",
+    "tests/historical-s10-category-v1/run.json",
+    "tests/historical-s10-contact-canonical-v1/callback-results.xml",
+    "tests/historical-s10-contact-canonical-v1/results.xml",
+    "tests/historical-s10-contact-canonical-v1/run.json",
+    "tests/historical-s10-contact-initial-v1/callback-results.xml",
+    "tests/historical-s10-contact-initial-v1/results.xml",
+    "tests/historical-s10-contact-initial-v1/run.json",
+    "tests/historical-s10-full-v1/callback-results.xml",
+    "tests/historical-s10-full-v1/results.xml",
+    "tests/historical-s10-full-v1/run.json",
+    "tests/historical-s10-final-capture-v1/callback-results.xml",
+    "tests/historical-s10-final-capture-v1/results.xml",
+    "tests/historical-s10-final-capture-v1/run.json",
+    "tests/historical-s10-final-category-v1/callback-results.xml",
+    "tests/historical-s10-final-category-v1/results.xml",
+    "tests/historical-s10-final-category-v1/run.json",
+    "tests/historical-s10-final-contact-v1/callback-results.xml",
+    "tests/historical-s10-final-contact-v1/results.xml",
+    "tests/historical-s10-final-contact-v1/run.json",
+    "capture-summaries/main-s10-contact-frames-v5/frames/missing-sun/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5/restore.json",
+    "capture-summaries/main-s10-contact-negative-mask-v1/frames/missing-mask/capture.json",
+    "capture-summaries/main-s10-contact-negative-mask-v1/restore.json",
+    "capture-summaries/main-s10-post-negative-spazon-normal-v1/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1/frames/missing-sun/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1/restore.json",
+    "capture-summaries/historical-s10-final-negative-mask-v1/frames/missing-mask/capture.json",
+    "capture-summaries/historical-s10-final-negative-mask-v1/restore.json",
+    "capture-summaries/historical-s10-final-spazon-normal-v1/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-forward-off/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-forward-on/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-point-off/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-point-on/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-sun-low/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-sun-off/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-sun-on/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-sun-ultra/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-thirty-on/capture.json",
+    "capture-summaries/historical-s10-final-frames-v1-volume-off/capture.json",
+    "tests/historical-s10-final-full-v1/callback-results.xml",
+    "tests/historical-s10-final-full-v1/results.xml",
+    "tests/historical-s10-final-full-v1/run.json",
+    "tests/main-s10-capture-tests-v1/callback-results.xml",
+    "tests/main-s10-capture-tests-v1/results.xml",
+    "tests/main-s10-capture-tests-v1/run.json",
+    "tests/main-s10-contact-tests-v1/callback-results.xml",
+    "tests/main-s10-contact-tests-v1/results.xml",
+    "tests/main-s10-contact-tests-v1/run.json",
+    "tests/main-s10-full-v1/callback-results.xml",
+    "tests/main-s10-full-v1/results.xml",
+    "tests/main-s10-full-v1/run.json",
+    "capture-summaries/main-s10-contact-frames-v5-forward-off/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-forward-on/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-point-off/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-point-on/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-sun-low/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-sun-off/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-sun-on/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-sun-ultra/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-thirty-on/capture.json",
+    "capture-summaries/main-s10-contact-frames-v5-volume-off/capture.json",
+    "tests/main-s10-final-capture-v1/callback-results.xml",
+    "tests/main-s10-final-capture-v1/results.xml",
+    "tests/main-s10-final-capture-v1/run.json",
+    "tests/main-s10-final-contact-v1/callback-results.xml",
+    "tests/main-s10-final-contact-v1/results.xml",
+    "tests/main-s10-final-contact-v1/run.json"
+  ],
+  "rawCaptureAndScratchRetainedHere": false
+}

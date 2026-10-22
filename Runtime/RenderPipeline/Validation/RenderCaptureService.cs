@@ -15,6 +15,7 @@ namespace InfinityTech.Rendering.Pipeline
             name == "Lighting" || name == "DeferredLighting" || name == "LightTileMask" || name == "Motion" || name == "Depth" || name == "GBufferA" ||
             name == "GBufferB" || name == "GBufferC" || name == "Occlusion" || name == "SSR" ||
             name == "SSGI" || name == "SceneColor" || name == "AntiAliasing" ||
+            name == "ContactShadowSun" || name == "ContactShadowMask" ||
             name == "CascadeShadow" || name == "LocalShadow" || name == "CachedShadow" || name == "CascadeShadowMoments" || name == "LocalShadowMoments" || name == "HiZ" || name == "SSRRayHit" || name == "SSRResolved" ||
             name == "SSRTileClass" || name == "SSRMeta" || name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGIResolved" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
             name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal" || name == "VolumetricCloud";

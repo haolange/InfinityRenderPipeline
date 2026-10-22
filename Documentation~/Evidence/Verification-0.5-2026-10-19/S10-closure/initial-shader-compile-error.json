@@ -1,0 +1,22 @@
+{
+  "candidate": "02c1dff+accepted predecessor replay",
+  "firstShaderError": "Shader error in 'Compute_ContactShadow': 'BeginLightLoop': no matching 2 parameter function at kernel ContactShadowCS at Compute_ContactShadow.compute(99) (on metal)",
+  "context": [
+    "Shader warning in 'Compute_VolumetricCloud': use of potentially uninitialized variable (SampleLocalShadow) at kernel VolumetricCloudCS at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(314) (on metal)",
+    "Shader warning in 'Compute_VolumetricCloud': use of potentially uninitialized variable (LightMarch) at kernel VolumetricCloudCS at Compute_VolumetricCloud.compute(117) (on metal)",
+    "Shader error in 'Compute_ContactShadow': 'BeginLightLoop': no matching 2 parameter function at kernel ContactShadowCS at Compute_ContactShadow.compute(99) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (SelectPointShadowFace) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting.hlsl(22) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (SpotWindow) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/LightRecord.hlsl(115) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (ShadowMomentDepth) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': floating point division by zero at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(47) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (SampleShadowPCSS) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (ShadowLightSize) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(210) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (FilterShadow) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(233) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (SampleCascadeSlice) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(251) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': integer modulus may be much slower, try using uints if possible. at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(261) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': integer divides may be much slower, try using uints if possible. at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(262) (on metal)",
+    "Shader warning in 'Compute_VolumetricFog': use of potentially uninitialized variable (SampleCascadeShadow) at kernel ScatterDensity at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(278) (on metal)"
+  ],
+  "shaderSHA256": "531c05ce7297ef63e7fb84b6d81cfbca0e9850fbffc707d8ea9fdd430092b882",
+  "classification": "new S10 consumer still uses replaced return-value API; existing main canonical out call will be replayed, not hidden by C# tests"
+}

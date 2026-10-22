@@ -1,0 +1,616 @@
+{
+  "files": [
+    {
+      "path": "._task-sidecar-cleanup-v1.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-contact-v5-log-mark.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-contact-v5-play.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-contact-v5-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10ContactDriverV5.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._run-contact-frames-v5.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._analyze-contact-v5.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-off-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._contact-v5-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._contact-v5-contact.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-sun-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._analyze-contact-raw-v5.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._contact-raw-v5-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._repeat-native-contact-v5.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10OpenNativeMainV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10UiUtilityMainV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-contact-low-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-low-resume.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-off-resume.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-on-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-sun-low.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-low-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-low-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10ContactNegativeMaskV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-sun-ultra.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-ultra-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-ultra-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-point-off.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-point-off-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-point-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-point-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-point-on-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-point-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._MainS10SourceCaptureV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-forward-off.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._QuitOwnS10MainV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-quit-v1.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-forward-off-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-frozen-v1.patch",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-forward-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10FinalControlV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-forward-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-forward-on-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-forward-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-volume-off.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-volume-off-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-volume-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._run-s10-final-gates-v1.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-thirty-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-thirty-on-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-thirty-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-frames-v5-control-status.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-low-batch2.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-low-batch2.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-ultra-batch2.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-sun-ultra-batch2.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-contact-ultra-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-ultra-resume.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-capture-v1-Editor.log",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-contact-forward-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-forward-resume.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._native-main-contact-volume-off-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-forward-on-batch2.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-forward-on-batch2.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-negative-sun-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-volume-off-batch2.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-main-s10-contact-frames-v5-volume-off-batch2.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-v5-finish.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-negative-mask-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10ContactNegativeMaskDriverV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-contact-negative-mask-finish.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-post-negative-source-request.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-capture-v1-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-post-negative-source-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._MainS10SourceCaptureDriverV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-post-negative-source-restored.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-negative-and-recovery-log.txt",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-healthy-logmark.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-post-negative-stop.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-frozen-v1-identity.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._main-s10-final-healthy-delta.log",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-candidate-identity.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-v1-open.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-v1-pid.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-v1-ready.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-capture-v1-preflight.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10HistoricalFinalFramesV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-frames-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-capture-v1-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-contact-v1-preflight.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-frames-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-contact-v1-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-category-v1-preflight.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._S10HistoricalFinalDriverV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-category-v1-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-full-v1-preflight.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-full-v1-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-capture-v1-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._run-historical-final-frames-v1.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-full-v1-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-full-v1-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-off-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-frames-v1-control-sun-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-on-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-frames-v1-control-sun-low.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-low-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-low-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-frames-v1-control-sun-ultra.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-ultra-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-sun-ultra-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-frames-v1-control-point-off.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-point-off-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-point-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._historical-s10-final-frames-v1-control-point-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-point-on-batch.tar.gz",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "._closed-historical-s10-final-frames-v1-point-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1/._frame-state",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1/._frames",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "allocated": 262144
+    }
+  ],
+  "onlyConfirmedTaskAppleDouble": true,
+  "reclaimedAllocatedBytes": 31981568
+}

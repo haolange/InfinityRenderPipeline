@@ -1,0 +1,35 @@
+{
+  "members": [
+    {
+      "path": "ContactShadowMask-33-1737.bin",
+      "sha256": "2a589ae1f2fa2a6328223ff195a29c9244bec633dca49139f6f231e1d79c0eb2",
+      "bytes": 230400
+    },
+    {
+      "path": "ContactShadowSun-33-1737.bin",
+      "sha256": "8c697d8061e52efa5eb8557cd23194385eff0849d8d97d4026c45b4074cc959b",
+      "bytes": 57600
+    },
+    {
+      "path": "Depth-33-1737.bin",
+      "sha256": "8cd1594d2519d8665af005850981bcc09313d16a6d7fd4e24570350922a6dcf3",
+      "bytes": 230400
+    },
+    {
+      "path": "DisplayColor-33-1737.bin",
+      "sha256": "bad8119af21ca3e3928596b10a241baacb2e10aaa7aac76d5cdb96f701580c31",
+      "bytes": 460800
+    },
+    {
+      "path": "Lighting-33-1737.bin",
+      "sha256": "e1bdb779013be2ebf10d455bf24895c47d36274456f60adb5d9f59d5b9605b59",
+      "bytes": 460800
+    },
+    {
+      "path": "SceneColor-33-1737.bin",
+      "sha256": "e1bdb779013be2ebf10d455bf24895c47d36274456f60adb5d9f59d5b9605b59",
+      "bytes": 460800
+    }
+  ],
+  "sha256": "8984e949bbe3531f61211cf55b994317c1de181433c066009ee253ed750278fd"
+}

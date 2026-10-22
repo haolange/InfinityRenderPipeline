@@ -1,0 +1,74 @@
+{
+  "status": "Completed",
+  "error": "",
+  "persistenceError": "",
+  "successfulFrames": 33,
+  "capturedFrames": 1,
+  "outstanding": 0,
+  "retired": 3,
+  "fixture": null,
+  "scene": "Scene_Spazon",
+  "camera": "MainCamera",
+  "buffers": [
+    {
+      "semantic": "Lighting",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderAtmosphericSkyAndFog",
+      "producerFrame": 115077,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 1.2099742889404297e-05,
+        "maximum": 1.0,
+        "mean": 0.2706883700934446,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "Depth",
+      "format": "R32_SFloat",
+      "bytes": 230400,
+      "producer": "RenderObjectMotion",
+      "producerFrame": 115077,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 57600,
+        "nonFinite": 0,
+        "roiSamples": 57600,
+        "minimum": 0.0,
+        "maximum": 0.07952624559402466,
+        "mean": 0.027206165842338426,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "DisplayColor",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderUIOverlay",
+      "producerFrame": 115077,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "mean": 0.26394368529112805,
+        "hasFiniteRoiSamples": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "status": "Failed",
+  "error": "System.InvalidOperationException: RGScoper.QueryTexture: _ContactShadowTexture is not registered this frame. Its producer did not record, or the consumer runs before it.\n  at InfinityTech.Rendering.Pipeline.InfinityRenderPipeline.RecordCaptureTransfer (InfinityTech.Rendering.Pipeline.RenderCaptureSession session, System.String semantic, System.Int32 shaderId, System.Int32 sourceMip) [0x00194] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Debug/RenderCapturePass.cs:250 \n  at InfinityTech.Rendering.Pipeline.InfinityRenderPipeline.RecordNormalFrameCapture (UnityEngine.Camera camera) [0x009ce] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Pass/Debug/RenderCapturePass.cs:170 \n  at InfinityTech.Rendering.Pipeline.InfinityRenderPipeline.Render (UnityEngine.Rendering.ScriptableRenderContext scriptableRenderContext, System.Collections.Generic.List`1[T] cameras) [0x00dae] in ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/InfinityRenderPipeline.cs:654 ",
+  "persistenceError": "",
+  "successfulFrames": 32,
+  "capturedFrames": 0,
+  "outstanding": 0,
+  "retired": 0,
+  "fixture": null,
+  "scene": "Scene_Spazon",
+  "camera": "S10-Camera",
+  "buffers": []
+}

@@ -1,0 +1,896 @@
+<test-run result="Passed" total="106" passed="106" failed="0" skipped="0" inconclusive="0" source="Actual TestFinished callbacks; framework XML is results.xml">
+  <test-suite type="TestSuite" name="InfinityRP callback evidence">
+    <test-case id="callback-1" name="CommittedEdit_ChangesBuildSerial" fullname="InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests.CommittedEdit_ChangesBuildSerial" methodname="CommittedEdit_ChangesBuildSerial" classname="InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests" runstate="Runnable" seed="590926831" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001631" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/MeshPipeline/Tests/CommandTableTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests.CommittedEdit_ChangesBuildSerial]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-2" name="SwitchingMaterial_RebuildsCommands" fullname="InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests.SwitchingMaterial_RebuildsCommands" methodname="SwitchingMaterial_RebuildsCommands" classname="InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests" runstate="Runnable" seed="1087019474" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001196" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/MeshPipeline/Tests/CommandTableTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests.SwitchingMaterial_RebuildsCommands]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-3" name="CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(6360000.0f)" fullname="InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(6360000.0f)" methodname="CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders" classname="InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests" runstate="Runnable" seed="1733725193" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.006508" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/CloudShellGpuTests/CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(6360000.0f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'CloudShellContract(Clone)': use of potentially uninitialized variable (CloudSphereIntersection) at kernel CloudShellContract at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/CloudShell.hlsl(39) (on metal)
+Shader warning in 'CloudShellContract(Clone)': use of potentially uninitialized variable (CloudRaySegments) at kernel CloudShellContract at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/CloudShell.hlsl(55) (on metal)
+R=6360000 below up: GPU=(450.0000, 1950.0000, 0.0000, 0.0000) oracle=(450.0000, 1950.0000, 0.0000, 0.0000)
+R=6360000 below down planet: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=6360000 inside up: GPU=(0.0000, 1000.0000, 0.0000, 0.0000) oracle=(0.0000, 1000.0000, 0.0000, 0.0000)
+R=6360000 inside down: GPU=(0.0000, 500.0000, 0.0000, 0.0000) oracle=(0.0000, 500.0000, 0.0000, 0.0000)
+R=6360000 above down: GPU=(1000.0000, 2500.0000, 0.0000, 0.0000) oracle=(1000.0000, 2500.0000, 0.0000, 0.0000)
+R=6360000 above away: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=6360000 two segments: GPU=(37841.6400, 130654.5000, 243457.0000, 336269.8000) oracle=(37841.6400, 130654.5000, 243456.9000, 336269.8000)
+R=6360000 inner tangent: GPU=(0.0000, 138144.0000, 0.0000, 0.0000) oracle=(0.0000, 138144.0000, 0.0000, 0.0000)
+R=6360000 outer tangent: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=6360000 outside outer tangent: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=6360000 inside outer tangent: GPU=(0.0000, 5044.6010, 0.0000, 0.0000) oracle=(0.0000, 5044.6010, 0.0000, 0.0000)
+R=6360000 off pole: GPU=(0.0000, 803.5089, 0.0000, 0.0000) oracle=(0.0000, 803.5020, 0.0000, 0.0000)
+R=6360000 surface down: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=6360000 surface up: GPU=(500.0000, 2000.0000, 0.0000, 0.0000) oracle=(500.0000, 2000.0000, 0.0000, 0.0000)
+R=6360000 inside planet: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=6360000 occluder before cloud: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=6360000 occluder inside cloud: GPU=(450.0000, 800.0000, 0.0000, 0.0000) oracle=(450.0000, 800.0000, 0.0000, 0.0000)
+R=6360000 occluder after cloud: GPU=(450.0000, 1950.0000, 0.0000, 0.0000) oracle=(450.0000, 1950.0000, 0.0000, 0.0000)
+R=6360000 local light within cloud: GPU=(0.0000, 100.0000, 0.0000, 0.0000) oracle=(0.0000, 100.0000, 0.0000, 0.0000)
+R=6360000 local light beyond cloud: GPU=(0.0000, 1000.0000, 0.0000, 0.0000) oracle=(0.0000, 1000.0000, 0.0000, 0.0000)
+R=6360000 oblique light: GPU=(0.0000, 5089.0390, 0.0000, 0.0000) oracle=(0.0000, 5089.0400, 0.0000, 0.0000)
+]]></output>
+    </test-case>
+    <test-case id="callback-4" name="CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(3200000.0f)" fullname="InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(3200000.0f)" methodname="CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders" classname="InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests" runstate="Runnable" seed="946653607" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001645" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/CloudShellGpuTests/CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(3200000.0f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'CloudShellContract(Clone)': use of potentially uninitialized variable (CloudSphereIntersection) at kernel CloudShellContract at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/CloudShell.hlsl(39) (on metal)
+Shader warning in 'CloudShellContract(Clone)': use of potentially uninitialized variable (CloudRaySegments) at kernel CloudShellContract at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/CloudShell.hlsl(55) (on metal)
+R=3200000 below up: GPU=(450.0000, 1950.0000, 0.0000, 0.0000) oracle=(450.0000, 1950.0000, 0.0000, 0.0000)
+R=3200000 below down planet: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=3200000 inside up: GPU=(0.0000, 1000.0000, 0.0000, 0.0000) oracle=(0.0000, 1000.0000, 0.0000, 0.0000)
+R=3200000 inside down: GPU=(0.0000, 500.0000, 0.0000, 0.0000) oracle=(0.0000, 500.0000, 0.0000, 0.0000)
+R=3200000 above down: GPU=(1000.0000, 2500.0000, 0.0000, 0.0000) oracle=(1000.0000, 2500.0000, 0.0000, 0.0000)
+R=3200000 above away: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=3200000 two segments: GPU=(26850.2900, 92698.7900, 172696.4000, 238544.9000) oracle=(26850.2900, 92698.8000, 172696.4000, 238544.9000)
+R=3200000 inner tangent: GPU=(0.0000, 97990.5500, 0.0000, 0.0000) oracle=(0.0000, 97998.7300, 0.0000, 0.0000)
+R=3200000 outer tangent: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=3200000 outside outer tangent: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=3200000 inside outer tangent: GPU=(0.0000, 3578.8260, 0.0000, 0.0000) oracle=(0.0000, 3578.8260, 0.0000, 0.0000)
+R=3200000 off pole: GPU=(0.0000, 609.2769, 0.0000, 0.0000) oracle=(0.0000, 609.5476, 0.0000, 0.0000)
+R=3200000 surface down: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=3200000 surface up: GPU=(500.0001, 2000.0000, 0.0000, 0.0000) oracle=(500.0000, 2000.0000, 0.0000, 0.0000)
+R=3200000 inside planet: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=3200000 occluder before cloud: GPU=(0.0000, 0.0000, 0.0000, 0.0000) oracle=(0.0000, 0.0000, 0.0000, 0.0000)
+R=3200000 occluder inside cloud: GPU=(450.0000, 800.0000, 0.0000, 0.0000) oracle=(450.0000, 800.0000, 0.0000, 0.0000)
+R=3200000 occluder after cloud: GPU=(450.0000, 1950.0000, 0.0000, 0.0000) oracle=(450.0000, 1950.0000, 0.0000, 0.0000)
+R=3200000 local light within cloud: GPU=(0.0000, 100.0000, 0.0000, 0.0000) oracle=(0.0000, 100.0000, 0.0000, 0.0000)
+R=3200000 local light beyond cloud: GPU=(0.0000, 1000.0000, 0.0000, 0.0000) oracle=(0.0000, 1000.0000, 0.0000, 0.0000)
+R=3200000 oblique light: GPU=(0.0000, 5079.2670, 0.0000, 0.0000) oracle=(0.0000, 5079.2680, 0.0000, 0.0000)
+]]></output>
+    </test-case>
+    <test-case id="callback-5" name="DistantOpaqueDepth_IsNotTheSkyClearValue" fullname="InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.DistantOpaqueDepth_IsNotTheSkyClearValue" methodname="DistantOpaqueDepth_IsNotTheSkyClearValue" classname="InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests" runstate="Runnable" seed="521256682" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001689" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/CloudShellGpuTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.DistantOpaqueDepth_IsNotTheSkyClearValue]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'CloudShellContract(Clone)': use of potentially uninitialized variable (CloudSceneRayLimit) at kernel CloudDepthContract at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/CloudShell.hlsl(21) (on metal)
+Shader warning in 'CloudShellContract(Clone)': use of potentially uninitialized variable (CloudSphereIntersection) at kernel CloudDepthContract at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/CloudShell.hlsl(39) (on metal)
+Shader warning in 'CloudShellContract(Clone)': use of potentially uninitialized variable (CloudRaySegments) at kernel CloudDepthContract at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/CloudShell.hlsl(55) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-6" name="Bits_AreCappedAt24" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_AreCappedAt24" methodname="Bits_AreCappedAt24" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="Runnable" seed="858738333" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000053" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ContactShadowAllocationTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_AreCappedAt24]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-7" name="Bits_GoToContactLights_LargestScreenCoverageFirst" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_GoToContactLights_LargestScreenCoverageFirst" methodname="Bits_GoToContactLights_LargestScreenCoverageFirst" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="Runnable" seed="1981328603" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000035" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ContactShadowAllocationTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_GoToContactLights_LargestScreenCoverageFirst]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-8" name="ShaderDefines_MatchEDebugView" fullname="InfinityTech.Rendering.Pipeline.Tests.DebugViewModeTests.ShaderDefines_MatchEDebugView" methodname="ShaderDefines_MatchEDebugView" classname="InfinityTech.Rendering.Pipeline.Tests.DebugViewModeTests" runstate="Runnable" seed="238106204" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000836" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/DebugViewModeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.DebugViewModeTests.ShaderDefines_MatchEDebugView]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-9" name="CustomSupport_ReportsItsReason" fullname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.CustomSupport_ReportsItsReason" methodname="CustomSupport_ReportsItsReason" classname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests" runstate="Runnable" seed="450008394" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000234" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/FeatureRegistryTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.CustomSupport_ReportsItsReason]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-10" name="EveryFeature_HasDescriptor" fullname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.EveryFeature_HasDescriptor" methodname="EveryFeature_HasDescriptor" classname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests" runstate="Runnable" seed="1186345017" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000348" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/FeatureRegistryTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.EveryFeature_HasDescriptor]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-11" name="FeatureWithoutRequirements_Records" fullname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.FeatureWithoutRequirements_Records" methodname="FeatureWithoutRequirements_Records" classname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests" runstate="Runnable" seed="1602456561" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000103" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/FeatureRegistryTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.FeatureWithoutRequirements_Records]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-12" name="MissingShader_BlocksWithReason" fullname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.MissingShader_BlocksWithReason" methodname="MissingShader_BlocksWithReason" classname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests" runstate="Runnable" seed="1047165584" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000101" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/FeatureRegistryTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.MissingShader_BlocksWithReason]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-13" name="NonTemporalCamera_BlocksHistoryFeatures" fullname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.NonTemporalCamera_BlocksHistoryFeatures" methodname="NonTemporalCamera_BlocksHistoryFeatures" classname="InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests" runstate="Runnable" seed="1246782129" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000077" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/FeatureRegistryTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.NonTemporalCamera_BlocksHistoryFeatures]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-14" name="PackedCone_UsesSmoothAngularWindowOnGpu(False)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PackedCone_UsesSmoothAngularWindowOnGpu(False)" methodname="PackedCone_UsesSmoothAngularWindowOnGpu" classname="InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests" runstate="Runnable" seed="2103402262" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.003491" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightAngularGpuTests/PackedCone_UsesSmoothAngularWindowOnGpu/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PackedCone_UsesSmoothAngularWindowOnGpu(False)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'LightAngularContract': use of potentially uninitialized variable (SpotWindow) at kernel LightAngularContract at Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/LightRecord.hlsl(115) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-15" name="PackedCone_UsesSmoothAngularWindowOnGpu(True)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PackedCone_UsesSmoothAngularWindowOnGpu(True)" methodname="PackedCone_UsesSmoothAngularWindowOnGpu" classname="InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests" runstate="Runnable" seed="341658261" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001181" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightAngularGpuTests/PackedCone_UsesSmoothAngularWindowOnGpu/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PackedCone_UsesSmoothAngularWindowOnGpu(True)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-16" name="PointPyramidAndBox_RetainTheirAngularSupportOnGpu" fullname="InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PointPyramidAndBox_RetainTheirAngularSupportOnGpu" methodname="PointPyramidAndBox_RetainTheirAngularSupportOnGpu" classname="InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests" runstate="Runnable" seed="2080063801" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001570" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightAngularGpuTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PointPyramidAndBox_RetainTheirAngularSupportOnGpu]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-17" name="LightRecord_MatchesHlslFieldForField" fullname="InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests.LightRecord_MatchesHlslFieldForField" methodname="LightRecord_MatchesHlslFieldForField" classname="InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests" runstate="Runnable" seed="681539731" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000929" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightRecordLayoutTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests.LightRecord_MatchesHlslFieldForField]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-18" name="LightRecordFlags_MatchHlslDefines" fullname="InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests.LightRecordFlags_MatchHlslDefines" methodname="LightRecordFlags_MatchHlslDefines" classname="InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests" runstate="Runnable" seed="1077171539" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000457" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightRecordLayoutTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests.LightRecordFlags_MatchHlslDefines]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-19" name="DistanceFade_FadesOverFadeLengthBeforeMaximum" fullname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.DistanceFade_FadesOverFadeLengthBeforeMaximum" methodname="DistanceFade_FadesOverFadeLengthBeforeMaximum" classname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests" runstate="Runnable" seed="1698724811" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000112" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightRecordTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.DistanceFade_FadesOverFadeLengthBeforeMaximum]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-20" name="LocalLight_BeyondMaximumDistance_IsNotPacked" fullname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.LocalLight_BeyondMaximumDistance_IsNotPacked" methodname="LocalLight_BeyondMaximumDistance_IsNotPacked" classname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests" runstate="Runnable" seed="1606206943" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000787" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightRecordTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.LocalLight_BeyondMaximumDistance_IsNotPacked]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-21" name="RealtimeRadiance_MatchesUnityLightmapperExtraction(False)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.RealtimeRadiance_MatchesUnityLightmapperExtraction(False)" methodname="RealtimeRadiance_MatchesUnityLightmapperExtraction" classname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests" runstate="Runnable" seed="1724539812" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001167" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightRecordTests/RealtimeRadiance_MatchesUnityLightmapperExtraction/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.RealtimeRadiance_MatchesUnityLightmapperExtraction(False)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-22" name="RealtimeRadiance_MatchesUnityLightmapperExtraction(True)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.RealtimeRadiance_MatchesUnityLightmapperExtraction(True)" methodname="RealtimeRadiance_MatchesUnityLightmapperExtraction" classname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests" runstate="Runnable" seed="1849318849" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000125" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightRecordTests/RealtimeRadiance_MatchesUnityLightmapperExtraction/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.RealtimeRadiance_MatchesUnityLightmapperExtraction(True)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-23" name="ShadowSliceCounts_Point6_SingleTileShapes1_Directional0" fullname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.ShadowSliceCounts_Point6_SingleTileShapes1_Directional0" methodname="ShadowSliceCounts_Point6_SingleTileShapes1_Directional0" classname="InfinityTech.Rendering.Pipeline.Tests.LightRecordTests" runstate="Runnable" seed="625657750" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000157" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightRecordTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.ShadowSliceCounts_Point6_SingleTileShapes1_Directional0]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-24" name="AddingTheComponent_AdoptsTheNativeShape" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AddingTheComponent_AdoptsTheNativeShape" methodname="AddingTheComponent_AdoptsTheNativeShape" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="1164458857" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000517" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AddingTheComponent_AdoptsTheNativeShape]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-25" name="ApplyThenRead_RoundTripsEveryShape" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ApplyThenRead_RoundTripsEveryShape" methodname="ApplyThenRead_RoundTripsEveryShape" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="1183946146" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000571" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ApplyThenRead_RoundTripsEveryShape]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-26" name="AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Realtime)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Realtime)" methodname="AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="512970116" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.002181" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Realtime)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-27" name="AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Mixed)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Mixed)" methodname="AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="319884129" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000139" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Mixed)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-28" name="AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Baked)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Baked)" methodname="AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="1628212795" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000112" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Baked)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-29" name="InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight" methodname="InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="927201119" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.010190" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-30" name="InvalidRect_IsRejected" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.InvalidRect_IsRejected" methodname="InvalidRect_IsRejected" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="852291234" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000087" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.InvalidRect_IsRejected]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-31" name="LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Realtime)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Realtime)" methodname="LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="578440312" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.005115" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Realtime)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-32" name="LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Mixed)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Mixed)" methodname="LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="942809862" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.003333" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Mixed)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-33" name="PyramidTangents_SpotAngleSpansTheLongerSide" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.PyramidTangents_SpotAngleSpansTheLongerSide" methodname="PyramidTangents_SpotAngleSpansTheLongerSide" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="176444786" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000173" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.PyramidTangents_SpotAngleSpansTheLongerSide]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-34" name="ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Realtime)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Realtime)" methodname="ShapeEdits_PreserveNativeBakeModeThroughUndoRedo" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="217171588" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.004713" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeEdits_PreserveNativeBakeModeThroughUndoRedo/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Realtime)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-35" name="ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Mixed)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Mixed)" methodname="ShapeEdits_PreserveNativeBakeModeThroughUndoRedo" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="2005531793" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.003492" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeEdits_PreserveNativeBakeModeThroughUndoRedo/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Mixed)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-36" name="ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Baked)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Baked)" methodname="ShapeEdits_PreserveNativeBakeModeThroughUndoRedo" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="605642818" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.003343" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeEdits_PreserveNativeBakeModeThroughUndoRedo/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Baked)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-37" name="ShapeParameters_DeriveTheNativeType(Point,0.0f,0.0f,Point)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.0f,0.0f,Point)" methodname="ShapeParameters_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="1795581688" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000391" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeParameters_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.0f,0.0f,Point)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-38" name="ShapeParameters_DeriveTheNativeType(Point,0.2f,0.0f,Point)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.2f,0.0f,Point)" methodname="ShapeParameters_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="1481311890" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000094" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeParameters_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.2f,0.0f,Point)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-39" name="ShapeParameters_DeriveTheNativeType(Point,0.0f,1.5f,Tube)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.0f,1.5f,Tube)" methodname="ShapeParameters_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="1004660166" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000114" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeParameters_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.0f,1.5f,Tube)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-40" name="ShapeParameters_DeriveTheNativeType(Point,0.1f,1.5f,Tube)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.1f,1.5f,Tube)" methodname="ShapeParameters_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="521095498" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000087" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeParameters_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.1f,1.5f,Tube)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-41" name="ShapeParameters_DeriveTheNativeType(Rect,0.0f,0.0f,Rectangle)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Rect,0.0f,0.0f,Rectangle)" methodname="ShapeParameters_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="1935467442" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000072" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeParameters_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Rect,0.0f,0.0f,Rectangle)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-42" name="ShapeParameters_DeriveTheNativeType(Disk,0.5f,0.0f,Rectangle)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Disk,0.5f,0.0f,Rectangle)" methodname="ShapeParameters_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="996765006" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000083" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeParameters_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Disk,0.5f,0.0f,Rectangle)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-43" name="ShapeParameters_DeriveTheNativeType(Directional,0.0f,0.0f,Directional)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Directional,0.0f,0.0f,Directional)" methodname="ShapeParameters_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="29628621" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000071" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/ShapeParameters_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Directional,0.0f,0.0f,Directional)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-44" name="SpotShapes_DeriveTheNativeType(Cone,Spot)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Cone,Spot)" methodname="SpotShapes_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="712729567" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000171" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/SpotShapes_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Cone,Spot)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-45" name="SpotShapes_DeriveTheNativeType(Pyramid,Pyramid)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Pyramid,Pyramid)" methodname="SpotShapes_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="541616296" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000054" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/SpotShapes_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Pyramid,Pyramid)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-46" name="SpotShapes_DeriveTheNativeType(Box,Box)" fullname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Box,Box)" methodname="SpotShapes_DeriveTheNativeType" classname="InfinityTech.Rendering.Pipeline.Tests.LightShapeTests" runstate="Runnable" seed="325202655" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000045" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LightShapeTests/SpotShapes_DeriveTheNativeType/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Box,Box)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-47" name="EveryFrame_GetsNoSlot" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.EveryFrame_GetsNoSlot" methodname="EveryFrame_GetsNoSlot" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="136640389" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001252" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.EveryFrame_GetsNoSlot]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-48" name="FailedFrame_RollsTheTileBack" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.FailedFrame_RollsTheTileBack" methodname="FailedFrame_RollsTheTileBack" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="379313332" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001806" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.FailedFrame_RollsTheTileBack]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-49" name="FullAtlas_EvictsLeastRecentlyUsed_NeverThisFrame" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.FullAtlas_EvictsLeastRecentlyUsed_NeverThisFrame" methodname="FullAtlas_EvictsLeastRecentlyUsed_NeverThisFrame" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="587122138" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000532" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.FullAtlas_EvictsLeastRecentlyUsed_NeverThisFrame]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-50" name="OnDemand_IgnoresParameters_UntilRequested" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.OnDemand_IgnoresParameters_UntilRequested" methodname="OnDemand_IgnoresParameters_UntilRequested" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="939147701" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000205" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.OnDemand_IgnoresParameters_UntilRequested]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-51" name="OnEnable_RendersOnce_ThenOnParameterChange" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.OnEnable_RendersOnce_ThenOnParameterChange" methodname="OnEnable_RendersOnce_ThenOnParameterChange" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="7285722" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000252" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.OnEnable_RendersOnce_ThenOnParameterChange]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-52" name="Resize_EmptiesTheCache" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.Resize_EmptiesTheCache" methodname="Resize_EmptiesTheCache" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="1227726591" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000215" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.Resize_EmptiesTheCache]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-53" name="SecondCameraOfTheFrame_ReusesThePendingTile" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.SecondCameraOfTheFrame_ReusesThePendingTile" methodname="SecondCameraOfTheFrame_ReusesThePendingTile" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="807892575" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000120" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.SecondCameraOfTheFrame_ReusesThePendingTile]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-54" name="UnqueuedPass_DoesNotCommit" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.UnqueuedPass_DoesNotCommit" methodname="UnqueuedPass_DoesNotCommit" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests" runstate="Runnable" seed="2124105809" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000092" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowCacheTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowCacheTests.UnqueuedPass_DoesNotCommit]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-55" name="BoxSpot_IsOrthographic" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests.BoxSpot_IsOrthographic" methodname="BoxSpot_IsOrthographic" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests" runstate="Runnable" seed="812996856" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000741" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowFrustumTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests.BoxSpot_IsOrthographic]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-56" name="PointFaces_EachContainsItsAxis" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests.PointFaces_EachContainsItsAxis" methodname="PointFaces_EachContainsItsAxis" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests" runstate="Runnable" seed="1465114168" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000438" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowFrustumTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests.PointFaces_EachContainsItsAxis]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-57" name="SingleTileShapes_ContainForwardPoint" fullname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests.SingleTileShapes_ContainForwardPoint" methodname="SingleTileShapes_ContainForwardPoint" classname="InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests" runstate="Runnable" seed="949777933" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000245" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/LocalShadowFrustumTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.LocalShadowFrustumTests.SingleTileShapes_ContainForwardPoint]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-58" name="Custom_ReadsVolume_PresetReadsTable_ArtisticAlwaysFromVolume" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.Custom_ReadsVolume_PresetReadsTable_ArtisticAlwaysFromVolume" methodname="Custom_ReadsVolume_PresetReadsTable_ArtisticAlwaysFromVolume" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="2062502489" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000698" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.Custom_ReadsVolume_PresetReadsTable_ArtisticAlwaysFromVolume]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-59" name="DefaultLevel_IsCustom_SoExistingProfilesKeepTheirValues" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.DefaultLevel_IsCustom_SoExistingProfilesKeepTheirValues" methodname="DefaultLevel_IsCustom_SoExistingProfilesKeepTheirValues" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="1353039908" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000157" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.DefaultLevel_IsCustom_SoExistingProfilesKeepTheirValues]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-60" name="EveryTable_HasOnePresetPerLevel" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.EveryTable_HasOnePresetPerLevel" methodname="EveryTable_HasOnePresetPerLevel" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="772450670" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000244" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.EveryTable_HasOnePresetPerLevel]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-61" name="Presets_StayInsideVolumeParameterRanges" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.Presets_StayInsideVolumeParameterRanges" methodname="Presets_StayInsideVolumeParameterRanges" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="1695437437" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000494" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.Presets_StayInsideVolumeParameterRanges]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-62" name="SSRPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable" methodname="SSRPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="1580424783" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000689" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-63" name="SSRTraceAndTileSizes(1920,1080,False,1920,1080,240,135)" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(1920,1080,False,1920,1080,240,135)" methodname="SSRTraceAndTileSizes" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="1417208822" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000279" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/SSRTraceAndTileSizes/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(1920,1080,False,1920,1080,240,135)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-64" name="SSRTraceAndTileSizes(1920,1080,True,960,540,120,68)" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(1920,1080,True,960,540,120,68)" methodname="SSRTraceAndTileSizes" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="877470102" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000044" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/SSRTraceAndTileSizes/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(1920,1080,True,960,540,120,68)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-65" name="SSRTraceAndTileSizes(17,19,True,9,10,2,2)" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(17,19,True,9,10,2,2)" methodname="SSRTraceAndTileSizes" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="1707588443" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000040" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/SSRTraceAndTileSizes/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(17,19,True,9,10,2,2)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-66" name="SSRTraceAndTileSizes(1,1,True,1,1,1,1)" fullname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(1,1,True,1,1,1,1)" methodname="SSRTraceAndTileSizes" classname="InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests" runstate="Runnable" seed="429639678" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000085" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/QualityPresetTests/SSRTraceAndTileSizes/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.QualityPresetTests.SSRTraceAndTileSizes(1,1,True,1,1,1,1)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-67" name="UInt32Statistics_PreserveIntegerRangeAndRoi" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.UInt32Statistics_PreserveIntegerRangeAndRoi" methodname="UInt32Statistics_PreserveIntegerRangeAndRoi" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="609167553" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000048" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.UInt32Statistics_PreserveIntegerRangeAndRoi]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-68" name="ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader" fullname="InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader" methodname="ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader" classname="InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests" runstate="Runnable" seed="1680951604" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.002885" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-69" name="CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(False,False)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(False,False)" methodname="CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests" runstate="Runnable" seed="1036756628" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.001405" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowCasterAllocationTests/CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(False,False)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-70" name="CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(True,False)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(True,False)" methodname="CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests" runstate="Runnable" seed="1948723667" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000123" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowCasterAllocationTests/CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(True,False)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-71" name="CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(False,True)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(False,True)" methodname="CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests" runstate="Runnable" seed="66894950" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000172" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowCasterAllocationTests/CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.CascadeFit_ContainsActualReceiverCornersAndUpstreamCaster(False,True)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-72" name="LocalEligibility_RejectsBehindCasterBeforeBudget(64)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(64)" methodname="LocalEligibility_RejectsBehindCasterBeforeBudget" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests" runstate="Runnable" seed="1602055167" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.002523" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowCasterAllocationTests/LocalEligibility_RejectsBehindCasterBeforeBudget/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(64)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-73" name="LocalEligibility_RejectsBehindCasterBeforeBudget(128)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(128)" methodname="LocalEligibility_RejectsBehindCasterBeforeBudget" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests" runstate="Runnable" seed="1745389755" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000227" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowCasterAllocationTests/LocalEligibility_RejectsBehindCasterBeforeBudget/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(128)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-74" name="LocalEligibility_RejectsBehindCasterBeforeBudget(256)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(256)" methodname="LocalEligibility_RejectsBehindCasterBeforeBudget" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests" runstate="Runnable" seed="1527131149" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000149" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowCasterAllocationTests/LocalEligibility_RejectsBehindCasterBeforeBudget/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(256)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-75" name="LocalEligibility_RejectsBehindCasterBeforeBudget(512)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(512)" methodname="LocalEligibility_RejectsBehindCasterBeforeBudget" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests" runstate="Runnable" seed="416910306" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:50Z" duration="0.000170" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowCasterAllocationTests/LocalEligibility_RejectsBehindCasterBeforeBudget/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowCasterAllocationTests.LocalEligibility_RejectsBehindCasterBeforeBudget(512)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-76" name="DepthTiles_RoundTripAcrossDifferentAtlasSizes_PreserveEveryNeighbourPixel" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowDepthCopyGpuTests.DepthTiles_RoundTripAcrossDifferentAtlasSizes_PreserveEveryNeighbourPixel" methodname="DepthTiles_RoundTripAcrossDifferentAtlasSizes_PreserveEveryNeighbourPixel" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowDepthCopyGpuTests" runstate="Runnable" seed="1825169624" result="Passed" start-time="2026-10-22 01:47:50Z" end-time="2026-10-22 01:47:51Z" duration="0.014482" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowDepthCopyGpuTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowDepthCopyGpuTests.DepthTiles_RoundTripAcrossDifferentAtlasSizes_PreserveEveryNeighbourPixel]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-77" name="ExcludedFlags_CullStaticLightmappedInstancesOnly" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowmaskCasterFilterTests.ExcludedFlags_CullStaticLightmappedInstancesOnly" methodname="ExcludedFlags_CullStaticLightmappedInstancesOnly" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowmaskCasterFilterTests" runstate="Runnable" seed="668582736" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.000833" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowmaskCasterFilterTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowmaskCasterFilterTests.ExcludedFlags_CullStaticLightmappedInstancesOnly]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-78" name="ExcludedFlags_SplitVisibilitySignatures" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowmaskCasterFilterTests.ExcludedFlags_SplitVisibilitySignatures" methodname="ExcludedFlags_SplitVisibilitySignatures" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowmaskCasterFilterTests" runstate="Runnable" seed="1051626751" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.000202" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowmaskCasterFilterTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowmaskCasterFilterTests.ExcludedFlags_SplitVisibilitySignatures]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-79" name="Moments_LitInFront_ShadowedBehind" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentGpuTests.Moments_LitInFront_ShadowedBehind" methodname="Moments_LitInFront_ShadowedBehind" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentGpuTests" runstate="Runnable" seed="286774986" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001639" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentGpuTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentGpuTests.Moments_LitInFront_ShadowedBehind]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-80" name="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.3333f)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.3333f)" methodname="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="1538732168" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.002619" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.3333f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-81" name="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.6f)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.6f)" methodname="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="1208908772" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001785" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.6f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-82" name="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.95f)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.95f)" methodname="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="214779329" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001713" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(0,0.95f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-83" name="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.3333f)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.3333f)" methodname="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="1869700173" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001601" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.3333f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-84" name="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.6f)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.6f)" methodname="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="1162006088" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001620" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.6f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-85" name="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.95f)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.95f)" methodname="HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="2014138871" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001588" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.HalfStoredProductionMoments_DoNotShadowEqualDepthButRejectBehind(1,0.95f)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-86" name="ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours(0)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours(0)" methodname="ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="957907760" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.233084" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours(0)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-87" name="ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours(1)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours(1)" methodname="ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="1477350743" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.258101" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionBlur_NonconstantOffsetTileMatchesGaussianAndPreservesNeighbours(1)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-88" name="ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs(0)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs(0)" methodname="ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="1984646139" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.095761" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs(0)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-89" name="ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs(1)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs(1)" methodname="ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="879996860" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.081241" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PerspectiveClearDepthMatchesFarPlaneAndBothBlurs(1)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-90" name="ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs(0)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs(0)" methodname="ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="199374838" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.095676" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs(0)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-91" name="ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs(1)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs(1)" methodname="ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests" runstate="Runnable" seed="324855273" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.084391" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowMomentProductionGpuTests/ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowMomentProductionGpuTests.ProductionKernels_PreserveConstantClearMomentsThroughBothBlurs(1)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(28) (on metal)
+Shader warning in 'Compute_ShadowMoment(Clone)': use of potentially uninitialized variable (ShadowMomentsFromDepth) at kernel MomentFromDepth at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowMoments.hlsl(44) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-92" name="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,True,False)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,True,False)" methodname="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="1171645633" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.008992" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_LocalAndTileBoundaryRespectPlaneAndGuard/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,True,False)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-93" name="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,True,False)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,True,False)" methodname="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="809586578" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001908" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_LocalAndTileBoundaryRespectPlaneAndGuard/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,True,False)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-94" name="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,False,True)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,False,True)" methodname="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="770762689" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001497" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_LocalAndTileBoundaryRespectPlaneAndGuard/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,False,True)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-95" name="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,False,True)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,False,True)" methodname="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="1589703196" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001364" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_LocalAndTileBoundaryRespectPlaneAndGuard/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,False,True)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-96" name="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,True,True)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,True,True)" methodname="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="1528534728" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001525" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_LocalAndTileBoundaryRespectPlaneAndGuard/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(False,True,True)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-97" name="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,True,True)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,True,True)" methodname="PCSS_LocalAndTileBoundaryRespectPlaneAndGuard" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="2010161876" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.001756" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_LocalAndTileBoundaryRespectPlaneAndGuard/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_LocalAndTileBoundaryRespectPlaneAndGuard(True,True,True)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-98" name="PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide(False)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide(False)" methodname="PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="892395466" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.003432" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide(False)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel Penumbra at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-99" name="PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide(True)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide(True)" methodname="PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="1716355314" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:51Z" duration="0.002011" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_PenumbraWidensWithReceiverSeparationAndSearchCoversLitSide(True)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel Penumbra at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-100" name="PCSS_SlopedPlaneUsesActualSampledTexelCenters(False)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_SlopedPlaneUsesActualSampledTexelCenters(False)" methodname="PCSS_SlopedPlaneUsesActualSampledTexelCenters" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="85809017" result="Passed" start-time="2026-10-22 01:47:51Z" end-time="2026-10-22 01:47:52Z" duration="0.002006" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_SlopedPlaneUsesActualSampledTexelCenters/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_SlopedPlaneUsesActualSampledTexelCenters(False)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-101" name="PCSS_SlopedPlaneUsesActualSampledTexelCenters(True)" fullname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_SlopedPlaneUsesActualSampledTexelCenters(True)" methodname="PCSS_SlopedPlaneUsesActualSampledTexelCenters" classname="InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests" runstate="Runnable" seed="953504621" result="Passed" start-time="2026-10-22 01:47:52Z" end-time="2026-10-22 01:47:52Z" duration="0.001846" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShadowSamplingGpuTests/PCSS_SlopedPlaneUsesActualSampledTexelCenters/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShadowSamplingGpuTests.PCSS_SlopedPlaneUsesActualSampledTexelCenters(True)]" />
+      </properties>
+      <output><![CDATA[Shader warning in 'ShadowSamplingContract(Clone)': use of potentially uninitialized variable (SampleShadowPCSS) at kernel SlopedPlane at /Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ShadowSampling.hlsl(185) (on metal)
+]]></output>
+    </test-case>
+    <test-case id="callback-102" name="RoughPlane_SkipsEveryTile" fullname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.RoughPlane_SkipsEveryTile" methodname="RoughPlane_SkipsEveryTile" classname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests" runstate="Runnable" seed="307956469" result="Passed" start-time="2026-10-22 01:47:52Z" end-time="2026-10-22 01:47:52Z" duration="0.007483" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/StochasticSSRNumericTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.RoughPlane_SkipsEveryTile]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-103" name="Spatial_PreservesConstantSignal" fullname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.Spatial_PreservesConstantSignal" methodname="Spatial_PreservesConstantSignal" classname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests" runstate="Runnable" seed="422347920" result="Passed" start-time="2026-10-22 01:47:52Z" end-time="2026-10-22 01:47:52Z" duration="0.003496" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/StochasticSSRNumericTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.Spatial_PreservesConstantSignal]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-104" name="UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(32,32,False,0.25f)" fullname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(32,32,False,0.25f)" methodname="UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero" classname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests" runstate="Runnable" seed="468063175" result="Passed" start-time="2026-10-22 01:47:52Z" end-time="2026-10-22 01:47:52Z" duration="0.047254" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/StochasticSSRNumericTests/UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(32,32,False,0.25f)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-105" name="UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(17,19,True,0.25f)" fullname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(17,19,True,0.25f)" methodname="UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero" classname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests" runstate="Runnable" seed="1952800410" result="Passed" start-time="2026-10-22 01:47:52Z" end-time="2026-10-22 01:47:52Z" duration="0.013792" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/StochasticSSRNumericTests/UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(17,19,True,0.25f)]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-106" name="UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(17,19,False,0.4f)" fullname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(17,19,False,0.4f)" methodname="UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero" classname="InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests" runstate="Runnable" seed="1264561294" result="Passed" start-time="2026-10-22 01:47:52Z" end-time="2026-10-22 01:47:52Z" duration="0.014018" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/StochasticSSRNumericTests/UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.StochasticSSRNumericTests.UnobstructedPlane_ClassifiesTracesMissesAndResolvesToZero(17,19,False,0.4f)]" />
+      </properties>
+    </test-case>
+  </test-suite>
+</test-run>

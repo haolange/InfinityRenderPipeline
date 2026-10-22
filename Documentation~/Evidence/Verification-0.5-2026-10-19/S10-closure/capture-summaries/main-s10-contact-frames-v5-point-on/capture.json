@@ -1,0 +1,134 @@
+{
+  "status": "Completed",
+  "error": "",
+  "persistenceError": "",
+  "successfulFrames": 33,
+  "capturedFrames": 1,
+  "outstanding": 0,
+  "retired": 6,
+  "fixture": null,
+  "scene": "Scene_Spazon",
+  "camera": "S10-Camera",
+  "buffers": [
+    {
+      "semantic": "Lighting",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderAtmosphericSkyAndFog",
+      "producerFrame": 706,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 0.00739288330078125,
+        "maximum": 1.0,
+        "mean": 0.2802954563498497,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "SceneColor",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderTranslucentT2",
+      "producerFrame": 706,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 0.00739288330078125,
+        "maximum": 1.0,
+        "mean": 0.2802954563498497,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "Depth",
+      "format": "R32_SFloat",
+      "bytes": 230400,
+      "producer": "RenderObjectMotion",
+      "producerFrame": 706,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 57600,
+        "nonFinite": 0,
+        "roiSamples": 57600,
+        "minimum": 0.017543869093060493,
+        "maximum": 0.01805797405540943,
+        "mean": 0.017548385362347794,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "DisplayColor",
+      "format": "R16G16B16A16_SFloat",
+      "bytes": 460800,
+      "producer": "RenderUIOverlay",
+      "producerFrame": 706,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 230400,
+        "nonFinite": 0,
+        "roiSamples": 230400,
+        "minimum": 0.0038967132568359375,
+        "maximum": 1.0,
+        "mean": 0.2768057099978129,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "ContactShadowSun",
+      "format": "R8_UNorm",
+      "bytes": 57600,
+      "producer": "ComputeContactShadow",
+      "producerFrame": 706,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 57600,
+        "nonFinite": 0,
+        "roiSamples": 57600,
+        "minimum": 1.0,
+        "maximum": 1.0,
+        "mean": 1.0,
+        "hasFiniteRoiSamples": true
+      }
+    },
+    {
+      "semantic": "ContactShadowMask",
+      "format": "R32_UInt",
+      "bytes": 230400,
+      "producer": "ComputeContactShadow",
+      "producerFrame": 706,
+      "submitted": true,
+      "readbackTerminal": true,
+      "retired": true,
+      "error": "",
+      "statistics": {
+        "samples": 57600,
+        "nonFinite": 0,
+        "roiSamples": 57600,
+        "minimum": 0.0,
+        "maximum": 4278190081.0,
+        "mean": 18271436.804270834,
+        "hasFiniteRoiSamples": true
+      }
+    }
+  ]
+}

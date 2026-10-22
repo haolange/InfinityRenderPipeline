@@ -1,0 +1,1691 @@
+{
+  "stoppedProducers": [
+    11380,
+    17678,
+    20218
+  ],
+  "removed": [
+    {
+      "path": "closed-historical-s10-contact-frames-v3-forward-off-batch.tar.gz",
+      "sha256": "3f7edef8170717d40a6448615ee1af822029664bf77696e7f071708844140e10",
+      "bytes": 530494,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-forward-on-batch.tar.gz",
+      "sha256": "41f92585aef9264900b58eb8139762a58b3c01f38befda6d76861a63b6307d04",
+      "bytes": 530808,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-point-off-batch.tar.gz",
+      "sha256": "a2eae302dae96fb86a06d6502126a45148a9d8944089566ec892b26390b3649f",
+      "bytes": 556588,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-point-on-batch.tar.gz",
+      "sha256": "fc8598e4af32a4f3222c6ab75985fabe348a769fd59086dbb0d6f9223871038a",
+      "bytes": 556650,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-low-batch.tar.gz",
+      "sha256": "6ecc9955358ab703efe7056554a9932b56cfcf1983f23c11ee7865111bdf57b5",
+      "bytes": 7922,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-off-batch.tar.gz",
+      "sha256": "8ec375ba68af2d805f40deaaba5b0f59eae8d6e17c9984a4f39ba730477fd51f",
+      "bytes": 7921,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-on-batch.tar.gz",
+      "sha256": "ed23e839f08b9575606cf87305e58a5cdf4dcf0f176b3be00561a9cb752d3712",
+      "bytes": 8022,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-ultra-batch.tar.gz",
+      "sha256": "0c2822d33173abb6ed570d5f3ff635b77e8772f7ae55f4b7b91a4d5b606e174a",
+      "bytes": 7797,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-thirty-on-batch.tar.gz",
+      "sha256": "e9303162d122f57cfc5fdcca031ed896a81d4b5f4c14066f08d8e30df13371a8",
+      "bytes": 652132,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-volume-off-batch.tar.gz",
+      "sha256": "f8eeb66342796d2362661f91429dd65f8ebf997691d54d342b5c7367f6d90e86",
+      "bytes": 7918,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-forward-off-batch.tar.gz",
+      "sha256": "ae8657409e6080a52a2197699686a53a87ae7dc17af2f98cdfcf1fd680ca674b",
+      "bytes": 528942,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-forward-on-batch.tar.gz",
+      "sha256": "8bed35a80df542e9856f03183fad33db450f6268fb21c638f5779d36f9614a89",
+      "bytes": 528087,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-point-off-batch.tar.gz",
+      "sha256": "4540f8188989fc9d99aa6428d4cbbd2d3b020c9c25d036bc79bdae3e8c18b071",
+      "bytes": 555102,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-point-on-batch.tar.gz",
+      "sha256": "2c172ef6c8943319936abc8d2f5c1ee33a41c80d6d6c5694a9c5528e3c2388f2",
+      "bytes": 553770,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-low-batch.tar.gz",
+      "sha256": "5c4889b8b307334e1fa277794d2b19aa8f874a230283e49160b21115307a95c3",
+      "bytes": 9376,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-off-batch.tar.gz",
+      "sha256": "b46cff89e157d4def97502ea1786d73ec2443761fe0db670b23f3ca392a64716",
+      "bytes": 8154,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-on-batch.tar.gz",
+      "sha256": "2e3cbc6b9848c938cc550a93fae55ea8c6cc419bbac164dd89d745072f1a38c0",
+      "bytes": 8700,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-ultra-batch.tar.gz",
+      "sha256": "d66fb38f0cc3931f1c9e0cb0fa9a34508f6e26aaf4af1d9e18f6d84024208a68",
+      "bytes": 9226,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-thirty-on-batch.tar.gz",
+      "sha256": "d019d718cfeeaff884d66dccf375fe5d8f2968f4384a8b1d9d075433f1c7b6c2",
+      "bytes": 55937,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-volume-off-batch.tar.gz",
+      "sha256": "a5c1159d7f6f53b3177fef9b8cb183cda93e0b4360f8e614aa5d995380d2625e",
+      "bytes": 8303,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-initial-v1-batch.tar.gz",
+      "sha256": "7e7e3a98a813ae421f9a25093c05b1c46fdeb2a2127a5a3d5f0bb3a8710c5c73",
+      "bytes": 429741,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "closed-historical-s10-final-capture-v1-batch.tar.gz",
+      "sha256": "befcfe8cdcfc83dade14796e9c544532b30bba7013f40bd4cf1875e8b5a11fd3",
+      "bytes": 908779,
+      "allocatedBytes": 1048576
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-batch.tar.gz",
+      "sha256": "f7356b40fba0e9b21d380435164e2e3936d71adf8473dd80138a5f416e9b2c01",
+      "bytes": 869650,
+      "allocatedBytes": 1048576
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-forward-off-batch.tar.gz",
+      "sha256": "e2b68b9de78b0b4fa7012eedcb1d260216e99e8c6f7c8bf21e015bc5db9c4dd8",
+      "bytes": 541106,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-forward-on-batch.tar.gz",
+      "sha256": "489a0d2e7ce555072ad37da303f3d2ee08352c5266a7f91aaff2651917210ade",
+      "bytes": 541044,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-point-off-batch.tar.gz",
+      "sha256": "d6af64ffa82c6e885eb2af65a4a1f7462880c30bf4d233542704de0d5e7beb21",
+      "bytes": 567355,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-point-on-batch.tar.gz",
+      "sha256": "b42082432767b6ee088f19599a8cf8548b2dfec2b15c6c75a47212508f558ac0",
+      "bytes": 567550,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-low-batch.tar.gz",
+      "sha256": "f938a930f88ae09236ffc3eadcc2d5344f6eab317d3cc52af4a5a3a957770187",
+      "bytes": 9989,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-off-batch.tar.gz",
+      "sha256": "e6de430fc214d43ad32b8160203e56a451de80c974790ae1314ef86a3ca55a69",
+      "bytes": 8160,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-on-batch.tar.gz",
+      "sha256": "0fadf262141174512b28c6540a9ece845b54a7743b19b4f4f94069dc3e5b5b37",
+      "bytes": 10214,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-ultra-batch.tar.gz",
+      "sha256": "35a72761c4a671ab52fd1ace38d6f19efc9926a828f2326d8adda953e9909e98",
+      "bytes": 10255,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-thirty-on-batch.tar.gz",
+      "sha256": "5ca91e8288b9b8e8e803f685becb8905890e8810c219af9d0bd868f60f8fb8c6",
+      "bytes": 56725,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-volume-off-batch.tar.gz",
+      "sha256": "308961fa4f25523743e70604fade448ccdba9f75f7595eafc1c58d9231ea5e8f",
+      "bytes": 8198,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-full-v1-batch.tar.gz",
+      "sha256": "952d45880cdc56eb7ec2fa9c3c59c7da663ec786c28bcd4db59539acf20071c3",
+      "bytes": 402839,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "closed-main-s10-capture-tests-v1-batch.tar.gz",
+      "sha256": "8886f3bf41b9d027ba83cdc3bf053762a866033e2aff84af123c4ce2c8fb6ae6",
+      "bytes": 421204,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-forward-off-batch.tar.gz",
+      "sha256": "d86c1909bc91c2f7eab6afd7385641aa0dbf9a8763c456a20db5c21c4c7577e4",
+      "bytes": 541585,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-forward-on-batch.tar.gz",
+      "sha256": "542895d147e56b695e6291489eb91635e01ba35c8db441f0a449fdf7b60eb171",
+      "bytes": 541788,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-forward-on-batch2.tar.gz",
+      "sha256": "f65457b8d0f37c55869d41d21f5250ba1dd2afa5a42439c61922310c0dfa91e7",
+      "bytes": 540639,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-point-off-batch.tar.gz",
+      "sha256": "33b67c325206201c6e0fc369b5edf3041c8475fad1883484c9d268611ca82f7d",
+      "bytes": 566803,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-point-on-batch.tar.gz",
+      "sha256": "beda68e914020d08cf30bc84397e791cedc6666b9fdab52aa000eb65afffc111",
+      "bytes": 567256,
+      "allocatedBytes": 786432
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-low-batch.tar.gz",
+      "sha256": "bbf078fdbceefefb8e19395b6b3b1c9f4c97bbcd313c19d5b1bf343094f7d174",
+      "bytes": 10158,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-low-batch2.tar.gz",
+      "sha256": "ac5fb2792b1d0d117abe9cfb3eeb2950293547e2c29becbf17978369f8445ed7",
+      "bytes": 10307,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-off-batch.tar.gz",
+      "sha256": "bdf94204e495a457a85405a9a8419622fbaecc59fcdf5a9cc2e43ef1fe63971d",
+      "bytes": 8273,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-on-batch.tar.gz",
+      "sha256": "814fd61c8e1d3fdb0585cf53e4d9d9ca3d1bef236ad8fc1c000e2c0fba1d332f",
+      "bytes": 10193,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-ultra-batch.tar.gz",
+      "sha256": "f00ceb536ad7c99a3cb51af2320d977d4b6c7bea65257346a7a724bcd3306963",
+      "bytes": 10403,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-ultra-batch2.tar.gz",
+      "sha256": "50a41d21c584c202554085083d4b7a929b71adf80cebfee2531101697f479a37",
+      "bytes": 10399,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-thirty-on-batch.tar.gz",
+      "sha256": "13fa9a5102a0cf9317387280c496a7ebd75f87dd2be70a3083f8f6733e4ec096",
+      "bytes": 56865,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-volume-off-batch.tar.gz",
+      "sha256": "0c1d51d23f83cc2a6818e7911d95d1cd904617423a7db6aa0e407e7648167440",
+      "bytes": 8303,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-volume-off-batch2.tar.gz",
+      "sha256": "15c96d4ceb012bb655ff5b825f028e19f4b6ee2227b3b8808f42e53d679eb6f5",
+      "bytes": 8359,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-final-capture-v1-batch.tar.gz",
+      "sha256": "163622c424069dda9633de625281986bba3dc5091b0c8928909503922dae1d49",
+      "bytes": 7409,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-initial-v1-Editor.log.gz",
+      "sha256": "823cd8b2123525f3778c871c2fc6c1353ad55591ca186f961c0feeaa4f6e0ae6",
+      "bytes": 208227,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-capture-v1-Editor.log.gz",
+      "sha256": "12ac74816e49e501f05f2c4804283a23b85ce91f4a36fd33d5d1625092dce170",
+      "bytes": 212808,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-v1-Editor.log.gz",
+      "sha256": "ffc0df115e1fb9dbdcf99bfb03b66ad0f8fbbeb757ea67549e568620392cd808",
+      "bytes": 202819,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-metadata-v1-Editor.log.gz",
+      "sha256": "4f9fb22d4d6426993dfe85a40ff96ebd63c2f38f711f65d018bf82a4a9e7d875",
+      "bytes": 33335,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._task-sidecar-cleanup-v2.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._run-historical-final-frames-v1.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-analyze-contact-v5.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-contact-final.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-frames-v1-control-forward-off.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-analyze-contact-raw-v5.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-contact-final-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-contact-final-raw-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-frames-v1-control-forward-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-frames-v1-control-volume-off.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._closed-historical-s10-final-frames-v1-forward-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-frames-v1-control-thirty-on.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._MainS10FinalControlV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._closed-historical-s10-final-frames-v1-thirty-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._closed-historical-s10-final-frames-v1-forward-on-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-frames-v1-control-status.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-final-negative-sun-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-final-frames-finish.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._closed-historical-s10-final-frames-v1-volume-off-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._S10HistoricalNegativeMaskV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._closed-historical-s10-final-frames-v1-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-compile.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-state.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-final-negative-mask-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._S10HistoricalNegativeMaskDriverV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-final-negative-mask-finish.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._QuitOwnS10FinalMainV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-quit.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-full-reconciliation.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-source-request.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._HistoricalS10SourceCaptureV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-source-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._HistoricalS10SourceCaptureDriverV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-source-restored.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-stop.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._QuitOwnS10FinalHistoricalV1.cs",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-state.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-quit.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-candidate.patch",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-frozen-restored.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-metadata-v1-open.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-metadata-v1-pid.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-metadata-v1-ready.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._run-main-s10-final-gates-v1.py",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-capture-v1-preflight.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-capture-v1-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-contact-v1-preflight.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-contact-v1-start.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-actual-missing-skips.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-actual-missing-skips.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-spazon-validation.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._historical-s10-final-v1-closed-log.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-capture-v1-closed-log.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._closed-main-s10-final-capture-v1-batch.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/._main-s10-final-metadata-closed-log.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._baseline.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._initial-shader-compile-error.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._category-replay-provenance.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-s10-final-candidate-identity.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-s10-final-full-reconciliation.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._main-s10-full-v1-reconciliation.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-s10-actual-missing-skips.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._main-s10-actual-missing-skips.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._main-s10-frozen-restored.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._main-s10-final-compile.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._main-s10-final-state.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._main-s10-final-quit.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-s10-final-state.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-s10-final-quit.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-s10-final-source-restored.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-s10-final-spazon-validation.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._contact-v5-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._contact-raw-v5-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-contact-final-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-contact-final-raw-analysis.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._contact-v5-contact.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._historical-contact-final.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._native-main-contact-low-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._native-main-contact-ultra-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._native-main-contact-forward-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._native-main-contact-volume-off-v5.png",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._contact-dxc-v1.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._main-s10-final-healthy-delta.log",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._task-sidecar-cleanup-v2.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._capture-summaries",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._permanent-raw-retirement.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._carry-and-cleanup.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/._tests",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-negative-mask-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-post-negative-spazon-normal-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-negative-mask-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-spazon-normal-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-forward-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-forward-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-point-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-point-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-sun-low",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-sun-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-sun-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-sun-ultra",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-thirty-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._historical-s10-final-frames-v1-volume-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-forward-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-forward-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-point-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-point-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-sun-low",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-sun-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-sun-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-sun-ultra",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-thirty-on",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/._main-s10-contact-frames-v5-volume-off",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5/._frames",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5/._restore.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5/frames/._missing-sun",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5/frames/missing-sun/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-negative-mask-v1/._frames",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-negative-mask-v1/._restore.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-negative-mask-v1/frames/._missing-mask",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-negative-mask-v1/frames/missing-mask/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-post-negative-spazon-normal-v1/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1/._frames",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1/._restore.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1/frames/._missing-sun",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1/frames/missing-sun/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-negative-mask-v1/._frames",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-negative-mask-v1/._restore.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-negative-mask-v1/frames/._missing-mask",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-negative-mask-v1/frames/missing-mask/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-spazon-normal-v1/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-forward-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-forward-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-forward-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-forward-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-point-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-point-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-point-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-point-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-low/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-low/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-ultra/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-sun-ultra/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-thirty-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-thirty-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-volume-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/historical-s10-final-frames-v1-volume-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-forward-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-forward-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-forward-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-forward-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-point-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-point-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-point-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-point-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-low/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-low/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-ultra/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-sun-ultra/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-thirty-on/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-thirty-on/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-volume-off/._capture.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/capture-summaries/main-s10-contact-frames-v5-volume-off/._raw-manifest.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-category-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-contact-canonical-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-contact-initial-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-full-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-final-capture-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-final-category-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-final-contact-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._historical-s10-final-full-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._main-s10-capture-tests-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._main-s10-contact-tests-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._main-s10-full-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._main-s10-final-capture-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/._main-s10-final-contact-v1",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-category-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-category-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-category-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-contact-canonical-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-contact-canonical-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-contact-canonical-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-contact-initial-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-contact-initial-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-contact-initial-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-full-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-full-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-full-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-capture-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-capture-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-capture-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-category-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-category-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-category-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-contact-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-contact-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-contact-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-full-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-full-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/historical-s10-final-full-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-capture-tests-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-capture-tests-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-capture-tests-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-contact-tests-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-contact-tests-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-contact-tests-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-full-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-full-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-full-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-final-capture-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-final-capture-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-final-capture-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-final-contact-v1/._callback-results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-final-contact-v1/._results.xml",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S10-closure/tests/main-s10-final-contact-v1/._run.json",
+      "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd",
+      "bytes": 4096,
+      "allocatedBytes": 262144
+    }
+  ],
+  "reclaimedAllocatedBytes": 84934656,
+  "retainedExactSourceCarry": [
+    "historical-s10-final-candidate.patch",
+    "historical-s10-untracked-v1.tar",
+    "historical-s10-final-candidate-identity.json"
+  ],
+  "remainingTaskAllocatedBytes": 82051072,
+  "noLibraryDataStoreOrUserAssetDeletion": true
+}

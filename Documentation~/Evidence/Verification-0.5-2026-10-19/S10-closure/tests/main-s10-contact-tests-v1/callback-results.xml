@@ -1,0 +1,20 @@
+<test-run result="Passed" total="2" passed="2" failed="0" skipped="0" inconclusive="0" source="Actual TestFinished callbacks; framework XML is results.xml">
+  <test-suite type="TestSuite" name="InfinityRP callback evidence">
+    <test-case id="callback-1" name="Bits_AreCappedAt24" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_AreCappedAt24" methodname="Bits_AreCappedAt24" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="Runnable" seed="573535234" result="Passed" start-time="2026-10-22 01:18:29Z" end-time="2026-10-22 01:18:29Z" duration="0.001784" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ContactShadowAllocationTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_AreCappedAt24]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-2" name="Bits_GoToContactLights_LargestScreenCoverageFirst" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_GoToContactLights_LargestScreenCoverageFirst" methodname="Bits_GoToContactLights_LargestScreenCoverageFirst" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="Runnable" seed="357717470" result="Passed" start-time="2026-10-22 01:18:29Z" end-time="2026-10-22 01:18:29Z" duration="0.000467" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ContactShadowAllocationTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_GoToContactLights_LargestScreenCoverageFirst]" />
+      </properties>
+    </test-case>
+  </test-suite>
+</test-run>

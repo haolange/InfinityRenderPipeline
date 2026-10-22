@@ -1,0 +1,1616 @@
+{
+  "stoppedEditors": [
+    11380,
+    17678,
+    20218
+  ],
+  "removed": [
+    {
+      "path": "historical-s10-initial-v1-pid.json",
+      "sha256": "7cd7f2b0d1cedaf8402c9e67fd160ca5874e6ad0a4915a51dd1fc85534f4d6f3",
+      "bytes": 76,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactDriverV5.cs",
+      "sha256": "f7d2a4ed18a1653319b5bedcc43fb0665187a4d66f8f5372bd189e49df90d155",
+      "bytes": 447,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-initial-v1-ready.json",
+      "sha256": "fb51548f23aaa8e144b201b159157022174b493269fb21e7178042f794c7e1d6",
+      "bytes": 325,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-analyze-contact-v5.py",
+      "sha256": "c9e12110c429bb8cd8d47a08f2644b73ff9eccadfc2b77ef5db0a9c024004130",
+      "bytes": 3272,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10StageControlV1.cs",
+      "sha256": "27e4ae8cb12abc4097b8e2dcdea4c54e910a0eb6f909082c16a34b5420839867",
+      "bytes": 2044,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-contact-frames-v5.py",
+      "sha256": "0e25814812ce20ead221ff478616377664002b59573f8fef440500aeaf43722b",
+      "bytes": 2499,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-s10-contact-initial-v1.py",
+      "sha256": "9191ea640f931b586bf1b6bbb26848582a3b3e90cd920f46c0743544d2694a87",
+      "bytes": 1583,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-initial-v1-preflight.json",
+      "sha256": "e0466ded5d237fc5ab089993902e948cc59b89784ec6a343ca6734daa64876aa",
+      "bytes": 259,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-off-batch.json",
+      "sha256": "0a78c530b9a4e43e517c56e2a1a0ec6cf0c5ed716aaf6f285965086873d31616",
+      "bytes": 1326,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-initial-v1-batch.json",
+      "sha256": "2df294c4de095b1511c2d549e6fa368020014432097d36170a481c6d333ccb5d",
+      "bytes": 14961,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-frames-v4-start.json",
+      "sha256": "39ff42c16c561f18b37deb11f36c167a631963d5bc897dcd2b66dc8dde28144f",
+      "bytes": 1284,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-initial-v1-start.json",
+      "sha256": "df2f190e047161d00d0bc5b7f4716119a324dc6ce1a554d4297b6a5fe2334335",
+      "bytes": 943,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-forward-off.json",
+      "sha256": "75d06b19ebf4cff44a7a180b4b3bbf76c97f37c2011d5075933f165701d327aa",
+      "bytes": 1330,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "category-replay-provenance.json",
+      "sha256": "77525b0c660ac020e1914acccb574c53d7c1a9ab3d617c6d2134d359fc9c31b5",
+      "bytes": 258,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "analyze-contact-v5.py",
+      "sha256": "50702f406bc6f44ec82b9f58f330d1427ccd601dbffa325cfc8f81c1dcfab52f",
+      "bytes": 3248,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactFramesV1.cs",
+      "sha256": "6a3cc47fb36f250a37cf04829d9e36c7d2682a0a4fd2188b8fccac9ce19beea5",
+      "bytes": 22111,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-s10-contact-canonical-v1.py",
+      "sha256": "28194f4439a39d89e0f9793353182ee7baae9652998892518c9d0b5e608e6bb9",
+      "bytes": 1585,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v5-analysis.json",
+      "sha256": "58be178d08fcbc82fef6bf1d84a8ae2bb2e26e91db6478b0626a76778c4e2aca",
+      "bytes": 8885,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-canonical-v1-preflight.json",
+      "sha256": "e0466ded5d237fc5ab089993902e948cc59b89784ec6a343ca6734daa64876aa",
+      "bytes": 259,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10HistoricalNegativeMaskV1.cs",
+      "sha256": "4c5c035182e68fb34c60b2bbeb8f8b38e62d154114a7826cf181c2ec46236d4d",
+      "bytes": 23753,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-canonical-v1-start.json",
+      "sha256": "53f6801957c25cc858361cda3b104b9f4e48cfd5ce238c59a24b4d3c89753ad6",
+      "bytes": 947,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-sun-on.json",
+      "sha256": "5a7cc30eee062521b51f27685f8a1ccfeb488bd0f0d22557147c2fc63f507621",
+      "bytes": 1299,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-s10-gates-v1.py",
+      "sha256": "009b15a7ad44bf1b15d968482b2d22fc8649f70f12206e0b8bde38c4ff1c1e10",
+      "bytes": 1604,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v5-contact.png",
+      "sha256": "2a62b66065fa966116ec771dbb531047d2b9c4ea8f9023a6afe9d9a1f68f9ad8",
+      "bytes": 54513,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-category-v1-preflight.json",
+      "sha256": "17a759b476a254eb4990c955be5a75abcb485dd0aeeabe5f34176ac8dca98269",
+      "bytes": 245,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-analyze-contact-raw-v5.py",
+      "sha256": "c31347f85fcb0b526dfc06de503ab94f895fb352ec8d1131c1a3b5488c4bfee0",
+      "bytes": 2056,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-category-v1-start.json",
+      "sha256": "2aa15aa818b8f4ae42cd482dc7d54770beca910dcb47c4adb9b2734cde476fe8",
+      "bytes": 914,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "analyze-contact-raw-v5.py",
+      "sha256": "82320772f1c97833eb2f06e584b33c932b4bf747b44cdc0f0ca64cc763ee8455",
+      "bytes": 2038,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-full-v1-preflight.json",
+      "sha256": "928a0ce73c8ebbb22e7ea9b0c22b52ccebc03f2d5a6742ece6625e770ffba5dd",
+      "bytes": 232,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-forward-off-batch.json",
+      "sha256": "eca8f6ed8cf02411a9f4e415db2473ee59b4d3fd70b64192af6ee19d286bd870",
+      "bytes": 1379,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-full-v1-start.json",
+      "sha256": "7632ad7d0dba180510c937aeb971804ecb2a345fa750f6f3cdbbbba8f501aef4",
+      "bytes": 891,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "initial-shader-compile-error.json",
+      "sha256": "f28ad97e275f2c6b97edc0362a9119d2019a30a05fe2facb0c4ffd5f8f4ac3a8",
+      "bytes": 4252,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-raw-v5-analysis.json",
+      "sha256": "4a743cda5b98ec17886f5694c5aa1204a547792a60f981b8adb6994a3dcbca3d",
+      "bytes": 2086,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-canonical-recompile.json",
+      "sha256": "f45eb7071b9db8cad958a1d556f080dc5514d8826738d5a179831d1b097dd31f",
+      "bytes": 269,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-contact-final-analysis.json",
+      "sha256": "0251cf09d2bbb071a48c3e10ccdf49f172f1e7e9d6001df4bc4ada0f368be93d",
+      "bytes": 8898,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactFramesV2.cs",
+      "sha256": "f01649961d746029a22bdaee2e068947063539e65030f009f1164d280d2575d8",
+      "bytes": 23368,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "repeat-native-contact-v5.py",
+      "sha256": "e4cc208b1e18a14f7108cb413ed18b20674e368e5b6b2ee1f06c586205658bf7",
+      "bytes": 2391,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-frames-v2-log-mark.json",
+      "sha256": "105c4ac9a3f72c53c808b97feff0339c7dd4df6be016231c49996d5c98875549",
+      "bytes": 255,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-frames-v2-play.json",
+      "sha256": "aa3a3fa1b82d79f53c0a9e75cfbd0b7303a31758daed3bf0efe655f05d48178d",
+      "bytes": 337,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10OpenNativeMainV1.cs",
+      "sha256": "f5697c675e43fbf325d82465fe1a6ebc8d00c1141a0547deb0b1b26a2d261ac5",
+      "bytes": 506,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-contact-final-raw-analysis.json",
+      "sha256": "24c66927dc4fafd94212ab82ac9ef9c6609bd7c611b6d9fcda68a42b2910af1f",
+      "bytes": 2093,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-frames-v2-start.json",
+      "sha256": "0607929e3ee7e89c1d9bbbf62fed0a164d77703d4824a70ffa1d6242ff5f1ad3",
+      "bytes": 1135,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10UiUtilityMainV1.cs",
+      "sha256": "e58375ec61b96b9d8116dfbfa287896b9f5d1059a3d8f07d4942d044d3f0751a",
+      "bytes": 854,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactDriverV2.cs",
+      "sha256": "6272c73a890d7c13a7e1a26942305859aa8449457ca8122cb67b4e8fe866b8ce",
+      "bytes": 446,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-stop.json",
+      "sha256": "b062eca382d25fb1a2986b364a93a470ae909ec37fc1ef64d8295861aee61753",
+      "bytes": 336,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-contact-frames-v2.py",
+      "sha256": "58238026c9951873ca694570a21c6f7439abc01577ac897aede382187b887c0a",
+      "bytes": 2529,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-main-contact-low-v5.png",
+      "sha256": "c04e3ddeb315c908ca88c5d7da7a72875b18f954274325446714272cc1baed92",
+      "bytes": 477968,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "native-main-low-resume.json",
+      "sha256": "bfba62884b8f8f70c337deffff2cd5f9e96cdd97dd59b7b74b0bc25d348a64e5",
+      "bytes": 870,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-frames-v2-failure-finish.json",
+      "sha256": "e75a122642a6be33cdc2c09f67dd8737578f571bdab0f5af256ae6396f72476b",
+      "bytes": 44587,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactFramesV3.cs",
+      "sha256": "a2a40444a2417585342a59c7e065c5e29f4564a3f4d6ae0c3fe9ebe241d729d5",
+      "bytes": 23333,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "QuitOwnS10FinalHistoricalV1.cs",
+      "sha256": "f3727f51f59c4acf8c47c192dc7d1692c6f5c07d891d147b4df826ee8b242eb7",
+      "bytes": 1389,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-main-contact-ultra-v5.png",
+      "sha256": "014e1779bc206eb4a166bcae2314847b53f310395332e7f3fe565443d3b57661",
+      "bytes": 478380,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "contact-frames-v3-start.json",
+      "sha256": "2224391527ab0e99cb19ec3227076140e5e10b86a7e29a1b9a78daad67f41386",
+      "bytes": 1282,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-main-ultra-resume.json",
+      "sha256": "0961b01c83473ba15f5f502c84f8742e149cd7e442349f095824cea1325d904f",
+      "bytes": 870,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactDriverV3.cs",
+      "sha256": "5efe66199ec52eaf3553a32d6b9a596bddf65115423a653e5fe5ec7f299c82b4",
+      "bytes": 446,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-main-off-resume.json",
+      "sha256": "bde8507730eacdb00b794730bed0118be7ab46afdb78973e726d85fbb708669c",
+      "bytes": 870,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-contact-frames-v3.py",
+      "sha256": "3850cadae4e01633003a92405820f22f1ab21cfeac2619a0c5248f89711eb4a3",
+      "bytes": 2529,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-quit.json",
+      "sha256": "bd561e07036bed4f0a60e0ade02e64f515aaa54f35487c6671e733cd38e86435",
+      "bytes": 816,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-off-batch.json",
+      "sha256": "9909d9f45bd945161004cbf1225fc9fd57b019890cd8d404e52ffa433c7416dc",
+      "bytes": 1365,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "analyze-contact-v3.py",
+      "sha256": "cbc424da2ec8fceebee6ff64e6e0da43da272ca211586e0ad1feebe1f326ce0b",
+      "bytes": 3254,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-forward-on.json",
+      "sha256": "e228325fff38d6fc756cb66e0c5505ce267c50e632b93e9e3e2726347e200e71",
+      "bytes": 1331,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-on-batch.json",
+      "sha256": "12c183906ebf899526ef8047e0ed4e79954dab9acee1b38f8c247f8d2ad990ba",
+      "bytes": 1322,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-sun-on.json",
+      "sha256": "3bfc2c248cba15e921456efcb893155d865a47d07febaf6e11076da9a42d2699",
+      "bytes": 1305,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-on-batch.json",
+      "sha256": "c53f0ff24d7b0be8c6552a2ff81888bfa8ec7d85bcbb9c5421b3088a7484b67c",
+      "bytes": 1359,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactNegativeMaskV1.cs",
+      "sha256": "60c07ad65d72cea3ec98c91586eb37da21d996e6d26c038c428ab5e93ac9e51d",
+      "bytes": 23746,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-sun-low.json",
+      "sha256": "c40b0f1500bb4a9a8000cd1110b00cf168af0dafa72ec51cc6c9ecd54f7e1055",
+      "bytes": 1303,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-sun-low.json",
+      "sha256": "fe8fe02e34418c9bd0d0b031a1c1e456abc4202e2af12ba303ad885c85e8ff66",
+      "bytes": 1306,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-low-batch.json",
+      "sha256": "ed1eaa2555ef6e58bc33b246d64c91bea9d481013433290ff34b3843902f46c2",
+      "bytes": 1365,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v3-analysis.json",
+      "sha256": "4d3f4da9f7f204ab59de9bd204a86073a382140cf8fe8664b91f06935b049ab4",
+      "bytes": 8836,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-forward-on-batch.json",
+      "sha256": "3cefba23286ae7d98bb5c9849992ba2040526afd8c0adb3bad48548072d7ebbb",
+      "bytes": 1374,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-low-batch.json",
+      "sha256": "00e5b142f5da1991fc4921f33373702e6a0ed4373cca5c33287820b604014008",
+      "bytes": 1328,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-sun-ultra.json",
+      "sha256": "36e5994f4308a684c7a28a5a104189fd2ffb65b3480170ff701d463cc4c71b69",
+      "bytes": 1311,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-volume-off.json",
+      "sha256": "93758186e9b05f932ccff594c58f63309d51e84adbb23f2f9d5218ca7dae65c6",
+      "bytes": 1330,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-sun-ultra-batch.json",
+      "sha256": "add14ebba4e0556a4d53d22e34f82a72508fc5a215c0fed4a2f64ede78c0b87f",
+      "bytes": 1377,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-frozen-restored.json",
+      "sha256": "8d879f0cbe0378a5286e6ff64aca3aea56b2e12623d58cfe77a7200eb1bd8e90",
+      "bytes": 206,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-sun-ultra.json",
+      "sha256": "eae4203e7edcbe30fd8697d7f4f8dc2a03231d1db287a8fed4ff7067fb603fe4",
+      "bytes": 1305,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-point-off.json",
+      "sha256": "084ab490adbed59ac7278eb4fff506fbb853c36184684fed5ef45401593335df",
+      "bytes": 1313,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-point-off-batch.json",
+      "sha256": "c9d4922bba17e4b9bcbbb6167a170fe8a92556f733c650c49463ac1fa760abae",
+      "bytes": 1379,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v3-contact.png",
+      "sha256": "9f9fe7dfdd90a9672e2af3636fa7989e2dbc5ef864fd153dcc53bbcbea98abd3",
+      "bytes": 71247,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-ultra-batch.json",
+      "sha256": "599d8c31c79822c06659e9e57ed265a520e46fc0db25e846ae7ca6582aa0f7d2",
+      "bytes": 1340,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-point-on.json",
+      "sha256": "bbf8b980d076fcb4a13d0ebc615964e2ea957f6815d863030dcbf03240413140",
+      "bytes": 1311,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-volume-off-batch.json",
+      "sha256": "c5dab356e54878ff90f0183ebaf08fc6b8647d22a088cafc18b214d0600d71e1",
+      "bytes": 1371,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-point-on-batch.json",
+      "sha256": "ad89ae887dbafadc166af69dbfcad3eb0e0390a09cabc2ded05aa269563d400a",
+      "bytes": 1373,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "MainS10SourceCaptureV1.cs",
+      "sha256": "f141392140c322481519ab9fe6a3baf53952a98ba0315db4dca14a11a6b0c118",
+      "bytes": 1609,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-point-off.json",
+      "sha256": "79d809d64c9ee48df624635a3fbe5e73bdcd44d1c4d5ad5c5b449a9ccddbc300",
+      "bytes": 1307,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-forward-off.json",
+      "sha256": "2d8de446998a5f9d286059b9e20097ac06f1b65163c08060e8f201c83de99a7e",
+      "bytes": 1316,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-forward-off-batch.json",
+      "sha256": "6325ab4bc25f98ff3b831666b4428a6d42302ff2fbf157d061cada5eb22401b1",
+      "bytes": 1391,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10OpenNativeV1.cs",
+      "sha256": "aa02db4f18aef755508fd3a977282dc15ba0f6126ea46560bba453e3b950a58e",
+      "bytes": 500,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-thirty-on.json",
+      "sha256": "20a8e4d85df030c36d9a4bca0420dce845bcd30c701bf575a1a003fc3d684b81",
+      "bytes": 1328,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-point-off-batch.json",
+      "sha256": "2cd812ee06aeb1ee3919eb88d3c4f0f6f02f2b366bb74aca06dae2ab99158bc5",
+      "bytes": 1341,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-forward-on.json",
+      "sha256": "ea8624ae65f36374bb42bcdc7fed215b23f1aed6fa8f1835e8476634070ec1d1",
+      "bytes": 1317,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-forward-on-batch.json",
+      "sha256": "21e82528d36658ed47a50a59936d8928eedc93d459398d26fbce03411f34fde6",
+      "bytes": 1385,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-point-on.json",
+      "sha256": "7a0b8ea2aa4bcb1303155a6a5179bb71fb10bd504c964f97861af86bc95d7c83",
+      "bytes": 1305,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-volume-off.json",
+      "sha256": "3ef523afa876093b0c1ac866189b36a1e75af2b0a249ce14897c1ff8c5f83fcb",
+      "bytes": 1316,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-volume-off-batch.json",
+      "sha256": "ad2bc4f0c3ba4634d5b7ba87973f0bb31db53f4316d3d9ae0666c5a654dd428b",
+      "bytes": 1383,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-point-on-batch.json",
+      "sha256": "0f18613924176874c04983c3a9b6888c18ab66d708eb839c4168aa6893ef3141",
+      "bytes": 1336,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-thirty-on.json",
+      "sha256": "6f6b089cfac226ce4fe7f9e464bb7a1298d96d5b8fce383f299e6a57b42ffa42",
+      "bytes": 1314,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-thirty-on-batch.json",
+      "sha256": "b7db2cbac091c9c90081bec235cd15de2fac7b68fb749c705c0fd4a65af87318",
+      "bytes": 1367,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v3-thirty-on-batch.json",
+      "sha256": "1bf020af87a28d6befdcbbdafbc3041a95036e4b1b1f6d27642c460c66c434e9",
+      "bytes": 1379,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-forward-off.json",
+      "sha256": "84708de8451c829c76bb0c5594ae8d741b1657d24c3de14c5dbc1bae25e11c7d",
+      "bytes": 1310,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3-control-status.json",
+      "sha256": "a9f40e1e8d5163c6f1da2896a1dfd8821cc4182059212278c6c57b07079ec6be",
+      "bytes": 90479,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-contact-v3-open.json",
+      "sha256": "164ed92fe39ab9da7c01d54d3e15e6d0b7f3614a54fefdffb10683723621b233",
+      "bytes": 805,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-healthy-logmark.json",
+      "sha256": "f788fbd3abc8185615a4f949a56a13c3e1beb309de1c99644e8dedcc50a16d45",
+      "bytes": 97,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-contact-v3.png",
+      "sha256": "c06e5f82ed45373b8e60566e6edfa304df7eb7ed07c48a5c447e139db25c492b",
+      "bytes": 481791,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "QuitOwnS10MainV1.cs",
+      "sha256": "82c89bed2a370ed2035067ea963a24378fa2eef7e054a2ed268cb26ab9e65fc9",
+      "bytes": 1378,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10UiUtilityV1.cs",
+      "sha256": "f60d7b2d40d2896d6564239a8bb8d285d9418ce51738e5669dae7bff1d947a04",
+      "bytes": 848,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-v3-resume.json",
+      "sha256": "7432d00144060ee251691861bf6f98e2e828be8cf44b9367616573b291dd6af4",
+      "bytes": 857,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-quit-v1.json",
+      "sha256": "a6a986fd51abc34ffe4220b348101c88b49b4926550718950194b14ed56cf3e3",
+      "bytes": 783,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v3-finish.json",
+      "sha256": "608184a79b9c970c2ef37c0115a3eae94abb4f1c66944f7d1e3b5ab787f7f692",
+      "bytes": 108684,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactFramesV4.cs",
+      "sha256": "25e861089fb8cc83bc7b77932dd8c48a9ecc3da7a9a33ddcc7b4aff365a82fad",
+      "bytes": 23341,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-frozen-v1.patch",
+      "sha256": "d2d04d3494660e5e3c1db829f088b70ef6efbd8854d03654624a705f00e31d57",
+      "bytes": 13455,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactDriverV4.cs",
+      "sha256": "485dfe02d8097dba066d9d5160bb0c877f2fda36b8dcd75c76da36cfd20d384b",
+      "bytes": 446,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-contact-frames-v4.py",
+      "sha256": "e5cf13795414e5e5d79b0e8fd08826eebc664339b75d802f9ccb6658d6861049",
+      "bytes": 2529,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10FinalControlV1.cs",
+      "sha256": "6dfc6505447e2ea75ac0485b0a53ed279aa0e2052409d6e071eb6e5daea14a0e",
+      "bytes": 2047,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-off-batch.json",
+      "sha256": "a136c9482134db33c272dc63ac1c6a5b7639d6e8dca7792ac50200df3a3cb839",
+      "bytes": 1365,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "analyze-contact-v4.py",
+      "sha256": "de215e5999bf1b562142e2d57728346c12840dcb634a02a5f77166dbd43fa542",
+      "bytes": 3254,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-forward-off-batch.json",
+      "sha256": "47d1b9ba2e9127cd11a8869056f9cf1bdf024c4e4c9abf67ca6ebda762a4fea7",
+      "bytes": 1353,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-sun-on.json",
+      "sha256": "ac65d1ed514bd30b7bf4e5e867a7ca7f8a3ecc3b604af26b5681a7a26784c82d",
+      "bytes": 1305,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-forward-on.json",
+      "sha256": "f7ef98791ba1efd706b18fb67c43040d6bbef755a1821efd23cc873205c94336",
+      "bytes": 1309,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-on-batch.json",
+      "sha256": "4b308eb10c0decacbe60b084bfdce8298a63e7728f2ab6f1484a7e230af77bc5",
+      "bytes": 1359,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-status.json",
+      "sha256": "328371da51aecffe7e70a5bd0f635487c6f4e8c132a1df1ddaea0958de8a0ecf",
+      "bytes": 89309,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-sun-low.json",
+      "sha256": "cbbdba17228a58b0e47637bd255639c3934670973dd0bfaa1fc97bba9f82bd31",
+      "bytes": 1307,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-low-batch.json",
+      "sha256": "ae5035918b86f5e4018c8acf432714f91093bb99e94933a7b7f3114919440995",
+      "bytes": 1365,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v4-analysis.json",
+      "sha256": "a0face26a977879a13e092f7378273d3d123dc6d58b9415c0ca3a251f6f59aff",
+      "bytes": 8903,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-forward-on-batch.json",
+      "sha256": "5d5ea7f905cf766134492a7d2ca62abdde032c1f6e99d3e1c795deb2fb548d61",
+      "bytes": 1348,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-sun-ultra.json",
+      "sha256": "3db3e5a50cb9876cac5ab80f7af8cbe36aa1b0b816c58863f8e35f4473f068cb",
+      "bytes": 1311,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-volume-off.json",
+      "sha256": "a41d51ad083a9fbe5fcc9fc6a6d77735fd324633d34ba7edc8b80dc5b4a55dd1",
+      "bytes": 1310,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-sun-ultra-batch.json",
+      "sha256": "1e5b6050c22ef8739c432788add47fe854035ef00f66a6dbba71fc8c7db53dde",
+      "bytes": 1377,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-final-negative-sun-start.json",
+      "sha256": "ecc137dff91e288de2992ee2da026bf7b801a3bd1eae07b797d618582fe76e75",
+      "bytes": 1332,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-point-off.json",
+      "sha256": "ba32118bcbeffc5e1db8fa84808cd9aa9ada29bb6dd958e659d5704ad486cd86",
+      "bytes": 1313,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-point-off-batch.json",
+      "sha256": "84c95391a3d8a14365ff98c2dc1b649dbc1038ab9bc0d7ce0ccec9bc26f401e1",
+      "bytes": 1379,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v4-contact.png",
+      "sha256": "2a5120c44e1ec6d02b494554273f742e14544213e3a7664c00f367b305492216",
+      "bytes": 53364,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-volume-off-batch.json",
+      "sha256": "5c6fab5cab56615f785a5c14c1ba74b5504431c0dafe6c54f7f984fbb56877e1",
+      "bytes": 1346,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-point-on.json",
+      "sha256": "742016575464217e819adc92170a397cf7fbe1f9a5907afd3723369da01c1346",
+      "bytes": 1311,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-thirty-on.json",
+      "sha256": "3804060f0a0b7045e5b8da743a7e0a2e0a80a6f0bc40e4cde1108158b9453813",
+      "bytes": 1308,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-point-on-batch.json",
+      "sha256": "3d61c3a251f51f5ad173ff96bebd12c83cc27af057132ea49aa2456151ee3b25",
+      "bytes": 1373,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-final-frames-finish.json",
+      "sha256": "0e0461e2568da72634bf02d2634f4ba2fd1bdb419d85560e0b89cf89a42d0722",
+      "bytes": 31455,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-forward-off.json",
+      "sha256": "1233cf8263514bdba08ab3a38b9d2a766c82dce76e458b397d57ff74e46bdd87",
+      "bytes": 1316,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-forward-off-batch.json",
+      "sha256": "6aa8cd706da9870b5fb044f1d2c7c315baa772acafc6cd1d62299b1b4e393e5c",
+      "bytes": 1391,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-v4-finish.json",
+      "sha256": "e5349ea275c60c18d0cbf760f4759902cddec2bfe4d30133db63d6957919fb41",
+      "bytes": 108538,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-thirty-on-batch.json",
+      "sha256": "5c1e1f71d491692ab934940b42f374b948f6aff06eaa9b34914791b8f4a54b16",
+      "bytes": 1342,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-forward-on.json",
+      "sha256": "400c04cc92958a4b565fdd4635897503e26ee6bd003e3183f2cce8f20d119685",
+      "bytes": 1317,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-frames-v5-control-status.json",
+      "sha256": "77db38a0303d6e1d637ccd24a37d7effbbfd320ed67e98747b071ca2dd2747a2",
+      "bytes": 32784,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-forward-on-batch.json",
+      "sha256": "41f3f9b7fd5710150c417d86af7df9aaaeef7bb4767cdc3d293034d9cd2c1911",
+      "bytes": 1385,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-volume-off.json",
+      "sha256": "46ffb14e1cbe62ef8fb5025c22ca242cf7c9582081424662ca16c094184f8cd2",
+      "bytes": 1316,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-batch.json",
+      "sha256": "ba909cb80c76bf274b8ef5533fe054328391ff3cd02f2dbb077febd18dd4d9a1",
+      "bytes": 3327,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-volume-off-batch.json",
+      "sha256": "5b89fbfeebe086ad15b0cf9c5a54ff48386dbf46d709f25a95dd2ccd53e5d6c6",
+      "bytes": 1383,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-low-batch2.json",
+      "sha256": "1d560f23544b9f92b7a48004cd9db71ccc3413fef72c6a6898b6976bf3635cbd",
+      "bytes": 1330,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-thirty-on.json",
+      "sha256": "1d0e2ca2dfe3adbf6d5d274894315e77b4c8cea35e7e4d77f4b0e0dd7e2afd8f",
+      "bytes": 1314,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-sun-ultra-batch2.json",
+      "sha256": "b5347d61c6b709970f6b41b6dd0ac31f6ea897617f4081878d28b8d4c1edf31f",
+      "bytes": 1342,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-contact-frames-v4-thirty-on-batch.json",
+      "sha256": "501bf7a36532ccdbf6e14be13374e1617c0076aa6533a57339704d646baa5d36",
+      "bytes": 1378,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4-control-status.json",
+      "sha256": "c39c949dc583e551eb7f6a611795e5e211f212b2bd912035dfaa78c2d59bd167",
+      "bytes": 88857,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-final-negative-mask-start.json",
+      "sha256": "25a88ac165524c3b6019378efc3b373957bd6413644c769fd79d5482953da717",
+      "bytes": 1333,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "post-v4-stop.json",
+      "sha256": "b062eca382d25fb1a2986b364a93a470ae909ec37fc1ef64d8295861aee61753",
+      "bytes": 336,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "post-v4-state.json",
+      "sha256": "49846c8344fbc00cf770d139dd6b4790af15c8bf6bd054ec176d749ae613209f",
+      "bytes": 1241,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10HistoricalFinalDriverV1.cs",
+      "sha256": "42d5df9f449e6fc0269e7a97ae36b023be626105754c0e316879886b13306338",
+      "bytes": 463,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "QuitOwnS10HistoricalV1.cs",
+      "sha256": "0784c361d323eba8f3c386afffc2feb5394813bd5d267f09763ede6d20a2a118",
+      "bytes": 1382,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-state.json",
+      "sha256": "328114d34762a3d9d8c5874ba41823ba5eb7bb2a7273f6694b1406819288a2b1",
+      "bytes": 1250,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-quit-v1.json",
+      "sha256": "92a121365702451a9cc0dd3034a5e6fd551be472a48f06df521ad22983c7f39f",
+      "bytes": 800,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-candidate-v1.patch",
+      "sha256": "981fc6f25ee783f14f52abc0fea73615319958805e1728c14ba7cd4d3e080d1f",
+      "bytes": 271684,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "S10HistoricalNegativeMaskDriverV1.cs",
+      "sha256": "d627cb2dad5e6b1e574affb9a8a708a2b8be07bc41f96f6f6a404bc687879b4c",
+      "bytes": 465,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-candidate-v1-identity.json",
+      "sha256": "9b1b934ca4ab415213ab0e61df80357f6d29ca8664943c644dc38f1f3a6afc6d",
+      "bytes": 22049,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-main-contact-forward-v5.png",
+      "sha256": "b379f957ccf65e81980b5f55ca703814cf7318248bbfb32b046a102729a311e0",
+      "bytes": 323895,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "main-return-v1.json",
+      "sha256": "4d1ec9b1d956b385f36578b2888e0bc777befc2ddc4e00599971e8c9810bcd03",
+      "bytes": 249,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-capture-v1-open.json",
+      "sha256": "3d433423f7c2e086548e9eb95740fd1bcce9d70ed940762b15c4f55e546f6f3d",
+      "bytes": 305,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-final-negative-mask-finish.json",
+      "sha256": "6d275294556c7a0e4dc85dbc40e817f092f8d950b916f8ab012d2c34e24c91c0",
+      "bytes": 31484,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-capture-v1-pid.json",
+      "sha256": "b78649813950857062efd42aa170cf2f3ff60ab791c4178e4ef1b225a1e2827e",
+      "bytes": 77,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "QuitOwnS10FinalMainV1.cs",
+      "sha256": "035db041b1d6dcc74a462417f45f0d0b0a623eef9bee93153542a1ee06c01e5f",
+      "bytes": 1383,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-main-forward-resume.json",
+      "sha256": "a816156fa0edf94d421dd37d61b4718ca2087fdcc145724783f2fd8a03002687",
+      "bytes": 870,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-log-v1.json",
+      "sha256": "fc8aa75f8364d336b8507c0a70efb852c797f32348a98d661c9f5d02d3fc59a1",
+      "bytes": 215,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "MainS10ControlV1.cs",
+      "sha256": "012139613dce6b5e58e478dff5083174c561342e43ddf803d05cfcba55c0af1b",
+      "bytes": 2047,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-main-s10-gates-v1.py",
+      "sha256": "df74a7228cce9b6082b22cf7054b166b5592ee48a153a58d96ec07eb94c14ef5",
+      "bytes": 1672,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-quit.json",
+      "sha256": "8634c56284130d65ba93fe5266ca9c050f3f32e3d9fc88a0bf1b0feb31f0dd06",
+      "bytes": 798,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-capture-tests-v1-preflight.json",
+      "sha256": "b1bb2a46c6ed79a4b56500ae1e6e009027b3870cefc475fbe330e8493b3b7891",
+      "bytes": 250,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "native-main-contact-volume-off-v5.png",
+      "sha256": "49c3f9a0f4ce9309a7610ad2719924d8cba8e99aa45a70fb067bf237a6765a38",
+      "bytes": 293232,
+      "allocatedBytes": 524288
+    },
+    {
+      "path": "closed-main-s10-capture-tests-v1-batch.json",
+      "sha256": "ab14feefd1ccc514a187a1827bba2ca83e66314ba89910a3d43cda538f6c17be",
+      "bytes": 10788,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-capture-tests-v1-start.json",
+      "sha256": "2234a5b4aa07ff773692f4e7b1b539dc0ab674919bc9575c67abdc4011d5946d",
+      "bytes": 915,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-full-reconciliation.json",
+      "sha256": "721d65730a11f09964bd1e51e568ebaacfdab6df409b558f1953ee6b4786e52f",
+      "bytes": 552,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-tests-v1-preflight.json",
+      "sha256": "02b7327a2ff1715942e32e99828a7b145a5b6f84bb037fa2c0db95c5cb9efbf2",
+      "bytes": 260,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-tests-v1-start.json",
+      "sha256": "3e6084b123e2e17e4e7bc4087cea6cf270f1ff8234bdf7a1c17876077b48d775",
+      "bytes": 924,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-negative-sun-start.json",
+      "sha256": "bef84480307dff65c2428c167d9e5bb873657a777d4e68f98832da3292b56c93",
+      "bytes": 1312,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-full-v1-preflight.json",
+      "sha256": "b816667aad48827db5072c5c7161be1d8921de5d6a61b7411a58c6c1bef7d557",
+      "bytes": 233,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-forward-on-batch2.json",
+      "sha256": "4d303c19911d887a5718cf55191bc221125e081915f781d9f090001b930b963e",
+      "bytes": 1350,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-source-request.json",
+      "sha256": "d093293a468d59d2e174545ab9c13d4d9999e9c850093b5514a6a0d91b85cd27",
+      "bytes": 537,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-full-v1-start.json",
+      "sha256": "6310efabc477a9fa821ab02bed85387f814ffd68181e26ca42e2d64651c19a45",
+      "bytes": 877,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-offline-contact-dxc-v1.py",
+      "sha256": "7b81de92c9e94156c36f12ac751d0eba5e18350ae25133dc4329a5c932626bc2",
+      "bytes": 1392,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-full-v1-reconciliation.json",
+      "sha256": "c59c0410766bdc2fa759fb9efe83a0fe2e04b90e7dca050bd45d841036f76250",
+      "bytes": 4086,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "contact-dxc-v1.json",
+      "sha256": "7713b024945f3e150cd36f12930de915acb4bfa0f290830abd8a0869a87d8ff0",
+      "bytes": 52,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "HistoricalS10SourceCaptureV1.cs",
+      "sha256": "72dcadb4aa4e097276e80d0ebc56b6abfd179d8ffb16fb57fc5f7dfa7bfdd885",
+      "bytes": 1613,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-contact-frames-v5-volume-off-batch2.json",
+      "sha256": "fcda65922e0282483a737dfa645c50232d48ac190162e08cc40b6e98b678284f",
+      "bytes": 1347,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-v5-finish.json",
+      "sha256": "559f0c4ae4ed3654a751cdd68585456ad5157e888a05557f5f739efdd74ff0eb",
+      "bytes": 52979,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-capture-v1-batch.json",
+      "sha256": "3b2505b4b1634c9f43330e1a8df38f7e12f707d705a7a2e682e8af6728427960",
+      "bytes": 6048,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-negative-mask-start.json",
+      "sha256": "e637e3095ce74972b086f447ca30b862fb7697a33afb91bafc8e7df31a28c30b",
+      "bytes": 1300,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-main-s10-final-capture-v1-batch.json",
+      "sha256": "4a1424f9630507e0390179073ddf14b6c2faa525b4aa8dbaa28a9ef7ba31574b",
+      "bytes": 1978,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "S10ContactNegativeMaskDriverV1.cs",
+      "sha256": "05d439a16ab8fba1d2c07efa92efe5a485e36f8551061de962942829ea4953b4",
+      "bytes": 459,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-source-start.json",
+      "sha256": "96328cec6ee0583c93a0699c5ba09257f4e64d17198a8504bfd37813f22d0bea",
+      "bytes": 991,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-contact-negative-mask-finish.json",
+      "sha256": "58e82ba585d5a0a75ff67126dc0c1bb4fb125db9b0bf2280a5fee9d841fd10dc",
+      "bytes": 53039,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-post-negative-source-request.json",
+      "sha256": "138c042a83d66d62e1fe1c93894959c7cc97ce4607b9d62024fec1d14fb6cac3",
+      "bytes": 536,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "HistoricalS10SourceCaptureDriverV1.cs",
+      "sha256": "d52560ad35f2b78303d7b29ddba3029b90de5932ee7cd8d4b58dd6206b9fbc38",
+      "bytes": 450,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-source-restored.json",
+      "sha256": "7e40024a0e4c2dbc4d7f80abd51160290b493a13fafed7e145d89171d98a9897",
+      "bytes": 1171,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-post-negative-source-start.json",
+      "sha256": "e31f5f6c0eda82881ae2b4acd3d19d2031c7a1b877c1eb55c533c04280c86933",
+      "bytes": 975,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "MainS10SourceCaptureDriverV1.cs",
+      "sha256": "872fbd83c143b5602585ee7ec5c86ee4d745f238a248d6d53d622b5ba3e5df6f",
+      "bytes": 432,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-post-negative-source-restored.json",
+      "sha256": "51938582c4e873669bf392c0ff03007b9e600461a7d2a8656349bb9f678e19ec",
+      "bytes": 1155,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-negative-and-recovery-log.txt",
+      "sha256": "48542dd6149e770bbcb00cafd595649e988770131652297d015878b6b4d11d51",
+      "bytes": 10470,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-state.json",
+      "sha256": "c5aef9605f4e6c694fa4521181f31733e1f43868055b492fd1c23aeeee1d4b5f",
+      "bytes": 1242,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-post-negative-stop.json",
+      "sha256": "b062eca382d25fb1a2986b364a93a470ae909ec37fc1ef64d8295861aee61753",
+      "bytes": 336,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-frozen-v1-identity.json",
+      "sha256": "6e04fb803c22c8a8e89f7458b2ac73eea79b2c1755742eacfd6e37e2f170c42a",
+      "bytes": 831,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-healthy-delta.log",
+      "sha256": "8d50faf309cb102dc43f0f10ac4e925f211ef81e51f01da07e874e152f8dede8",
+      "bytes": 9609,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-v1-open.json",
+      "sha256": "cdf27f0986b9d659fbe057efc0916b4984f8b0ccdba88f4f3afcefe9350eb3ee",
+      "bytes": 305,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-v1-pid.json",
+      "sha256": "60873940433e2565524ef244d94021aa61f22375c750820582444d0d5ae85dc4",
+      "bytes": 77,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-v1-ready.json",
+      "sha256": "aa9ffcc87592ef4e236edd28082e359ce458f1288d65f4ec7a82046df8cdcdc2",
+      "bytes": 326,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-metadata-v1-open.json",
+      "sha256": "af41f9fa3678f54b9840ee379fdc25c08c37f461d1128998e10c023cec3e8827",
+      "bytes": 305,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-capture-v1-preflight.json",
+      "sha256": "4226c2e089a3e585c65731ed5b422c35026b5ce8e7e6a0778dd4d72e92e40e5a",
+      "bytes": 250,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-metadata-v1-pid.json",
+      "sha256": "05f444d10514297cf4d48f2d8196db762d80e82af98f41999f5e6558ed44abdf",
+      "bytes": 77,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-capture-v1-start.json",
+      "sha256": "7abdb7b630ccc1f32048ebfefc3c09e608bf7a64b8a8321c9bf8fafa58bd1556",
+      "bytes": 929,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-metadata-v1-ready.json",
+      "sha256": "c6b90558b0e18492906fb77402ed55eca70b9d09ba01bcf1bdfd6389d04900db",
+      "bytes": 326,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-contact-v1-preflight.json",
+      "sha256": "2e2173bbbc4a3183d1580a574a8acd1334c90680b0f9a472dd71095312b6b805",
+      "bytes": 260,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-start.json",
+      "sha256": "919c47cd808cf018745c3d66e880258a60d6f267db9df78787b5fa11c8fa25a3",
+      "bytes": 1158,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-contact-v1-start.json",
+      "sha256": "0b0a8bdd4f10049891da967cb758c793ce91a8ef344e29138acfc0ac8f600598",
+      "bytes": 938,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-capture-v1-preflight.json",
+      "sha256": "3842db83526e7bcc01f09bf4592f2abcba36eab25a7487cf17efef46153d0ebb",
+      "bytes": 250,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-category-v1-preflight.json",
+      "sha256": "57d8f89badcf86f8924c6387320c17386b2859245d98e7838ab4f5b210f4795e",
+      "bytes": 246,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-capture-v1-start.json",
+      "sha256": "217b1414a042ea05944ae8ba89f99b74d2409de16576cd7207000366122b02cc",
+      "bytes": 925,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "run-historical-final-frames-v1.py",
+      "sha256": "67b53b0511d5d8ab12ddeb20d3e38e79010a341c6c4be1c31dc5f3468e1bc04c",
+      "bytes": 2462,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-category-v1-start.json",
+      "sha256": "0e5dca0adf87ebde17855d89dd68ccf369149591fb4573b56d8693a49b1b3aea",
+      "bytes": 926,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-full-v1-preflight.json",
+      "sha256": "ca3aee3ce9d15c3a641f1c7fba1d026e616a5b8228aa3d8bd9b655e6aa254da2",
+      "bytes": 233,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-contact-v1-preflight.json",
+      "sha256": "d27336b877f0acdf5d674a5834c935284ad8f9022db8248594080c66f4be532e",
+      "bytes": 260,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-full-v1-start.json",
+      "sha256": "5700bf9b9cbe9bfb2f8e73158302a2f7fe97f770726f945565d1da364d553a76",
+      "bytes": 903,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-contact-v1-start.json",
+      "sha256": "6b6151e147529f7afaef40dad3e284191c701800e6c6633ecfc9c6dd1a8a6406",
+      "bytes": 934,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-actual-missing-skips.json",
+      "sha256": "4dab5cba511776d86e7767e87c15a3cc6053cee23ff40a221c3cc8d59ebb2b7f",
+      "bytes": 50018,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-full-v1-batch.json",
+      "sha256": "a7ed7873ffe50c067509c79b2137db0c6c48e730e440166eba720525d45d8653",
+      "bytes": 12129,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-off-batch.json",
+      "sha256": "72bcba35a98c774f079136b4d25d6ec93917724ae19ff6f65e7164ff0a7d5dc1",
+      "bytes": 1352,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-actual-missing-skips.json",
+      "sha256": "f304f04dda57e9e3f8727953059872e87472fbc2087264eee3a65795fe960e76",
+      "bytes": 50022,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-sun-on.json",
+      "sha256": "04f62d3724115c341b22ba2bab6b3c26569c1d3930ee2162d3a7b48debd39b3c",
+      "bytes": 1319,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-spazon-validation.json",
+      "sha256": "d0e81b40efdbb3ff8972728239e8648daeff76602ba73d5fb718ce0371288fc1",
+      "bytes": 685,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-on-batch.json",
+      "sha256": "447e24ca53cc3350f84f67a3966f5bfc1acbd708340441464548f7648163e490",
+      "bytes": 1347,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-sun-low.json",
+      "sha256": "b32c03561ed375c08f1446a4006a354e3a9614198d7d102c078aecd1fc8ce775",
+      "bytes": 1320,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-low-batch.json",
+      "sha256": "a5104a5a318f7a0f3c480339fa881c14075aa7433bf4cacc4e679cea975ae469",
+      "bytes": 1353,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-v1-closed-log.json",
+      "sha256": "d9f3043dfd8d810a7f5dc3e6e1398ea4701e1a62c79d68e58c6961cb75ffd75c",
+      "bytes": 239,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-sun-ultra.json",
+      "sha256": "22cd4d1af10bf2e42718aa747fc87a39b4449b3620df5a807e7c5c885ab2569f",
+      "bytes": 1325,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-capture-v1-closed-log.json",
+      "sha256": "7f2040c4c52d2e07f2c6fd3dd6cf0c435326f4f53085273db7515553d5847f2d",
+      "bytes": 235,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-sun-ultra-batch.json",
+      "sha256": "5b0b2a05617b2d2cadedc5ec00e97ea3ab0eef0e3443842b69ebd0bfaea5da26",
+      "bytes": 1365,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-point-off.json",
+      "sha256": "dc786f5a200cd55876266fce216a895f28f864c63f9905b22e55b583da7605b1",
+      "bytes": 1327,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-point-off-batch.json",
+      "sha256": "a9f209ede52b751487f54314e6a2e8c57e65702d8c6d610b73119682ebf66fa6",
+      "bytes": 1366,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-final-frames-v1-control-point-on.json",
+      "sha256": "f4d7fa32ff4348376527b941c04550fcbada24cd5cc161043676e5aca9f38745",
+      "bytes": 1325,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "closed-historical-s10-final-frames-v1-point-on-batch.json",
+      "sha256": "f5a57dc5452235e88485cada0c6b8f47c42414fe06806e666a3570063adf0f85",
+      "bytes": 1361,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "main-s10-final-metadata-closed-log.json",
+      "sha256": "7b42aca91352e759c4ef34242cb4d7e2c0aff87518d948abe3a2d82a4524f4a1",
+      "bytes": 158,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/LightContext/base.txt",
+      "sha256": "1015d62264b36e5ca0f7aabb802c3b0f786097b2d07dd5bc48c4070d2ae7939a",
+      "bytes": 19891,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/LightContext/current.txt",
+      "sha256": "c9050684c40dbe558ab15dfff43d1c9f486b48efaa5997bb2a0deb6081aaa0ec",
+      "bytes": 20484,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/LightContext/fixed-s9.txt",
+      "sha256": "2e1dc5a437d7a295bd270b6be70998789884a777fcd8bac0ae9c159b98b0ed98",
+      "bytes": 19986,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/LightContext/merged.txt",
+      "sha256": "1b1c68104c4656469e47fa76d6b066cf9795b99791babe53f1c41d4b9eda6f24",
+      "bytes": 20579,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/Compute_DeferredShading/base.txt",
+      "sha256": "882fe038777864dcfea8a11e36ec954723823c4bde1bde4ccbad945cb33a83fb",
+      "bytes": 4506,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/Compute_DeferredShading/current.txt",
+      "sha256": "5a2653a62aff3c5121c6f1e03903c44bdb046228dc9bdda571bff399103913d6",
+      "bytes": 4501,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/Compute_DeferredShading/fixed-s9.txt",
+      "sha256": "cb089568ea94558524cf64a380c55eac52b7259780969422a7e3600219e5e616",
+      "bytes": 4520,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/Compute_DeferredShading/merged.txt",
+      "sha256": "008f9f18d7f89f2d27118eed5ea38680ba28d0cfd9d5b68cfcc2309be7cd54c6",
+      "bytes": 4515,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/SurfaceLighting/base.txt",
+      "sha256": "b842d771a0ea251671a94a48e3bfa65a59b7cf31330bbb0e3c96628ceb5531a7",
+      "bytes": 3828,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/SurfaceLighting/current.txt",
+      "sha256": "4324501cfdccd2ffc83d425520f9e5f26d52d6c7bb8d00f6145e3d48b5aed0d6",
+      "bytes": 4508,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/SurfaceLighting/fixed-s9.txt",
+      "sha256": "f4d656665a1b35ee38ca7b5d3ca2afb7175f59f02e01a4dfb9e65cb0966d29e9",
+      "bytes": 3842,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "carry-adaptation/SurfaceLighting/merged.txt",
+      "sha256": "1643faeceead5fee5ba2ee8ab7ca45b26b508ec74e61c4d1ad7674b642c5c00b",
+      "bytes": 4522,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v4/restore.json",
+      "sha256": "f73acd3e3285d07fe2188da964f10c485714e8b5832d350fc2c4f7be6111e55f",
+      "bytes": 84838,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v2/request-sun-off.json",
+      "sha256": "e6658164a1c764c04a29d68956019f4a752e60507684f124cb6148c7158ef31b",
+      "bytes": 838,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v2/restore.json",
+      "sha256": "ffb8769ac7530aea0a7bfa9de898fea6cacedfb0c5f67d1f1cf29d13c8e79312",
+      "bytes": 32987,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v2/frame-state/sun-off.json",
+      "sha256": "935139ea766833d8678e64079d98fbbe4ff67c62635023404d9997a1163974e3",
+      "bytes": 2817,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v2/frames/sun-off/request.json",
+      "sha256": "51e28af2568710cc15e545a7b3bf9a864df73b9381f3bbd91a877ad37e8f090b",
+      "bytes": 847,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v2/frames/sun-off/capture.json",
+      "sha256": "b9e7d072e33c59205982fa9b6d584a257d33f09cb6322e104edd1f0c6552ed12",
+      "bytes": 459,
+      "allocatedBytes": 262144
+    },
+    {
+      "path": "historical-s10-contact-frames-v3/restore.json",
+      "sha256": "780b319f91418245e6e0822e1d33800a9894edcf26a1a5689b93d7efe9b842a3",
+      "bytes": 84986,
+      "allocatedBytes": 262144
+    }
+  ],
+  "reclaimedAllocatedBytesThisPass": 71041024,
+  "earlierPass": "After prevalidating all remaining task bytes, deletion stopped when ExFAT automatically removed ._completed-raw-cleanup.json with its associated real file. This retry tolerates only that confirmed sidecar disappearance; no outside data involved. Earlier deletion bytes not included in this-pass total.",
+  "retainedNamedFiles": {
+    "MainS10FinalControlV1.cs": "248394987646a86771feae7111f23392b68027a4914a39ff3d95bce222b01ad3",
+    "S10ContactFramesV5.cs": "388bf3f11fdd7e7a5724a6c5f44605d23756d05541f7b6c26edeba68ef3b5c86",
+    "compact-closed-folders.py": "43e3380c68262e266bcad45f9f0e213af894be370f338f9d4876ccee09b7db55",
+    "historical-s10-final-candidate-identity.json": "eb86283300aee10bd41ee23ed9b8c66c279fcf9766780c453fc26b577aa9660a",
+    "historical-s10-final-candidate.patch": "24cba62e2d1f0030d91f69a1c0d2d40e31e5b0bcea6f61749a6fab4ee90f812d",
+    "historical-s10-untracked-v1.tar": "c8055e65505061a83d7af90551f1a62526fc7c32efabd5c32a097bbe61284d38",
+    "owned-launch.py": "5ab7c3dc9e15d64fb43dc2b77b69f1b07c288a428c08c7fc781b847e2007227a",
+    "run-main-s10-final-gates-v1.py": "31c9c18270b6368ddec39ce9946b29dcf5e552fe1a52c919a956f9bb1076ead5",
+    "run-s10-final-gates-v1.py": "66d090195e5f78c5606e209d2687ac21cff50e367a9cec9611c06f6d0a2fda79",
+    "separate-apv-profile-preserve.patch": "9282c4fa599142703ad6d7eba3e92699d6fd54a3bc2c6f9820f3ad6e592aa7d9"
+  },
+  "nextConsumer": "S11 replay and fixture/control adaptation; retire controls after adaptation, source carry after next snapshot construction",
+  "remainingTaskAllocatedBytes": 2883584,
+  "noUnsolicitedArchive": true
+}

@@ -1,0 +1,336 @@
+{
+  "missingUIDs": [
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.AutonomousPlayModeAutomation_FullWorkflow_DemonstratesValue]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.CompletePlayModeWorkflow_AllCommands_WorkEndToEnd]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InEditMode_HandlesGracefully]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InPlayMode_TogglesPauseState]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_IsDiscovered_ByCommandRegistry]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_DirectExecution_EntersPlayMode]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_IsDiscovered_ByCommandRegistry]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_ViaApiExec_EntersPlayMode]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatus_AllPlayModeStates_ReflectedAccurately]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatusCommand_ReflectsPlayModeState_Accurately]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_AlreadyInEditMode_HandlesGracefully]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_FromPlayMode_ExitsToEditMode]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_IsDiscovered_ByCommandRegistry]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.PlayStopCycle_ViaHttpApi_WorksEndToEnd]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Configuration_ValidSettings_PassesValidation]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.SecondDriver_DoesNotDisposeFirstDriversSampler]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_EnabledInBuilds_CanStartAndStop]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StartStop_RestoresRunInBackground]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StoppedExternallyBeforeStopServerCalled_StillRestoresRunInBackground]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyOverriddenByHotReloadPush_DoesNotClobberSavedValue]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyStarted_DoesNotStartAgain]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_DisabledInBuilds_DoesNotStart]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Token_AutoGenerated_IsSecure]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.DualServers_StartBoth_UseNonConflictingPorts]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.EditorServer_PortRange_UsesEditorRange]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_AutoPortAssignment_FindsAvailablePort]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Configuration_ValidatesSecuritySettings]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Lifecycle_CanStartAndStopMultipleTimes]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortAvailabilityCheck_HandlesPortConflicts]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortRange_UsesDifferentRangeFromEditor]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_SpecificPort_UsesRequestedPortInRange]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_StartedAt_TracksStartTime]",
+    "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineWindows64BuildTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineWindows64BuildTests.BuildPlayerWithRuntimeConfig_ValidConfiguration_BuildSucceeds]"
+  ],
+  "leaves": [
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.AutonomousPlayModeAutomation_FullWorkflow_DemonstratesValue]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.AutonomousPlayModeAutomation_FullWorkflow_DemonstratesValue",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1594\" name=\"AutonomousPlayModeAutomation_FullWorkflow_DemonstratesValue\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.AutonomousPlayModeAutomation_FullWorkflow_DemonstratesValue\" methodname=\"AutonomousPlayModeAutomation_FullWorkflow_DemonstratesValue\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"544220490\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.CompletePlayModeWorkflow_AllCommands_WorkEndToEnd]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.CompletePlayModeWorkflow_AllCommands_WorkEndToEnd",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1592\" name=\"CompletePlayModeWorkflow_AllCommands_WorkEndToEnd\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.CompletePlayModeWorkflow_AllCommands_WorkEndToEnd\" methodname=\"CompletePlayModeWorkflow_AllCommands_WorkEndToEnd\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"1714122338\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InEditMode_HandlesGracefully]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InEditMode_HandlesGracefully",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1591\" name=\"EditorPauseCommand_InEditMode_HandlesGracefully\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InEditMode_HandlesGracefully\" methodname=\"EditorPauseCommand_InEditMode_HandlesGracefully\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"2091981009\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InPlayMode_TogglesPauseState]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InPlayMode_TogglesPauseState",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1590\" name=\"EditorPauseCommand_InPlayMode_TogglesPauseState\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_InPlayMode_TogglesPauseState\" methodname=\"EditorPauseCommand_InPlayMode_TogglesPauseState\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"1382078057\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties><property name=\"_JOINTYPE\" value=\"UnityCombinatorial\" /></properties><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_IsDiscovered_ByCommandRegistry]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_IsDiscovered_ByCommandRegistry",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1589\" name=\"EditorPauseCommand_IsDiscovered_ByCommandRegistry\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPauseCommand_IsDiscovered_ByCommandRegistry\" methodname=\"EditorPauseCommand_IsDiscovered_ByCommandRegistry\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"920829945\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_DirectExecution_EntersPlayMode]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_DirectExecution_EntersPlayMode",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1582\" name=\"EditorPlayCommand_DirectExecution_EntersPlayMode\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_DirectExecution_EntersPlayMode\" methodname=\"EditorPlayCommand_DirectExecution_EntersPlayMode\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"118729487\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties><property name=\"_JOINTYPE\" value=\"UnityCombinatorial\" /></properties><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_IsDiscovered_ByCommandRegistry]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_IsDiscovered_ByCommandRegistry",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1581\" name=\"EditorPlayCommand_IsDiscovered_ByCommandRegistry\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_IsDiscovered_ByCommandRegistry\" methodname=\"EditorPlayCommand_IsDiscovered_ByCommandRegistry\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"980324583\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_ViaApiExec_EntersPlayMode]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_ViaApiExec_EntersPlayMode",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1583\" name=\"EditorPlayCommand_ViaApiExec_EntersPlayMode\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorPlayCommand_ViaApiExec_EntersPlayMode\" methodname=\"EditorPlayCommand_ViaApiExec_EntersPlayMode\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"1086614744\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatus_AllPlayModeStates_ReflectedAccurately]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatus_AllPlayModeStates_ReflectedAccurately",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1593\" name=\"EditorStatus_AllPlayModeStates_ReflectedAccurately\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatus_AllPlayModeStates_ReflectedAccurately\" methodname=\"EditorStatus_AllPlayModeStates_ReflectedAccurately\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"385672534\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatusCommand_ReflectsPlayModeState_Accurately]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatusCommand_ReflectsPlayModeState_Accurately",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1584\" name=\"EditorStatusCommand_ReflectsPlayModeState_Accurately\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStatusCommand_ReflectsPlayModeState_Accurately\" methodname=\"EditorStatusCommand_ReflectsPlayModeState_Accurately\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"2016105556\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_AlreadyInEditMode_HandlesGracefully]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_AlreadyInEditMode_HandlesGracefully",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1587\" name=\"EditorStopCommand_AlreadyInEditMode_HandlesGracefully\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_AlreadyInEditMode_HandlesGracefully\" methodname=\"EditorStopCommand_AlreadyInEditMode_HandlesGracefully\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"2092389328\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_FromPlayMode_ExitsToEditMode]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_FromPlayMode_ExitsToEditMode",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1586\" name=\"EditorStopCommand_FromPlayMode_ExitsToEditMode\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_FromPlayMode_ExitsToEditMode\" methodname=\"EditorStopCommand_FromPlayMode_ExitsToEditMode\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"174333987\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties><property name=\"_JOINTYPE\" value=\"UnityCombinatorial\" /></properties><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_IsDiscovered_ByCommandRegistry]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_IsDiscovered_ByCommandRegistry",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1585\" name=\"EditorStopCommand_IsDiscovered_ByCommandRegistry\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.EditorStopCommand_IsDiscovered_ByCommandRegistry\" methodname=\"EditorStopCommand_IsDiscovered_ByCommandRegistry\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"1573678924\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/PlayModeCommandsTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.PlayStopCycle_ViaHttpApi_WorksEndToEnd]",
+      "fullName": "Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.PlayStopCycle_ViaHttpApi_WorksEndToEnd",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1588\" name=\"PlayStopCycle_ViaHttpApi_WorksEndToEnd\" fullname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests.PlayStopCycle_ViaHttpApi_WorksEndToEnd\" methodname=\"PlayStopCycle_ViaHttpApi_WorksEndToEnd\" classname=\"Unity.Pipeline.Tests.Editor.PlayModeCommandsTests\" runstate=\"Runnable\" seed=\"1061979317\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Drives EditorApplication.isPlaying (flips the live editor into play mode). Run deliberately from the Test Runner window; PlayModeReloadGuard disables the domain reload that previously aborted the run.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Configuration_ValidSettings_PassesValidation]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Configuration_ValidSettings_PassesValidation",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1750\" name=\"Configuration_ValidSettings_PassesValidation\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Configuration_ValidSettings_PassesValidation\" methodname=\"Configuration_ValidSettings_PassesValidation\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"150270492\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.SecondDriver_DoesNotDisposeFirstDriversSampler]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.SecondDriver_DoesNotDisposeFirstDriversSampler",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1754\" name=\"SecondDriver_DoesNotDisposeFirstDriversSampler\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.SecondDriver_DoesNotDisposeFirstDriversSampler\" methodname=\"SecondDriver_DoesNotDisposeFirstDriversSampler\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"627845279\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_EnabledInBuilds_CanStartAndStop]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_EnabledInBuilds_CanStartAndStop",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1746\" name=\"ServerLifecycle_EnabledInBuilds_CanStartAndStop\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_EnabledInBuilds_CanStartAndStop\" methodname=\"ServerLifecycle_EnabledInBuilds_CanStartAndStop\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"773973827\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StartStop_RestoresRunInBackground]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StartStop_RestoresRunInBackground",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1747\" name=\"ServerLifecycle_StartStop_RestoresRunInBackground\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StartStop_RestoresRunInBackground\" methodname=\"ServerLifecycle_StartStop_RestoresRunInBackground\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"1882058726\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StoppedExternallyBeforeStopServerCalled_StillRestoresRunInBackground]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StoppedExternallyBeforeStopServerCalled_StillRestoresRunInBackground",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1748\" name=\"ServerLifecycle_StoppedExternallyBeforeStopServerCalled_StillRestoresRunInBackground\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerLifecycle_StoppedExternallyBeforeStopServerCalled_StillRestoresRunInBackground\" methodname=\"ServerLifecycle_StoppedExternallyBeforeStopServerCalled_StillRestoresRunInBackground\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"406173642\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyOverriddenByHotReloadPush_DoesNotClobberSavedValue]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyOverriddenByHotReloadPush_DoesNotClobberSavedValue",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1749\" name=\"ServerStart_AlreadyOverriddenByHotReloadPush_DoesNotClobberSavedValue\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyOverriddenByHotReloadPush_DoesNotClobberSavedValue\" methodname=\"ServerStart_AlreadyOverriddenByHotReloadPush_DoesNotClobberSavedValue\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"509526485\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyStarted_DoesNotStartAgain]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyStarted_DoesNotStartAgain",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1753\" name=\"ServerStart_AlreadyStarted_DoesNotStartAgain\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_AlreadyStarted_DoesNotStartAgain\" methodname=\"ServerStart_AlreadyStarted_DoesNotStartAgain\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"899207771\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_DisabledInBuilds_DoesNotStart]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_DisabledInBuilds_DoesNotStart",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1752\" name=\"ServerStart_DisabledInBuilds_DoesNotStart\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.ServerStart_DisabledInBuilds_DoesNotStart\" methodname=\"ServerStart_DisabledInBuilds_DoesNotStart\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"171228060\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineDriverTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Token_AutoGenerated_IsSecure]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Token_AutoGenerated_IsSecure",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1751\" name=\"Token_AutoGenerated_IsSecure\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests.Token_AutoGenerated_IsSecure\" methodname=\"Token_AutoGenerated_IsSecure\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineDriverTests\" runstate=\"Runnable\" seed=\"2018241759\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts a real RuntimePipelineDriver/server and mutates global state; would destabilize the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.DualServers_StartBoth_UseNonConflictingPorts]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.DualServers_StartBoth_UseNonConflictingPorts",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1758\" name=\"DualServers_StartBoth_UseNonConflictingPorts\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.DualServers_StartBoth_UseNonConflictingPorts\" methodname=\"DualServers_StartBoth_UseNonConflictingPorts\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"155217223\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.EditorServer_PortRange_UsesEditorRange]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.EditorServer_PortRange_UsesEditorRange",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1757\" name=\"EditorServer_PortRange_UsesEditorRange\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.EditorServer_PortRange_UsesEditorRange\" methodname=\"EditorServer_PortRange_UsesEditorRange\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"1471852034\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_AutoPortAssignment_FindsAvailablePort]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_AutoPortAssignment_FindsAvailablePort",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1759\" name=\"RuntimeServer_AutoPortAssignment_FindsAvailablePort\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_AutoPortAssignment_FindsAvailablePort\" methodname=\"RuntimeServer_AutoPortAssignment_FindsAvailablePort\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"878570306\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Configuration_ValidatesSecuritySettings]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Configuration_ValidatesSecuritySettings",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1762\" name=\"RuntimeServer_Configuration_ValidatesSecuritySettings\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Configuration_ValidatesSecuritySettings\" methodname=\"RuntimeServer_Configuration_ValidatesSecuritySettings\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"695554213\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Lifecycle_CanStartAndStopMultipleTimes]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Lifecycle_CanStartAndStopMultipleTimes",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1761\" name=\"RuntimeServer_Lifecycle_CanStartAndStopMultipleTimes\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_Lifecycle_CanStartAndStopMultipleTimes\" methodname=\"RuntimeServer_Lifecycle_CanStartAndStopMultipleTimes\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"1538043721\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortAvailabilityCheck_HandlesPortConflicts]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortAvailabilityCheck_HandlesPortConflicts",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1764\" name=\"RuntimeServer_PortAvailabilityCheck_HandlesPortConflicts\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortAvailabilityCheck_HandlesPortConflicts\" methodname=\"RuntimeServer_PortAvailabilityCheck_HandlesPortConflicts\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"660624356\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortRange_UsesDifferentRangeFromEditor]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortRange_UsesDifferentRangeFromEditor",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1756\" name=\"RuntimeServer_PortRange_UsesDifferentRangeFromEditor\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_PortRange_UsesDifferentRangeFromEditor\" methodname=\"RuntimeServer_PortRange_UsesDifferentRangeFromEditor\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"767560587\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_SpecificPort_UsesRequestedPortInRange]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_SpecificPort_UsesRequestedPortInRange",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1760\" name=\"RuntimeServer_SpecificPort_UsesRequestedPortInRange\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_SpecificPort_UsesRequestedPortInRange\" methodname=\"RuntimeServer_SpecificPort_UsesRequestedPortInRange\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"1977861447\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineServerTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_StartedAt_TracksStartTime]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_StartedAt_TracksStartTime",
+      "result": "Skipped:Explicit(Parent)",
+      "xml": "<test-case id=\"1763\" name=\"RuntimeServer_StartedAt_TracksStartTime\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests.RuntimeServer_StartedAt_TracksStartTime\" methodname=\"RuntimeServer_StartedAt_TracksStartTime\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineServerTests\" runstate=\"Runnable\" seed=\"1301199241\" result=\"Skipped\" label=\"Explicit\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Starts real servers in the production port ranges; would disturb the live server. Run manually from the Test Runner window.]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    },
+    {
+      "uniqueName": "Unity.Pipeline.Tests.Editor.dll/Unity/Pipeline/Tests/Editor/RuntimePipelineWindows64BuildTests/[Unity.Pipeline.Tests.Editor][Unity.Pipeline.Tests.Editor.RuntimePipelineWindows64BuildTests.BuildPlayerWithRuntimeConfig_ValidConfiguration_BuildSucceeds]",
+      "fullName": "Unity.Pipeline.Tests.Editor.RuntimePipelineWindows64BuildTests.BuildPlayerWithRuntimeConfig_ValidConfiguration_BuildSucceeds",
+      "result": "Skipped(Parent)",
+      "xml": "<test-case id=\"1730\" name=\"BuildPlayerWithRuntimeConfig_ValidConfiguration_BuildSucceeds\" fullname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineWindows64BuildTests.BuildPlayerWithRuntimeConfig_ValidConfiguration_BuildSucceeds\" methodname=\"BuildPlayerWithRuntimeConfig_ValidConfiguration_BuildSucceeds\" classname=\"Unity.Pipeline.Tests.Editor.RuntimePipelineBuildTestBase\" runstate=\"Runnable\" seed=\"1816706817\" result=\"Skipped\" site=\"Parent\" start-time=\"0001-01-01 00:00:00Z\" end-time=\"0001-01-01 00:00:00Z\" duration=\"0.000000\" asserts=\"0\"><properties /><reason><message><![CDATA[Test cannot be run as it requires support for the following platforms to be installed: StandaloneWindows64]]></message></reason></test-case>",
+      "started": true,
+      "finished": true,
+      "checkpointed": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "owner": "S10 validation",
+  "taskRoot": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10",
+  "budgetMiB": 128,
+  "exceededProtection": "historical normal capture stopped at129.25MiB; confirmed122taskAppleDouble files reclaimed30.5MiB before resuming",
+  "nextConsumers": {
+    "historical-s10-final-candidate.patch": "S11-S17 accepted predecessor replay",
+    "historical-s10-untracked-v1.tar": "S11-S17 accepted predecessor replay",
+    "historical-s10-final-candidate-identity.json": "S11-S17 replay identity",
+    "namedControls": [
+      "MainS10FinalControlV1.cs",
+      "S10ContactFramesV5.cs",
+      "compact-closed-folders.py",
+      "owned-launch.py",
+      "run-main-s10-final-gates-v1.py",
+      "run-s10-final-gates-v1.py",
+      "separate-apv-profile-preserve.patch"
+    ]
+  },
+  "cleanup": "Permanent delivery retains original/final run and raw-framework/callback XML, 33 real skipped objects, compact capture/restore statistics, key images, analysis and source hashes. Full raw capture and scratch archives removed here after checksum-verified summary extraction. Task raw archives retired after this independent review; only explicitly named predecessor source carries remain until S11-S17 replay consumes them.",
+  "remainingTaskAllocatedBytes": 2883584
+}

@@ -1,0 +1,9 @@
+{
+  "CHANGELOG.md": "ac2baeb7681bf3888c1ebf8dbef6e3e37222a3e6cca5cc9b6e40ffd245dd3fb0",
+  "Docs/FeatureStatus.md": "a1107efbf8bdb392231aa83a1b549ed3c52079db76767034febd88ee1d4dee06",
+  "Docs/Verification-Playbook-0.5.0.md": "2a4bc28affd9330ecf2b42ef7b7b4ee85311e44b94f85eec08d848221feb1767",
+  "PLAN.md": "899739964845d8ea8e18c0aa10a2bf83b80d87e5920850cacaee0d95af07af7f",
+  "Runtime/RenderPipeline/Pass/Debug/RenderCapturePass.cs": "bb82b455eb4bcfb8d26078e9e765c16c5c4d067baa25666ce7fe546fab8b4285",
+  "Runtime/RenderPipeline/Validation/RenderCaptureService.cs": "df3c8e7173177326ddac4744812e14c2d19d4765df632ee6691c4668b3e35011",
+  "Tests/Editor/ContactShadowAllocationTests.cs": "e8be2a34d533d2fcf7e80769099dee7dce48ca35aefae2927c78b01ed14ddfef"
+}

@@ -1,0 +1,122 @@
+{
+  "sun-on": {
+    "producerFrame": 178,
+    "sunValues": [
+      0,
+      255
+    ],
+    "sunOccludedPixels": 179,
+    "maskOccludedPixels": 0,
+    "maskValues": [
+      0
+    ],
+    "strengthValues": [
+      0
+    ],
+    "formatsAndProducerAndRetirementValid": true
+  },
+  "sun-low": {
+    "producerFrame": 282,
+    "sunValues": [
+      0,
+      255
+    ],
+    "sunOccludedPixels": 173,
+    "maskOccludedPixels": 0,
+    "maskValues": [
+      0
+    ],
+    "strengthValues": [
+      0
+    ],
+    "formatsAndProducerAndRetirementValid": true
+  },
+  "sun-ultra": {
+    "producerFrame": 418,
+    "sunValues": [
+      0,
+      255
+    ],
+    "sunOccludedPixels": 192,
+    "maskOccludedPixels": 0,
+    "maskValues": [
+      0
+    ],
+    "strengthValues": [
+      0
+    ],
+    "formatsAndProducerAndRetirementValid": true
+  },
+  "point-on": {
+    "producerFrame": 706,
+    "sunValues": [
+      255
+    ],
+    "sunOccludedPixels": 0,
+    "maskOccludedPixels": 246,
+    "maskValues": [
+      0,
+      4278190081
+    ],
+    "strengthValues": [
+      0,
+      255
+    ],
+    "formatsAndProducerAndRetirementValid": true
+  },
+  "forward-on": {
+    "producerFrame": 978,
+    "sunValues": [
+      255
+    ],
+    "sunOccludedPixels": 0,
+    "maskOccludedPixels": 247,
+    "maskValues": [
+      0,
+      4278190081
+    ],
+    "strengthValues": [
+      0,
+      255
+    ],
+    "formatsAndProducerAndRetirementValid": true
+  },
+  "thirty-on": {
+    "producerFrame": 1258,
+    "sunValues": [
+      255
+    ],
+    "sunOccludedPixels": 0,
+    "maskOccludedPixels": 182,
+    "maskValues": [
+      0,
+      4278190081,
+      4278190083,
+      4278190091,
+      4278190092,
+      4278190095,
+      4278190096,
+      4278190110,
+      4278190111,
+      4278190112,
+      4278190128,
+      4278190141,
+      4278190142,
+      4278190143,
+      4278190144,
+      4278190174,
+      4278190206,
+      4278190208,
+      4278190239,
+      4278190271,
+      4278190272,
+      4278190335,
+      4278190591
+    ],
+    "strengthValues": [
+      0,
+      255
+    ],
+    "formatsAndProducerAndRetirementValid": true
+  }
+}

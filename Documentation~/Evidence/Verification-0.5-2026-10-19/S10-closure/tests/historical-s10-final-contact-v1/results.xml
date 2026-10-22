@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="2" result="Passed" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.0358052">
+  <test-suite type="TestSuite" id="3010" name="MeshBatch" fullname="MeshBatch" runstate="Runnable" testcasecount="1689" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.035805" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="2994" name="Unity.RenderPipelines.Infinity.Tests.dll" fullname="/Volumes/DataDisk/Projects/Unity/InfinityExample/Library/ScriptAssemblies/Unity.RenderPipelines.Infinity.Tests.dll" runstate="Runnable" testcasecount="483" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.024098" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="17678" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="2995" name="InfinityTech" fullname="InfinityTech" runstate="Runnable" testcasecount="483" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.021637" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="2996" name="Rendering" fullname="InfinityTech.Rendering" runstate="Runnable" testcasecount="483" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.019277" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="3004" name="Pipeline" fullname="InfinityTech.Rendering.Pipeline" runstate="Runnable" testcasecount="406" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.015656" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="3005" name="Tests" fullname="InfinityTech.Rendering.Pipeline.Tests" runstate="Runnable" testcasecount="406" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.013781" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="2545" name="ContactShadowAllocationTests" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.009701" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="2547" name="Bits_AreCappedAt24" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_AreCappedAt24" methodname="Bits_AreCappedAt24" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="Runnable" seed="858738333" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.001767" asserts="0">
+                  <properties>
+                    <property name="Category" value="Unverified_0_5" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="2546" name="Bits_GoToContactLights_LargestScreenCoverageFirst" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_GoToContactLights_LargestScreenCoverageFirst" methodname="Bits_GoToContactLights_LargestScreenCoverageFirst" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="Runnable" seed="1981328603" result="Passed" start-time="2026-10-22 01:47:49Z" end-time="2026-10-22 01:47:49Z" duration="0.000495" asserts="0">
+                  <properties>
+                    <property name="Category" value="Unverified_0_5" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/gushihao/Library/Application Support/Infinity/MeshBatch/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

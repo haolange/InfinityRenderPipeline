@@ -1,0 +1,25 @@
+{
+  "members": [
+    {
+      "path": "Depth-33-12041.bin",
+      "sha256": "8cd1594d2519d8665af005850981bcc09313d16a6d7fd4e24570350922a6dcf3",
+      "bytes": 230400
+    },
+    {
+      "path": "DisplayColor-33-12041.bin",
+      "sha256": "8c853c2e638c7f3ebbbfbf25d125c27558c7d7d0342b5683f8cd179b4c38b2f8",
+      "bytes": 460800
+    },
+    {
+      "path": "Lighting-33-12041.bin",
+      "sha256": "770279b4c34a3709ccfec49e012d544538e3a0d41e1da79a5d1d89869775bcf7",
+      "bytes": 460800
+    },
+    {
+      "path": "SceneColor-33-12041.bin",
+      "sha256": "770279b4c34a3709ccfec49e012d544538e3a0d41e1da79a5d1d89869775bcf7",
+      "bytes": 460800
+    }
+  ],
+  "sha256": "4dbe8d6d250999778a5091819b21f0149f25f03bc18c00bc8582ee53d46694cd"
+}

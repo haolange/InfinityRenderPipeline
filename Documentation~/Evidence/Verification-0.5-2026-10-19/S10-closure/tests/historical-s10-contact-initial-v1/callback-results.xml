@@ -1,0 +1,24 @@
+<test-run result="Failed(Child)" total="2" passed="0" failed="2" skipped="0" inconclusive="0" source="Actual TestFinished callbacks; framework XML is results.xml">
+  <test-suite type="TestSuite" name="InfinityRP callback evidence">
+    <test-case id="callback-1" name="Bits_AreCappedAt24" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_AreCappedAt24" methodname="Bits_AreCappedAt24" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="NotRunnable" seed="1474039423" result="Failed" label="Invalid" start-time="2026-10-22 00:51:51Z" end-time="2026-10-22 00:51:51Z" duration="0.000459" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified-0.5" />
+        <property name="_SKIPREASON" value="Category name must not contain ',', '!', '+' or '-'" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ContactShadowAllocationTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_AreCappedAt24]" />
+      </properties>
+      <failure>
+        <message><![CDATA[Category name must not contain ',', '!', '+' or '-']]></message>
+      </failure>
+    </test-case>
+    <test-case id="callback-2" name="Bits_GoToContactLights_LargestScreenCoverageFirst" fullname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_GoToContactLights_LargestScreenCoverageFirst" methodname="Bits_GoToContactLights_LargestScreenCoverageFirst" classname="InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests" runstate="NotRunnable" seed="1886490839" result="Failed" label="Invalid" start-time="2026-10-22 00:51:51Z" end-time="2026-10-22 00:51:51Z" duration="0.000002" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified-0.5" />
+        <property name="_SKIPREASON" value="Category name must not contain ',', '!', '+' or '-'" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ContactShadowAllocationTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ContactShadowAllocationTests.Bits_GoToContactLights_LargestScreenCoverageFirst]" />
+      </properties>
+      <failure>
+        <message><![CDATA[Category name must not contain ',', '!', '+' or '-']]></message>
+      </failure>
+    </test-case>
+  </test-suite>
+</test-run>

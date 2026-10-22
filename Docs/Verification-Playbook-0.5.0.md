@@ -344,7 +344,9 @@ still fails. Retain the original failed check; these missing historical images a
 4. Turn Contact Shadows off on every light: `ComputeContactShadow` is no longer recorded.
 5. A forward-route material (InfinityLit with the Forward surface route): it now receives contact shadows like the
    deferred floor.
-6. More than 24 contact lights: the 24 largest on screen keep contact shadows.
+6. More than 24 contact lights: the 24 largest on screen keep contact shadows. Confirm 30 actual collected records with varied tile areas; independently sort by area and record-index tie-break, then verify 24 unique bits and six unassigned records.
+7. Capture the explicit normal-frame `ContactShadowSun` and `ContactShadowMask` outputs only when their producer records. Verify R8 visibility and raw R32 UInt bits against the actual producer frame, depth, matrices, light records and effective per-camera Volume settings. A feature label or dispatch alone does not prove pixel contents. Capture must not enable contact shadows or substitute an absent resource. Explicitly request each output with no producer: keep the Volume enabled but turn off all light contact flags for the sun output, then keep a light flag enabled and disable the Volume for the mask output. Expect the corresponding QueryTexture failure and zero outstanding readbacks; restore, then verify healthy normal frames.
+8. Contact noise uses global `Time.frameCount`; matching camera Halton phases does not match this noise. Use each actual frame for the screen-depth ray oracle, and select a visible receiver ROI. A thick occluder can intersect a real ray but remain undetectable in the single visible depth layer with a short trace; use a thin occluder for the positive control and retain the thick one as a limitation control. Do not claim that a per-frame Low/Ultra pixel difference proves quality improvement.
 
 ## S11 — cookies and IES
 

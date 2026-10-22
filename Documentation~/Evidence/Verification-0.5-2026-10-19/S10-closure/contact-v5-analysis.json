@@ -1,0 +1,410 @@
+{
+  "cases": {
+    "sun-off": {
+      "frame": 42,
+      "normalFrames": 33,
+      "feature": "Off",
+      "contactLights": 0,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.1260986328125,
+      "lightingMax": 0.1318359375
+    },
+    "sun-on": {
+      "frame": 178,
+      "normalFrames": 33,
+      "feature": "Records",
+      "contactLights": 0,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.00742340087890625,
+      "lightingMax": 0.1318359375
+    },
+    "sun-low": {
+      "frame": 282,
+      "normalFrames": 33,
+      "feature": "Records",
+      "contactLights": 0,
+      "effective": {
+        "numSteps": 6,
+        "sunNumSteps": 8,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.00742340087890625,
+      "lightingMax": 0.1318359375
+    },
+    "sun-ultra": {
+      "frame": 418,
+      "normalFrames": 33,
+      "feature": "Records",
+      "contactLights": 0,
+      "effective": {
+        "numSteps": 16,
+        "sunNumSteps": 32,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.00742340087890625,
+      "lightingMax": 0.1318359375
+    },
+    "point-off": {
+      "frame": 554,
+      "normalFrames": 33,
+      "feature": "Off",
+      "contactLights": 0,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.00893402099609375,
+      "lightingMax": 0.333251953125
+    },
+    "point-on": {
+      "frame": 706,
+      "normalFrames": 33,
+      "feature": "Records",
+      "contactLights": 1,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.00739288330078125,
+      "lightingMax": 0.333251953125
+    },
+    "forward-off": {
+      "frame": 850,
+      "normalFrames": 33,
+      "feature": "Off",
+      "contactLights": 0,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 1.0,
+        "forwardShaderPassEnabled": true,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Forward, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.00885772705078125,
+      "lightingMax": 0.330810546875
+    },
+    "forward-on": {
+      "frame": 978,
+      "normalFrames": 33,
+      "feature": "Records",
+      "contactLights": 1,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 1.0,
+        "forwardShaderPassEnabled": true,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Forward, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.007335662841796875,
+      "lightingMax": 0.330810546875
+    },
+    "volume-off": {
+      "frame": 1122,
+      "normalFrames": 33,
+      "feature": "Off",
+      "contactLights": 0,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.1260986328125,
+      "lightingMax": 0.1318359375
+    },
+    "thirty-on": {
+      "frame": 1258,
+      "normalFrames": 33,
+      "feature": "Records",
+      "contactLights": 24,
+      "effective": {
+        "numSteps": 8,
+        "sunNumSteps": 16,
+        "maxDistance": 0.30000001192092896,
+        "thickness": 0.05000000074505806,
+        "intensity": 1.0,
+        "fadeDistance": 50.0
+      },
+      "receiver": {
+        "active": true,
+        "authoredRoute": 0.0,
+        "forwardShaderPassEnabled": false,
+        "draws": [
+          {
+            "eligibility": "Depth, GBuffer, Motion"
+          }
+        ]
+      },
+      "lightingMin": 0.00739288330078125,
+      "lightingMax": 0.1644287109375
+    }
+  },
+  "comparisons": {
+    "sun-off vs sun-on": {
+      "depthChanged": 0,
+      "lightingChanged": 537,
+      "darkenedPixels": 179,
+      "brightenedPixels": 0,
+      "maxAbs": 0.11981201171875
+    },
+    "sun-off vs sun-low": {
+      "depthChanged": 0,
+      "lightingChanged": 519,
+      "darkenedPixels": 173,
+      "brightenedPixels": 0,
+      "maxAbs": 0.11981201171875
+    },
+    "sun-off vs sun-ultra": {
+      "depthChanged": 0,
+      "lightingChanged": 576,
+      "darkenedPixels": 192,
+      "brightenedPixels": 0,
+      "maxAbs": 0.11981201171875
+    },
+    "point-off vs point-on": {
+      "depthChanged": 0,
+      "lightingChanged": 738,
+      "darkenedPixels": 246,
+      "brightenedPixels": 0,
+      "maxAbs": 0.08582305908203125
+    },
+    "forward-off vs forward-on": {
+      "depthChanged": 0,
+      "lightingChanged": 741,
+      "darkenedPixels": 247,
+      "brightenedPixels": 0,
+      "maxAbs": 0.08507156372070312
+    },
+    "sun-off vs volume-off": {
+      "depthChanged": 0,
+      "lightingChanged": 0,
+      "darkenedPixels": 0,
+      "brightenedPixels": 0,
+      "maxAbs": 0.0
+    }
+  },
+  "allocation": {
+    "areas": [
+      25,
+      9,
+      25,
+      64,
+      16,
+      49,
+      30,
+      64,
+      12,
+      36,
+      20,
+      25,
+      49,
+      9,
+      25,
+      30,
+      6,
+      36,
+      56,
+      12,
+      25,
+      6,
+      49,
+      64,
+      72,
+      72,
+      36,
+      6,
+      25,
+      9
+    ],
+    "bits": [
+      14,
+      -1,
+      15,
+      2,
+      21,
+      6,
+      12,
+      3,
+      22,
+      9,
+      20,
+      16,
+      7,
+      -1,
+      17,
+      13,
+      -1,
+      10,
+      5,
+      23,
+      18,
+      -1,
+      8,
+      4,
+      0,
+      1,
+      11,
+      -1,
+      19,
+      -1
+    ],
+    "expected": [
+      14,
+      -1,
+      15,
+      2,
+      21,
+      6,
+      12,
+      3,
+      22,
+      9,
+      20,
+      16,
+      7,
+      -1,
+      17,
+      13,
+      -1,
+      10,
+      5,
+      23,
+      18,
+      -1,
+      8,
+      4,
+      0,
+      1,
+      11,
+      -1,
+      19,
+      -1
+    ],
+    "distinctAreas": 12,
+    "thirtyCollected": true,
+    "largest24IndependentOracle": true
+  },
+  "scope": "Preliminary normal Lighting controls; global RNG frames differ, no Low/Ultra quality equality claim and no mask contents inferred from beauty."
+}

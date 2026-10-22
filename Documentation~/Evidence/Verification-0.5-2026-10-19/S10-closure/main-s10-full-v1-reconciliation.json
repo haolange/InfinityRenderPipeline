@@ -1,0 +1,28 @@
+{
+  "counts": {
+    "Passed": 1676,
+    "Skipped": 53,
+    "Failed": 13
+  },
+  "total": 1742,
+  "allStableUIDVerdictsEqualS9": true,
+  "raw": 1709,
+  "missingNativeSkippedReconciledActualXML": 33,
+  "fullSuitePass": false,
+  "failedUIDs": [
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/DefaultVolumeOutputTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.DefaultVolumeOutputTests.DefaultProfileFactory_RequiredComponentsHaveOverrides]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/MaterialUpgraderTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.MaterialUpgraderTests.Standard_ConvertsToInfinityLit]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/PipelineSeamTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.PipelineSeamTests.GeometryPassFiles_DoNotReferenceRetiredSeamTypes]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ReflectionProbeTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ReflectionProbeTests.ProbeRecord_MatchesHlslFieldForField]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderGraphViewerTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderGraphViewerTests.Snapshot_ListsPassesLifetimesAndCulling]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"ShadowCaster\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"SRPDefaultUnlit\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"Meta\",True)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"TerrainAdd\",False)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/ActualShaderCallback_PreservesNativeAndSystemPasses/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesNativeAndSystemPasses(\"SystemLUT\",False)]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_PreservesRealUnlitPassIdentity]",
+    "Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/ShaderStrippingTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader]"
+  ],
+  "callbackSHA256": "ba71aa79b754403f4cddbf831a5bdafd6fdb6100eb29544a0f6309de279d7019"
+}

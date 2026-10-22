@@ -1,0 +1,128 @@
+<test-run result="Passed" total="13" passed="13" failed="0" skipped="0" inconclusive="0" source="Actual TestFinished callbacks; framework XML is results.xml">
+  <test-suite type="TestSuite" name="InfinityRP callback evidence">
+    <test-case id="callback-1" name="AbandonedCaptureCommands_DoNotLatchQueuedOwnership" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.AbandonedCaptureCommands_DoNotLatchQueuedOwnership" methodname="AbandonedCaptureCommands_DoNotLatchQueuedOwnership" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="857419618" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.026538" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.AbandonedCaptureCommands_DoNotLatchQueuedOwnership]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-2" name="CancelBeforeCamera_PersistsTerminalStateAndImmutableRequest" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CancelBeforeCamera_PersistsTerminalStateAndImmutableRequest" methodname="CancelBeforeCamera_PersistsTerminalStateAndImmutableRequest" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="331766303" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.014685" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CancelBeforeCamera_PersistsTerminalStateAndImmutableRequest]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-3" name="CancelBeforeRecording_CanReleaseReservedStaging" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CancelBeforeRecording_CanReleaseReservedStaging" methodname="CancelBeforeRecording_CanReleaseReservedStaging" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="279070381" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.000344" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CancelBeforeRecording_CanReleaseReservedStaging]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-4" name="CancelQueuedReadback_RetainsStagingUntilSubmissionAndCallback" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CancelQueuedReadback_RetainsStagingUntilSubmissionAndCallback" methodname="CancelQueuedReadback_RetainsStagingUntilSubmissionAndCallback" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="871177867" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.037519" asserts="0">
+      <properties>
+        <property name="_JOINTYPE" value="UnityCombinatorial" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CancelQueuedReadback_RetainsStagingUntilSubmissionAndCallback]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-5" name="CaptureReceipt_PreservesActualSourceDescriptor" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CaptureReceipt_PreservesActualSourceDescriptor" methodname="CaptureReceipt_PreservesActualSourceDescriptor" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="475556720" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.000958" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.CaptureReceipt_PreservesActualSourceDescriptor]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-6" name="EvidenceWriteFailure_StopsSessionWithoutMaskingOriginalFailure" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.EvidenceWriteFailure_StopsSessionWithoutMaskingOriginalFailure" methodname="EvidenceWriteFailure_StopsSessionWithoutMaskingOriginalFailure" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="1916441823" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.024209" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.EvidenceWriteFailure_StopsSessionWithoutMaskingOriginalFailure]" />
+      </properties>
+      <output><![CDATA[UnauthorizedAccessException: Access to the path '/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/historical-s10-final-capture-v1/capture-test-f6ccc4838f7f4209b1d1cd87fb7f05c4/capture.json' is denied.
+System.IO.FileStream..ctor (System.String path, System.IO.FileMode mode, System.IO.FileAccess access, System.IO.FileShare share, System.Int32 bufferSize, System.Boolean anonymous, System.IO.FileOptions options) (at <0e19fd8bd8e94908bba2ee4f803bc6a7>:0)
+System.IO.FileStream..ctor (System.String path, System.IO.FileMode mode, System.IO.FileAccess access, System.IO.FileShare share, System.Int32 bufferSize, System.IO.FileOptions options) (at <0e19fd8bd8e94908bba2ee4f803bc6a7>:0)
+(wrapper remoting-invoke-with-check) System.IO.FileStream..ctor(string,System.IO.FileMode,System.IO.FileAccess,System.IO.FileShare,int,System.IO.FileOptions)
+System.IO.StreamWriter..ctor (System.String path, System.Boolean append, System.Text.Encoding encoding, System.Int32 bufferSize) (at <0e19fd8bd8e94908bba2ee4f803bc6a7>:0)
+System.IO.StreamWriter..ctor (System.String path) (at <0e19fd8bd8e94908bba2ee4f803bc6a7>:0)
+(wrapper remoting-invoke-with-check) System.IO.StreamWriter..ctor(string)
+System.IO.File.WriteAllText (System.String path, System.String contents) (at <0e19fd8bd8e94908bba2ee4f803bc6a7>:0)
+InfinityTech.Rendering.Pipeline.RenderCaptureSession.Save (System.Boolean requirePersistence) (at ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Validation/RenderCaptureSession.cs:440)
+UnityEngine.Debug:LogException(Exception)
+InfinityTech.Rendering.Pipeline.RenderCaptureSession:Save(Boolean) (at ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Validation/RenderCaptureSession.cs:452)
+InfinityTech.Rendering.Pipeline.RenderCaptureSession:Fail(String) (at ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/Validation/RenderCaptureSession.cs:409)
+InfinityTech.Rendering.Pipeline.Tests.<>c__DisplayClass4_0:<EvidenceWriteFailure_StopsSessionWithoutMaskingOriginalFailure>b__0() (at ./Packages/com.infinity.render-pipeline/Tests/Editor/RenderCaptureTests.cs:86)
+NUnit.Framework.Constraints.VoidInvocationDescriptor:Invoke()
+NUnit.Framework.Constraints.ExceptionInterceptor:Intercept(Object)
+NUnit.Framework.Constraints.ThrowsNothingConstraint:ApplyTo(Object)
+NUnit.Framework.Assert:That(Object, IResolveConstraint, String, Object[])
+NUnit.Framework.Assert:That(TestDelegate, IResolveConstraint, String, Object[])
+NUnit.Framework.Assert:DoesNotThrow(TestDelegate, String, Object[])
+NUnit.Framework.Assert:DoesNotThrow(TestDelegate)
+InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests:EvidenceWriteFailure_StopsSessionWithoutMaskingOriginalFailure() (at ./Packages/com.infinity.render-pipeline/Tests/Editor/RenderCaptureTests.cs:86)
+System.Reflection.MethodBase:Invoke(Object, Object[])
+NUnit.Framework.Internal.Reflect:InvokeMethod(MethodInfo, Object, Object[])
+NUnit.Framework.Internal.MethodWrapper:Invoke(Object, Object[])
+NUnit.Framework.Internal.Commands.TestMethodCommand:RunNonAsyncTestMethod(ITestExecutionContext)
+NUnit.Framework.Internal.Commands.TestMethodCommand:RunTestMethod(ITestExecutionContext)
+NUnit.Framework.Internal.Commands.TestMethodCommand:Execute(ITestExecutionContext)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions() (at /Users/bokken/build/output/unity/unity/Editor/Mono/EditorApplication.cs:413)
+
+]]></output>
+    </test-case>
+    <test-case id="callback-7" name="MissingCamera_TimesOutWithoutResources" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.MissingCamera_TimesOutWithoutResources" methodname="MissingCamera_TimesOutWithoutResources" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="414276489" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.031892" asserts="0">
+      <properties>
+        <property name="_JOINTYPE" value="UnityCombinatorial" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.MissingCamera_TimesOutWithoutResources]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-8" name="RawStatistics_HalfInfinityAndPackedFloatNaNAreDetected" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RawStatistics_HalfInfinityAndPackedFloatNaNAreDetected" methodname="RawStatistics_HalfInfinityAndPackedFloatNaNAreDetected" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="1004769411" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.000339" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RawStatistics_HalfInfinityAndPackedFloatNaNAreDetected]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-9" name="RawStatistics_KeepNonFiniteOutsideRoiAsFailure" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RawStatistics_KeepNonFiniteOutsideRoiAsFailure" methodname="RawStatistics_KeepNonFiniteOutsideRoiAsFailure" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="685819693" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.000157" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RawStatistics_KeepNonFiniteOutsideRoiAsFailure]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-10" name="RawStatistics_RejectTruncatedReadback" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RawStatistics_RejectTruncatedReadback" methodname="RawStatistics_RejectTruncatedReadback" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="927265166" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.000184" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RawStatistics_RejectTruncatedReadback]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-11" name="RecordedStaging_RetiresOnlyAfterSubmitAndReadbackTerminal" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RecordedStaging_RetiresOnlyAfterSubmitAndReadbackTerminal" methodname="RecordedStaging_RetiresOnlyAfterSubmitAndReadbackTerminal" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="955222768" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.000176" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.RecordedStaging_RetiresOnlyAfterSubmitAndReadbackTerminal]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-12" name="UInt32Statistics_PreserveIntegerRangeAndRoi" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.UInt32Statistics_PreserveIntegerRangeAndRoi" methodname="UInt32Statistics_PreserveIntegerRangeAndRoi" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="609167553" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.000350" asserts="0">
+      <properties>
+        <property name="Category" value="Unverified_0_5" />
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.UInt32Statistics_PreserveIntegerRangeAndRoi]" />
+      </properties>
+    </test-case>
+    <test-case id="callback-13" name="UncertainQueue_HoldsStagingUntilSubmittedReadbackDrain" fullname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.UncertainQueue_HoldsStagingUntilSubmittedReadbackDrain" methodname="UncertainQueue_HoldsStagingUntilSubmittedReadbackDrain" classname="InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests" runstate="Runnable" seed="1145318576" result="Passed" start-time="2026-10-22 01:47:48Z" end-time="2026-10-22 01:47:48Z" duration="0.012242" asserts="0">
+      <properties>
+        <property name="retryIteration" value="0" />
+        <property name="repeatIteration" value="0" />
+        <property name="InfinityRP.UniqueName" value="Unity.RenderPipelines.Infinity.Tests.dll/InfinityTech/Rendering/Pipeline/Tests/RenderCaptureTests/[Unity.RenderPipelines.Infinity.Tests][InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.UncertainQueue_HoldsStagingUntilSubmittedReadbackDrain]" />
+      </properties>
+    </test-case>
+  </test-suite>
+</test-run>

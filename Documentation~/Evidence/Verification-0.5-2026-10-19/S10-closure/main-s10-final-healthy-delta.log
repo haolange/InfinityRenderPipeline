@@ -1,0 +1,99 @@
+Thread 0x752c823000 may have been prematurely finalized
+Unloading 6 Unused Serialized files (Serialized files now loaded: 0)
+Loaded scene 'Temp/__Backupscenes/0.backup'
+	Deserialize:            1.548 ms
+	Integration:            25.128 ms
+	Integration of assets:  0.001 ms
+	Thread Wait Time:       0.007 ms
+	Total Operation Time:   26.685 ms
+Unloading 53 unused Assets / (111.6 KB). Loaded Objects now: 11968.
+Memory consumption went from 413.4 MB to 413.3 MB.
+Total: 53.706625 ms (FindLiveObjects: 0.525375 ms CreateObjectMapping: 0.101958 ms MarkObjects: 52.875500 ms  DeleteObjects: 0.064958 ms)
+
+[Licensing::Client] Successfully resolved entitlement details
+[InfinityRP] Present camera=MainCamera type=Game format=B8G8R8A8_SRGB colorSpace=Linear policy=HardwareSRGB authority=TextureFormat
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace () (at /Users/bokken/build/output/unity/unity/Runtime/Export/Scripting/StackTrace.cs:23)
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+InfinityTech.Rendering.Pipeline.InfinityRenderPipeline:Render (UnityEngine.Rendering.ScriptableRenderContext,System.Collections.Generic.List`1<UnityEngine.Camera>) (at ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/InfinityRenderPipeline.cs:546)
+UnityEngine.Rendering.RenderPipeline:InternalRender (UnityEngine.Rendering.ScriptableRenderContext,System.Collections.Generic.List`1<UnityEngine.Camera>) (at /Users/bokken/build/output/unity/unity/Runtime/Export/RenderPipeline/RenderPipeline.cs:58)
+UnityEngine.Rendering.RenderPipelineManager:DoRenderLoop_Internal (UnityEngine.Rendering.RenderPipelineAsset,intptr,object,Unity.Collections.LowLevel.Unsafe.AtomicSafetyHandle) (at /Users/bokken/build/output/unity/unity/Runtime/Export/RenderPipeline/RenderPipelineManager.cs:159)
+UnityEditor.EditorGUIUtility:RenderPlayModeViewCamerasInternal (UnityEngine.RenderTexture,int,UnityEngine.Vector2,bool,bool)
+UnityEditor.PlayModeView:RenderView (UnityEngine.Vector2,bool) (at /Users/bokken/build/output/unity/unity/Editor/Mono/PlayModeView/PlayModeView.cs:249)
+UnityEditor.GameView:OnGUI () (at /Users/bokken/build/output/unity/unity/Editor/Mono/GameView/GameView.cs:1062)
+UnityEditor.HostView:InvokeOnGUI (UnityEngine.Rect) (at /Users/bokken/build/output/unity/unity/Editor/Mono/HostView.cs:522)
+UnityEditor.DockArea:DrawView (UnityEngine.Rect) (at /Users/bokken/build/output/unity/unity/Editor/Mono/GUI/DockArea.cs:411)
+UnityEditor.DockArea:OldOnGUI () (at /Users/bokken/build/output/unity/unity/Editor/Mono/GUI/DockArea.cs:402)
+UnityEngine.UIElements.IMGUIContainer:DoOnGUI (UnityEngine.Event,UnityEngine.Matrix4x4,UnityEngine.Rect,bool,UnityEngine.Rect,System.Action,bool) (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/IMGUIContainer.cs:387)
+UnityEngine.UIElements.IMGUIContainer:HandleIMGUIEvent (UnityEngine.Event,UnityEngine.Matrix4x4,UnityEngine.Rect,System.Action,bool) (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/IMGUIContainer.cs:716)
+UnityEngine.UIElements.IMGUIContainer:DoIMGUIRepaint () (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/IMGUIContainer.cs:573)
+UnityEngine.UIElements.UIR.RenderChainCommand:ExecuteNonDrawMesh (UnityEngine.UIElements.UIR.DrawParams,single,System.Exception&) (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/Renderer/UIRenderer/UIRenderers.cs:164)
+UnityEngine.UIElements.UIR.UIRenderDevice:EvaluateChain (UnityEngine.UIElements.UIR.RenderChainCommand,UnityEngine.Material,UnityEngine.Texture,UnityEngine.UIElements.UIR.ShaderInfoAllocator,System.Nullable`1<UnityEngine.Rect>,UnityEngine.Rect,single,bool,UnityEngine.UIElements.TextureSlotCount,bool,System.Exception&,UnityEngine.UIElements.BaseVisualElementPanel) (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/Renderer/UIRenderer/UIRenderDevice.cs:983)
+UnityEngine.UIElements.UIR.RenderTreeManager:RenderSingleTree (UnityEngine.UIElements.UIR.RenderTree,UnityEngine.RenderTexture,UnityEngine.RectInt,UnityEngine.Rect) (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/Renderer/UIRRenderTreeManager.cs:606)
+UnityEngine.UIElements.UIR.RenderTreeManager:RenderRootTree () (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/Renderer/UIRRenderTreeManager.cs:551)
+UnityEngine.UIElements.UIRRepaintUpdater:Render () (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/Renderer/UIRRepaintUpdater.cs:160)
+UnityEngine.UIElements.BaseVisualElementPanel:Render () (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/Panel.cs:1032)
+UnityEngine.UIElements.Panel:Render () (at /Users/bokken/build/output/unity/unity/Modules/UIElements/Core/Panel.cs:1843)
+UnityEditor.UIElements.EditorEventDispatchUtility:DoDispatch (UnityEngine.UIElements.BaseVisualElementPanel,UnityEngine.Event) (at /Users/bokken/build/output/unity/unity/Modules/UIElementsEditor/EditorEventDispatchUtility.cs:62)
+UnityEditor.UIElements.DefaultWindowBackend:ProcessEvent (UnityEngine.Event) (at /Users/bokken/build/output/unity/unity/Modules/UIElementsEditor/WindowBackends/DefaultWindowBackend.cs:114)
+UnityEditor.GUIView:ProcessEvent (UnityEngine.EntityId,intptr,bool&) (at /Users/bokken/build/output/unity/unity/Editor/Mono/GUIView.cs:70)
+
+(Filename: ./Packages/com.infinity.render-pipeline/Runtime/RenderPipeline/InfinityRenderPipeline.cs Line: 546)
+
+Curl error 35: Cert verify failed. Certificate could not be verified (either omitted or unsupported). UnityTls error code: 7
+MonoPathRemapper: Attempts to remap: 247118; Successful remaps: 11866
+Thread 0x7536dfb000 may have been prematurely finalized
+Serialized file version minimum: 22, current 23
+[LAYOUT] About to save layout /Volumes/DataDisk/Projects/Unity/InfinityExample/UserSettings/Layouts/default-6000.dwlt
+[LAYOUT] About to save layout /Users/gushihao/Library/Preferences/Unity/Editor-5.x/Layouts/current/default-6000.dwlt
+Pipeline Server stopped
+[INFO ] [relay] log Shutdown request received from client editor-11380-5al5nw
+[INFO ] [relay] log Unity client requested immediate shutdown - shutting down now, reason: Shutdown requested by client
+[INFO ] [relay] log Shutdown: Initiating graceful shutdown: Shutdown requested by client
+[INFO ] [relay] log Client disconnected - blocking and caching for recovery
+[WARN ] [relay] connection.lost clientId=null
+[WARN ] [relay] log Client disconnected - sessions will persist until auto-shutdown, reason: Client disconnected
+[INFO ] [relay] log Auto-shutdown timer started due to client disconnection
+Importing 'GUID: 0000000000000000b000000000000000 - Path: ProjectSettings/EditorBuildSettings.asset' with importer (LibraryAssetImporter)
+Imported 'GUID: 0000000000000000b000000000000000' -> (Import Result ID: 'a0d3b3b8f357ab52f39bcb93ae10c082') in 0.003 seconds [static dependencies only]. Details - ImportResultOutputID=0a89a5c5f492143e0fa186859e17ba6f DependenciesID=b417e7c7c30169d26335d65791bd0c6b StaticDependenciesID=f9f6d537f95ec5a47370b2462bc0052d 
+Importing 'GUID: 00000000000000006100000000000000 - Path: ProjectSettings/GraphicsSettings.asset' with importer (LibraryAssetImporter)
+Imported 'GUID: 00000000000000006100000000000000' -> (Import Result ID: '92910c42a3153de9dee285665f96ec8b') in 0.000 seconds [static dependencies only]. Details - ImportResultOutputID=a2dcdb8bc9503711bc0f2e2d72cfd36c DependenciesID=3826c50ea7e9f4841ecd772e20bc825d StaticDependenciesID=20b086a2325cedc10c529443d89c9094 
+Thread 0x756a143000 may have been prematurely finalized
+Asset Pipeline Refresh (id=2cf438263194b4e0ca420d1260e5d1d4): Total: 0.136 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+正在关闭 MSBuild 服务器...
+正在关闭 VB/C# 编译器服务器...
+成功关闭 VB/C# 编译器服务器。
+成功关闭 MSBuild 服务器。
+Thread 0x177073000 may have been prematurely finalized
+Thread 0x1772a3000 may have been prematurely finalized
+Thread 0x176fe7000 may have been prematurely finalized
+Thread 0x1770ff000 may have been prematurely finalized
+Thread 0x177217000 may have been prematurely finalized
+Thread 0x17732f000 may have been prematurely finalized
+Thread 0x17718b000 may have been prematurely finalized
+Thread 0x177d87000 may have been prematurely finalized
+Thread 0x177827000 may have been prematurely finalized
+Thread 0x17779b000 may have been prematurely finalized
+Thread 0x1774d3000 may have been prematurely finalized
+Thread 0x1773bb000 may have been prematurely finalized
+Thread 0x177ac7000 may have been prematurely finalized
+Thread 0x177e13000 may have been prematurely finalized
+Thread 0x177447000 may have been prematurely finalized
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+[Licensing::IpcConnector] LicenseClient-gushihao-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-gushihao channel disconnected successfully.
+Shut down UDS service system complete
+Lingering sessions upon destruction of worker manager
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+debugger-agent: Unable to listen on 50

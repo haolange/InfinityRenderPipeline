@@ -92,6 +92,7 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Normal-frame capture accepts the explicit ContactShadowSun (R8) and ContactShadowMask (R32 UInt) outputs. Captures keep integer mask bits, use the normal RenderGraph resource lifetime, and fail when a requested producer is absent; no contact feature or history setting is changed by capture.
 - Deferred MeshComponent registration now checks its active state and component registration epoch. Disabling before
   the queued registration runs cannot resurrect an inactive mesh; re-enabling with changed Static/Dynamic mobility
   cannot leave duplicate world-list membership. Captured old instance IDs still retire through the existing path.

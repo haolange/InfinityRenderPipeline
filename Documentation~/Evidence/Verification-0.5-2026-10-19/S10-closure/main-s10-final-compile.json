@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "command": "recompile",
+  "data": {
+    "status": "up_to_date",
+    "compiling": false,
+    "failed": false,
+    "compilationFailed": null,
+    "errors": [],
+    "warnings": [],
+    "summary": {
+      "errors": 0,
+      "warnings": 0
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "status": "Restored",
+  "finished": true,
+  "name": "missing-mask",
+  "error": "System.Exception: Capture terminal evidence rejected: Failed\n  at S10HistoricalNegativeMaskV1+Session.ValidateCapture () [0x000b5] in /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/S10HistoricalNegativeMaskV1.cs:47 \n  at S10HistoricalNegativeMaskV1+Session.Tick () [0x000cd] in /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S10/S10HistoricalNegativeMaskV1.cs:53 ",
+  "restoreError": null,
+  "normalFrames": 33
+}
