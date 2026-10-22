@@ -1,0 +1,159 @@
+{
+  "stage": "S13",
+  "baseMain": "c35b0191c6c05731d0b6116b972cbc9b872d5bac",
+  "original": "2d524d7fb715891e4cbe25338a7f2dfa566061e2",
+  "unity": "6000.6.0f1",
+  "platform": "macOS Metal",
+  "sources": {
+    "CHANGELOG.md": {
+      "bytes": 27087,
+      "sha256": "7a7a522cb70151d9a8b9c1f6fb9e381dc630d936b429b74462b0250fd1b39a0c"
+    },
+    "Docs/FeatureStatus.md": {
+      "bytes": 7661,
+      "sha256": "6085abd3259dd383c516cc2cb47ef79bf4c3b50074daae2eb494fa0da69b073b"
+    },
+    "Docs/Verification-Playbook-0.5.0.md": {
+      "bytes": 62561,
+      "sha256": "ce03b5fb3441480587863af4e340ffb5034fbf28b1537213324bb50121417fb2"
+    },
+    "Documentation~/reflection-probes.md": {
+      "bytes": 1517,
+      "sha256": "4b91764a06b679dfdb7ceae00aa984d64bcb381056ad62f6d082665751feb6ac"
+    },
+    "PLAN.md": {
+      "bytes": 113303,
+      "sha256": "528ff25ddc10eedffcde41e430a835c9461b379b29f8e4758db9058c4a78a787"
+    },
+    "Runtime/RenderPipeline/InfinityRenderPipeline.cs": {
+      "bytes": 72580,
+      "sha256": "d0b71c259c3c2ccedcd66cebd72b258190cbbcc17820920d1f36be3db56c1758"
+    },
+    "Runtime/RendererCore/LightPipeline/ReflectionProbeAtlas.cs": {
+      "bytes": 12319,
+      "sha256": "baabf48f157db111337318e857f09530ecd1cf7a89e63a3043bf7642559e11fe"
+    },
+    "Tests/Editor/ColorOutputGpuTests.cs": {
+      "bytes": 23106,
+      "sha256": "48c147cafa48414c01f272d2d46e216cb51309005ae3cc97fb8c3d0ee3d5d85f"
+    },
+    "Tests/Editor/ReflectionProbeTests.cs": {
+      "bytes": 8066,
+      "sha256": "08cda989ca66faa3eaa8745f55ce446187875eef1492d6f7180be64fb6dd9edf"
+    },
+    "Tests/Editor/ReflectionProbeTransactionTests.cs": {
+      "bytes": 7804,
+      "sha256": "d92f84e11e612a7def2432ed1a8a8f83298da4dee67a30382d6f2153a53b6944"
+    },
+    "Tests/Editor/ReflectionProbeTransactionTests.cs.meta": {
+      "bytes": 240,
+      "sha256": "c9064d6c66e91c6bf5c688c7366c2be988bdcf0cf2fdcf1e351ec2ec7581c609"
+    },
+    "Documentation~/Evidence/Verification-0.5-2026-10-19/S13-report.md": {
+      "bytes": 8859,
+      "sha256": "009a4f74ad6b3c69dc2e7f2aa76ac60d65ca2f87c5bc6036d76f21d05b1b9503"
+    }
+  },
+  "bundles": {
+    "receipts.json.gz": {
+      "bytes": 279587,
+      "sha256": "f6a826c7aca31435f8c9a15c38702902813b62242777979c0eff6e375aaacb08"
+    },
+    "test-results.json.gz": {
+      "bytes": 736629,
+      "sha256": "7da331ae40452572fd9e9b7c568cbbc6e0733a65296e328ed42a8dbab10c27b7"
+    },
+    "verification-control-sources.json.gz": {
+      "bytes": 26906,
+      "sha256": "04563bf1de8fe5bd2ff420c9025b80b112a95338b86b10556f2886a68b02cb89"
+    },
+    "raw-payload-manifest.json.gz": {
+      "bytes": 10858,
+      "sha256": "06f9b315a46cc3f51b1451bce66f4429533d952d529216936396bf8aa3da4b0a"
+    },
+    "probe-spatial-preview-v1.png": {
+      "bytes": 88898,
+      "sha256": "a35ca86ab92623de1e4da71afce2125ad32114c9e3d09270359c84e19ddbb289"
+    },
+    "probe-native-motion-preview-v1.png": {
+      "bytes": 14622,
+      "sha256": "3e68146bf05a92e78fecb14a1bcf5a1b2ea709e2ff9224e460783d01d2d0cb12"
+    },
+    "probe-projection-preview-v1.png": {
+      "bytes": 30835,
+      "sha256": "f666a6223f89bd91631e2953ac4560ae11ad74c0f252296f7f62588fd585806f"
+    },
+    "probe-native-frame-debugger-stable-v1.jpg": {
+      "bytes": 328694,
+      "sha256": "30eb900abdcb812d9bcf3d87fa5835fa0858f9def7b4cdaedafac3bf1fe88c5e"
+    },
+    "probe-native-frame-debugger-mip0-v1.jpg": {
+      "bytes": 384820,
+      "sha256": "3612fd8403430537e4b2d019021f64f0b71afa44374061189e90a7c590acf983"
+    },
+    "probe-native-frame-debugger-mip5-v1.jpg": {
+      "bytes": 384906,
+      "sha256": "79d8200344e0ffe61f9b50b089e51e61972861aa455fda424c2dfbc33221b5ea"
+    },
+    "sky-native-frame-debugger-mip0-v2.jpg": {
+      "bytes": 397004,
+      "sha256": "4ee70e9a7e296c13f3b032aa6465353984409d5b7154a93ec7202a193020751c"
+    },
+    "sky-native-frame-debugger-mip7-v2.jpg": {
+      "bytes": 400935,
+      "sha256": "81846e768eef64ee254033ec3e839e730eb9987be7a5697c1560de354ad24184"
+    },
+    "sky-main-preview-v1.png": {
+      "bytes": 19181,
+      "sha256": "c8247f7641c52befabe70ba1ed44b4c3e31344b9114c85729d4be8dc00411148"
+    },
+    "main-final-restored-native-v1.jpg": {
+      "bytes": 1141015,
+      "sha256": "2e3d7d8fb8a6f5c3091c5bb0823e10f891b244159ab1c58c6352c1d26786eee3"
+    },
+    "stall-diagnostic.json.gz": {
+      "bytes": 75553,
+      "sha256": "1be6c6c123647cdaa057b53aed89965d922bb9dac786473f3d94fbb2019d22eb"
+    },
+    "cleanup-receipt.json.gz": {
+      "bytes": 71858,
+      "sha256": "38dcbe038cacf935679f70ea1b479807e8e1ecb5d53a72da3a4cad9cc7d04769"
+    }
+  },
+  "receiptCount": 527,
+  "xmlCount": 44,
+  "controlSourceCount": 77,
+  "rawPayloadCount": 412,
+  "rawPayloadBytes": 311083920,
+  "acceptance": "Independent source/test/normal-frame/final delivery review accepted for Fix S13 and PR-branch push; later main Lighting difference and final HEAD gates remain open.",
+  "excludedTaskAppleDoubleCount": 14,
+  "checkpointRetention": {
+    "historical-s13-atmosphere-fixed-v1/reload-checkpoint.json": 0,
+    "historical-s13-atmosphere-original-v1/reload-checkpoint.json": 0,
+    "historical-s13-category-fixed-v1/reload-checkpoint.json": 0,
+    "historical-s13-category-original-v1/reload-checkpoint.json": 0,
+    "historical-s13-fixed-focused-v1/reload-checkpoint.json": 0,
+    "historical-s13-full-fixed-v1/reload-checkpoint.json": 33,
+    "historical-s13-full-original-v1/reload-checkpoint.json": 33,
+    "historical-s13-reflection-canonical-v1/reload-checkpoint.json": 0,
+    "historical-s13-reflection-original-v1/reload-checkpoint.json": 0,
+    "main-present-focused-v1/reload-checkpoint.json": 0,
+    "main-present-focused-v2/reload-checkpoint.json": 0,
+    "main-s13-final-focused-v1/reload-checkpoint.json": 0,
+    "main-s13-final-focused-v2/reload-checkpoint.json": 0,
+    "main-s13-full-v1/reload-checkpoint.json": 0,
+    "main-s13-full-v2/reload-checkpoint.json": 33,
+    "main-s13-parser-reflection-v1/reload-checkpoint.json": 0,
+    "main-s13-transaction-v1/reload-checkpoint.json": 0,
+    "main-s13-transaction-v2/reload-checkpoint.json": 0
+  },
+  "storage": {
+    "retiredFiles": 3098,
+    "retiredAllocated": 1088159744,
+    "keptAllocated": 40108032,
+    "keptConsumers": {
+      "history": "S14 accepted predecessor replay",
+      "sky": "Unresolved final-main Lighting difference investigation"
+    }
+  }
+}

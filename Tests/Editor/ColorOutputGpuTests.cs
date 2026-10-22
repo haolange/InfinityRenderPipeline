@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Reflection;
 using NUnit.Framework;
@@ -7,6 +8,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+using UnityEngine.TestTools;
 using InfinityTech.Rendering.PostProcess;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
@@ -240,20 +242,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
-        [TestCase(1, 1)]
-        [TestCase(17, 13)]
-        [TestCase(1919, 1079)]
-        public void ProductionPresent_GrayTransferAndBoundary(int width, int height)
+        static readonly int[] s_PresentFixtures = { 0, 1, 2 };
+
+        [UnityTest]
+        public IEnumerator ProductionPresent_GrayTransferAndBoundary([ValueSource(nameof(s_PresentFixtures))] int fixture)
         {
+            int width = fixture == 0 ? 1 : fixture == 1 ? 17 : 1919;
+            int height = fixture == 0 ? 1 : fixture == 1 ? 13 : 1079;
             Assert.IsTrue(SystemInfo.supportsAsyncGPUReadback);
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(k_Root + "Shaders/Utility/DrawFullScreen.shader");
             Assert.IsNotNull(shader);
-            var material = new Material(shader);
-            int pass = material.FindPass("Present");
-            Assert.GreaterOrEqual(pass, 0);
-            var input = new Texture2D(width, height, TextureFormat.RGBAFloat, false, true);
-            var target = new RenderTexture(width + 7, height + 7, 0, RenderTextureFormat.ARGBFloat);
-            try
+            using var owner = new PresentGpuFixture(shader, width, height);
+            Material material = owner.material;
+            Texture2D input = owner.input;
+            RenderTexture target = owner.target;
+            int pass = owner.pass;
             {
                 var pixels = new Color[width * height];
                 float[] ramp = { 0, 0.001f, 0.0031308f, 0.18f, 0.5f, 1, 4 };
@@ -275,10 +278,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         commands.SetViewport(new Rect(0, 0, width, height));
                         material.SetVector("_InfinityOutputTransfer", new Vector4(policy, 0, 100, 0));
                         commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, material, 0, pass);
-                        Graphics.ExecuteCommandBuffer(commands);
+                        owner.RecordReadback(commands);
+                        owner.Submit(commands);
                     }
-                    float[] values = Read(target, "output-" + width + "x" + height + "-" + policy,
-                        "Known linear Rec709 ramp 0/0.001/0.0031308/0.18/0.5/1/4; 1x1 uses 0.18. Padding sentinel -7. Hardware policy readback is pre-encoding linear, not backbuffer.");
+                    double deadline = EditorApplication.timeSinceStartup + 30;
+                    while (owner.pending && EditorApplication.timeSinceStartup < deadline)
+                    {
+                        EditorApplication.QueuePlayerLoopUpdate();
+                        yield return null;
+                    }
+                    Assert.IsFalse(owner.pending, "Present readback timed out; resources remain retained until its callback drains.");
+                    Assert.IsNull(owner.error, owner.error);
+                    float[] values = owner.values;
+                    Assert.IsNotNull(values);
+                    Assert.AreEqual((width + 7) * (height + 7) * 4, values.Length, "Read every RGBA pixel including padding.");
+                    for (int i = 0; i < values.Length; ++i)
+                        if (float.IsNaN(values[i]) || float.IsInfinity(values[i])) Assert.Fail("Raw Present NaN/Inf at " + i);
+                    TestContext.Progress.WriteLine($"output-{width}x{height}-{policy}: queued RGBA32F draw/readback, padding sentinel -7; hardware-policy data is pre-encoding linear, not backbuffer.");
                     for (int y = 0; y < height + 7; y++)
                         for (int x = 0; x < width + 7; x++)
                         {
@@ -295,11 +311,76 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         }
                 }
             }
-            finally
+        }
+
+        sealed class PresentGpuFixture : IDisposable
+        {
+            static readonly System.Collections.Generic.HashSet<PresentGpuFixture> s_Retained = new System.Collections.Generic.HashSet<PresentGpuFixture>();
+            public Material material;
+            public Texture2D input;
+            public RenderTexture target;
+            public readonly int pass;
+            public bool pending { get; private set; }
+            public float[] values { get; private set; }
+            public string error { get; private set; }
+            bool m_SubmissionAttempted, m_DisposeRequested, m_Released;
+
+            public PresentGpuFixture(Shader shader, int width, int height)
             {
-                target.Release(); UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(input);
-                UnityEngine.Object.DestroyImmediate(material);
+                try
+                {
+                    material = new Material(shader) { name = "Infinity Present GPU Test Material" };
+                    pass = material.FindPass("Present");
+                    Assert.GreaterOrEqual(pass, 0);
+                    input = new Texture2D(width, height, TextureFormat.RGBAFloat, false, true) { name = "Infinity Present GPU Test Input" };
+                    target = new RenderTexture(width + 7, height + 7, 0, RenderTextureFormat.ARGBFloat) { name = "Infinity Present GPU Test Target" };
+                }
+                catch { Dispose(); throw; }
+            }
+
+            public void RecordReadback(CommandBuffer commands)
+            {
+                if (pending) throw new InvalidOperationException("Present readback still pending.");
+                values = null;
+                error = null;
+                m_SubmissionAttempted = false;
+                // Record first: a recording exception has no callback and owns no in-flight work.
+                commands.RequestAsyncReadback(target, request =>
+                {
+                    try
+                    {
+                        if (request.hasError) throw new InvalidOperationException("Present GPU readback failed.");
+                        values = request.GetData<float>().ToArray();
+                    }
+                    catch (Exception exception) { error = exception.ToString(); }
+                    finally { pending = false; TryRelease(); }
+                });
+                pending = true;
+            }
+
+            public void Submit(CommandBuffer commands)
+            {
+                // An exception from Execute cannot prove that its work was not accepted.
+                m_SubmissionAttempted = true;
+                Graphics.ExecuteCommandBuffer(commands);
+            }
+
+            public void Dispose()
+            {
+                m_DisposeRequested = true;
+                if (pending && !m_SubmissionAttempted) pending = false;
+                if (pending) s_Retained.Add(this);
+                TryRelease();
+            }
+
+            void TryRelease()
+            {
+                if (!m_DisposeRequested || pending || m_Released) return;
+                m_Released = true;
+                s_Retained.Remove(this);
+                if (target != null) { target.Release(); UnityEngine.Object.DestroyImmediate(target); }
+                if (input != null) UnityEngine.Object.DestroyImmediate(input);
+                if (material != null) UnityEngine.Object.DestroyImmediate(material);
             }
         }
 

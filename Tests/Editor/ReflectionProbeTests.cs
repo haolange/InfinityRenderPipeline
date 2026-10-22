@@ -16,10 +16,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         const string ProbePath = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Lighting/ReflectionProbes.hlsl";
 
         [Test]
-        [Category("Unverified_0_5")]
         public void ProbeRecord_MatchesHlslFieldForField()
         {
             string text = File.ReadAllText(Path.GetFullPath(ProbePath));
+            text = Regex.Replace(text, @"//[^\r\n]*|/\*.*?\*/", string.Empty, RegexOptions.Singleline);
             Match body = Regex.Match(text, @"struct\s+FReflectionProbeRecord\s*\{(?<body>[^}]*)\}");
             Assert.IsTrue(body.Success, "FReflectionProbeRecord not found in " + ProbePath);
             var hlsl = new List<(string type, string name)>();
@@ -38,7 +38,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Priority_HigherImportanceFirst_ThenSmallerVolume()
         {
             var probes = new List<(int importance, float volume, string name)>
@@ -53,7 +52,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         static Cubemap CreateCube() => new Cubemap(16, TextureFormat.RGBAHalf, false) { hideFlags = HideFlags.HideAndDontSave };
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Atlas_FiltersOnce_RefiltersOnChange_RollsBackOnFailure()
         {
             var atlas = new ReflectionProbeAtlas();
@@ -98,7 +96,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Atlas_RealtimeProbe_FiltersOncePerFrameAcrossCameras()
         {
             var atlas = new ReflectionProbeAtlas();
@@ -125,7 +122,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Atlas_EvictsLeastRecentlyUsed_NeverThisFrame()
         {
             var atlas = new ReflectionProbeAtlas();
@@ -163,7 +159,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Atlas_DisabledOrReconfigured()
         {
             var atlas = new ReflectionProbeAtlas();

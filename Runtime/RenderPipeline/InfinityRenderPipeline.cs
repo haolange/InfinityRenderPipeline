@@ -437,7 +437,8 @@ namespace InfinityTech.Rendering.Pipeline
                                 {
                                     camera.TryGetCullingParameters(out ScriptableCullingParameters cullingParameters);
                                     cullingParameters.shadowDistance = Mathf.Max(0.0f, pipelineAsset.shadowDistance);
-                                    cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting | CullingOptions.DisablePerObjectCulling;
+                                    cullingParameters.cullingOptions = CullingOptions.ShadowCasters | CullingOptions.NeedsLighting |
+                                        CullingOptions.NeedsReflectionProbes | CullingOptions.DisablePerObjectCulling;
                                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
                                     m_MeshWorld.BeginCamera(camera);
@@ -675,7 +676,10 @@ namespace InfinityTech.Rendering.Pipeline
                                 // A queue failure may follow an accepted write but precede OnQueued.
                                 // Keep its pending state so frame completion invalidates uncertain contents.
                                 if (!m_RGBuilder.HasQueueSubmissionFailure)
+                                {
                                     m_LightCookieAtlas.DiscardUnproducedPending();
+                                    m_ReflectionProbeAtlas.DiscardUnproducedPending();
+                                }
                                 if (firstCameraException == null)
                                 {
                                     firstCameraException = exception;

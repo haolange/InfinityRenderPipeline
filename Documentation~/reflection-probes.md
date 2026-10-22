@@ -7,11 +7,11 @@ clustered light list and blends them per pixel in Deferred and Forward shading:
   probes front to back until their weights reach 1; the remainder comes from the atmosphere sky.
 - **Influence**: the probe box (with **Blend Distance** as a fade band) or, with *Infinity Additional Reflection Probe
   Data* → Influence = Sphere, a sphere of **Sphere Radius** (0 = the largest half extent of the box).
-- **Box Projection** corrects the reflection against the probe box (sphere probes project on the sphere).
+- **Box Projection** corrects the reflection against the probe box (sphere influence uses an axis-aligned cube of the sphere radius for projection).
 - Probes are axis aligned; rotation is not supported.
 
 Probe cubes are GGX-filtered into one atlas whose face size and slot count are on the RP Asset (**Reflection Probe
-Resolution**, **Max Reflection Probes**; 0 disables probes). A baked or custom cube is filtered once when it changes; a
+Resolution**, **Max Reflection Probes**; 0 disables probes). A baked or custom cube is filtered once when its contents or sampling format changes; a
 realtime probe is filtered every frame it is visible. When more probes are visible than the atlas has slots, the lowest
 priority ones are skipped.
 

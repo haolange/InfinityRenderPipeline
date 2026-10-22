@@ -389,10 +389,10 @@ still fails. Retain the original failed check; these missing historical images a
 
 ## S13 — reflection probes
 
-1. Compile; run `ReflectionProbeTests`, `AtmosphereCacheTests`.
-2. Sky IBL is unchanged: with no probe in the scene, glossy and rough spheres look as before (the sky prefilter moved
+1. Compile; run `ReflectionProbeTests`, `ReflectionProbeTransactionTests`, `AtmosphereCacheTests`. Full-suite Present GPU tests use asynchronous draw-ordered readback: fixture0/1/2 retain the original1×1/17×13/1919×1079 sizes and all five transfer policies; verify all three run and their named GPU resources and retained owner set return to zero. Historical Category labels use the valid `Unverified_0_5` spelling so NUnit executes the test bodies. The GPU record parser strips HLSL comments before checking every field count/order/type and stride; comment prose with semicolons is not a declaration.
+2. Before normal captures, disable Frame Debugger and verify `EditorApplication.isPaused == false`; disabling the debugger alone can leave Play paused. Wait for the replacement pipeline to own its asset before starting a capture; a cancelled/undrained session is not acceptance. Confirm the actual Game camera collects a visible baked/custom probe with `NeedsReflectionProbes`; a configured asset or probe object alone is not collection evidence. Sky IBL is unchanged: with no probe in the scene, glossy and rough spheres look as before (the sky prefilter moved
    to `Compute_CubeFilter`; Frame Debugger `ComputeAtmosphericLUT` dispatches `FilterArrayToArray` once per mip).
-3. Add a Reflection Probe (Baked) around an indoor room and bake: glossy surfaces inside show the room instead of the
+3. Add a Reflection Probe (Baked) around an indoor room; mark the intended room renderers Reflection Probe Static, then bake: glossy surfaces inside show the room instead of the
    sky; Frame Debugger shows `ComputeReflectionProbes` for one frame (and again after a re-bake), then
    `ComputeProbeTileMask` every frame.
 4. Blend Distance 1 m: walking out of the probe, the reflection fades to the sky over 1 m. Box Projection on: a mirror
@@ -403,7 +403,9 @@ still fails. Retain the original failed check; these missing historical images a
 7. A Realtime probe (Every Frame): a moving object appears in the reflection; `ComputeReflectionProbes` runs every
    frame once, also with two cameras.
 8. A Forward-route material inside the probe reflects the same as a deferred one.
-9. RP Asset Max Reflection Probes = 0: probes disappear, only the sky remains; `ComputeReflectionProbes` is gone.
+9. Reimport a task-owned cubemap from Linear to sRGB while preserving GUID and identity. Its sampling format can change without updateCount or image hash changing; the first normal frame must filter the new contents, then stable frames must reuse it.
+10. RP Asset Max Reflection Probes = 0: probes disappear, only the sky remains; `ComputeReflectionProbes` is gone.
+11. Commit a red custom probe, change its source to green, then fail camera A after filter recording but before queue acceptance. Camera B in the same frame must record `ComputeReflectionProbes` and its normal Lighting capture must be green. Preserve the intended A failure and drain all readbacks. Also verify accepted production deduplicates across cameras, a later unqueued update cannot revive an overwritten version, and uncertain queue acceptance invalidates contents at frame completion.
 
 ## S14 — SSGI on the SSR core
 

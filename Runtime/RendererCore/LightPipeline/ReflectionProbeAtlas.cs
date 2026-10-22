@@ -47,14 +47,37 @@ namespace InfinityTech.Rendering.LightPipeline
     /// <summary>
     /// GGX-prefiltered reflection probe cubes: one persistent Texture2DArray (6 slices per probe, CubemapFaceDirection
     /// layout, mip m = roughness m / (mipCount - 1)) with fixed slots. A baked or custom cube is filtered when it enters
-    /// a slot or its Texture.updateCount changes; a realtime probe's render texture is filtered every frame it is
-    /// visible (once per frame across cameras). Same transaction as the cookie atlas: filtering is pending until its
+    /// a slot or its contents, sampling format or Texture.updateCount changes. A realtime probe is filtered every frame
+    /// it is visible (once per frame across cameras). Same transaction as the cookie atlas: filtering is pending until its
     /// pass is queued and the frame is submitted; a failed frame invalidates what it wrote. Slots of probes not used
     /// this frame are reused least-recently-used.
     /// </summary>
     internal sealed class ReflectionProbeAtlas : IDisposable
     {
         public static readonly int AtlasID = Shader.PropertyToID("_ReflectionProbeAtlasTexture");
+
+        readonly struct SourceState : IEquatable<SourceState>
+        {
+            readonly Hash128 imageHash;
+            readonly GraphicsFormat format;
+            readonly int width, height, mipCount;
+
+            public SourceState(Texture texture)
+            {
+                imageHash = default;
+#if UNITY_EDITOR
+                // Reimport can preserve both texture identity and updateCount.
+                if (texture != null) imageHash = texture.imageContentsHash;
+#endif
+                format = texture != null ? texture.graphicsFormat : GraphicsFormat.None;
+                width = texture != null ? texture.width : 0;
+                height = texture != null ? texture.height : 0;
+                mipCount = texture != null ? texture.mipmapCount : 0;
+            }
+
+            public bool Equals(SourceState other) => imageHash == other.imageHash && format == other.format
+                && width == other.width && height == other.height && mipCount == other.mipCount;
+        }
 
         struct Entry
         {
@@ -65,6 +88,8 @@ namespace InfinityTech.Rendering.LightPipeline
             public bool pending;
             public bool produced;
             public uint pendingUpdateCount;
+            public SourceState source;
+            public SourceState pendingSource;
             public int pendingFrame;
         }
 
@@ -141,14 +166,16 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             entry.lastUsedFrame = frame;
+            var sourceState = new SourceState(source);
             bool current = entry.pending
-                ? entry.pendingFrame == frame && entry.pendingUpdateCount == updateCount
-                : !realtime && entry.valid && entry.updateCount == updateCount;
+                ? entry.pendingFrame == frame && entry.pendingUpdateCount == updateCount && entry.pendingSource.Equals(sourceState)
+                : !realtime && entry.valid && entry.updateCount == updateCount && entry.source.Equals(sourceState);
             if (!current)
             {
                 entry.pending = true;
                 entry.produced = false;
                 entry.pendingUpdateCount = updateCount;
+                entry.pendingSource = sourceState;
                 entry.pendingFrame = frame;
                 if (source != null) m_Uploads.Add(new FProbeCubeUpload { key = key, source = source, slot = entry.slot });
             }
@@ -190,9 +217,32 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 if (m_Entries.TryGetValue(keys[i], out Entry entry) && entry.pending)
                 {
+                    // Queue acceptance overwrites the physical slot; a later discarded update
+                    // cannot make its previously committed contents reusable again.
+                    entry.valid = false;
                     entry.produced = true;
                     m_Entries[keys[i]] = entry;
                 }
+            }
+        }
+
+        // Recording consumes uploads before queue acceptance. Return unproduced reservations
+        // after a camera fails so the next camera can filter the same version this frame.
+        public void DiscardUnproducedPending()
+        {
+            m_Scratch.Clear();
+            m_Scratch.AddRange(m_Entries.Keys);
+            foreach (FProbeCubeKey key in m_Scratch)
+            {
+                Entry entry = m_Entries[key];
+                if (!entry.pending || entry.produced) continue;
+                entry.pending = false;
+                m_Entries[key] = entry;
+            }
+            for (int i = m_Uploads.Count - 1; i >= 0; --i)
+            {
+                if (!m_Entries.TryGetValue(m_Uploads[i].key, out Entry entry) || !entry.pending)
+                    m_Uploads.RemoveAt(i);
             }
         }
 
@@ -206,7 +256,11 @@ namespace InfinityTech.Rendering.LightPipeline
                 Entry entry = m_Entries[key];
                 if (!entry.pending) continue;
                 entry.valid = entry.produced;
-                if (entry.produced) entry.updateCount = entry.pendingUpdateCount;
+                if (entry.produced)
+                {
+                    entry.updateCount = entry.pendingUpdateCount;
+                    entry.source = entry.pendingSource;
+                }
                 entry.pending = false;
                 entry.produced = false;
                 m_Entries[key] = entry;
