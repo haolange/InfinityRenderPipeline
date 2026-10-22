@@ -92,6 +92,7 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- SSGI verification now distinguishes final post-TAA display evidence from raw GI/debug signals. Production-kernel regression coverage checks reset samples, configured temporal accumulation, premultiplied confidence, invalid history and spatial normalization without requiring an unrequested first-frame prefilter. No production filtering algorithm is changed.
 - Camera culling requests reflection probes explicitly. Overwriting Unity's native culling options without `NeedsReflectionProbes` returned an empty visible-probe list, so the configured atlas and reflection consumers never received scene probes.
 - Present GPU contract tests queue readback behind the tested draw and yield Editor updates instead of blocking Metal submission. The same three dimensions, five output policies, finite values, coverage/padding and transfer equations remain asserted; timeout retains resources until its callback drains.
 - Reflection probe atlas versions include full Editor image hashes and sampling format/dimensions/mips; reimport may preserve identity and updateCount while changing the filtered result.

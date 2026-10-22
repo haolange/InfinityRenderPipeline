@@ -9,7 +9,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         static T Create<T>() where T : ScriptableObject => ScriptableObject.CreateInstance<T>();
 
         [Test]
-        [Category("Unverified_0_5")]
         public void EveryTable_HasOnePresetPerLevel()
         {
             Assert.AreEqual(QualityPresets.PresetCount, QualityPresets.GTAO.Length);
@@ -22,7 +21,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Presets_StayInsideVolumeParameterRanges()
         {
             var ao = Create<ScreenSpaceAmbientOcclusion>();
@@ -59,7 +57,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Custom_ReadsVolume_PresetReadsTable_ArtisticAlwaysFromVolume()
         {
             var ao = Create<ScreenSpaceAmbientOcclusion>();
@@ -84,7 +81,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void DefaultLevel_IsCustom_SoExistingProfilesKeepTheirValues()
         {
             var fog = Create<VolumetricFog>();
@@ -99,7 +95,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void SSRPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable()
         {
             var ssr = Create<ScreenSpaceReflection>();
@@ -141,7 +136,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void SSGIPresets_StayInsideVolumeParameterRanges_AndResolveMatchesTable()
         {
             var ssgi = Create<ScreenSpaceIndirectDiffuse>();
@@ -183,7 +177,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1920, 1080, true, 960, 540, 120, 68)]
         [TestCase(17, 19, true, 9, 10, 2, 2)]
         [TestCase(1, 1, true, 1, 1, 1, 1)]
-        [Category("Unverified_0_5")]
         public void ScreenSpaceTraceAndTileSizes(int width, int height, bool half, int traceX, int traceY, int tilesX, int tilesY)
         {
             Unity.Mathematics.int2 trace = ScreenSpaceTraceUtility.TraceSize(new Unity.Mathematics.int2(width, height), half);

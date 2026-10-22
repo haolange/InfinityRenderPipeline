@@ -410,7 +410,9 @@ still fails. Retain the original failed check; these missing historical images a
 ## S14 — SSGI on the SSR core
 
 1. Compile; run `QualityPresetTests`, `StochasticSSGINumericTests` (GPU) and `StochasticSSRNumericTests` (SSR now uses
-   the shared `ScreenSpaceTraceTiles.hlsl`; its results must not change). The 0.4.0 SSGI kernels are gone from
+   the shared `ScreenSpaceTraceTiles.hlsl`; its results must not change). Run `SSGITemporalResponseGpuTests` for
+   current-sample reset, premultiplied RGBA, valid EMA, invalid history and spatial normalization. These deterministic
+   kernel controls do not replace the normal-frame visual gate. The 0.4.0 SSGI kernels are gone from
    `ScreenSpaceNumericContract_ProductionKernels`.
 2. Screen Space Indirect Diffuse Volume: removed parameters `NumRays`, `SpatialRadius`, `SpatialSample`,
    `BilateralSample`, `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight` (their values are
@@ -420,8 +422,14 @@ still fails. Retain the original failed check; these missing historical images a
 3. A room with a bright red wall and a white floor, SSGI enabled: the floor near the wall picks up red bounce light;
    Debug View **SSGI** shows it. Looking away from the wall (wall off screen) the bounce fades back to the baked / probe
    ambient instead of turning black.
-4. Orbit slowly: no crawling noise after ~16 frames; disocclusions settle within a few frames. Report ghosting behind
-   moving objects.
+4. Orbit slowly in normal rendering with Debug View None: after ~16 warmup frames there must be no persistent
+   visible crawling noise, and newly revealed regions must visually recover within a few frames. Report ghosting
+   behind moving objects. Low-amplitude numerical residuals may last longer; this is not a zero-stochastic-noise
+   requirement. Capture final `DisplayColor`, actual matrices and Depth
+   for moving-occluder and settled-reference sequences. Inspect both visible recovery and remaining numeric residuals;
+   a noisy reference is not a noise-free truth. Raw SSGI Debug View and pre-TAA `SceneColor` are separate intermediate
+   signals and cannot establish a final-display failure by themselves. `nativeDisplays` records attachment descriptors,
+   not native framebuffer pixels. Drain all readbacks and restore camera/Volume state before changing fixtures.
 5. Frame Debugger: `SSGI_Classify`, `SSGI_Trace` (two indirect dispatches), `SSGI_Resolve`, `SSGI_Temporal`,
    `SSGI_Spatial`, then `CopyHistorySSGI` copies two textures. Quality Low → Ultra trades noise for cost.
 

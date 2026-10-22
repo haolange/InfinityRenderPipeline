@@ -1,0 +1,197 @@
+{
+  "baseMain": "64456f1db292f81ec2170bff1e2942f0f3625ad1",
+  "originalStage": "4c2e6485ce852bba9675f96ccd0c5d624e2672be",
+  "sourceWhitelist": [
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 27448,
+      "sha256": "48c49fb5db2c847f03ad627684c643736a075e2941f9eca516c3459026e8806b"
+    },
+    {
+      "path": "Docs/FeatureStatus.md",
+      "bytes": 8227,
+      "sha256": "6d54518d0865335d8f80d3477c7c014a12b60196723cbf73d6447b38887764d8"
+    },
+    {
+      "path": "Docs/Verification-Playbook-0.5.0.md",
+      "bytes": 63524,
+      "sha256": "25630138319fc6b6b2e350591044970b61fc84828240b189d70bb3b4974548c0"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 114338,
+      "sha256": "842c48fb7ed8e1fdf4f4143f313d0f9c976771871ac685d722fb3c727cadb1f2"
+    },
+    {
+      "path": "Tests/Editor/QualityPresetTests.cs",
+      "bytes": 9633,
+      "sha256": "67d25d4a96f6ea3059bf2e3cff8d3e3560511f1c0739ee6a7fa868c8da08742e"
+    },
+    {
+      "path": "Tests/Editor/StochasticSSGINumericTests.cs",
+      "bytes": 16581,
+      "sha256": "0b967e050882ee440adf6b72d98c2299ded67bedd73d157fc7d661cbcc291f77"
+    },
+    {
+      "path": "Tests/Editor/StochasticSSRNumericTests.cs",
+      "bytes": 18499,
+      "sha256": "18ffacc1e7f27bac10be2583aa8144e3a98327cacc167c865ac726e22ced71b6"
+    },
+    {
+      "path": "Tests/Editor/SSGITemporalResponseGpuTests.cs",
+      "bytes": 25370,
+      "sha256": "30bcbbc3f94118a946ea154cefae77f2282f330ecaed4db4fc3feb3fa91add56"
+    },
+    {
+      "path": "Tests/Editor/SSGITemporalResponseGpuTests.cs.meta",
+      "bytes": 240,
+      "sha256": "ddfeaa77725eeb0276f585f0192b895d005ee3eb6d84a7b5f88a3cf0426fafbc"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-report.md",
+      "bytes": 10014,
+      "sha256": "33b6c8a4269750f68847cdc6fbd99f37c12120a57647c45d661a621e2d465179"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/S14FinalGIControlV1.cs",
+      "bytes": 7996,
+      "sha256": "fb18a74e30dca8eab3445d9ea2c0574f0994557c890adecaf4dc50afbb2edcee"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/S14FinalMotionV1.cs",
+      "bytes": 5073,
+      "sha256": "2be25d0bce64a3b10a60729bf895d3eb82b845242958735158f93f94dfc5d62f"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/S14FinalReferenceV1.cs",
+      "bytes": 5040,
+      "sha256": "d60232f31f7f1ba4cbdedb0ddc2771af5063803e0eb42c0867dcd6aba62b95d9"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/S14FinalStepV1.cs",
+      "bytes": 5093,
+      "sha256": "8051c1b1216ace2fce4507a7be597da5d2367b6860c7f896a91c5035fec75ee9"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/S14NativeMotionV2.cs",
+      "bytes": 3024,
+      "sha256": "ee6de83047e086494a9ae6590b8cd70a3754ebdff22ca7b937f982cae5932284"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/cleanup-receipt.json",
+      "bytes": 643,
+      "sha256": "12b4354847a83143888a78ddde99342540494c13ded2fbb8de6c8eb87f0f0f81"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/closed-task-cleanup-manifest.json.gz",
+      "bytes": 86688,
+      "sha256": "481d0ed4db52c281c9a76fc4fbddec55d0d95b1cbb46baa659a5f823a0be17e0"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/final-delivery-receipts.json.gz",
+      "bytes": 19920,
+      "sha256": "f4439fbdf38129e4224e4ce7b2231a98095e76d92eeb80a007c19244bf2f0ad9"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/final-test-evidence.json.gz",
+      "bytes": 774051,
+      "sha256": "00f26a3f449958b888ccab3707177944a9f5c9faf4131741854c9b91cd1561d6"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/game-ssgi-v1.jpg",
+      "bytes": 832013,
+      "sha256": "c183dd2e924fbd37f42416d7ec1367a8fed5738dd65df4aca10138d2837b586a"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/independent-final-display-review-v1.py",
+      "bytes": 13654,
+      "sha256": "121957052828dddd0e3baaf562997e67bef5c15a7e14ee633e2dae91666efd24"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/main-raw-retirement-manifest.json.gz",
+      "bytes": 15860,
+      "sha256": "812fe52ffc20ca4805324a2f0ed93530b44ae0693c273050a70a8ccce9d485a3"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/native-clear-v1.jpg",
+      "bytes": 414981,
+      "sha256": "70b774bbb2f023051523a23369d8958ebe05a7a040afe66c60d34158414851a2"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/native-normal-orbit-a-v2.png",
+      "bytes": 523632,
+      "sha256": "afc957c883588d01b5c78a032f8b1daa99d9b2d29ed824e3420e5d85b134f6c8"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/native-normal-orbit-b-v2.png",
+      "bytes": 529154,
+      "sha256": "9994a19f45079e3d09243c0989cd8d2b8579f93514e0b19cee5d1509ffcf5594"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/native-normal-step-a-v2.png",
+      "bytes": 527231,
+      "sha256": "7873374f77ec99eba45c50ada9a5effa0b3f6d86e5d81acf4843236bb010fd6c"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/native-normal-step-b-v2.png",
+      "bytes": 529171,
+      "sha256": "80574ff9efaa77f2b6742f151b13e542e1acc7444f0186080a1917f281040d11"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/native-temporal-v1.jpg",
+      "bytes": 558713,
+      "sha256": "3c7113d59ab22ac7c077d96dd767472d90eee9148804189ddc2d0925e8aeca38"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/native-trace-v1.jpg",
+      "bytes": 532945,
+      "sha256": "a6cd7b4fdf287e0745e5a256b3e348d270892337771a4916b7e3674520014e19"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/normal-display-receipts.json.gz",
+      "bytes": 81322,
+      "sha256": "0e1f7ce7e15a9c01617c7d06f851d961adc5f1b81b10e02db3ae720143e402bf"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/numeric-and-restoration-evidence.json.gz",
+      "bytes": 215755,
+      "sha256": "d7b2f87ec99e04fc6adb42a862d822c5b6ba183f0869ea79b905bfe2e466635f"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/ssgi-prefilter-candidate-v1.compute",
+      "bytes": 15776,
+      "sha256": "8d44249540534823a61550593d40a23c25392b1b399bf66eb1badbfd0dee399e"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S14-closure/ssgi-surface-denoise-candidate-v2.compute",
+      "bytes": 16075,
+      "sha256": "cc9cab785fac2f26439e67a2088e33821ad8d43019b79763fa303c4765eee112"
+    }
+  ],
+  "productionShaderSHA256": "e2865520055a9f333363e427155e97c84473316f81fa1cd78faeacb1b040805a",
+  "runtimeAlgorithmChanged": false,
+  "deliveryCommit": "The Git commit containing this manifest",
+  "platform": "Unity6000.6.0f1/OSXEditor/Metal/Apple M3 Max",
+  "offlineGate": "static_check 0errors/0warnings; no shader source change",
+  "mainFull": {
+    "total": 1793,
+    "passed": 1737,
+    "failed": 3,
+    "skipped": 53
+  },
+  "historyFull": {
+    "total": 1762,
+    "passed": 1709,
+    "failed": 0,
+    "skipped": 53
+  },
+  "finalFocusedAfterMarkerRemoval": [
+    20,
+    4,
+    5,
+    10
+  ],
+  "remainingGates": "S15/S16/S17, final HEAD images/regression, unresolved main Lighting difference, isolated performance and untested APIs remain open"
+}

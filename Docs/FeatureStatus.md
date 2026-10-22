@@ -31,8 +31,8 @@ Columns:
 | Atmosphere LUTs + sky IBL | Yes | Yes (parameters, cache) | Open | Open | macOS Metal | |
 | GTAO | Yes | Yes (numeric) | Open | Open | macOS Metal | |
 | RTAO (UnifiedRayTracing) | When URT is ready | Partial | Open | Open | Editor only | Player shader load unverified |
-| SSR (stochastic, 0.5.0) | Yes | Unverified-0.5 (numeric, presets) | Open | Open | None | Never compiled by Unity yet |
-| SSGI (on the stochastic SSR core, 0.5.0) | Yes | Unverified-0.5 (numeric, presets) | Open | Open | None | Never compiled by Unity yet |
+| SSR (stochastic, 0.5.0) | Yes | 2026-10-23 Unity 6000.6.0f1 / macOS Metal (5 production GPU cases; quality presets) | Open | Open | macOS Metal | Shared-core numeric regression rerun on S14 and main; no additional SSR image or isolated performance acceptance inferred. |
+| SSGI (on the stochastic SSR core, 0.5.0) | Yes | 2026-10-23 Unity 6000.6.0f1 / macOS Metal (4 production numeric + 20 temporal/spatial cases; quality presets) | 2026-10-23 Unity 6000.6.0f1 / macOS Metal (bounded red bounce, offscreen fallback, normal orbit/disocclusion, history and native dispatch controls) | Open | macOS Metal | Original filtering retained. Small numeric residuals may last about 14 frames; sampled normal output accepted without a zero-noise/zero-ghosting claim. Whole-Editor timing does not isolate SSGI cost. See S14 report. |
 | Burley SSS | Yes | No | Open | Open | macOS Metal | |
 | Volumetric fog / cloud | Yes | Partial | Open | Open | macOS Metal | |
 | Translucent T0 / T1 / T2 | Yes | Partial | Failing | Open | macOS Metal | Validation_Translucent artifacts |

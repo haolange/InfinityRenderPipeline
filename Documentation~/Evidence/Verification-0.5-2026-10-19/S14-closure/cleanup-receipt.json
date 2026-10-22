@@ -1,0 +1,14 @@
+{
+  "deletedTaskRoot": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S14",
+  "rootAbsent": true,
+  "manifestFiles": 3979,
+  "explicitUnlinks": 2045,
+  "payloadBytesRetired": 501078962,
+  "allocatedBytesRetiredAtLeast": 1321992192,
+  "sameVolumeCarryFiles": 5,
+  "carryPayloadBytes": 403657,
+  "carryDirectory": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S15",
+  "nextConsumer": "S15 predecessor replay; no raw captures or database copies carried",
+  "mainEarlierRawAllocatedRetiredAtLeast": 211288064,
+  "noLibraryOrUserAssetsRemoved": true
+}
