@@ -1,0 +1,10 @@
+{
+  "ownPidExited": 52495,
+  "qualityBefore": "66cd054596c04ce62b9f4e3dd1a5767812c35240ebf801360c9064310a6e5746",
+  "hashes": {
+    "ProjectSettings/QualitySettings.asset": "66cd054596c04ce62b9f4e3dd1a5767812c35240ebf801360c9064310a6e5746",
+    "ProjectSettings/GraphicsSettings.asset": "d259b9bd45c13972bde2ea181a92e52c697ece3baae032270b9311aac866fab6",
+    "Assets/Scene/Spazon/Scene_Spazon.unity": "0b987d060327f5baf5e9d2faefdd9ddafadeddabe962f90016698fbe408de341",
+    "Assets/InfinityRenderPipelineGlobalSettings.asset": "f22a4f11ea234524a61a7a2eb812cb4475dacd1ecbfdc4fa092056d329553a9a"
+  }
+}

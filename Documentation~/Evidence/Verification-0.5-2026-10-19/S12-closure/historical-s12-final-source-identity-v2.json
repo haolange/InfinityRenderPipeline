@@ -1,0 +1,683 @@
+{
+  "head": "ccc04407a3486054d27eebee5df00d6d592af587",
+  "files": [
+    {
+      "path": "Editor/Cli/RenderingValidationCommands.cs",
+      "sha256": "6e78294dccf7850e84c9b01803ec8b7a6d566191fb3a9dd49d8fdef532648f69",
+      "bytes": 12040
+    },
+    {
+      "path": "Editor/Component/Render/InfinityLightEditor.cs",
+      "sha256": "47892fcb5825c3b6c7eb106c5d79f007dac7b15ef5b7c80438ad1cfcbef806bb",
+      "bytes": 13738
+    },
+    {
+      "path": "Editor/Lighting/InfinityBakingSky.cs",
+      "sha256": "6f405d44981f7d46e789644c32a57628f5b3c67fe2b4a25f012208a2037c855c",
+      "bytes": 9715
+    },
+    {
+      "path": "Editor/ShaderStripper/InfinityShaderStripper.cs",
+      "sha256": "78387ce8e2735a20a59cf04c18fb5cca4d53c23350e5c17fe9040af3a1ed3d93",
+      "bytes": 9134
+    },
+    {
+      "path": "Editor/Utility/InfinityInspectorGUI.cs",
+      "sha256": "05d4a69c7b27ff388b9909d6801e27e022a3f801b51a25a156a4789007c1d985",
+      "bytes": 674
+    },
+    {
+      "path": "Runtime/Component/Render/MeshComponent.cs",
+      "sha256": "fd7c0e6f397ffc48729aea6d379f3d2635b9bca3997fea187e210418b03d50fc",
+      "bytes": 30211
+    },
+    {
+      "path": "Runtime/RenderPipeline/Context/RenderContext.cs",
+      "sha256": "d1c3d994ab13ea716f610eba71f70bcd8d9f79e8bce1e8575be83eaa2fa68a8a",
+      "bytes": 9479
+    },
+    {
+      "path": "Runtime/RenderPipeline/InfinityRenderPipeline.cs",
+      "sha256": "b46c0bd0b3b3b9c22bacb057e80ec75a203011da2c012e12c035cda66203f64d",
+      "bytes": 69197
+    },
+    {
+      "path": "Runtime/RenderPipeline/Pass/CascadeShadowPass.cs",
+      "sha256": "cf3ed270e7162d81a121be3d94e199cd6e9b811fd514e2a806d1c8e3ea7a9fbe",
+      "bytes": 12403
+    },
+    {
+      "path": "Runtime/RenderPipeline/Pass/LocalShadowPass.cs",
+      "sha256": "05a4ddf7bed8a32a9e3cf2de6afe3fab19c861fc5e7de8a5e00e26cafd196518",
+      "bytes": 19430
+    },
+    {
+      "path": "Runtime/RenderPipeline/Pass/MeshGpuCullPass.cs",
+      "sha256": "999a7ea64efb42092c8809671f70b3858b453fb0fa18d1ebeca74c41a2db59ec",
+      "bytes": 3820
+    },
+    {
+      "path": "Runtime/RenderPipeline/Pass/RenderCapturePass.cs",
+      "sha256": "3778296a43f504b8df3c16cff68a1bc112a8d3aeb1f474cd23d06c64ae45f4c6",
+      "bytes": 15560
+    },
+    {
+      "path": "Runtime/RenderPipeline/Pass/SSRPass.cs",
+      "sha256": "2a3d5c85cf57b19b9d653a6d1eae17322ac0d85a88af581c7582c7bce41e18b7",
+      "bytes": 33298
+    },
+    {
+      "path": "Runtime/RenderPipeline/Pass/ShadowCasterCulling.cs",
+      "sha256": "31fe74dcaaf8fcc4d8aef25c3b4fc5de2d3e84ab28036c36e4d4279bc7f32c3e",
+      "bytes": 4861
+    },
+    {
+      "path": "Runtime/RenderPipeline/Quality/QualityPresets.ShadowFilter.cs",
+      "sha256": "48012b8ac14884709c877c18c3780187f768b42294c40ea9183c3d5366c5c0b7",
+      "bytes": 2498
+    },
+    {
+      "path": "Runtime/RenderPipeline/Validation/RawCaptureStatistics.cs",
+      "sha256": "3aa788563b9b2b5d96e3dd29fa8198c32585ee77c33420cd590a51c95acf3292",
+      "bytes": 4438
+    },
+    {
+      "path": "Runtime/RenderPipeline/Validation/RenderCaptureService.cs",
+      "sha256": "663e35d193a386504eeffe0ddb63fe772cb7934239fe76631cb4f01ab0370e82",
+      "bytes": 4104
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/LightBinning.cs",
+      "sha256": "3d76d68cb38178804ae3945664bb8090e7e7bf96465edbb710064846b73cc429",
+      "bytes": 7469
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/LightContext.cs",
+      "sha256": "155ab4cf701ed50ff25849e14d4ba2e33ded493802f409321cbf88cc0b5fde39",
+      "bytes": 28042
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/LightCookieAtlas.cs",
+      "sha256": "9aac7ad5d6c685896daf50b54e5f4adc179d97e84acbc6f49f8a02ba9b57bbb5",
+      "bytes": 14214
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/LightElement.cs",
+      "sha256": "75b9c5d1e9017ec9c9fe49127b38b73b231a47f38aa0294bd2c64f061ee2017f",
+      "bytes": 10489
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/LightShape.cs",
+      "sha256": "f711dac32df7c9ea8a95539973f6ae6fa2ac805ebdedf7e90bf065219126ae79",
+      "bytes": 12155
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/LocalShadowCache.cs",
+      "sha256": "ee42f4e39631133de4f327ce9a543f57f317834e4f249e9f865aaa301e2efcad",
+      "bytes": 15752
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/ShadowAllocator.Cascades.cs",
+      "sha256": "93c394760846feeb13455b3388ad0bb987c1808518f7a9811f00a858b7729ac1",
+      "bytes": 8300
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/ShadowAllocator.Cascades.cs.meta",
+      "sha256": "672b53df48c9f64fb73929025a57b97095c57151e9e1796fdbd6d669e07dc65d",
+      "bytes": 240
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/ShadowAllocator.cs",
+      "sha256": "27cf738a1ecfd0293dbdea28a3269ab76c17418f2fca948a4d8d379151efff59",
+      "bytes": 23551
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/ShadowCasterBounds.cs",
+      "sha256": "dba6c8a73a5a3207909eee9df9ae44c8136e67186567278845973f29f353c8ce",
+      "bytes": 5347
+    },
+    {
+      "path": "Runtime/RendererCore/LightPipeline/ShadowCasterBounds.cs.meta",
+      "sha256": "964e39ae4a479a0af86946e3af8c41928c24ec934eb1f816a21abe7d1071e647",
+      "bytes": 240
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/GpuScene.cs",
+      "sha256": "5a90515055a45b355544861111b2db71d28cbcf91eb963cd57065a25485b71e5",
+      "bytes": 14317
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshBakedLighting.cs",
+      "sha256": "b8d0cb6c0fca5c332d54cebd365addf59f1a5ec991a277f595f2c32c4b1abd7d",
+      "bytes": 8732
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshDrawGPUBackend.cs",
+      "sha256": "8377219e249d8669c3837000e47aa492d26b8c03d83b6b0ea795b6ab5a381106",
+      "bytes": 36604
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshGpuVisibilityCache.cs",
+      "sha256": "906ceea7e23ed41a5492e54ce2b282f16507ce531b884c291c17e4617a013f69",
+      "bytes": 5900
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshSceneRecords.cs",
+      "sha256": "756ceca8e9f5b34c189cfc2e1b88b496b79a402417bab15b42b25035e28ce36a",
+      "bytes": 8594
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshSceneUpdate.cs",
+      "sha256": "b98d3c7cd76747f4a922dba03bda606188f4475c0564185c36a2e9ff9c581f4f",
+      "bytes": 23763
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshView.cs",
+      "sha256": "595d11bb088a44ddd70dd46273697f9fa4db6a403378df657551892ad1d282cb",
+      "bytes": 8592
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshVisibility.cs",
+      "sha256": "7742033c82257e1b890b5e8d445a0400a7e445a30433f03df740285a0642b53b",
+      "bytes": 6595
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshVisibilityCache.cs",
+      "sha256": "51c39708109846b56e5b4856e020d70fbdf87eec2c6fd86061a1e8b11328e36c",
+      "bytes": 14817
+    },
+    {
+      "path": "Runtime/RendererCore/RenderGraph/RGBuilder.cs",
+      "sha256": "b8af85ec7c6cf3e6482fc21dbca3f40a7be7f611cf43d0fdbd7d428963e428a7",
+      "bytes": 78792
+    },
+    {
+      "path": "Runtime/Resources/InfinityDefaultVolumeProfile.asset",
+      "sha256": "4496ccf1ebe237af39babf70698674ca7eda30b78de69478ae5c2b1753eda9c6",
+      "bytes": 41496
+    },
+    {
+      "path": "Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute",
+      "sha256": "c435aaa73a27909428e6b5aa7d41dfbc187f203b696c3c147e119e9d854a1694",
+      "bytes": 5562
+    },
+    {
+      "path": "Shaders/RenderingFeature/DeferredShading/Compute_DeferredShading.compute",
+      "sha256": "008f9f18d7f89f2d27118eed5ea38680ba28d0cfd9d5b68cfcc2309be7cd54c6",
+      "bytes": 4515
+    },
+    {
+      "path": "Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute",
+      "sha256": "dbf7519b2e03d3d06ab674b6bb498de4b012d6cbaaa9b18baae6fff80a67bfd7",
+      "bytes": 5177
+    },
+    {
+      "path": "Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute",
+      "sha256": "3415802c6339d0785d0e102c4254392418ae35d54c4bef73609865b7b5697f16",
+      "bytes": 2957
+    },
+    {
+      "path": "Shaders/RenderingFeature/VolumetricCloud/Compute_VolumetricCloud.compute",
+      "sha256": "b3601ec74481cb58421caa5b0496b44bfed7f8f34768559fd203e581939a2472",
+      "bytes": 9567
+    },
+    {
+      "path": "Shaders/RenderingFeature/VolumetricFog/Compute_VolumetricFog.compute",
+      "sha256": "e5a11a0b4c6b1933fa44206be899c8f5fc8106b3f3db9500c714a1b88d4597ba",
+      "bytes": 7531
+    },
+    {
+      "path": "Shaders/ShaderLibrary/CloudShell.hlsl",
+      "sha256": "a3981a337bd55846b6d68dd6ebd726870b8ba482562bf2f7d36e36692a7fa35c",
+      "bytes": 3197
+    },
+    {
+      "path": "Shaders/ShaderLibrary/CloudShell.hlsl.meta",
+      "sha256": "ab557ff9c7761a7671615b1f1fddb79a32fe35df86642ee8c278d8890f4887ce",
+      "bytes": 161
+    },
+    {
+      "path": "Shaders/ShaderLibrary/Lighting/LightLoop.hlsl",
+      "sha256": "5d63bf68ba57ef0e4920aca042f4c5dee5ebc80dd8d78ee8282ae6ab7dc1a9b2",
+      "bytes": 3341
+    },
+    {
+      "path": "Shaders/ShaderLibrary/Lighting/LightRecord.hlsl",
+      "sha256": "69b4b53dcf9e0b849100633102862e06659fae3f80b42f5b30f109c9496383d6",
+      "bytes": 5975
+    },
+    {
+      "path": "Shaders/ShaderLibrary/ShadowMoments.hlsl",
+      "sha256": "be43166d1c94f73ba159304eee6acf3d3e64f877116014b0697cee989e3219de",
+      "bytes": 3373
+    },
+    {
+      "path": "Shaders/ShaderLibrary/ShadowSampling.hlsl",
+      "sha256": "be050625029a8d912c18f441e91f7b82c5600a004d428dd8443625a59d516f55",
+      "bytes": 15416
+    },
+    {
+      "path": "Shaders/ShaderLibrary/SurfaceLighting.hlsl",
+      "sha256": "f531de3cb765973c290089adc7b224213fef10c9f18557e18e7045900dcb386f",
+      "bytes": 4942
+    },
+    {
+      "path": "Shaders/Surface/TerrainLit.shader",
+      "sha256": "ffb72ee71250719b29e50c3cdecf0bc12b69a98cd93191f884a3420abe9ec007",
+      "bytes": 6104
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBase.shader",
+      "sha256": "86432ae310adb091778e61e70aa0803591a5ce24f4df83dab17068bd03c8bf78",
+      "bytes": 5698
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBase.shader.meta",
+      "sha256": "7d8308165cf2f10702ed955984e1d9a5cbb16555e66bfea59bfb30aeb8451d66",
+      "bytes": 204
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBasemapGen.shader",
+      "sha256": "e21a701c32fdbd64270585ef6ec2393f46a3bb635c175986b7b23b28aa3fe2fe",
+      "bytes": 4606
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBasemapGen.shader.meta",
+      "sha256": "80e77c5e387a0a95be24b52fc6b3bb1dd78658bf7874cb96a1e316ac141f15df",
+      "bytes": 204
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitInclude.hlsl",
+      "sha256": "b76e2acccacc7d49e6ef858ae77dc91af62a030095db208a2266def9b112cc55",
+      "bytes": 27092
+    },
+    {
+      "path": "Shaders/Utility/Compute_Utility.compute",
+      "sha256": "c4a2d58655612af11c05c8af25d84d82c9bca9c4216d873c5feafab35e5aef35",
+      "bytes": 1640
+    },
+    {
+      "path": "Shaders/Utility/DrawFullScreen.shader",
+      "sha256": "e48a20fbd54d0eca264e297db7bfa23f1a12063b153555443bfa996fdf1f978b",
+      "bytes": 8356
+    },
+    {
+      "path": "Tests/Editor/BakedGITests.cs",
+      "sha256": "879b865312539fdf8aa9b5a5cba9916616ce6f530445f6628997c51152339f20",
+      "bytes": 4472
+    },
+    {
+      "path": "Tests/Editor/BakingSkyReadbackTests.cs",
+      "sha256": "41972a10b9b434b6eff77232d1889359f6c762b579d497d056e9bc144be6c12b",
+      "bytes": 3490
+    },
+    {
+      "path": "Tests/Editor/BakingSkyReadbackTests.cs.meta",
+      "sha256": "14b65bd824fad28c631b8df329a22daf0bfb130828ef914a0aba046e96669a46",
+      "bytes": 243
+    },
+    {
+      "path": "Tests/Editor/CameraFrameStateTests.cs",
+      "sha256": "148b02bf069533190e246b7a369f12739cd2676304d49f04c2576ca2e3fc227d",
+      "bytes": 8794
+    },
+    {
+      "path": "Tests/Editor/CloudShellGpuTests.cs",
+      "sha256": "bf49a87740864138d49a1591df1bc2323aecf7208652b87f2a05bbe1d1674766",
+      "bytes": 12035
+    },
+    {
+      "path": "Tests/Editor/CloudShellGpuTests.cs.meta",
+      "sha256": "fdaa3c5c40b54fd226f9ce235ed713a5fe200285e966ef0e47886bd78be341f5",
+      "bytes": 243
+    },
+    {
+      "path": "Tests/Editor/CommandTableTests.cs",
+      "sha256": "4d63b2d03f8565ecd7e03ea5c6ed825999d45e646b485d74e39c7a5c678276e2",
+      "bytes": 8531
+    },
+    {
+      "path": "Tests/Editor/ContactShadowAllocationTests.cs",
+      "sha256": "610b14a010385b845ad8464b73e68fb0d4ffe818a34b0617353ce812106e967f",
+      "bytes": 2966
+    },
+    {
+      "path": "Tests/Editor/DebugViewModeTests.cs",
+      "sha256": "6d7c5c71d778fedd6bd5ab68cb1687ac8e0a409b48089ab090440d1cf8dec75d",
+      "bytes": 1211
+    },
+    {
+      "path": "Tests/Editor/DefaultVolumeOutputTests.cs",
+      "sha256": "55828d03107c6d287160307a5aa44dfe9ee49a436d82980e9c6caf1fb47bb18c",
+      "bytes": 20616
+    },
+    {
+      "path": "Tests/Editor/DeferredLightLoopGpuTests.cs",
+      "sha256": "5b68acbbaa10115d7a395f4b830c7a1b2c99c10bf9082323eeb63ca204d304ad",
+      "bytes": 12771
+    },
+    {
+      "path": "Tests/Editor/DeferredLightLoopGpuTests.cs.meta",
+      "sha256": "10009de891a1db11661e16354cf65386cfdfee9bc57c69bb0b9401d1702d5892",
+      "bytes": 240
+    },
+    {
+      "path": "Tests/Editor/FeatureRegistryTests.cs",
+      "sha256": "c460c99bbf5b8dae15d9440649d7010255655055dc778afcc2ac9c7c8aa92942",
+      "bytes": 3162
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping.meta",
+      "sha256": "6d95e9f7288ca840c7fe84eb36d3799e1c1c81f7aa77f33fe103b972d644ee2e",
+      "bytes": 172
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityEmpty.shader",
+      "sha256": "ba7bc0d0de92a14e5432d5207e3709675719af65be69d69edc12830f669d98eb",
+      "bytes": 477
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityEmpty.shader.meta",
+      "sha256": "15b428ecd0acdd365ea1fecacf5d0ee9e60041a9f9466826e6f50e887c5be8ad",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityForwardBase.shader",
+      "sha256": "9fb9ab7a6386d697918699896e9774c69bf12e304d29725803a0c9f67213a0ae",
+      "bytes": 532
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityForwardBase.shader.meta",
+      "sha256": "891d638108100cc02ce643984fb7639bb2a72c1e4c7e6467e46f5afc25e9a2ec",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityGBufferPass.shader",
+      "sha256": "6d588aedff3522f32fc28befa790b2b9c35b9a6a7f2ff914ab95efed7c890171",
+      "bytes": 532
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityGBufferPass.shader.meta",
+      "sha256": "0ea3ede4cfe98c988ef436f2a3d1089edca9d56bab1a389f1b598e9c4b6993c6",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityMeta.shader",
+      "sha256": "4d813ab746d39240647b5de68dc195a642d9d6211fe3701cb3254206adf5cf6e",
+      "bytes": 518
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityMeta.shader.meta",
+      "sha256": "ceed7c749ac1c513dfc30e41871b5f588fa5d0d492df0df22a3b77e6e415cc1c",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinitySRPDefaultUnlit.shader",
+      "sha256": "e547cde9239ec03c10a6e72cf5e1102872d749ec64fcf6a965ff93e2cc629484",
+      "bytes": 540
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinitySRPDefaultUnlit.shader.meta",
+      "sha256": "308b2c1764f4b81ff59e76874c2bed964fc5d44fa3ec470d17fec5df789a8089",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityShadowCaster.shader",
+      "sha256": "e1cea0073ebd52034246e1b7ac6262a2d8e02563a1a22809ff2f04426221ce06",
+      "bytes": 534
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityShadowCaster.shader.meta",
+      "sha256": "07e52abc8a8da10677ff4836cead81119d4621e31ceba87d9b6c047175071fc0",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinitySystemLUT.shader",
+      "sha256": "a0356e36995473257089a902b069cbe1f6c4f09254f46f56347bfd13c3526de4",
+      "bytes": 528
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinitySystemLUT.shader.meta",
+      "sha256": "9e5d854b6ff510dce4eb673dffd037cd7faddb22c13b6ce2229306adaefd8531",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityTerrainAdd.shader",
+      "sha256": "70e353db0fb1043432a7c620aa4454783d36971659fa459a2abf36e13cf0a03d",
+      "bytes": 530
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/InfinityTerrainAdd.shader.meta",
+      "sha256": "e04afc592af72241a233020e85bdc958b5fa1234339bbf26e088131076db418e",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/UntaggedSystemLUT.shader",
+      "sha256": "f1aeefb6a46f9d1fb29a8e206b5e03c562ac667db4558408fbcf1377638e8621",
+      "bytes": 467
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/UntaggedSystemLUT.shader.meta",
+      "sha256": "9699906979e7e0a3f6ba2fc62451e98fd56c68a93a330926f44224365dfc029a",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/UntaggedTerrainAdd.shader",
+      "sha256": "5d3495c03b4df73314d5f23987611b0a00f4fe2fdcbe5056366e53a027240cfe",
+      "bytes": 469
+    },
+    {
+      "path": "Tests/Editor/Fixtures/ShaderStripping/UntaggedTerrainAdd.shader.meta",
+      "sha256": "9ae6afed7005ad886041528684a2ccc6b1d8b00e4ed849d193747bb33080b797",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/GBufferContractTests.cs",
+      "sha256": "f50c31fc08b2d4f851093ca077eb19c3a1d82f7acc60395f6bdc4219dbf5d3d9",
+      "bytes": 19168
+    },
+    {
+      "path": "Tests/Editor/LightAngularGpuTests.cs",
+      "sha256": "2bc28a9e930de301440c38bc5c3c845b6dab9b29e86fc46d4c9c4da59b48f56c",
+      "bytes": 5764
+    },
+    {
+      "path": "Tests/Editor/LightAngularGpuTests.cs.meta",
+      "sha256": "b6fede67ba63c86a6f30de46010203de5f608858ad2dc616336c1302bc6486b7",
+      "bytes": 243
+    },
+    {
+      "path": "Tests/Editor/LightBinningTests.cs",
+      "sha256": "4e0383843ca472e246ab9d69c22cf3585df7fbf5d9fe174cebba6d01d74910f1",
+      "bytes": 7660
+    },
+    {
+      "path": "Tests/Editor/LightCookieAtlasTests.cs",
+      "sha256": "62d6769aeb3a175104cb2aab6819a5289138b1c4525203755b4f3f5522b8ad7b",
+      "bytes": 4773
+    },
+    {
+      "path": "Tests/Editor/LightCookieTransactionTests.cs",
+      "sha256": "d9b059302816c60c939ebd7bf8668cf5fec5977bb68cbdc281b0cf52d268144c",
+      "bytes": 7803
+    },
+    {
+      "path": "Tests/Editor/LightCookieTransactionTests.cs.meta",
+      "sha256": "43557831065774eb3a2acf26c9bb72f9acaccbac7d156b03b48304876e1b5927",
+      "bytes": 243
+    },
+    {
+      "path": "Tests/Editor/LightRecordLayoutTests.cs",
+      "sha256": "57d308693ae369287ae78fd3a8eefaf9786b04854e9f8a7e3ba669ea7d2f6781",
+      "bytes": 3871
+    },
+    {
+      "path": "Tests/Editor/LightRecordTests.cs",
+      "sha256": "a71e2b727a479093b75f044ecc79863c4a228dec8dd4bffd35d996ae5963a653",
+      "bytes": 7930
+    },
+    {
+      "path": "Tests/Editor/LightShapeGpuTests.cs",
+      "sha256": "4f6c58bd667146b625771e400a19215cd0d55eda707753532db7bebaba2748d4",
+      "bytes": 2306
+    },
+    {
+      "path": "Tests/Editor/LightShapeTests.cs",
+      "sha256": "fc0dc98eb3e0f543b28dc2e17ceca5635e9d2e16fe8530ca92cdc4eb1d259171",
+      "bytes": 16887
+    },
+    {
+      "path": "Tests/Editor/LocalShadowCacheTests.cs",
+      "sha256": "2285736a6f6ae766a8b27614a34aefb8ac3ddc798f1cf2582705d1c6c4df003d",
+      "bytes": 11452
+    },
+    {
+      "path": "Tests/Editor/LocalShadowFrustumTests.cs",
+      "sha256": "2df1c29fc56fee8d27abdb5bab693657390e6137e51295c9c9927e76a7e47773",
+      "bytes": 3474
+    },
+    {
+      "path": "Tests/Editor/MeshComponentRegistrationTests.cs",
+      "sha256": "8980ce91a4cdf78aa6e349df62d51dfc630224c1aa1bb03d3f387d16c0999dbb",
+      "bytes": 5703
+    },
+    {
+      "path": "Tests/Editor/MeshComponentRegistrationTests.cs.meta",
+      "sha256": "917f4e424a921df57b67873866352ccf6b874fc3ab204a379b631aa443280777",
+      "bytes": 240
+    },
+    {
+      "path": "Tests/Editor/MeshViewTests.cs",
+      "sha256": "c2cb03859a6300d514525804b34fbaca28c3dc67407e0dddeea43fe57ecf89c1",
+      "bytes": 11752
+    },
+    {
+      "path": "Tests/Editor/QualityLifecycleTests.cs",
+      "sha256": "69104effe7b9b18ff3a83e8c9052e6accec2908330f493a6e10e6c03482f4a0f",
+      "bytes": 11920
+    },
+    {
+      "path": "Tests/Editor/QualityPresetTests.cs",
+      "sha256": "59f362c045a67a35c1231115648a708393a3d3492429a1a8b91ddb3c4966ad6e",
+      "bytes": 7549
+    },
+    {
+      "path": "Tests/Editor/RGDrawListLifetimeTests.cs",
+      "sha256": "56dbf64f39e48494bfcf0cdb9ebbe233af86354a7da5d8ba4bddb3cc2ecd18dc",
+      "bytes": 12815
+    },
+    {
+      "path": "Tests/Editor/RenderCaptureTests.cs",
+      "sha256": "97e6aa860198714c692c2fdb321dadbab11219b0f0058e6cdae00cb01f72e75a",
+      "bytes": 19489
+    },
+    {
+      "path": "Tests/Editor/ShaderStrippingTests.cs",
+      "sha256": "10fdc2b76bc3741a40c90a0233fd23d27acd8961edb1cfd61d8e2352ed085c07",
+      "bytes": 6607
+    },
+    {
+      "path": "Tests/Editor/Shaders/CloudShellContract.compute",
+      "sha256": "72fbc3ffb26d185a3094660205740466826bf93ebd4d2da5d873ea59b98c027e",
+      "bytes": 1865
+    },
+    {
+      "path": "Tests/Editor/Shaders/CloudShellContract.compute.meta",
+      "sha256": "9c6f2e412704b01c79e9f694650f0354fd20ca71e4abbeb8c69df8593940b30b",
+      "bytes": 207
+    },
+    {
+      "path": "Tests/Editor/Shaders/LightAngularContract.compute",
+      "sha256": "37c15139db80ce41d56a0f38d6b185fb64db98829d31b17eaee3be7262ab2dc4",
+      "bytes": 812
+    },
+    {
+      "path": "Tests/Editor/Shaders/LightAngularContract.compute.meta",
+      "sha256": "5e2cf59be146ab1ed64875b21128e47b2e324da4a237a9dffb2ae8cfb4e78a4b",
+      "bytes": 207
+    },
+    {
+      "path": "Tests/Editor/Shaders/ShadowMomentContract.compute",
+      "sha256": "3c50230b5bea0184a675d2738e885bcf449e14aa49c97c6a1c12adc934e23cda",
+      "bytes": 2176
+    },
+    {
+      "path": "Tests/Editor/Shaders/ShadowSamplingContract.compute",
+      "sha256": "48798ce456de7ec10b38ea2f39da48202019f36fe3eefb6a592ba88d5f165f67",
+      "bytes": 1879
+    },
+    {
+      "path": "Tests/Editor/Shaders/ShadowSamplingContract.compute.meta",
+      "sha256": "1228f3e9c392c490d4f18448ec071e957c439c85e0a7cc763a3bf0b4b0e8cb34",
+      "bytes": 204
+    },
+    {
+      "path": "Tests/Editor/ShadowCasterAllocationTests.cs",
+      "sha256": "54f2ccde7579300427ab26efca6b0a727d8db185d70ed027c96ffd078f1963ed",
+      "bytes": 7402
+    },
+    {
+      "path": "Tests/Editor/ShadowCasterAllocationTests.cs.meta",
+      "sha256": "72bc065e04b44c01d47c28f5d779c74cbb9eb7a59e5ed934ea74cfe565c1b34a",
+      "bytes": 240
+    },
+    {
+      "path": "Tests/Editor/ShadowDepthCopyGpuTests.cs",
+      "sha256": "0043eb2e3bda96290adbb10f3b91f8e62e54ed99c70a08c778a3fa2022936442",
+      "bytes": 10408
+    },
+    {
+      "path": "Tests/Editor/ShadowDepthCopyGpuTests.cs.meta",
+      "sha256": "82ef677e14a3eb14eccfdc22468562af6d1c54afb4ce0bb60bc7b9180d5a3b6f",
+      "bytes": 240
+    },
+    {
+      "path": "Tests/Editor/ShadowMomentGpuTests.cs",
+      "sha256": "13a03aaa8eb714d3086d22dc24d247b42524cc4e184ba0b315696687c363aa35",
+      "bytes": 2149
+    },
+    {
+      "path": "Tests/Editor/ShadowMomentProductionGpuTests.cs",
+      "sha256": "a883c33ac5e97ca3469d6db110f300a270e75ad63096d1abb49f4f61cc517525",
+      "bytes": 18258
+    },
+    {
+      "path": "Tests/Editor/ShadowMomentProductionGpuTests.cs.meta",
+      "sha256": "f796b0d14b64cc5c6ce3c3e3afa99b0641aab3c9f88a9a818cc22ea348b4b2d7",
+      "bytes": 240
+    },
+    {
+      "path": "Tests/Editor/ShadowSamplingGpuTests.cs",
+      "sha256": "ab9451dd2032d5cd7124c8bac45a88b646cc061f24a442a22a33f3510c44041b",
+      "bytes": 10288
+    },
+    {
+      "path": "Tests/Editor/ShadowSamplingGpuTests.cs.meta",
+      "sha256": "4c82ff7b0125471a848257adfeb772f3def15d5adb7eef165ff86c4db8ce0188",
+      "bytes": 240
+    },
+    {
+      "path": "Tests/Editor/ShadowmaskCasterFilterTests.cs",
+      "sha256": "9c237783ad1dc03715b87ef08ef9e413368c151122b5ea4ef44497fff83a9b1b",
+      "bytes": 3049
+    },
+    {
+      "path": "Tests/Editor/StochasticSSRNumericTests.cs",
+      "sha256": "9e5b2bd0e178905298b426229d247799641a7967fb8e22fc22b87ae736593d4a",
+      "bytes": 18600
+    },
+    {
+      "path": "Tests/Editor/ValidationTestRunner.cs",
+      "sha256": "cac84b94d4e9e7ddd9f64d8d99c7e730d55f92a060119eea2fc0f08a9597953f",
+      "bytes": 29870
+    },
+    {
+      "path": "Tools/StaticCheck/static_check.py",
+      "sha256": "23ab2ce7112243bcc8e111ca19b8cd0e39e0a358bf2780932dd509cf5a06c20b",
+      "bytes": 11373
+    }
+  ],
+  "latestS12Delta": "historical-s12-latest-delta-apply-v1.json",
+  "BakingSky": "Exact main validated implementation hash, including internal test entrypoints; no S13 feature dependency",
+  "profileScope": "Existing historical completed profile retained; main native schema candidate was not backported"
+}

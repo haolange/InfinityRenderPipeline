@@ -1,7 +1,9 @@
 using System;
 using System.IO;
-using System.Text;
+using System.Collections;
+using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEngine.TestTools;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -20,40 +22,42 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         const string k_ComputePath = "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/Compute_GBufferContract.compute";
         const string k_BestFitPath = "Packages/com.infinity.render-pipeline/Runtime/Resources/Textures/System_LUT/LUT_BestFit.png";
 
-        [Test]
-        public void GBufferContract_RasterComputeRoundtrip_FlatGray18()
+        [UnityTest]
+        public IEnumerator GBufferContract_RasterComputeRoundtrip_FlatGray18()
         {
-            RunAlbedoFixture(fixtureId: 0, "flat gray 0.18");
+            return RunAlbedoFixture(fixtureId: 0, "flat gray 0.18");
         }
 
-        [Test]
-        public void GBufferContract_RasterComputeRoundtrip_PureRed()
+        [UnityTest]
+        public IEnumerator GBufferContract_RasterComputeRoundtrip_PureRed()
         {
-            RunAlbedoFixture(fixtureId: 1, "pure red");
+            return RunAlbedoFixture(fixtureId: 1, "pure red");
         }
 
-        [Test]
-        public void GBufferContract_RasterComputeRoundtrip_CoCgExtremes()
+        [UnityTest]
+        public IEnumerator GBufferContract_RasterComputeRoundtrip_CoCgExtremes()
         {
-            RunAlbedoFixture(fixtureId: 2, "+Co / -Cg extremes");
+            return RunAlbedoFixture(fixtureId: 2, "+Co / -Cg extremes");
         }
 
-        [Test]
-        public void GBufferContract_RasterComputeRoundtrip_CheckerboardBoundaryTexels()
+        [UnityTest]
+        public IEnumerator GBufferContract_RasterComputeRoundtrip_CheckerboardBoundaryTexels()
         {
-            RunAlbedoFixture(fixtureId: 3, "checkerboard boundary texels", requireBothParities: true);
+            return RunAlbedoFixture(fixtureId: 3, "checkerboard boundary texels", requireBothParities: true);
         }
 
-        [TestCase(4)]
-        [TestCase(5)]
-        [TestCase(6)]
-        public void GBufferContract_SilhouetteDoesNotImportClearChroma(int fixture)
+        internal static int RetainedGpuFixtureCount => GBufferContractGpuRun.RetainedCount;
+
+        static readonly int[] s_SilhouetteFixtures = { 4, 5, 6 };
+
+        [UnityTest]
+        public IEnumerator GBufferContract_SilhouetteDoesNotImportClearChroma([ValueSource(nameof(s_SilhouetteFixtures))] int fixture)
         {
-            RunAlbedoFixture(fixture, "dark diagonal / saturated thin pole against clear pixels", requireBothParities: true);
+            return RunAlbedoFixture(fixture, "dark diagonal / saturated thin pole against clear pixels", requireBothParities: true);
         }
 
-        [Test]
-        public void GBufferContract_BestFitNormal_AngularError()
+        [UnityTest]
+        public IEnumerator GBufferContract_BestFitNormal_AngularError()
         {
             RequireGpu();
             Shader raster = LoadRasterShader();
@@ -79,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 using (var run = new GBufferContractGpuRun(raster, compute, lut, fixtureId: 0, expected))
                 {
-                    run.Execute();
+                    yield return run.Execute();
                     maxAngle = Mathf.Max(maxAngle, run.MaxNormalAngleDeg(expected));
                 }
             }
@@ -90,45 +94,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [MenuItem("Window/Infinity/Run GBuffer Contract Tests", false, 65)]
         public static void RunFromMenu()
         {
-            var tests = new GBufferContractTests();
-            var log = new StringBuilder();
-            int passed = 0;
-            int ignored = 0;
-            int failed = 0;
-            void Run(string name, Action action)
-            {
-                try
-                {
-                    action();
-                    passed++;
-                    log.AppendLine("PASS " + name);
-                }
-                catch (IgnoreException e)
-                {
-                    ignored++;
-                    log.AppendLine("IGNORE " + name + ": " + e.Message);
-                }
-                catch (Exception e)
-                {
-                    failed++;
-                    log.AppendLine("FAIL " + name + ": " + e.Message);
-                }
-            }
-
-            Run(nameof(GBufferContract_RasterComputeRoundtrip_FlatGray18), tests.GBufferContract_RasterComputeRoundtrip_FlatGray18);
-            Run(nameof(GBufferContract_RasterComputeRoundtrip_PureRed), tests.GBufferContract_RasterComputeRoundtrip_PureRed);
-            Run(nameof(GBufferContract_RasterComputeRoundtrip_CoCgExtremes), tests.GBufferContract_RasterComputeRoundtrip_CoCgExtremes);
-            Run(nameof(GBufferContract_RasterComputeRoundtrip_CheckerboardBoundaryTexels), tests.GBufferContract_RasterComputeRoundtrip_CheckerboardBoundaryTexels);
-            Run(nameof(GBufferContract_BestFitNormal_AngularError), tests.GBufferContract_BestFitNormal_AngularError);
-
-            string directory = InfinityTech.Rendering.Tests.ValidationTestRunner.CreateArtifactDirectory("gbuffer-contract-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));
-            string path = Path.Combine(directory, "results.txt");
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            File.WriteAllText(path, $"passed={passed} ignored={ignored} failed={failed}\n{log}");
-            Debug.Log($"GBuffer contract tests: passed={passed} ignored={ignored} failed={failed}\n{log}");
+            string directory = Path.Combine(InfinityTech.Rendering.Tests.ValidationTestRunner.ArtifactRoot,
+                "gbuffer-contract-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N"));
+            InfinityTech.Rendering.Tests.ValidationTestRunner.RunValidation(directory, nameof(GBufferContractTests));
         }
 
-        void RunAlbedoFixture(int fixtureId, string label, bool requireBothParities = false)
+        IEnumerator RunAlbedoFixture(int fixtureId, string label, bool requireBothParities = false)
         {
             RequireGpu();
             Shader raster = LoadRasterShader();
@@ -137,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             using (var run = new GBufferContractGpuRun(raster, compute, lut, fixtureId, Vector3.forward))
             {
-                run.Execute();
+                yield return run.Execute();
                 run.AssertAlbedo(fixtureId, label, requireBothParities);
             }
         }
@@ -226,69 +197,111 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly RenderTexture m_DecodedNormal;
             Color[] m_AlbedoPixels;
             Color[] m_NormalPixels;
+            int m_PendingReadbacks;
+            string m_ReadbackFailure;
+            bool m_DisposeRequested, m_Released;
+            // A failed/uncertain submission may never callback. Keep ownership explicit until real callbacks
+            // drain, or the owning Editor exits; never clear pending counts to make teardown appear complete.
+            static readonly List<GBufferContractGpuRun> s_Retained = new List<GBufferContractGpuRun>();
+            internal static int RetainedCount => s_Retained.Count;
 
             public GBufferContractGpuRun(Shader raster, ComputeShader compute, Texture2D lut, int fixtureId, Vector3 normal)
             {
-                m_Compute = compute;
-                m_FixtureId = fixtureId;
-                m_Kernel = compute.FindKernel("DecodeGBufferContract");
-                m_Material = new Material(raster)
-                {
-                    hideFlags = HideFlags.HideAndDontSave
-                };
-                m_Material.SetInt("_FixtureId", fixtureId);
-                m_Material.SetVector("_Resolution", new Vector4(k_Width, k_Height, 0.0f, 0.0f));
-                m_Material.SetVector("_FixtureNormal", new Vector4(normal.x, normal.y, normal.z, 0.0f));
-
                 m_PreviousLut = Shader.GetGlobalTexture("g_BestFitNormal_LUT");
-                if (lut != null)
+                try
                 {
-                    Shader.SetGlobalTexture("g_BestFitNormal_LUT", lut);
-                }
+                    m_Compute = compute;
+                    m_FixtureId = fixtureId;
+                    m_Kernel = compute.FindKernel("DecodeGBufferContract");
+                    m_Material = new Material(raster)
+                    {
+                        hideFlags = HideFlags.HideAndDontSave
+                    };
+                    m_Material.SetInt("_FixtureId", fixtureId);
+                    m_Material.SetVector("_Resolution", new Vector4(k_Width, k_Height, 0.0f, 0.0f));
+                    m_Material.SetVector("_FixtureNormal", new Vector4(normal.x, normal.y, normal.z, 0.0f));
 
-                m_GBufferA = CreateGBuffer("GBufferContractA");
-                m_GBufferB = CreateGBuffer("GBufferContractB");
-                m_GBufferC = CreateGBuffer("GBufferContractC");
-                m_Depth = new RenderTexture(k_Width, k_Height, 24, RenderTextureFormat.Depth)
+                    if (lut != null)
+                    {
+                        Shader.SetGlobalTexture("g_BestFitNormal_LUT", lut);
+                    }
+
+                    m_GBufferA = CreateGBuffer("GBufferContractA");
+                    m_GBufferB = CreateGBuffer("GBufferContractB");
+                    m_GBufferC = CreateGBuffer("GBufferContractC");
+                    m_Depth = CreateOwned(new RenderTexture(k_Width, k_Height, 24, RenderTextureFormat.Depth)
+                    {
+                        name = "GBufferContractDepth",
+                        hideFlags = HideFlags.HideAndDontSave
+                    });
+
+                    m_DecodedAlbedo = CreateDecoded("GBufferContractAlbedo");
+                    m_DecodedNormal = CreateDecoded("GBufferContractNormal");
+                }
+                catch
                 {
-                    name = "GBufferContractDepth",
-                    hideFlags = HideFlags.HideAndDontSave
-                };
-                m_Depth.Create();
-                m_DecodedAlbedo = CreateDecoded("GBufferContractAlbedo");
-                m_DecodedNormal = CreateDecoded("GBufferContractNormal");
+                    Dispose();
+                    throw;
+                }
             }
 
-            public void Execute()
+            public IEnumerator Execute()
             {
-                var cmd = new CommandBuffer { name = string.Empty };
-                cmd.SetRenderTarget(new RenderTargetIdentifier[] { m_GBufferA, m_GBufferB, m_GBufferC }, m_Depth);
-                cmd.ClearRenderTarget(true, true, Color.clear);
-                cmd.DrawProcedural(Matrix4x4.identity, m_Material, 0, MeshTopology.Triangles, 3, 1);
-                if (m_FixtureId == 6)
+                using (var cmd = new CommandBuffer())
                 {
-                    // RGB zero is a legal packed diagonal normal, not proof of absent geometry.
-                    cmd.SetRenderTarget(m_GBufferB); cmd.ClearRenderTarget(false, true, Color.clear);
+                    cmd.SetRenderTarget(new RenderTargetIdentifier[] { m_GBufferA, m_GBufferB, m_GBufferC }, m_Depth);
+                    cmd.ClearRenderTarget(true, true, Color.clear);
+                    cmd.DrawProcedural(Matrix4x4.identity, m_Material, 0, MeshTopology.Triangles, 3, 1);
+                    if (m_FixtureId == 6)
+                    {
+                        // RGB zero is a legal packed diagonal normal, not proof of absent geometry.
+                        cmd.SetRenderTarget(m_GBufferB); cmd.ClearRenderTarget(false, true, Color.clear);
+                    }
+
+                    cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureA", m_GBufferA);
+                    cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureB", m_GBufferB);
+                    cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureC", m_GBufferC);
+                    cmd.SetComputeTextureParam(m_Compute, m_Kernel, "UAV_DecodedAlbedo", m_DecodedAlbedo);
+                    cmd.SetComputeTextureParam(m_Compute, m_Kernel, "UAV_DecodedNormal", m_DecodedNormal);
+                    cmd.SetComputeVectorParam(m_Compute, "CBV_Resolution", new Vector4(k_Width, k_Height, 0.0f, 0.0f));
+                    cmd.DispatchCompute(m_Compute, m_Kernel, (k_Width + 7) / 8, (k_Height + 7) / 8, 1);
+
+                    // Queue only this fixture's readbacks behind its dispatch. Never stall the Editor on a
+                    // process-wide WaitAllRequests: Metal submission and other requests may need its next update.
+                    cmd.RequestAsyncReadback(m_DecodedAlbedo, request => CompleteReadback(request, true));
+                    cmd.RequestAsyncReadback(m_DecodedNormal, request => CompleteReadback(request, false));
+                    m_PendingReadbacks = 2;
+                    Graphics.ExecuteCommandBuffer(cmd);
                 }
+                double deadline = EditorApplication.timeSinceStartup + 30;
+                while (m_PendingReadbacks > 0 && EditorApplication.timeSinceStartup < deadline)
+                {
+                    EditorApplication.QueuePlayerLoopUpdate();
+                    yield return null;
+                }
+                Assert.AreEqual(0, m_PendingReadbacks, "Owned GBuffer readback timed out; its resources remain retained until callbacks drain.");
+                Assert.IsNull(m_ReadbackFailure, m_ReadbackFailure);
+                Assert.IsNotNull(m_AlbedoPixels, "Missing albedo readback.");
+                Assert.IsNotNull(m_NormalPixels, "Missing normal readback.");
+            }
 
-                cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureA", m_GBufferA);
-                cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureB", m_GBufferB);
-                cmd.SetComputeTextureParam(m_Compute, m_Kernel, "SRV_GBufferTextureC", m_GBufferC);
-                cmd.SetComputeTextureParam(m_Compute, m_Kernel, "UAV_DecodedAlbedo", m_DecodedAlbedo);
-                cmd.SetComputeTextureParam(m_Compute, m_Kernel, "UAV_DecodedNormal", m_DecodedNormal);
-                cmd.SetComputeVectorParam(m_Compute, "CBV_Resolution", new Vector4(k_Width, k_Height, 0.0f, 0.0f));
-                cmd.DispatchCompute(m_Compute, m_Kernel, (k_Width + 7) / 8, (k_Height + 7) / 8, 1);
-
-                Graphics.ExecuteCommandBuffer(cmd);
-                cmd.Release();
-
-                AsyncGPUReadbackRequest albedoRequest = AsyncGPUReadback.Request(m_DecodedAlbedo);
-                AsyncGPUReadbackRequest normalRequest = AsyncGPUReadback.Request(m_DecodedNormal);
-                AsyncGPUReadback.WaitAllRequests();
-                Assert.IsFalse(albedoRequest.hasError, "Albedo GPU readback failed.");
-                Assert.IsFalse(normalRequest.hasError, "Normal GPU readback failed.");
-                m_AlbedoPixels = albedoRequest.GetData<Color>().ToArray();
-                m_NormalPixels = normalRequest.GetData<Color>().ToArray();
+            void CompleteReadback(AsyncGPUReadbackRequest request, bool albedo)
+            {
+                try
+                {
+                    if (request.hasError) throw new InvalidOperationException((albedo ? "Albedo" : "Normal") + " GPU readback failed.");
+                    // Request data expires after completion; copy it here, before yielding another Editor frame.
+                    Color[] pixels = request.GetData<Color>().ToArray();
+                    if (pixels.Length != k_Width * k_Height) throw new InvalidOperationException("Unexpected GBuffer readback size.");
+                    if (albedo) m_AlbedoPixels = pixels;
+                    else m_NormalPixels = pixels;
+                }
+                catch (Exception error) { m_ReadbackFailure ??= error.ToString(); }
+                finally
+                {
+                    --m_PendingReadbacks;
+                    TryRelease();
+                }
             }
 
             public void AssertAlbedo(int fixtureId, string label, bool requireBothParities)
@@ -358,7 +371,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public void Dispose()
             {
+                if (m_DisposeRequested) return;
+                m_DisposeRequested = true;
+                if (m_PendingReadbacks != 0) s_Retained.Add(this);
                 Shader.SetGlobalTexture("g_BestFitNormal_LUT", m_PreviousLut);
+                TryRelease();
+            }
+
+            void TryRelease()
+            {
+                if (!m_DisposeRequested || m_Released || m_PendingReadbacks != 0) return;
+                m_Released = true;
+                s_Retained.Remove(this);
                 if (m_Material != null)
                 {
                     UnityEngine.Object.DestroyImmediate(m_Material);
@@ -383,8 +407,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     useMipMap = false,
                     autoGenerateMips = false
                 };
-                rt.Create();
-                return rt;
+                return CreateOwned(rt);
             }
 
             static RenderTexture CreateDecoded(string name)
@@ -399,8 +422,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     useMipMap = false,
                     autoGenerateMips = false
                 };
-                rt.Create();
-                return rt;
+                return CreateOwned(rt);
+            }
+
+            static RenderTexture CreateOwned(RenderTexture texture)
+            {
+                try
+                {
+                    if (!texture.Create()) throw new InvalidOperationException("Failed to create " + texture.name);
+                    return texture;
+                }
+                catch
+                {
+                    UnityEngine.Object.DestroyImmediate(texture);
+                    throw;
+                }
             }
 
             static void Release(RenderTexture rt)

@@ -19,6 +19,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             return tasks;
         }
 
+        static void FlushOwnFrame(int start, RenderContext context, MeshComponent component)
+        {
+            foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
+            // Registration now joins the world first; the real pipeline batches probes before dirty sync.
+            // Drive those phases without draining another Editor object's queued work.
+            context.InterpolateMeshProbes();
+            var dirty = (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
+                "s_DirtyMeshList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
+            if (dirty.RemoveAll(value => ReferenceEquals(value, component)) > 0)
+                component.SyncFromSnapshot(context);
+        }
+
         [TestCase(false, false, false, 0)]
         [TestCase(true, false, false, 0)]
         [TestCase(true, true, false, 0)]
@@ -47,12 +59,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 component.castShadow = ECastShadowMethod.Dynamic;
                 go.SetActive(true);
                 if (initiallyRegistered)
-                    foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
+                    FlushOwnFrame(start, context, component);
                 if (deactivateObject) go.SetActive(false);
                 else component.enabled = false;
                 if (mobilityChange != 0) component.movebility = mobilityChange == 1 ? EStateType.Dynamic : EStateType.Static;
                 if (reenable) go.SetActive(true);
-                foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
+                FlushOwnFrame(start, context, component);
                 var scene = context.GetMeshScene();
                 Assert.AreEqual(reenable ? 1 : 0, scene.LogicalInstanceCount,
                     "An enable queued before disable cannot resurrect an inactive renderer.");

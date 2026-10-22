@@ -9,6 +9,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ShaderStrippingTests
     {
+        [TestCase("InfinityPipeline/InfinityLit")]
+        [TestCase("InfinityPipeline/InfinityLit-Instanced")]
+        [TestCase("InfinityPipeline/TerrainLit")]
+        public void ProbeVolumeShaders_DeclareGlobalBands(string shaderName)
+        {
+            Shader shader = Shader.Find(shaderName);
+            Assert.IsNotNull(shader, shaderName);
+            foreach (string name in new[] { "PROBE_VOLUMES_L1", "PROBE_VOLUMES_L2" })
+            {
+                LocalKeyword keyword = shader.keywordSpace.FindKeyword(name);
+                Assert.IsTrue(keyword.isValid, shaderName + ": " + name);
+                Assert.IsTrue(keyword.isOverridable, "Pipeline global keywords must control " + shaderName + ": " + name);
+            }
+        }
+
         static Shader LoadFixture(string lightMode, bool infinityTagged)
         {
             string file = (infinityTagged ? "Infinity" : "Untagged") + (lightMode.Length == 0 ? "Empty" : lightMode);
@@ -26,7 +41,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader()
         {
             Assert.IsTrue(InfinityShaderStripper.IsInfinityActive);

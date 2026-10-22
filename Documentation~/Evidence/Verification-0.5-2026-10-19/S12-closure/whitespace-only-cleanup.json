@@ -1,0 +1,221 @@
+{
+  "files": [
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure.meta",
+      "beforeSha256": "749c931b611eacb50145a67d927f50e3d158c9ed6ce98626907b55bcf6293c8d",
+      "afterSha256": "724bd9d31634779f2af8e1fbe13711850072507c392f98caace2a6c8e3a5bc5b",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/consumed-capture-payload-cleanup-v1.json.gz.meta",
+      "beforeSha256": "38a987d140c16c7ff1944b1226c88c063dd5fad5699e7f352e31663dec1d4a75",
+      "afterSha256": "9170be78da277bc9ef7ffd2170386830fba0f5d93e424106a3b78c36fa7718fb",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/fd-posts12-local-matrix-preview-v1.png.meta",
+      "beforeSha256": "ff0be2da17c588fcc29314b889108aaed3c03d611a968136829f79b7424d9936",
+      "afterSha256": "a5e6bda18d87108434e83bc6671bc2d3a06fbdddd9077e8085326fecc7c6fc02",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/fd-pre05-custom-shadow-matrix-v3.png.meta",
+      "beforeSha256": "41756c818f0420a9d3ec45a5f74a6514aa06eab5aa25030d5d3998f6348b3e6e",
+      "afterSha256": "79143cc0b465da54305318477839139874f13fe24372e11ac59b346d9911ef45",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-consumers-contact-v1.png.meta",
+      "beforeSha256": "c86643a5a11e3d318959cedb5821a345ece1588ccdc4754a003a0c3686d6fc4b",
+      "afterSha256": "20edf149f096c05344db488bfbfaceb92e83a4d26b1bb0b8407cf75d69d8392d",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-category-v1--actual-checkpoint-skips.json.gz.meta",
+      "beforeSha256": "9cc4ab5a328f5593e4ed590a86e76cf8045db8bc136d27628fb1541d30112b13",
+      "afterSha256": "9528c179f69b52cca9f2c04f95c8f9536dd6b86187cb3e630f037318e16ffc19",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-category-v1--callback-results.xml.gz.meta",
+      "beforeSha256": "32db7206cc5325618ca3fda33609c8a2486cf2b2b3d3eb379f3858ae8b72228a",
+      "afterSha256": "8eec4a48df4a7db91e5b82db525b8052056ebec4781ab62fee0c8cfee0c8674e",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-category-v1--results.xml.gz.meta",
+      "beforeSha256": "9b0ad0f6d1b4ed201c43e0940bf04edc39227f4bc711c336b653fcafbf409f44",
+      "afterSha256": "d86fe80f7d4818d3d5436c8d68d2c356dd286ccf53479861c0ae7edb917bccb5",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-category-v1--run.json.gz.meta",
+      "beforeSha256": "0c78f88507548c000aaa5797cb8c342c7fe370b503dcace2f21e104ce787aab0",
+      "afterSha256": "abb0a5b9eab8c1f1965e933a5a0235f5d0b38281729f31e1fc0ae326d5db7afc",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-full-v1--actual-checkpoint-skips.json.gz.meta",
+      "beforeSha256": "884fa698d4a31e95f57d01ae426e8532568213a3767ccfd16ccb845768301ebb",
+      "afterSha256": "bd93626aead4a046791f789609ffa368b25e6e278f94aee0bb0692d709f06745",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-full-v1--callback-results.xml.gz.meta",
+      "beforeSha256": "420163131b464c33ac823c68d6752d68e06f131664bd841bedd9486ecd701339",
+      "afterSha256": "aa62da8bf2e223a66f47eab49e69d482db6654343afc6005ceba376b30f047b0",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-full-v1--results.xml.gz.meta",
+      "beforeSha256": "9add47b9f2def2829e4ec642346305b378352781c5e9f36d76f358e0328d859a",
+      "afterSha256": "21c1a7003815de7cb80ca8e8c96bbfd2ff8e86d9c6066079d8ac4902b5fe2650",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-full-v1--run.json.gz.meta",
+      "beforeSha256": "d90db4270fc80198274c300a268613f29e1db5ce67d7758827eb47ece2c528ef",
+      "afterSha256": "8bef1867805fc50da600056fcd5804e2bf0311c27be405aeee0d46b3db5c814d",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/historical-s12-final-source-identity-v2.json.meta",
+      "beforeSha256": "5f1c9f8bdf3f325cfa99fd7b3994f48198e378ffc1b055083d282b6c5dd56065",
+      "afterSha256": "2fdd82b01133f1b2fad71adcbbb6cfcff5757071c80145ad49ee5be6f7138162",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/key-receipts-and-capture-metadata.json.gz.meta",
+      "beforeSha256": "abcb6786b8e6430d6ac63243d06c80738847acda668f04778dffa68a702fbc56",
+      "afterSha256": "4128903b135a3d90d4d71a9336a926345b9ec69dee4e609f632d84725837a792",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-final-after-exit-restoration-v1.json.meta",
+      "beforeSha256": "0be557091124d426bdbe2fde90c40ea351e38a1c220daa4a12c85f897cede027",
+      "afterSha256": "eac8a19a90a7a558373caae09400407a43e172d42228d408613ff939db5962b1",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-final-candidate-identity-v1.json.meta",
+      "beforeSha256": "af5c0d53c631e0f81897dfccfbf2228ec979a6e9ffad1f9a5b542f9f3745eb64",
+      "afterSha256": "384efebcb851510f05d2abda536aa44a5ae4b74978a974468dbea8e033b9c6c2",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-final-source-identity-v2.json.meta",
+      "beforeSha256": "e6834dee1403d4fcabd17bd12fd139eb7f73cf7d72a24e245d5ec1b58102a5b9",
+      "afterSha256": "58f1a151c6228198431c989339ae2673ed5651f3e7268750eba927af37a519b6",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-final-spazon-preview-v1.png.meta",
+      "beforeSha256": "1029d286a1dde5cc0cc9c69a1869b0a468bee15e5cb1f7dbc277f7ad49e0807d",
+      "afterSha256": "6c5b6e333407e50e52ad5c064319cd1cc3f064fc8a19513d9f355a78819b45cb",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-full-v5-identity-verdict-v1.json.meta",
+      "beforeSha256": "ad6870ce7459fb91728f021804ab022ff8339518ae7f2bbc9318d3a5a1f24fef",
+      "afterSha256": "0e9706608eac5c6a382cc73df77cf26eda358d19d78061484e62e08d9243498f",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-s12-final-full-v5--actual-checkpoint-skips.json.gz.meta",
+      "beforeSha256": "dc3f45ed948903f6f9d58db29be73765c74dea09fdf6c52abe36d06ab5cd91e0",
+      "afterSha256": "01070408aeeedf2a8d55f7aa837a12203ebc2a28350c2bdaaad1f8b888b95e53",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-s12-final-full-v5--callback-results.xml.gz.meta",
+      "beforeSha256": "bf162fd5d449b638cd9badad20a5dd1dbc34bb89d04ca23b760db9fd657cc570",
+      "afterSha256": "366b7502d5338179977fdb698895696ea471903109c121b476b034bacf2b67b2",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-s12-final-full-v5--results.xml.gz.meta",
+      "beforeSha256": "b65e8157c90d1c281db1a6ad36b655d750b8978f3edfa16a01e163fc2fa5b128",
+      "afterSha256": "caf2809cd0f342849f8149eea827949001a7e5d7d9d96a213095e4344eac9488",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/main-s12-final-full-v5--run.json.gz.meta",
+      "beforeSha256": "3d1dd7df0afd389e4b73edcc434a8524f3b586bae4573bcb61fe8e950977b8c5",
+      "afterSha256": "11071c103de91ba0a75599277e3b379ac61549fa06eda6c17cdb186c9beaea05",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/manifest.json.meta",
+      "beforeSha256": "65463386f6d8aa2017e6e4ac8de181535c5a09cb3ed57633a025fd1fcf6e3e6d",
+      "afterSha256": "abfa212f27e2033cd912cd5b14a73670e758a42dbc25e4c349948ec4731d1bc9",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/native-posts12-local-debug-crop-v1.png.meta",
+      "beforeSha256": "b4a9a4024642f3b626ed9a2c58dece5b5cd1c8733db76b5128ad74fb94b41a91",
+      "afterSha256": "eaabac5d67f0c6e4aaa85b7931e1570301114a569acfc4c8aee0699f94051d82",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/original-failure-test-receipts.json.gz.meta",
+      "beforeSha256": "ba19e7dece3ff3ab44d5d0eb2ca340a8a543b7abb43cdd123027317d7fefc7fa",
+      "afterSha256": "eae7d9cc6b02b4dc9ea79244171170de3c003f84b07c33d9298866d2a8b5764b",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/profile-native-schema-prior-audit.json.gz.meta",
+      "beforeSha256": "7833d98f531f403454f8441f8fbb71fed4ab4c95447a6c7aaa28a49df789abec",
+      "afterSha256": "d37dad584a4435de39d588166c0afd1fe8c379775cf1fa25cae4df55d70f079f",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/retained-fixture-consumers-v1.json.meta",
+      "beforeSha256": "bcb61d598d4c961d53079a71c692f725044da0b3a9b8941ecfe9b01eb5bcee6f",
+      "afterSha256": "6e3ce8e6409c3dedd2e8aaa34239234be63855bf4d0e7c6dd61834015122fecb",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/skyfill-bake-contact-v1.png.meta",
+      "beforeSha256": "744a5145898e57a5c46f8326cd9056031be8bd40719a35f632a0c6f8c34ae249",
+      "afterSha256": "69320c9992ecfbeca86011efe39fc70afa2c5ca16d75ac1130808662b98a6ae7",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/skyfill-saved-six-faces-preview-v1.png.meta",
+      "beforeSha256": "ae896060f48f41054f2f303d8153035ea75ce5d94c0efb2a5885ea3bbe105a99",
+      "afterSha256": "2ba6ef90e0c41729313f99d2688ece13a9dad26a8ad7952ca566d7e067068c42",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/terrain-actual-shadow-preview-v1.png.meta",
+      "beforeSha256": "e00f8f2eb24196757ba3bf8b2fd42307cb73dd3c366d757e7dd81129a5accf79",
+      "afterSha256": "8b80bf33fef84448cd8ca514f1a94529f6b8dc2993b5fe7b847ed1a06a874601",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/terrain-holes-contact-sheet-v1.png.meta",
+      "beforeSha256": "2e1b6ca5d029d6f83e47e77175e8d3bad8e4391470ed5a1b4890cc87e4fdfa80",
+      "afterSha256": "e454580c495bcddf3183d7ebc467bf3ed43d48196f543b424066f7f9b81b88d5",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/terrain-perspective-near-far-contact-sheet-v1.png.meta",
+      "beforeSha256": "a0147038027d85ec197d997ab13e07bf74616f2d49e31ba695e9760266d9a755",
+      "afterSha256": "9b24f0aee0a3d871837ddecba3498ab3908f72a2f9f0aabef6a6fe61891963de",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-closure/verification-control-sources.json.gz.meta",
+      "beforeSha256": "e9350c66fdff3fa03b9e60ee032bc4b3f5840f3e81edb00962ec05338079762e",
+      "afterSha256": "5ecd0d9af8b699b364e7119118d8054a446be929d647e7da5cb30c5218ef127f",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    },
+    {
+      "path": "Documentation~/Evidence/Verification-0.5-2026-10-19/S12-report.md.meta",
+      "beforeSha256": "2d8bcdc73a03ac251745d5663585cff411d1c68cf6bee00d7c607b0414ade23e",
+      "afterSha256": "d36b3d7e7b63c78327ec30ba96f9bec223c24ace01a334226f3afdda89e5bddb",
+      "scope": "Only trailing spaces/tabs removed; non-whitespace content, line count and meta GUID unchanged"
+    }
+  ],
+  "scope": "Newly staged files included in commit diff-check for the first time. Token/content/GUID preserving trailing whitespace cleanup only, no behavior changes."
+}

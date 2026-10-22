@@ -1,0 +1,37 @@
+{
+  "paths": [
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/__InfinityValidation_S12_20261022/Bake",
+      "producer": "S12 validation native bakes/fixture generation stopped",
+      "consumer": "S13 reflection/GI fixture and final complete-HEAD baked-GI checks",
+      "files": 33,
+      "logicalBytes": 447437,
+      "cleanup": "After final S17/full-HEAD acceptance; do not discard while downstream tests still require the data"
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/__InfinityValidation_S12_20261022/APV",
+      "producer": "S12 validation native bakes/fixture generation stopped",
+      "consumer": "Final complete-HEAD APV regression independent of default image cases",
+      "files": 22,
+      "logicalBytes": 3820899,
+      "cleanup": "After final S17/full-HEAD acceptance; do not discard while downstream tests still require the data"
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/__InfinityValidation_S12_20261022/SkyFill",
+      "producer": "S12 validation native bakes/fixture generation stopped",
+      "consumer": "Final complete-HEAD baking-sky regression",
+      "files": 15,
+      "logicalBytes": 341560,
+      "cleanup": "After final S17/full-HEAD acceptance; do not discard while downstream tests still require the data"
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/__InfinityValidation_S12_20261022/ShadowMatrix",
+      "producer": "S12 validation native bakes/fixture generation stopped",
+      "consumer": "Final complete-HEAD matrix and multi-camera regression",
+      "files": 10,
+      "logicalBytes": 48263,
+      "cleanup": "After final S17/full-HEAD acceptance; do not discard while downstream tests still require the data"
+    }
+  ],
+  "scope": "No second copies; these original task-owned fixture assets have named later consumers. Task intermediate payload cleanup is tracked separately."
+}

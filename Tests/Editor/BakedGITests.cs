@@ -8,7 +8,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class BakedGITests
     {
         [Test]
-        [Category("Unverified_0_5")]
         public void Asset_ProbeVolumeInterface_FollowsLightProbeSystem()
         {
             var asset = ScriptableObject.CreateInstance<InfinityRenderPipelineAsset>();
@@ -28,7 +27,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void ProbeVolumeIntegration_DisabledWithoutProbeVolumes()
         {
             using (var integration = new ProbeVolumeIntegration(null))
@@ -38,7 +36,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void IESIntensity_LumensSpreadOverTheEmissionSolidAngle()
         {
             var go = new GameObject("IESTest");
@@ -59,10 +56,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
+        [TestCase("BaseMapShader", "Hidden/InfinityPipeline/TerrainLitBase")]
+        [TestCase("BaseMapGenShader", "Hidden/InfinityPipeline/TerrainLitBasemapGen")]
+        public void TerrainShader_ResolvesNativeBakingMaterialDependencies(string dependency, string expectedShader)
+        {
+            Shader terrain = Shader.Find("InfinityPipeline/TerrainLit");
+            Assert.IsNotNull(terrain);
+            Shader required = terrain.GetDependency(dependency);
+            Assert.IsNotNull(required, "Unity's native terrain bake needs the basemap material chain.");
+            Assert.AreSame(Shader.Find(expectedShader), required);
+            var material = new Material(required);
+            try
+            {
+                if (dependency == "BaseMapShader")
+                {
+                    Assert.GreaterOrEqual(material.FindPass("Meta"), 0);
+                    Assert.GreaterOrEqual(material.FindPass("GBufferPass"), 0);
+                    Assert.GreaterOrEqual(material.FindPass("ShadowCaster"), 0);
+                }
+                else
+                {
+                    Assert.AreEqual(1, material.passCount, "Only the consumed albedo basemap is generated.");
+                }
+            }
+            finally { Object.DestroyImmediate(material); }
+        }
+
         [TestCase("InfinityPipeline/InfinityLit")]
         [TestCase("InfinityPipeline/InfinityLit-Instanced")]
         [TestCase("InfinityPipeline/TerrainLit")]
-        [Category("Unverified_0_5")]
         public void SurfaceShaders_HaveMetaAndShadowCasterPasses(string shaderName)
         {
             Shader shader = Shader.Find(shaderName);

@@ -1,0 +1,133 @@
+{
+  "baseHead": "8f4b86280b684f327a48467d2334f8bb8f6e4b3a",
+  "branch": "main",
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 25804,
+      "sha256": "cad14fe6fb759bf7b171dbb83d8d5b2a1766c26d4a1b16067106545c4febc7cc"
+    },
+    {
+      "path": "Docs/FeatureStatus.md",
+      "bytes": 7315,
+      "sha256": "4cefa16b44c9c94d7aea446c817b4ec3affcfc3536178c79c62f3c47b5013681"
+    },
+    {
+      "path": "Docs/Verification-Playbook-0.5.0.md",
+      "bytes": 60769,
+      "sha256": "8b09ae5c00dc95370e4d2092b7e7ed4327c954d273bc21f09b77f0ff69008e63"
+    },
+    {
+      "path": "Documentation~/baked-gi.md",
+      "bytes": 2468,
+      "sha256": "9aacd214c06a7624d45b1627286c65be35c07c6a3b4b494b90f7e7675d52ee98"
+    },
+    {
+      "path": "Editor/Lighting/InfinityBakingSky.cs",
+      "bytes": 9696,
+      "sha256": "c9fcbbfcc9960c7239de1eea664d0275bba446dadf06d4c3cce044bc3fa47157"
+    },
+    {
+      "path": "Editor/ShaderStripper/InfinityShaderStripper.cs",
+      "bytes": 9134,
+      "sha256": "78387ce8e2735a20a59cf04c18fb5cca4d53c23350e5c17fe9040af3a1ed3d93"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 112978,
+      "sha256": "3d312db856a5fe47302cc1df4b2c54565b036286f1cc926e29534aba972c22fa"
+    },
+    {
+      "path": "Runtime/Component/Render/MeshComponent.cs",
+      "bytes": 30211,
+      "sha256": "fd7c0e6f397ffc48729aea6d379f3d2635b9bca3997fea187e210418b03d50fc"
+    },
+    {
+      "path": "Runtime/RenderPipeline/Context/RenderContext.cs",
+      "bytes": 9479,
+      "sha256": "d1c3d994ab13ea716f610eba71f70bcd8d9f79e8bce1e8575be83eaa2fa68a8a"
+    },
+    {
+      "path": "Runtime/RenderPipeline/InfinityRenderPipeline.cs",
+      "bytes": 72346,
+      "sha256": "8a369b5d62539636f01d41ea671a3020ad7b72ffe769b011ae3c1a596be70a02"
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshBakedLighting.cs",
+      "bytes": 8732,
+      "sha256": "b8d0cb6c0fca5c332d54cebd365addf59f1a5ec991a277f595f2c32c4b1abd7d"
+    },
+    {
+      "path": "Runtime/Resources/InfinityDefaultVolumeProfile.asset",
+      "bytes": 41256,
+      "sha256": "fe022b4c0c2d7062b592398b04c26222eff7c6ea8fae5baf3a358eba9e53f692"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLit.shader",
+      "bytes": 6104,
+      "sha256": "ffb72ee71250719b29e50c3cdecf0bc12b69a98cd93191f884a3420abe9ec007"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBase.shader",
+      "bytes": 5698,
+      "sha256": "86432ae310adb091778e61e70aa0803591a5ce24f4df83dab17068bd03c8bf78"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBase.shader.meta",
+      "bytes": 204,
+      "sha256": "7d8308165cf2f10702ed955984e1d9a5cbb16555e66bfea59bfb30aeb8451d66"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBasemapGen.shader",
+      "bytes": 4606,
+      "sha256": "e21a701c32fdbd64270585ef6ec2393f46a3bb635c175986b7b23b28aa3fe2fe"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBasemapGen.shader.meta",
+      "bytes": 204,
+      "sha256": "80e77c5e387a0a95be24b52fc6b3bb1dd78658bf7874cb96a1e316ac141f15df"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitInclude.hlsl",
+      "bytes": 27092,
+      "sha256": "b76e2acccacc7d49e6ef858ae77dc91af62a030095db208a2266def9b112cc55"
+    },
+    {
+      "path": "Tests/Editor/BakedGITests.cs",
+      "bytes": 4287,
+      "sha256": "a2933594d8d0f56643fdb1ca0518f11f359f06dc2af05d108ae7c1cf00762c2b"
+    },
+    {
+      "path": "Tests/Editor/BakingSkyReadbackTests.cs",
+      "bytes": 3457,
+      "sha256": "0e205c86bf262d5f065e1b11cc872a344566b06e0c28996f474fc2d83655dea6"
+    },
+    {
+      "path": "Tests/Editor/BakingSkyReadbackTests.cs.meta",
+      "bytes": 243,
+      "sha256": "14b65bd824fad28c631b8df329a22daf0bfb130828ef914a0aba046e96669a46"
+    },
+    {
+      "path": "Tests/Editor/DefaultVolumeOutputTests.cs",
+      "bytes": 20616,
+      "sha256": "55828d03107c6d287160307a5aa44dfe9ee49a436d82980e9c6caf1fb47bb18c"
+    },
+    {
+      "path": "Tests/Editor/GBufferContractTests.cs",
+      "bytes": 19168,
+      "sha256": "f50c31fc08b2d4f851093ca077eb19c3a1d82f7acc60395f6bdc4219dbf5d3d9"
+    },
+    {
+      "path": "Tests/Editor/MeshComponentRegistrationTests.cs",
+      "bytes": 5703,
+      "sha256": "8980ce91a4cdf78aa6e349df62d51dfc630224c1aa1bb03d3f387d16c0999dbb"
+    },
+    {
+      "path": "Tests/Editor/ShaderStrippingTests.cs",
+      "bytes": 6533,
+      "sha256": "b0acb0a3c29338f39b3599f493f54adfc29c6ca75601cfb68a833c488a8c6995"
+    }
+  ],
+  "patchSha256": "2c5a25062890e265a8fcbb2394055896adc5503281ec5960e0bd3ec681f99a6d",
+  "scope": "S12 final candidate after actual historical/main tests, own Editor exited, source assets restored; no subsequent source mutation without new identity/review"
+}

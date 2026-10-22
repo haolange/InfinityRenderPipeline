@@ -148,5 +148,7 @@ Shader "InfinityPipeline/TerrainLit"
         }
     }
 
+    Dependency "BaseMapShader" = "Hidden/InfinityPipeline/TerrainLitBase"
+    Dependency "BaseMapGenShader" = "Hidden/InfinityPipeline/TerrainLitBasemapGen"
     Dependency "AddPassShader" = "Hidden/InfinityPipeline/TerrainLitAdd"
 }

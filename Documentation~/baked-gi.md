@@ -25,9 +25,13 @@ lighting scenarios and scenario blending. Add Probe Volumes to the scene and bak
 
 ## Baking sky
 
-Window → Infinity → Lighting → Use Atmosphere As Baking Sky stores the atmosphere as a cubemap asset and sets the
-scene skybox to it, so baked ambient and reflection probes see the same sky as the renderer. It is refreshed when a
-bake starts. The Lighting window's Environment section shows the state.
+Save the scene, then use Window → Infinity → Lighting → Use Atmosphere As Baking Sky. The command reads the six
+atmosphere faces into a Texture2DArray and assigns a skybox material, so baked ambient and reflection probes use that
+sky. Outputs under `Assets/InfinityBakingSky/` use the saved scene GUID; equal scene names do not share assets.
+Only those output assets are saved by the command. Refresh validates the GPU readback before updating the existing
+texture, including when its size changes. Baking stops if refresh fails or the material belongs to a different
+scene. For an earlier name-based output, explicitly run the command again for that scene; existing assets are not
+deleted or migrated on load. The Lighting window's Environment section shows the state.
 
 ## Lightmapper
 

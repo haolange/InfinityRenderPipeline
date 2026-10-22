@@ -194,7 +194,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         // One light-probe interpolation for every mesh whose probe position moved or whose probe data changed this
         // frame, instead of one call per mesh (static meshes are sampled again only after a probe bake).
-        void InterpolateMeshProbes()
+        internal void InterpolateMeshProbes()
         {
             List<Vector3> positions = MeshBakedLighting.BatchPositions;
             positions.Clear();
@@ -225,7 +225,6 @@ namespace InfinityTech.Rendering.Pipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InvokeWorldDynamicMeshUpdate()
         {
-            InterpolateMeshProbes();
             // Static geometry can change scene visibility, lightmap assignments or probe lighting without moving.
             for (int i = 0; i < m_StaticMeshList.Count; i++) m_StaticMeshList[i].RefreshInstanceMetadata();
             if (m_DynamicMeshList.Count == 0) { return; }

@@ -22,6 +22,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     internal static class MeshBakedLighting
     {
+        static readonly Unity.Profiling.ProfilerMarker s_InterpolationMarker = new Unity.Profiling.ProfilerMarker("Infinity.MeshProbeInterpolation");
         static readonly Vector3[] s_Positions = new Vector3[1];
         static readonly SphericalHarmonicsL2[] s_Probes = new SphericalHarmonicsL2[1];
         static readonly Vector4[] s_Occlusion = new Vector4[1];
@@ -43,6 +44,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     s_ProbeEventsHooked = true;
                     LightProbes.lightProbesUpdated += () => ++s_ProbeVersion;
                     LightProbes.needsRetetrahedralization += () => ++s_ProbeVersion;
+                    LightProbes.tetrahedralizationCompleted += () => ++s_ProbeVersion;
                 }
                 return s_ProbeVersion;
             }
@@ -74,7 +76,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             if (positions.Count > 0)
             {
-                LightProbes.CalculateInterpolatedLightAndOcclusionProbes(positions, probes, occlusion);
+                using (s_InterpolationMarker.Auto())
+                    LightProbes.CalculateInterpolatedLightAndOcclusionProbes(positions, probes, occlusion);
             }
         }
 
@@ -109,7 +112,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 if (!hasProbeSample)
                 {
                     s_Positions[0] = source != null ? (source.probeAnchor != null ? source.probeAnchor.position : source.bounds.center) : position;
-                    LightProbes.CalculateInterpolatedLightAndOcclusionProbes(s_Positions, s_Probes, s_Occlusion);
+                    using (s_InterpolationMarker.Auto())
+                        LightProbes.CalculateInterpolatedLightAndOcclusionProbes(s_Positions, s_Probes, s_Occlusion);
                     probe = s_Probes[0];
                     probeOcclusion = s_Occlusion[0];
                 }

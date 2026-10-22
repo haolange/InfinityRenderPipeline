@@ -1006,6 +1006,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 FGraphics.ProcessTasks(renderContext);
                 FGraphics.ClearTasks();
+                renderContext.InterpolateMeshProbes();
 
                 #if UNITY_EDITOR
                     InvokeProxyUpdateEditor();

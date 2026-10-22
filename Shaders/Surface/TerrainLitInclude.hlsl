@@ -429,6 +429,7 @@ Varyings SplatmapVert(Attributes v)
     return o;
 }
 
+#ifndef TERRAIN_SPLAT_BASEPASS
 void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
 {
     masks[0] = 0.5h;
@@ -452,6 +453,7 @@ void ComputeMasks(out half4 masks[4], half4 hasMask, Varyings IN)
     masks[3] *= _MaskMapRemapScale3.rgba;
     masks[3] += _MaskMapRemapOffset3.rgba;
 }
+#endif
 
 #endif
 
@@ -464,11 +466,9 @@ void ForwardFragment(Varyings IN, out float4 LightingBuffer : SV_Target0)
     half3 normalTS = half3(0, 0, 1);
     
     #ifdef TERRAIN_SPLAT_BASEPASS
-        half3 albedo = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy).rgb;
-        half smoothness = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy).a;
-        half metallic = SAMPLE_TEXTURE2D(_MetallicTex, sampler_MetallicTex, IN.uvMainAndLM.xy).r;
-        half alpha = 1;
-        half occlusion = 1;
+        half4 mixedDiffuse = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy);
+        half weight = 1;
+        half4 defaultSmoothness = mixedDiffuse.aaaa;
     #else
 
     half4 hasMask = half4(_LayerHasMask0, _LayerHasMask1, _LayerHasMask2, _LayerHasMask3);
@@ -519,11 +519,9 @@ void DeferredFragment(Varyings IN, out float4 GBufferA : SV_Target0, out float4 
     half3 normalTS = half3(0, 0, 1);
     
     #ifdef TERRAIN_SPLAT_BASEPASS
-        half3 albedo = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy).rgb;
-        half smoothness = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy).a;
-        half metallic = SAMPLE_TEXTURE2D(_MetallicTex, sampler_MetallicTex, IN.uvMainAndLM.xy).r;
-        half alpha = 1;
-        half occlusion = 1;
+        half4 mixedDiffuse = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uvMainAndLM.xy);
+        half weight = 1;
+        half4 defaultSmoothness = mixedDiffuse.aaaa;
     #else
 
     half4 hasMask = half4(_LayerHasMask0, _LayerHasMask1, _LayerHasMask2, _LayerHasMask3);
@@ -717,12 +715,19 @@ MetaVaryings TerrainMetaVertex(MetaAttributes v)
 
 float4 TerrainMetaFragment(MetaVaryings IN) : SV_Target
 {
+    #if defined(_ALPHATEST_ON)
+    ClipHoles(IN.uv);
+    #endif
+    #if defined(TERRAIN_SPLAT_BASEPASS)
+    half3 albedo = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv).rgb;
+    #else
     float2 splatUV = (IN.uv * (_Control_TexelSize.zw - 1.0f) + 0.5f) * _Control_TexelSize.xy;
     half4 control = SAMPLE_TEXTURE2D(_Control, sampler_Control, splatUV);
     half3 albedo = control.r * SAMPLE_TEXTURE2D(_Splat0, sampler_Splat0, IN.uv * _Splat0_ST.xy + _Splat0_ST.zw).rgb
                  + control.g * SAMPLE_TEXTURE2D(_Splat1, sampler_Splat0, IN.uv * _Splat1_ST.xy + _Splat1_ST.zw).rgb
                  + control.b * SAMPLE_TEXTURE2D(_Splat2, sampler_Splat0, IN.uv * _Splat2_ST.xy + _Splat2_ST.zw).rgb
                  + control.a * SAMPLE_TEXTURE2D(_Splat3, sampler_Splat0, IN.uv * _Splat3_ST.xy + _Splat3_ST.zw).rgb;
+    #endif
     float4 result = 0;
     if (unity_MetaFragmentControl.x)
     {

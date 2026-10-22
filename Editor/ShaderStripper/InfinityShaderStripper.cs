@@ -110,13 +110,18 @@ namespace InfinityTech.Rendering.Editor.Build
         // asset of the build (Graphics default or any Quality level) uses Adaptive Probe Volumes with that band.
         static void StripUnusedProbeVolumeVariants(Shader shader, IList<ShaderCompilerData> data)
         {
+            bool hasL1 = shader.keywordSpace.FindKeyword("PROBE_VOLUMES_L1").isValid;
+            bool hasL2 = shader.keywordSpace.FindKeyword("PROBE_VOLUMES_L2").isValid;
+            // System and unlit shaders without these declarations have no APV variants to strip.
+            if (!hasL1 && !hasL2) return;
             UsedProbeVolumeBands(out bool l1, out bool l2);
-            var keywordL1 = new ShaderKeyword(shader, "PROBE_VOLUMES_L1");
-            var keywordL2 = new ShaderKeyword(shader, "PROBE_VOLUMES_L2");
+            // These multi_compile keywords are global, matching ProbeVolumeIntegration's bindings.
+            var keywordL1 = new ShaderKeyword("PROBE_VOLUMES_L1");
+            var keywordL2 = new ShaderKeyword("PROBE_VOLUMES_L2");
             for (int i = data.Count - 1; i >= 0; --i)
             {
                 ShaderKeywordSet keywords = data[i].shaderKeywordSet;
-                if ((!l1 && keywords.IsEnabled(keywordL1)) || (!l2 && keywords.IsEnabled(keywordL2)))
+                if ((hasL1 && !l1 && keywords.IsEnabled(keywordL1)) || (hasL2 && !l2 && keywords.IsEnabled(keywordL2)))
                 {
                     data.RemoveAt(i);
                     s_StrippedProbeVolume++;

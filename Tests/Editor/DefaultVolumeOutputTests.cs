@@ -99,7 +99,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 foreach (Type type in DefaultVolumeProfileFactory.OptionalComponentTypes)
                 {
                     Assert.IsTrue(profile.TryGet(type, out VolumeComponent optional), type.Name);
-                    Assert.IsFalse(VolumeComponentActive(optional), type.Name);
+                    // CoreRP APV options describe sampling; the RP Asset selects the probe system.
+                    // Unlike Infinity's effect components, their activity is not an enable switch.
+                    Assert.AreEqual(type == typeof(ProbeVolumesOptions), VolumeComponentActive(optional), type.Name);
                 }
             }
             finally

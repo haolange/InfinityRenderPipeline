@@ -143,8 +143,10 @@ namespace InfinityTech.Component
             {
                 // A later disable/re-enable can precede this deferred task, including a mobility change.
                 if (!this || !isActiveAndEnabled || epoch != m_RegistrationEpoch) { return; }
-                RegisterToMeshScene(renderContext);
+                // Join the existing world list before the frame's probe batch. Registration is drained
+                // afterwards, so its first visible metadata contains the same batched sample as updates.
                 AddWorldMesh(renderContext, movebility);
+                MarkDirty();
             });
         }
 
@@ -656,7 +658,8 @@ namespace InfinityTech.Component
                 return true;
             }
 
-            return HasStructuralDiff() || HasLightweightDiff() || !ReadBakedLighting().Equals(m_LastBakedLighting);
+            return HasStructuralDiff() || HasLightweightDiff() || NeedsProbeSample(out _)
+                || !ReadBakedLighting().Equals(m_LastBakedLighting);
         }
 
         private bool HasStructuralDiff()

@@ -1,0 +1,26 @@
+{
+  "comparedRuns": [
+    "main-full-v4-consumed-v1.json.gz",
+    "main-s12-final-full-v5"
+  ],
+  "exactUniqueNameFullNameResultLabelSiteMultisetMatch": true,
+  "tests": 1762,
+  "passed": 1705,
+  "failed": 4,
+  "skipped": 53,
+  "discovered": 1762,
+  "started": 1762,
+  "finished": 1762,
+  "reloadCount": 3,
+  "resumedCount": 3,
+  "callbacksComplete": true,
+  "frameworkComplete": false,
+  "nativeOmittedSkipCount": 33,
+  "callbackXmlSha256": "c7771acc2a4d6fd3bad9c11d44104e9b4a49f6b70a7795b2a4709ff35d8414bf",
+  "failures": [
+    "InfinityTech.Rendering.Pipeline.Tests.MaterialUpgraderTests.Standard_ConvertsToInfinityLit",
+    "InfinityTech.Rendering.Pipeline.Tests.PipelineSeamTests.GeometryPassFiles_DoNotReferenceRetiredSeamTypes",
+    "InfinityTech.Rendering.Pipeline.Tests.ReflectionProbeTests.ProbeRecord_MatchesHlslFieldForField",
+    "InfinityTech.Rendering.Pipeline.Tests.RenderGraphViewerTests.Snapshot_ListsPassesLifetimesAndCulling"
+  ]
+}

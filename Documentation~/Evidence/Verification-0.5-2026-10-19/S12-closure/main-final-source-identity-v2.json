@@ -1,0 +1,133 @@
+{
+  "baseHead": "8f4b86280b684f327a48467d2334f8bb8f6e4b3a",
+  "branch": "main",
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 25804,
+      "sha256": "cad14fe6fb759bf7b171dbb83d8d5b2a1766c26d4a1b16067106545c4febc7cc"
+    },
+    {
+      "path": "Docs/FeatureStatus.md",
+      "bytes": 7315,
+      "sha256": "4cefa16b44c9c94d7aea446c817b4ec3affcfc3536178c79c62f3c47b5013681"
+    },
+    {
+      "path": "Docs/Verification-Playbook-0.5.0.md",
+      "bytes": 60769,
+      "sha256": "8b09ae5c00dc95370e4d2092b7e7ed4327c954d273bc21f09b77f0ff69008e63"
+    },
+    {
+      "path": "Documentation~/baked-gi.md",
+      "bytes": 2468,
+      "sha256": "9aacd214c06a7624d45b1627286c65be35c07c6a3b4b494b90f7e7675d52ee98"
+    },
+    {
+      "path": "Editor/Lighting/InfinityBakingSky.cs",
+      "bytes": 9696,
+      "sha256": "c9fcbbfcc9960c7239de1eea664d0275bba446dadf06d4c3cce044bc3fa47157"
+    },
+    {
+      "path": "Editor/ShaderStripper/InfinityShaderStripper.cs",
+      "bytes": 9134,
+      "sha256": "78387ce8e2735a20a59cf04c18fb5cca4d53c23350e5c17fe9040af3a1ed3d93"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 113084,
+      "sha256": "f4e72b310bade06e5a7a4e27bf1ee233367b020a284074256a6cc9707ef8ed39"
+    },
+    {
+      "path": "Runtime/Component/Render/MeshComponent.cs",
+      "bytes": 30211,
+      "sha256": "fd7c0e6f397ffc48729aea6d379f3d2635b9bca3997fea187e210418b03d50fc"
+    },
+    {
+      "path": "Runtime/RenderPipeline/Context/RenderContext.cs",
+      "bytes": 9479,
+      "sha256": "d1c3d994ab13ea716f610eba71f70bcd8d9f79e8bce1e8575be83eaa2fa68a8a"
+    },
+    {
+      "path": "Runtime/RenderPipeline/InfinityRenderPipeline.cs",
+      "bytes": 72346,
+      "sha256": "8a369b5d62539636f01d41ea671a3020ad7b72ffe769b011ae3c1a596be70a02"
+    },
+    {
+      "path": "Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshBakedLighting.cs",
+      "bytes": 8732,
+      "sha256": "b8d0cb6c0fca5c332d54cebd365addf59f1a5ec991a277f595f2c32c4b1abd7d"
+    },
+    {
+      "path": "Runtime/Resources/InfinityDefaultVolumeProfile.asset",
+      "bytes": 41256,
+      "sha256": "fe022b4c0c2d7062b592398b04c26222eff7c6ea8fae5baf3a358eba9e53f692"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLit.shader",
+      "bytes": 6104,
+      "sha256": "ffb72ee71250719b29e50c3cdecf0bc12b69a98cd93191f884a3420abe9ec007"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBase.shader",
+      "bytes": 5625,
+      "sha256": "40ec9ff5df801ccb5bb8d5dcfe685c190646adb1fb5e37e9113be2109dc58faa"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBase.shader.meta",
+      "bytes": 201,
+      "sha256": "77f589f30dd58176a53f853bed0228fb37f69196d5ad541b5166d067fe65b640"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBasemapGen.shader",
+      "bytes": 4599,
+      "sha256": "231979f1a463dd30e4825b056accb056b471d6a4f1d18a8fe5ef70431b69a5c6"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitBasemapGen.shader.meta",
+      "bytes": 201,
+      "sha256": "59683fde4484afafa39939f9531602645474fa7e084c15e627f8b5cd6e4493c4"
+    },
+    {
+      "path": "Shaders/Surface/TerrainLitInclude.hlsl",
+      "bytes": 27092,
+      "sha256": "b76e2acccacc7d49e6ef858ae77dc91af62a030095db208a2266def9b112cc55"
+    },
+    {
+      "path": "Tests/Editor/BakedGITests.cs",
+      "bytes": 4287,
+      "sha256": "a2933594d8d0f56643fdb1ca0518f11f359f06dc2af05d108ae7c1cf00762c2b"
+    },
+    {
+      "path": "Tests/Editor/BakingSkyReadbackTests.cs",
+      "bytes": 3457,
+      "sha256": "0e205c86bf262d5f065e1b11cc872a344566b06e0c28996f474fc2d83655dea6"
+    },
+    {
+      "path": "Tests/Editor/BakingSkyReadbackTests.cs.meta",
+      "bytes": 240,
+      "sha256": "8fd1a613207066049b6ce88cb49212feabae990ce27a516ab20ada0ed3919d8d"
+    },
+    {
+      "path": "Tests/Editor/DefaultVolumeOutputTests.cs",
+      "bytes": 20616,
+      "sha256": "55828d03107c6d287160307a5aa44dfe9ee49a436d82980e9c6caf1fb47bb18c"
+    },
+    {
+      "path": "Tests/Editor/GBufferContractTests.cs",
+      "bytes": 19168,
+      "sha256": "f50c31fc08b2d4f851093ca077eb19c3a1d82f7acc60395f6bdc4219dbf5d3d9"
+    },
+    {
+      "path": "Tests/Editor/MeshComponentRegistrationTests.cs",
+      "bytes": 5703,
+      "sha256": "8980ce91a4cdf78aa6e349df62d51dfc630224c1aa1bb03d3f387d16c0999dbb"
+    },
+    {
+      "path": "Tests/Editor/ShaderStrippingTests.cs",
+      "bytes": 6533,
+      "sha256": "b0acb0a3c29338f39b3599f493f54adfc29c6ca75601cfb68a833c488a8c6995"
+    }
+  ],
+  "patchSha256": "918860c220b9363ab24439f4b8dbdf2f54525a7ee72c59d30253d80be3f4d342",
+  "scope": "Final 25 source/document files. Relative to tested v1: PLAN status text plus documented trailing-whitespace-only cleanup in two new Terrain shaders and their/new test meta; tokens/content/GUIDs unchanged."
+}
