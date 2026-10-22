@@ -475,7 +475,10 @@ namespace InfinityTech.Rendering.Pipeline
                                     shadowSettings.cascadeCount = Mathf.Clamp(pipelineAsset.cascadeCount, 1, ShadowAllocator.CascadeCount);
                                     shadowSettings.cascadeBlendWidth = pipelineAsset.cascadeBlendWidth;
                                     shadowSettings.filterGuardTexels = pipelineAsset.ResolveShadowFilter().pcfRadius + 1;
-                                    renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize);
+                                    m_LocalShadowCache.Configure(Mathf.Max(0, pipelineAsset.cachedShadowAtlasWidth),
+                                        pipelineAsset.localShadowMapResolution, Mathf.Max(1, pipelineAsset.localShadowMapResolution / 4));
+                                    if (m_LocalShadowCache.SlotCount > 0) m_LocalShadowCache.GetAtlas();
+                                    renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize, m_MeshWorld, m_LocalShadowCache);
                                     m_LightCookieAtlas.Configure(pipelineAsset.cookieAtlasResolution, pipelineAsset.cookieMaxSize);
                                     // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
                                     renderContext.lightContext.ResolveCookies(frameState.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? m_LightCookieAtlas : null,
@@ -581,7 +584,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                                     // PHASE 3: shadow raster (longest ROP window).
                                     // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs.
-                                    RecordAllocatedShadowCasterSplits(renderContext);
+                                    RecordAllocatedShadowCasterSplits(renderContext, cullingResults);
                                     FlushShadowCasterCulling(scriptableRenderContext, cullingResults);
                                     RenderCascadeShadow(renderContext, camera, cullingResults);
                                     RenderLocalShadow(renderContext, camera, cullingResults);

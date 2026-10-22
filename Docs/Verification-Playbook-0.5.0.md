@@ -239,40 +239,72 @@ still fails. Retain the original failed check; these missing historical images a
 
 ## S9a — shadow settings, PCF / PCSS, shadows for every shape
 
-1. Compile; run `LocalShadowFrustumTests` and `LightRecordTests`.
+1. Compile; run `LocalShadowFrustumTests`, `LightRecordTests` and `ShadowSamplingGpuTests`. The latter calls production
+   PCSS with analytic sloped planes, a separate closer-plane negative control, local/directional projections,
+   nonzero atlas rectangles with closer outside sentinels, and near/far half-plane penumbra profiles. Do not increase
+   bias to hide a same-plane failure; gradient correction must use the actual sampled texel center. Local blocker
+   search must cover the possible near-plane emitter footprint, rather than only its receiver-plane radius.
 2. RP Asset → Lighting & Shadows: new Cascade Count, Cascade Blend Width and Shadow Filter Quality. Cascade Count 1–4
    changes the number of cascades in Frame Debugger (`RenderCascadeShadow`); with Blend Width 0.1 the cascade seams on a
    long floor are no longer visible as a hard line.
 3. Shadow Filter Quality Low → Ultra: PCF edges grow from 3×3 to 7×7 texels. Custom shows editable fields; Copy Preset
-   To Custom copies the current preset.
+   To Custom copies the current preset. Seed all seven Custom fields with different legal values before copying; native Undo must restore that complete struct and quality, and Redo must restore the copied state. Use a transient clone so source assets remain unchanged.
 4. Light inspector → Shadow Filter = PCSS on the sun with Source Angle 2°: contact-hardening shadows (sharp at the
    contact, softer with distance). On a sphere point light, Source Radius 0 → 0.3 widens the penumbra.
 5. Pyramid spot, box spot, rect and disk lights now cast shadows (they cast none before). Box spots give parallel
    shadows. A point light with Source Length > 0 (line / tube) still casts six-face shadows.
 6. Expected changes: shadow edges are softer at Medium (5×5 tent replaces the 3×3 box); Hard keeps one-tap edges.
+7. Run `ShadowCasterAllocationTests`. With native renderers disabled, a MeshComponent with Cast Shadow = Dynamic
+   and a valid Shadow pass must allocate and populate cascade/local tiles. Compare native-only and mixed casters,
+   including a custom caster outside native bounds and an offscreen caster upstream of a visible receiver. All Off,
+   mismatched light/rendering/scene layers and Shadowmask-static exclusions must not allocate custom-only tiles.
+8. Check cascade counts 1–4, orthographic and perspective cameras, translated/rotated lights, and near planes crossing
+   the first two split distances. Valid native culling split indices must be contiguous even when atlas tile indices
+   have gaps. Move a native/custom caster through the blend band; both draw paths must retain the shared caster.
+9. Set the local shadow light budget to one. A higher-priority spot with only a caster behind its actual frustum
+   must not displace a lower-priority spot with an eligible caster. Repeat for pyramid/box/planar shapes.
 
 ## S9b — VSM / EVSM
 
-1. Compile; run `ShadowMomentGpuTests` (GPU).
+1. Compile; run `ShadowMomentGpuTests` and `ShadowMomentProductionGpuTests` (GPU). The production test executes the
+   real FromDepth/H/V kernels: orthographic and perspective clear depth, every constant texel, bit-preserving constant
+   blur, and a nonconstant offset tile against an independent double-precision Gaussian (one half-ULP bound per pass)
+   with unchanged neighbours. For a scene-level numerical comparison also record exact depth/moment bindings; a
+   rounded Frame Debugger screenshot alone does not supply a precise CPU oracle.
+   The producer→RGBA16F→visibility cases must keep equal-depth surfaces lit and independent receivers behind them
+   shadowed; a float-only moment helper does not cover storage precision. Receiver comparison accounts for the
+   half-float mean's conservative representation bound, without changing the authored shadow bias or atlas format.
 2. Sun Shadow Filter = EVSM: Frame Debugger shows `ComputeShadowMoments` after `RenderLocalShadow`, with one
    `MomentFromDepth` + two blur dispatches per cascade; Rendering Debugger → Frame Features lists ShadowMoments as
-   produced. Shadows are smooth and wide; contact areas stay dark.
+   Records. Confirm actual dispatches separately; the feature state alone does not prove production. Shadows are smooth; contact areas stay dark.
 3. Switch to VSM: overlapping occluders at different depths show light bleeding (a lighter halo inside the far
    shadow); Shadow Filter Quality Low → Ultra lowers it. EVSM shows much less.
+   Run `VsmPresets_HigherQualityDoesNotIncreaseMultiDepthLightBleeding` against the real half-float production chain.
+   Use the same scene, exposure and unshadowed control for every preset; check finite visibility, clear regions,
+   contact darkness and EVSM edges as well as the overlap. Presets hold blur radius at one texel and increase
+   bleeding suppression; Custom still controls both parameters directly.
 4. Set every light back to PCF: `ComputeShadowMoments` disappears from Frame Debugger.
 5. A spot light with EVSM next to a point light with PCF: only the spot's tile is written in `LocalShadowMoments`.
-6. Volumetric fog with a shadowed sun: shafts look slightly sharper than before (the fog used twice the texel size).
+6. Volumetric fog with a shadowed sun: compare normal frames with fog on/off and shadowing on/off. In ScatterDensity, verify `_CascadeShadowMapSize` uses the complete cascade atlas dimensions and their reciprocals, matching the bound texture. The pre-S9 binding used one cascade resolution and twice the correct texel size. An isolated old-binding control may reveal small local differences; do not infer a measured sharpness improvement from a difference image. Restore the control before final tests.
 
 ## S9c — cached local shadows
 
-1. Compile; run `LocalShadowCacheTests`.
+1. Compile; run `LocalShadowCacheTests` and `ShadowDepthCopyGpuTests` (actual depth-tile GPU round trip). Check nonzero source/destination offsets, different atlas sizes, every neighbour pixel and the independent legal R32 color-copy reference. Depth-only atlases use separate save/load Raster passes; no region `CopyTexture` is allowed. A green slot-state test alone does not prove cached depth contents.
 2. A shadowed spot light → Shadow Update Mode = OnEnable. Rendering Debugger → Infinity Lighting: Cached Shadow Tiles 1,
    Cached Shadow Re-renders 1 on the first frame, then 0. Frame Debugger: `CopyCachedLocalShadow` appears and the
    spot's `LocalShadowSlice` draw disappears from `RenderLocalShadow` on later frames.
 3. Move a cube under the spot: its shadow stays where it was (cached). Move or rotate the light: one re-render.
    Disable and re-enable the Infinity component: one re-render.
 4. OnDemand on a point light: six cached tiles; moving the light does not re-render; the inspector button
-   Request Shadow Map Rendering re-renders all six once.
+   Request Shadow Map Rendering re-renders all six once. Capture the six depth tiles, matrices, depth decode,
+   inverse far and shadow origin together: moving the light, changing range or changing its shape before a request
+   keeps the complete produced snapshot. Current light position/radiance still changes direct illumination. A request
+   updates depth and sampling state together; changing a point to a spot takes one tile only after the request.
+   Check PCF → EVSM on a hit: moments are produced from the cached depth with its cached decode, while filter choice
+   remains current. Missing/mixed-generation cube faces invalidate the complete group; insufficient cache capacity
+   renders the whole cube normally. Repeat after a failed/unqueued production and with two cameras in one frame.
+   Run `LocalShadowCacheTests` and `ShadowSamplingGpuTests`, including the six production `SampleLocalShadow` origin
+   cases. A zero Cached Shadow Re-renders counter with zero cached tiles does not mean there are no shadow draws.
 5. Cached Shadow Atlas Width 0: every light renders every frame again (Cached Shadow Tiles 0).
 6. Two Game views / Scene + Game: a stale tile is rendered once per frame, not once per camera.
 
@@ -285,6 +317,11 @@ still fails. Retain the original failed check; these missing historical images a
    screen the cube's shadow still appears (from the shadowmask), the sphere's shadow is realtime.
 4. Switch Shadowmask Mode to Distance Shadowmask: the cube is drawn into the shadow maps again.
 5. With a MeshComponent (Static mobility) using a lightmapped renderer as its baked source: same result as step 3.
+6. Disable the static cubes and then the dynamic spheres in both native and MeshComponent variants. No disabled
+   geometry may remain in depth/lighting or realtime shadow atlases; baked static shadows remain in the receiver's
+   shadowmask. Include enable → disable before the deferred registration drains, existing-instance re-enable and
+   disabled Static ↔ Dynamic changes. Run `MeshComponentRegistrationTests`: final disabled state has zero instances,
+   transforms/draws/world members; final enabled state has exactly one of each and the correct mobility membership.
 
 ## S9e — shadow debug views
 

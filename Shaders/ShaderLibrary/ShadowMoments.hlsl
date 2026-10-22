@@ -49,9 +49,12 @@ float4 ShadowMomentsFromDepth(float depth, int mode, float exponent)
 float ChebyshevUpperBound(float2 moments, float receiver, float minVariance)
 {
     float variance = max(moments.y - moments.x * moments.x, minVariance);
-    float delta = receiver - moments.x;
+    // Half-float storage can lower an equal-depth mean. Bound that representation error, including
+    // interpolation of same-sign means: half relative spacing plus the smallest subnormal step.
+    float meanError = abs(moments.x) * (1.0 / 1024.0) + (1.0 / 16777216.0);
+    float delta = max(receiver - moments.x - meanError, 0);
     float pMax = variance / (variance + delta * delta);
-    return receiver <= moments.x ? 1.0 : pMax;
+    return delta <= 0 ? 1.0 : pMax;
 }
 
 // Light bleeding reduction: maps [amount, 1] to [0, 1].

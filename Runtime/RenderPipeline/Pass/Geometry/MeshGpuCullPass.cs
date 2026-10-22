@@ -45,6 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
                         shadowLight.cullingMask,
                         shadowRenderingLayerMask,
                         cascade,
+                        excludeInstanceFlags: ShadowCasterBounds.ExcludedFlags(shadowLight),
                         sceneCullingMask: mainView.sceneCullingMask));
                 }
             }
@@ -52,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
             for (int sliceIndex = 0; sliceIndex < allocator.LocalSliceCount; ++sliceIndex)
             {
                 FLocalShadowSlice local = allocator.LocalSlices[sliceIndex];
-                if (!local.valid || local.visibleLightIndex < 0 || local.visibleLightIndex >= cullingResults.visibleLights.Length)
+                if (local.cachedSampling || !local.valid || local.visibleLightIndex < 0 || local.visibleLightIndex >= cullingResults.visibleLights.Length)
                 {
                     continue;
                 }
@@ -75,6 +76,7 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowLight.cullingMask,
                     shadowRenderingLayerMask,
                     local.face,
+                    excludeInstanceFlags: ShadowCasterBounds.ExcludedFlags(shadowLight),
                     sceneCullingMask: mainView.sceneCullingMask));
             }
         }

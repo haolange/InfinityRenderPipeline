@@ -262,7 +262,7 @@ namespace InfinityTech.Rendering.LightPipeline
             Dictionary<ulong, InfinityAdditionalLightData> worldLightLookup,
             Camera camera,
             in FShadowAllocatorSettings settings,
-            int2 screenSize)
+            int2 screenSize, MeshPipeline.MeshWorld meshWorld, LocalShadowCache shadowCache = null)
         {
             Clear();
             m_ScreenSize = math.max(screenSize, new int2(1, 1));
@@ -361,7 +361,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             m_ContactLightCount = ContactShadowAllocation.Assign(m_Records, m_DirectionalCount, m_TileRects, m_LocalCount);
-            m_ShadowAllocator.Allocate(m_Records, cullingResults, camera, settings);
+            m_ShadowAllocator.Allocate(m_Records, cullingResults, camera, settings, meshWorld, shadowCache);
             EnsureCapacity(m_Records.Length, m_TileRects.Length, math.max(1, m_ShadowAllocator.LocalSliceCount));
         }
 

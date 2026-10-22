@@ -13,6 +13,10 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class LocalShadowPassUtilityData
     {
+        // Viewport and Texture.Load use matching integer atlas pixel coordinates.
+        internal static Vector4 DepthCopyOffset(Vector4 source, Vector4 destination) =>
+            new Vector4(source.x - destination.x, source.y - destination.y, 0, 0);
+
         internal static string TextureName = "LocalShadowMapTexture";
         internal static int LocalShadowMapSizeID = Shader.PropertyToID("_LocalShadowMapSize");
         internal static int LocalShadowCountID = Shader.PropertyToID("_LocalShadowCount");
@@ -41,13 +45,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CopyCachedLocalShadowPassData
         {
-            // Re-rendered tiles: frame atlas -> cache slot. Current tiles: cache slot -> frame atlas.
-            public int saveCount;
-            public int loadCount;
-            public Vector4[] frameRects;
-            public Vector4[] cacheRects;
-            public RGTextureRef cache;
-            public RGTextureRef frame;
+            public int shaderPass;
+            public int count;
+            public Vector4[] sourceRects, destinationRects;
+            public RGTextureRef source;
         }
 
         sealed class CachedShadowProduction : IRGPassQueueObserver
@@ -93,7 +94,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             // Same tile size as ShadowAllocator.Allocate, so a cached tile copies 1:1 into the frame atlas.
             int tileResolution = math.max(1, shadowMapResolution / 4);
-            m_LocalShadowCache.Configure(math.max(0, pipelineAsset.cachedShadowAtlasWidth), shadowMapResolution, tileResolution);
+
 
             Matrix4x4[] shadowMatrices = new Matrix4x4[matrixCount];
             Vector4[] tileRects = new Vector4[matrixCount];
@@ -117,6 +118,8 @@ namespace InfinityTech.Rendering.Pipeline
             int lightCount = 0;
             int lastRecord = -1;
             int frame = Time.frameCount;
+            long production = 0;
+            bool cacheGroupAvailable = false;
             for (int slice = 0; slice < sliceCount; ++slice)
             {
                 FLocalShadowSlice local = allocator.LocalSlices[slice];
@@ -127,6 +130,10 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     lastRecord = local.recordIndex;
                     lightCount++;
+                    production = m_LocalShadowCache.NextProduction();
+                    Light groupLight = cullingResults.visibleLights[local.visibleLightIndex].light;
+                    cacheGroupAvailable = m_LocalShadowCache.CanAcquireGroup(UnityEntityId.ToUInt64(groupLight),
+                        MeshView.SceneCullingMaskFor(camera), local.isSpot ? 1 : 6, frame);
                 }
 
                 if (!local.valid)
@@ -141,13 +148,19 @@ namespace InfinityTech.Rendering.Pipeline
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 casterLight[slice] = new Vector4(lightPosition.x, lightPosition.y, lightPosition.z, 1);
                 uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
-                bool excludeStatic = CascadeShadowPassUtilityData.ShadowmaskExcludesStatic(shadowLight);
+                bool excludeStatic = ShadowCasterBounds.ExcludesStatic(shadowLight);
 
-                if (shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
+                if (cacheGroupAvailable && shadowLight.TryGetComponent(out InfinityAdditionalLightData ext) && ext.shadowUpdateMode != EShadowUpdateMode.EveryFrame)
                 {
                     cacheKeys[slice] = new FShadowCacheKey(lightInstanceId, local.face, MeshView.SceneCullingMaskFor(camera));
                     cacheSlots[slice] = m_LocalShadowCache.Acquire(cacheKeys[slice], ext.shadowUpdateMode,
                         CachedShadowHash(local, shadowLight, excludeStatic), ext.shadowCacheVersion, frame, out cacheRender[slice]);
+                    if (cacheSlots[slice] >= 0 && cacheRender[slice])
+                        m_LocalShadowCache.SetPendingSampling(cacheKeys[slice], new LocalShadowCache.SamplingState
+                        {
+                            slice = local, gpu = allocator.LocalGPU[slice],
+                            faceCount = local.isSpot ? 1 : 6, production = production
+                        });
                     if (cacheSlots[slice] >= 0 && !cacheRender[slice])
                     {
                         // The cached tile is current: no casters are drawn for it this frame.
@@ -164,10 +177,11 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowLight.cullingMask,
                     shadowRenderingLayerMask,
                     local.face,
-                    CascadeShadowPassUtilityData.ExcludedCasterFlags(excludeStatic),
+                    ShadowCasterBounds.ExcludedFlags(shadowLight),
                     MeshView.SceneCullingMaskFor(camera));
                 sliceDraws[slice] = m_RGBuilder.CreateDrawList(localView, MeshPassId.Shadow);
 
+                if (!cullingResults.GetShadowCasterBounds(lightIdx, out _)) continue;
                 ShadowDrawingSettings shadowDrawingSettings = new ShadowDrawingSettings(cullingResults, lightIdx);
                 shadowDrawingSettings.useRenderingLayerMaskTest = true;
                 shadowDrawingSettings.splitIndex = local.face;
@@ -273,48 +287,54 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef cacheAtlas = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
 
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyCachedLocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.CopyCachedLocalShadow)))
+            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("CopyShadowDepthTile");
+            if (shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required CopyShadowDepthTile shader pass is missing.");
+            var frameRects = new Vector4[saveCount + loadCount];
+            var cacheRects = new Vector4[saveCount + loadCount];
+            var keys = new FShadowCacheKey[saveCount];
+            int save = 0, load = saveCount;
+            for (int slice = 0; slice < sliceCount; ++slice)
             {
-                ref CopyCachedLocalShadowPassData passData = ref passRef.GetPassData<CopyCachedLocalShadowPassData>();
-                int total = saveCount + loadCount;
-                passData.saveCount = saveCount;
-                passData.loadCount = loadCount;
-                passData.frameRects = new Vector4[total];
-                passData.cacheRects = new Vector4[total];
-                passRef.ReadTexture(cacheAtlas);
-                passRef.ReadTexture(shadowMapTexture);
-                passData.cache = passRef.WriteTexture(cacheAtlas);
-                passData.frame = passRef.WriteTexture(shadowMapTexture);
-                var keys = new FShadowCacheKey[math.max(1, saveCount)];
-                int save = 0, load = saveCount;
-                for (int slice = 0; slice < sliceCount; ++slice)
+                if (cacheSlots[slice] < 0) continue;
+                int write = cacheRender[slice] ? save++ : load++;
+                if (cacheRender[slice]) keys[write] = cacheKeys[slice];
+                frameRects[write] = tileRects[slice];
+                cacheRects[write] = m_LocalShadowCache.SlotPixelRect(cacheSlots[slice]);
+            }
+            // Depth-only resources cannot use region CopyTexture. Keep each direction in its own raster pass:
+            // sampling and attaching the same physical atlas in one pass would be a feedback hazard.
+            if (saveCount > 0)
+                RecordShadowDepthCopies(shadowMapTexture, cacheAtlas, frameRects, cacheRects, 0, saveCount, shaderPass,
+                    new CachedShadowProduction { cache = m_LocalShadowCache, keys = keys, count = saveCount });
+            if (loadCount > 0)
+                RecordShadowDepthCopies(cacheAtlas, shadowMapTexture, cacheRects, frameRects, saveCount, loadCount, shaderPass, null);
+        }
+
+        void RecordShadowDepthCopies(RGTextureRef source, RGTextureRef destination, Vector4[] sourceRects, Vector4[] destinationRects,
+            int first, int count, int shaderPass, IRGPassQueueObserver observer)
+        {
+            using (var pass = m_RGBuilder.AddRasterPass<CopyCachedLocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.CopyCachedLocalShadow)))
+            {
+                pass.SetDepthStencilAttachment(destination, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
+                ref var data = ref pass.GetPassData<CopyCachedLocalShadowPassData>();
+                data.source = pass.ReadTexture(source);
+                data.shaderPass = shaderPass;
+                data.count = count;
+                data.sourceRects = new Vector4[count];
+                data.destinationRects = new Vector4[count];
+                System.Array.Copy(sourceRects, first, data.sourceRects, 0, count);
+                System.Array.Copy(destinationRects, first, data.destinationRects, 0, count);
+                if (observer != null) pass.SetQueueObserver(observer);
+                pass.SetExecuteFunc((in CopyCachedLocalShadowPassData data, in RGRasterEncoder commands, RGObjectPool pool) =>
                 {
-                    if (cacheSlots[slice] < 0) continue;
-                    int write = cacheRender[slice] ? save++ : load++;
-                    if (cacheRender[slice]) keys[write] = cacheKeys[slice];
-                    passData.frameRects[write] = tileRects[slice];
-                    passData.cacheRects[write] = m_LocalShadowCache.SlotPixelRect(cacheSlots[slice]);
-                }
-                if (saveCount > 0)
-                {
-                    passRef.SetQueueObserver(new CachedShadowProduction { cache = m_LocalShadowCache, keys = keys, count = saveCount });
-                }
-                passRef.SetExecuteFunc((in CopyCachedLocalShadowPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    for (int i = 0; i < passData.saveCount + passData.loadCount; ++i)
+                    commands.SetGlobalTexture(Shader.PropertyToID("_InfinitySourceDepth"), data.source);
+                    for (int i = 0; i < data.count; ++i)
                     {
-                        Vector4 frameRect = passData.frameRects[i];
-                        Vector4 cacheRect = passData.cacheRects[i];
-                        if (i < passData.saveCount)
-                        {
-                            cmdEncoder.CopyTexture(passData.frame, 0, 0, (int)frameRect.x, (int)frameRect.y, (int)frameRect.z, (int)frameRect.w,
-                                passData.cache, 0, 0, (int)cacheRect.x, (int)cacheRect.y);
-                        }
-                        else
-                        {
-                            cmdEncoder.CopyTexture(passData.cache, 0, 0, (int)cacheRect.x, (int)cacheRect.y, (int)cacheRect.z, (int)cacheRect.w,
-                                passData.frame, 0, 0, (int)frameRect.x, (int)frameRect.y);
-                        }
+                        Vector4 rect = data.destinationRects[i];
+                        commands.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
+                        commands.SetGlobalVector(Shader.PropertyToID("_InfinityDepthCopyOffset"),
+                            LocalShadowPassUtilityData.DepthCopyOffset(data.sourceRects[i], rect));
+                        commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, data.shaderPass);
                     }
                 });
             }

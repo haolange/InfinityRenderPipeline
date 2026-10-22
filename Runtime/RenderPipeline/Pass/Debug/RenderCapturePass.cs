@@ -135,6 +135,10 @@ namespace InfinityTech.Rendering.Pipeline
                     case "HalfResNormal": id = InfinityShaderIDs.HalfResNormalBuffer; break;
                     case "VolumetricCloud": id = InfinityShaderIDs.VolumetricCloudBuffer; break;
                     case "CascadeShadow": id = InfinityShaderIDs.CascadeShadowMap; break;
+                    case "LocalShadow": id = InfinityShaderIDs.LocalShadowMap; break;
+                    case "CachedShadow": id = InfinityShaderIDs.CachedLocalShadowMap; break;
+                    case "CascadeShadowMoments": id = InfinityShaderIDs.CascadeShadowMoments; break;
+                    case "LocalShadowMoments": id = InfinityShaderIDs.LocalShadowMoments; break;
                     case "SSRRayHit": id = InfinityShaderIDs.SSRRayHitBuffer; break;
                     case "SSRResolved": id = InfinityShaderIDs.SSRResolvedBuffer; break;
                     case "SSRTemporal": id = InfinityShaderIDs.SSRTemporalBuffer; break;

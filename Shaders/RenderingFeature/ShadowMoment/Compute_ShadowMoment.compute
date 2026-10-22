@@ -50,16 +50,18 @@ float4 BlurMoments(uint2 id, int2 direction)
     int2 pixel = sliceMin + (int2)id;
     int radius = (int)_MomentParams.w;
     float sigma = 0.5 * radius + 0.5;
+    float4 center = SRV_MomentInput.Load(int3(pixel, 0));
     float4 sum = 0;
     float weightSum = 0;
     [loop]
     for (int i = -radius; i <= radius; ++i)
     {
         float weight = exp(-(i * i) / (2.0 * sigma * sigma));
-        sum += weight * SRV_MomentInput.Load(int3(clamp(pixel + direction * i, sliceMin, sliceMax), 0));
+        // Accumulate differences to preserve constant half-float moments, including the large EVSM second moment.
+        sum += weight * (SRV_MomentInput.Load(int3(clamp(pixel + direction * i, sliceMin, sliceMax), 0)) - center);
         weightSum += weight;
     }
-    return sum / weightSum;
+    return center + sum / weightSum;
 }
 
 [numthreads(8, 8, 1)]

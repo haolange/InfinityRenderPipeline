@@ -234,6 +234,31 @@
             }
             ENDHLSL
         }
+        Pass
+        {
+            Name "CopyShadowDepthTile"
+            ZTest Always ZWrite On ColorMask 0 Cull Off
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+            Texture2D<float> _InfinitySourceDepth;
+            float4 _InfinityDepthCopyOffset;
+            struct Attributes { float4 vertex : POSITION; };
+            struct Varyings { float4 position : SV_POSITION; };
+            Varyings vert(Attributes v)
+            {
+                Varyings o;
+                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
+                return o;
+            }
+            float frag(Varyings i) : SV_Depth
+            {
+                // Copy the stored depth exactly, without filtering or reversed-Z conversion.
+                return _InfinitySourceDepth.Load(int3(int2(i.position.xy) + int2(_InfinityDepthCopyOffset.xy), 0));
+            }
+            ENDHLSL
+        }
     }
 	Fallback Off
 }

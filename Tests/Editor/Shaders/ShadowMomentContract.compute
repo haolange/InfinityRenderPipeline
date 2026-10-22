@@ -29,3 +29,24 @@ void MomentVisibility(uint3 id : SV_DispatchThreadID)
     float evsm = ShadowMomentVisibility(Moments(a, b, SHADOW_MOMENT_EVSM), receiver, SHADOW_MOMENT_EVSM, params);
     Results[id.x] = float4(vsm, evsm, 0, 0);
 }
+
+#pragma kernel StoredMomentVisibility
+Texture2D<float4> StoredMoments;
+float StoredReceiver;
+int StoredMode;
+[numthreads(1, 1, 1)]
+void StoredMomentVisibility(uint3 id : SV_DispatchThreadID)
+{
+    float4 moments = StoredMoments.Load(int3(0, 0, 0));
+    float visibility = ShadowMomentVisibility(moments, StoredReceiver, StoredMode, float4(5.4, .25, .001, 0));
+    Results[0] = float4(visibility, moments.xy, 0);
+}
+
+#pragma kernel PresetVisibility
+float4 PresetParams;
+[numthreads(64, 1, 1)]
+void PresetVisibility(uint3 id : SV_DispatchThreadID)
+{
+    float4 moments = StoredMoments.Load(int3(id.x, 32, 0));
+    Results[id.x] = ShadowMomentVisibility(moments, .65, SHADOW_MOMENT_VSM, PresetParams);
+}

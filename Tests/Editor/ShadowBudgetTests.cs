@@ -15,7 +15,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void HighestScoresWin_WithinTheLightCount()
         {
             Select(new[] { 0.5f, 2.0f, 1.0f }, new[] { 10, 11, 12 }, new[] { 1, 1, 1 }, 2, 16, out int[] accepted, out int tiles, out int dropped);
@@ -25,7 +24,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void SixFaceLightThatDoesNotFit_IsSkipped_SmallerOnesStillFit()
         {
             // Budget 16 tiles: two point lights (6 faces each) fit, the third does not, the spot (1 tile) still does.
@@ -36,7 +34,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void EqualScores_KeepRecordOrder()
         {
             Select(new[] { 1.0f, 1.0f, 1.0f }, new[] { 7, 3, 5 }, new[] { 1, 1, 1 }, 2, 16, out int[] accepted, out _, out int dropped);

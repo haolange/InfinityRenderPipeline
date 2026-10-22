@@ -38,6 +38,14 @@ namespace InfinityTech.Rendering.LightPipeline
     {
         public static readonly int AtlasID = Shader.PropertyToID("_CachedLocalShadowMapTexture");
 
+        internal struct SamplingState
+        {
+            public FLocalShadowSlice slice;
+            public FLocalShadowSliceGPU gpu;
+            public int faceCount;
+            public long production;
+        }
+
         struct Entry
         {
             public int slot;
@@ -50,7 +58,14 @@ namespace InfinityTech.Rendering.LightPipeline
             public bool pending;
             public int pendingHash;
             public int pendingVersion;
+            public SamplingState sampling;
+            public SamplingState pendingSampling;
+            public bool hasSampling;
+            public bool pendingHasSampling;
         }
+
+        long m_NextProduction;
+        public long NextProduction() => ++m_NextProduction;
 
         readonly HistoryCache m_History = new HistoryCache();
         readonly Dictionary<FShadowCacheKey, Entry> m_Entries = new Dictionary<FShadowCacheKey, Entry>();
@@ -152,14 +167,15 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             entry.lastUsedFrame = frame;
-            if (entry.pending && entry.pendingHash == contentHash && entry.pendingVersion == version)
+            if (entry.pending && entry.produced && entry.pendingVersion == version
+                && (mode == EShadowUpdateMode.OnDemand || entry.pendingHash == contentHash))
             {
                 // An earlier camera of this frame already rendered this tile.
                 render = false;
             }
             else
             {
-                bool stale = !entry.valid || entry.version != version;
+                bool stale = !entry.valid || entry.version != version || entry.pending;
                 if (mode == EShadowUpdateMode.OnEnable) stale |= entry.contentHash != contentHash;
                 render = stale;
             }
@@ -170,6 +186,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 entry.produced = false;
                 entry.pendingHash = contentHash;
                 entry.pendingVersion = version;
+                entry.pendingHasSampling = false;
                 RenderedThisFrame++;
             }
             else
@@ -178,6 +195,82 @@ namespace InfinityTech.Rendering.LightPipeline
             }
             m_Entries[key] = entry;
             return entry.slot;
+        }
+
+        // Sampling metadata belongs to the queued depth production, not the current light pose.
+        public void SetPendingSampling(in FShadowCacheKey key, in SamplingState sampling)
+        {
+            if (!m_Entries.TryGetValue(key, out Entry entry) || !entry.pending)
+                throw new InvalidOperationException("InfinityRP: shadow sampling state requires a pending cache tile.");
+            entry.pendingSampling = sampling;
+            entry.pendingHasSampling = true;
+            m_Entries[key] = entry;
+        }
+
+        // Resolve a complete cube/single-face production before allocation. Missing faces invalidate the whole group:
+        // mixing an old face with a new projection is never a valid OnDemand snapshot.
+        public SamplingState[] ResolveSampling(ulong lightId, ulong sceneMask, int version, int frame)
+        {
+            var firstKey = new FShadowCacheKey(lightId, 0, sceneMask);
+            m_Entries.TryGetValue(firstKey, out Entry first);
+            SamplingState firstState = first.pending && first.produced ? first.pendingSampling : first.sampling;
+            int count = firstState.faceCount;
+            bool complete = count == 1 || count == 6;
+            var result = complete ? new SamplingState[count] : null;
+            for (int face = 0; complete && face < count; ++face)
+            {
+                var key = new FShadowCacheKey(lightId, face, sceneMask);
+                complete = m_Entries.TryGetValue(key, out Entry entry);
+                if (!complete) break;
+                bool pending = entry.pending && entry.produced;
+                complete = pending ? entry.pendingHasSampling && entry.pendingVersion == version
+                    : !entry.pending && entry.valid && entry.hasSampling && entry.version == version;
+                SamplingState state = pending ? entry.pendingSampling : entry.sampling;
+                complete &= state.faceCount == count && state.production == firstState.production;
+                if (complete) result[face] = state;
+            }
+            m_Scratch.Clear();
+            foreach (var pair in m_Entries)
+                if (pair.Key.lightId == lightId && pair.Key.sceneCullingMask == sceneMask) m_Scratch.Add(pair.Key);
+            foreach (var key in m_Scratch)
+            {
+                Entry entry = m_Entries[key];
+                if (!complete)
+                {
+                    entry.valid = false;
+                    entry.hasSampling = false;
+                    entry.pending = false;
+                    entry.produced = false;
+                    entry.pendingHasSampling = false;
+                }
+                m_Entries[key] = entry;
+            }
+            return complete ? result : null;
+        }
+
+        // Check the complete group before Acquire mutates any slot. A cube never uses a partial cache allocation.
+        public bool CanAcquireGroup(ulong lightId, ulong sceneMask, int faceCount, int frame)
+        {
+            if (SlotCount < faceCount) return false;
+            int available = m_FreeSlots.Count;
+            foreach (var pair in m_Entries)
+            {
+                bool ownFace = pair.Key.lightId == lightId && pair.Key.sceneCullingMask == sceneMask && pair.Key.face < faceCount;
+                if (ownFace || (pair.Value.lastUsedFrame < frame && !pair.Value.pending)) available++;
+            }
+            return available >= faceCount;
+        }
+
+        public void PinSampling(ulong lightId, ulong sceneMask, int faceCount, int frame)
+        {
+            for (int face = 0; face < faceCount; ++face)
+            {
+                var key = new FShadowCacheKey(lightId, face, sceneMask);
+                if (!m_Entries.TryGetValue(key, out Entry entry))
+                    throw new InvalidOperationException("InfinityRP: resolved shadow group lost a tile before pinning.");
+                entry.lastUsedFrame = frame;
+                m_Entries[key] = entry;
+            }
         }
 
         // The pass that renders these tiles was queued.
@@ -207,6 +300,8 @@ namespace InfinityTech.Rendering.LightPipeline
                     entry.valid = true;
                     entry.contentHash = entry.pendingHash;
                     entry.version = entry.pendingVersion;
+                    entry.sampling = entry.pendingSampling;
+                    entry.hasSampling = entry.pendingHasSampling;
                 }
                 else
                 {

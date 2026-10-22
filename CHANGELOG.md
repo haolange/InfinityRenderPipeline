@@ -92,6 +92,28 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Deferred MeshComponent registration now checks its active state and component registration epoch. Disabling before
+  the queued registration runs cannot resurrect an inactive mesh; re-enabling with changed Static/Dynamic mobility
+  cannot leave duplicate world-list membership. Captured old instance IDs still retire through the existing path.
+- OnDemand local-shadow depth now retains its produced projection, decode, cube-face origin, source size and face
+  topology until an explicit request. Complete queued groups are transactional with their depth; missing/mixed faces
+  rebuild together, undersized caches draw the entire group normally, and an OnEnable pending overwrite cannot fall
+  back to metadata for an already overwritten committed tile.
+- PCSS receiver-plane correction uses the texel actually read by point sampling in both blocker search and filtering,
+  preventing a sloped surface from shadowing itself. Local blocker search covers the emitter footprint projected from
+  the shadow near plane to cover that emitter footprint within the configured search bound.
+- VSM/EVSM Gaussian blur accumulates differences from the center moment. This preserves constant half-float moments
+  and avoids the observed EVSM second-moment drift through a normalized blur.
+- Shadow-filter presets keep moment blur at one texel and increase light-bleeding suppression from Low to Ultra.
+  Previously higher presets widened the blur and weakened suppression, increasing VSM leakage between blocker depths.
+  Both VSM and EVSM use these settings; Custom retains its authored blur and suppression values.
+- VSM/EVSM visibility accounts for the half-float mean's representation error, including interpolation, fixing the
+  reproduced quantization self-shadow cases while retaining occlusion for separate receivers behind the surface.
+  The normal-frame sun EVSM comparison retains a reported single-half-step residual.
+- Shadow allocation includes eligible MeshScene casters when no native renderer casts shadows. Directional splits
+  use one light-space fit for both draw paths; local candidates test their actual guarded shadow frustums before
+  consuming the atlas budget. Native culling indices remain compact when the camera near plane skips early cascades.
+- Cached local shadow tiles use separate Raster depth-save/depth-restore passes. Depth-only region CopyTexture is unsupported and produced native errors on Metal; slot transactions and atlas formats are preserved. Actual GPU tile round-trip coverage includes nonzero offsets, neighbour sentinels and an independent color-copy oracle.
 - Initialize the owned VolumeManager before registering Rendering Debugger panels. The CoreRP Volume panel added in S15 otherwise reads its component registry before initialization during a fresh script domain and aborts pipeline construction.
 - Light-shape verification now checks independent diffuse/specular weights in the actual Deferred kernel with a nonzero specular input; the earlier mask-loop regression exercised diffuse only. The six controls share inputs, clear the emissive/output target between dispatches and preserve the original eight mask-count cases.
 - CPU light-tile rectangles use the same compute projection convention as sampled-depth reconstruction, preserving

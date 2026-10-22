@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
             });
         }
 
-        void RecordAllocatedShadowCasterSplits(RenderContext renderContext)
+        void RecordAllocatedShadowCasterSplits(RenderContext renderContext, in CullingResults cullingResults)
         {
             if (renderContext == null || renderContext.lightContext == null)
             {
@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             int cascadeLight = allocator.CascadeVisibleLightIndex;
-            if (cascadeLight >= 0)
+            if (cascadeLight >= 0 && cullingResults.GetShadowCasterBounds(cascadeLight, out _))
             {
                 for (int cascade = 0; cascade < allocator.ActiveCascadeCount; ++cascade)
                 {
@@ -54,14 +54,14 @@ namespace InfinityTech.Rendering.Pipeline
                         continue;
                     }
 
-                    RecordShadowCasterSplit(cascadeLight, cascade, slice.splitData, BatchCullingProjectionType.Orthographic);
+                    RecordShadowCasterSplit(cascadeLight, slice.cullingSplitIndex, slice.splitData, BatchCullingProjectionType.Orthographic);
                 }
             }
 
             for (int sliceIndex = 0; sliceIndex < allocator.LocalSliceCount; ++sliceIndex)
             {
                 FLocalShadowSlice local = allocator.LocalSlices[sliceIndex];
-                if (!local.valid)
+                if (local.cachedSampling || !local.valid || !cullingResults.GetShadowCasterBounds(local.visibleLightIndex, out _))
                 {
                     continue;
                 }

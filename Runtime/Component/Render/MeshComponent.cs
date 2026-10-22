@@ -112,6 +112,7 @@ namespace InfinityTech.Component
         private FSphere m_BoundSphere;
         private MeshComponentSnapshot m_Snapshot;
         private bool m_DirtyEnqueued;
+        private uint m_RegistrationEpoch;
         private uint m_GeometryRevision;
         private float4x4 m_LocalToWorldMatrix => transform.localToWorldMatrix;
         private ulong SceneCullingMask
@@ -128,6 +129,7 @@ namespace InfinityTech.Component
 
         protected override void OnRegister()
         {
+            uint epoch = ++m_RegistrationEpoch;
             MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
             if (meshRenderer != null)
             {
@@ -139,7 +141,8 @@ namespace InfinityTech.Component
             UpdateBounds();
             FGraphics.AddTask((RenderContext renderContext) =>
             {
-                if (!this) { return; }
+                // A later disable/re-enable can precede this deferred task, including a mobility change.
+                if (!this || !isActiveAndEnabled || epoch != m_RegistrationEpoch) { return; }
                 RegisterToMeshScene(renderContext);
                 AddWorldMesh(renderContext, movebility);
             });
@@ -179,6 +182,7 @@ namespace InfinityTech.Component
 
         protected override void UnRegister()
         {
+            ++m_RegistrationEpoch;
             MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
             if (meshRenderer != null)
             {

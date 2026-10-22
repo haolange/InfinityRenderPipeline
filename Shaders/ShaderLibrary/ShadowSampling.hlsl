@@ -15,6 +15,7 @@ struct FLocalShadowSlice
     float4 atlasRect;
     float4 depthParams;
     float4 momentParams;
+    float4 shadowOriginSize;
 };
 
 StructuredBuffer<float4x4> SRV_LocalShadowMatrices;
@@ -149,7 +150,19 @@ float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, fl
     float rotation = InterleavedGradientNoise(uv / texelSize, 0) * 6.2831853;
 
     // Blocker search: where a blocker between the receiver and the light could hide part of the source.
-    float searchWorld = directional ? lightSize * receiverDepth : lightSize;
+    float searchWorld = lightSize * receiverDepth;
+    if (!directional)
+    {
+#if UNITY_REVERSED_Z
+        float nearDepth = ShadowLinearDepth(1.0, depthParams);
+#else
+        float nearDepth = ShadowLinearDepth(0.0, depthParams);
+#endif
+        // A blocker can be anywhere from the near plane to the receiver. Project the emitter's largest
+        // possible footprint there; a receiver-plane radius alone misses blockers on the lit penumbra side.
+        nearDepth = max(nearDepth, 1e-4);
+        searchWorld = lightSize * max(receiverDepth - nearDepth, 0) / nearDepth;
+    }
     float searchTexels = clamp(searchWorld / texelWorld, minTexels, maxTexels);
     float blockerDepth = 0;
     float blockerCount = 0;
@@ -157,6 +170,8 @@ float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, fl
     for (uint i = 0; i < blockerSamples; ++i)
     {
         float2 tapUV = clamp(uv + VogelDiskSample(i, blockerSamples, rotation) * searchTexels * texelSize, minUV, maxUV);
+        // Point sampling reads the texel center, so the receiver-plane correction must use that same position.
+        tapUV = (floor(tapUV / texelSize) + 0.5) * texelSize;
         float stored = shadowMap.SampleLevel(Global_point_clamp_sampler, tapUV, 0);
         if (ShadowCloser(stored, compareZ + dot(gradient, tapUV - uv)))
         {
@@ -180,6 +195,7 @@ float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, fl
     for (uint j = 0; j < filterSamples; ++j)
     {
         float2 tapUV = clamp(uv + VogelDiskSample(j, filterSamples, rotation) * filterTexels * texelSize, minUV, maxUV);
+        tapUV = (floor(tapUV / texelSize) + 0.5) * texelSize;
         lit += ShadowLit(compareZ + dot(gradient, tapUV - uv), shadowMap.SampleLevel(Global_point_clamp_sampler, tapUV, 0));
     }
     return lit / filterSamples;
@@ -208,7 +224,7 @@ float SampleShadowMoments(Texture2D<float4> momentMap, int mode, float2 uv, floa
     return ShadowMomentVisibility(moments, ShadowMomentDepth(compareZ, depthParams, invFar), mode, _ShadowMomentParams);
 }
 
-float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, FLightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar)
+float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, FLightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
 {
     if (light.shadowFilter == SHADOW_FILTER_VSM || light.shadowFilter == SHADOW_FILTER_EVSM)
     {
@@ -219,7 +235,6 @@ float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, FLig
     {
         return SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
     }
-    float lightSize = ShadowLightSize(light);
     if (light.shadowFilter == SHADOW_FILTER_PCSS && lightSize > 0)
     {
         return SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, lightSize, IsDirectionalLight(light));
@@ -250,7 +265,7 @@ float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, FLightRecord light, 
     float4 params = _CascadeShadowParams[cascadeIdx];
     float4 depthParams = float4(params.y, params.z, params.x, 1);
     return FilterShadow(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
-        ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0);
+        ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0, ShadowLightSize(light));
 }
 
 // Picks the first cascade whose culling sphere holds the point and blends into the next one over the outer
@@ -301,7 +316,7 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, flo
     int face = 0;
     if (light.shadowSliceCount == 6)
     {
-        face = SelectPointShadowFace(worldPos - light.positionRange.xyz);
+        face = SelectPointShadowFace(worldPos - SRV_LocalShadowRects[light.shadowMatrixIndex].shadowOriginSize.xyz);
     }
 
     int slice = light.shadowMatrixIndex + face;
@@ -324,7 +339,7 @@ float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, flo
     }
     float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
     return FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
-        ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x);
+        ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x, sliceData.shadowOriginSize.w);
 }
 
 int _InfinityShadowmaskMode;

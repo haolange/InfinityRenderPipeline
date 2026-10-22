@@ -5,6 +5,8 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Component;
+using InfinityTech.Core;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
@@ -28,6 +30,7 @@ namespace InfinityTech.Rendering.LightPipeline
         public int face;
         public int matrixIndex;
         public bool isSpot;
+        public bool cachedSampling;
         public BatchCullingProjectionType projectionType;
         public Vector4 atlasPixelRect;
         public Vector4 atlasUVRect;
@@ -52,10 +55,13 @@ namespace InfinityTech.Rendering.LightPipeline
         public Vector4 depthParams;
         // x = 1 / far: normalizes linear depth for VSM / EVSM moments.
         public Vector4 momentParams;
+        // xyz = origin used to select cube faces; w = PCSS emitter radius of the stored depth production.
+        public Vector4 shadowOriginSize;
     }
 
     internal struct FCascadeShadowSlice
     {
+        public int cullingSplitIndex;
         public Matrix4x4 cullingMatrix;
         public Matrix4x4 shadowMatrix;
         public Vector4 atlasPixelRect;
@@ -71,7 +77,7 @@ namespace InfinityTech.Rendering.LightPipeline
     /// frustum is built here (not by Unity's light-type helpers) so every shape shadows the same way, and its culling
     /// planes go to CullShadowCasters. Writes atlas / matrix indices back into FLightRecord before the GPU upload.
     /// </summary>
-    internal sealed class ShadowAllocator
+    internal sealed partial class ShadowAllocator
     {
         public const int CascadeCount = 4;
         internal static readonly Vector3 DefaultCascadeRatios = new Vector3(0.067f, 0.2f, 0.467f);
@@ -135,8 +141,11 @@ namespace InfinityTech.Rendering.LightPipeline
             NativeList<FLightRecord> records,
             in CullingResults cullingResults,
             Camera camera,
-            in FShadowAllocatorSettings settings)
+            in FShadowAllocatorSettings settings, MeshWorld meshWorld, LocalShadowCache shadowCache = null)
         {
+            if (camera == null) throw new ArgumentNullException(nameof(camera));
+            if (meshWorld == null) throw new ArgumentNullException(nameof(meshWorld));
+            m_MeshCasters.Collect(meshWorld);
             Reset();
 
             int cascadeRes = math.max(1, settings.cascadeMapResolution);
@@ -148,95 +157,10 @@ namespace InfinityTech.Rendering.LightPipeline
             Vector3 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
             ActiveCascadeCount = math.clamp(settings.cascadeCount, 1, CascadeCount);
 
-            AllocateCascade(records, cullingResults, settings, cascadeRes);
-            AllocateLocal(records, cullingResults, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights);
-        }
+            if (settings.shadowDistance <= 0) return;
 
-        void AllocateCascade(
-            NativeList<FLightRecord> records,
-            in CullingResults cullingResults,
-            in FShadowAllocatorSettings settings,
-            int cascadeRes)
-        {
-            int halfRes = cascadeRes;
-            Vector3 ratios = settings.cascadeRatios;
-            if (!(ratios.x > 0 && ratios.x < ratios.y && ratios.y < ratios.z && ratios.z < 1))
-                throw new ArgumentOutOfRangeException(nameof(settings.cascadeRatios), "Cascade ratios must be increasing within (0, 1).");
-            int count = ActiveCascadeCount;
-
-            for (int i = 0; i < records.Length; ++i)
-            {
-                FLightRecord record = records[i];
-                if (!record.IsDirectional || record.visibleLightIndex < 0)
-                {
-                    continue;
-                }
-
-                VisibleLight visible = cullingResults.visibleLights[record.visibleLightIndex];
-                Light light = visible.light;
-                if (light == null || light.shadows == LightShadows.None)
-                {
-                    continue;
-                }
-
-                CascadeVisibleLightIndex = record.visibleLightIndex;
-                CascadeRecordIndex = i;
-                CascadeShadowFilter = record.shadowFilter;
-                Vector4 splits = Vector4.zero;
-                int allocated = 0;
-                for (int cascade = 0; cascade < count; ++cascade)
-                {
-                    int col = cascade % 2;
-                    int row = cascade / 2;
-                    FCascadeShadowSlice slice;
-                    slice.atlasPixelRect = new Vector4(col * halfRes, row * halfRes, halfRes, halfRes);
-                    slice.atlasUVRect = new Vector4(col * 0.5f, row * 0.5f, 0.5f, 0.5f);
-                    slice.shadowMatrix = Matrix4x4.identity;
-                    slice.cullingMatrix = Matrix4x4.identity;
-                    slice.casterBias = Vector4.zero;
-                    slice.splitData = default;
-                    slice.valid = cullingResults.ComputeDirectionalShadowMatricesAndCullingPrimitives(
-                        record.visibleLightIndex,
-                        cascade,
-                        count,
-                        ratios,
-                        halfRes,
-                        light.shadowNearPlane,
-                        out Matrix4x4 viewMatrix,
-                        out Matrix4x4 projMatrix,
-                        out slice.splitData);
-                    if (slice.valid)
-                    {
-                        float texelSize = 2f / (Mathf.Abs(projMatrix.m00) * halfRes);
-                        slice.casterBias = new Vector4(-light.shadowBias * texelSize, -light.shadowNormalBias * texelSize, 0, 0);
-                        slice.cullingMatrix = projMatrix * viewMatrix;
-                        slice.shadowMatrix = MakeShadowMatrix(projMatrix, viewMatrix);
-                        Matrix4x4 gpuProjection = GL.GetGPUProjectionMatrix(projMatrix, true);
-                        CascadeParams[cascade] = new Vector4(texelSize, gpuProjection.m22, gpuProjection.m23, Mathf.Clamp(settings.cascadeBlendWidth, 0, 0.5f));
-                        Vector4 sphere = slice.splitData.cullingSphere;
-                        sphere.w *= sphere.w;
-                        CascadeSpheres[cascade] = sphere;
-                        allocated++;
-                    }
-
-                    CascadeSlices[cascade] = slice;
-                    CascadeMatrices[cascade] = slice.shadowMatrix;
-                    splits[cascade] = (cascade < count - 1 ? ratios[cascade] : 1f) * settings.shadowDistance;
-                }
-                for (int cascade = count; cascade < CascadeCount; ++cascade)
-                {
-                    splits[cascade] = settings.shadowDistance;
-                }
-
-                CascadeAllocatedCount = allocated;
-                CascadeSplitDistances = splits;
-                record.shadowAtlasRect = CascadeSlices[0].atlasUVRect;
-                record.shadowMatrixIndex = 0;
-                record.shadowSliceCount = count;
-                record.flags |= FLightRecordFlags.EnableShadow;
-                records[i] = record;
-                return;
-            }
+            AllocateCascade(records, cullingResults, camera, settings, cascadeRes);
+            AllocateLocal(records, cullingResults, camera, cameraPosition, settings, localRes, tileResolution, tilesPerRow, tileBudget, maxLocalLights, shadowCache);
         }
 
         // Local shadow budget: candidates in descending score (record order on ties) are accepted while both the light
@@ -280,18 +204,30 @@ namespace InfinityTech.Rendering.LightPipeline
         void AllocateLocal(
             NativeList<FLightRecord> records,
             in CullingResults cullingResults,
-            Vector3 cameraPosition,
+            Camera camera, Vector3 cameraPosition,
             in FShadowAllocatorSettings settings,
             int localRes,
             int tileResolution,
             int tilesPerRow,
             int tileBudget,
-            int maxLocalLights)
+            int maxLocalLights, LocalShadowCache shadowCache)
         {
+            var cached = new LocalShadowCache.SamplingState[records.Length][];
+            if (shadowCache != null)
+                for (int i = 0; i < records.Length; ++i)
+                {
+                    var record = records[i];
+                    if (record.IsDirectional || record.visibleLightIndex < 0) continue;
+                    Light light = cullingResults.visibleLights[record.visibleLightIndex].light;
+                    if (light != null && light.shadows != LightShadows.None
+                        && light.TryGetComponent(out InfinityAdditionalLightData ext)
+                        && ext.shadowUpdateMode == EShadowUpdateMode.OnDemand)
+                        cached[i] = shadowCache.ResolveSampling(UnityEntityId.ToUInt64(light), MeshView.SceneCullingMaskFor(camera), ext.shadowCacheVersion, Time.frameCount);
+                }
             int candidateCount = 0;
             for (int i = 0; i < records.Length; ++i)
             {
-                if (IsLocalShadowCandidate(records[i], cullingResults))
+                if (cached[i] != null || IsLocalShadowCandidate(records[i], cullingResults, camera, tileResolution, settings.filterGuardTexels))
                 {
                     candidateCount++;
                 }
@@ -303,7 +239,7 @@ namespace InfinityTech.Rendering.LightPipeline
             for (int i = 0; i < records.Length; ++i)
             {
                 FLightRecord record = records[i];
-                if (!IsLocalShadowCandidate(record, cullingResults))
+                if (cached[i] == null && !IsLocalShadowCandidate(record, cullingResults, camera, tileResolution, settings.filterGuardTexels))
                 {
                     continue;
                 }
@@ -313,7 +249,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 float distance = math.max(0.01f, Vector3.Distance(cameraPosition, lightPosition));
                 // Strength over distance; single-tile shapes win ties against six-face shapes.
                 float score = visible.light.shadowStrength / distance;
-                if (FLightRecordPack.LocalShadowSliceCount(record) == 1)
+                if ((cached[i]?.Length ?? FLightRecordPack.LocalShadowSliceCount(record)) == 1)
                 {
                     score += 1e-4f;
                 }
@@ -330,7 +266,7 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 candidateScores[c] = scores[c];
                 candidateRecords[c] = recordIndices[c];
-                faceCounts[c] = FLightRecordPack.LocalShadowSliceCount(records[recordIndices[c]]);
+                faceCounts[c] = cached[recordIndices[c]]?.Length ?? FLightRecordPack.LocalShadowSliceCount(records[recordIndices[c]]);
             }
 
             var acceptedRecords = new int[math.min(maxLocalLights, write)];
@@ -345,10 +281,12 @@ namespace InfinityTech.Rendering.LightPipeline
             {
                 int recordIndex = acceptedRecords[a];
                 FLightRecord record = records[recordIndex];
-                int faces = FLightRecordPack.LocalShadowSliceCount(record);
+                int faces = cached[recordIndex]?.Length ?? FLightRecordPack.LocalShadowSliceCount(record);
                 int visibleIndex = record.visibleLightIndex;
                 Light light = cullingResults.visibleLights[visibleIndex].light;
                 int firstSlice = nextSlice;
+                if (cached[recordIndex] != null)
+                    shadowCache.PinSampling(UnityEntityId.ToUInt64(light), MeshView.SceneCullingMaskFor(camera), faces, Time.frameCount);
 
                 for (int face = 0; face < faces; ++face)
                 {
@@ -382,9 +320,28 @@ namespace InfinityTech.Rendering.LightPipeline
                         gpu.depthParams = new Vector4(gpuProjection.m22, gpuProjection.m23, texelSize, frustum.orthographic ? 1 : 0);
                         gpu.momentParams = new Vector4(1.0f / math.max(frustum.far, 1e-4f), 0, 0, 0);
                         local.far = frustum.far;
-                        if (UsesMoments(local.shadowFilter)) LocalMomentSliceCount++;
                     }
 
+                    gpu.shadowOriginSize = new Vector4(record.positionRange.x, record.positionRange.y, record.positionRange.z,
+                        (record.flags & FLightRecordFlags.Planar) != 0 && record.area.x > 0 && record.area.y > 0
+                            ? math.sqrt(record.area.x * record.area.y / math.PI) : record.shape.x + record.shape.y);
+                    if (cached[recordIndex] != null)
+                    {
+                        var snapshot = cached[recordIndex][face];
+                        local.cachedSampling = true;
+                        // Keep this camera's atlas layout and light record identity; depth geometry is the production's.
+                        Matrix4x4 matrix = snapshot.slice.shadowMatrix;
+                        local.shadowMatrix = matrix;
+                        local.casterBias = snapshot.slice.casterBias;
+                        local.splitData = snapshot.slice.splitData;
+                        local.projectionType = snapshot.slice.projectionType;
+                        local.far = snapshot.slice.far;
+                        local.valid = snapshot.slice.valid;
+                        Vector4 atlasRect = gpu.atlasRect;
+                        gpu = snapshot.gpu;
+                        gpu.atlasRect = atlasRect;
+                    }
+                    if (local.valid && UsesMoments(local.shadowFilter)) LocalMomentSliceCount++;
                     LocalSlices[slice] = local;
                     LocalMatrices[slice] = local.shadowMatrix;
                     LocalGPU[slice] = gpu;
@@ -403,14 +360,15 @@ namespace InfinityTech.Rendering.LightPipeline
             recordIndices.Dispose();
         }
 
-        static bool IsLocalShadowCandidate(in FLightRecord record, in CullingResults cullingResults)
+        bool IsLocalShadowCandidate(in FLightRecord record, in CullingResults cullingResults, Camera camera, int tileResolution, float guardTexels)
         {
             if (record.IsDirectional || record.visibleLightIndex < 0 || FLightRecordPack.LocalShadowSliceCount(record) <= 0)
             {
                 return false;
             }
             Light light = cullingResults.visibleLights[record.visibleLightIndex].light;
-            return light != null && light.shadows != LightShadows.None && cullingResults.GetShadowCasterBounds(record.visibleLightIndex, out _);
+            return light != null && light.shadows != LightShadows.None && (cullingResults.GetShadowCasterBounds(record.visibleLightIndex, out _)
+                || m_MeshCasters.HasLocalCaster(record, light, camera, tileResolution, guardTexels));
         }
 
         internal struct FLocalShadowFrustum

@@ -32,7 +32,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Moments_LitInFront_ShadowedBehind()
         {
             Vector4[] r = Run();

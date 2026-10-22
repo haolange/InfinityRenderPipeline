@@ -1,0 +1,54 @@
+#pragma kernel SlopedPlane
+#include "../../../Shaders/ShaderLibrary/ShadowSampling.hlsl"
+Texture2D<float> TestDepth;
+RWStructuredBuffer<float4> Results;
+float4 TestRect;
+float4 TestDepthParams;
+int TestLocal;
+[numthreads(64, 1, 1)]
+void SlopedPlane(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 256) return;
+    float2 uv = (float2(id.x % 16, id.x / 16) + float2(32.13, 32.37)) / 128.0;
+    float receiver = .4 + dot(uv, float2(.1, .15));
+#if UNITY_REVERSED_Z
+    receiver += .00002;
+#else
+    receiver -= .00002;
+#endif
+    float visibility = SampleShadowPCSS(TestDepth, uv, receiver, 1.0 / 128.0,
+        TestRect, float2(.1, .15), TestDepthParams, .1, TestLocal == 0);
+    Results[id.x] = float4(visibility, receiver, uv);
+}
+
+#pragma kernel Penumbra
+float TestReceiverDepth;
+[numthreads(64, 1, 1)]
+void Penumbra(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 256) return;
+    float2 uv = float2((32.13 + id.x * .25) / 128.0, 64.37 / 128.0);
+#if UNITY_REVERSED_Z
+    float receiver = TestLocal != 0 ? rcp(TestReceiverDepth) : 1 - TestReceiverDepth * .1;
+#else
+    float receiver = TestLocal != 0 ? 1 - rcp(TestReceiverDepth) : TestReceiverDepth * .1;
+#endif
+    float visibility = SampleShadowPCSS(TestDepth, uv, receiver, 1.0 / 128.0,
+        float4(0, 0, 1, 1), 0, TestDepthParams, TestLocal != 0 ? .2 : .1, TestLocal == 0);
+    Results[id.x] = float4(visibility, receiver, uv);
+}
+
+#pragma kernel CachedPoint
+float4 TestWorldPositions[2];
+[numthreads(1, 1, 1)]
+void CachedPoint(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 2) return;
+    FLightRecord light = (FLightRecord)0;
+    light.flags = LIGHT_FLAG_SHADOW;
+    light.shadowMatrixIndex = 0;
+    light.shadowSliceCount = 6;
+    light.shadowFilter = SHADOW_FILTER_HARD;
+    light.positionRange = float4(20, 30, 40, 100);
+    Results[id.x] = SampleLocalShadow(TestDepth, light, TestWorldPositions[id.x].xyz);
+}

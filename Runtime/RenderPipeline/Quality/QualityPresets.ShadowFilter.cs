@@ -28,10 +28,12 @@ namespace InfinityTech.Rendering.Pipeline
     {
         public static readonly FShadowFilterSettings[] ShadowFilter =
         {
+            // Keep moment softness fixed across presets: widening the blur mixes clear depth into blockers.
+            // Higher quality suppresses the resulting variance tail rather than increasing light bleeding.
             new FShadowFilterSettings { pcfRadius = 1, pcssBlockerSamples = 8, pcssFilterSamples = 12, pcssMaxPenumbra = 12, evsmExponent = 5.0f, lightBleedingReduction = 0.3f, momentBlurRadius = 1 },  // Low
-            new FShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 16, pcssFilterSamples = 24, pcssMaxPenumbra = 24, evsmExponent = 5.4f, lightBleedingReduction = 0.25f, momentBlurRadius = 2 }, // Medium
-            new FShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 24, pcssFilterSamples = 32, pcssMaxPenumbra = 32, evsmExponent = 5.54f, lightBleedingReduction = 0.2f, momentBlurRadius = 2 }, // High
-            new FShadowFilterSettings { pcfRadius = 3, pcssBlockerSamples = 32, pcssFilterSamples = 48, pcssMaxPenumbra = 48, evsmExponent = 5.54f, lightBleedingReduction = 0.15f, momentBlurRadius = 3 }, // Ultra
+            new FShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 16, pcssFilterSamples = 24, pcssMaxPenumbra = 24, evsmExponent = 5.4f, lightBleedingReduction = 0.4f, momentBlurRadius = 1 }, // Medium
+            new FShadowFilterSettings { pcfRadius = 2, pcssBlockerSamples = 24, pcssFilterSamples = 32, pcssMaxPenumbra = 32, evsmExponent = 5.54f, lightBleedingReduction = 0.5f, momentBlurRadius = 1 }, // High
+            new FShadowFilterSettings { pcfRadius = 3, pcssBlockerSamples = 32, pcssFilterSamples = 48, pcssMaxPenumbra = 48, evsmExponent = 5.54f, lightBleedingReduction = 0.6f, momentBlurRadius = 1 }, // Ultra
         };
     }
 }
