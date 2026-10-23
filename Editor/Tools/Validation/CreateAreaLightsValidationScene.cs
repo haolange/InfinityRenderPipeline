@@ -13,21 +13,20 @@ namespace InfinityTech.Rendering.Editor.Validation
     // spots, and a sun with a visible disk. Used to check the Karis representative-point highlights (0.5.0 S8).
     public static class CreateAreaLightsValidationScene
     {
-        const string SceneDirectory = "Assets/Scene/Validation";
-        const string ScenePath = SceneDirectory + "/Validation_AreaLights.unity";
-        const string MaterialDirectory = SceneDirectory + "/AreaLightsMaterials";
 
         [MenuItem("Window/Infinity/Create Area Lights Fixture", false, 56)]
-        public static void Create()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorApplication.isPlaying = false;
-                EditorApplication.delayCall += Create;
-                return;
-            }
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
 
-            Directory.CreateDirectory(Path.Combine(Application.dataPath, "Scene/Validation/AreaLightsMaterials"));
+        internal static void CreateInDirectory(string sceneDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(sceneDirectory) || !sceneDirectory.StartsWith("Assets/", System.StringComparison.Ordinal) ||
+                sceneDirectory.Contains("..") || sceneDirectory.Contains('\\') || sceneDirectory.EndsWith("/", System.StringComparison.Ordinal))
+                throw new System.ArgumentException("Fixture directory must be a project-relative Assets subdirectory.");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            string ScenePath = sceneDirectory + "/Validation_AreaLights.unity";
+            string MaterialDirectory = sceneDirectory + "/AreaLightsMaterials";
+            Directory.CreateDirectory(Path.GetFullPath(MaterialDirectory));
+            AssetDatabase.Refresh();
             if (File.Exists(ScenePath))
             {
                 AssetDatabase.DeleteAsset(ScenePath);
@@ -40,8 +39,8 @@ namespace InfinityTech.Rendering.Editor.Validation
                 throw new System.InvalidOperationException("InfinityRP Validation: InfinityPipeline/InfinityLit shader missing.");
             }
 
-            Material glossy = CreateMaterial(litShader, "Glossy", new Color(0.18f, 0.18f, 0.2f), 0.12f);
-            Material rough = CreateMaterial(litShader, "Rough", new Color(0.6f, 0.6f, 0.58f), 0.65f);
+            Material glossy = CreateMaterial(MaterialDirectory, litShader, "Glossy", new Color(0.18f, 0.18f, 0.2f), 0.12f);
+            Material rough = CreateMaterial(MaterialDirectory, litShader, "Rough", new Color(0.6f, 0.6f, 0.58f), 0.65f);
 
             CreateFloor("Floor_Glossy", new Vector3(-5.5f, 0, 0), glossy);
             CreateFloor("Floor_Rough", new Vector3(5.5f, 0, 0), rough);
@@ -79,13 +78,12 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraGo.AddComponent<InfinityAdditionalCameraData>();
             ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            AssetDatabase.SaveAssets();
+            ValidationFixture.SaveSceneAndAssets(scene, ScenePath, new UnityEngine.Object[] { glossy, rough });
             AssetDatabase.Refresh();
             Debug.Log($"[InfinityRP][Validation] Area lights fixture written: {ScenePath}");
         }
 
-        static Material CreateMaterial(Shader shader, string name, Color color, float roughness)
+        static Material CreateMaterial(string MaterialDirectory, Shader shader, string name, Color color, float roughness)
         {
             string path = MaterialDirectory + "/" + name + ".mat";
             if (AssetDatabase.LoadAssetAtPath<Material>(path) != null)

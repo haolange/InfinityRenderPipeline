@@ -72,6 +72,47 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
             }
         }
+        [TestCase("AreaLights")]
+        [TestCase("LocalLights")]
+        [TestCase("Decal")]
+        [TestCase("Translucent")]
+        public void EarlyCreators_RejectDirtyForeignAssetInsideMaterialDirectory(string kind)
+        {
+            string root = "Assets/__InfinityFixtureOwnershipTest_" + Guid.NewGuid().ToString("N");
+            string directory = root + "/" + kind + "Materials";
+            string sentinelPath = directory + "/UserOwned.asset";
+            try
+            {
+                Directory.CreateDirectory(directory);
+                AssetDatabase.Refresh();
+                var sentinel = ScriptableObject.CreateInstance<VolumeProfile>();
+                sentinel.name = "User owned";
+                AssetDatabase.CreateAsset(sentinel, sentinelPath);
+                AssetDatabase.SaveAssetIfDirty(sentinel);
+                byte[] stored = File.ReadAllBytes(sentinelPath);
+                sentinel.name = "Pending user edit";
+                EditorUtility.SetDirty(sentinel);
+                Action create = kind switch
+                {
+                    "AreaLights" => () => CreateAreaLightsValidationScene.CreateInDirectory(root),
+                    "LocalLights" => () => CreateLocalLightsValidationScene.CreateInDirectory(root),
+                    "Decal" => () => CreateDecalValidationScene.CreateInDirectory(root),
+                    _ => () => CreateTranslucentValidationScene.CreateInDirectory(root)
+                };
+                var error = Assert.Throws<InvalidOperationException>(() => create());
+                StringAssert.Contains(sentinelPath, error.Message);
+                Assert.IsFalse(File.Exists(root + "/Validation_" + kind + ".unity"));
+                CollectionAssert.AreEqual(stored, File.ReadAllBytes(sentinelPath));
+                Assert.IsTrue(EditorUtility.IsDirty(sentinel));
+                Assert.AreEqual("Pending user edit", sentinel.name);
+            }
+            finally
+            {
+                try { EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single); }
+                finally { AssetDatabase.DeleteAsset(root); }
+            }
+        }
+
         [Test]
         public void Lit_PositiveEmissionEnablesBakedGI_ZeroEmissionRemainsBlack()
         {

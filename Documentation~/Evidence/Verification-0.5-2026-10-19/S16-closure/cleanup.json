@@ -1,0 +1,188 @@
+{
+  "removedRoot": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S16",
+  "own27633Exited": true,
+  "producerStopped": true,
+  "pendingBeforeQuit": 0,
+  "filesBeforeRemoval": 1700,
+  "payloadBytesBeforeRemoval": 187271537,
+  "allocatedBytesBeforeRemoval": 608436224,
+  "retainedCarry": {
+    "producer": "S16 verified cleanup",
+    "consumer": "S17 historical/main compile/tests and unchanged S16 baseline comparison",
+    "files": {
+      "call-owned.py": {
+        "bytes": 669,
+        "sha256": "732a7d2619178f216f7f66852e6de7a0bba72d2ce8d48fef03a3495df55f294a"
+      },
+      "._call-owned.py": {
+        "bytes": 4096,
+        "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd"
+      },
+      "owned-cold-launch-v1.py": {
+        "bytes": 1756,
+        "sha256": "d9bf98cbfed9aa582251e05d57d18be6cacab658d5f14df094546da4436e29e9"
+      },
+      "._owned-cold-launch-v1.py": {
+        "bytes": 4096,
+        "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd"
+      },
+      "S17RegressionControlV1.cs": {
+        "bytes": 3263,
+        "sha256": "6e86c6851b4ec07d527d09e68826c185cdaae0aac9fb0be9cd5e4bb7d7fc4dd0"
+      },
+      "._S17RegressionControlV1.cs": {
+        "bytes": 4096,
+        "sha256": "a2db81a38c4e74358e9910374df8821ffd8928fc6cc4638bda1ba87653b069bd"
+      }
+    },
+    "baselineConsumer": "/Volumes/DataDisk/Projects/Unity/InfinityExample/ImageBaselines/Metal/Verification_0_5_20261020_run02",
+    "fixtureConsumer": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/InfinityRPVerification_0_5_20261020_run02/S16/Fixtures",
+    "originalSceneConsumer": "S15 GraphLighting retained only for S17 test/bootstrap and final restoration"
+  },
+  "reconstructableRawCount": 35,
+  "consumedRawRetiredCount": 20,
+  "consumedRawRetired": [
+    {
+      "archiveCapture": "receipts/main-cancel-write-v1/LocalLights/capture.json",
+      "rawFile": "receipts/main-cancel-write-v1/LocalLights/DisplayColor-1801-1802.bin",
+      "bytes": 2048000,
+      "sha256": "157b80af928e264fde9a70bb13aaeb8e8a127bda9a9f298fdf0d53705e46b996",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/AreaLights/capture.json",
+      "rawFile": "receipts/main-compare-v1/AreaLights/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "992fa2121ac3d5ca0fbd2a686c57e66879f813f038360f9ac4a2f95c05a82600",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/Cookies/capture.json",
+      "rawFile": "receipts/main-compare-v1/Cookies/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "0f0ded0adf295a69d41d0637a2706e6e4530c565f342f41f0b1dc664b0ad4a72",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/Decal/capture.json",
+      "rawFile": "receipts/main-compare-v1/Decal/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "1794ce496a356b4d7b9ffdb53d39084fffd500d92c15810075e29d251fd55abd",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/LocalLights/capture.json",
+      "rawFile": "receipts/main-compare-v1/LocalLights/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "8f5afff7103aa9110e035e8ada42a02d264fb93dd61e3cad4dfde53b231eadd7",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/ReflectionProbes/capture.json",
+      "rawFile": "receipts/main-compare-v1/ReflectionProbes/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "08f0517a5b69b5f85cc475ea942405d2ec293ca5d9b1071ba8aad4954ef5f3ad",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/ScreenSpace/capture.json",
+      "rawFile": "receipts/main-compare-v1/ScreenSpace/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "dc4c442d126e0dac0ff05622788c8f712789ee485fd47c6b9b25203cf79c732d",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/Shadows/capture.json",
+      "rawFile": "receipts/main-compare-v1/Shadows/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "e9fe0c589baaed65d35c2bb8bdf599e4172db88b45a1689b4cb37d539ac757e6",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-compare-v1/Translucent/capture.json",
+      "rawFile": "receipts/main-compare-v1/Translucent/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "a84fc11f3c82af57941cf1f45a07591c311248086178cd83c8e48825397b9a93",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-corrupt-v1/LocalLights/capture.json",
+      "rawFile": "receipts/main-corrupt-v1/LocalLights/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "8f5afff7103aa9110e035e8ada42a02d264fb93dd61e3cad4dfde53b231eadd7",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-foreign-v1-foreign/capture.json",
+      "rawFile": "receipts/main-foreign-v1-foreign/DisplayColor-181-1986.bin",
+      "bytes": 2048000,
+      "sha256": "2b98d0ba8a244e53493b5ec326c0b170c39b9f29f579e5102f76c4631a530d59",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-foreign-v1/LocalLights/capture.json",
+      "rawFile": "receipts/main-foreign-v1/LocalLights/DisplayColor-1801-1802.bin",
+      "bytes": 2048000,
+      "sha256": "157b80af928e264fde9a70bb13aaeb8e8a127bda9a9f298fdf0d53705e46b996",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/AreaLights/capture.json",
+      "rawFile": "receipts/main-visual-v1/AreaLights/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "6dd99ebee2dd1ff0389591a6ef3461bb2cfe831c73186ebc41477bfe3bd79b23",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/Cookies/capture.json",
+      "rawFile": "receipts/main-visual-v1/Cookies/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "0f0ded0adf295a69d41d0637a2706e6e4530c565f342f41f0b1dc664b0ad4a72",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/Decal/capture.json",
+      "rawFile": "receipts/main-visual-v1/Decal/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "8f74de0deec69edbb1711c70ea914f3e956c9684eb34c04b45d66fe6d6bec7e6",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/LocalLights/capture.json",
+      "rawFile": "receipts/main-visual-v1/LocalLights/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "8f5afff7103aa9110e035e8ada42a02d264fb93dd61e3cad4dfde53b231eadd7",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/ReflectionProbes/capture.json",
+      "rawFile": "receipts/main-visual-v1/ReflectionProbes/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "08f0517a5b69b5f85cc475ea942405d2ec293ca5d9b1071ba8aad4954ef5f3ad",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/ScreenSpace/capture.json",
+      "rawFile": "receipts/main-visual-v1/ScreenSpace/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "0940a7f31f8b1924d84b69b6e7683eef76b9c2b10dad24be8049d9e4034a481a",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/Shadows/capture.json",
+      "rawFile": "receipts/main-visual-v1/Shadows/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "e9fe0c589baaed65d35c2bb8bdf599e4172db88b45a1689b4cb37d539ac757e6",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    },
+    {
+      "archiveCapture": "receipts/main-visual-v1/Translucent/capture.json",
+      "rawFile": "receipts/main-visual-v1/Translucent/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "sha256": "7474a67a9db0079fe0abcb5477d474be55bbf9c19f5447d4979bee5974d514eb",
+      "retiredReason": "consumed visual/initial comparison or lifecycle/corrupt control; independent review complete; not claimed reconstructable"
+    }
+  ],
+  "archiveSha256": "2ad86855585dbbe439f70ac622a90f9b603135f0190ca2bcb12dffa9b00fac6b",
+  "rootAbsent": true
+}

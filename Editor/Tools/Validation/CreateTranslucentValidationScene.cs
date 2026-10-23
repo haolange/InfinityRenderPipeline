@@ -12,22 +12,21 @@ namespace InfinityTech.Rendering.Editor.Validation
 {
     public static class CreateTranslucentValidationScene
     {
-        const string SceneDirectory = "Assets/Scene/Validation";
-        const string ScenePath = SceneDirectory + "/Validation_Translucent.unity";
-        const string MaterialDirectory = SceneDirectory + "/TranslucentMaterials";
-        const string VolumeProfilePath = SceneDirectory + "/Validation_Translucent_Volume.asset";
 
         [MenuItem("Window/Infinity/Create Translucent Fixture", false, 58)]
-        public static void Create()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorApplication.isPlaying = false;
-                EditorApplication.delayCall += Create;
-                return;
-            }
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
 
-            Directory.CreateDirectory(Path.Combine(Application.dataPath, "Scene/Validation/TranslucentMaterials"));
+        internal static void CreateInDirectory(string sceneDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(sceneDirectory) || !sceneDirectory.StartsWith("Assets/", System.StringComparison.Ordinal) ||
+                sceneDirectory.Contains("..") || sceneDirectory.Contains('\\') || sceneDirectory.EndsWith("/", System.StringComparison.Ordinal))
+                throw new System.ArgumentException("Fixture directory must be a project-relative Assets subdirectory.");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            string ScenePath = sceneDirectory + "/Validation_Translucent.unity";
+            string MaterialDirectory = sceneDirectory + "/TranslucentMaterials";
+            string VolumeProfilePath = sceneDirectory + "/Validation_Translucent_Volume.asset";
+            Directory.CreateDirectory(Path.GetFullPath(MaterialDirectory));
+            AssetDatabase.Refresh();
 
             if (File.Exists(ScenePath))
             {
@@ -115,8 +114,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraGo.AddComponent<InfinityAdditionalCameraData>();
             ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            AssetDatabase.SaveAssets();
+            ValidationFixture.SaveSceneAndAssets(scene, ScenePath, new UnityEngine.Object[] { groundMaterial, glassMaterial, refractiveMaterial, particleMaterial, profile });
             AssetDatabase.Refresh();
             Debug.Log($"[InfinityRP][Validation] Translucent fixture written: {ScenePath}");
         }

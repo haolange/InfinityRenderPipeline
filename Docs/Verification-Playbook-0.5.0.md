@@ -659,13 +659,26 @@ was restored; do not directly invoke that integration test on a user scene.
 
 1. Run the whole EditMode suite; new in S16: `ShadowBudgetTests`, `CubeFilterGpuTests`, `LightTileMaskGpuTests`,
    `ImageComparisonTests`. Report every failure of the `Unverified_0_5` category with its message.
-2. Create the fixtures you verified visually (Window → Infinity → Create … Fixture). Then Window → Infinity → Image
-   Regression → Record Baselines: the Editor opens each fixture, enters Play mode, captures and leaves Play mode
-   (a few seconds per fixture). The Console ends with "Completed: N case(s)"; `ImageBaselines/<API>/` next to `Assets`
-   holds one `.bin` + `.json` per fixture. Commit that folder in the Example project if you want to keep them.
-3. Image Regression → Run Comparison right after: every case logs **Pass** (rmse ≈ 0). Change one light's intensity in a
-   fixture, save, run again: that case logs **Fail** with the rmse; the report is
-   `Library/InfinityImageRegression/<run>/report.json`.
+2. Create each fixture explicitly and inspect its normal Game-camera output first. Record Baselines never
+   creates or replaces fixture source assets. The menu uses the eight `Assets/Scene/Validation/Validation_*.unity`
+   scenes; validation can pass explicit task-owned fixture paths to the same internal runner. Save original scenes
+   first, leave Play mode and Frame Debugger, and select Debug View None. Capture uses 640×400 DisplayColor,
+   90 warm-up frames, one normal submitted frame and a full-size ROI; markers keep their renderer while their
+   Play-copy pose is fixed. No `Camera.Render()` is used.
+3. Record Baselines writes immutable SHA256-named `.bin` payloads and atomically commits each case's `.json`
+   metadata under `ImageBaselines/<API>/`. Old metadata/payload remain valid if the new metadata commit fails.
+   Run Comparison must report exactly eight **Pass** results and outcome **Passed**; capture completion alone,
+   `NoBaseline`, `Error`, invalid dimensions/lengths and non-finite pixels never count as Pass. Compare the recorded
+   format, dimensions, color semantics and SHA, without applying an extra transfer to DisplayColor.
+   Increase one task-owned light's intensity: the corresponding case must **Fail**. Restore it and require Pass
+   again without recording replacement baselines. Also exercise missing/corrupt baseline, cancellation with
+   outstanding readback, state/metadata write failures and Play reload. Cancellation retires the runner's own
+   capture before leaving Play; an independent capture is never cancelled. Original SceneSetup and Selection
+   are restored after retirement; unexpected unsaved edits stop recovery as **NeedsAttention**. Cancel retries
+   recovery after those edits are resolved. State/report and captures live only under the project's
+   `intermediate/image-regression/<run>/` (or an explicit task-owned intermediate directory). Report outcome,
+   exact case count and individual verdicts, not the final Console message alone. Eight cases do not cover
+   Baked GI, APV/LPPV or Shader Graph; retain their separate stage evidence and unresolved image defects.
 4. Documentation~ links resolve (index → every page); the pages match what you see in the inspectors.
 
 ## S17 — folder layout

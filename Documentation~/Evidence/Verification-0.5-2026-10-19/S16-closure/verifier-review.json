@@ -1,0 +1,17 @@
+{
+  "verifier": "/root/stage_verifier",
+  "approvedScopes": [
+    "main implementation and source identity",
+    "main and historical full UID/verdict reconciliation",
+    "26 verified leaves metadata-only category removal",
+    "normal eight-case fixed-input comparison",
+    "original failures and actual negative/lifecycle/recovery controls",
+    "548 archive members and35lossless raw reconstructions",
+    "33 original skipped objects per full run and source SHA",
+    "precise S16 temporary cleanup with named S17 consumers"
+  ],
+  "archiveSha256": "2ad86855585dbbe439f70ac622a90f9b603135f0190ca2bcb12dffa9b00fac6b",
+  "mainFull": "1824=1770P/1F/53S; sole later S17 source path",
+  "historicalFull": "1822=1769P/0F/53S",
+  "limitations": "Fixed-input consistency only; known sky/dark/Display defects and unmeasured GPU performance remain Open. Final staged whitelist is a separate delivery gate."
+}

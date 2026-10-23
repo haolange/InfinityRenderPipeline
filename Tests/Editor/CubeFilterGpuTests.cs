@@ -76,7 +76,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(0.0f)]
         [TestCase(0.5f)]
         [TestCase(1.0f)]
-        [Category("Unverified_0_5")]
         public void ConstantCube_StaysConstant_TimesIntensity(float roughness)
         {
             RequireGpu();
@@ -101,7 +100,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void MirrorFilter_KeepsFaceOrder()
         {
             RequireGpu();

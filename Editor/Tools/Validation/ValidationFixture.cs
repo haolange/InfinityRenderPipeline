@@ -164,9 +164,12 @@ namespace InfinityTech.Rendering.Editor.Validation
             return component;
         }
 
-        public void Save()
+        public void Save() => SaveSceneAndAssets(m_Scene, ScenePath, m_OwnedAssets);
+
+        internal static void SaveSceneAndAssets(Scene scene, string scenePath, IEnumerable<UnityEngine.Object> ownedAssets)
         {
-            var ownedPaths = new HashSet<string>(m_OwnedAssets.Select(AssetDatabase.GetAssetPath), StringComparer.Ordinal);
+            UnityEngine.Object[] assets = ownedAssets.Where(asset => asset != null).Distinct().ToArray();
+            var ownedPaths = new HashSet<string>(assets.Select(AssetDatabase.GetAssetPath), StringComparer.Ordinal);
             string[] unrelatedDirty = Resources.FindObjectsOfTypeAll<UnityEngine.Object>()
                 .Where(asset => asset != null && EditorUtility.IsPersistent(asset) && AssetDatabase.IsNativeAsset(asset) && EditorUtility.IsDirty(asset))
                 .Select(AssetDatabase.GetAssetPath)
@@ -177,11 +180,11 @@ namespace InfinityTech.Rendering.Editor.Validation
             // Unity SaveScene also saves unrelated dirty native assets; imported shader compilation state is not such an edit. Reject before entering that native API.
             if (unrelatedDirty.Length != 0)
                 throw new InvalidOperationException("Resolve unrelated unsaved asset edits before saving the fixture: " + string.Join(", ", unrelatedDirty));
-            if (!EditorSceneManager.SaveScene(m_Scene, ScenePath))
-                throw new IOException("Could not save fixture scene: " + ScenePath);
-            foreach (UnityEngine.Object asset in m_OwnedAssets)
+            if (!EditorSceneManager.SaveScene(scene, scenePath))
+                throw new IOException("Could not save fixture scene: " + scenePath);
+            foreach (UnityEngine.Object asset in assets)
                 AssetDatabase.SaveAssetIfDirty(asset);
-            Debug.Log($"[InfinityRP][Validation] {m_Name} fixture written: {ScenePath}");
+            Debug.Log($"[InfinityRP][Validation] Fixture written: {scenePath}");
         }
     }
 }

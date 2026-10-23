@@ -10,21 +10,20 @@ namespace InfinityTech.Rendering.Editor.Validation
 {
     public static class CreateDecalValidationScene
     {
-        const string SceneDirectory = "Assets/Scene/Validation";
-        const string ScenePath = SceneDirectory + "/Validation_Decal.unity";
-        const string MaterialDirectory = SceneDirectory + "/DecalMaterials";
 
         [MenuItem("Window/Infinity/Create Decal Fixture", false, 53)]
-        public static void Create()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorApplication.isPlaying = false;
-                EditorApplication.delayCall += Create;
-                return;
-            }
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
 
-            Directory.CreateDirectory(Path.Combine(Application.dataPath, "Scene/Validation/DecalMaterials"));
+        internal static void CreateInDirectory(string sceneDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(sceneDirectory) || !sceneDirectory.StartsWith("Assets/", System.StringComparison.Ordinal) ||
+                sceneDirectory.Contains("..") || sceneDirectory.Contains('\\') || sceneDirectory.EndsWith("/", System.StringComparison.Ordinal))
+                throw new System.ArgumentException("Fixture directory must be a project-relative Assets subdirectory.");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            string ScenePath = sceneDirectory + "/Validation_Decal.unity";
+            string MaterialDirectory = sceneDirectory + "/DecalMaterials";
+            Directory.CreateDirectory(Path.GetFullPath(MaterialDirectory));
+            AssetDatabase.Refresh();
 
             if (File.Exists(ScenePath))
             {
@@ -78,9 +77,9 @@ namespace InfinityTech.Rendering.Editor.Validation
                 throw new System.InvalidOperationException("InfinityRP Validation: InfinityPipeline/InfinityDecal shader missing.");
             }
 
-            CreateDecal("Decal_Red", new Vector3(-0.6f, 0.5f, 0.0f), new Vector3(3.0f, 1.5f, 3.0f), new Color(0.85f, 0.15f, 0.12f, 0.85f), 0, decalShader);
-            CreateDecal("Decal_Green", new Vector3(0.2f, 0.5f, 0.2f), new Vector3(3.0f, 1.5f, 3.0f), new Color(0.12f, 0.75f, 0.22f, 0.75f), 1, decalShader);
-            CreateDecal("Decal_Blue", new Vector3(0.4f, 0.5f, -0.3f), new Vector3(3.0f, 1.5f, 3.0f), new Color(0.15f, 0.28f, 0.85f, 0.65f), 2, decalShader);
+            Material red = CreateDecal(MaterialDirectory, "Decal_Red", new Vector3(-0.6f, 0.5f, 0.0f), new Vector3(3.0f, 1.5f, 3.0f), new Color(0.85f, 0.15f, 0.12f, 0.85f), 0, decalShader);
+            Material green = CreateDecal(MaterialDirectory, "Decal_Green", new Vector3(0.2f, 0.5f, 0.2f), new Vector3(3.0f, 1.5f, 3.0f), new Color(0.12f, 0.75f, 0.22f, 0.75f), 1, decalShader);
+            Material blue = CreateDecal(MaterialDirectory, "Decal_Blue", new Vector3(0.4f, 0.5f, -0.3f), new Vector3(3.0f, 1.5f, 3.0f), new Color(0.15f, 0.28f, 0.85f, 0.65f), 2, decalShader);
 
             GameObject cameraGo = new GameObject("Camera");
             Camera camera = cameraGo.AddComponent<Camera>();
@@ -93,13 +92,12 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraGo.AddComponent<InfinityAdditionalCameraData>();
             ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            AssetDatabase.SaveAssets();
+            ValidationFixture.SaveSceneAndAssets(scene, ScenePath, new UnityEngine.Object[] { groundMaterial, red, green, blue });
             AssetDatabase.Refresh();
             Debug.Log($"[InfinityRP][Validation] Decal fixture written: {ScenePath}");
         }
 
-        static void CreateDecal(string name, Vector3 position, Vector3 scale, Color color, int drawOrder, Shader decalShader)
+        static Material CreateDecal(string MaterialDirectory, string name, Vector3 position, Vector3 scale, Color color, int drawOrder, Shader decalShader)
         {
             string materialPath = MaterialDirectory + "/" + name + ".mat";
             Material existing = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
@@ -126,6 +124,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 filter.sharedMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
             }
+            return material;
         }
     }
 }

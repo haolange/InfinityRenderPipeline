@@ -12,22 +12,21 @@ namespace InfinityTech.Rendering.Editor.Validation
 {
     public static class CreateLocalLightsValidationScene
     {
-        const string SceneDirectory = "Assets/Scene/Validation";
-        const string ScenePath = SceneDirectory + "/Validation_LocalLights.unity";
-        const string MaterialDirectory = SceneDirectory + "/LocalLightsMaterials";
-        const string VolumeProfilePath = SceneDirectory + "/Validation_LocalLights_Volume.asset";
 
         [MenuItem("Window/Infinity/Create Local Lights Fixture", false, 55)]
-        public static void Create()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorApplication.isPlaying = false;
-                EditorApplication.delayCall += Create;
-                return;
-            }
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
 
-            Directory.CreateDirectory(Path.Combine(Application.dataPath, "Scene/Validation/LocalLightsMaterials"));
+        internal static void CreateInDirectory(string sceneDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(sceneDirectory) || !sceneDirectory.StartsWith("Assets/", System.StringComparison.Ordinal) ||
+                sceneDirectory.Contains("..") || sceneDirectory.Contains('\\') || sceneDirectory.EndsWith("/", System.StringComparison.Ordinal))
+                throw new System.ArgumentException("Fixture directory must be a project-relative Assets subdirectory.");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            string ScenePath = sceneDirectory + "/Validation_LocalLights.unity";
+            string MaterialDirectory = sceneDirectory + "/LocalLightsMaterials";
+            string VolumeProfilePath = sceneDirectory + "/Validation_LocalLights_Volume.asset";
+            Directory.CreateDirectory(Path.GetFullPath(MaterialDirectory));
+            AssetDatabase.Refresh();
 
             if (File.Exists(ScenePath))
             {
@@ -140,8 +139,7 @@ namespace InfinityTech.Rendering.Editor.Validation
             cameraGo.AddComponent<InfinityAdditionalCameraData>();
             ValidationSceneUtility.EnsureLitLivenessMarker(camera);
 
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            AssetDatabase.SaveAssets();
+            ValidationFixture.SaveSceneAndAssets(scene, ScenePath, new UnityEngine.Object[] { groundMaterial, volumeProfile });
             AssetDatabase.Refresh();
             Debug.Log($"[InfinityRP][Validation] Local lights fixture written: {ScenePath}");
         }

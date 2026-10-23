@@ -51,7 +51,7 @@ Columns:
 | Rendering Debugger panels, debug views 19–29, Scene view Draw Modes, pass timings (0.5.0) | Yes | Unverified-0.5 (catalog, mode sync) | Open | — | None | Compiled in Unity; native panel and Draw Mode acceptance remains open |
 | Render Graph Viewer (0.5.0) | While open | Unverified-0.5 (snapshot contract) | Open | — | None | |
 | Material conversion (Built-in / URP / HDRP → Infinity) and create menus (0.5.0) | Editor | Unverified-0.5 (Standard conversion) | Open | — | None | Masks, occlusion, detail, height and emission maps are dropped |
-| Image regression over the validation fixtures (0.5.0) | Play mode | Unverified-0.5 (comparison) | — | — | None | No baselines yet: record them on the first verified Editor |
+| Image regression over the validation fixtures (0.5.0) | Normal Play frames | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: comparison16, request1, save ownership6; actual recovery controls | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: eight fixed-input cases compare Pass on main and repaired S16 | — | macOS Metal | Same accepted baselines reused; real light-change Fail/restored Pass, missing/corrupt baseline, state/metadata write failures, pending cancellation, foreign capture and dirty recovery verified. Known sky/dark defects remain Open in their feature rows; consistency is not complete image correctness. See [S16 report](../Documentation~/Evidence/Verification-0.5-2026-10-19/S16-report.md). |
 
 ## Out of scope
 

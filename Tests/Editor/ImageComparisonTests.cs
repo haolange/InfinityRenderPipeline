@@ -19,7 +19,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void IdenticalImages_HaveNoError()
         {
             byte[] image = { 10, 20, 30, 255, 40, 50, 60, 255 };
@@ -31,7 +30,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void OneChangedPixel_IsOneOutlier_AlphaIgnored()
         {
             byte[] a = { 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255 };
@@ -45,7 +43,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void HalfImages_DecodeAndFlagNaN()
         {
             byte[] a = Half(0.5f, 0.25f, 1.0f, 1.0f, 0.1f, 0.1f, 0.1f, 1.0f);
@@ -53,10 +50,51 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(0.25f, ImageComparison.Decode(a, 0, "R16G16B16A16_SFloat").y, 1e-3f);
             FImageComparison result = ImageComparison.Compare(a, b, "R16G16B16A16_SFloat", 2, 1, 0.01f);
             Assert.AreEqual(0.5f, result.outlierFraction, 1e-6f, "NaN counts as a full-scale difference.");
+            Assert.IsFalse(result.comparable);
+            Assert.IsFalse(result.Passes(1, 1), "Invalid data cannot pass even with permissive error thresholds.");
+        }
+
+        [TestCase(float.NaN, false)]
+        [TestCase(float.PositiveInfinity, false)]
+        [TestCase(float.NegativeInfinity, false)]
+        [TestCase(float.NaN, true)]
+        [TestCase(float.PositiveInfinity, true)]
+        [TestCase(float.NegativeInfinity, true)]
+        public void SingleNonFinitePixel_InLargeImage_CannotBeDiluted(float value, bool inBaseline)
+        {
+            const int width = 640, height = 400;
+            var baseline = new byte[width * height * 8];
+            var candidate = (byte[])baseline.Clone();
+            byte[] invalid = inBaseline ? baseline : candidate;
+            ushort half = Mathf.FloatToHalf(value);
+            invalid[invalid.Length - 8] = (byte)half;
+            invalid[invalid.Length - 7] = (byte)(half >> 8);
+            FImageComparison result = ImageComparison.Compare(baseline, candidate, "R16G16B16A16_SFloat", width, height, 4f / 255);
+            Assert.AreEqual(1, result.nonFinitePixels);
+            Assert.IsFalse(result.comparable, result.reason);
+            Assert.IsFalse(result.Passes(0.01f, 0.005f));
+        }
+
+        [TestCase(0, 1)]
+        [TestCase(1, 0)]
+        [TestCase(-1, 1)]
+        [TestCase(int.MaxValue, 2)]
+        public void InvalidDimensions_AreNotComparable(int width, int height)
+        {
+            FImageComparison result = ImageComparison.Compare(new byte[8], new byte[8], "R8G8B8A8_UNorm", width, height, 0.01f);
+            Assert.IsFalse(result.comparable);
+            Assert.IsFalse(result.Passes(1, 1));
         }
 
         [Test]
-        [Category("Unverified_0_5")]
+        public void TrailingBytes_AreNotSilentlyIgnored()
+        {
+            FImageComparison result = ImageComparison.Compare(new byte[9], new byte[9], "R8G8B8A8_UNorm", 2, 1, 0.01f);
+            Assert.IsFalse(result.comparable);
+            Assert.IsFalse(result.Passes(1, 1));
+        }
+
+        [Test]
         public void ShortBuffer_IsNotComparable()
         {
             FImageComparison result = ImageComparison.Compare(new byte[4], new byte[8], "R8G8B8A8_UNorm", 2, 1, 0.01f);
@@ -65,7 +103,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void DefaultCases_HaveCreatorsAndCameras()
         {
             var cases = ImageRegressionRunner.DefaultCases();

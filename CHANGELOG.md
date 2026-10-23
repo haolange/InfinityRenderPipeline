@@ -92,6 +92,13 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Image regression now supplies valid normal-frame dimensions/ROI, preserves original scene/selection state through
+  Play reload and retires only its own capture before recovery. Explicit fixture creation and scoped paths avoid
+  replacing existing scenes; the four early fixture generators share native dirty-asset save protection.
+- Image comparison rejects non-finite pixels, invalid dimensions and extra raw bytes. Baselines validate encoding
+  and SHA, commit through immutable payloads and atomic metadata, and retain prior valid data on commit failure.
+  Missing cases, capture errors and persistence failures cannot produce a passing run.
+
 - S15 Editor/Metal validation now records the actual generated-graph, native UI and normal-frame consumer boundaries.
   Only the 16 category attributes covering 20 exercised S15 test cases are retired; unrelated unverified tests remain
   marked. Historical transient black outputs and final Display differences remain documented observations.

@@ -3,8 +3,7 @@ using UnityEngine;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
-    // Result of comparing a captured buffer against its baseline (channels decoded to float; DisplayColor is display
-    // encoded, so values are in [0, 1]).
+    // Result in the buffer's recorded encoding. DisplayColor is display-linear and can contain HDR values above 1.
     [Serializable]
     internal struct FImageComparison
     {
@@ -15,6 +14,7 @@ namespace InfinityTech.Rendering.Editor.Validation
         // Pixels whose largest channel difference exceeds the per-pixel threshold, over all pixels.
         public float outlierFraction;
         public int pixels;
+        public int nonFinitePixels;
 
         public bool Passes(float maxRmse, float maxOutlierFraction) => comparable && rmse <= maxRmse && outlierFraction <= maxOutlierFraction;
     }
@@ -70,10 +70,22 @@ namespace InfinityTech.Rendering.Editor.Validation
 
         public static FImageComparison Compare(byte[] baseline, byte[] candidate, string format, int width, int height, float pixelThreshold)
         {
-            var result = new FImageComparison { pixels = width * height };
+            var result = new FImageComparison();
+            long pixelCount = (long)width * height;
+            if (width <= 0 || height <= 0 || pixelCount > int.MaxValue || !Finite(pixelThreshold) || pixelThreshold < 0)
+            {
+                result.reason = "invalid dimensions or pixel threshold";
+                return result;
+            }
+            result.pixels = (int)pixelCount;
             if (baseline == null || candidate == null)
             {
                 result.reason = "missing data";
+                return result;
+            }
+            if (baseline.Length == 0 || candidate.Length == 0)
+            {
+                result.reason = "empty data";
                 return result;
             }
             int bpp = BytesPerPixel(format);
@@ -88,7 +100,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 return result;
             }
             long expected = (long)width * height * bpp;
-            if (baseline.LongLength < expected || candidate.LongLength < expected)
+            if (baseline.LongLength != expected || candidate.LongLength != expected)
             {
                 result.reason = $"expected {expected} bytes, baseline {baseline.LongLength}, candidate {candidate.LongLength}";
                 return result;
@@ -102,6 +114,8 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 Vector4 a = Decode(baseline, p, format);
                 Vector4 b = Decode(candidate, p, format);
+                if (!Finite(a.x) || !Finite(a.y) || !Finite(a.z) || !Finite(a.w) ||
+                    !Finite(b.x) || !Finite(b.y) || !Finite(b.z) || !Finite(b.w)) result.nonFinitePixels++;
                 // Alpha is ignored: display alpha carries no image content.
                 float dr = Difference(a.x, b.x), dg = Difference(a.y, b.y), db = Difference(a.z, b.z);
                 float pixelError = Mathf.Max(dr, Mathf.Max(dg, db));
@@ -109,14 +123,17 @@ namespace InfinityTech.Rendering.Editor.Validation
                 maxError = Mathf.Max(maxError, pixelError);
                 if (pixelError > pixelThreshold) outliers++;
             }
-            result.comparable = true;
+            result.comparable = result.nonFinitePixels == 0;
+            if (!result.comparable) result.reason = $"non-finite data in {result.nonFinitePixels} pixel(s)";
             result.rmse = (float)Math.Sqrt(sumSquares / Math.Max(1, count));
             result.maxError = maxError;
             result.outlierFraction = count > 0 ? (float)outliers / count : 0;
             return result;
         }
 
-        // NaN / Inf in either image counts as a full-scale difference.
+        static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+        // Retain diagnostic statistics for invalid images, but non-finite data can never pass the comparison.
         static float Difference(float a, float b)
         {
             if (float.IsNaN(a) || float.IsNaN(b) || float.IsInfinity(a) || float.IsInfinity(b)) return 1.0f;
