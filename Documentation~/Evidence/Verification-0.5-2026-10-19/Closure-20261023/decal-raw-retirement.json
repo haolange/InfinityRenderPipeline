@@ -1,0 +1,264 @@
+{
+  "root": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01",
+  "producer": "stopped; original scene restored outsidePlay, capturedreadbacksfinished",
+  "consumer": "independent focus verifier consumed; remaining baseline/regression/performance inputs not included",
+  "files": [
+    {
+      "path": "decal-ground-off-v2/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "eb2763e5a9f74ddee093e619d2b223320c5d2a2847c7cce51f4cd81b04b91761",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-ground-off-v2/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "482c3fbe430e1c777af4441e2f8d554561b773332692ea019cc2a857225b8bad",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-ground-off-v2/GBufferA-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "ed9bd813cedd13459b8962d0e70916428244d917230ed9624cab22a8405237a6",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-ground-off-v2/GBufferB-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "6e3cf70aebc9c11f153c30b6114c882bfb40949e6ade5d7e954f744b3b0ce890",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-ground-off-v2/GBufferC-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "502bf3e094af8e29e9b7f402b96dd9a3d4b30f706a8bafd77dfcb97b05be4fd2",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-ground-off-v2/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "5696766a929fb162594ff28ab35ac0a9fc91679b682eeeeffeddd050d93c77bb",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-ground-on-v2/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "24030b1f9aac9badc4de58d8fc1c8c8e5e251617dfb077a8d1eeeefc3373a6ff",
+      "disposition": "superseded early ground-on raw, numeric result retained"
+    },
+    {
+      "path": "decal-ground-on-v2/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "78db2f2972a241d41b627941612345e10b9708bb7399fc2556d9ad2a1d291149",
+      "disposition": "superseded early ground-on raw, numeric result retained"
+    },
+    {
+      "path": "decal-ground-on-v2/GBufferA-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "b69935df5aa62cfa93b0708cca9b08cad4ef6ca5fe07d6dafe67fe9c1eb7c414",
+      "disposition": "superseded early ground-on raw, numeric result retained"
+    },
+    {
+      "path": "decal-ground-on-v2/GBufferB-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "3a4c7c9dc1ba433474fb40a01d041675f0f3584022a7770a351ebd1c28f81a80",
+      "disposition": "superseded early ground-on raw, numeric result retained"
+    },
+    {
+      "path": "decal-ground-on-v2/GBufferC-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "7b12e639c282352997c4addfe5a7c88e7376ce732f30b17c1748b59ffaf44fbc",
+      "disposition": "superseded early ground-on raw, numeric result retained"
+    },
+    {
+      "path": "decal-ground-on-v2/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "21b21e09d64468779e8a128f941c2425f0a28277bc3ff4b3c264bb1f432c5028",
+      "disposition": "superseded early ground-on raw, numeric result retained"
+    },
+    {
+      "path": "decal-fixed-off-v3/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "e7f4555e5e8635667a9787bba16e942cbd333fe55ec4d1d3090c4db4751f55a3",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-off-v3/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "a6c5fd7ce1135fe3238f38be3f0002c88fbf599f48bc95090c8102ed27e38c54",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-off-v3/GBufferA-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "3f18cb3c23fabfcdba6d37c8eb53d1d83cf1da785f8385289616d94f50b1d6f9",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-off-v3/GBufferB-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "450a6a526e30c9ad5548748703f22fa84e972f86fd9ec3c4d6c26e5fcc89a8e4",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-off-v3/GBufferC-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "bf9a73872139e2ff7c73d9eb8f4280d8131d428d4d7034111c24cb3263ba0eaa",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-off-v3/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "df86d9b19093cfcee444993a4fc285f45c4393ca3001b72f5f53e84f4562cf51",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-on/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "25d79e350272d7aa416618ab8baabfcc4dfcf2caf580bd1b02f9ce6d060b3caa",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-on/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "78db2f2972a241d41b627941612345e10b9708bb7399fc2556d9ad2a1d291149",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-on/GBufferA-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "6d04e4a744142760dcd29414a05ec8e7b1b67c1fd49d173f6c5730dcc4a84ac6",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-on/GBufferB-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "2d59ffc9a3668c66763bacff2dc05027aaa30904ea10538900461953233011cd",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-on/GBufferC-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "7b12e639c282352997c4addfe5a7c88e7376ce732f30b17c1748b59ffaf44fbc",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-fixed-on/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "b40f30f99129d45bfd0a0e44964dd895fc0aec322d07fcfda59b900dfe2f9d77",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-disabled/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "89cc4e115a8e0a190a2225a6c7559a19aab391af3f4b605c66b5dbb30b807685",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-disabled/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "d95e5ac7b008f9b2354132f347d76bf67251d47706611be005ec0e1eea3aa8a0",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-disabled/GBufferA-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "e5e1665ae6849fbd044c5b4e234606886ac240be51c5e5dc8c5c87c43d8f1184",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-disabled/GBufferB-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "4bb98bdf22b68546dcf550578900f3f97507a37f668295681e8c2637531e2b1c",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-disabled/GBufferC-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "47f87904841dfda4c40212b2bdbb85441f526f6e93665cabfd5a4d2681d82de8",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-disabled/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "1ecade04592361ae31d75034950e01e65751489cc513516435b00aa1205e166b",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-enabled-secondary/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "dec1eead8c92b95663119e047742f09de0fb9ff94ff54b686112ef8ba2cb4cd9",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-enabled-secondary/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "bf5b51a2e0cd1cee6737d2d95e5a764c7916f025e8143669532c230fb23d6b45",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-enabled-secondary/GBufferA-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "779f04480811ce710faed64080bf6bfcc119eeec2e477f42994fbcc899676651",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-enabled-secondary/GBufferB-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "292ca0fb65707f6a74a92bfe327311001936099805221a8eb76295430f751a9e",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-enabled-secondary/GBufferC-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "30ebc3ef250c3649a3596495c7be80b2b087ddbad28be18373f06d038739d3b3",
+      "disposition": "archive member verified"
+    },
+    {
+      "path": "decal-enabled-secondary/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "ea33bc7300498e09cfa1884532f17905027601b44937ed3f79ca81913a745f13",
+      "disposition": "archive member verified"
+    }
+  ],
+  "count": 36,
+  "bytes": 49152000,
+  "allocated": 50331648,
+  "deleted": true,
+  "verifiedAbsent": 36
+}

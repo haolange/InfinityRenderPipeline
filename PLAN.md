@@ -1072,3 +1072,31 @@ Finalmetadatafollow-through: independentreviewconfirmedremaining29Unverifiedattr
 Finalarchivehygiene: independentreviewcaughtstartupauthenticationargumentsinunpublishedlogs. Proactiveallpermanenttar scanfoundonly4S17+1markerlogs; allreplacedsourceSHA/bytes/omissionreceiptsbeforecommit/push. S17same346members now1,391,176B SHA0cd76414657170dd2cac8bf6759dcfcdf732feaa2d79bc45b541991570deb937; all24raw reconstruction data unchanged. Marker75members now46,103B SHA2b8a5e99682da9a840e6ebe007c80dbf59c261495194d805cb94adeb25d75f06;9redundantno-reloadcheckpoints replacedsourceSHA/countsummary, native/callback+45identityproofretained. PreviousarchiveSHAs describe superseded unpublishedcandidates, notfinaldeliverables.
 
 Finalmarkerconsumerclosed: own53193normalexit;141files including sidecars/1,068,805payloadB/37,224,448allocatedB retired afterprepersistedcounter. EntireExampleintermediateabsentagain; all427sourcehashesmatchpreservedfinalstate. SanitizedS17andmarkerarchivesindependentlyaccepted (allmembers/24rawreconstruction/64nativecallback/old45UID). Final61pathpostcleanupbatchreviewthenFixS17commit/explicitPRbranchpush/remoteSHAcheckareonlydeliveryactionsleft. NofurtherUnityorimageconsumerrerequiredforacceptedmetadata-onlyretirement.
+
+## Approved remaining acceptance closure — 2026-10-23
+
+Baseline local main1307adc; original InfinityExample only. User approves excluding53externalSDK skips and replacing missing S1 historical wholeExample rerun with existing historical related contracts/behavior plus final current Infinity-package full tests. This is an explicit acceptance change, not a claim that the historical full ran.
+Order: persistent Decal/LocalLights/Translucent picture defects, then probe/Display defects, then six representative performance workloads, then final package-only suite/eight normal regressions. Three independent cold-start first/stable-frame successes can classify earlier purple/black transients as historical unknown/current pass without claiming repaired root cause. Reuse old passed evidence and valid whole-frame timings; no externalSDK reruns.
+No new branches/publicAPI/schema/compatibility layers; main commits push only origin/claude/infinityrp-0.5. Independent verifier required before fixes and final delivery. No other-session Editor control, no Library/DataStore modification.
+Canonical temporary run: /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/. Soft256MiB/hard512MiB task-data budget, excluding Unity-managed caches. Restore selected fixture members only, retain bounded failing/fixed frames, measure performance in RAM then small tables. Record cleanup counters before deletion; retain no startup authentication logs.
+Pending: original-source/current-editor preflight; scoped fixture restoration; reproduce and locate first wrong rendered producer; verified minimal fixes; performance preflight and3x300valid comparisons at1280x720High; revisedS1/package final tests; three cold starts; final old/new baseline comparisons; source/settings restore, evidence curation, commit/push SHA and cleanup.
+
+Closure working state: preflight completed on original Example PID3809/main1307adc; Spazon initially clean, selection empty,
+preexisting EditorBuildSettings dirty state preserved.427source paths retain current input SHA.100selected S16fixture
+members restored with the two S17Profile fixes; old16baseline files retained unchanged. First8normal-frame comparison
+is7Pass/1Fail(Shadows outliers0.703906%,limit0.5%); this failure remains open, no baseline overwritten.
+Decal RP-replacement failure reproduced: enabled components keep their registration flag while a new RenderContext
+starts at zero, so RenderDBuffer disappears. One-shot first-task-drain reconciliation restores the pass and
+three actual colored overlays. Unity compile0/0; final focused5/5 and related8/8 executed with no skips; the unload
+harness uses an owned PreviewScene, preserving UTF's unsaved bootstrap. Independent review approves frames/pass recovery, with differing jitter
+explicitly retained. Ground-disabled/ground-enabled task-clone controls explain the finite-floor horizon band;
+this is not a claimed atmosphere shader root-cause repair. Task capture failures from lazy pipeline disposal are invalid
+and kept separate; verify actual loaded clone identity before capture. User RP/Profile assets are never saved or rebound
+in source. Auto-review refused a proposed original-RP in-memory binding diagnostic; clone-only controls were used instead.
+The focused batch is independently approved; disable/re-enable and two-camera normal captures are finite with zero pending
+work.427protected source hashes, clean9rootSpazon, empty selection and prior EditorBuildSettings dirty state are preserved.
+The184member lossless evidence archive is1054005bytes (SHA b1dd30ab310a3720ba439963d1db1a670622e6e80757c108bad07fb46dc5e9ef).
+Before curation task+fixture allocation was252182528bytes;36consumed raw buffers are now verified absent, reclaiming49152000
+payloadbytes/atleast50331648allocatedbytes after durable exact inventory. Original8case regression/baselines and fixture sources
+remain named inputs for later closure. See Documentation~/Evidence/Verification-0.5-2026-10-19/Closure-20261023/decal-report.md.
+Performance/final suite/cold-start/regression/final cleanup remain pending; this focused batch does not establish PR readiness.

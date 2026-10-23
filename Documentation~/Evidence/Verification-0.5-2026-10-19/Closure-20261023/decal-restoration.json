@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "command": "command run_script",
+  "data": {
+    "command": "run_script",
+    "parameters": {
+      "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/ClosurePreflight.cs",
+      "entry": "ClosurePreflight.Read",
+      "args": "[]"
+    },
+    "result": {
+      "diagnostics": [],
+      "compileMs": 889,
+      "executeMs": 16,
+      "assemblyName": "PipelineRunScript_ClosurePreflight_7cc7787b61584837b9127f306f1fb11d",
+      "success": true,
+      "result": {
+        "pid": 3809,
+        "playing": false,
+        "compiling": false,
+        "baking": false,
+        "scenes": [
+          {
+            "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+            "isDirty": false,
+            "rootCount": 9
+          }
+        ],
+        "selection": [],
+        "dirty": [
+          "ProjectSettings/EditorBuildSettings.asset"
+        ],
+        "options": 3,
+        "background": false
+      }
+    },
+    "target": {
+      "host": "127.0.0.1",
+      "port": 7800,
+      "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

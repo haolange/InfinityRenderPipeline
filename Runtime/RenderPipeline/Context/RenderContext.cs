@@ -48,6 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
         private List<MeshComponent> m_StaticMeshList;
         private List<MeshComponent> m_DynamicMeshList;
         private int m_WorldDecalCount;
+        private bool m_WorldDecalsInitialized;
         private Dictionary<ulong, InfinityAdditionalLightData> m_LightList;
 
         internal LightContext lightContext;
@@ -256,6 +257,18 @@ namespace InfinityTech.Rendering.Pipeline
 
         #region WorldDecal
         public int WorldDecalCount => m_WorldDecalCount;
+
+        // A pipeline replacement does not re-enable the loaded scene's components. Reconcile once,
+        // after pending registration tasks were consumed, so those tasks cannot double-count decals.
+        internal void InitializeWorldDecals()
+        {
+            if (m_WorldDecalsInitialized) return;
+            m_WorldDecalCount = 0;
+            foreach (DecalComponent decal in Resources.FindObjectsOfTypeAll<DecalComponent>())
+                if (decal.isActiveAndEnabled && decal.gameObject.scene.IsValid() && decal.gameObject.scene.isLoaded)
+                    m_WorldDecalCount++;
+            m_WorldDecalsInitialized = true;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddWorldDecal()

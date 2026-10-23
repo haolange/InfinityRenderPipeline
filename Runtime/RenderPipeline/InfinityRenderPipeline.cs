@@ -1010,6 +1010,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 FGraphics.ProcessTasks(renderContext);
                 FGraphics.ClearTasks();
+                renderContext.InitializeWorldDecals();
                 renderContext.InterpolateMeshProbes();
 
                 #if UNITY_EDITOR

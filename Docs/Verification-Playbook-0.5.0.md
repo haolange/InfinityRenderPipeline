@@ -1,9 +1,16 @@
 # 0.5.0 verification playbook
 
-0.5.0 was written without a Unity Editor. Every stage passed the offline gate (differential C# compile against
-UnityCsReference + CoreRP sources, DXC shader compile, `Tools/StaticCheck/static_check.py`), but nothing has been
-compiled by Unity, rendered, or measured. Verify the stages **in commit order**: each stage's first commit subject
-starts with `SNN:`.
+0.5.0 was originally written without a Unity Editor. Its original offline gates were differential C# compilation,
+DXC shader compilation and `Tools/StaticCheck/static_check.py`. Subsequent Editor evidence is recorded in
+`Docs/FeatureStatus.md` and `Documentation~/Evidence/Verification-0.5-2026-10-19/`. For historical replay, verify
+stages **in commit order**: each stage's first commit subject starts with `SNN:`.
+
+The approved 2026-10-23 remaining-acceptance closure reuses completed historical evidence rather than replaying
+S0–S17. S1 acceptance combines its historical related contracts/behavior with the final current Infinity-package
+suite; the missing historical whole-Example run is explicitly waived, not represented as executed. The 53 external
+SDK skips retain their actual reasons and outcomes outside Infinity acceptance. Current picture defects, required
+whole-frame performance comparisons, three cold-start transient checks and final normal-image regressions remain
+separate gates under the active `PLAN.md` ledger.
 
 ```
 git log --reverse --format='%h %s' origin/main..claude/infinityrp-0.5
@@ -607,6 +614,13 @@ still fails. Retain the original failed check; these missing historical images a
    Metallic, Roughness, Specular Level and Emission blocks.
 
 ## S15i — Validation fixtures
+
+For Decal lifecycle recovery, leave enabled projectors in a task-owned loaded scene, replace the RP with a memory-only
+clone carrying identical settings, and wait for the new pipeline to render. The colored DBuffer overlays must remain
+visible without toggling components or reopening the scene. Verify disable/enable and scene unload afterward, then
+restore the original RP binding without saving user assets. Run `DecalContextRegistrationTests` for pending enable,
+pending disable, rapid toggles, context replacement and unload. Keep script-reload-cancelled captures separate from
+completed evidence.
 
 Newly created fixtures keep the rotating liveness cube inside a small viewport corner and the camera clip range.
 Check that it remains visible and moves in normal Game frames, including a narrow/orthographic camera and a larger
