@@ -1,0 +1,825 @@
+{
+  "archiveBytes": 46103,
+  "archiveSha256": "2b8a5e99682da9a840e6ebe007c80dbf59c261495194d805cb94adeb25d75f06",
+  "members": [
+    {
+      "member": "CloudShellGpu/callback-results.xml",
+      "bytes": 10100,
+      "sha256": "b43579ff81bc6d284b6930633290a7a5eb57927f5509fc1c018ce18eac94598b"
+    },
+    {
+      "member": "CloudShellGpu/progress.jsonl",
+      "bytes": 8611,
+      "sha256": "91b2d81f4a6e58c64487909750cd0703b8b4f578f15c886c6f56fdcbe62c7881"
+    },
+    {
+      "member": "CloudShellGpu/reload-checkpoint.json.summary.json",
+      "bytes": 315,
+      "sha256": "fec3290f4fd69beca0a8a071b2a1f9cc47ebd3a2044ce959b2072facf1b5fcab",
+      "originalSourceSha256": "ccceb5823ef36891312dcf002343880387c20041d5f6aca8479d9d4070805d88"
+    },
+    {
+      "member": "CloudShellGpu/results.xml",
+      "bytes": 13127,
+      "sha256": "3e6134ce91705991f96a566133a088d4cb8efcf44d45135f4eadb01553993d69"
+    },
+    {
+      "member": "CloudShellGpu/run.json",
+      "bytes": 1137,
+      "sha256": "7882d9e44b9f40281af312bbbdb371a2259f7b519bd0bec7b3ac43f67023048b"
+    },
+    {
+      "member": "CloudShellGpu-start.json",
+      "bytes": 868,
+      "sha256": "a2a73f6aa6453a74bcd5d57c4b80947da54b56d821fcc68ca72063af4a0ff794"
+    },
+    {
+      "member": "CommandTable/callback-results.xml",
+      "bytes": 4855,
+      "sha256": "dac86549d6a615f46ffc059007b9a3f57ed0a7d033856f90b4787e05598fc704"
+    },
+    {
+      "member": "CommandTable/progress.jsonl",
+      "bytes": 11983,
+      "sha256": "b2d3f211faaed28a3358950a6edc320bbf1fd08c865e702004961e02bd439857"
+    },
+    {
+      "member": "CommandTable/reload-checkpoint.json.summary.json",
+      "bytes": 315,
+      "sha256": "f50392f19a1146ad9511665fb8d5423d75657c5c80aa74895401385771c2ea26",
+      "originalSourceSha256": "b548d34530bf2ed3379836827e58fabbf75d093aa3b81038b4812b4f6fba4a76"
+    },
+    {
+      "member": "CommandTable/results.xml",
+      "bytes": 6992,
+      "sha256": "23b6d3d5c47fb963d59bd92ea0e56c0b32c6351b79ab0ebdeba9c4a067a80900"
+    },
+    {
+      "member": "CommandTable/run.json",
+      "bytes": 1133,
+      "sha256": "6645fda26f8cb2aec2dd6cad2539df16298c755f6de0b1b318d46b443c150b6d"
+    },
+    {
+      "member": "CommandTable-start.json",
+      "bytes": 867,
+      "sha256": "93f8f3b7025d6e57702a47ced07ec7d2786e2bd7c47f158041720127673abf7f"
+    },
+    {
+      "member": "DecalProjection/callback-results.xml",
+      "bytes": 1209,
+      "sha256": "26ac62dabf53dfff0eee2d9ade96c4313f86eb0e7058bb7f3b0971eabf4015d6"
+    },
+    {
+      "member": "DecalProjection/progress.jsonl",
+      "bytes": 4856,
+      "sha256": "ccfb7f3fa1f9ad2c35c3268399efb4f1933d55e22329156356d43b55d3f390ef"
+    },
+    {
+      "member": "DecalProjection/reload-checkpoint.json.summary.json",
+      "bytes": 314,
+      "sha256": "188823cc832f792bcaeb20a34c0eac3877a57c2a6799086559f13e6d39c7db34",
+      "originalSourceSha256": "c5034ce0ff909fd25931f1a7e48b452d288030bba396c66229b9aa70ddfca2e0"
+    },
+    {
+      "member": "DecalProjection/results.xml",
+      "bytes": 4253,
+      "sha256": "5ee8b2881b9c0129f89a783c3be497e2f31dbb07e1a1c3e5cac29d6b377d58db"
+    },
+    {
+      "member": "DecalProjection/run.json",
+      "bytes": 1148,
+      "sha256": "9e228332a757a4e32840e2c314ba9c047563692dbd10303a8c4b0353a01615b2"
+    },
+    {
+      "member": "DecalProjection-start.json",
+      "bytes": 872,
+      "sha256": "b794c6ae130bb87d0dede0cb092a99da55b4105f42c4b365ba8ec374342b6c91"
+    },
+    {
+      "member": "Editor.log.omitted.json",
+      "bytes": 266,
+      "sha256": "3f354b42961892697d937a057741b545ca786768cddb53d725c4a7bc6b8218b0",
+      "originalSourceSha256": "24f4c7ccc72ca0d6d79735b25163dc00864130b8e246ea6f972d7e6597fdda5e"
+    },
+    {
+      "member": "FeatureRegistry/callback-results.xml",
+      "bytes": 4730,
+      "sha256": "80a3f0f6081c47a5d1cb0bb2b46e081dbbc88881f0713aab064861daedf97c1e"
+    },
+    {
+      "member": "FeatureRegistry/progress.jsonl",
+      "bytes": 11932,
+      "sha256": "dab033d04ca24fdb5715abe2a74b1a2d1fa857e07ab940cf62da96867862392b"
+    },
+    {
+      "member": "FeatureRegistry/reload-checkpoint.json.summary.json",
+      "bytes": 315,
+      "sha256": "3c6a425b4185d351a8ffd38395f18880605a5466ec4225be2bb8b325b4d53de2",
+      "originalSourceSha256": "0961511e64fc1e4a8166adc6730f11d6d75099dfa2fd3da453efc1fac5e49638"
+    },
+    {
+      "member": "FeatureRegistry/results.xml",
+      "bytes": 6894,
+      "sha256": "cdc6a61d4a85f838f8013dfda35223c59e68369fa8207838b897cea45414d30d"
+    },
+    {
+      "member": "FeatureRegistry/run.json",
+      "bytes": 1140,
+      "sha256": "3738262424047685d9f80953fa16fe4ea91602354bec835ad367f18f796cf312"
+    },
+    {
+      "member": "FeatureRegistry-start.json",
+      "bytes": 872,
+      "sha256": "7083b781873bf669c9b6780131d9e8dcca141a5e38d50b7da632fabec621c19f"
+    },
+    {
+      "member": "LightAngularGpu/callback-results.xml",
+      "bytes": 3455,
+      "sha256": "6e7dc28d063ba3d6bc80ddbab0626202c44c996835ba89a474ddbc32cfd39ed5"
+    },
+    {
+      "member": "LightAngularGpu/progress.jsonl",
+      "bytes": 8505,
+      "sha256": "831d46c7e794f4cd142287f7a5b1baa00170a96093a7702859a46d2cde307580"
+    },
+    {
+      "member": "LightAngularGpu/reload-checkpoint.json.summary.json",
+      "bytes": 315,
+      "sha256": "71e326e2e3087b65b3d67089da8fd1edb79bdab3fe3082914af5c3ecc53e7e90",
+      "originalSourceSha256": "af00f354ea0f9d6c36dec248b81645b877dc0c5e09e2fb98d2f8072cec135d6d"
+    },
+    {
+      "member": "LightAngularGpu/results.xml",
+      "bytes": 6550,
+      "sha256": "05812da76dd636a589644cdf80644ea7c595d447036c94fe78734ea3dce78048"
+    },
+    {
+      "member": "LightAngularGpu/run.json",
+      "bytes": 1150,
+      "sha256": "ae82a375cb461ba0b3f9ac8c7328128e0f0ced436a2f6a6357681b8c4d3b1a00"
+    },
+    {
+      "member": "LightAngularGpu-start.json",
+      "bytes": 872,
+      "sha256": "ddff68e059c9364ebad7cdcccf677861e762bd67dff4f0966f51402ad01dbfee"
+    },
+    {
+      "member": "LightRecord/callback-results.xml",
+      "bytes": 8938,
+      "sha256": "49c2c47b4c8c47d782be81299bc7426e8fd52ad0737d8b0924e735a4c94d2601"
+    },
+    {
+      "member": "LightRecord/progress.jsonl",
+      "bytes": 19367,
+      "sha256": "4e9207a68544b5eb8ce63f87e04960d96707c1a169d32a52f880f6904ae97f5d"
+    },
+    {
+      "member": "LightRecord/reload-checkpoint.json.summary.json",
+      "bytes": 315,
+      "sha256": "0eda9dd6cf10d0955d9340b70ccb1ae4700d9bef1459173124a26d992fdcc8db",
+      "originalSourceSha256": "168fb3bb740a5504e09d6107d2f0cfedc6d00623d787b49d3f505b0459e0a362"
+    },
+    {
+      "member": "LightRecord/results.xml",
+      "bytes": 10603,
+      "sha256": "949af21410b225ac6a294ffd79c6416b0e046739ab33cb9ed0af0869204b1693"
+    },
+    {
+      "member": "LightRecord/run.json",
+      "bytes": 1148,
+      "sha256": "c7bd1bca1c09afde7c81e14938efab473d88d8c4afc8a36d2385b48a08ef0115"
+    },
+    {
+      "member": "LightRecord-start.json",
+      "bytes": 864,
+      "sha256": "9479559f8c435796a069fcd44a288601888f3d06b1a13fac59cf7923fa10b9d2"
+    },
+    {
+      "member": "LightRecordLayout/callback-results.xml",
+      "bytes": 2080,
+      "sha256": "e738e7749ec140464abc3350bc2908b77a078573e2f03f266b2409dce45bdba9"
+    },
+    {
+      "member": "LightRecordLayout/progress.jsonl",
+      "bytes": 6635,
+      "sha256": "034a97875fd929af7ee6b452c1b273ac06c11c540240f23eea055f5c07018d0a"
+    },
+    {
+      "member": "LightRecordLayout/reload-checkpoint.json.summary.json",
+      "bytes": 314,
+      "sha256": "bbd4bfc29ac467f6ecd4f4b7d30184ab63abcbd0113065f7b9f2708538d63bdc",
+      "originalSourceSha256": "f7ea416b6421159a88412e4d918256dce100d1c8da2dc5b524607ca11157edd0"
+    },
+    {
+      "member": "LightRecordLayout/results.xml",
+      "bytes": 4908,
+      "sha256": "25eab465b5ccd3393bcc37744e02ef2866d3daa720cd9bd4c7f2d07499cea648"
+    },
+    {
+      "member": "LightRecordLayout/run.json",
+      "bytes": 1138,
+      "sha256": "4813afaa2cf1fcaabf1852cd58a045ef66951fe819773f73d20fa07be69c730d"
+    },
+    {
+      "member": "LightRecordLayout-start.json",
+      "bytes": 876,
+      "sha256": "ec38cb05447f9d1c4073b2bf60e0a7f602b7e83632ab9370a43bc4660ddb81e6"
+    },
+    {
+      "member": "LightShape/callback-results.xml",
+      "bytes": 22688,
+      "sha256": "014325b17c2c93dd047fbeeb825771662bef657db1d1a20513f3a30ba58608b5"
+    },
+    {
+      "member": "LightShape/progress.jsonl",
+      "bytes": 44870,
+      "sha256": "b3750e118a5cceeec817bb28ffadbcbf22e474cce829ee1c1ce118c138f16b42"
+    },
+    {
+      "member": "LightShape/reload-checkpoint.json.summary.json",
+      "bytes": 317,
+      "sha256": "122e09729d9d1916aeb8a3ec61ce30b485443bc0064a4d10b88234d8167b6803",
+      "originalSourceSha256": "fc024ea92c49cdb86027f03f08fc4aba58843206687ef0f4008072b2c96eab82"
+    },
+    {
+      "member": "LightShape/results.xml",
+      "bytes": 22892,
+      "sha256": "37283d469cf8a95fdb92f5a37e8e06badd11b6cde42e726aeccf172b486ffd93"
+    },
+    {
+      "member": "LightShape/run.json",
+      "bytes": 1135,
+      "sha256": "d2c8631e316055b5a055b329c1f81224b2d57d63d644772e790ccc1cf2285dc0"
+    },
+    {
+      "member": "LightShape-start.json",
+      "bytes": 862,
+      "sha256": "2aad5028a4f18d439003384c98ae8e260ffef0225c4c8add9e84293335832c07"
+    },
+    {
+      "member": "MarkerControlV1.cs",
+      "bytes": 2810,
+      "sha256": "924269aef3bf9e4bcf1924c7f6c9e931ae7b192a88bdd2f43b0b7bf2cc2295b1"
+    },
+    {
+      "member": "RenderCapture/callback-results.xml",
+      "bytes": 16341,
+      "sha256": "715abcee775353b95bdced341133b37c5a6e36658f59fb50c10e423df02c6db3"
+    },
+    {
+      "member": "RenderCapture/progress.jsonl",
+      "bytes": 26806,
+      "sha256": "6465f61ed81d0db364de9644f8a936c5e653ea17f56c66973ee67ea959492fbc"
+    },
+    {
+      "member": "RenderCapture/reload-checkpoint.json.summary.json",
+      "bytes": 316,
+      "sha256": "779107d0947d0c3edbeeae92e9c6a6830e18c73e6d8cf20050a863f06bdd771c",
+      "originalSourceSha256": "1c7f55b939016c1b71b32210824cb75ca03ae33a4c368e71a97a7c5859507ae1"
+    },
+    {
+      "member": "RenderCapture/results.xml",
+      "bytes": 16568,
+      "sha256": "23e8b0d1c201bc9e4a172a1b26ac838d3774948e2188f71854ec5b6da29219e2"
+    },
+    {
+      "member": "RenderCapture/run.json",
+      "bytes": 1156,
+      "sha256": "4b462cd67dd96cfb5179f07a35d3a0117154c95316bd8924ec9b7985b6dda185"
+    },
+    {
+      "member": "RenderCapture-retry-start.json",
+      "bytes": 868,
+      "sha256": "c295ad49500e728f75a255955fae4ea513a36b6c863f198c4061bd02d042ce27"
+    },
+    {
+      "member": "RenderCapture-start.json",
+      "bytes": 1590,
+      "sha256": "7e9e7bf0b29001642f8b63270b0b15d407d2a895c7efda72ea178d314a2bc278"
+    },
+    {
+      "member": "compile.json",
+      "bytes": 269,
+      "sha256": "f45eb7071b9db8cad958a1d556f080dc5514d8826738d5a179831d1b097dd31f"
+    },
+    {
+      "member": "metadata-change.json",
+      "bytes": 3847,
+      "sha256": "82e5045792925ad1f976007c6bc5a1d213cd4e51c212ae2955059203d49a83ee"
+    },
+    {
+      "member": "open.json",
+      "bytes": 305,
+      "sha256": "9cb1487bf7cc7553e0b57bbe5d0d9646f85eecae1cae9f78211eb5708ad5187e"
+    },
+    {
+      "member": "pid.json",
+      "bytes": 14,
+      "sha256": "4a9ed4dc020f915ce56e3e07c3e9e8fe4b1f3c22f701aed59eaba9570d1f846a"
+    },
+    {
+      "member": "prior-45-category-callback.xml",
+      "bytes": 51908,
+      "sha256": "00afdee9089f0a0f168674855f1cbb130b7367f51bc0e13385f9c75006a3af25"
+    },
+    {
+      "member": "quit-command.json",
+      "bytes": 1350,
+      "sha256": "716976d76f6f7d297e75a6bb6f29b9adc970c2459e3da18cb6b4413237649b32"
+    },
+    {
+      "member": "quit-state.json",
+      "bytes": 469,
+      "sha256": "8f5bbaf19095b7d77a3baa66568a6e151a49846634e135fb2cd1095c019ac3f1"
+    },
+    {
+      "member": "ready.json",
+      "bytes": 440,
+      "sha256": "d639386f6808c5e5d856a3979c185356ba151cfb9c36d1a76f81739d7f8abc84"
+    },
+    {
+      "member": "retirement-result.json",
+      "bytes": 17774,
+      "sha256": "9310007996851e8a04407d8dd9ce13ee693c6947f39d469fa17554b44b3cc01e"
+    },
+    {
+      "member": "final-source/Tests/Editor/CommandTableTests.cs",
+      "bytes": 8457,
+      "sha256": "bdc9a1b1981ac3af16a96b1926d09506e90daa7e72219b3cd32b9d85a5300f6d"
+    },
+    {
+      "member": "final-source/Tests/Editor/CloudShellGpuTests.cs",
+      "bytes": 11961,
+      "sha256": "867fc8494a0eac9931b30dc4253943bbd53c868c49359fc658954092caca7edf"
+    },
+    {
+      "member": "final-source/Tests/Editor/DecalProjectionTests.cs",
+      "bytes": 1172,
+      "sha256": "b40b334ab4a6f04f0fcd9b8093db295771a690cd64113d2a1ae07c030e831f63"
+    },
+    {
+      "member": "final-source/Tests/Editor/FeatureRegistryTests.cs",
+      "bytes": 2977,
+      "sha256": "9fdf7231fb57a92b52fac4a36b334277dacbcdd3ca50a57fd0cc5e08e8ef9530"
+    },
+    {
+      "member": "final-source/Tests/Editor/LightAngularGpuTests.cs",
+      "bytes": 5690,
+      "sha256": "5108e7378665a78bd95d78fe47e312a6ed6d2a875f8a2c68c28773a8ececcf89"
+    },
+    {
+      "member": "final-source/Tests/Editor/LightRecordLayoutTests.cs",
+      "bytes": 3797,
+      "sha256": "eb3b7072ae73cc0e95b4fad4d6889f1b2cc4ecdf0a8675e1498ed7eeb11a8e9b"
+    },
+    {
+      "member": "final-source/Tests/Editor/LightRecordTests.cs",
+      "bytes": 7782,
+      "sha256": "d1dddd181b0763c0948416faf69497ae81b22323f2ff947ef88633e83a72aa43"
+    },
+    {
+      "member": "final-source/Tests/Editor/LightShapeTests.cs",
+      "bytes": 16517,
+      "sha256": "f46c41ff54ee881e1fd5360959181d6d44d23762651c5fd5750f681ad8809438"
+    },
+    {
+      "member": "final-source/Tests/Editor/RenderCaptureTests.cs",
+      "bytes": 19452,
+      "sha256": "3be42cffe1f8ca4531f00cf8a962588127b87bce82be42cd69dad4e6b5c6df40"
+    }
+  ],
+  "result": {
+    "retiredCategoryLeaves": 45,
+    "removedCategoryLines": 29,
+    "changedTestFiles": 9,
+    "recheckedClassResults": [
+      {
+        "class": "CommandTable",
+        "discovered": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "CloudShellGpu",
+        "discovered": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "DecalProjection",
+        "discovered": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "FeatureRegistry",
+        "discovered": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "LightAngularGpu",
+        "discovered": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "LightRecordLayout",
+        "discovered": 2,
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "LightRecord",
+        "discovered": 9,
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "LightShape",
+        "discovered": 23,
+        "passed": 23,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "class": "RenderCapture",
+        "discovered": 13,
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "allRecheckedLeaves": 64,
+    "old45ExactIdentitySubset": [
+      {
+        "fullname": "InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests.CommittedEdit_ChangesBuildSerial",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.MeshPipeline.Tests.CommandTableTests.SwitchingMaterial_RebuildsCommands",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(6360000.0f)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(3200000.0f)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.CloudShellGpuTests.DistantOpaqueDepth_IsNotTheSkyClearValue",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.DecalProjectionTests.AngleFade_DisabledAt180_RampsBetweenStartAndEnd",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.CustomSupport_ReportsItsReason",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.EveryFeature_HasDescriptor",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.FeatureWithoutRequirements_Records",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.MissingShader_BlocksWithReason",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.FeatureRegistryTests.NonTemporalCamera_BlocksHistoryFeatures",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PackedCone_UsesSmoothAngularWindowOnGpu(False)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PackedCone_UsesSmoothAngularWindowOnGpu(True)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightAngularGpuTests.PointPyramidAndBox_RetainTheirAngularSupportOnGpu",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests.LightRecord_MatchesHlslFieldForField",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightRecordLayoutTests.LightRecordFlags_MatchHlslDefines",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.DistanceFade_FadesOverFadeLengthBeforeMaximum",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.LocalLight_BeyondMaximumDistance_IsNotPacked",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.RealtimeRadiance_MatchesUnityLightmapperExtraction(False)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.RealtimeRadiance_MatchesUnityLightmapperExtraction(True)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightRecordTests.ShadowSliceCounts_Point6_SingleTileShapes1_Directional0",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AddingTheComponent_AdoptsTheNativeShape",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ApplyThenRead_RoundTripsEveryShape",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Realtime)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Mixed)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(Baked)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.InvalidRect_IsRejected",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Realtime)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(Mixed)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.PyramidTangents_SpotAngleSpansTheLongerSide",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Realtime)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Mixed)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(Baked)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.0f,0.0f,Point)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.2f,0.0f,Point)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.0f,1.5f,Tube)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Point,0.1f,1.5f,Tube)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Rect,0.0f,0.0f,Rectangle)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Disk,0.5f,0.0f,Rectangle)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.ShapeParameters_DeriveTheNativeType(Directional,0.0f,0.0f,Directional)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Cone,Spot)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Pyramid,Pyramid)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.LightShapeTests.SpotShapes_DeriveTheNativeType(Box,Box)",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      },
+      {
+        "fullname": "InfinityTech.Rendering.Pipeline.Tests.RenderCaptureTests.UInt32Statistics_PreserveIntegerRangeAndRoi",
+        "oldResult": "Passed",
+        "newResult": "Passed",
+        "identity": "same exact NUnit fullname including parameter identity"
+      }
+    ],
+    "noNewSkipOrFailure": true,
+    "onlyMetadataChanged": {
+      "files": [
+        {
+          "path": "Tests/Editor/CommandTableTests.cs",
+          "beforeSha256": "4d63b2d03f8565ecd7e03ea5c6ed825999d45e646b485d74e39c7a5c678276e2",
+          "afterSha256": "bdc9a1b1981ac3af16a96b1926d09506e90daa7e72219b3cd32b9d85a5300f6d",
+          "removedLines": 2,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/CloudShellGpuTests.cs",
+          "beforeSha256": "bf49a87740864138d49a1591df1bc2323aecf7208652b87f2a05bbe1d1674766",
+          "afterSha256": "867fc8494a0eac9931b30dc4253943bbd53c868c49359fc658954092caca7edf",
+          "removedLines": 2,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/DecalProjectionTests.cs",
+          "beforeSha256": "c749041850a26c2e13bb8504ed819ffbbfe63c005fcfa98453e2af8cb31a5b0b",
+          "afterSha256": "b40b334ab4a6f04f0fcd9b8093db295771a690cd64113d2a1ae07c030e831f63",
+          "removedLines": 1,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/FeatureRegistryTests.cs",
+          "beforeSha256": "c460c99bbf5b8dae15d9440649d7010255655055dc778afcc2ac9c7c8aa92942",
+          "afterSha256": "9fdf7231fb57a92b52fac4a36b334277dacbcdd3ca50a57fd0cc5e08e8ef9530",
+          "removedLines": 5,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/LightAngularGpuTests.cs",
+          "beforeSha256": "2bc28a9e930de301440c38bc5c3c845b6dab9b29e86fc46d4c9c4da59b48f56c",
+          "afterSha256": "5108e7378665a78bd95d78fe47e312a6ed6d2a875f8a2c68c28773a8ececcf89",
+          "removedLines": 2,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/LightRecordLayoutTests.cs",
+          "beforeSha256": "57d308693ae369287ae78fd3a8eefaf9786b04854e9f8a7e3ba669ea7d2f6781",
+          "afterSha256": "eb3b7072ae73cc0e95b4fad4d6889f1b2cc4ecdf0a8675e1498ed7eeb11a8e9b",
+          "removedLines": 2,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/LightRecordTests.cs",
+          "beforeSha256": "a71e2b727a479093b75f044ecc79863c4a228dec8dd4bffd35d996ae5963a653",
+          "afterSha256": "d1dddd181b0763c0948416faf69497ae81b22323f2ff947ef88633e83a72aa43",
+          "removedLines": 4,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/LightShapeTests.cs",
+          "beforeSha256": "fc0dc98eb3e0f543b28dc2e17ceca5635e9d2e16fe8530ca92cdc4eb1d259171",
+          "afterSha256": "f46c41ff54ee881e1fd5360959181d6d44d23762651c5fd5750f681ad8809438",
+          "removedLines": 10,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        },
+        {
+          "path": "Tests/Editor/RenderCaptureTests.cs",
+          "beforeSha256": "97e6aa860198714c692c2fdb321dadbab11219b0f0058e6cdae00cb01f72e75a",
+          "afterSha256": "3be42cffe1f8ca4531f00cf8a962588127b87bce82be42cd69dad4e6b5c6df40",
+          "removedLines": 1,
+          "change": "Only29category attribute lines removed across9files; bodies/parameters/assertions byte-identical after line removal"
+        }
+      ],
+      "oldCategoryReceiptSha256": "00afdee9089f0a0f168674855f1cbb130b7367f51bc0e13385f9c75006a3af25",
+      "categorySource": "S17 permanent archive receipts/main-final-category-v1/callback-results.xml"
+    },
+    "transientGuardRefusal": "RenderCapture-start rejected during UTF post-LightShape scene restoration. No dirty cleared; later retry ran and passed. Original refusal retained."
+  },
+  "scope": "29metadata-only category attributes in9files,45oldPassed identities retained; coldcompile0/0 and9classes64/64Passed. No rendering/bake or whole-suite rerun claimed after attribute retirement.",
+  "sensitiveStartupLogsOmitted": [
+    {
+      "originalMember": "Editor.log",
+      "sourceBytes": 321129,
+      "sourceSha256": "24f4c7ccc72ca0d6d79735b25163dc00864130b8e246ea6f972d7e6597fdda5e",
+      "reason": "Full startup log omitted because it contains authentication parameters; no credential payload retained."
+    }
+  ],
+  "checkpointPolicy": "Nine full no-reload checkpoints replaced by source SHA/count summaries; exact native/callback XML and old45identity reconciliation retained.",
+  "cleanup": {
+    "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261023-marker-retirement",
+    "filesIncludingSidecars": 141,
+    "payloadBytes": 1068805,
+    "allocatedBytes": 37224448,
+    "status": "removed and absence verified",
+    "completedUtc": "2026-10-23T09:30:05.401463+00:00"
+  },
+  "cleanupReviewBasis": "Independent reviewer approved metadata/tests; instructed removing auth log and redundant no-reload checkpoints before exact marker scratch retirement. Both conditions satisfied and archive/index checked.",
+  "postCleanup427SourceHashesMatch": true
+}

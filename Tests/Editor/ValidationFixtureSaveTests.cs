@@ -113,6 +113,79 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
+        [TestCase("LocalLights", 2)]
+        [TestCase("Translucent", 1)]
+        public void EarlyCreators_PersistProfileComponents_AfterUnloadAndReimport(string kind, int expectedComponents)
+        {
+            string root = "Assets/__InfinityFixtureProfileTest_" + Guid.NewGuid().ToString("N");
+            string profilePath = root + "/Validation_" + kind + "_Volume.asset";
+            VolumeComponent[] createdComponents = Array.Empty<VolumeComponent>();
+            try
+            {
+                if (kind == "LocalLights") CreateLocalLightsValidationScene.CreateInDirectory(root);
+                else CreateTranslucentValidationScene.CreateInDirectory(root);
+                VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(profilePath);
+                Assert.IsNotNull(profile);
+                string guid = AssetDatabase.AssetPathToGUID(profilePath);
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                createdComponents = profile.components.ToArray();
+                foreach (VolumeComponent component in createdComponents)
+                    if (EditorUtility.IsPersistent(component)) Resources.UnloadAsset(component);
+                Resources.UnloadAsset(profile);
+                AssetDatabase.ImportAsset(profilePath, ImportAssetOptions.ForceUpdate);
+                // A different GUID and import path prove persistence independently of the original object cache.
+                string probePath = root + "/DiskProbe.asset";
+                File.Copy(profilePath, probePath);
+                AssetDatabase.ImportAsset(probePath, ImportAssetOptions.ForceUpdate);
+                var persisted = AssetDatabase.LoadAssetAtPath<VolumeProfile>(probePath);
+                string probeGuid = AssetDatabase.AssetPathToGUID(probePath);
+                Assert.AreNotEqual(guid, probeGuid);
+                Assert.AreEqual(guid, AssetDatabase.AssetPathToGUID(profilePath));
+                Assert.AreEqual(expectedComponents, persisted.components.Count, "Authored components must survive native asset reload.");
+                UnityEngine.Object[] diskObjects = AssetDatabase.LoadAllAssetsAtPath(probePath);
+                foreach (VolumeComponent component in persisted.components)
+                {
+                    Assert.IsNotNull(component);
+                    bool subAssetBefore = AssetDatabase.IsSubAsset(component);
+                    Assert.IsTrue(AssetDatabase.TryGetGUIDAndLocalFileIdentifier(component, out string componentGuid, out long localId));
+                    TestContext.WriteLine($"{component.name}: sub={subAssetBefore}, main={AssetDatabase.IsMainAsset(component)}, persistent={EditorUtility.IsPersistent(component)}, guid={componentGuid}, localId={localId}, diskMember={diskObjects.Any(obj => obj == component)}");
+                    // Unity 6000.6 can report IsSubAsset=false even for explicitly added persistent objects.
+                    // Native file membership and GUID/local ID, after independent import, are authoritative here.
+                    Assert.IsTrue(EditorUtility.IsPersistent(component));
+                    Assert.AreEqual(probeGuid, componentGuid);
+                    Assert.AreNotEqual(0, localId);
+                    Assert.IsTrue(diskObjects.Any(obj => obj == component));
+                    Assert.AreEqual(probePath, AssetDatabase.GetAssetPath(component));
+                }
+                Assert.IsTrue(persisted.TryGet<VolumetricFog>(out var fog));
+                Assert.IsFalse(fog.enable.value, "Persistence must preserve the authored disabled feature gate.");
+                if (kind == "LocalLights")
+                {
+                    Assert.IsFalse(fog.active);
+                    Assert.IsTrue(persisted.TryGet<VolumetricCloud>(out var cloud));
+                    Assert.IsFalse(cloud.active);
+                }
+                else
+                {
+                    Assert.IsTrue(fog.active);
+                    Assert.AreEqual(0.04f, fog.Density.value);
+                    Assert.AreEqual(8, fog.Height.value);
+                    Assert.AreEqual(64, fog.MaxDistance.value);
+                    Assert.IsTrue(fog.parameters.All(parameter => parameter.overrideState));
+                }
+            }
+            finally
+            {
+                try { EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single); }
+                finally
+                {
+                    AssetDatabase.DeleteAsset(root);
+                    foreach (VolumeComponent component in createdComponents)
+                        if (component != null && !EditorUtility.IsPersistent(component)) UnityEngine.Object.DestroyImmediate(component);
+                }
+            }
+        }
+
         [Test]
         public void Lit_PositiveEmissionEnablesBakedGI_ZeroEmissionRemainsBlack()
         {

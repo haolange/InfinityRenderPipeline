@@ -1,0 +1,2128 @@
+{
+  "archiveBytes": 1391176,
+  "archiveSha256": "0cd76414657170dd2cac8bf6759dcfcdf732feaa2d79bc45b541991570deb937",
+  "members": [
+    {
+      "member": "receipts/S17AssetIdentityControlV1.cs",
+      "bytes": 1173,
+      "sha256": "2d96697d5bebd1a447e6672e29b7b35d2b2f5169064ab56abafbf42dcef54fe5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17AssetIdentityControlV1.cs"
+    },
+    {
+      "member": "receipts/S17ControlV1.cs",
+      "bytes": 1632,
+      "sha256": "23b086eb083367d65c1a266cd1b2cff29ff6155a91ea2d12dc9616b26a7dbe17",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17ControlV1.cs"
+    },
+    {
+      "member": "receipts/S17OwnExitV1.cs",
+      "bytes": 2731,
+      "sha256": "95439aa98916dbefada56e8fc23373522fd6513b7c144f875cce0fa83af4670c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17OwnExitV1.cs"
+    },
+    {
+      "member": "receipts/S17ProfileRepairV1.cs",
+      "bytes": 3121,
+      "sha256": "877aac1d1dc31c92941c7d23e020b96d10e52cdf3299a9f4781fb6a2a8a9cc3c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17ProfileRepairV1.cs"
+    },
+    {
+      "member": "receipts/S17ReferenceProbeV1.cs",
+      "bytes": 4254,
+      "sha256": "f769e66e3099db2f75d0b7914518d87df133fc5fb756dc463be9ae5050f81e60",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17ReferenceProbeV1.cs"
+    },
+    {
+      "member": "receipts/S17RegressionControlV1.cs",
+      "bytes": 3271,
+      "sha256": "da72db354529afafb17458260bd11aa298b0b896696ffcd9c7bc97fbc5456c1e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17RegressionControlV1.cs"
+    },
+    {
+      "member": "receipts/S17SettingsRestoreV1.cs",
+      "bytes": 1843,
+      "sha256": "1bf2454363680c78e266f6672f6a5f49ebed0614b9e74765d1c7c6218d08d5b1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17SettingsRestoreV1.cs"
+    },
+    {
+      "member": "receipts/S17UserSceneRestoreV1.cs",
+      "bytes": 1235,
+      "sha256": "0bb2262e247720c5d87971e23d3eebd4502bfb27603fa2bbbeb6aa5bed685ced",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/S17UserSceneRestoreV1.cs"
+    },
+    {
+      "member": "receipts/audit-final-preimages-v1.py",
+      "bytes": 2264,
+      "sha256": "322690e2c41b5c05c9794d32d58234cb278582d23bc602edecaac1c357c437a0",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/audit-final-preimages-v1.py"
+    },
+    {
+      "member": "receipts/before-final-restore-EditorSettings.asset",
+      "bytes": 3785,
+      "sha256": "fea698cfc7b407c5ac1b2bc1af2557e7ab89a642b31cad4932304bb6b3f5a392",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/before-final-restore-EditorSettings.asset"
+    },
+    {
+      "member": "receipts/before-final-restore-ProjectSettings.asset",
+      "bytes": 80440,
+      "sha256": "f796094d25ce5b8c30083e5103d9cb8bae4d021edd1c24a25bf90f85c20e5c62",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/before-final-restore-ProjectSettings.asset"
+    },
+    {
+      "member": "receipts/call-owned.py",
+      "bytes": 939,
+      "sha256": "a23e6fbcc9c158267b01e2e984aefab009c2d8f837ab1459b25c759335b1efaf",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/call-owned.py"
+    },
+    {
+      "member": "receipts/carry-consumers.json",
+      "bytes": 1368,
+      "sha256": "ed4eaeedcb9df52ae12d34f80628e768a6cdf3c1effe7882e2f6e627617d8a31",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/carry-consumers.json"
+    },
+    {
+      "member": "receipts/compact-early-delivery-v1.py",
+      "bytes": 3689,
+      "sha256": "f0f52fb6175c15d833b3e8e952354aca89ed1449137d5eb4d40d50242a6bc56a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/compact-early-delivery-v1.py"
+    },
+    {
+      "member": "receipts/compact-s17-v1.py",
+      "bytes": 4322,
+      "sha256": "7b70ba3aae2bf82b9c9853f9ee98a97c9e6e380100adedec1723f95d0f7b0c85",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/compact-s17-v1.py"
+    },
+    {
+      "member": "receipts/final-preimage-audit-v1.json",
+      "bytes": 92362,
+      "sha256": "d1c571c32d94a9c7cc8f9de69c2f558457efe0e4490e40656d3a558eed001051",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/final-preimage-audit-v1.json"
+    },
+    {
+      "member": "receipts/final-settings-targeted-restore-v1.json",
+      "bytes": 1379,
+      "sha256": "71cd23fa48dc84cfdacad14fd3a06c8bfbc5854777a70220ad01fe96caba2bdc",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/final-settings-targeted-restore-v1.json"
+    },
+    {
+      "member": "receipts/final-user-scene-restored-v1.json",
+      "bytes": 1194,
+      "sha256": "cfabffff993e021ff00eaa61b977de58a68915271ddd949332074ec51dbad65e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/final-user-scene-restored-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-applied-v1.json",
+      "bytes": 145,
+      "sha256": "dc8dd53b805487d66b46c66381d679cd2b7f831d63e98dc52668e20c19e9d55a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-applied-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-bindings-v1.json",
+      "bytes": 1991,
+      "sha256": "afce79916e2068834ae80b9d392b7e70b7ef63c8a28a5f3de284d5099ec5662b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-bindings-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-bindings-v2.json",
+      "bytes": 29847,
+      "sha256": "a1f53a8087eb842cca71aa9e01899ffb5f13a83b4da4f5500dbbf23cb269b42c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-bindings-v2.json"
+    },
+    {
+      "member": "receipts/historical-original-fixture-references-v1.json",
+      "bytes": 6169,
+      "sha256": "2ed1ac95c666790c1faf89ab3dbcd818a2ac40b2fe2fad10056817812d457647",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-fixture-references-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-own-quit-request-v1.json",
+      "bytes": 1326,
+      "sha256": "1fb2f9518a48159da9c533c8d966196d2ecc9d703d79a71ad1066ced33e4c815",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-own-quit-request-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-protected-identity-v1.json",
+      "bytes": 5336,
+      "sha256": "aceb7c7887b2beef36571513be2a23412b6b2353ae555310620ab4883e54d6d3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-protected-identity-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-quit-state-v1.json",
+      "bytes": 407,
+      "sha256": "9370728f438b5e6825a92ecaf30269b7bdc5e7d141c947afc1f9ccfe9d82d990",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-quit-state-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-recompile-v1.json",
+      "bytes": 269,
+      "sha256": "f45eb7071b9db8cad958a1d556f080dc5514d8826738d5a179831d1b097dd31f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-recompile-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-seam-start-v1.json",
+      "bytes": 895,
+      "sha256": "ae63b982181e0293c5706400c92c0b8a766ad65b779043aa62e56303e22537f3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-start-v1.json"
+    },
+    {
+      "member": "receipts/historical-original-seam-v1/callback-results.xml",
+      "bytes": 2687,
+      "sha256": "92f118632339038a26687f7279103a5e155b51984aa99d294e76f16261b761b5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/historical-original-seam-v1/failed-test-1.xml",
+      "bytes": 1426,
+      "sha256": "7b2ebc6362bf68ecf8b981f7a83a95276670172a9638c96c05604019a19cded4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-v1/failed-test-1.xml"
+    },
+    {
+      "member": "receipts/historical-original-seam-v1/progress.jsonl",
+      "bytes": 6693,
+      "sha256": "59e4589c62f30b2852d20da954a7b18b6d0bc3883a4d72d5ba2f8a2d66bf0c21",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/historical-original-seam-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 300,
+      "sha256": "fceba2e504555f8df7d976afdc94abb4023bed829f09d34f88b837b4ca6301bc",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/historical-original-seam-v1/results.xml",
+      "bytes": 6665,
+      "sha256": "52b9aa6cfad79ba22ef02e9f402e8dc7284536794abfcfdba02a05dbd17e4ae9",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-v1/results.xml"
+    },
+    {
+      "member": "receipts/historical-original-seam-v1/run.json",
+      "bytes": 1168,
+      "sha256": "e37be73b249c027f87b7e59e0b30d87726d5d74b807628bed2fd90eb82072999",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-v1/run.json"
+    },
+    {
+      "member": "receipts/historical-original-seam-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "8ea2cade0c5b31b01c2b26e72026ac8c4c9489899b9848a62f15c09ac2063ae1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-original-seam-v1-preflight.json"
+    },
+    {
+      "member": "receipts/historical-repaired-bindings-v1.json",
+      "bytes": 29847,
+      "sha256": "5133c31847177add66e5b2f6c147d3ef91ff86aa5ac13880a8382e2f8593e513",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-bindings-v1.json"
+    },
+    {
+      "member": "receipts/historical-repaired-category-start-v1.json",
+      "bytes": 913,
+      "sha256": "492ea81bf99359192240f57e74970e93edd3839259b501fe84211ceab4d870a3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-category-start-v1.json"
+    },
+    {
+      "member": "receipts/historical-repaired-category-v1/callback-results.xml",
+      "bytes": 55781,
+      "sha256": "84efb701444ac36945727fdc1b32fcb44e1b662b06b0d98c8969d6e012e3c30e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-category-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/historical-repaired-category-v1/progress.jsonl",
+      "bytes": 88473,
+      "sha256": "53a932f98eaa2f9949abce924d08a5e7966c560b0e47f55c398d70e342eb3858",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-category-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/historical-repaired-category-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 301,
+      "sha256": "2e40d588490833e78ba6158c98f7a24356cdc148334f4ca6f23dae35b8330929",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-category-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/historical-repaired-category-v1/results.xml",
+      "bytes": 58728,
+      "sha256": "620ed16d7e7ab24c83aa166d870a73c55c751f91af150cc697a559a0506f9142",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-category-v1/results.xml"
+    },
+    {
+      "member": "receipts/historical-repaired-category-v1/run.json",
+      "bytes": 1186,
+      "sha256": "881927e9b22cef78f1d936ca20bf3e1bb66698c3e8e52201005572b350fdb19e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-category-v1/run.json"
+    },
+    {
+      "member": "receipts/historical-repaired-category-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "cc3532d54908e0a997239b55222888f5dc41b8fff7d0416c8c0d1416e1db562f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-category-v1-preflight.json"
+    },
+    {
+      "member": "receipts/historical-repaired-fixture-references-v1.json",
+      "bytes": 7505,
+      "sha256": "e870ad8451749239f254d69eb3fb49184e6a374081d28addcb17a19052479200",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-fixture-references-v1.json"
+    },
+    {
+      "member": "receipts/historical-repaired-full-start-v1.json",
+      "bytes": 883,
+      "sha256": "b79fde9cb1554cecc06042f3c9f7d4f15e0598c8d7d646f76aa3f85b375f8954",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-start-v1.json"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/callback-results.xml",
+      "bytes": 2102186,
+      "sha256": "ae0f085c74b8b2ab9a171f753888f303f2269f6b1493329eca754b357594f4d8",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/progress.jsonl",
+      "bytes": 3345908,
+      "sha256": "c56e8bd2720ac640168b55967e150ed065555cb1c3db00fb403d7691a4572062",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 54571,
+      "sha256": "ad073e0d1af35455564f7d928a67a6d9884c41f4f66bd0597266014995828fed",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/results.xml",
+      "bytes": 1672468,
+      "sha256": "ac74de75d01a6fdf22ae2e2a45f12d1e55fed4c40c45b7a8be1db0ff07fbdd70",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/results.xml"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/run.json",
+      "bytes": 8789,
+      "sha256": "9c9ccd5cf8538438e905414d563c3762e6f0d72b2d7c4c8f262e33996fdc1a58",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/run.json"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "c503b00c8b7bcd877a559bc66621dc1fac42c1b6ad3e4fb5907b58eef9b770e4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "625a1965b3e6c0ed12093ba35686f3df22f7a6b37e385aea0038ef6e0f72cc63",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "fbf2abb952d2d8ddd3ebc1531ca5b574f1b283ee0f4832c1559033ade691c185",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "5677ab16f4fd771e9c3b2469ce679be795ae53009bf59dc64163df3a2f0d111c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 4096,
+      "sha256": "c6f00266086d8915e2c6cc584457d50ec38bfaf0ac88c40a7df29af30b1a0880",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/PASS.txt",
+      "bytes": 208,
+      "sha256": "a74dc4193820310973a0fe715e85d7156b0bbb80a4ce0d36049a35a446e9b9ee",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/PASS.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/fixture.txt",
+      "bytes": 258,
+      "sha256": "4035769ad1faa36a74730562abeea91eb3e664f684dd5124bdee132603b9aa74",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/fixture.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/kernel-results.txt",
+      "bytes": 1070,
+      "sha256": "e30389e59033590527eaec376b7f3756480eeadd3fe98125aba6cadd212a94e5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482301310Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "6691b937f3e37200c5e6e37ca099d4985cc8df146d4bd200145792450632705a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "7135c4c525a8337cb0b6b3e6e0c64732f9fef71291772525bde42099c8a50718",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "24cd7941359244cb861957f4db8e3dec28a9c531fa8975a1adcb50e016c1449f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "24cd7941359244cb861957f4db8e3dec28a9c531fa8975a1adcb50e016c1449f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 4096,
+      "sha256": "ff0fa9dfe43d5f5a4a24728fbac2caa06d35ae3029ba748388aafbc83acfba1a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/PASS.txt",
+      "bytes": 210,
+      "sha256": "a67d430865875381ce0b13473866f30c77048f3edb7e56582fe0e02b65e76d23",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/PASS.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/fixture.txt",
+      "bytes": 258,
+      "sha256": "424d86eaa6fa7091607087d9c2af75e95cb9533e891c3f88abc6533d2e4a7165",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/fixture.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/kernel-results.txt",
+      "bytes": 1065,
+      "sha256": "dd3b2ff633264a5cb534635873254978efabc63021d60a3b69f64b697e637149",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837482824940Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/PASS.txt",
+      "bytes": 206,
+      "sha256": "f2aa7b9837d50e75a03e4abdf37dddd399c7a80d6b0d036a6fa05be470d6b849",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/PASS.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/fixture.txt",
+      "bytes": 256,
+      "sha256": "63e63dcc8960f25f66836c0e659062217230ddfe77a2de80554da53d1045e7f5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/fixture.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/kernel-results.txt",
+      "bytes": 1064,
+      "sha256": "09d771df721b5bbaf8f6a50682982971fbbb717a30f6c842fdd5f69f5d9b3986",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1/screen-space-20261023T0837483183460Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/historical-repaired-full-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "cc3532d54908e0a997239b55222888f5dc41b8fff7d0416c8c0d1416e1db562f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-full-v1-preflight.json"
+    },
+    {
+      "member": "receipts/historical-repaired-quit-state-v1.json",
+      "bytes": 550,
+      "sha256": "fb98807d6383161a3d9cceae97d20e2d13d9fa7df0ef5f322b053d84aaf49458",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-quit-state-v1.json"
+    },
+    {
+      "member": "receipts/historical-repaired-quit-v1.json",
+      "bytes": 1469,
+      "sha256": "882f8edc8bdbbf7c0837f20ce54bf7da76540ac5c9a573b88fde6ff83308c7b5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-quit-v1.json"
+    },
+    {
+      "member": "receipts/historical-repaired-source-v1.json",
+      "bytes": 34773,
+      "sha256": "10ca02ecc500a951b8deb5772588bd571992d48e23e3fe0fac9fc5c8aeb88a47",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-repaired-source-v1.json"
+    },
+    {
+      "member": "receipts/historical-s17-original-v1-Editor.log.omitted.json",
+      "bytes": 302,
+      "sha256": "35c47e2a7a8179e1ba0edd58df4790463b2b1a4fc17a276ec2eb93f564345c59",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-original-v1-Editor.log",
+      "originalSourceSha256": "b304875fc23bb70cdd63a0f75092269420d983289ddcaa8c399968b146f10dec"
+    },
+    {
+      "member": "receipts/historical-s17-original-v1-open.json",
+      "bytes": 305,
+      "sha256": "f3b724ece926dc58167d3200176a35fb2b132aa5bd98964926873c118fb58464",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-original-v1-open.json"
+    },
+    {
+      "member": "receipts/historical-s17-original-v1-pid.json",
+      "bytes": 77,
+      "sha256": "cc4957d2b1e75303d22ee21f81214dcfecb5d85af01195522b32ab891e2c663c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-original-v1-pid.json"
+    },
+    {
+      "member": "receipts/historical-s17-original-v1-ready.json",
+      "bytes": 440,
+      "sha256": "9d35c5e4e394fb81b34666b0969cc4d50a6ad36c7ce11f4f87966c1797280195",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-original-v1-ready.json"
+    },
+    {
+      "member": "receipts/historical-s17-repaired-v1-Editor.log.omitted.json",
+      "bytes": 303,
+      "sha256": "d5d034c8b6b59b6f0c2c351637e01ee24fe3297a5a1b648b6ac33f26245bee42",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-repaired-v1-Editor.log",
+      "originalSourceSha256": "250410f56de3f6ca1f1d018302c5cc162c002a6d4c842695a2041681dd819571"
+    },
+    {
+      "member": "receipts/historical-s17-repaired-v1-open.json",
+      "bytes": 305,
+      "sha256": "617a97c91dc16f3b476f0db5467a5d744e76c70ab160d196de193ebb5c33663b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-repaired-v1-open.json"
+    },
+    {
+      "member": "receipts/historical-s17-repaired-v1-pid.json",
+      "bytes": 77,
+      "sha256": "334dec1917d2be8fb9190df48be9e108dc31995d39a6c424a88b9312f34e8c1e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-repaired-v1-pid.json"
+    },
+    {
+      "member": "receipts/historical-s17-repaired-v1-ready.json",
+      "bytes": 440,
+      "sha256": "aa26f6dc30e677a4807697824703da2a4b7191815914d0669510dad6698a4191",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-repaired-v1-ready.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-start-v1.json",
+      "bytes": 1244,
+      "sha256": "6545a3a3611d9e74fe1a2758ca17c843bde2b9ddd7069510b0a90deac738b915",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-start-v1.json"
+    },
+    {
+      "member": "raw-deltas/historical-s17-samebaseline-v1/AreaLights/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 2225,
+      "sha256": "291ec383ec60e9f297e1ff172f11bd1586635963a8dbf275b37b751da654baaa",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/AreaLights/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/AreaLights/capture.json",
+      "bytes": 19626,
+      "sha256": "9d92026e76ed374f23fe75404a4aad43afb9b53e6e02ad1dae3b64d71f4849f1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/AreaLights/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/AreaLights/compiled-graph-91-92.txt",
+      "bytes": 4553,
+      "sha256": "64147dc156b38948e2d25c1be8b221e58e6c039bdce93f90bcca5a5f925b82c5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/AreaLights/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/AreaLights/request.json",
+      "bytes": 771,
+      "sha256": "2d11233c01e22a26a4ce532699f1c50562622196f54fbe6961de88f12ba8a1a4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/AreaLights/request.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Cookies/capture.json",
+      "bytes": 19608,
+      "sha256": "f50925d98b6733f3d88d3c4833ef0b117eafd956e2e876ba3abf70d47f98e52d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Cookies/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Cookies/compiled-graph-91-92.txt",
+      "bytes": 4587,
+      "sha256": "82abaf523b5374c2acdbb15c1210208d5fbdbb11d654f026def4da1cb7dcec2a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Cookies/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Cookies/request.json",
+      "bytes": 762,
+      "sha256": "a0da991b99df0a3ea2d88339139bc82b58d5bb1aa5a69fa0d3e0c88c9ee66843",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Cookies/request.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Decal/capture.json",
+      "bytes": 19612,
+      "sha256": "d62e6b7666ad474a6b450abd71a5e5969bfbcecc3bd2105afbe7129960eacc61",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Decal/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Decal/compiled-graph-91-92.txt",
+      "bytes": 4644,
+      "sha256": "b5edd1da6289639cc7ceb5522e4ec001f49fed6b65892ad2df08993766eebe48",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Decal/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Decal/request.json",
+      "bytes": 756,
+      "sha256": "3183530af0da70dead002ba0bd5d7e24153240ea61d709ee535e1865b7ba5a7c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Decal/request.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/LocalLights/capture.json",
+      "bytes": 19651,
+      "sha256": "73f54ff7de6122caa07a1c5ed274bc8027cbfca553cd7b3490f64a1649823a1a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/LocalLights/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/LocalLights/compiled-graph-91-92.txt",
+      "bytes": 7050,
+      "sha256": "b5f93d97beaea3e01907fe96996154b9d730d0f137cd00467fc94ed26cce75aa",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/LocalLights/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/LocalLights/request.json",
+      "bytes": 774,
+      "sha256": "bebf4db421d2c497626657215ae3465c76f2e9824ffab7f0e8b301d52b4932f6",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/LocalLights/request.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/ReflectionProbes/capture.json",
+      "bytes": 19632,
+      "sha256": "04d85aed7ec143a0aa0d18eebd25563ed5e593ed7822ce779cb4b1cc90b86c6c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/ReflectionProbes/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/ReflectionProbes/compiled-graph-91-92.txt",
+      "bytes": 5584,
+      "sha256": "75e45c408d18f58388ed3c3fd703180c8b9104d55aa7cdaad6f9b18fc953cd09",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/ReflectionProbes/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/ReflectionProbes/request.json",
+      "bytes": 789,
+      "sha256": "d004153a2fa96a116485ea9a9aa7a92fb8cba1cd5233a813b432f12f70155b5e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/ReflectionProbes/request.json"
+    },
+    {
+      "member": "raw-deltas/historical-s17-samebaseline-v1/ScreenSpace/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 2772,
+      "sha256": "6e944314d4fddd2e0e348b314495121aaf41019d0fd39d6e92eb9b614b000f22",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/ScreenSpace/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/ScreenSpace/capture.json",
+      "bytes": 19621,
+      "sha256": "bb0ebbbdc7f185ed59391b4748c6dec77cba82505cc590c36f44c7c6ce87ddf9",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/ScreenSpace/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/ScreenSpace/compiled-graph-91-92.txt",
+      "bytes": 7463,
+      "sha256": "cfa7dfe4f2250b1349b9147fdfea0dc446342bd2989306d2f9260e991ec8a97e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/ScreenSpace/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/ScreenSpace/request.json",
+      "bytes": 774,
+      "sha256": "e12ba07ded3782da2e8ef4cc7444a87b85f5ec16000c8be5ffad875260059dd8",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/ScreenSpace/request.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Shadows/capture.json",
+      "bytes": 19600,
+      "sha256": "0c6034ddbbfd7aee78c37e93527502807e0756b248e0e264c7f655e99fdad175",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Shadows/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Shadows/compiled-graph-91-92.txt",
+      "bytes": 8523,
+      "sha256": "ee2862bd20dde90f50c47866c681987e33a2dbf93ba020ce6236714f5f8d3166",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Shadows/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Shadows/request.json",
+      "bytes": 762,
+      "sha256": "e8a4a5aaa5b87338f42228102e29b2a613b3f876fce6ed0a2656f1820fd1c8e8",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Shadows/request.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Translucent/capture.json",
+      "bytes": 19596,
+      "sha256": "84ce62e23b8a119eea6bfecb127c7d32e9230e5b637c4ad8dd879ac4d067a36a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Translucent/capture.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Translucent/compiled-graph-91-92.txt",
+      "bytes": 5360,
+      "sha256": "bba6ee0ec08a881f4c04cd3670e6f3a150ec4bcef3b9eef624eb71f0ab45ede1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Translucent/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/Translucent/request.json",
+      "bytes": 774,
+      "sha256": "32a74e3647d6d39b5bc33de37d3670d0712bcafef62e3e9ab2a281d19dcf276b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/Translucent/request.json"
+    },
+    {
+      "member": "receipts/historical-s17-samebaseline-v1/report.json",
+      "bytes": 8223,
+      "sha256": "b6c711c2ed4b5c6cb0b45681c8e121654ea72b59f0c706a7ace82ea557ec504b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-s17-samebaseline-v1/report.json"
+    },
+    {
+      "member": "receipts/historical-samebaseline-restored-v1.json",
+      "bytes": 1342,
+      "sha256": "70c5ca684d1f434cb004998f37e393a71ba6a5f419401df03f5d90353d8298c5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/historical-samebaseline-restored-v1.json"
+    },
+    {
+      "member": "receipts/main-before-repaired-history-quit-state-v1.json",
+      "bytes": 356,
+      "sha256": "450061dfd2f173e8cc5c1d98b8380b98f0ab36b548825cb629ab164745020653",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-before-repaired-history-quit-state-v1.json"
+    },
+    {
+      "member": "receipts/main-before-repaired-history-quit-v1.json",
+      "bytes": 1260,
+      "sha256": "747ddc9a16f23f6aad0ef4c8a00217d28e48543f07c996785ecc28c48f231d7c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-before-repaired-history-quit-v1.json"
+    },
+    {
+      "member": "receipts/main-final-bindings-v1.json",
+      "bytes": 29846,
+      "sha256": "54bb7c1c015c4ac57ad13fc6697bc4bbf6c2ecfaf6d7d9638693cd6852c8601b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-bindings-v1.json"
+    },
+    {
+      "member": "receipts/main-final-category-start-v1.json",
+      "bytes": 895,
+      "sha256": "118e55ba05f1e5ec4c66e3b3fee6c9ac361c43a255f5bebb39a558c29f2ccaa6",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-category-start-v1.json"
+    },
+    {
+      "member": "receipts/main-final-category-v1/callback-results.xml",
+      "bytes": 51908,
+      "sha256": "00afdee9089f0a0f168674855f1cbb130b7367f51bc0e13385f9c75006a3af25",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-category-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-final-category-v1/progress.jsonl",
+      "bytes": 84599,
+      "sha256": "18b0c26ea646caa35d3c41d68a75bba88b2b91fa90dc4ffde2874dc2fe3259f1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-category-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-final-category-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 301,
+      "sha256": "51a0afedd9541a21681c15854dff5f0c981a7a7ede8ee0faecc8d464abfe2e10",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-category-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-final-category-v1/results.xml",
+      "bytes": 54318,
+      "sha256": "4e877479a155408ac2524dc51769183f8d1266c0ec0e29e1da21c06ab30f582e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-category-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-final-category-v1/run.json",
+      "bytes": 1141,
+      "sha256": "e57771aec35b44f7973d5362ad046ec4367861e8001fca10a55f93a21db5a7b2",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-category-v1/run.json"
+    },
+    {
+      "member": "receipts/main-final-category-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "330fc9f92675057f5716a11c8326209af0e7bdceb30bf14d1f325920433c0b2c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-category-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-final-full-start-v1.json",
+      "bytes": 866,
+      "sha256": "4c7426403aa8998b85606fc46e2eaf3d318b57839ade3c2352d59e78d2a12cb7",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-start-v1.json"
+    },
+    {
+      "member": "receipts/main-final-full-v1/callback-results.xml",
+      "bytes": 2043863,
+      "sha256": "ccbf64174abaed998e4924959c32bffee16511c383fb1921d064dae98dc7e0d5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-final-full-v1/progress.jsonl",
+      "bytes": 3345907,
+      "sha256": "d860b47ddc38dd59d90364e1bc7a3ccedc163696579d3d2413088b9ac791cc4f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-final-full-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 54581,
+      "sha256": "5ee82c955f2ae753b61e9aeed9741acd5f31315befcf5203295f04c106863085",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-final-full-v1/results.xml",
+      "bytes": 1614197,
+      "sha256": "cef1770950bcba167cd31c2d4ada1f27e7f176c4de5f12e3f7d668d8d4d08672",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-final-full-v1/run.json",
+      "bytes": 8788,
+      "sha256": "10a483d18eaefbdd706290309dc38a3719b261e586a339aec7d64139ddbcbb9b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/run.json"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "c503b00c8b7bcd877a559bc66621dc1fac42c1b6ad3e4fb5907b58eef9b770e4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "625a1965b3e6c0ed12093ba35686f3df22f7a6b37e385aea0038ef6e0f72cc63",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "fbf2abb952d2d8ddd3ebc1531ca5b574f1b283ee0f4832c1559033ade691c185",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "5677ab16f4fd771e9c3b2469ce679be795ae53009bf59dc64163df3a2f0d111c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 4096,
+      "sha256": "c6f00266086d8915e2c6cc584457d50ec38bfaf0ac88c40a7df29af30b1a0880",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/PASS.txt",
+      "bytes": 208,
+      "sha256": "a74dc4193820310973a0fe715e85d7156b0bbb80a4ce0d36049a35a446e9b9ee",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/PASS.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/fixture.txt",
+      "bytes": 258,
+      "sha256": "c65340d9d99352d8a3442db7acb0f8e97cafc94863fbc7180c6b5ab88c7c9dcd",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/fixture.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843446994120Z/kernel-results.txt",
+      "bytes": 1070,
+      "sha256": "e30389e59033590527eaec376b7f3756480eeadd3fe98125aba6cadd212a94e5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843446994120Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "6691b937f3e37200c5e6e37ca099d4985cc8df146d4bd200145792450632705a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "7135c4c525a8337cb0b6b3e6e0c64732f9fef71291772525bde42099c8a50718",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "24cd7941359244cb861957f4db8e3dec28a9c531fa8975a1adcb50e016c1449f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "24cd7941359244cb861957f4db8e3dec28a9c531fa8975a1adcb50e016c1449f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 4096,
+      "sha256": "ff0fa9dfe43d5f5a4a24728fbac2caa06d35ae3029ba748388aafbc83acfba1a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/PASS.txt",
+      "bytes": 210,
+      "sha256": "a67d430865875381ce0b13473866f30c77048f3edb7e56582fe0e02b65e76d23",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/PASS.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/fixture.txt",
+      "bytes": 258,
+      "sha256": "217bad9640cd75d8db54daf17114782c0a6991c4edbbd7a25b7af1936d039c54",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/fixture.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447470780Z/kernel-results.txt",
+      "bytes": 1065,
+      "sha256": "dd3b2ff633264a5cb534635873254978efabc63021d60a3b69f64b697e637149",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447470780Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/PASS.txt",
+      "bytes": 206,
+      "sha256": "f2aa7b9837d50e75a03e4abdf37dddd399c7a80d6b0d036a6fa05be470d6b849",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/PASS.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/fixture.txt",
+      "bytes": 256,
+      "sha256": "53a1fc83d2f577107ff7864cc64a5509cb1c3b00a2ad4ca18cd0fe4413f758c3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/fixture.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1/screen-space-20261023T0843447816750Z/kernel-results.txt",
+      "bytes": 1064,
+      "sha256": "09d771df721b5bbaf8f6a50682982971fbbb717a30f6c842fdd5f69f5d9b3986",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1/screen-space-20261023T0843447816750Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/main-final-full-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "330fc9f92675057f5716a11c8326209af0e7bdceb30bf14d1f325920433c0b2c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-full-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-final-quit-state-v1.json",
+      "bytes": 587,
+      "sha256": "cd6de2272d0be124a0d109d43177133d484cc217b1c94b912cf4bbaab1f65810",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-quit-state-v1.json"
+    },
+    {
+      "member": "receipts/main-final-quit-v1.json",
+      "bytes": 1522,
+      "sha256": "fdd6641cf243436eb6cc6c1f7e4fc96d094edef413eb5a313952454b1e32a3c5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-quit-v1.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-restored-v1.json",
+      "bytes": 1338,
+      "sha256": "8cbd8dc5743c9b645568e452e8c5b58cadbaf7e58a45cd1c5dc82e3ac9e8de90",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-restored-v1.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-start-v1.json",
+      "bytes": 1241,
+      "sha256": "b8ca846cabacabd2b1a4ac7bc22e4d9ef6a061867309cfcad1bcd4b47e3ce7c8",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-start-v1.json"
+    },
+    {
+      "member": "raw-deltas/main-final-samebaseline-v1/AreaLights/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 2137,
+      "sha256": "ab5a1253e5acf18813a2531afbe31321b470b31c2b5b2ab4cef5cdbc832bc5fc",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/AreaLights/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/AreaLights/capture.json",
+      "bytes": 19625,
+      "sha256": "f6fa2fa249c99d4801a2077ad95def5eb3a026097099b9900ab2880ea5b7e282",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/AreaLights/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/AreaLights/compiled-graph-91-92.txt",
+      "bytes": 4553,
+      "sha256": "64147dc156b38948e2d25c1be8b221e58e6c039bdce93f90bcca5a5f925b82c5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/AreaLights/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/AreaLights/request.json",
+      "bytes": 767,
+      "sha256": "7b361f17b5755d738f187dc274e3112be94f83f8c4b897dcc4166561fe4d8773",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/AreaLights/request.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Cookies/capture.json",
+      "bytes": 19608,
+      "sha256": "447b3ac7b504da7ccd528d69c4f17c44c7c071e3a0aad5e87e100f5b057dd274",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Cookies/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Cookies/compiled-graph-91-92.txt",
+      "bytes": 4587,
+      "sha256": "82abaf523b5374c2acdbb15c1210208d5fbdbb11d654f026def4da1cb7dcec2a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Cookies/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Cookies/request.json",
+      "bytes": 758,
+      "sha256": "79932018ec50276c5df2a9781ac74f3214c696af406964302ee112e9f0757dec",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Cookies/request.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Decal/capture.json",
+      "bytes": 19612,
+      "sha256": "814e1d51b93eed192eff98d9debc375cfffa048f732e651029d94178cbf4fbbe",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Decal/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Decal/compiled-graph-91-92.txt",
+      "bytes": 4644,
+      "sha256": "b5edd1da6289639cc7ceb5522e4ec001f49fed6b65892ad2df08993766eebe48",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Decal/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Decal/request.json",
+      "bytes": 752,
+      "sha256": "cb5d5b0b69f0d60ccfc358b6f8e8bfa5b5ce3eba707a2b786c5eb0b6f975e1df",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Decal/request.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/LocalLights/capture.json",
+      "bytes": 19651,
+      "sha256": "2453697c506146e5b47015353184fcfa3f4d638c105feb3d386821e3682b1dcb",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/LocalLights/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/LocalLights/compiled-graph-91-92.txt",
+      "bytes": 7050,
+      "sha256": "b5f93d97beaea3e01907fe96996154b9d730d0f137cd00467fc94ed26cce75aa",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/LocalLights/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/LocalLights/request.json",
+      "bytes": 770,
+      "sha256": "41ddaf370189f363bd523d39f162e4879833e6164a5844157f063604647bb250",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/LocalLights/request.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/ReflectionProbes/capture.json",
+      "bytes": 19633,
+      "sha256": "3abe9aa591f029c350845724aaaccc0acb15bce99c086a777765d3e02d3223c6",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/ReflectionProbes/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/ReflectionProbes/compiled-graph-91-92.txt",
+      "bytes": 5584,
+      "sha256": "75e45c408d18f58388ed3c3fd703180c8b9104d55aa7cdaad6f9b18fc953cd09",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/ReflectionProbes/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/ReflectionProbes/request.json",
+      "bytes": 785,
+      "sha256": "862453ab43989a04f230fca74a2588421018ef41e7907f2097dadb957b3e5f88",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/ReflectionProbes/request.json"
+    },
+    {
+      "member": "raw-deltas/main-final-samebaseline-v1/ScreenSpace/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 3095,
+      "sha256": "0d8e2cd41ed62bca7554fde3787982d9815ca21fd193e2dac348f62b090744c0",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/ScreenSpace/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/ScreenSpace/capture.json",
+      "bytes": 19621,
+      "sha256": "dece8268db0897d00e321cc4011e3b6a4c175d8ec932ddd08d1e395bd3941165",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/ScreenSpace/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/ScreenSpace/compiled-graph-91-92.txt",
+      "bytes": 7463,
+      "sha256": "cfa7dfe4f2250b1349b9147fdfea0dc446342bd2989306d2f9260e991ec8a97e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/ScreenSpace/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/ScreenSpace/request.json",
+      "bytes": 770,
+      "sha256": "628c1b223dd3959987dbc9ae3b6f1a3767de71e8850f41a0e5f3d36f74282941",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/ScreenSpace/request.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Shadows/capture.json",
+      "bytes": 19600,
+      "sha256": "41a63d906b9ce26425993ebf614f73de403909f8fb7def9deb790626b214ac53",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Shadows/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Shadows/compiled-graph-91-92.txt",
+      "bytes": 8523,
+      "sha256": "ee2862bd20dde90f50c47866c681987e33a2dbf93ba020ce6236714f5f8d3166",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Shadows/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Shadows/request.json",
+      "bytes": 758,
+      "sha256": "f07a7b729ac25657f88cff4295165cb4e336b25873c45503627cca2138afc7a7",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Shadows/request.json"
+    },
+    {
+      "member": "raw-deltas/main-final-samebaseline-v1/Translucent/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 2013,
+      "sha256": "772a9736ae4f88e3d8d00293438431f2ae4a304e8915949ddc7f5e39cc50b5c5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Translucent/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Translucent/capture.json",
+      "bytes": 19594,
+      "sha256": "4fc4b28893b60c734a65c765c5971dcd7cf8e5bc587b08c72670d140b6c2c2d0",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Translucent/capture.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Translucent/compiled-graph-91-92.txt",
+      "bytes": 5360,
+      "sha256": "bba6ee0ec08a881f4c04cd3670e6f3a150ec4bcef3b9eef624eb71f0ab45ede1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Translucent/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/Translucent/request.json",
+      "bytes": 770,
+      "sha256": "11f04de0108d62501d3b67c0f147b52c0827d22496323e74bbcf9c6ff95b6045",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/Translucent/request.json"
+    },
+    {
+      "member": "receipts/main-final-samebaseline-v1/report.json",
+      "bytes": 8247,
+      "sha256": "396dd4a570abc1170c28e80e0ec93567e6618d0ee1a1aef5324182a4e94e77ea",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-final-samebaseline-v1/report.json"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-references-v2.json",
+      "bytes": 7506,
+      "sha256": "63b57067dc0638dd39218502c9bb3b0da4d02c030d419245ec33ac7b72b3c9db",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-references-v2.json"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-start-v1.json",
+      "bytes": 892,
+      "sha256": "afddeb201b20417d7f256a1b628f65021a91caf3fa231f41f82ae1a73893a834",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-start-v1.json"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1/callback-results.xml",
+      "bytes": 12317,
+      "sha256": "12ef6fe71163a260d714da8e1f6a932e1dfd66fc0a624caed21d2040b6378368",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1/failed-test-1.xml",
+      "bytes": 1950,
+      "sha256": "3cbdf07204b64661dc336240a2f273d6cc410f9991e122b6072e7dcdb3686756",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1/failed-test-1.xml"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1/failed-test-2.xml",
+      "bytes": 1950,
+      "sha256": "c1480721979e0166c980a5a7d82945ddf450e7cc8e22ea1a3d735e3ef6d5601f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1/failed-test-2.xml"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1/progress.jsonl",
+      "bytes": 18542,
+      "sha256": "6be49b20778758c880c23046aff662088c1d17555138d1a79d1ffd4718268afd",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 300,
+      "sha256": "c2383353718bec74e04b3b7370a67fecb2f07d6bcab6150bc2735bfe0180e6af",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1/results.xml",
+      "bytes": 15974,
+      "sha256": "bfcd4eb79008cd4c508ae23883ca36c1e5cc5166fa0766e08cad6271dfc18771",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1/run.json",
+      "bytes": 1191,
+      "sha256": "13022a95c33a0c13054fed28e88a4804ad6c7d5ece69bc7794f1bd942c3c1bd4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1/run.json"
+    },
+    {
+      "member": "receipts/main-fixed-fixture-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-fixed-fixture-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-original-profile-red-start-v1.json",
+      "bytes": 906,
+      "sha256": "912b2c8df323f72dbd91119769d04ccdb20b4b2d8b4bbb551ea704f5a1260824",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-start-v1.json"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1/callback-results.xml",
+      "bytes": 12415,
+      "sha256": "69e35fd62c59f0a38d214ac959ca30668fca4c5ea739ae12d2dd66e602586f5e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1/failed-test-1.xml",
+      "bytes": 2000,
+      "sha256": "0754e86d874298e040fddbf3c019dfc30dbe9696e53739fc2410d12d1a127ac2",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1/failed-test-1.xml"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1/failed-test-2.xml",
+      "bytes": 1999,
+      "sha256": "e80e6d8d23c3d792510308b5f71e26d2e426fbe49f3886b3fdb6c4be2d14d720",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1/failed-test-2.xml"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1/progress.jsonl",
+      "bytes": 18543,
+      "sha256": "d6a5f84aba942547630caaae77b0a3164b9980d59d987d516409e8b943d0a3ec",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 300,
+      "sha256": "e5ebaeea5a5a6f03219f7eb0b4466bd76e1c865719583cff34b09f8fbc6e48d6",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1/results.xml",
+      "bytes": 16087,
+      "sha256": "d66db76b718a30150f6a01d9992798001ffc6dac0ff69cbb0f004a40991d81bf",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1/run.json",
+      "bytes": 1192,
+      "sha256": "8e71739215dfaf7b4e65159f504ad46e63d180cae4c505d614a1dfa02ba3be69",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1/run.json"
+    },
+    {
+      "member": "receipts/main-original-profile-red-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-original-profile-red-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-start-v1.json",
+      "bytes": 1008,
+      "sha256": "86b9badd157287e86ce61edbbcd540251d765b65409e86eaa1b7db9fb778539a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-start-v1.json"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1/callback-results.xml",
+      "bytes": 4699,
+      "sha256": "335c6e968438a0b23b579e9dcc254483402e98ebf3b2452ebeab3b0fedd960e6",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1/failed-test-1.xml",
+      "bytes": 2089,
+      "sha256": "9c7ffb2520c149fcf7c0f753abdf7a9d0c4e07ae9226e93c1001e860084f108b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1/failed-test-1.xml"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1/failed-test-2.xml",
+      "bytes": 2089,
+      "sha256": "5dd1195252a5ac6d6d95f14ba4f8da242b13ddd0c09b53785b94cb7a70e84bb3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1/failed-test-2.xml"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1/progress.jsonl",
+      "bytes": 7778,
+      "sha256": "36aacafcb3c5b8da35dac8c7f51f9e12e86ac670aaadd1cfe2daaae290e6775c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 300,
+      "sha256": "7b8564cd6df62efe749b48d2bf0e8cfe6bbd79de982cd60da0604c536d947579",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1/results.xml",
+      "bytes": 9546,
+      "sha256": "bb88154639fa526bdc7c9c0d4eb83df5e85c0e3a1c411aeff4049eabcddc5cbf",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1/run.json",
+      "bytes": 1307,
+      "sha256": "af6d989d6b6dfa0fd83009bc99414ba1568b0563d52b4ea8bc667744b2d58872",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1/run.json"
+    },
+    {
+      "member": "receipts/main-profile-cache-control-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-cache-control-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-start-v1.json",
+      "bytes": 1002,
+      "sha256": "1dfe56872bb97cb77663285cbade84378d9530a8d65b075528d5a6837f39cbd3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-start-v1.json"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1/callback-results.xml",
+      "bytes": 4889,
+      "sha256": "58f8e1b55fdea3c32024de8f9201debebf72300dde0ae07776d190d1c1ba27e3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1/failed-test-1.xml",
+      "bytes": 2184,
+      "sha256": "3974310efdb00f1419ab7811ed24c7f21d7efb67e52c7b95e3de3634a28bcbe5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1/failed-test-1.xml"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1/failed-test-2.xml",
+      "bytes": 2184,
+      "sha256": "66bb1944b56bbdfa860740ba783b1491b99feff99cd9f60a6e6295d208e01501",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1/failed-test-2.xml"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1/progress.jsonl",
+      "bytes": 7778,
+      "sha256": "0611e290f72ac1a047a62f141784658fab831ac161ce252a724723579ad35965",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 300,
+      "sha256": "4dd2267bfa01c535ec461ff0ff57c68e65919f9c30e05607f571e2cce2d367c6",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1/results.xml",
+      "bytes": 9730,
+      "sha256": "c7db57daff662ba20ce19ca06f79ba2ca964c8fb8b8170e624a88c317d8e714c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1/run.json",
+      "bytes": 1307,
+      "sha256": "b9a8bbdca40044494a5bf0124eacca9174f4ddc3d2c68f6b29aaff0c1f9a9e99",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1/run.json"
+    },
+    {
+      "member": "receipts/main-profile-diagnostic-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-diagnostic-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-start-v1.json",
+      "bytes": 939,
+      "sha256": "a31a3c89446d0bc12efb0309c4457202fbf647294efe53aa06ac1763a19c3283",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-start-v1.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-start-v2.json",
+      "bytes": 940,
+      "sha256": "38adad75f5ab001e856a3c770b6e4ec6a1b0d7ccd53ad675efc5cf4d48bbbbd8",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-start-v2.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1/callback-results.xml",
+      "bytes": 12593,
+      "sha256": "fbc9f8932c0974b15edeccff8097ba64edfb2794416467dc2a3f2945f3871b7a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1/failed-test-1.xml",
+      "bytes": 2090,
+      "sha256": "0ad72777fe5f55b7caf61f173d0d2a5b89008a2f98285d86f2b9e9ac51c7560c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1/failed-test-1.xml"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1/failed-test-2.xml",
+      "bytes": 2088,
+      "sha256": "456e91cac6cef1d9d9b54c7cf7a95dbffb749debcf829e5306bdcd9759e59868",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1/failed-test-2.xml"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1/progress.jsonl",
+      "bytes": 19303,
+      "sha256": "aaf96f7079d99ccee179bcaee9d6ae3f7d4ac22d15fd0abbdf7fee83901a9cbe",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 300,
+      "sha256": "4fba7f7fd83ea49d892004fa7abfb34053b6a90a030e6d53f9af3babf90ea9dd",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1/results.xml",
+      "bytes": 16261,
+      "sha256": "d736352fbb05b6a38cf093e04d2df70119c0196409c36cd3d7da4c29096bd78d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1/run.json",
+      "bytes": 1230,
+      "sha256": "ede8998326c1c9c84855d21fc46721c2a42f2cf270ebdbfd4dc5d138533eb589",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1/run.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v2/callback-results.xml",
+      "bytes": 12019,
+      "sha256": "223a2c95ff9928175d3bd85b2aa51e4851a9eefd3547312a8b2d88c93dc7aba3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v2/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v2/progress.jsonl",
+      "bytes": 19289,
+      "sha256": "931d354c92802d16b7d2df9f39b645e3c022725bd55723da2cc67580ac720cd1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v2/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v2/reload-checkpoint.json.actual-skips.json",
+      "bytes": 300,
+      "sha256": "26398e839e1026231e25a7e2796ad7315aa2b6a4af525836991f8d39ec755ca2",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v2/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v2/results.xml",
+      "bytes": 14171,
+      "sha256": "5ecdba1845d358bf51384f28801ce50c400a18ec0a6963086c506e224c78ffa2",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v2/results.xml"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v2/run.json",
+      "bytes": 1216,
+      "sha256": "36af6121246ec7dd4a5aa8b9f90121f710a0da5d046cf7223e9191ace676f3b7",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v2/run.json"
+    },
+    {
+      "member": "receipts/main-profile-disk-probe-v2-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-profile-disk-probe-v2-preflight.json"
+    },
+    {
+      "member": "receipts/main-return-after-original-failure-v1.json",
+      "bytes": 147,
+      "sha256": "1ae1031730fd29f3ec2354512a9cc0d3270488a3312601ccee2ca1fa345f4151",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-return-after-original-failure-v1.json"
+    },
+    {
+      "member": "receipts/main-return-after-repaired-history-v1.json",
+      "bytes": 133,
+      "sha256": "dafcafe7e267314520b2740be0b670f339aef6179bdfa53d2b137560f2b45378",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-return-after-repaired-history-v1.json"
+    },
+    {
+      "member": "receipts/main-s17-candidate-source-v1.json",
+      "bytes": 1270,
+      "sha256": "659e4d5273dd29557e5441b86e44df4c590f17fd4783ae30759cc530c1018d40",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-candidate-source-v1.json"
+    },
+    {
+      "member": "receipts/main-s17-category-start-v1.json",
+      "bytes": 891,
+      "sha256": "1f6cdda5ca7d646d7481291031bb1a68163b65c39e8d393883dce425517b567a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-category-start-v1.json"
+    },
+    {
+      "member": "receipts/main-s17-category-v1/callback-results.xml",
+      "bytes": 55784,
+      "sha256": "7ff4900145268882dc4dd7e96e926df8e92c9b98e626b96dbbc66129e7d9e6fb",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-category-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-s17-category-v1/progress.jsonl",
+      "bytes": 88473,
+      "sha256": "86669ffd425f3bc94ef96b8f5fedaa932e2d0f68b348104d96c645b3e2090a91",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-category-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-s17-category-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 301,
+      "sha256": "06979b62f1db90cb74619695dd497a5fc9fecfe11e8ff128f27777f0caa22092",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-category-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-s17-category-v1/results.xml",
+      "bytes": 58731,
+      "sha256": "ba64040a01f91b1ed2c822a9834ce43c6b5b1f735b8caacffda90e649b0ff62d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-category-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-s17-category-v1/run.json",
+      "bytes": 1186,
+      "sha256": "e5671d90af3d07efee177d4c69210f9f15fbbf128191b7ca805016b9137f3236",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-category-v1/run.json"
+    },
+    {
+      "member": "receipts/main-s17-category-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-category-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-s17-final-v1-Editor.log.omitted.json",
+      "bytes": 294,
+      "sha256": "cd6a26dd020ce12943d28011afba9e39f7769a8cebce6ac5b77ef29905d2c721",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-final-v1-Editor.log",
+      "originalSourceSha256": "e0dfb70c65bc69315995816affdb82383cdf038ea4397acf0583a69e64d378a2"
+    },
+    {
+      "member": "receipts/main-s17-final-v1-open.json",
+      "bytes": 305,
+      "sha256": "bd4e915223b3925fcfa0f31861653322858eeae390829155b05b855166b68639",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-final-v1-open.json"
+    },
+    {
+      "member": "receipts/main-s17-final-v1-pid.json",
+      "bytes": 77,
+      "sha256": "7198b9a8127099eee1b97bd45b7093f06d4c1096de22e0577b7bffdf82899a80",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-final-v1-pid.json"
+    },
+    {
+      "member": "receipts/main-s17-final-v1-ready.json",
+      "bytes": 440,
+      "sha256": "4e3ad775b6f25754b0fc90170d6e3b6475147c99a6819a53f5b5a8651eb55fec",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-final-v1-ready.json"
+    },
+    {
+      "member": "receipts/main-s17-full-start-v1.json",
+      "bytes": 861,
+      "sha256": "d58bea3f1745441dde6b0274611eab14fb5467863164f3f5313be3178a7bde8a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-start-v1.json"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/callback-results.xml",
+      "bytes": 1937213,
+      "sha256": "d1ff5042c7905a3813c423cd19fd23f994d549e34139831e6a4618b040f96027",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/callback-results.xml"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/progress.jsonl",
+      "bytes": 3345908,
+      "sha256": "a6ef04a1e18b8cc0c1ae1d86395c48f85433cca04da486bb1c86b14045ec229a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/progress.jsonl"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/reload-checkpoint.json.actual-skips.json",
+      "bytes": 54579,
+      "sha256": "c3e0c7b123d6c3cbe10c9462a017642f6c71bdb8050212128ef0a5ac10cca577",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/reload-checkpoint.json"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/results.xml",
+      "bytes": 1507143,
+      "sha256": "27712e57941e11b88ff4333cbb1d5d2b71d5094436f3d73374a912cee4b60972",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/results.xml"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/run.json",
+      "bytes": 8789,
+      "sha256": "fa31ed5cb68aec1040b71908792e20b9e5f4b37587083dbb39a0049e9d4f38fa",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/run.json"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "c503b00c8b7bcd877a559bc66621dc1fac42c1b6ad3e4fb5907b58eef9b770e4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "625a1965b3e6c0ed12093ba35686f3df22f7a6b37e385aea0038ef6e0f72cc63",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "fbf2abb952d2d8ddd3ebc1531ca5b574f1b283ee0f4832c1559033ade691c185",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "5677ab16f4fd771e9c3b2469ce679be795ae53009bf59dc64163df3a2f0d111c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 4096,
+      "sha256": "c6f00266086d8915e2c6cc584457d50ec38bfaf0ac88c40a7df29af30b1a0880",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/PASS.txt",
+      "bytes": 208,
+      "sha256": "a74dc4193820310973a0fe715e85d7156b0bbb80a4ce0d36049a35a446e9b9ee",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/PASS.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/fixture.txt",
+      "bytes": 258,
+      "sha256": "bc5ac1238870e384157ec635ae7ae9e68b1683650921981420f6ab59be29118d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/fixture.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517464190Z/kernel-results.txt",
+      "bytes": 1070,
+      "sha256": "e30389e59033590527eaec376b7f3756480eeadd3fe98125aba6cadd212a94e5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517464190Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "6691b937f3e37200c5e6e37ca099d4985cc8df146d4bd200145792450632705a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "7135c4c525a8337cb0b6b3e6e0c64732f9fef71291772525bde42099c8a50718",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "24cd7941359244cb861957f4db8e3dec28a9c531fa8975a1adcb50e016c1449f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "24cd7941359244cb861957f4db8e3dec28a9c531fa8975a1adcb50e016c1449f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 4096,
+      "sha256": "ff0fa9dfe43d5f5a4a24728fbac2caa06d35ae3029ba748388aafbc83acfba1a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/PASS.txt",
+      "bytes": 210,
+      "sha256": "a67d430865875381ce0b13473866f30c77048f3edb7e56582fe0e02b65e76d23",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/PASS.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/fixture.txt",
+      "bytes": 258,
+      "sha256": "ced80ebe911c6195613039fc21062981802cd640877783fc9ac01815fdfef0e7",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/fixture.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832517960070Z/kernel-results.txt",
+      "bytes": 1065,
+      "sha256": "dd3b2ff633264a5cb534635873254978efabc63021d60a3b69f64b697e637149",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832517960070Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/01-Compute_GroundTruthOcclusion-OcclusionTrace-UAV_OcclusionTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/02-Compute_GroundTruthOcclusion-OcclusionSpatialX-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/03-Compute_GroundTruthOcclusion-OcclusionSpatialY-UAV_SpatialTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/04-Compute_GroundTruthOcclusion-OcclusionTemporal-UAV_AccmulateTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32",
+      "bytes": 1024,
+      "sha256": "effed557f66924267724f21a1171c6ccb09f3741df3c5108c3cf47515061a12d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/05-Compute_GroundTruthOcclusion-OcclusionUpsample-UAV_UpsampleTexture.f32"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/PASS.txt",
+      "bytes": 206,
+      "sha256": "f2aa7b9837d50e75a03e4abdf37dddd399c7a80d6b0d036a6fa05be470d6b849",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/PASS.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/fixture.txt",
+      "bytes": 256,
+      "sha256": "b87fce0cda8796a5830901313dbd97b6eec88b200e747cedf053595876e17f32",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/fixture.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1/screen-space-20261023T0832518449540Z/kernel-results.txt",
+      "bytes": 1064,
+      "sha256": "09d771df721b5bbaf8f6a50682982971fbbb717a30f6c842fdd5f69f5d9b3986",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1/screen-space-20261023T0832518449540Z/kernel-results.txt"
+    },
+    {
+      "member": "receipts/main-s17-full-v1-preflight.json",
+      "bytes": 273,
+      "sha256": "44f02e2b371755a73718aa9945bb900ae76cbdf01d7258f691a7db4be2bd3121",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-full-v1-preflight.json"
+    },
+    {
+      "member": "receipts/main-s17-profile-negative-v1-Editor.log.omitted.json",
+      "bytes": 305,
+      "sha256": "af3f8479f253b2744fe841ff60fd919ae615ad9c4a8047285ca9e19879620bc2",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-profile-negative-v1-Editor.log",
+      "originalSourceSha256": "0b25b8bc9a652cb05e9056fe0ea22b5fa18098415b4e98d53eeebcf5d5bb6ccc"
+    },
+    {
+      "member": "receipts/main-s17-profile-negative-v1-open.json",
+      "bytes": 305,
+      "sha256": "a1266151d399009a3a8018a4f2bb0be16b51c93c09bcff54536d66577dc6a679",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-profile-negative-v1-open.json"
+    },
+    {
+      "member": "receipts/main-s17-profile-negative-v1-pid.json",
+      "bytes": 77,
+      "sha256": "750d02cc96c9d21158444d6c743e0f742f1075699d9d588d37cca0befdb3436b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-profile-negative-v1-pid.json"
+    },
+    {
+      "member": "receipts/main-s17-profile-negative-v1-ready.json",
+      "bytes": 440,
+      "sha256": "6d3f59f8926cb5cb1f07307f654f9165eaf92660230fb2e0efca87f60df73e5e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-profile-negative-v1-ready.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-contact-v1.jpg",
+      "bytes": 68626,
+      "sha256": "355bf2c126871f0ab29349cce1850fca52b3de33ab3d6f92b8c16756ada4a2c3",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-contact-v1.jpg"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-start-v1.json",
+      "bytes": 1238,
+      "sha256": "b75e0729f6f62a9ecaedc0cbe2f870ae67351cd0007c35eeb7b176aa4454a080",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-start-v1.json"
+    },
+    {
+      "member": "raw-deltas/main-s17-samebaseline-v1/AreaLights/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 2014,
+      "sha256": "1e9d4bf42af5656143b5ec657895dc4a9c7eaf87b2a3048e4c0d7b7b6d85e613",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/AreaLights/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/AreaLights/capture.json",
+      "bytes": 19623,
+      "sha256": "60eeaf4a08d096b7ca8e2e74dedaaa1516027ab40a47903afe8f3072c62044d6",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/AreaLights/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/AreaLights/compiled-graph-91-92.txt",
+      "bytes": 4553,
+      "sha256": "64147dc156b38948e2d25c1be8b221e58e6c039bdce93f90bcca5a5f925b82c5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/AreaLights/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/AreaLights/request.json",
+      "bytes": 765,
+      "sha256": "6de6fbc2e2e220b66e49e3cf24f39a77607f379a40168ed7578289e26fe941c0",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/AreaLights/request.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Cookies/capture.json",
+      "bytes": 19608,
+      "sha256": "47290f5b5776506fa967bf38b5a232c394e53f7726b5e89f9b6d56d7f224a793",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Cookies/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Cookies/compiled-graph-91-92.txt",
+      "bytes": 4587,
+      "sha256": "82abaf523b5374c2acdbb15c1210208d5fbdbb11d654f026def4da1cb7dcec2a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Cookies/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Cookies/request.json",
+      "bytes": 756,
+      "sha256": "6228557f0ae62e88c4fa038d6103ebd3d64436c7e5dcca9f6d2a8f3840ed7012",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Cookies/request.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Decal/capture.json",
+      "bytes": 19612,
+      "sha256": "4647c1c125c839288fd9b571eb6dc7f03fd12d7b894c350c0847cbf3265fb75d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Decal/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Decal/compiled-graph-91-92.txt",
+      "bytes": 4644,
+      "sha256": "b5edd1da6289639cc7ceb5522e4ec001f49fed6b65892ad2df08993766eebe48",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Decal/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Decal/request.json",
+      "bytes": 750,
+      "sha256": "cdb222615cdf55339b2762e8c5ba463a9c22985739bb7a8679b2afb97b6300f9",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Decal/request.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/LocalLights/capture.json",
+      "bytes": 19650,
+      "sha256": "54afe08f1523aef247e9008885cee169e86b2f39b75df6e5a5ebc4fbe6ed39fe",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/LocalLights/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/LocalLights/compiled-graph-91-92.txt",
+      "bytes": 7050,
+      "sha256": "b5f93d97beaea3e01907fe96996154b9d730d0f137cd00467fc94ed26cce75aa",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/LocalLights/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/LocalLights/request.json",
+      "bytes": 768,
+      "sha256": "aae1d048875a150044b88c5780c225d58ae8a4628c572acc9878e5adf3fa6982",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/LocalLights/request.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/ReflectionProbes/capture.json",
+      "bytes": 19633,
+      "sha256": "4ae4de4d2397fdce4d733365de8afedccc3ab31888964e82f663f22335c90c15",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/ReflectionProbes/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/ReflectionProbes/compiled-graph-91-92.txt",
+      "bytes": 5584,
+      "sha256": "75e45c408d18f58388ed3c3fd703180c8b9104d55aa7cdaad6f9b18fc953cd09",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/ReflectionProbes/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/ReflectionProbes/request.json",
+      "bytes": 783,
+      "sha256": "5aa06d441b072f65e0d9a485179b449f699f9373fed0b1005139719bfc713d61",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/ReflectionProbes/request.json"
+    },
+    {
+      "member": "raw-deltas/main-s17-samebaseline-v1/ScreenSpace/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 2707,
+      "sha256": "89295a055bb8401f8e183053ba572b0cb5e1c342c10ea6b126c149cc20919f2c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/ScreenSpace/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/ScreenSpace/capture.json",
+      "bytes": 19620,
+      "sha256": "8dfb141edaaf1077f7091e0556c72045425c4028d9d08ccab44ab1e7229ae138",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/ScreenSpace/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/ScreenSpace/compiled-graph-91-92.txt",
+      "bytes": 7463,
+      "sha256": "cfa7dfe4f2250b1349b9147fdfea0dc446342bd2989306d2f9260e991ec8a97e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/ScreenSpace/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/ScreenSpace/request.json",
+      "bytes": 768,
+      "sha256": "103c8dbc0463e7d67fc9bd426e6831827ea1537d962a8994d5a14572bd7d1f50",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/ScreenSpace/request.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Shadows/capture.json",
+      "bytes": 19597,
+      "sha256": "f8e548e6d55a9562960bd1ffe645c0f8da4836302e2fda52ddcc29be3a58f753",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Shadows/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Shadows/compiled-graph-91-92.txt",
+      "bytes": 8523,
+      "sha256": "ee2862bd20dde90f50c47866c681987e33a2dbf93ba020ce6236714f5f8d3166",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Shadows/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Shadows/request.json",
+      "bytes": 756,
+      "sha256": "dde11329e48348545bdc02d6bb4e155546320fb0f884fae71a7cab4869535698",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Shadows/request.json"
+    },
+    {
+      "member": "raw-deltas/main-s17-samebaseline-v1/Translucent/DisplayColor-91-92.bin.xor-zlib",
+      "bytes": 2024,
+      "sha256": "f76937144fec90e248dd0c3e1604bb6c5ab645aacd184244d8c033e684fbcfe5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Translucent/DisplayColor-91-92.bin"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Translucent/capture.json",
+      "bytes": 19596,
+      "sha256": "a8a6702df1229e9f57e9f26c6eebb5fede1d9ee469ea9776fb3537b1a169086c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Translucent/capture.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Translucent/compiled-graph-91-92.txt",
+      "bytes": 5360,
+      "sha256": "bba6ee0ec08a881f4c04cd3670e6f3a150ec4bcef3b9eef624eb71f0ab45ede1",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Translucent/compiled-graph-91-92.txt"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/Translucent/request.json",
+      "bytes": 768,
+      "sha256": "32f30bce42bc3ef15b616671e5f5eb4392ebabfe9ac6ae09ba03f00bd1bd093f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/Translucent/request.json"
+    },
+    {
+      "member": "receipts/main-s17-samebaseline-v1/report.json",
+      "bytes": 8240,
+      "sha256": "2e58e80a560b7679cb4e0a6c90426d834bc340fe10113eb8b1dde1ee76885c21",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-s17-samebaseline-v1/report.json"
+    },
+    {
+      "member": "receipts/main-samebaseline-restored-v1.json",
+      "bytes": 1336,
+      "sha256": "af0edb86303918bcb17dc63922de81bda6a9bb5c2f12fa3013a4eacd7b0f2e68",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/main-samebaseline-restored-v1.json"
+    },
+    {
+      "member": "receipts/owned-cold-launch-v1.py",
+      "bytes": 1756,
+      "sha256": "d9bf98cbfed9aa582251e05d57d18be6cacab658d5f14df094546da4436e29e9",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/owned-cold-launch-v1.py"
+    },
+    {
+      "member": "receipts/owned-profile-targeted-repair-v1.json",
+      "bytes": 2842,
+      "sha256": "1ce8fe599c36bb67794292356761fd8500f0f1f161dff4479767ab8e362759f4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/owned-profile-targeted-repair-v1.json"
+    },
+    {
+      "member": "receipts/profile-hidden-identity-control-v1.json",
+      "bytes": 1060,
+      "sha256": "cf6573e51fb81f2e8412b0f520a5942fc904c749e035f965e50bc8b205d0bdd5",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/profile-hidden-identity-control-v1.json"
+    },
+    {
+      "member": "receipts/profile-repair-before-v1/Validation_LocalLights_Volume.asset",
+      "bytes": 1588,
+      "sha256": "a00b92db846b5bebe9c5e44a50d3b902deb6e0d4191204dbd05ded45a8f41703",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/profile-repair-before-v1/Validation_LocalLights_Volume.asset"
+    },
+    {
+      "member": "receipts/profile-repair-before-v1/Validation_Translucent_Volume.asset",
+      "bytes": 1576,
+      "sha256": "0f705a11b46af0a103c89ae072b6b0f2f248ccf4db758c5be9547ccb2e43964b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/profile-repair-before-v1/Validation_Translucent_Volume.asset"
+    },
+    {
+      "member": "receipts/profile-repair-before-v1.json",
+      "bytes": 17490,
+      "sha256": "94a5d64559be95b7cd7ba408f52f5c50faa07f9143341802b104a666f0bfc6aa",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/profile-repair-before-v1.json"
+    },
+    {
+      "member": "receipts/profile-repair-pre-state-v1.json",
+      "bytes": 1059,
+      "sha256": "3ee00bd83c1d4d792167fac535e8f88cef4a672b1ba4c561e42fd25ecb352497",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/profile-repair-pre-state-v1.json"
+    },
+    {
+      "member": "receipts/profile-repair-source-boundary-v1.json",
+      "bytes": 295,
+      "sha256": "219ee10b2bee5329414347068d2cf88680461098ac9278b2f0490ccdf41a942f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/profile-repair-source-boundary-v1.json"
+    },
+    {
+      "member": "receipts/s17-active-plan-v1.md",
+      "bytes": 160531,
+      "sha256": "7ea4b751e65bfbbe1e7bfff64e36b9ea7c4235b708b2fd7167a72e4620a1aa7b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/s17-active-plan-v1.md"
+    },
+    {
+      "member": "receipts/s17-original-script-move-audit-v1.json",
+      "bytes": 21335,
+      "sha256": "46fa3806b07b81867cbae9566cb84060190183c40698ae7319a66d6f260e56c7",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/s17-original-script-move-audit-v1.json"
+    },
+    {
+      "member": "receipts/s17-predecessor-source-v1.json",
+      "bytes": 39294,
+      "sha256": "d1c49c54623d60efb7002391613e6b95dccfe003d1677bf5c9b70ea1a1e20c5a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S17/s17-predecessor-source-v1.json"
+    },
+    {
+      "member": "raw-locations.json",
+      "bytes": 15709,
+      "sha256": "8ef4cff3b706cef9fc05c01cab480c506c3fe23598948c151be4a73389605387",
+      "source": "lossless reconstruction index"
+    },
+    {
+      "member": "candidate-source/Editor/Tools/Validation/CreateLocalLightsValidationScene.cs",
+      "bytes": 8115,
+      "sha256": "751d617bda7a28d1746fe27c2b2c8d77560c8c7de3f6ea2e27d36244b520a5a7",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Editor/Tools/Validation/CreateLocalLightsValidationScene.cs"
+    },
+    {
+      "member": "candidate-source/Editor/Tools/Validation/CreateTranslucentValidationScene.cs",
+      "bytes": 8076,
+      "sha256": "baacbb37b2809c0a5f63fe7abbbc54745cd93ebdc4f007cf3c33c580d5e3669c",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Editor/Tools/Validation/CreateTranslucentValidationScene.cs"
+    },
+    {
+      "member": "candidate-source/Tests/Editor/PipelineSeamTests.cs",
+      "bytes": 2203,
+      "sha256": "3a4b2ab5f2b93a6691b060c27b87aece38bf2f937f259e630c3d5d76e58dc52e",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Tests/Editor/PipelineSeamTests.cs"
+    },
+    {
+      "member": "candidate-source/Tests/Editor/ValidationFixtureSaveTests.cs",
+      "bytes": 12406,
+      "sha256": "77fa0c9539ee1202232daa9f6921061f4240800dc43ae34a9f3016e01c613f4d",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Packages/com.infinity.render-pipeline/Tests/Editor/ValidationFixtureSaveTests.cs"
+    },
+    {
+      "member": "original-input/Assets/InfinityRenderPipelineGlobalSettings.asset",
+      "bytes": 24576,
+      "sha256": "cabd163193f185a27d3564ea735abcbaee81de103a49fdbf7dcbcb818be7ab3f",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/preimage/Assets/InfinityRenderPipelineGlobalSettings.asset"
+    },
+    {
+      "member": "original-input/ProjectSettings/EditorSettings.asset",
+      "bytes": 3478,
+      "sha256": "131cb6ac0ea83f6e9f5c39d2f6dbd1ff7ea296c0b1b468011a55ab804079d3cd",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/preimage/ProjectSettings/EditorSettings.asset"
+    },
+    {
+      "member": "original-input/ProjectSettings/ProjectSettings.asset",
+      "bytes": 80440,
+      "sha256": "530e6798c96fc020b7647f955178e9e976d0d6cb2aac3bac1533dfc3bfa35b6a",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/preimage/ProjectSettings/ProjectSettings.asset"
+    },
+    {
+      "member": "original-input/ProjectSettings/TimeManager.asset",
+      "bytes": 4116,
+      "sha256": "6514b9f8ea9fe4c16aff8d45668c0c2648581154cc830634782dd6c0a48611e4",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/preimage/ProjectSettings/TimeManager.asset"
+    },
+    {
+      "member": "initial-audit/input-manifest.json",
+      "bytes": 96019,
+      "sha256": "e7fd7be5a3b8ae6c9b6733e515ff964ee81aa27592b219264f1728d19807006b",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/input-manifest.json"
+    },
+    {
+      "member": "initial-audit/outer-status-before.bin",
+      "bytes": 2769,
+      "sha256": "307a218a4bf0574a9729128a7ec88e5dfe44f7067f20b76dc065a66145c88157",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/outer-status-before.bin"
+    },
+    {
+      "member": "initial-audit/asset-delta-before-S1.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/asset-delta-before-S1.json"
+    },
+    {
+      "member": "initial-audit/editor-log-mark.json",
+      "bytes": 123,
+      "sha256": "9a0ad549a5f54dc4a18320b24d6fe4bda05feaaeaaaf02dde2a7692f2f08aacf",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/editor-log-mark.json"
+    },
+    {
+      "member": "repaired-fixture/Validation_LocalLights_Volume.asset",
+      "bytes": 7472,
+      "sha256": "e4cb4f5673c210db8a184ac025e6c3468f4d3a9632b1d689211f88673d7d2875",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/InfinityRPVerification_0_5_20261020_run02/S16/Fixtures/Validation_LocalLights_Volume.asset"
+    },
+    {
+      "member": "repaired-fixture/Validation_Translucent_Volume.asset",
+      "bytes": 4392,
+      "sha256": "775cee48e26e442b3aaa730002920050f81ba076f1d3e2de688372840e371646",
+      "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/InfinityRPVerification_0_5_20261020_run02/S16/Fixtures/Validation_Translucent_Volume.asset"
+    }
+  ],
+  "rawReconstructionCount": 24,
+  "consumedContainers": [
+    {
+      "path": "main-s17-candidate-source-v1.tar.gz",
+      "bytes": 108923,
+      "sha256": "8079abad3485331e501274f1233f83e394270fe38abdd7d0cc78c82d3e4549a9",
+      "reason": "Consumed replay/frozen source container; expanded source identities and final source snapshots retained."
+    },
+    {
+      "path": "s17-predecessor-source-v1.tar.gz",
+      "bytes": 337016,
+      "sha256": "66ae08f810aa9f8b9b38b78ed6927ef2c88d1ac41ff22f2482f771cd27b73239",
+      "reason": "Consumed replay/frozen source container; expanded source identities and final source snapshots retained."
+    }
+  ],
+  "baselineSourceArchiveSha256": "2ad86855585dbbe439f70ac622a90f9b603135f0190ca2bcb12dffa9b00fac6b",
+  "sensitiveStartupLogsOmitted": [
+    {
+      "originalMember": "receipts/historical-s17-original-v1-Editor.log",
+      "sourceBytes": 124469,
+      "sourceSha256": "b304875fc23bb70cdd63a0f75092269420d983289ddcaa8c399968b146f10dec",
+      "reason": "Full startup log omitted because it contains authentication parameters; no credential payload retained."
+    },
+    {
+      "originalMember": "receipts/historical-s17-repaired-v1-Editor.log",
+      "sourceBytes": 6941161,
+      "sourceSha256": "250410f56de3f6ca1f1d018302c5cc162c002a6d4c842695a2041681dd819571",
+      "reason": "Full startup log omitted because it contains authentication parameters; no credential payload retained."
+    },
+    {
+      "originalMember": "receipts/main-s17-final-v1-Editor.log",
+      "sourceBytes": 6826001,
+      "sourceSha256": "e0dfb70c65bc69315995816affdb82383cdf038ea4397acf0583a69e64d378a2",
+      "reason": "Full startup log omitted because it contains authentication parameters; no credential payload retained."
+    },
+    {
+      "originalMember": "receipts/main-s17-profile-negative-v1-Editor.log",
+      "sourceBytes": 8307575,
+      "sourceSha256": "0b25b8bc9a652cb05e9056fe0ea22b5fa18098415b4e98d53eeebcf5d5bb6ccc",
+      "reason": "Full startup log omitted because it contains authentication parameters; no credential payload retained."
+    }
+  ]
+}

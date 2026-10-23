@@ -8,12 +8,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         static readonly string[] GeometryPassFiles =
         {
-            "DepthPass.cs",
-            "GBufferPass.cs",
-            "ForwardPass.cs",
-            "MotionPass.cs",
-            "CascadeShadowPass.cs",
-            "LocalShadowPass.cs"
+            "Geometry/DepthPass.cs",
+            "Geometry/GBufferPass.cs",
+            "Lighting/ForwardPass.cs",
+            "Geometry/MotionPass.cs",
+            "Shadow/CascadeShadowPass.cs",
+            "Shadow/LocalShadowPass.cs"
         };
 
         static readonly string[] ForbiddenTokens =

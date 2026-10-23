@@ -1,0 +1,60 @@
+> Delivery correction (2026-10-23): this report and its evidence were previously present locally but ignored by Git. This S17 delivery adds the report and the explicitly indexed [EarlyStages evidence archive](EarlyStages-closure/manifest.json). Earlier failures and acceptance boundaries below remain historical facts.
+
+# S2 staged verification — historical stage accepted
+
+Original endpoint: `aaf975126a01e650a0b0272b21d9495a98154f99`.
+Unity 6000.6.0f1, macOS Metal, original InfinityExample. No Player build.
+The final historical replay patch SHA-256 is `faf0d07550f05b4fc23d2234cf360066a828ff41e88c4843f134750c07c90759`.
+The historical snapshot plus minimal repairs received independent acceptance. Fix commit: `e4096e445c84b04ee914f1c1e235a748a0f291d7` on local main, pushed only to the original PR branch.
+
+## Original failures and repairs
+
+- NUnit rejected all four `Unverified-0.5` cases as Invalid before executing their bodies. Renaming the category to legal `Unverified_0_5` preserves the same identities and pending status. Main has 93 annotations in 30 files; no pending markers were removed.
+- Preview CameraUniform accumulated nonzero jitter after successful commits. The repaired policy gates temporal jitter for Preview/Reflection. Original native material preview also showed an external custom Mesh; scene eligibility was missing from the global custom Mesh path.
+- Full 64-bit Unity scene eligibility now passes through transactional instance metadata, CPU/GPU culling, shadow views and exact cache identity. Static metadata refresh detects scene moves without MarkDirty or Update Proxy. Default/manual MeshView retains all-scene eligibility; explicit zero still means none. Main's later local-shadow cache has a corresponding scene-mask key repair, kept out of historical S2.
+- The RP Asset Inspector displayed Unity's nested Foldout Header error around Diffusion Profiles. Replacing the outer header group with a styled Foldout in a paired vertical layout allows the array's own header. The repaired native Inspector opens the array, collapses/reopens Lighting & Shadows, and keeps Cascade Splits / Max Shadowed Local Lights / invalid-ratio help visible. Independent review found a later main-only mixed-Light caller that also requires paired Begin/End placement; it is not imported into S2.
+
+## Tests and compilation
+
+Final targeted tests: CameraFrameState10/10, MeshView5/5 (including real GPU), pending-category4/4. The preceding production candidate's full Example run was1543 discovered,1490Passed,0Failed,53Skipped. The final candidate completed1544 discovered/finished,1491Passed,0Failed,53Skipped. Callback identity coverage is complete after two reloads/resumes; raw XML contains1511 (1491Passed/0Failed/20Skipped), with33 actual checkpointed skips recovered separately. Counts are not substituted between candidates.
+
+The runner saves raw framework XML and separate callback-derived outcomes. UTF1.8.0 omits33 checkpointed skipped leaves after reload; these remain Skipped, never Passed. Cancellation, zero matches and incomplete identity evidence do not pass.
+
+Both S2 candidate static checks and diff whitespace checks pass. The four changed Mesh compute kernels passed DXC; the final helper change does not alter shader bytes. Unity compiled and opened the final replay normally. Shader warnings and intentional test/negative-control errors are separate from compile success. The first shadow observer had its own Vector3 JSON serialization error; it was corrected to scalar arrays and rerun. That diagnostic failure is not attributed to the renderer.
+
+## Behavior and frame evidence
+
+- Preview: corrected observer captured128 observations across126 distinct camera/frame pairs, all zero jitter and successful execution; native preview no longer includes the open-scene custom cube. A task-owned custom cube inside the actual PreviewScene still draws. The positive object was removed with a task-name/PreviewScene/HideAndDontSave ownership guard, not an exact-entity guard.
+- Native public BatchRendererGroup callbacks observed Preview mask1, Game/Reflection8000000000000000 and main SceneView6000000000000000. Assigned camera scene and explicit override precedence, plus SceneView fallback, were compared. PrefabStage has no acceptance claim.
+- Static custom Mesh additive-scene move: normal GPU captures show red pixels2046→0→2035 when its scene mask changes from Game to Preview-only and back, with stable instance identity. Metadata eventually synchronizes without explicit invalidation. This does not prove a next-frame latency bound.
+- Reflection: actual native baking captures six faces with Capture policy, temporal off and zero jitter. EV0/EV4 decoded HDR face buffers were finite and byte-identical (max3816, maximum error0) on the earlier category-corrected candidate; a later fixed candidate again checked six native faces/zero jitter. Compression/import failure controls remain separate. The EV0 first-import source-preservation claim was not independently pre-hashed and is not asserted.
+- GTAO off/on: actual Frame Debugger trees show no HalfRes/GTAO versus HalfRes plus five GTAO events. Mesh draws use the instanced shader and GPU compacted bindings. The Frame Debugger replay-only Metal binding warning is retained without claiming it is a normal-render root cause.
+- RTAO: task profile requests it, RP Asset ray tracing is off, no RTAO pass records and Debugger gives the disabled-asset reason.
+- Disc: Unity native culling returned only the Sun, even after the task Disc was made Realtime. The camera keeps rendering and skipped-shape counter stays0. Thus the old unconditional counter1 instruction is not satisfied as written; the playbook now distinguishes native exclusion from unsupported-record handling. No fake counter or later Disc support was backported.
+- Debug View: all ten enum modes ran four successful normal Game frames each, with native screenshots. AO/SSR/SSGI off show the magenta missing-resource indicator. Enabled AO/SSR/SSGI each ran32 successful normal frames with distinct visible output. These establish S2 mode/resource behavior, not S5/S14 algorithm quality. Normal-beauty capture correctly refused active Albedo mode and retired outstanding readbacks to0; its guard was not weakened.
+- Original automated popup interaction was unsuccessful: real pointer/keyboard events reach the actual PopupField, but no menu or value change was observed. A task-owned ordinary PopupField in the same panel also receives PointerDown and NavigationSubmit without a visible menu/ChangeEvent. The user subsequently confirmed on2026-10-20 that the actual menu opens normally and selected Albedo; independent review accepts this as user-manual interaction evidence. A resumed Editor had a different PID, no Debugger window and model None, so we do not claim observing the click or a retained Albedo value. The automated failure does not prove an Infinity mapping defect or a precise Unity root cause. Application.isFocused describes GameView focus in Editor and is not evidence that macOS Unity was inactive.
+- Shadow Distance128/8: eight successful normal frames each produce split distances[8.576,25.6,59.776,128] versus[0.536,1.6,3.736,8], with changed Unity culling spheres. Invalid ratios[.5,.2,.7] cause exactly one failed camera frame with a clear ArgumentOutOfRangeException, then seven successful recovery frames. Original RP JSON/dirty state is identical after every control. Invalid Inspector copy was never saved or assigned as the active pipeline and was destroyed afterward.
+
+## Independent review
+
+The independent verifier matched all27 listed current source hashes and final replay patch identity. Raw versus derived full-suite XML differs by exactly33 skipped leaves, with no raw-only identities or non-skip outcome changes. All1544 unique identities match the checkpoint set; the53 skips are unchanged from the category-corrected earlier run. Five added Camera/Mesh cases all passed. The verifier accepted the bounded Inspector, shadow recovery and enabled Debug View evidence, while leaving native popup, main integration and cleanup/source audit open.
+
+## State, storage and remaining gates
+
+Source assets remain in the original project. Runtime profile changes use the task Volume's clone. The original RP Asset and original SceneSetup/selection were restored before normal Editor exit and source checkout. The active lightweight APFS Library entrance remains in service; large ExFAT caches/DataStore bins were not copied. Task data remain under `intermediate/verification-0.5/20261020-run02` for final suite review, fix replay and final asset audit. S2 is bounded to512MiB; post-stage carry-over allocation is7680KiB (7.5MiB), after retiring631 consumed files and collecting explicit deliverables. No new large backup was made. Two consumed old progress logs (5615149 raw bytes) were deleted with SHA/Completed receipts; net measured allocation fell3584KiB. Final XML and cross-reload checkpoints remain for main integration/stage acceptance. Final cleanup is not complete.
+
+Historical S2 is accepted; S3 may proceed after the stage commit/push. The user-manual popup and final changed-contract review are accepted. FeatureStatus and pending markers are unchanged. S12 three-version shadow comparison, S16/S17 baselines, final HEAD acceptance and valid performance timing remain unexecuted. PR11 must remain Draft at this checkpoint.
+
+## Main integration follow-up (2026-10-20)
+
+Main candidate4 contains55changed files, frozen in main-production-candidate4-identity.json. Actual Unity compilation succeeded; Camera10/10, Mesh5/5 and LocalShadowCache10/10 all pass with complete raw and callback evidence. The main-only mixed-Light Begin/End pairing repair was exercised through the production InfinityLightEditor.OnInspectorGUI in a task native EditorWindow, with transient PreviewScene targets: mixed Point/Directional hides Shape, each single type displays its own fields, and all layout error counts are zero. This is a native host of the same production inspector, not a claim that normal Inspector selection of PreviewScene objects worked. The invalid additive-scene attempt was rejected before mutation. All task hosts, Editor objects and PreviewScenes were removed.
+
+The user restarted Unity during the interval and resumed a clean untitled scene with two default roots and Play options1; this new effective context was preserved instead of restoring old Spazon/options3. Main-post-state's RP JSON comparison against historical S2 is false because main has additional serialized fields. Original RP asset/meta byte hashes are unchanged; all13protected small inputs match the earlier baseline. No source asset save or migration was used.
+
+Cumulative main rendering still throws default Volume profile completeness from InfinityRenderPipelineResources construction; first failure retained. This is an explicit final-HEAD blocker, not a compile or Light layout failure. Independent review accepted the bounded S2 main changed contracts and historical replay. The Editor exited normally after captures/tests were idle, limiting repeated diagnostic log output.
+
+## Closure
+
+The last missing mapping control called the actual loaded S2 production entry on the exact candidate: nine cases pass, including unsupported Disc/Pyramid/Box/Tube/undefined. No native counter1 execution is claimed. Independent verifier accepted historical S2 and the main changed-contract integration. No pending markers were removed; cumulative main rendering and later S3–S17/final gates remain open.
+
+Stage cleanup deleted631 consumed files with producers stopped, reducing S2 allocation418560→7680KiB (410880KiB reclaimed). Only six named S3 inputs remain, listed in carry-over.json and PLAN.md; delete after their S3 consumer finishes. Deliberate deliverables are in the adjacent S2/ folder:28key files plus evidence-index.json (stable33skip original leaves and causal receipts) and cleanup.json. Run-root source preimages remain for the distinct final source audit. Overall cleanup is not complete.

@@ -23,7 +23,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(EInfinityLightType.Rect, 0.0f, 0.0f, LightType.Rectangle)]
         [TestCase(EInfinityLightType.Disk, 0.5f, 0.0f, LightType.Rectangle)]
         [TestCase(EInfinityLightType.Directional, 0.0f, 0.0f, LightType.Directional)]
-        [Category("Unverified_0_5")]
         public void ShapeParameters_DeriveTheNativeType(EInfinityLightType type, float radius, float length, LightType expected)
         {
             FLightShape shape = FLightShape.Default(type);
@@ -36,7 +35,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(ESpotShape.Cone, LightType.Spot)]
         [TestCase(ESpotShape.Pyramid, LightType.Pyramid)]
         [TestCase(ESpotShape.Box, LightType.Box)]
-        [Category("Unverified_0_5")]
         public void SpotShapes_DeriveTheNativeType(ESpotShape spotShape, LightType expected)
         {
             FLightShape shape = FLightShape.Default(EInfinityLightType.Spot);
@@ -45,7 +43,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void ApplyThenRead_RoundTripsEveryShape()
         {
             Light light = NewLight(LightType.Point, out GameObject go);
@@ -95,7 +92,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void AddingTheComponent_AdoptsTheNativeShape()
         {
             Light light = NewLight(LightType.Rectangle, out GameObject go);
@@ -117,7 +113,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(LightmapBakeType.Realtime)]
         [TestCase(LightmapBakeType.Mixed)]
         [TestCase(LightmapBakeType.Baked)]
-        [Category("Unverified_0_5")]
         public void ShapeEdits_PreserveNativeBakeModeThroughUndoRedo(LightmapBakeType mode)
         {
             Light light = NewLight(LightType.Point, out GameObject go);
@@ -166,7 +161,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(LightmapBakeType.Realtime)]
         [TestCase(LightmapBakeType.Mixed)]
         [TestCase(LightmapBakeType.Baked)]
-        [Category("Unverified_0_5")]
         public void AuthoredDisk_KeepsDiscBakeShapeOnNativeCarrier(LightmapBakeType mode)
         {
             Light light = NewLight(LightType.Point, out GameObject go);
@@ -202,7 +196,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [TestCase(LightmapBakeType.Realtime)]
         [TestCase(LightmapBakeType.Mixed)]
-        [Category("Unverified_0_5")]
         public void LegacyDisk_ModeOnlyEditUsesCarrierInOneUndo(LightmapBakeType mode)
         {
             Light light = NewLight(LightType.Disc, out GameObject go);
@@ -242,7 +235,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void InspectorAdoption_UndoRedoRestoresLegacyShapeWithoutChangingNativeLight()
         {
             var originalScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
@@ -298,7 +290,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void InvalidRect_IsRejected()
         {
             FLightShape shape = FLightShape.Default(EInfinityLightType.Rect);
@@ -308,7 +299,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void PyramidTangents_SpotAngleSpansTheLongerSide()
         {
             Vector2 wide = LightShapeUtility.PyramidTangents(90, 2);

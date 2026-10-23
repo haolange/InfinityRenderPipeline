@@ -1,0 +1,37 @@
+{
+  "reviewer": "independent /root/stage_verifier",
+  "acceptedSubgates": [
+    "original seam failure identity",
+    "two creator persistence root cause and8actual focused tests",
+    "owned twoProfile targetedrepair and98unchangedfiles",
+    "main full1826=1773P0F53Skip andcandidatecategory47",
+    "historical213source exact/fullUIDmatch/category47",
+    "finalfullsameUIDand45remainingcategory",
+    "57nativebindings/default15/eightstrictfixtures",
+    "unchangedS16baselines andnormal8Pass",
+    "346archive memberSHA and24losslessraw reconstructions",
+    "329declaredbackups correct/98notplanned/4smalloriginalsretained",
+    "exacttaskcleanup scope only after producerexit and consumers finish",
+    "remaining45executed category contracts eligible for29metadata-only attribute retirement;9-class recheck required",
+    "29metadata-only attributes/9files; exact old45 identities preserved and64/64cold recheck",
+    "sanitized S17 andmarker archives, allmembers/24raw/64nativecallback verified",
+    "no further Unity/render rerun required for accepted metadata-only retirement"
+  ],
+  "archiveSha256": "0cd76414657170dd2cac8bf6759dcfcdf732feaa2d79bc45b541991570deb937",
+  "archiveBytes": 1391176,
+  "rawReferences": 16,
+  "rawDeltas": 8,
+  "notAcceptedAsPass": [
+    "existing image defects",
+    "isolated GPU timing",
+    "missing fixedS1fullExample historical acceptance",
+    "Player/otherAPIs/HDR"
+  ],
+  "finalCleanupAndStagingReview": "Accepted by independent /root/stage_verifier: exact61staged blobs equal worktree, cachedcheck passes,427source hashes match, all task/intermediate roots absent, archive hashes unchanged. Authorized FixS17 commit and explicit existing PR-branch push; no remote-main push, Ready conversion or merge.",
+  "archiveHygiene": "Independent review caught credentials in unpublished startup logs; all five S17/marker logs omitted before commit; no credential payload retained. Exact test/frame/source evidence unchanged.",
+  "markerArchive": {
+    "bytes": 46103,
+    "sha256": "2b8a5e99682da9a840e6ebe007c80dbf59c261495194d805cb94adeb25d75f06"
+  },
+  "decision": "Accepted for commit and explicit PR-branch push; overall PR remains Draft."
+}

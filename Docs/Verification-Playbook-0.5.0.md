@@ -685,6 +685,18 @@ was restored; do not directly invoke that integration test on a user scene.
 
 1. Pull and let Unity reimport: no "missing script" warnings on Volume profiles, cameras or lights (the moved scripts
    keep their GUIDs). The default Volume profile and every fixture profile still show their components.
-2. Compile; run the full EditMode suite (`NativeViewMotionHistoryTests` and `ScreenSpaceDenoiseTests` read pass sources
-   from the new paths).
+2. Compile; run the full EditMode suite. `NativeViewMotionHistoryTests`, `ScreenSpaceDenoiseTests` and
+   `PipelineSeamTests` read canonical pass paths. The seam test includes Geometry/DepthPass, GBufferPass and
+   MotionPass, Lighting/ForwardPass, and Shadow/CascadeShadowPass and LocalShadowPass. Keep every file-existence
+   and forbidden-token assertion; no recursive search or old-path fallback. Check actual GUID-to-path bindings,
+   default/fixture Volume components and scene Missing Scripts. The original move preserves57script/meta pairs;
+   sixteen new folder meta and removal of Runtime/PostProcess.meta are separate from script GUID preservation.
+   LocalLights must retain two components (Fog and Cloud, both inactive), and Translucent one Fog component
+   (density0.04, height8, distance64, feature enablefalse) after disk reimport. The early creators explicitly add
+   their components as Profile subassets. Check persistent file membership, GUID/local ID and independently
+   imported asset bytes; IsSubAsset alone can return false in Unity6000.6. Existing profiles are not migrated on
+   load. Repair only explicitly owned profiles with byte backups, stable GUID/references, a byte-stable second
+   save and a separate no-op check; keep accepted image baselines unchanged.
 3. Render any fixture: identical to the S16 image (Image Regression → Run Comparison passes against S16 baselines).
+
+Final verified-marker note (2026-10-23): historical snapshots can retain `Unverified_0_5` categories. The validated main test contracts have had their executed markers retired. A zero-match category run is still a failure to select tests, never a pass; use the stage classes or exact names recorded in the stage receipts, then the full suite. Marker retirement changes metadata only and does not upgrade unrelated image/performance cells.

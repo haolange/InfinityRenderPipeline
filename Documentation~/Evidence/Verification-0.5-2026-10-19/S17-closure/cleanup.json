@@ -1,0 +1,62 @@
+{
+  "completedUtc": "2026-10-23T09:05:29.708968+00:00",
+  "removedSubtrees": [
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/InfinityRPVerification_0_5_20261020_run02",
+      "absent": true
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/ImageBaselines/Metal/Verification_0_5_20261020_run02",
+      "absent": true
+    },
+    {
+      "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02",
+      "absent": true
+    }
+  ],
+  "intermediateParentAbsent": true,
+  "knownAssetInventoryBeforeRetirement": {
+    "realAssetFiles": 417,
+    "assetPayloadBytes": 5051032,
+    "realBaselineFiles": 16,
+    "baselinePayloadBytes": 16387358
+  },
+  "observedEarlierAllocatedBytes": {
+    "taskIntermediate": 1634992128,
+    "taskAssets": 237764608,
+    "taskBaselines": 23330816
+  },
+  "aggregateRetirementCounter": "Unavailable: counters were held in memory; post-delete check incorrectly attempted to reread12intentionally retired task bake files before writing receipt. No final exact total fabricated. Directory absence,427-source audit and durable archives independently verified afterward. Earlier du observation is labelled as such, not an exact final reclaimed-byte count.",
+  "producerExit": "Own35395/38517/44209/45993 normally exited; final Spazon9clean/captures retired/tests idle. Other sessions untouched.",
+  "offlineIncludeLink": "Only S7/offline-compute-temp/irp_inc_61ph6v_2/Packages/com.infinity.render-pipeline symlink was unlinked; verified target was live repository and never traversed/deleted.",
+  "earlyDuplicateEvidence": "Existing S1\u2013S9 payloads already archived, SHA-checked then deleted;9reports and their meta preserved.",
+  "initialSourceAudit": "source-preservation.json:427inputs all present,424byteexact,3audited native/schema differences.329backups valid before retirement;98never scheduled for backup. Four small originals retained in S17 archive.",
+  "retiredTaskBakeCorrection": "Former18protected items =6user/settings +12task bake/probe files;12retired only after final acceptance.",
+  "scope": "No Library/DataStore/user log/real database/other task deletion. Active APFS/ExFAT Library arrangement remains live cache.",
+  "durableBaselines": "S16 evidence baseline/* and100fixture source files; two corrected Profile overrides in S17;24S17frame readbacks reconstruct exactly from S16 plus deltas.",
+  "archives": {
+    "EarlyStages": {
+      "bytes": 22913134,
+      "sha256": "b840f46e788b761ce13972baf83f5bd99699af2695e71efff92225d9c77aa2f2"
+    },
+    "S17": {
+      "bytes": 1391176,
+      "sha256": "0cd76414657170dd2cac8bf6759dcfcdf732feaa2d79bc45b541991570deb937"
+    }
+  },
+  "archiveHygiene": "Four unpublished full S17 startup logs replaced by source SHA/byte-count omission receipts; authentication parameters never committed or pushed. Raw/test/baseline evidence remains lossless.",
+  "finalMarkerRound": {
+    "path": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261023-marker-retirement",
+    "filesIncludingSidecars": 141,
+    "payloadBytes": 1068805,
+    "allocatedBytes": 37224448,
+    "status": "removed and absence verified",
+    "completedUtc": "2026-10-23T09:30:05.401463+00:00"
+  },
+  "finalMarkerArchive": {
+    "bytes": 46103,
+    "sha256": "2b8a5e99682da9a840e6ebe007c80dbf59c261495194d805cb94adeb25d75f06"
+  },
+  "finalIntermediateAbsent": true,
+  "postFinalMarker427SourceHashesMatch": true
+}

@@ -15,7 +15,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         };
 
         [Test]
-        [Category("Unverified_0_5")]
         public void EveryFeature_HasDescriptor()
         {
             foreach (EFrameFeature feature in Enum.GetValues(typeof(EFrameFeature)))
@@ -26,7 +25,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void FeatureWithoutRequirements_Records()
         {
             var features = new FrameFeatureSet();
@@ -39,7 +37,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void MissingShader_BlocksWithReason()
         {
             var features = new FrameFeatureSet();
@@ -51,7 +48,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void NonTemporalCamera_BlocksHistoryFeatures()
         {
             var features = new FrameFeatureSet();
@@ -65,7 +61,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void CustomSupport_ReportsItsReason()
         {
             var features = new FrameFeatureSet();

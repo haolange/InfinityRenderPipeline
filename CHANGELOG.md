@@ -92,6 +92,9 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- LocalLights and Translucent fixture generators persist their authored Volume components as Profile subassets. Independent disk-import tests retain their original disabled feature gates and parameters.
+- The geometry seam regression test reads the six canonical Geometry, Lighting and Shadow pass paths after the S17 folder move; all existence and forbidden-token assertions remain active.
+
 - Image regression now supplies valid normal-frame dimensions/ROI, preserves original scene/selection state through
   Play reload and retires only its own capture before recovery. Explicit fixture creation and scoped paths avoid
   replacing existing scenes; the four early fixture generators share native dirty-asset save protection.

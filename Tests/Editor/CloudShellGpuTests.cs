@@ -102,7 +102,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [TestCase(6360000f)]
         [TestCase(3200000f)]
-        [Category("Unverified_0_5")]
         public void CloudSegments_MatchIndependentSphereOracle_AndRespectOccluders(float radius)
         {
             if (!SystemInfo.supportsComputeShaders) Assert.Ignore("Compute shaders are required.");
@@ -166,7 +165,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void DistantOpaqueDepth_IsNotTheSkyClearValue()
         {
             if (!SystemInfo.supportsComputeShaders) Assert.Ignore("Compute shaders are required.");

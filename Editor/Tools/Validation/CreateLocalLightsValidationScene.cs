@@ -121,6 +121,9 @@ namespace InfinityTech.Rendering.Editor.Validation
             VolumetricCloud cloud = volumeProfile.Add<VolumetricCloud>(true);
             cloud.active = false;
             AssetDatabase.CreateAsset(volumeProfile, VolumeProfilePath);
+            AssetDatabase.AddObjectToAsset(fog, volumeProfile);
+            AssetDatabase.AddObjectToAsset(cloud, volumeProfile);
+            EditorUtility.SetDirty(volumeProfile);
 
             GameObject volumeGo = new GameObject("Global Volume");
             Volume volume = volumeGo.AddComponent<Volume>();

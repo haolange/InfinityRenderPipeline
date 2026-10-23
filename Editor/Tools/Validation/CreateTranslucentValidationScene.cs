@@ -96,6 +96,8 @@ namespace InfinityTech.Rendering.Editor.Validation
             fog.Height.value = 8.0f;
             fog.MaxDistance.value = 64.0f;
             AssetDatabase.CreateAsset(profile, VolumeProfilePath);
+            AssetDatabase.AddObjectToAsset(fog, profile);
+            EditorUtility.SetDirty(profile);
 
             GameObject volumeGo = new GameObject("Global Volume");
             Volume volume = volumeGo.AddComponent<Volume>();

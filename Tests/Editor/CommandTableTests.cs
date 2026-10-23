@@ -81,7 +81,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void CommittedEdit_ChangesBuildSerial()
         {
             using (var scene = new MeshScene(16))
@@ -105,7 +104,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void SwitchingMaterial_RebuildsCommands()
         {
             using (var scene = new MeshScene(16))

@@ -1,0 +1,2673 @@
+{
+  "checkedUtc": "2026-10-23T09:05:29.704562+00:00",
+  "initialInputs": 427,
+  "finalCurrentByteIdentical": 424,
+  "allInputsPresent": true,
+  "threeAuditedDifferences": [
+    "Assets/InfinityRenderPipelineGlobalSettings.asset",
+    "ProjectSettings/EditorSettings.asset",
+    "ProjectSettings/TimeManager.asset"
+  ],
+  "declaredBackups329AllValidBeforeRetirement": true,
+  "notBackedUpByDesign": 98,
+  "rows": [
+    {
+      "path": "Assets/Animation/Anim_MAT.mat",
+      "initialSha256": "71fad958c7dcb3ae25e6f80ca6f10041bfb316462aa5cdb79a2fb037527fea31",
+      "finalSha256": "71fad958c7dcb3ae25e6f80ca6f10041bfb316462aa5cdb79a2fb037527fea31",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Anim_MAT.mat.meta",
+      "initialSha256": "21ef2b06bc6b98d02d66c0086d203ba22d1794be588b00b97482b515c97e8a61",
+      "finalSha256": "21ef2b06bc6b98d02d66c0086d203ba22d1794be588b00b97482b515c97e8a61",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/MEDEA diffuse.png",
+      "initialSha256": "3df9e4b5088b9a67c1547e4920e78957876472b7b73dbe99c6a9975897fd64b8",
+      "finalSha256": "3df9e4b5088b9a67c1547e4920e78957876472b7b73dbe99c6a9975897fd64b8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/MEDEA diffuse.png.meta",
+      "initialSha256": "5bc72d70c21521ea4ab8c6c5048c72cd11a8b9cb102db6b59ed1da1368f3a2b9",
+      "finalSha256": "5bc72d70c21521ea4ab8c6c5048c72cd11a8b9cb102db6b59ed1da1368f3a2b9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/MEDEA glow.png",
+      "initialSha256": "0e110f6f5c4f215f27ee8284a666bcc1165885c09a8f6e1b5b72657ce951187c",
+      "finalSha256": "0e110f6f5c4f215f27ee8284a666bcc1165885c09a8f6e1b5b72657ce951187c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/MEDEA glow.png.meta",
+      "initialSha256": "f9deab1bf3d9408cfb6a128902e0437703f9e714e7fe58db4fbd10805c95a6af",
+      "finalSha256": "f9deab1bf3d9408cfb6a128902e0437703f9e714e7fe58db4fbd10805c95a6af",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/MEDEA specular.png",
+      "initialSha256": "994c3b6257457d8694e9e322a6e2b08087e4a9c503ce37728521ea3e5f6a4cb6",
+      "finalSha256": "994c3b6257457d8694e9e322a6e2b08087e4a9c503ce37728521ea3e5f6a4cb6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/MEDEA specular.png.meta",
+      "initialSha256": "04e225fa35b9930cd2fe7d64df49f1d0b13ee2d2c1f01471e0777fe62df7705a",
+      "finalSha256": "04e225fa35b9930cd2fe7d64df49f1d0b13ee2d2c1f01471e0777fe62df7705a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbm/MEDEA diffuse.png",
+      "initialSha256": "3df9e4b5088b9a67c1547e4920e78957876472b7b73dbe99c6a9975897fd64b8",
+      "finalSha256": "3df9e4b5088b9a67c1547e4920e78957876472b7b73dbe99c6a9975897fd64b8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbm/MEDEA diffuse.png.meta",
+      "initialSha256": "a2ababb3315fd6113cde6823d01381b42647ebc3da2224814a08b76a24182ddd",
+      "finalSha256": "a2ababb3315fd6113cde6823d01381b42647ebc3da2224814a08b76a24182ddd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbm/MEDEA glow.png",
+      "initialSha256": "0e110f6f5c4f215f27ee8284a666bcc1165885c09a8f6e1b5b72657ce951187c",
+      "finalSha256": "0e110f6f5c4f215f27ee8284a666bcc1165885c09a8f6e1b5b72657ce951187c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbm/MEDEA glow.png.meta",
+      "initialSha256": "742d175d7a85617d91144a4422d6a11608d4f46b5e25f47cf4644a2a02999f21",
+      "finalSha256": "742d175d7a85617d91144a4422d6a11608d4f46b5e25f47cf4644a2a02999f21",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbm/MEDEA specular.png",
+      "initialSha256": "994c3b6257457d8694e9e322a6e2b08087e4a9c503ce37728521ea3e5f6a4cb6",
+      "finalSha256": "994c3b6257457d8694e9e322a6e2b08087e4a9c503ce37728521ea3e5f6a4cb6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbm/MEDEA specular.png.meta",
+      "initialSha256": "32ebfdffab8b9b8f21dcaa082e7fdc59ff58be1db25e6760f7b54119aed633e9",
+      "finalSha256": "32ebfdffab8b9b8f21dcaa082e7fdc59ff58be1db25e6760f7b54119aed633e9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbm.meta",
+      "initialSha256": "742d1ac17ec9ea24e4ba433427529c49429ea61b6e93042dcc06856a871abcc9",
+      "finalSha256": "742d1ac17ec9ea24e4ba433427529c49429ea61b6e93042dcc06856a871abcc9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbx",
+      "initialSha256": "32ebb1f6d1d9ce78a9d2c0534b1b64161768b5e4e6188f12301f67f767d9c8e0",
+      "finalSha256": "32ebb1f6d1d9ce78a9d2c0534b1b64161768b5e4e6188f12301f67f767d9c8e0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation/Mesh_Anim.fbx.meta",
+      "initialSha256": "aa04aa6fb7626639f81cc4932f49f02fa7eeedbdd65060232319c07e18245114",
+      "finalSha256": "aa04aa6fb7626639f81cc4932f49f02fa7eeedbdd65060232319c07e18245114",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Animation.meta",
+      "initialSha256": "4ea16d5e1c1c3d376b2ee123661aa1573ebdb83575dfc8443c24454dae8d20a0",
+      "finalSha256": "4ea16d5e1c1c3d376b2ee123661aa1573ebdb83575dfc8443c24454dae8d20a0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Editor/ForceReimportInfinityRP.cs",
+      "initialSha256": "2b4eaddcd331ed62d5040d0f7abceac02fda01d5c2189bf149558882684fdb00",
+      "finalSha256": "2b4eaddcd331ed62d5040d0f7abceac02fda01d5c2189bf149558882684fdb00",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Editor/ForceReimportInfinityRP.cs.meta",
+      "initialSha256": "6aa6f5429becde30030f5995d4a670016ed520f2edb2707bda95c4711d130d98",
+      "finalSha256": "6aa6f5429becde30030f5995d4a670016ed520f2edb2707bda95c4711d130d98",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Editor.meta",
+      "initialSha256": "83b35bc55ff45c49f5a96a2ea5ba34b87b65163cb2cf42a29d19e5fc04bd65aa",
+      "finalSha256": "83b35bc55ff45c49f5a96a2ea5ba34b87b65163cb2cf42a29d19e5fc04bd65aa",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Data/TerrainData.asset",
+      "initialSha256": "1ff994fd2a711314e217d5afb2b92898d59b949cf6c00273dbab7a13dcc1a8a5",
+      "finalSha256": "1ff994fd2a711314e217d5afb2b92898d59b949cf6c00273dbab7a13dcc1a8a5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Data/TerrainData.asset.meta",
+      "initialSha256": "9d472025dd171d78804fc5d31a3d2ffd9247f03629bae3de5a095d5690efaeb6",
+      "finalSha256": "9d472025dd171d78804fc5d31a3d2ffd9247f03629bae3de5a095d5690efaeb6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Data.meta",
+      "initialSha256": "ee65f096c33fa5074e027382af7f42450034731b3a45fc6361b0e6f2680f1f57",
+      "finalSha256": "ee65f096c33fa5074e027382af7f42450034731b3a45fc6361b0e6f2680f1f57",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_CliffA.terrainlayer",
+      "initialSha256": "e6586ea599a5053d02c6a9fd5594ade439b78d63215acc4bf83e92716624653c",
+      "finalSha256": "e6586ea599a5053d02c6a9fd5594ade439b78d63215acc4bf83e92716624653c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_CliffA.terrainlayer.meta",
+      "initialSha256": "bbd155d12e65c406faaf805832534968ce520abb3c0f71b20505fff778f74301",
+      "finalSha256": "bbd155d12e65c406faaf805832534968ce520abb3c0f71b20505fff778f74301",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_CliffB.terrainlayer",
+      "initialSha256": "83862a3c7b178a669309fdbbf7c42ddd065e23bfe53ae262abcc4d189442406e",
+      "finalSha256": "83862a3c7b178a669309fdbbf7c42ddd065e23bfe53ae262abcc4d189442406e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_CliffB.terrainlayer.meta",
+      "initialSha256": "fa843a9b43a4c8b3d1e7f2fb341ff1555d509a54e4790dd341c6390d830bea5e",
+      "finalSha256": "fa843a9b43a4c8b3d1e7f2fb341ff1555d509a54e4790dd341c6390d830bea5e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_GrassA.terrainlayer",
+      "initialSha256": "417922d773b9106df8029364919b428b9174a62e0a9eef0129d7013149597197",
+      "finalSha256": "417922d773b9106df8029364919b428b9174a62e0a9eef0129d7013149597197",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_GrassA.terrainlayer.meta",
+      "initialSha256": "6b286e1763174c8bfbffa750a8f8eb89ce2a045bdad51fa8e63582e2f48facbd",
+      "finalSha256": "6b286e1763174c8bfbffa750a8f8eb89ce2a045bdad51fa8e63582e2f48facbd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_GrassB.terrainlayer",
+      "initialSha256": "b3b8caf2c9639208554a099d81fcc800c3d99a82687dec0be6ef19e0b4dca68c",
+      "finalSha256": "b3b8caf2c9639208554a099d81fcc800c3d99a82687dec0be6ef19e0b4dca68c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_GrassB.terrainlayer.meta",
+      "initialSha256": "76e265561fc028ebe427e72b0874156f3d64d999901eaf2ab9a3816ec45a420b",
+      "finalSha256": "76e265561fc028ebe427e72b0874156f3d64d999901eaf2ab9a3816ec45a420b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_Rock.terrainlayer",
+      "initialSha256": "d21f37f1aaa6ae5c9bafafde4b611e3aecbb47b5511300c464c79164e7871ffe",
+      "finalSha256": "d21f37f1aaa6ae5c9bafafde4b611e3aecbb47b5511300c464c79164e7871ffe",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_Rock.terrainlayer.meta",
+      "initialSha256": "dadb1afc8fd7d8e5d36f27b7a22249e45fecd9f1851bf59491b9f6a909b4724c",
+      "finalSha256": "dadb1afc8fd7d8e5d36f27b7a22249e45fecd9f1851bf59491b9f6a909b4724c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_Sand.terrainlayer",
+      "initialSha256": "f01a879565e35ce6339f9e56bb7433796c618130c9359589037a650c5e2d8bd7",
+      "finalSha256": "f01a879565e35ce6339f9e56bb7433796c618130c9359589037a650c5e2d8bd7",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer/TL_Sand.terrainlayer.meta",
+      "initialSha256": "d5ef6c54fdc30d96d64117ab35f8a98feadb07f558d89e8937cca039ca216092",
+      "finalSha256": "d5ef6c54fdc30d96d64117ab35f8a98feadb07f558d89e8937cca039ca216092",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain/Layer.meta",
+      "initialSha256": "e049c9b882e7ac0921cb58fc91840ff34e0a6ddcc89eb966e54fb17a38d7c1d7",
+      "finalSha256": "e049c9b882e7ac0921cb58fc91840ff34e0a6ddcc89eb966e54fb17a38d7c1d7",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Terrain.meta",
+      "initialSha256": "b7031a8c1cb92a00143d3b1ee1d08c0d176fec8ad47c7670f96be555964a1bfa",
+      "finalSha256": "b7031a8c1cb92a00143d3b1ee1d08c0d176fec8ad47c7670f96be555964a1bfa",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_DarkCrackyCliffs_col.TGA",
+      "initialSha256": "a3a4d5cd294b19d9cf1263dae63ae7c0575afe016cc5089c105af040c97fd281",
+      "finalSha256": "a3a4d5cd294b19d9cf1263dae63ae7c0575afe016cc5089c105af040c97fd281",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_DarkCrackyCliffs_col.TGA.meta",
+      "initialSha256": "595aece7df0d0d77d1e63993ce33695b77ab8c6a003a401255bdeb1cbcb65679",
+      "finalSha256": "595aece7df0d0d77d1e63993ce33695b77ab8c6a003a401255bdeb1cbcb65679",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_DarkCrackyCliffs_norm.TGA",
+      "initialSha256": "8942fd84b05b99c24bda2c648b0753825524edc3e50dc89108d42dd87bf53461",
+      "finalSha256": "8942fd84b05b99c24bda2c648b0753825524edc3e50dc89108d42dd87bf53461",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_DarkCrackyCliffs_norm.TGA.meta",
+      "initialSha256": "936eceb7a58280af950fd0befcf26fe3a8d304bf74a0811e9a795655255845b0",
+      "finalSha256": "936eceb7a58280af950fd0befcf26fe3a8d304bf74a0811e9a795655255845b0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_SharpCrumblingCliff_col.TGA",
+      "initialSha256": "d0caebb74dbf8bc5633e1bf73b8631fb1a87149327fff253f5416f79482b5c97",
+      "finalSha256": "d0caebb74dbf8bc5633e1bf73b8631fb1a87149327fff253f5416f79482b5c97",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_SharpCrumblingCliff_col.TGA.meta",
+      "initialSha256": "a3cf8528907912e2f35aec0fe731fdc388f917f3ad01b54417d67dc634110a03",
+      "finalSha256": "a3cf8528907912e2f35aec0fe731fdc388f917f3ad01b54417d67dc634110a03",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_SharpCrumblingCliff_norm.TGA",
+      "initialSha256": "6b5c0d0df27703e5833999d851edc132db0e8c46baa7d44980b01a8b5061ca49",
+      "finalSha256": "6b5c0d0df27703e5833999d851edc132db0e8c46baa7d44980b01a8b5061ca49",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/Rock_SharpCrumblingCliff_norm.TGA.meta",
+      "initialSha256": "1dde1f46e2000ebd6b8a8836a4321f94af78f60ed5514c5072cadd5e2a9af59d",
+      "finalSha256": "1dde1f46e2000ebd6b8a8836a4321f94af78f60ed5514c5072cadd5e2a9af59d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/gl1_ground_I_albedo.TGA",
+      "initialSha256": "435576303ed2bf060beb5ac2de1daae7c14ca38ecebf44c89a4c6fbcfaa585df",
+      "finalSha256": "435576303ed2bf060beb5ac2de1daae7c14ca38ecebf44c89a4c6fbcfaa585df",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/gl1_ground_I_albedo.TGA.meta",
+      "initialSha256": "eca13e052e9fb48243398ecbecf5d396d92db0d78fd8f951aa9f69df6e489356",
+      "finalSha256": "eca13e052e9fb48243398ecbecf5d396d92db0d78fd8f951aa9f69df6e489356",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/gl1_ground_I_normal.TGA",
+      "initialSha256": "902a82918cc199ae1cba70a8a0c1c8d3d8aa61b640dfe876d3c05c2c75223a69",
+      "finalSha256": "902a82918cc199ae1cba70a8a0c1c8d3d8aa61b640dfe876d3c05c2c75223a69",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/gl1_ground_I_normal.TGA.meta",
+      "initialSha256": "a79259e14ec93a4eea963bffaf3f372e728159f638841bd339726450869f255a",
+      "finalSha256": "a79259e14ec93a4eea963bffaf3f372e728159f638841bd339726450869f255a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/ground_desertSandSmallDunes_col.TGA",
+      "initialSha256": "1d6b9aa0bdfdd197a65485e6b23508c48e38c27f50416123e63731078c9982c3",
+      "finalSha256": "1d6b9aa0bdfdd197a65485e6b23508c48e38c27f50416123e63731078c9982c3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/ground_desertSandSmallDunes_col.TGA.meta",
+      "initialSha256": "3d4ca36dc4ec498996ee7aaf8cbf2270a487fd9b26baad5c1e54488fc57adabc",
+      "finalSha256": "3d4ca36dc4ec498996ee7aaf8cbf2270a487fd9b26baad5c1e54488fc57adabc",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/ground_desertSandSmallDunes_norm.TGA",
+      "initialSha256": "64c5ae7eb959877fda09cff50b5541aa3b63ab251b354617e0dcdcacc2b5c531",
+      "finalSha256": "64c5ae7eb959877fda09cff50b5541aa3b63ab251b354617e0dcdcacc2b5c531",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/ground_desertSandSmallDunes_norm.TGA.meta",
+      "initialSha256": "39376956791a170c0799fb92ab3f7cc2125eb5d94c3451e480503d15a67334c7",
+      "finalSha256": "39376956791a170c0799fb92ab3f7cc2125eb5d94c3451e480503d15a67334c7",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/pcciV_4K_Albedo.jpg",
+      "initialSha256": "a9c2f91590f6165df4375927b2b6dee89dfccf8f5b6201ac36a5984b9cc85ab5",
+      "finalSha256": "a9c2f91590f6165df4375927b2b6dee89dfccf8f5b6201ac36a5984b9cc85ab5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/pcciV_4K_Albedo.jpg.meta",
+      "initialSha256": "6842de790bd71d9786285951f3b6a6100aeac140de0ddc370a2aea919af42e17",
+      "finalSha256": "6842de790bd71d9786285951f3b6a6100aeac140de0ddc370a2aea919af42e17",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/pcciV_4K_Normal.jpg",
+      "initialSha256": "d86753d63bcf68e08d55c6c05ef67a8fa05c64114a9ebb2a2bce2074df807907",
+      "finalSha256": "d86753d63bcf68e08d55c6c05ef67a8fa05c64114a9ebb2a2bce2074df807907",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/pcciV_4K_Normal.jpg.meta",
+      "initialSha256": "8179403a4a6d4994c706143a3859bf70207eef44ce39c30b5aebd16957fc4b8d",
+      "finalSha256": "8179403a4a6d4994c706143a3859bf70207eef44ce39c30b5aebd16957fc4b8d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/uebmddyn_8K_Albedo.jpg",
+      "initialSha256": "7220b729741f1b2e2d13f7842105983813053fdd8efc513581ea0c1781a263f0",
+      "finalSha256": "7220b729741f1b2e2d13f7842105983813053fdd8efc513581ea0c1781a263f0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/uebmddyn_8K_Albedo.jpg.meta",
+      "initialSha256": "e0c6772c8e36af25414421c744c14566361b4499986eec22d261c527c16bd168",
+      "finalSha256": "e0c6772c8e36af25414421c744c14566361b4499986eec22d261c527c16bd168",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/uebmddyn_8K_Normal.jpg",
+      "initialSha256": "fa4d12594617bc96cc23841a10abe88a2d69913a856b320d71459f9e2c25e010",
+      "finalSha256": "fa4d12594617bc96cc23841a10abe88a2d69913a856b320d71459f9e2c25e010",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture/uebmddyn_8K_Normal.jpg.meta",
+      "initialSha256": "b5beaa66accb3569bf49f22ca45631f15618eb7fe168329250e63b0659433908",
+      "finalSha256": "b5beaa66accb3569bf49f22ca45631f15618eb7fe168329250e63b0659433908",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment/Texture.meta",
+      "initialSha256": "bc996b30742b2a63f7d549612adab476b13e36e81ce33400e27be998effe2b36",
+      "finalSha256": "bc996b30742b2a63f7d549612adab476b13e36e81ce33400e27be998effe2b36",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Environment.meta",
+      "initialSha256": "e946336718b9aed7c4e83f9f32db663b360a0729a01622d62a2192c3e738fd3b",
+      "finalSha256": "e946336718b9aed7c4e83f9f32db663b360a0729a01622d62a2192c3e738fd3b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/InfinityRenderPipelineGlobalSettings.asset",
+      "initialSha256": "cabd163193f185a27d3564ea735abcbaee81de103a49fdbf7dcbcb818be7ab3f",
+      "finalSha256": "f22a4f11ea234524a61a7a2eb812cb4475dacd1ecbfdc4fa092056d329553a9a",
+      "sameBytes": false
+    },
+    {
+      "path": "Assets/InfinityRenderPipelineGlobalSettings.asset.meta",
+      "initialSha256": "09677976e5af1df19fa63616630ee2236159ea8f543cae07c74e93dbe12bbf38",
+      "finalSha256": "09677976e5af1df19fa63616630ee2236159ea8f543cae07c74e93dbe12bbf38",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_Black.mat",
+      "initialSha256": "7560cd45ea18521301c04d4579eb59ffc24b016ffd23f79e4d4826b28f250fe2",
+      "finalSha256": "7560cd45ea18521301c04d4579eb59ffc24b016ffd23f79e4d4826b28f250fe2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_Black.mat.meta",
+      "initialSha256": "e3799887c1751dd35a2a3777e7a60423ebf300b672cf75daa123c5f91da2bf5f",
+      "finalSha256": "e3799887c1751dd35a2a3777e7a60423ebf300b672cf75daa123c5f91da2bf5f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxA.mat",
+      "initialSha256": "a9715be8c8e8bd8760733b7527d7b6d2b0f84dd134039741a48c1644d4040f98",
+      "finalSha256": "a9715be8c8e8bd8760733b7527d7b6d2b0f84dd134039741a48c1644d4040f98",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxA.mat.meta",
+      "initialSha256": "ea84774032c1a5d014a273cb826031f9b2de9dc849249087f79323c2eb4bb7e0",
+      "finalSha256": "ea84774032c1a5d014a273cb826031f9b2de9dc849249087f79323c2eb4bb7e0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxA_Instance.mat",
+      "initialSha256": "9a3e8daa62ffc57bbec8313466f21b603a70081f83cc3bf4a5629efdffcd2f39",
+      "finalSha256": "9a3e8daa62ffc57bbec8313466f21b603a70081f83cc3bf4a5629efdffcd2f39",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxA_Instance.mat.meta",
+      "initialSha256": "8b7170b8a7a140eeeb9e0f697238585fe0cff58c0513d56aa0ac0209d5812404",
+      "finalSha256": "8b7170b8a7a140eeeb9e0f697238585fe0cff58c0513d56aa0ac0209d5812404",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxB.mat",
+      "initialSha256": "02a9c048b9677191c0bb176325b0e00048f7c3b3d13e94cc56b892ef1db71934",
+      "finalSha256": "02a9c048b9677191c0bb176325b0e00048f7c3b3d13e94cc56b892ef1db71934",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxB.mat.meta",
+      "initialSha256": "d6816e373d0219705c18e9d3dc69877dfaeb911aee628dac9baaff4f67b0e022",
+      "finalSha256": "d6816e373d0219705c18e9d3dc69877dfaeb911aee628dac9baaff4f67b0e022",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxB_Instance.mat",
+      "initialSha256": "cea58a61a4ac4a19d4eb58f36d21c8be8a420deaf851e0a7cb9010659674cf47",
+      "finalSha256": "cea58a61a4ac4a19d4eb58f36d21c8be8a420deaf851e0a7cb9010659674cf47",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxB_Instance.mat.meta",
+      "initialSha256": "e43a4474f0911fe2748e5099e61c6c330b8ea4e2f677ae26b4b214620754e37b",
+      "finalSha256": "e43a4474f0911fe2748e5099e61c6c330b8ea4e2f677ae26b4b214620754e37b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxC.mat",
+      "initialSha256": "68533dc5740cb1783cd679b38ab9c48f26e7d6cd51273e5a6aeb294134c782b5",
+      "finalSha256": "68533dc5740cb1783cd679b38ab9c48f26e7d6cd51273e5a6aeb294134c782b5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxC.mat.meta",
+      "initialSha256": "81b6d6ef33bbfb619d064f996ea338d0a040adc30a9b45e0f900cd4e6b3b8742",
+      "finalSha256": "81b6d6ef33bbfb619d064f996ea338d0a040adc30a9b45e0f900cd4e6b3b8742",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxC_Instance.mat",
+      "initialSha256": "194397fc3e65af396da21b4011c78b69e79e64a24291d30ecb98c89aa705fb01",
+      "finalSha256": "194397fc3e65af396da21b4011c78b69e79e64a24291d30ecb98c89aa705fb01",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_BoxC_Instance.mat.meta",
+      "initialSha256": "5c0a7f0b08308417e002c935fdf7aed1a84247512c0c11b66eba5b5c05ce78dc",
+      "finalSha256": "5c0a7f0b08308417e002c935fdf7aed1a84247512c0c11b66eba5b5c05ce78dc",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_MaskA.mat",
+      "initialSha256": "8f0c95eae3e01ffcbcd9835ebc5093cfede1c262550e5767340506d8fdb600e9",
+      "finalSha256": "8f0c95eae3e01ffcbcd9835ebc5093cfede1c262550e5767340506d8fdb600e9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_MaskA.mat.meta",
+      "initialSha256": "ffde88a56097f2ac2f7f3cd256e5644484d87ba3469cb434e26e152eff7a0f9c",
+      "finalSha256": "ffde88a56097f2ac2f7f3cd256e5644484d87ba3469cb434e26e152eff7a0f9c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_MaskB.mat",
+      "initialSha256": "17d021698fbefa886bc0371fa6d8a50c178f8c9fa6b94d71f485ad64fb783ba4",
+      "finalSha256": "17d021698fbefa886bc0371fa6d8a50c178f8c9fa6b94d71f485ad64fb783ba4",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/M_MaskB.mat.meta",
+      "initialSha256": "a08509f40d41d5ccde2c926d746aefbe3042e42810476c185da1be8fed183872",
+      "finalSha256": "a08509f40d41d5ccde2c926d746aefbe3042e42810476c185da1be8fed183872",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/SkyBox.mat",
+      "initialSha256": "c73af7285c2464b325566419f7fe93e8f0b31afac5efb7cd30646f2df95ca1e8",
+      "finalSha256": "c73af7285c2464b325566419f7fe93e8f0b31afac5efb7cd30646f2df95ca1e8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/SkyBox.mat.meta",
+      "initialSha256": "cb1e6ce366e12714385fc95e2c052e038d860e2b55895f5448d656a3016f2505",
+      "finalSha256": "cb1e6ce366e12714385fc95e2c052e038d860e2b55895f5448d656a3016f2505",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Arch.mat",
+      "initialSha256": "f492762cb7e3251c3a507cb067099c5dbcc5267e46853225fb946efcce625ba7",
+      "finalSha256": "f492762cb7e3251c3a507cb067099c5dbcc5267e46853225fb946efcce625ba7",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Arch.mat.meta",
+      "initialSha256": "088ff1e81862fda76a22321a6cf91963a9412451f438ad137e49ff2d2fa4d13b",
+      "finalSha256": "088ff1e81862fda76a22321a6cf91963a9412451f438ad137e49ff2d2fa4d13b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Brick1.mat",
+      "initialSha256": "3125c61ad0d7a9d0099f305908ab6776a8bbfc1b0e2c725ecb7228297f6693d1",
+      "finalSha256": "3125c61ad0d7a9d0099f305908ab6776a8bbfc1b0e2c725ecb7228297f6693d1",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Brick1.mat.meta",
+      "initialSha256": "f717ad32bb4ce567d82972656a348e43999aa86507ed857fce3ddcb27b2fe6f4",
+      "finalSha256": "f717ad32bb4ce567d82972656a348e43999aa86507ed857fce3ddcb27b2fe6f4",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Ceilling.mat",
+      "initialSha256": "30f6654c9381ac3450ee11feef59f4ff38c4703ec783ef260bf6a5352958fc5a",
+      "finalSha256": "30f6654c9381ac3450ee11feef59f4ff38c4703ec783ef260bf6a5352958fc5a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Ceilling.mat.meta",
+      "initialSha256": "ca85bf94fd5f6c782c0a2db3f8b0f4153b281f38fd8a3e5ac97ddc2082d1d6fd",
+      "finalSha256": "ca85bf94fd5f6c782c0a2db3f8b0f4153b281f38fd8a3e5ac97ddc2082d1d6fd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Column1.mat",
+      "initialSha256": "9e47505f9ca0c73eca29748ca5c8298cf7ac46b8f8fcb7222defe871ebf40644",
+      "finalSha256": "9e47505f9ca0c73eca29748ca5c8298cf7ac46b8f8fcb7222defe871ebf40644",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Column1.mat.meta",
+      "initialSha256": "221ab2fed8d6f8cf144d589f24d4de4c7ddc8f8e3e20ea1886971f6d0f8776ec",
+      "finalSha256": "221ab2fed8d6f8cf144d589f24d4de4c7ddc8f8e3e20ea1886971f6d0f8776ec",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Column2.mat",
+      "initialSha256": "ccb1a37d868caa29dbb1a915ba3e2b66bab08edb2c23dd9d7960385da1d3c263",
+      "finalSha256": "ccb1a37d868caa29dbb1a915ba3e2b66bab08edb2c23dd9d7960385da1d3c263",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Column2.mat.meta",
+      "initialSha256": "ba5a612b2a83e53509184f5cdb66feeb7b2892f7d0819aba663bc05d8ab26a8b",
+      "finalSha256": "ba5a612b2a83e53509184f5cdb66feeb7b2892f7d0819aba663bc05d8ab26a8b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Column3.mat",
+      "initialSha256": "17e0c79eeaf25c0f562a79ab463cc0a3927b78ab3e3eed11d2129e5df6dd643d",
+      "finalSha256": "17e0c79eeaf25c0f562a79ab463cc0a3927b78ab3e3eed11d2129e5df6dd643d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Column3.mat.meta",
+      "initialSha256": "d3828c68ca8ade1c40d0e21963519250dbe524d12cba1e2db87e3b176e355780",
+      "finalSha256": "d3828c68ca8ade1c40d0e21963519250dbe524d12cba1e2db87e3b176e355780",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick1.mat",
+      "initialSha256": "e87ae8b4751f7d7903574ab6b5d989e9c0e4d027f86e49347b10ad148aa21453",
+      "finalSha256": "e87ae8b4751f7d7903574ab6b5d989e9c0e4d027f86e49347b10ad148aa21453",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick1.mat.meta",
+      "initialSha256": "f95f2812b00e9f0b13a7ef3a6f7cedf85a09b5730b19f27f2504e737c8ce1c2f",
+      "finalSha256": "f95f2812b00e9f0b13a7ef3a6f7cedf85a09b5730b19f27f2504e737c8ce1c2f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick2.mat",
+      "initialSha256": "f7b39c57927605dd07b3626d89bf026bed25ffafb608cfb6f8393b2181c5adfa",
+      "finalSha256": "f7b39c57927605dd07b3626d89bf026bed25ffafb608cfb6f8393b2181c5adfa",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick2.mat.meta",
+      "initialSha256": "6b1e9d45081e75bd126e36538137b19a5c41790ce278505c373a7ea8faa457f9",
+      "finalSha256": "6b1e9d45081e75bd126e36538137b19a5c41790ce278505c373a7ea8faa457f9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick3.mat",
+      "initialSha256": "72a75699edfeb92846ae9804d270f43fa5e6cc0e2da58522c0912e78198d0b4f",
+      "finalSha256": "72a75699edfeb92846ae9804d270f43fa5e6cc0e2da58522c0912e78198d0b4f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick3.mat.meta",
+      "initialSha256": "3d3e0ca724122e55fc76851c5ae0b86d715f8e6f164b7a607f018d60c4c639aa",
+      "finalSha256": "3d3e0ca724122e55fc76851c5ae0b86d715f8e6f164b7a607f018d60c4c639aa",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick4.mat",
+      "initialSha256": "b78774d514c85d4ad0befe6a6095727141424d53c4a10fc6318895d6ad89f020",
+      "finalSha256": "b78774d514c85d4ad0befe6a6095727141424d53c4a10fc6318895d6ad89f020",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick4.mat.meta",
+      "initialSha256": "4ba6a8754333eb11c07a3dbcfe9b517a148732a90fb791058b727bcf7c8993aa",
+      "finalSha256": "4ba6a8754333eb11c07a3dbcfe9b517a148732a90fb791058b727bcf7c8993aa",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick5.mat",
+      "initialSha256": "1f8b1c28d8f79efc5b43e4468a451751accc8ebf41079aeba54749ebc4b23aa0",
+      "finalSha256": "1f8b1c28d8f79efc5b43e4468a451751accc8ebf41079aeba54749ebc4b23aa0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick5.mat.meta",
+      "initialSha256": "3c29faf179479af7f3780bdb30549f00b3ff0fc3fb17ad91f3c1f97e7ebf91b4",
+      "finalSha256": "3c29faf179479af7f3780bdb30549f00b3ff0fc3fb17ad91f3c1f97e7ebf91b4",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick6.mat",
+      "initialSha256": "3acf2a2e95cb694c9bb1303f367d9e37f9c6fb6d53a4eb4e6d05c7a10993a27d",
+      "finalSha256": "3acf2a2e95cb694c9bb1303f367d9e37f9c6fb6d53a4eb4e6d05c7a10993a27d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Fabrick6.mat.meta",
+      "initialSha256": "81321c2ed91143c9ffae9c84e4cb3facc01c16e1894ba5b0f70cb00aacfc18c2",
+      "finalSha256": "81321c2ed91143c9ffae9c84e4cb3facc01c16e1894ba5b0f70cb00aacfc18c2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Flagpole.mat",
+      "initialSha256": "7723891a7117cd34bc2bf7b30e8248317ab5f42e548a5e3d023ada36641efb81",
+      "finalSha256": "7723891a7117cd34bc2bf7b30e8248317ab5f42e548a5e3d023ada36641efb81",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Flagpole.mat.meta",
+      "initialSha256": "1451051feb5ff01ff0b3900378aa0f60a90b6dabf6a1457a86798c721410ab6a",
+      "finalSha256": "1451051feb5ff01ff0b3900378aa0f60a90b6dabf6a1457a86798c721410ab6a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Floor.mat",
+      "initialSha256": "9c466bdf0caedc56c69b0794fc3f4bba69b9e5701c6cbad4d76f8ec7a62c6cbe",
+      "finalSha256": "9c466bdf0caedc56c69b0794fc3f4bba69b9e5701c6cbad4d76f8ec7a62c6cbe",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Floor.mat.meta",
+      "initialSha256": "b5e0d64445dd67fc81da60dd22ad787c4c269795bd2982580a07ad34a0a89348",
+      "finalSha256": "b5e0d64445dd67fc81da60dd22ad787c4c269795bd2982580a07ad34a0a89348",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Lion1.mat",
+      "initialSha256": "bcb15388e74c4d64cb6e53f538469c1c3f97c43f0f2d66b9c08f572fdd870479",
+      "finalSha256": "bcb15388e74c4d64cb6e53f538469c1c3f97c43f0f2d66b9c08f572fdd870479",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Lion1.mat.meta",
+      "initialSha256": "da27a1de5a780069f431c7cfa45d47f25d9dd2f68478cb3db3d3032708d1c91e",
+      "finalSha256": "da27a1de5a780069f431c7cfa45d47f25d9dd2f68478cb3db3d3032708d1c91e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Lion2.mat",
+      "initialSha256": "34dd924cda9bf3e5905ec79fe946c86a828cc09188921518e03b2e6ee1badf12",
+      "finalSha256": "34dd924cda9bf3e5905ec79fe946c86a828cc09188921518e03b2e6ee1badf12",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Lion2.mat.meta",
+      "initialSha256": "ecd2a79cdf44547226614388e73e756d7e7470bf3f146e9dfce2c4efdd09e68d",
+      "finalSha256": "ecd2a79cdf44547226614388e73e756d7e7470bf3f146e9dfce2c4efdd09e68d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Roof.mat",
+      "initialSha256": "0afac5a31c2a8b030bf68ee81ad6433e49db5f85d852c42ae0c5dc087853e24b",
+      "finalSha256": "0afac5a31c2a8b030bf68ee81ad6433e49db5f85d852c42ae0c5dc087853e24b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Roof.mat.meta",
+      "initialSha256": "403e1eec737eaaa4afa4525fb715f4b34650a342a95ee1d075f41941764d8bb0",
+      "finalSha256": "403e1eec737eaaa4afa4525fb715f4b34650a342a95ee1d075f41941764d8bb0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Vase.mat",
+      "initialSha256": "b5a56f564bb4f9432d37b2a5ec37dacabc4987cc38d411ceca701a589691295d",
+      "finalSha256": "b5a56f564bb4f9432d37b2a5ec37dacabc4987cc38d411ceca701a589691295d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Vase.mat.meta",
+      "initialSha256": "6d604d77205dd7117345195f2a21f87e4758c3a17a020c30fddc70dba8f5f364",
+      "finalSha256": "6d604d77205dd7117345195f2a21f87e4758c3a17a020c30fddc70dba8f5f364",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Window.mat",
+      "initialSha256": "e1b2e585015e0215941d184850ee342d1e350390ead281008c386d2a66258574",
+      "finalSha256": "e1b2e585015e0215941d184850ee342d1e350390ead281008c386d2a66258574",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon/M_Spazon_Window.mat.meta",
+      "initialSha256": "59bab0819ac627ef6bf6eb5a377960773718bb30e7854ee225548c0dbe351d84",
+      "finalSha256": "59bab0819ac627ef6bf6eb5a377960773718bb30e7854ee225548c0dbe351d84",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/Spazon.meta",
+      "initialSha256": "54670f1e7f699aada274ce92c2d56031510c442dbc802019d9c1fc191da42ddc",
+      "finalSha256": "54670f1e7f699aada274ce92c2d56031510c442dbc802019d9c1fc191da42ddc",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/TerrainLit.mat",
+      "initialSha256": "8990eb77a2ecc610cdb5e212b32b7716ce95147a042fc39fe61eb27959f2697f",
+      "finalSha256": "8990eb77a2ecc610cdb5e212b32b7716ce95147a042fc39fe61eb27959f2697f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material/TerrainLit.mat.meta",
+      "initialSha256": "8dc8e495320e83cd5d8a4b9ba2f49befcf2c27f06cd17fec71bbb2cffba558c3",
+      "finalSha256": "8dc8e495320e83cd5d8a4b9ba2f49befcf2c27f06cd17fec71bbb2cffba558c3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Material.meta",
+      "initialSha256": "f154a266388cafcec468e094ab8523b1eab7f4b8982693ac93f9d7ea913955f8",
+      "finalSha256": "f154a266388cafcec468e094ab8523b1eab7f4b8982693ac93f9d7ea913955f8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Meshe/Spazon/SM_Spazon.fbx",
+      "initialSha256": "d7cd92a56c485327ad6983d533fb2dacb4c76f7f4c0c91516dd4732debc86202",
+      "finalSha256": "d7cd92a56c485327ad6983d533fb2dacb4c76f7f4c0c91516dd4732debc86202",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Meshe/Spazon/SM_Spazon.fbx.meta",
+      "initialSha256": "5794cb52664a6f1be0b19357bb3999cc9892458a91649fc3e6577ec078fc317b",
+      "finalSha256": "5794cb52664a6f1be0b19357bb3999cc9892458a91649fc3e6577ec078fc317b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Meshe/Spazon.meta",
+      "initialSha256": "636779a96eeffe307a1918c6d8cb8bbaddb26113882dccbbb912fdcddd89b94f",
+      "finalSha256": "636779a96eeffe307a1918c6d8cb8bbaddb26113882dccbbb912fdcddd89b94f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Meshe.meta",
+      "initialSha256": "4ec1fdd551923cbf50ab117fa68b24d7ef65bcbc1754013c3aec3be983c8ef4c",
+      "finalSha256": "4ec1fdd551923cbf50ab117fa68b24d7ef65bcbc1754013c3aec3be983c8ef4c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/HybridRenderer/MeshGroup_64000-1.prefab",
+      "initialSha256": "000a1a26419dfe31efea1d926ebb6cd65c22ddd55342a13610275025b019ccd1",
+      "finalSha256": "000a1a26419dfe31efea1d926ebb6cd65c22ddd55342a13610275025b019ccd1",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/HybridRenderer/MeshGroup_64000-1.prefab.meta",
+      "initialSha256": "fd1353c7fa1ea7274a1f6591ea4582802179879045a7399b8fc06c66c214e2da",
+      "finalSha256": "fd1353c7fa1ea7274a1f6591ea4582802179879045a7399b8fc06c66c214e2da",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/HybridRenderer.meta",
+      "initialSha256": "e915fcdcbcda247780ad799fd68575d74e507b68e503ccd71e7369a6cdca678f",
+      "finalSha256": "e915fcdcbcda247780ad799fd68575d74e507b68e503ccd71e7369a6cdca678f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/MeshPipeline/MeshGroup_64000-1.prefab",
+      "initialSha256": "1410158630d8d3564830c79b66a0d5502a631fd90e944d7668f353db1e95c11c",
+      "finalSha256": "1410158630d8d3564830c79b66a0d5502a631fd90e944d7668f353db1e95c11c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/MeshPipeline/MeshGroup_64000-1.prefab.meta",
+      "initialSha256": "1cd5a44a2ab97cbe841c1d38ea17625245cdb81f146de16e524516a3217973b9",
+      "finalSha256": "1cd5a44a2ab97cbe841c1d38ea17625245cdb81f146de16e524516a3217973b9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/MeshPipeline.meta",
+      "initialSha256": "e7102d90e4dde0e9c96978c07daf9ad6a506ef73df6e046f670bc61711ef8f6a",
+      "finalSha256": "e7102d90e4dde0e9c96978c07daf9ad6a506ef73df6e046f670bc61711ef8f6a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/SRPBatcher/MeshGroup_64000-1.prefab",
+      "initialSha256": "a9b64bfb9072e73b892d71a41cc6fd3685757ae9e6d702b77cee5fa128975fc3",
+      "finalSha256": "a9b64bfb9072e73b892d71a41cc6fd3685757ae9e6d702b77cee5fa128975fc3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/SRPBatcher/MeshGroup_64000-1.prefab.meta",
+      "initialSha256": "6b7c5f4aa9026ed16a06a05f9af36fd00c58054ffd2918151d5f2ce3af048ad2",
+      "finalSha256": "6b7c5f4aa9026ed16a06a05f9af36fd00c58054ffd2918151d5f2ce3af048ad2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab/SRPBatcher.meta",
+      "initialSha256": "da16f5110844687bf8290c4214edc827d49004c2f620525806a5859788d7635c",
+      "finalSha256": "da16f5110844687bf8290c4214edc827d49004c2f620525806a5859788d7635c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Prefab.meta",
+      "initialSha256": "0d8147c198d5df24681b54f53920fad6b56a8f3dcb3da3c80dc9602e324f21d7",
+      "finalSha256": "0d8147c198d5df24681b54f53920fad6b56a8f3dcb3da3c80dc9602e324f21d7",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/AtmosphericalProfile.asset",
+      "initialSha256": "c39b95596d4f6c385e583c54c37fa28dc4865b4aa35201ef17a0c1dfc67daa04",
+      "finalSha256": "c39b95596d4f6c385e583c54c37fa28dc4865b4aa35201ef17a0c1dfc67daa04",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/AtmosphericalProfile.asset.meta",
+      "initialSha256": "9c7cdd3ff5bac36c96943dccf6f8222541fad2a05cbac8458831fe65ecd00167",
+      "finalSha256": "9c7cdd3ff5bac36c96943dccf6f8222541fad2a05cbac8458831fe65ecd00167",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/Lighting Settings.lighting",
+      "initialSha256": "52ee35bae596b0d7f8b8476a428a89564620fd464ba3c335d839a75a2c4cf8cc",
+      "finalSha256": "52ee35bae596b0d7f8b8476a428a89564620fd464ba3c335d839a75a2c4cf8cc",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/Lighting Settings.lighting.meta",
+      "initialSha256": "2a2860c9551c9b38b0b16520790d2694e3ce85683bd2384fd593ff70d29164b9",
+      "finalSha256": "2a2860c9551c9b38b0b16520790d2694e3ce85683bd2384fd593ff70d29164b9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/PostProcessProfile.asset",
+      "initialSha256": "833e1182ea088f84af2adb2c04b902e02475b96a97855f5525263225144dba94",
+      "finalSha256": "833e1182ea088f84af2adb2c04b902e02475b96a97855f5525263225144dba94",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/PostProcessProfile.asset.meta",
+      "initialSha256": "1d14ebf45bedeef15834106e04c96129856ebc58fda849671525478b4c6d8d08",
+      "finalSha256": "1d14ebf45bedeef15834106e04c96129856ebc58fda849671525478b4c6d8d08",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/RenderPipelineAsset.asset",
+      "initialSha256": "577ebef1c7bb531d873233c554168b434cdf9745788982481ccfd972e6b8d840",
+      "finalSha256": "577ebef1c7bb531d873233c554168b434cdf9745788982481ccfd972e6b8d840",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/RenderPipelineAsset.asset.meta",
+      "initialSha256": "2ff0ee0832de581f12264fa4b8d298a69d5f4d705b14186be3154b768e679935",
+      "finalSha256": "2ff0ee0832de581f12264fa4b8d298a69d5f4d705b14186be3154b768e679935",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/ShaderVariants.shadervariants",
+      "initialSha256": "246f4923097f1eddf6c5c52f22fc90495a0acdf421016794e25df53be53a4ebd",
+      "finalSha256": "246f4923097f1eddf6c5c52f22fc90495a0acdf421016794e25df53be53a4ebd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile/ShaderVariants.shadervariants.meta",
+      "initialSha256": "d9641f093e3f3aef5b1d99d975f40547ba441831f852967f627c85f6aae97ae9",
+      "finalSha256": "d9641f093e3f3aef5b1d99d975f40547ba441831f852967f627c85f6aae97ae9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Profile.meta",
+      "initialSha256": "f652261e1d60e3d47e99dbc4061c9388f900f308cfcc3078dcb2129b652ae54a",
+      "finalSha256": "f652261e1d60e3d47e99dbc4061c9388f900f308cfcc3078dcb2129b652ae54a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/BoxMatrix/BoxMatix_HybridRenderer.unity",
+      "initialSha256": "5139e9bf87347b4e1f43caf123056051c216824c2e3bb5d8ced67439fdc220f0",
+      "finalSha256": "5139e9bf87347b4e1f43caf123056051c216824c2e3bb5d8ced67439fdc220f0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/BoxMatrix/BoxMatix_HybridRenderer.unity.meta",
+      "initialSha256": "5217130964e5e477d300ef9801cd1d8b96e3b95b66e4dad258ace9f129a86c84",
+      "finalSha256": "5217130964e5e477d300ef9801cd1d8b96e3b95b66e4dad258ace9f129a86c84",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/BoxMatrix/BoxMatix_MeshPipeline.unity",
+      "initialSha256": "7f9f0be8ad3ef3fe42474cb92e486ce6cbd9c7326530c3cecff429503bbc92d5",
+      "finalSha256": "7f9f0be8ad3ef3fe42474cb92e486ce6cbd9c7326530c3cecff429503bbc92d5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/BoxMatrix/BoxMatix_MeshPipeline.unity.meta",
+      "initialSha256": "97480b02e5f2e8cd666883f3616c95b70f8a916c44a4160b36d647814bb6eef8",
+      "finalSha256": "97480b02e5f2e8cd666883f3616c95b70f8a916c44a4160b36d647814bb6eef8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/BoxMatrix/BoxMatix_SRPBatcher.unity",
+      "initialSha256": "3f15fff3d6a4de79dc54b85ba650507cc519ea111da170d6b9ddebeb6ea45126",
+      "finalSha256": "3f15fff3d6a4de79dc54b85ba650507cc519ea111da170d6b9ddebeb6ea45126",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/BoxMatrix/BoxMatix_SRPBatcher.unity.meta",
+      "initialSha256": "41f11d1b159b3c44fe1afd9bca2c1e9b35937981cbb9714f84f6719fb906ce77",
+      "finalSha256": "41f11d1b159b3c44fe1afd9bca2c1e9b35937981cbb9714f84f6719fb906ce77",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/BoxMatrix.meta",
+      "initialSha256": "118763b7d630e0be5bd7d9db5df9230b35bf5701c13be33870c7a2a31ed56e10",
+      "finalSha256": "118763b7d630e0be5bd7d9db5df9230b35bf5701c13be33870c7a2a31ed56e10",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Landscape/Scene_Landscape.unity",
+      "initialSha256": "1b94bde91f5679f2bd367c683fbdb322677d0377c25d28b544842dac5fa6c627",
+      "finalSha256": "1b94bde91f5679f2bd367c683fbdb322677d0377c25d28b544842dac5fa6c627",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Landscape/Scene_Landscape.unity.meta",
+      "initialSha256": "b77f307afd9ad2c1b53ed1062c1752120a5b26593309de4c3389ac768b2feb60",
+      "finalSha256": "b77f307afd9ad2c1b53ed1062c1752120a5b26593309de4c3389ac768b2feb60",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Landscape.meta",
+      "initialSha256": "66dd7e2cb7e49f3f5d3dffa176edc5343ecca8d576d855fa34797bff1b9fbbb6",
+      "finalSha256": "66dd7e2cb7e49f3f5d3dffa176edc5343ecca8d576d855fa34797bff1b9fbbb6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/LightingData.asset",
+      "initialSha256": "36f71cd8e86242fefea0374d40e7db294b512ae9da8df1a758776b5995b6d81a",
+      "finalSha256": "36f71cd8e86242fefea0374d40e7db294b512ae9da8df1a758776b5995b6d81a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/LightingData.asset.meta",
+      "initialSha256": "87c2c8f431fbfcb8c0c17914f60df0f68e7d2f67ccac8ed4d294d0a5b303d6bf",
+      "finalSha256": "87c2c8f431fbfcb8c0c17914f60df0f68e7d2f67ccac8ed4d294d0a5b303d6bf",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-0_comp_dir.png",
+      "initialSha256": "6351df2cf7505347af081e0b1a93e72ebe0d3f9a12de510a02292b8f8acc4622",
+      "finalSha256": "6351df2cf7505347af081e0b1a93e72ebe0d3f9a12de510a02292b8f8acc4622",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-0_comp_dir.png.meta",
+      "initialSha256": "19b73f8555d7a2d9958a863baeb603e4ef4adf5fdcd596e76136b49894887a05",
+      "finalSha256": "19b73f8555d7a2d9958a863baeb603e4ef4adf5fdcd596e76136b49894887a05",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-0_comp_light.exr",
+      "initialSha256": "28d33c345e5e7d56da300b4828e6f1825ca276f65b1dbe37af53bb38d62e977d",
+      "finalSha256": "28d33c345e5e7d56da300b4828e6f1825ca276f65b1dbe37af53bb38d62e977d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-0_comp_light.exr.meta",
+      "initialSha256": "3adb8b2809c553b935bd56993ff6307c2e4886737826a0041b2b333bbd0004ac",
+      "finalSha256": "3adb8b2809c553b935bd56993ff6307c2e4886737826a0041b2b333bbd0004ac",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-0_comp_shadowmask.png",
+      "initialSha256": "23aed31ff019b4f44699a3c729bcc8978073e5650b4876f3fc6b74ee7bc88ff8",
+      "finalSha256": "23aed31ff019b4f44699a3c729bcc8978073e5650b4876f3fc6b74ee7bc88ff8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-0_comp_shadowmask.png.meta",
+      "initialSha256": "d9a59965ef1ba22c48c4251cd79eaf92ffdec4ffb6289c30972a79643487fd9a",
+      "finalSha256": "d9a59965ef1ba22c48c4251cd79eaf92ffdec4ffb6289c30972a79643487fd9a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-10_comp_dir.png",
+      "initialSha256": "89753e95f63c2d327bb60e0ea746f43156fa7c14aa260eb69ccb450a682cf2c2",
+      "finalSha256": "89753e95f63c2d327bb60e0ea746f43156fa7c14aa260eb69ccb450a682cf2c2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-10_comp_dir.png.meta",
+      "initialSha256": "356b473831cb0345a14747a2020ebb5a57601eb56dd96e72faf772d43154946f",
+      "finalSha256": "356b473831cb0345a14747a2020ebb5a57601eb56dd96e72faf772d43154946f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-10_comp_light.exr",
+      "initialSha256": "254aaa4fd29b6477139b1e9d216041c06dc2f061502b10cd10753d535f18d1ad",
+      "finalSha256": "254aaa4fd29b6477139b1e9d216041c06dc2f061502b10cd10753d535f18d1ad",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-10_comp_light.exr.meta",
+      "initialSha256": "9e5e85e427738eb6b5e14c23286522a7109f84ce2b2341b74692fc4bd972e378",
+      "finalSha256": "9e5e85e427738eb6b5e14c23286522a7109f84ce2b2341b74692fc4bd972e378",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-10_comp_shadowmask.png",
+      "initialSha256": "4f01c567cfe832f7300057f3d96b9f9fc158da7d357792923501bfc44498fc98",
+      "finalSha256": "4f01c567cfe832f7300057f3d96b9f9fc158da7d357792923501bfc44498fc98",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-10_comp_shadowmask.png.meta",
+      "initialSha256": "b5e044b5c4fc0a52a3f18d83b1f603d5541c2d317b531a3dbd680581b12bf861",
+      "finalSha256": "b5e044b5c4fc0a52a3f18d83b1f603d5541c2d317b531a3dbd680581b12bf861",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-1_comp_dir.png",
+      "initialSha256": "96a62e3f09e02b900bbb6b6088873e393d3cde924c1454234b3ae9f9a6292b6e",
+      "finalSha256": "96a62e3f09e02b900bbb6b6088873e393d3cde924c1454234b3ae9f9a6292b6e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-1_comp_dir.png.meta",
+      "initialSha256": "b5affb64f2cacdbd662ac2e942c3d5bc0238dc344a239fc360347736233e9815",
+      "finalSha256": "b5affb64f2cacdbd662ac2e942c3d5bc0238dc344a239fc360347736233e9815",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-1_comp_light.exr",
+      "initialSha256": "2c276218b6b1c4d3774fe5c367f94e38982577aebece01fb94f04e02446d4091",
+      "finalSha256": "2c276218b6b1c4d3774fe5c367f94e38982577aebece01fb94f04e02446d4091",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-1_comp_light.exr.meta",
+      "initialSha256": "2b5bca488cfe2226f6b07e56384ccb9d47efddc1ca52f00058358d345a9550a6",
+      "finalSha256": "2b5bca488cfe2226f6b07e56384ccb9d47efddc1ca52f00058358d345a9550a6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-1_comp_shadowmask.png",
+      "initialSha256": "40219a421d30a34401ca77802ea3ffe7a58917211078bbc155e06cb01245efe0",
+      "finalSha256": "40219a421d30a34401ca77802ea3ffe7a58917211078bbc155e06cb01245efe0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-1_comp_shadowmask.png.meta",
+      "initialSha256": "b286c18ffeeb896fa5f30f0ac46ffa35088eb9e5730a9708f30fcc718fcfd009",
+      "finalSha256": "b286c18ffeeb896fa5f30f0ac46ffa35088eb9e5730a9708f30fcc718fcfd009",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-2_comp_dir.png",
+      "initialSha256": "bc1402df04aa3e6afb1d66b6f68dace7acf74edf955d66d4fd04cab52fd4d06f",
+      "finalSha256": "bc1402df04aa3e6afb1d66b6f68dace7acf74edf955d66d4fd04cab52fd4d06f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-2_comp_dir.png.meta",
+      "initialSha256": "64df0ae975c45f66ad6bc5d3b8c8536c458ce5c3fbf1a9bad4ea833ea0acd720",
+      "finalSha256": "64df0ae975c45f66ad6bc5d3b8c8536c458ce5c3fbf1a9bad4ea833ea0acd720",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-2_comp_light.exr",
+      "initialSha256": "d9306eeb06acf47173b5b02f764add487c019fd3674451f2cc16f22b813c55a0",
+      "finalSha256": "d9306eeb06acf47173b5b02f764add487c019fd3674451f2cc16f22b813c55a0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-2_comp_light.exr.meta",
+      "initialSha256": "3777caee296f094ced45c096433a77d9f549de545421fa8cdb1d3dcc033e7948",
+      "finalSha256": "3777caee296f094ced45c096433a77d9f549de545421fa8cdb1d3dcc033e7948",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-2_comp_shadowmask.png",
+      "initialSha256": "6a7eb24f735cc77b45ceba09a0600f7de2193f976274acde9351765222c40ff3",
+      "finalSha256": "6a7eb24f735cc77b45ceba09a0600f7de2193f976274acde9351765222c40ff3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-2_comp_shadowmask.png.meta",
+      "initialSha256": "c2a51240ed22af677af1d6066ff9b7f339bc592fa1265b38d359bf5e90b08ede",
+      "finalSha256": "c2a51240ed22af677af1d6066ff9b7f339bc592fa1265b38d359bf5e90b08ede",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-3_comp_dir.png",
+      "initialSha256": "08e98677e6691b2ab2ab53b75d695aa5895bf0e529e5f1c4a9403d525cf81589",
+      "finalSha256": "08e98677e6691b2ab2ab53b75d695aa5895bf0e529e5f1c4a9403d525cf81589",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-3_comp_dir.png.meta",
+      "initialSha256": "a087bb5adcb20497ece986797d3607d13fc433ddba17f99a0a5ec6d0b6bb07d5",
+      "finalSha256": "a087bb5adcb20497ece986797d3607d13fc433ddba17f99a0a5ec6d0b6bb07d5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-3_comp_light.exr",
+      "initialSha256": "7763e0cc9429f637ea232004b6e8fdb2de96ff87bd288d3cae91329e4122e56d",
+      "finalSha256": "7763e0cc9429f637ea232004b6e8fdb2de96ff87bd288d3cae91329e4122e56d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-3_comp_light.exr.meta",
+      "initialSha256": "b6db3529eb19c47564384eafe97ee38ca695c126ff0c0e6cd80a3869b975958a",
+      "finalSha256": "b6db3529eb19c47564384eafe97ee38ca695c126ff0c0e6cd80a3869b975958a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-3_comp_shadowmask.png",
+      "initialSha256": "1675608e54929b23dad6de46823ee682cf37b66689f380c6ebadf5521900f968",
+      "finalSha256": "1675608e54929b23dad6de46823ee682cf37b66689f380c6ebadf5521900f968",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-3_comp_shadowmask.png.meta",
+      "initialSha256": "929e433e4f36d4a9e36ad56ec9de40d14d7796410910c77e004973647c13f31f",
+      "finalSha256": "929e433e4f36d4a9e36ad56ec9de40d14d7796410910c77e004973647c13f31f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-4_comp_dir.png",
+      "initialSha256": "915a6a97c48c6dcc3fc05db05882a27390b55d5c34d2147599f04c545a876358",
+      "finalSha256": "915a6a97c48c6dcc3fc05db05882a27390b55d5c34d2147599f04c545a876358",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-4_comp_dir.png.meta",
+      "initialSha256": "9a185ea884ff5b93022be53116f722c5fc8dd4ca1206d798da25d86693647151",
+      "finalSha256": "9a185ea884ff5b93022be53116f722c5fc8dd4ca1206d798da25d86693647151",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-4_comp_light.exr",
+      "initialSha256": "b326c213a16b4ac1133fa6c97e4c337c0adf6234fb1b5c554d3fd26f7a523046",
+      "finalSha256": "b326c213a16b4ac1133fa6c97e4c337c0adf6234fb1b5c554d3fd26f7a523046",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-4_comp_light.exr.meta",
+      "initialSha256": "9769f6c7038b68de9e9a5531bf61b0ee35c24fcbc7f1cfc553cc4dba131ab76d",
+      "finalSha256": "9769f6c7038b68de9e9a5531bf61b0ee35c24fcbc7f1cfc553cc4dba131ab76d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-4_comp_shadowmask.png",
+      "initialSha256": "ff37887ac13e46660f1c5540253c2b745559c91ed0270daac72360d0d885a2db",
+      "finalSha256": "ff37887ac13e46660f1c5540253c2b745559c91ed0270daac72360d0d885a2db",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-4_comp_shadowmask.png.meta",
+      "initialSha256": "632db2fa5e3394e3b53ab710b48147195d0dd0099c64d912b3f18ac68b056cc6",
+      "finalSha256": "632db2fa5e3394e3b53ab710b48147195d0dd0099c64d912b3f18ac68b056cc6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-5_comp_dir.png",
+      "initialSha256": "3e362df7f6e0fd89bc58144be7d619ee91e3d939a3a3a676723cc249ab231591",
+      "finalSha256": "3e362df7f6e0fd89bc58144be7d619ee91e3d939a3a3a676723cc249ab231591",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-5_comp_dir.png.meta",
+      "initialSha256": "e331650b69dba8aabf9a23c1c77ed4fd16c0b24bbd79a37ec9362681cdd9d4f1",
+      "finalSha256": "e331650b69dba8aabf9a23c1c77ed4fd16c0b24bbd79a37ec9362681cdd9d4f1",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-5_comp_light.exr",
+      "initialSha256": "b23ed481e63ae3e998b0b706f404022153ae727725b11d6aa721cea2015683eb",
+      "finalSha256": "b23ed481e63ae3e998b0b706f404022153ae727725b11d6aa721cea2015683eb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-5_comp_light.exr.meta",
+      "initialSha256": "929f7d4eb27139b55014b1675587da6c8ebf541c8c399a39175df50a20fc63e5",
+      "finalSha256": "929f7d4eb27139b55014b1675587da6c8ebf541c8c399a39175df50a20fc63e5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-5_comp_shadowmask.png",
+      "initialSha256": "ff37887ac13e46660f1c5540253c2b745559c91ed0270daac72360d0d885a2db",
+      "finalSha256": "ff37887ac13e46660f1c5540253c2b745559c91ed0270daac72360d0d885a2db",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-5_comp_shadowmask.png.meta",
+      "initialSha256": "c74c1d0edb224410f4f583789d77bfcd5e79344bd139a0e0f56be4be1c2a8722",
+      "finalSha256": "c74c1d0edb224410f4f583789d77bfcd5e79344bd139a0e0f56be4be1c2a8722",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-6_comp_dir.png",
+      "initialSha256": "ea04c1d33d0ac5d17603924156a5828018d0dae64a8169621f62484086eb99cf",
+      "finalSha256": "ea04c1d33d0ac5d17603924156a5828018d0dae64a8169621f62484086eb99cf",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-6_comp_dir.png.meta",
+      "initialSha256": "99c564e97f8f364d2182acf20afcb2669734f6c68fc359cac4c94cf93d154130",
+      "finalSha256": "99c564e97f8f364d2182acf20afcb2669734f6c68fc359cac4c94cf93d154130",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-6_comp_light.exr",
+      "initialSha256": "e334fe4a1bbca40a1c7fd97a3817ac3e75412346af10af4ac5d7b5e556f83144",
+      "finalSha256": "e334fe4a1bbca40a1c7fd97a3817ac3e75412346af10af4ac5d7b5e556f83144",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-6_comp_light.exr.meta",
+      "initialSha256": "13db5df10898ea6d045d595b4843f74262f65dffedc25b37b78540f75245a63a",
+      "finalSha256": "13db5df10898ea6d045d595b4843f74262f65dffedc25b37b78540f75245a63a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-6_comp_shadowmask.png",
+      "initialSha256": "8607e97be791ed3810d1c05b72874719d1c570c3d06c4313df18da5aaf22a03e",
+      "finalSha256": "8607e97be791ed3810d1c05b72874719d1c570c3d06c4313df18da5aaf22a03e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-6_comp_shadowmask.png.meta",
+      "initialSha256": "46c35ea6f191d06d23044936afecb29ca44ec341919548f601f7af0e2ad65e30",
+      "finalSha256": "46c35ea6f191d06d23044936afecb29ca44ec341919548f601f7af0e2ad65e30",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-7_comp_dir.png",
+      "initialSha256": "9465ae3cc45dee5639415e205c63aa7a25c65ac5f82d8c972879302ecd95c7ad",
+      "finalSha256": "9465ae3cc45dee5639415e205c63aa7a25c65ac5f82d8c972879302ecd95c7ad",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-7_comp_dir.png.meta",
+      "initialSha256": "5baa167cee7e9a4c8d42fc9ec66c01c3787b3d2c7dda0ca8e003a71e152fe2a0",
+      "finalSha256": "5baa167cee7e9a4c8d42fc9ec66c01c3787b3d2c7dda0ca8e003a71e152fe2a0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-7_comp_light.exr",
+      "initialSha256": "afd402070636e33ccd9c8e281f7e8af37787bc34e73c0cfe970222ae1af15da8",
+      "finalSha256": "afd402070636e33ccd9c8e281f7e8af37787bc34e73c0cfe970222ae1af15da8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-7_comp_light.exr.meta",
+      "initialSha256": "6f08f4297a103fc032837ca636934ddb9d9999e24bcc3d628bac34855ff68c84",
+      "finalSha256": "6f08f4297a103fc032837ca636934ddb9d9999e24bcc3d628bac34855ff68c84",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-7_comp_shadowmask.png",
+      "initialSha256": "4613339a401c8570ad99b9dfcb0be6d1da0689a00a7d74e8c0597c70c8275a65",
+      "finalSha256": "4613339a401c8570ad99b9dfcb0be6d1da0689a00a7d74e8c0597c70c8275a65",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-7_comp_shadowmask.png.meta",
+      "initialSha256": "dcd75f737de126e70bd6d4f39b265974c89eaae59f8b119628621d82f4a53b7f",
+      "finalSha256": "dcd75f737de126e70bd6d4f39b265974c89eaae59f8b119628621d82f4a53b7f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-8_comp_dir.png",
+      "initialSha256": "cd852aecf514401675665349a81908475bee66d342efdd892225774d26a07c97",
+      "finalSha256": "cd852aecf514401675665349a81908475bee66d342efdd892225774d26a07c97",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-8_comp_dir.png.meta",
+      "initialSha256": "9f7907ba87f06b4cdb65b7876c92128c671bd656458972cc29e0401ee9dea387",
+      "finalSha256": "9f7907ba87f06b4cdb65b7876c92128c671bd656458972cc29e0401ee9dea387",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-8_comp_light.exr",
+      "initialSha256": "3cb6fb4386f93b04eb63b34128c13ca459e0bd8198f0f266e8c2c0e2c1ec56c9",
+      "finalSha256": "3cb6fb4386f93b04eb63b34128c13ca459e0bd8198f0f266e8c2c0e2c1ec56c9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-8_comp_light.exr.meta",
+      "initialSha256": "6e231dfaeb67feb52fd199a7ec7dfb64da82d97f65e38a65f690dfe0f14d2246",
+      "finalSha256": "6e231dfaeb67feb52fd199a7ec7dfb64da82d97f65e38a65f690dfe0f14d2246",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-8_comp_shadowmask.png",
+      "initialSha256": "12b11e2cd9302e1abc3bb514efd83e81ddb63b09692f834044003a18c15a7ab5",
+      "finalSha256": "12b11e2cd9302e1abc3bb514efd83e81ddb63b09692f834044003a18c15a7ab5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-8_comp_shadowmask.png.meta",
+      "initialSha256": "e05986ea5ae65807f3652e95a5a882f4a75b2fc78fe670aad3fd8c6a43347a60",
+      "finalSha256": "e05986ea5ae65807f3652e95a5a882f4a75b2fc78fe670aad3fd8c6a43347a60",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-9_comp_dir.png",
+      "initialSha256": "5541625cbad9cac673818c666ed96a4e91e4753bc4e78a346ed07abe7be938d6",
+      "finalSha256": "5541625cbad9cac673818c666ed96a4e91e4753bc4e78a346ed07abe7be938d6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-9_comp_dir.png.meta",
+      "initialSha256": "0a0f443f4d9f9e91f4430f70df55789358808f6b5f7dd738d563947251363e7d",
+      "finalSha256": "0a0f443f4d9f9e91f4430f70df55789358808f6b5f7dd738d563947251363e7d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-9_comp_light.exr",
+      "initialSha256": "e0e2adbee5fa87d8ec918d71549098a4cc934950db896cd05db93818ca0a08ab",
+      "finalSha256": "e0e2adbee5fa87d8ec918d71549098a4cc934950db896cd05db93818ca0a08ab",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-9_comp_light.exr.meta",
+      "initialSha256": "ea098ef2af3edc339258eb8f08e04740ca73e1603d86a2a9d869f0fe7da7d2bb",
+      "finalSha256": "ea098ef2af3edc339258eb8f08e04740ca73e1603d86a2a9d869f0fe7da7d2bb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-9_comp_shadowmask.png",
+      "initialSha256": "6fccaed16e6255833dcef46b4defd06316869b8bdd5555e636665f6e570be338",
+      "finalSha256": "6fccaed16e6255833dcef46b4defd06316869b8bdd5555e636665f6e570be338",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/Lightmap-9_comp_shadowmask.png.meta",
+      "initialSha256": "7d2ec548223619686e76ee704a702ece8afd297baa21a8d20d93991a671b60da",
+      "finalSha256": "7d2ec548223619686e76ee704a702ece8afd297baa21a8d20d93991a671b60da",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/ReflectionProbe-0.exr",
+      "initialSha256": "d065846978260137adea483cd67675e1e753ab6b6d1a4ac30188c2ca23e2ab80",
+      "finalSha256": "d065846978260137adea483cd67675e1e753ab6b6d1a4ac30188c2ca23e2ab80",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon/ReflectionProbe-0.exr.meta",
+      "initialSha256": "b8d6216055a2fb5b3486a6fee6638bdeeb2e5843e92b7c8e146880665a18595b",
+      "finalSha256": "b8d6216055a2fb5b3486a6fee6638bdeeb2e5843e92b7c8e146880665a18595b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon.meta",
+      "initialSha256": "238d3080ae118568b4a7e206bbe75f2c3b97cc80ad2cdc71e2811d52cc05b1a3",
+      "finalSha256": "238d3080ae118568b4a7e206bbe75f2c3b97cc80ad2cdc71e2811d52cc05b1a3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+      "initialSha256": "0b987d060327f5baf5e9d2faefdd9ddafadeddabe962f90016698fbe408de341",
+      "finalSha256": "0b987d060327f5baf5e9d2faefdd9ddafadeddabe962f90016698fbe408de341",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon.unity.meta",
+      "initialSha256": "36fb9d0329fc735eca7d4c5548b21000d75bc11c5d24744a92f7a6822f8154c1",
+      "finalSha256": "36fb9d0329fc735eca7d4c5548b21000d75bc11c5d24744a92f7a6822f8154c1",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Spazon.meta",
+      "initialSha256": "97b95141534ae2994b2cacdd5bffc862d652a03d7154f5e61fde7c76a45775d5",
+      "finalSha256": "97b95141534ae2994b2cacdd5bffc862d652a03d7154f5e61fde7c76a45775d5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Decal_Blue.mat",
+      "initialSha256": "9a063e5848e5b384539cbec0b7a71e3a3f98312443aeb65e78c15b1315612304",
+      "finalSha256": "9a063e5848e5b384539cbec0b7a71e3a3f98312443aeb65e78c15b1315612304",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Decal_Blue.mat.meta",
+      "initialSha256": "3db6262425e0a10b06d19c5ceac11d87a6f7971635a534f6dae5fe712557ade3",
+      "finalSha256": "3db6262425e0a10b06d19c5ceac11d87a6f7971635a534f6dae5fe712557ade3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Decal_Green.mat",
+      "initialSha256": "d361fe13025f622eb2c8ad3a121cf9ea83b581a175d4e0b3d99c3392e27f3727",
+      "finalSha256": "d361fe13025f622eb2c8ad3a121cf9ea83b581a175d4e0b3d99c3392e27f3727",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Decal_Green.mat.meta",
+      "initialSha256": "115152115638ba5c392cad48189792b98f03262b259d9d09fa89b6ccd5143def",
+      "finalSha256": "115152115638ba5c392cad48189792b98f03262b259d9d09fa89b6ccd5143def",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Decal_Red.mat",
+      "initialSha256": "0f5556657de811316af19a2f75351921d943925274f169d9abf16b3cb8847917",
+      "finalSha256": "0f5556657de811316af19a2f75351921d943925274f169d9abf16b3cb8847917",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Decal_Red.mat.meta",
+      "initialSha256": "c5a2685acafa6407ab808519b46683cf98de2af32e505176a9afda8182c4919f",
+      "finalSha256": "c5a2685acafa6407ab808519b46683cf98de2af32e505176a9afda8182c4919f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Ground.mat",
+      "initialSha256": "6e005b1b6cb3eb9fba914a8d8055078a71db50e9cee7b56e153cbf44e7e6677b",
+      "finalSha256": "6e005b1b6cb3eb9fba914a8d8055078a71db50e9cee7b56e153cbf44e7e6677b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials/Ground.mat.meta",
+      "initialSha256": "aaa08e5fb35f28db34d7169b951c6851fc8ed1c65986452237c2613e2e1124e4",
+      "finalSha256": "aaa08e5fb35f28db34d7169b951c6851fc8ed1c65986452237c2613e2e1124e4",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/DecalMaterials.meta",
+      "initialSha256": "6fc2df307e732d766c7609890fa1f8decf7639b13da83bbe98fde154f1775231",
+      "finalSha256": "6fc2df307e732d766c7609890fa1f8decf7639b13da83bbe98fde154f1775231",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Fonts/Arial.ttf",
+      "initialSha256": "525979822591a3447cfc49d943d6f7683508e25543407871c0ed8fed05fd2bd9",
+      "finalSha256": "525979822591a3447cfc49d943d6f7683508e25543407871c0ed8fed05fd2bd9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Fonts/Arial.ttf.meta",
+      "initialSha256": "cf2daa4ae682f33ae1e20b7bcc0c9203c079bc49902d0ac0525cb6e6cdaccca0",
+      "finalSha256": "cf2daa4ae682f33ae1e20b7bcc0c9203c079bc49902d0ac0525cb6e6cdaccca0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Fonts.meta",
+      "initialSha256": "509f87f7419011d90d816dc396a06f2943de3de115729d73aa68707ac037a653",
+      "finalSha256": "509f87f7419011d90d816dc396a06f2943de3de115729d73aa68707ac037a653",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/LocalLightsMaterials/Ground.mat",
+      "initialSha256": "5d5eb20cfdb2368f34718fc35d8924f38537b88a7fead1423ba612d7f3ba919c",
+      "finalSha256": "5d5eb20cfdb2368f34718fc35d8924f38537b88a7fead1423ba612d7f3ba919c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/LocalLightsMaterials/Ground.mat.meta",
+      "initialSha256": "f32c446b1c1a7311ac26a67477d719142d4a25d656c2dbde8d0017189fd99790",
+      "finalSha256": "f32c446b1c1a7311ac26a67477d719142d4a25d656c2dbde8d0017189fd99790",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/LocalLightsMaterials.meta",
+      "initialSha256": "3a2393bf8aab84d32f260e1a58c1f54f4fcdb6d3d92ce346891c28b0f92b5b9c",
+      "finalSha256": "3a2393bf8aab84d32f260e1a58c1f54f4fcdb6d3d92ce346891c28b0f92b5b9c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/OutputMaterials/GrayCard18.mat",
+      "initialSha256": "c5e17669350d0c1ed6252c1b331e932d120b0dc08509251675300b578c28e200",
+      "finalSha256": "c5e17669350d0c1ed6252c1b331e932d120b0dc08509251675300b578c28e200",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/OutputMaterials/GrayCard18.mat.meta",
+      "initialSha256": "7c198e5fa52376a69f2a086bb60157475557c25997fb3ce77212ab5adf7843b3",
+      "finalSha256": "7c198e5fa52376a69f2a086bb60157475557c25997fb3ce77212ab5adf7843b3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/OutputMaterials.meta",
+      "initialSha256": "7557f5a7ef2e3e27f906f40e6c073a87f5f1546107c2a4d843314a00239fdc73",
+      "finalSha256": "7557f5a7ef2e3e27f906f40e6c073a87f5f1546107c2a4d843314a00239fdc73",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TemporalMaterials/Diffuse.mat",
+      "initialSha256": "fc75699d93ee86a9199863e424c66e2b830c94f07e4264bde2da739c534e19b6",
+      "finalSha256": "fc75699d93ee86a9199863e424c66e2b830c94f07e4264bde2da739c534e19b6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TemporalMaterials/Diffuse.mat.meta",
+      "initialSha256": "16cb424d649b12f6c3a9f86ebc7baf789010c922922fc01919a1e483714c6656",
+      "finalSha256": "16cb424d649b12f6c3a9f86ebc7baf789010c922922fc01919a1e483714c6656",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TemporalMaterials/Ground.mat",
+      "initialSha256": "b1482733e6ff825383608d46ea5e15f4e6687aac824e9e376adafeccf27fa826",
+      "finalSha256": "b1482733e6ff825383608d46ea5e15f4e6687aac824e9e376adafeccf27fa826",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TemporalMaterials/Ground.mat.meta",
+      "initialSha256": "7ec3c73ec9e8da6d0dfe81e7aaa8c220f30a859e1a626061faeac80229e2f3dc",
+      "finalSha256": "7ec3c73ec9e8da6d0dfe81e7aaa8c220f30a859e1a626061faeac80229e2f3dc",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TemporalMaterials/Mirror.mat",
+      "initialSha256": "298a4ba0a9a7e7d015efc566bbe93747b62ea34923b38af7800e25c30ddb5b58",
+      "finalSha256": "298a4ba0a9a7e7d015efc566bbe93747b62ea34923b38af7800e25c30ddb5b58",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TemporalMaterials/Mirror.mat.meta",
+      "initialSha256": "cbfa5de6254244a4db017783d440170ff9c822935519f76ef1489fddd7e82400",
+      "finalSha256": "cbfa5de6254244a4db017783d440170ff9c822935519f76ef1489fddd7e82400",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TemporalMaterials.meta",
+      "initialSha256": "1118dcb3da87c9a6a42c4c11bc533bdd00714b8945cd76683eeaeb400fa4b4ec",
+      "finalSha256": "1118dcb3da87c9a6a42c4c11bc533bdd00714b8945cd76683eeaeb400fa4b4ec",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/Ground.mat",
+      "initialSha256": "92bab39111dbe9fdc6bc105b8f9d912ac2949327fb24ccaa295ed975ff65030c",
+      "finalSha256": "92bab39111dbe9fdc6bc105b8f9d912ac2949327fb24ccaa295ed975ff65030c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/Ground.mat.meta",
+      "initialSha256": "fb31af04385ffe659a328eb3c1c52431c3b6f0461e73726e3803cb09ca56f7af",
+      "finalSha256": "fb31af04385ffe659a328eb3c1c52431c3b6f0461e73726e3803cb09ca56f7af",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/T0_Glass.mat",
+      "initialSha256": "b8283ece6ab0510f658d7d131932ed6d12bc92947f110fc937e93bdb9d0ac70b",
+      "finalSha256": "b8283ece6ab0510f658d7d131932ed6d12bc92947f110fc937e93bdb9d0ac70b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/T0_Glass.mat.meta",
+      "initialSha256": "42da3697be57dd75cbf0fe60b51bdb878f98fc58f0bc9d89beb176d8a2f053b2",
+      "finalSha256": "42da3697be57dd75cbf0fe60b51bdb878f98fc58f0bc9d89beb176d8a2f053b2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/T1_Refractive.mat",
+      "initialSha256": "e958a09ba0c099d368baaba76e060d451a07e6186080e7173f3d8fb45bf9e05c",
+      "finalSha256": "e958a09ba0c099d368baaba76e060d451a07e6186080e7173f3d8fb45bf9e05c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/T1_Refractive.mat.meta",
+      "initialSha256": "a4f75198db8a9acba63c41723d7795e7fd2c9c4d1d9ec188577cb14a601bb8c2",
+      "finalSha256": "a4f75198db8a9acba63c41723d7795e7fd2c9c4d1d9ec188577cb14a601bb8c2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/T2_Particle.mat",
+      "initialSha256": "d083ed89b1823f3a662409540f5cf5b263e88114aa4366cb8b470071c26fe52d",
+      "finalSha256": "d083ed89b1823f3a662409540f5cf5b263e88114aa4366cb8b470071c26fe52d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials/T2_Particle.mat.meta",
+      "initialSha256": "6cee44edf166bfed7cce8df7cc1bf0fca3f7fe1bbe66b16f3d34fd692541e41f",
+      "finalSha256": "6cee44edf166bfed7cce8df7cc1bf0fca3f7fe1bbe66b16f3d34fd692541e41f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/TranslucentMaterials.meta",
+      "initialSha256": "9881cac1b48caccec6f8b8bd2414be8d25a2a40e7a645fc5353666185b4c14ad",
+      "finalSha256": "9881cac1b48caccec6f8b8bd2414be8d25a2a40e7a645fc5353666185b4c14ad",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Decal.unity",
+      "initialSha256": "f1a0d0bfc2b21e53e60ba762e3562a9ce0c364773f4700878268b9476b27e547",
+      "finalSha256": "f1a0d0bfc2b21e53e60ba762e3562a9ce0c364773f4700878268b9476b27e547",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Decal.unity.meta",
+      "initialSha256": "31ea1f7043f9888293cf4c9c173642c12b76106e12835b85b825b5a79d7ee7b8",
+      "finalSha256": "31ea1f7043f9888293cf4c9c173642c12b76106e12835b85b825b5a79d7ee7b8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_LocalLights.unity",
+      "initialSha256": "25574cc07ca7b9a81033fa4c7124547b46b39b575930c2c0c78fad320a84a87a",
+      "finalSha256": "25574cc07ca7b9a81033fa4c7124547b46b39b575930c2c0c78fad320a84a87a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_LocalLights.unity.meta",
+      "initialSha256": "7f649647c2ea217a466a93e9ceaf51e5e42376649de7f8f5802e6625df09aebe",
+      "finalSha256": "7f649647c2ea217a466a93e9ceaf51e5e42376649de7f8f5802e6625df09aebe",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_LocalLights_Volume.asset",
+      "initialSha256": "f68d552ad2f7174e585b4bdaea640e2e5175e297b4bd9eb591270980023fe288",
+      "finalSha256": "f68d552ad2f7174e585b4bdaea640e2e5175e297b4bd9eb591270980023fe288",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_LocalLights_Volume.asset.meta",
+      "initialSha256": "aa92172f0276e95c88d1deb58a8a90b85c4d4e2f8b5fe5f9457b9dd836a7d87b",
+      "finalSha256": "aa92172f0276e95c88d1deb58a8a90b85c4d4e2f8b5fe5f9457b9dd836a7d87b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Output.unity",
+      "initialSha256": "12e6c213a41d104e97ad34146ad02347b8745763ac2f0e308af59b0ad3380d56",
+      "finalSha256": "12e6c213a41d104e97ad34146ad02347b8745763ac2f0e308af59b0ad3380d56",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Output.unity.meta",
+      "initialSha256": "3174661e843d4778575c60133c78281e16def063c37659d93c941facbe82534e",
+      "finalSha256": "3174661e843d4778575c60133c78281e16def063c37659d93c941facbe82534e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Output_Volume.asset",
+      "initialSha256": "2c2c597cd897a0fc17ad6a304525bac0170670b96c2bda3e49aa4ba8e9daef4a",
+      "finalSha256": "2c2c597cd897a0fc17ad6a304525bac0170670b96c2bda3e49aa4ba8e9daef4a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Output_Volume.asset.meta",
+      "initialSha256": "d52eaab3e35884d3c83213957f98a35680cb93da67602cf49ddf263e3bb2ff87",
+      "finalSha256": "d52eaab3e35884d3c83213957f98a35680cb93da67602cf49ddf263e3bb2ff87",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Temporal.unity",
+      "initialSha256": "64a4b9ea1498ff9dad47db2573b55ff424cfced442f75af27e9d44b106911ba3",
+      "finalSha256": "64a4b9ea1498ff9dad47db2573b55ff424cfced442f75af27e9d44b106911ba3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Temporal.unity.meta",
+      "initialSha256": "0dad0353f5be682e0e62127ed8b22c691656b6bbe2d0724f81691c3a6e97d9e8",
+      "finalSha256": "0dad0353f5be682e0e62127ed8b22c691656b6bbe2d0724f81691c3a6e97d9e8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Temporal_Volume.asset",
+      "initialSha256": "d7e1852d537b220727ae3a4211834f6b7e79fe9097a9e6e2224880ad92e94687",
+      "finalSha256": "d7e1852d537b220727ae3a4211834f6b7e79fe9097a9e6e2224880ad92e94687",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Temporal_Volume.asset.meta",
+      "initialSha256": "5f550e8110743b282afd59ad522c4450a60a8c63d2343746aca81249b4ec407d",
+      "finalSha256": "5f550e8110743b282afd59ad522c4450a60a8c63d2343746aca81249b4ec407d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Translucent.unity",
+      "initialSha256": "0e610e89899f3a39490f7306d852c869362a3d0f383cc2229e440c2e2c15e54a",
+      "finalSha256": "0e610e89899f3a39490f7306d852c869362a3d0f383cc2229e440c2e2c15e54a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Translucent.unity.meta",
+      "initialSha256": "9b612491d8460e902fec468bc61307991db6444a648eaa49be054c14be4160ac",
+      "finalSha256": "9b612491d8460e902fec468bc61307991db6444a648eaa49be054c14be4160ac",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Translucent_Volume.asset",
+      "initialSha256": "5a3feae18600f94f4bfe351e94b8b234d09ed3a53c6bded1a4008ddfb510caef",
+      "finalSha256": "5a3feae18600f94f4bfe351e94b8b234d09ed3a53c6bded1a4008ddfb510caef",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Translucent_Volume.asset.meta",
+      "initialSha256": "61b303adf6280de43d9e020b64c18979e8362945bd60d7f270164bd44d4b5618",
+      "finalSha256": "61b303adf6280de43d9e020b64c18979e8362945bd60d7f270164bd44d4b5618",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_UI.unity",
+      "initialSha256": "7817f6ac97b3ff768780ebb3cb36958c8e33b3a6a1f98a7ab179e3ad5e779fcb",
+      "finalSha256": "7817f6ac97b3ff768780ebb3cb36958c8e33b3a6a1f98a7ab179e3ad5e779fcb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_UI.unity.meta",
+      "initialSha256": "163a8928853f8614d89d44e08c1934be6da8d50e973849b157132bc528759142",
+      "finalSha256": "163a8928853f8614d89d44e08c1934be6da8d50e973849b157132bc528759142",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Volume.unity",
+      "initialSha256": "0b72f79050594393ce0b6901f085e97525e53ba0732c5a0e964ed1427c52b9d9",
+      "finalSha256": "0b72f79050594393ce0b6901f085e97525e53ba0732c5a0e964ed1427c52b9d9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Volume.unity.meta",
+      "initialSha256": "9bacbbfe8b07059f6956f0d7dec0d1dc61fb7314190787f94d6520757a01448f",
+      "finalSha256": "9bacbbfe8b07059f6956f0d7dec0d1dc61fb7314190787f94d6520757a01448f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Volume_Global.asset",
+      "initialSha256": "1284941bd396c6333180a6f245248dd2157f25374c5833120c6133b4df4772d4",
+      "finalSha256": "1284941bd396c6333180a6f245248dd2157f25374c5833120c6133b4df4772d4",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Volume_Global.asset.meta",
+      "initialSha256": "b0b919e6062d24994045ac1f99944808b54f4a3f2cb1a0f4d35e35e6f56a1ed9",
+      "finalSha256": "b0b919e6062d24994045ac1f99944808b54f4a3f2cb1a0f4d35e35e6f56a1ed9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Volume_Local.asset",
+      "initialSha256": "45e7bc22f724a27be47c0e4f3ddec458b58d98510f052f35b9d8e9e4bdcb9d83",
+      "finalSha256": "45e7bc22f724a27be47c0e4f3ddec458b58d98510f052f35b9d8e9e4bdcb9d83",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation/Validation_Volume_Local.asset.meta",
+      "initialSha256": "e6c78f0e1d928ed3476bc6624c87eb305ccba556162d03fa17c3521fe92f9f05",
+      "finalSha256": "e6c78f0e1d928ed3476bc6624c87eb305ccba556162d03fa17c3521fe92f9f05",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene/Validation.meta",
+      "initialSha256": "29749ea5017ba37258160298ffe8d9c52165a0df027fa12bcc1c67e855733dfd",
+      "finalSha256": "29749ea5017ba37258160298ffe8d9c52165a0df027fa12bcc1c67e855733dfd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Scene.meta",
+      "initialSha256": "ac892bc6b4034fe1fcde551367bf256a8f0e9708b2f6efb47a727142c67d101a",
+      "finalSha256": "ac892bc6b4034fe1fcde551367bf256a8f0e9708b2f6efb47a727142c67d101a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Script/Rotate.cs",
+      "initialSha256": "4b6ee93f77434ac32f2ce5ad6df2529375abafaab713dacaa0416e9972423586",
+      "finalSha256": "4b6ee93f77434ac32f2ce5ad6df2529375abafaab713dacaa0416e9972423586",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Script/Rotate.cs.meta",
+      "initialSha256": "4e8ec0d93053641623a0eeaa0e9e0ff37d6763d635a641e1079ab141f8ad89ab",
+      "finalSha256": "4e8ec0d93053641623a0eeaa0e9e0ff37d6763d635a641e1079ab141f8ad89ab",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Script/Sample.cs",
+      "initialSha256": "8ed5eb02bdacd307713fb70f602ddbbe481110d46f5c408851af9decfe4bf22f",
+      "finalSha256": "8ed5eb02bdacd307713fb70f602ddbbe481110d46f5c408851af9decfe4bf22f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Script/Sample.cs.meta",
+      "initialSha256": "1b7b22d2ed1cf65b049acb97be698b2003170f48304587369d475579fd6912a8",
+      "finalSha256": "1b7b22d2ed1cf65b049acb97be698b2003170f48304587369d475579fd6912a8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Script.meta",
+      "initialSha256": "cdfd90d4d21af33c6cad51603204182ac54895953ac128f978865a1afa9c8d32",
+      "finalSha256": "cdfd90d4d21af33c6cad51603204182ac54895953ac128f978865a1afa9c8d32",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources/Fonts & Materials/Inter-Regular SDF.asset",
+      "initialSha256": "343fe4c51fc2376186fef5790dbc1dafd3fb0875797d40bae61fa12af8a08d08",
+      "finalSha256": "343fe4c51fc2376186fef5790dbc1dafd3fb0875797d40bae61fa12af8a08d08",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources/Fonts & Materials/Inter-Regular SDF.asset.meta",
+      "initialSha256": "d235328ee84e51043dd58e14fc0dbfcd265137b0f87602202462eb1404cb0fe8",
+      "finalSha256": "d235328ee84e51043dd58e14fc0dbfcd265137b0f87602202462eb1404cb0fe8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources/Fonts & Materials/Inter-Regular.otf",
+      "initialSha256": "a7e791e8f5a0fb02b65663f7fca73e1d1ca9543f772ad480cbd76f4e3fe3f8cc",
+      "finalSha256": "a7e791e8f5a0fb02b65663f7fca73e1d1ca9543f772ad480cbd76f4e3fe3f8cc",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources/Fonts & Materials/Inter-Regular.otf.meta",
+      "initialSha256": "a30cca1e90bffb9f4261bec3be4b7911e8a8722f8dc1f6d97f234c6d99612373",
+      "finalSha256": "a30cca1e90bffb9f4261bec3be4b7911e8a8722f8dc1f6d97f234c6d99612373",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources/Fonts & Materials.meta",
+      "initialSha256": "cde6a638eab1d043fe9cb1bb6b35f5775d8f5517795e6f087dd64b954a45d584",
+      "finalSha256": "cde6a638eab1d043fe9cb1bb6b35f5775d8f5517795e6f087dd64b954a45d584",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources/TMP Settings.asset",
+      "initialSha256": "a9e21a9898794d5cb98005f12696ee498ce5214fd9e5afcf5d34d4abff30ee9f",
+      "finalSha256": "a9e21a9898794d5cb98005f12696ee498ce5214fd9e5afcf5d34d4abff30ee9f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources/TMP Settings.asset.meta",
+      "initialSha256": "2e51ffb17276a5214d6aca2732e729457a76ab7f079eb2594700616c697138b6",
+      "finalSha256": "2e51ffb17276a5214d6aca2732e729457a76ab7f079eb2594700616c697138b6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro/Resources.meta",
+      "initialSha256": "b9cbdeea02691685986c6173e9bc621b4f2d0f457e56f56201dbf8c929d02217",
+      "finalSha256": "b9cbdeea02691685986c6173e9bc621b4f2d0f457e56f56201dbf8c929d02217",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/TextMesh Pro.meta",
+      "initialSha256": "500d3b859474aa102603f49f161dacafcf506122c8df9f8356ecf9eb9aff48ed",
+      "finalSha256": "500d3b859474aa102603f49f161dacafcf506122c8df9f8356ecf9eb9aff48ed",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/ColorGrid.png",
+      "initialSha256": "4be4518c328775e34c1bd7343d5ef308793d9cecca34dc749b5eb5a4ae3cf60a",
+      "finalSha256": "4be4518c328775e34c1bd7343d5ef308793d9cecca34dc749b5eb5a4ae3cf60a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/ColorGrid.png.meta",
+      "initialSha256": "692667292d16116b6c53a802b9be667b65a07c6998edfae969c9aab08bfac8e5",
+      "finalSha256": "692667292d16116b6c53a802b9be667b65a07c6998edfae969c9aab08bfac8e5",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Glass.tif",
+      "initialSha256": "bc4484c7161afe40368e392435a71cd842581714ab887664d44c6540c67d4b03",
+      "finalSha256": "bc4484c7161afe40368e392435a71cd842581714ab887664d44c6540c67d4b03",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Glass.tif.meta",
+      "initialSha256": "c07ac020c7a8107ccb8fb670e8c51023ccc0de67f5c13dc09416618841ecc3b0",
+      "finalSha256": "c07ac020c7a8107ccb8fb670e8c51023ccc0de67f5c13dc09416618841ecc3b0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/HDR/T_HDR-A.hdr",
+      "initialSha256": "ed6a891cb15b8a3a2ad5f94373c7c6228b8680ec71c8907bbc1f06466a917f7c",
+      "finalSha256": "ed6a891cb15b8a3a2ad5f94373c7c6228b8680ec71c8907bbc1f06466a917f7c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/HDR/T_HDR-A.hdr.meta",
+      "initialSha256": "bcfa151b80a0080347d2cc1665ff0cd6c0ad4dd7d30e335ee35d22286a238350",
+      "finalSha256": "bcfa151b80a0080347d2cc1665ff0cd6c0ad4dd7d30e335ee35d22286a238350",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/HDR/T_HDR-C.hdr",
+      "initialSha256": "a3cf6e1173b8653ab94bfd3e07bb80c5e5f2d7e61ff44d5b49e4d4b8055265de",
+      "finalSha256": "a3cf6e1173b8653ab94bfd3e07bb80c5e5f2d7e61ff44d5b49e4d4b8055265de",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/HDR/T_HDR-C.hdr.meta",
+      "initialSha256": "f079b5d77fb60bc18c9d9b8aae2c079441a44f20d0db88314e6741dbc77979b9",
+      "finalSha256": "f079b5d77fb60bc18c9d9b8aae2c079441a44f20d0db88314e6741dbc77979b9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/HDR.meta",
+      "initialSha256": "85cc224daf4c59a86625d0c4f1a21d947605de49e2fbe47013f699bfbd6af187",
+      "finalSha256": "85cc224daf4c59a86625d0c4f1a21d947605de49e2fbe47013f699bfbd6af187",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Arch_D.TGA",
+      "initialSha256": "878105dd0acdd0fdfadae0b394e5d245692c25ed62ebcd4a129768901ab09546",
+      "finalSha256": "878105dd0acdd0fdfadae0b394e5d245692c25ed62ebcd4a129768901ab09546",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Arch_D.TGA.meta",
+      "initialSha256": "be4f906f7227bb52ffc90e2bee2ec2fa5cde247dfc5187f66bcdd4fd3c184e8e",
+      "finalSha256": "be4f906f7227bb52ffc90e2bee2ec2fa5cde247dfc5187f66bcdd4fd3c184e8e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Arch_N.tga",
+      "initialSha256": "878105dd0acdd0fdfadae0b394e5d245692c25ed62ebcd4a129768901ab09546",
+      "finalSha256": "878105dd0acdd0fdfadae0b394e5d245692c25ed62ebcd4a129768901ab09546",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Arch_N.tga.meta",
+      "initialSha256": "371540d1b10d364c8892cead4eef863f207a6e04526737b4e201633286fa1788",
+      "finalSha256": "371540d1b10d364c8892cead4eef863f207a6e04526737b4e201633286fa1788",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Brick1_D.TGA",
+      "initialSha256": "3ecb29bfc09df89efd8acd5243067e2421c08843066d75f08be340f365f8dc7f",
+      "finalSha256": "3ecb29bfc09df89efd8acd5243067e2421c08843066d75f08be340f365f8dc7f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Brick1_D.TGA.meta",
+      "initialSha256": "67aaf048168d1715d7c4eafe627ede9588988269225bd7a3db26d7fd93afc937",
+      "finalSha256": "67aaf048168d1715d7c4eafe627ede9588988269225bd7a3db26d7fd93afc937",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Brick1_N.tga",
+      "initialSha256": "3ecb29bfc09df89efd8acd5243067e2421c08843066d75f08be340f365f8dc7f",
+      "finalSha256": "3ecb29bfc09df89efd8acd5243067e2421c08843066d75f08be340f365f8dc7f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Brick1_N.tga.meta",
+      "initialSha256": "6bba9297442f83e8a580bc3cad85d24d76743ec8292089814432ab7a2e351a6c",
+      "finalSha256": "6bba9297442f83e8a580bc3cad85d24d76743ec8292089814432ab7a2e351a6c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Celing_D.TGA",
+      "initialSha256": "c1b4105e8c4d8f4f90f380a77cd3235a764b8a8d8017e6aa4c94d7acb65cf4dd",
+      "finalSha256": "c1b4105e8c4d8f4f90f380a77cd3235a764b8a8d8017e6aa4c94d7acb65cf4dd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Celing_D.TGA.meta",
+      "initialSha256": "e895222f62a95a890e3558d2b8294bf15503bd04ef52f6d3f3bff537c95ace2e",
+      "finalSha256": "e895222f62a95a890e3558d2b8294bf15503bd04ef52f6d3f3bff537c95ace2e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Celing_N.tga",
+      "initialSha256": "c1b4105e8c4d8f4f90f380a77cd3235a764b8a8d8017e6aa4c94d7acb65cf4dd",
+      "finalSha256": "c1b4105e8c4d8f4f90f380a77cd3235a764b8a8d8017e6aa4c94d7acb65cf4dd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Celing_N.tga.meta",
+      "initialSha256": "730564f6ea7b854e943bfa1e2af34f1c5c421155526cf17dcfe49c187eca183f",
+      "finalSha256": "730564f6ea7b854e943bfa1e2af34f1c5c421155526cf17dcfe49c187eca183f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column1_D.TGA",
+      "initialSha256": "bed2aa34a8600c0b33d40dbf68e497acb5cc85943b914f2cb32d33594910db86",
+      "finalSha256": "bed2aa34a8600c0b33d40dbf68e497acb5cc85943b914f2cb32d33594910db86",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column1_D.TGA.meta",
+      "initialSha256": "feeb63bf301f2967ce37519a3f94202f4c0a182a8a56b6ca7687f4d72bba18a0",
+      "finalSha256": "feeb63bf301f2967ce37519a3f94202f4c0a182a8a56b6ca7687f4d72bba18a0",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column1_N.png",
+      "initialSha256": "1c692bef897c3e242eee0ce163c45b5cda3b0de47591735ffe668a9b4e7b12cb",
+      "finalSha256": "1c692bef897c3e242eee0ce163c45b5cda3b0de47591735ffe668a9b4e7b12cb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column1_N.png.meta",
+      "initialSha256": "09aefad3954ee0d1106861c24b06eb6ef103e68d5ea4a4237218c78d7fb359d9",
+      "finalSha256": "09aefad3954ee0d1106861c24b06eb6ef103e68d5ea4a4237218c78d7fb359d9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column2_D.TGA",
+      "initialSha256": "96754107a435960e6402c93d186a4db1da00f06d8f5b63b5049f7b6693ac0ba3",
+      "finalSha256": "96754107a435960e6402c93d186a4db1da00f06d8f5b63b5049f7b6693ac0ba3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column2_D.TGA.meta",
+      "initialSha256": "87ef27e4231dfb00411c88becdd5f4c28cf16b37a38788bb2783b9eb441c370f",
+      "finalSha256": "87ef27e4231dfb00411c88becdd5f4c28cf16b37a38788bb2783b9eb441c370f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column2_N.png",
+      "initialSha256": "b7183a376cba0cfb865f833569da02339378d02c7fd8f235bd8f61b0c0cb7215",
+      "finalSha256": "b7183a376cba0cfb865f833569da02339378d02c7fd8f235bd8f61b0c0cb7215",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column2_N.png.meta",
+      "initialSha256": "bbb75007985ca85eedebf18c07e6c4463cfa7d79a55d367b12f2145fd2a0ea8c",
+      "finalSha256": "bbb75007985ca85eedebf18c07e6c4463cfa7d79a55d367b12f2145fd2a0ea8c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column3_D.TGA",
+      "initialSha256": "25057287f03ec7af9e03deccbb578a7c6fce7ec861625b1006a1a5279e64e4be",
+      "finalSha256": "25057287f03ec7af9e03deccbb578a7c6fce7ec861625b1006a1a5279e64e4be",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column3_D.TGA.meta",
+      "initialSha256": "5da21708adbb76585a3fb44ef37e23b6bcceaef58ad0b90c25774146f158b1c1",
+      "finalSha256": "5da21708adbb76585a3fb44ef37e23b6bcceaef58ad0b90c25774146f158b1c1",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column3_N.png",
+      "initialSha256": "69880f064a41657d1cd98dd34aa7248392a72c29c53d8ad9bcdd3c212419ddfc",
+      "finalSha256": "69880f064a41657d1cd98dd34aa7248392a72c29c53d8ad9bcdd3c212419ddfc",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Column3_N.png.meta",
+      "initialSha256": "33726543c6702b2bd9573d0bd8b6a1bd63e98ccccfdca087b74f8f0f08f21add",
+      "finalSha256": "33726543c6702b2bd9573d0bd8b6a1bd63e98ccccfdca087b74f8f0f08f21add",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_FabricCurtain_M.tif",
+      "initialSha256": "aacf094f497882ef42acfdfe4200a357d18fe012e1888d3f35957e36164d2d26",
+      "finalSha256": "aacf094f497882ef42acfdfe4200a357d18fe012e1888d3f35957e36164d2d26",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_FabricCurtain_M.tif.meta",
+      "initialSha256": "7cebfbd87354d9ac3930bf55d73f065774b702ac894fef740495cd9654ed2032",
+      "finalSha256": "7cebfbd87354d9ac3930bf55d73f065774b702ac894fef740495cd9654ed2032",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_FabricRound_M.tif",
+      "initialSha256": "66f46eb0bbabca251aea608f6c059220e1f69c8e104603391d9394bd11c77d34",
+      "finalSha256": "66f46eb0bbabca251aea608f6c059220e1f69c8e104603391d9394bd11c77d34",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_FabricRound_M.tif.meta",
+      "initialSha256": "5f7a5e36e1c4da45bdb4dfb2235ba83cec69b05757bd4dd3d6d6a862f00a811d",
+      "finalSha256": "5f7a5e36e1c4da45bdb4dfb2235ba83cec69b05757bd4dd3d6d6a862f00a811d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick1_D.TGA",
+      "initialSha256": "bd979e212ec84ae8df8b3e3b77dfeb4d12c07a469ee19b3b628cbce502524ede",
+      "finalSha256": "bd979e212ec84ae8df8b3e3b77dfeb4d12c07a469ee19b3b628cbce502524ede",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick1_D.TGA.meta",
+      "initialSha256": "e85ad7e1aabd27b2ab92c5b4c49f67abd97093b7ef4f9ee55d63c20a455aa20b",
+      "finalSha256": "e85ad7e1aabd27b2ab92c5b4c49f67abd97093b7ef4f9ee55d63c20a455aa20b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick1_N.tga",
+      "initialSha256": "e9ef35f06ac675bf0f85e8fcf516b22c90e5218d032c4a7947ecfeec4b6becdb",
+      "finalSha256": "e9ef35f06ac675bf0f85e8fcf516b22c90e5218d032c4a7947ecfeec4b6becdb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick1_N.tga.meta",
+      "initialSha256": "d30de69ba8ab39b655a5d8fc0e5cfa15e7832306a76d5b17119e66ed689e5afb",
+      "finalSha256": "d30de69ba8ab39b655a5d8fc0e5cfa15e7832306a76d5b17119e66ed689e5afb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick2_D.TGA",
+      "initialSha256": "e9ef35f06ac675bf0f85e8fcf516b22c90e5218d032c4a7947ecfeec4b6becdb",
+      "finalSha256": "e9ef35f06ac675bf0f85e8fcf516b22c90e5218d032c4a7947ecfeec4b6becdb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick2_D.TGA.meta",
+      "initialSha256": "3f9cde77f33b38430ad9ea889218144fc4bd10806d72404a1f27f9605755be7a",
+      "finalSha256": "3f9cde77f33b38430ad9ea889218144fc4bd10806d72404a1f27f9605755be7a",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick3_D.TGA",
+      "initialSha256": "a8ec042a8c3d83a9da8170fdfc1f9d6566a474859c6c88f289a6daec30524112",
+      "finalSha256": "a8ec042a8c3d83a9da8170fdfc1f9d6566a474859c6c88f289a6daec30524112",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick3_D.TGA.meta",
+      "initialSha256": "4a992d2718c1fa093563c5c4007c3f10e7cffd7fbd018c19431268e0324adfdf",
+      "finalSha256": "4a992d2718c1fa093563c5c4007c3f10e7cffd7fbd018c19431268e0324adfdf",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick4_D.TGA",
+      "initialSha256": "af9be9d8f09f2399fc25b42eb65877f4329439cbf88643e10175997de278a831",
+      "finalSha256": "af9be9d8f09f2399fc25b42eb65877f4329439cbf88643e10175997de278a831",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick4_D.TGA.meta",
+      "initialSha256": "543fd29dbcc214f08173f0e6d95aeb21a23e332f3f089d2aafc48ad6262a1453",
+      "finalSha256": "543fd29dbcc214f08173f0e6d95aeb21a23e332f3f089d2aafc48ad6262a1453",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick5_D.TGA",
+      "initialSha256": "b3664389c001f79809a9da36dbd64162564987d88f5744ae05b91c056b8a0eb7",
+      "finalSha256": "b3664389c001f79809a9da36dbd64162564987d88f5744ae05b91c056b8a0eb7",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick5_D.TGA.meta",
+      "initialSha256": "8dee8817123370244dbe4bdbd509951e15d9e118e37ee36fa8c836a548bf17a2",
+      "finalSha256": "8dee8817123370244dbe4bdbd509951e15d9e118e37ee36fa8c836a548bf17a2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick6_D.TGA",
+      "initialSha256": "30c22a697dd2bb0ce25f18dc3ff82a0cf7b36ac2458914efa746474924fbe370",
+      "finalSha256": "30c22a697dd2bb0ce25f18dc3ff82a0cf7b36ac2458914efa746474924fbe370",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick6_D.TGA.meta",
+      "initialSha256": "a60cbe5ced7a2ec0b6da4ad955d48944711798732fcbe97e0e2f77dd96452fb6",
+      "finalSha256": "a60cbe5ced7a2ec0b6da4ad955d48944711798732fcbe97e0e2f77dd96452fb6",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick_N.tiff",
+      "initialSha256": "b24bbbc0da052bcefbdd8e739367e3a544eefa24ba98229553bfbc2af90c4ba9",
+      "finalSha256": "b24bbbc0da052bcefbdd8e739367e3a544eefa24ba98229553bfbc2af90c4ba9",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Fabrick_N.tiff.meta",
+      "initialSha256": "63223cdcc606d82246f925e291a915f7a15b2bc650ae99e26e8b65e466f2cdd8",
+      "finalSha256": "63223cdcc606d82246f925e291a915f7a15b2bc650ae99e26e8b65e466f2cdd8",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Flagpole_D.TGA",
+      "initialSha256": "0852fd9b176d4ca5e8afe20901de44acd9180552648d81406b93e217f37562bb",
+      "finalSha256": "0852fd9b176d4ca5e8afe20901de44acd9180552648d81406b93e217f37562bb",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Flagpole_D.TGA.meta",
+      "initialSha256": "2d93469af41aa005e54bf51e9bb403b7f26e5255eca9c71b817a7300da95c79b",
+      "finalSha256": "2d93469af41aa005e54bf51e9bb403b7f26e5255eca9c71b817a7300da95c79b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Floor_D.TGA",
+      "initialSha256": "08a953cd9083577f284911e5450cc81ac3abcc25fd2ca7485e28f6ec65e83797",
+      "finalSha256": "08a953cd9083577f284911e5450cc81ac3abcc25fd2ca7485e28f6ec65e83797",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Floor_D.TGA.meta",
+      "initialSha256": "897c1dd3bc299d6a22245fca18b61cb196322f4cf9431008b0316519b0feefea",
+      "finalSha256": "897c1dd3bc299d6a22245fca18b61cb196322f4cf9431008b0316519b0feefea",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Floor_N.tga",
+      "initialSha256": "08a953cd9083577f284911e5450cc81ac3abcc25fd2ca7485e28f6ec65e83797",
+      "finalSha256": "08a953cd9083577f284911e5450cc81ac3abcc25fd2ca7485e28f6ec65e83797",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Floor_N.tga.meta",
+      "initialSha256": "75af7260ec6ddadfadd6cd97296e8a404c3d6aafb765d9fd7ab73d4b85b59213",
+      "finalSha256": "75af7260ec6ddadfadd6cd97296e8a404c3d6aafb765d9fd7ab73d4b85b59213",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion1_D.TGA",
+      "initialSha256": "06229b562eac660362bf540b9c202e43952c289fa7d4e2db0dfe259e0832d002",
+      "finalSha256": "06229b562eac660362bf540b9c202e43952c289fa7d4e2db0dfe259e0832d002",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion1_D.TGA.meta",
+      "initialSha256": "00e7ea19f89972ee91248bfcaaabe7c44b84c8c9253cc80cc0ec87d129b5a085",
+      "finalSha256": "00e7ea19f89972ee91248bfcaaabe7c44b84c8c9253cc80cc0ec87d129b5a085",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion1_N.png",
+      "initialSha256": "90bf2ccdc8f205b618ce11eb98669931cf751cbcb62c1270a0bd6c580ddeaede",
+      "finalSha256": "90bf2ccdc8f205b618ce11eb98669931cf751cbcb62c1270a0bd6c580ddeaede",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion1_N.png.meta",
+      "initialSha256": "662d1861ece99ea26aece2931cf53fd3a059701581858f65d06cfe822736034c",
+      "finalSha256": "662d1861ece99ea26aece2931cf53fd3a059701581858f65d06cfe822736034c",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion2_D.TGA",
+      "initialSha256": "8e62f5e6c69430bdefbd1e5f61a0f27aa95cd9e564aeaf2c64d73df09f8f0e83",
+      "finalSha256": "8e62f5e6c69430bdefbd1e5f61a0f27aa95cd9e564aeaf2c64d73df09f8f0e83",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion2_D.TGA.meta",
+      "initialSha256": "235ab341fa6b98377fae04a29ac01770fa5a1788454a3f4d2280763be969339b",
+      "finalSha256": "235ab341fa6b98377fae04a29ac01770fa5a1788454a3f4d2280763be969339b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion2_N.png",
+      "initialSha256": "c441d0968be0a88f235a56a4a6be3a3cb8c480793dd8865b63c5d5f268bf286b",
+      "finalSha256": "c441d0968be0a88f235a56a4a6be3a3cb8c480793dd8865b63c5d5f268bf286b",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Lion2_N.png.meta",
+      "initialSha256": "e40c1bdf9880eab36302caaf5b51460015de496d230042e9875e2db18b2ef849",
+      "finalSha256": "e40c1bdf9880eab36302caaf5b51460015de496d230042e9875e2db18b2ef849",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Roof_D.TGA",
+      "initialSha256": "d42bd726aa8d4a04272eace08beea677c45bb010b08923c341564e1dc96eb521",
+      "finalSha256": "d42bd726aa8d4a04272eace08beea677c45bb010b08923c341564e1dc96eb521",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Roof_D.TGA.meta",
+      "initialSha256": "7a363a7d4467264d0e9eb231beae4666387794b143008cbdfc535ac4a5bc5cc3",
+      "finalSha256": "7a363a7d4467264d0e9eb231beae4666387794b143008cbdfc535ac4a5bc5cc3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Vase_D.TGA",
+      "initialSha256": "d8c8a66cf47379ab6bf14373c17302116fbc81d52fcf479e2e911b90086eaaab",
+      "finalSha256": "d8c8a66cf47379ab6bf14373c17302116fbc81d52fcf479e2e911b90086eaaab",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Vase_D.TGA.meta",
+      "initialSha256": "8fb276b8d58a86266536d30e821076c9a7a412e9da8e0770b0afd4465cca7071",
+      "finalSha256": "8fb276b8d58a86266536d30e821076c9a7a412e9da8e0770b0afd4465cca7071",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Vase_n.png",
+      "initialSha256": "0d341afa5e037a01600d2e7c6cb89c4260659355f170a11838f30bd0048de56d",
+      "finalSha256": "0d341afa5e037a01600d2e7c6cb89c4260659355f170a11838f30bd0048de56d",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Vase_n.png.meta",
+      "initialSha256": "c785323e5dd5c5d92a0e7e434e9273fb32aed065f3cd43571ad7d8c067a52dcd",
+      "finalSha256": "c785323e5dd5c5d92a0e7e434e9273fb32aed065f3cd43571ad7d8c067a52dcd",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Window_D.TGA",
+      "initialSha256": "3ed79e9c6360cd72c7a5f6048fe84983b6aee0c0966e0a63a3765905bc46fda2",
+      "finalSha256": "3ed79e9c6360cd72c7a5f6048fe84983b6aee0c0966e0a63a3765905bc46fda2",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon/T_Spazon_Window_D.TGA.meta",
+      "initialSha256": "47aa5d7b0a47755171f9e709d731bb58946633de8fdf74af5392d31c387fb127",
+      "finalSha256": "47aa5d7b0a47755171f9e709d731bb58946633de8fdf74af5392d31c387fb127",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/Spazon.meta",
+      "initialSha256": "c80685f7e0617d309bf64ea3aa7ec34c03c0e0e5f975ce253439a78e61c3fff4",
+      "finalSha256": "c80685f7e0617d309bf64ea3aa7ec34c03c0e0e5f975ce253439a78e61c3fff4",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/TilesDiffuse.tif",
+      "initialSha256": "d3da2f6226e913fd6642f4625b42413c4c0c9d0f269f38011479828eef0a1a2e",
+      "finalSha256": "d3da2f6226e913fd6642f4625b42413c4c0c9d0f269f38011479828eef0a1a2e",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/TilesDiffuse.tif.meta",
+      "initialSha256": "8b0923a78978293381263648de96b0b0746f31b34b67eaab674271d5c4f4683f",
+      "finalSha256": "8b0923a78978293381263648de96b0b0746f31b34b67eaab674271d5c4f4683f",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/TilesNormal.png",
+      "initialSha256": "692f410e57d468397698763a0377d100d7a054c459af3145feea6623407d11b3",
+      "finalSha256": "692f410e57d468397698763a0377d100d7a054c459af3145feea6623407d11b3",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture/TilesNormal.png.meta",
+      "initialSha256": "1caf6433096fbd4b93244e2d5bd646518bf47e98dc67b1c91cc273ff249f7723",
+      "finalSha256": "1caf6433096fbd4b93244e2d5bd646518bf47e98dc67b1c91cc273ff249f7723",
+      "sameBytes": true
+    },
+    {
+      "path": "Assets/Texture.meta",
+      "initialSha256": "75750092c3779dba43ad762613fcc9023db31d55f1c45cc47ca47d8b83a99639",
+      "finalSha256": "75750092c3779dba43ad762613fcc9023db31d55f1c45cc47ca47d8b83a99639",
+      "sameBytes": true
+    },
+    {
+      "path": "Packages/manifest.json",
+      "initialSha256": "737221008281275d961eaebbda87c3a8b8b837d9bc0902b2938f853a49eb5340",
+      "finalSha256": "737221008281275d961eaebbda87c3a8b8b837d9bc0902b2938f853a49eb5340",
+      "sameBytes": true
+    },
+    {
+      "path": "Packages/packages-lock.json",
+      "initialSha256": "09980541bbdc28c73518cfee69a6178111038f258f546a2aab7221b2d62fa6ab",
+      "finalSha256": "09980541bbdc28c73518cfee69a6178111038f258f546a2aab7221b2d62fa6ab",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/AudioManager.asset",
+      "initialSha256": "8be02be7033f85d88c976de3342e8be9b51d78a40f2eee583b9bbac63604a3f7",
+      "finalSha256": "8be02be7033f85d88c976de3342e8be9b51d78a40f2eee583b9bbac63604a3f7",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/AutoStreamingSettings.asset",
+      "initialSha256": "0ad317d77eeeb4e69402acadc5f300c193a50aab83cba1bb1c5def3aac357082",
+      "finalSha256": "0ad317d77eeeb4e69402acadc5f300c193a50aab83cba1bb1c5def3aac357082",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/BurstAotSettings_Android.json",
+      "initialSha256": "c0fcaa71ba89287fe9de0d85d629b98cb6f91a658e5059d95dc370bbf4643819",
+      "finalSha256": "c0fcaa71ba89287fe9de0d85d629b98cb6f91a658e5059d95dc370bbf4643819",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/BurstAotSettings_StandaloneWindows.json",
+      "initialSha256": "597114876963d60c17acbc0200190301f47e9726bf9d35d617be05252648f636",
+      "finalSha256": "597114876963d60c17acbc0200190301f47e9726bf9d35d617be05252648f636",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/ClusterInputManager.asset",
+      "initialSha256": "161f24a9eec89a7d44c144c3cd7d96a8c4880b1f1e52b63b4f9b7749d8217395",
+      "finalSha256": "161f24a9eec89a7d44c144c3cd7d96a8c4880b1f1e52b63b4f9b7749d8217395",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/CommonBurstAotSettings.json",
+      "initialSha256": "fc1437674d2b2f3be577f3e556e70bce300753d75e82a5adc8aef98d37a3a180",
+      "finalSha256": "fc1437674d2b2f3be577f3e556e70bce300753d75e82a5adc8aef98d37a3a180",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/DynamicsManager.asset",
+      "initialSha256": "e59603c6f52a4efaf89fefcb22db3ce0562244bcdfa80d248be7e37c9a78aaf4",
+      "finalSha256": "e59603c6f52a4efaf89fefcb22db3ce0562244bcdfa80d248be7e37c9a78aaf4",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/EditorBuildSettings.asset",
+      "initialSha256": "7f4c587f127fab85624ceba50d5264697cd2a8d1d47f9898dac4076b522d8771",
+      "finalSha256": "7f4c587f127fab85624ceba50d5264697cd2a8d1d47f9898dac4076b522d8771",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/EditorSettings.asset",
+      "initialSha256": "131cb6ac0ea83f6e9f5c39d2f6dbd1ff7ea296c0b1b468011a55ab804079d3cd",
+      "finalSha256": "3e5a4ac0998737f3221caa751ac4154fe7c41333abf758545ade8ea4aac3f705",
+      "sameBytes": false
+    },
+    {
+      "path": "ProjectSettings/GraphicsSettings.asset",
+      "initialSha256": "d259b9bd45c13972bde2ea181a92e52c697ece3baae032270b9311aac866fab6",
+      "finalSha256": "d259b9bd45c13972bde2ea181a92e52c697ece3baae032270b9311aac866fab6",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/InputManager.asset",
+      "initialSha256": "dbe93122a994df0e0abb82c68fadc16d92c24bb25575adc9f1a5da10980bdd07",
+      "finalSha256": "dbe93122a994df0e0abb82c68fadc16d92c24bb25575adc9f1a5da10980bdd07",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/MemorySettings.asset",
+      "initialSha256": "0a5bb7fcbfc5c8c698349688e0270129bc6bbde6eb7c2a8e1d51c76bd285f61a",
+      "finalSha256": "0a5bb7fcbfc5c8c698349688e0270129bc6bbde6eb7c2a8e1d51c76bd285f61a",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/MultiplayerManager.asset",
+      "initialSha256": "6135001847dd344214853808ea5cb75a73df22fcfea00187f04d108e438b910f",
+      "finalSha256": "6135001847dd344214853808ea5cb75a73df22fcfea00187f04d108e438b910f",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/NavMeshAreas.asset",
+      "initialSha256": "1ba5dd93dd9abcd31bea9ea9f36fe2cca0a8bf8b89d908da8ea91be9b503a60c",
+      "finalSha256": "1ba5dd93dd9abcd31bea9ea9f36fe2cca0a8bf8b89d908da8ea91be9b503a60c",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/PackageManagerSettings.asset",
+      "initialSha256": "73609fb7b91a8ccbdf477d538fe3b4764eb80a12d9d5ed2757246ac960945a3d",
+      "finalSha256": "73609fb7b91a8ccbdf477d538fe3b4764eb80a12d9d5ed2757246ac960945a3d",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/Packages/com.unity.ai.assistant/Settings.json",
+      "initialSha256": "54ba37aabe4a7d2663325e93f66f063c6dcfdcad92316cbaddbad55fcbcb5698",
+      "finalSha256": "54ba37aabe4a7d2663325e93f66f063c6dcfdcad92316cbaddbad55fcbcb5698",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/Physics2DSettings.asset",
+      "initialSha256": "565b7fac0181b0b74a3352563b22cd4814e77ff418016a5d26a745e9c9922654",
+      "finalSha256": "565b7fac0181b0b74a3352563b22cd4814e77ff418016a5d26a745e9c9922654",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/PhysicsCoreProjectSettings2D.asset",
+      "initialSha256": "e1b13af2366c8a007bdf0b448997aaf0981f4c32fd94c8b4c370bd0078510588",
+      "finalSha256": "e1b13af2366c8a007bdf0b448997aaf0981f4c32fd94c8b4c370bd0078510588",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/PresetManager.asset",
+      "initialSha256": "912ff774b11958079402d77292e6b0e51765516691aa0cb013108b8fc782827b",
+      "finalSha256": "912ff774b11958079402d77292e6b0e51765516691aa0cb013108b8fc782827b",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/ProjectAuditorSettings.asset",
+      "initialSha256": "9e68444b9bda981e2927a98df9edf69ea88362f0c6b7f3c81b39b9d515d2a416",
+      "finalSha256": "9e68444b9bda981e2927a98df9edf69ea88362f0c6b7f3c81b39b9d515d2a416",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/ProjectSettings.asset",
+      "initialSha256": "530e6798c96fc020b7647f955178e9e976d0d6cb2aac3bac1533dfc3bfa35b6a",
+      "finalSha256": "530e6798c96fc020b7647f955178e9e976d0d6cb2aac3bac1533dfc3bfa35b6a",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/ProjectVersion.txt",
+      "initialSha256": "39584c3e6c1e571d53a79ef2dd6ea91c0568ac086792cc435e86401a0ba824ed",
+      "finalSha256": "39584c3e6c1e571d53a79ef2dd6ea91c0568ac086792cc435e86401a0ba824ed",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/QualitySettings.asset",
+      "initialSha256": "66cd054596c04ce62b9f4e3dd1a5767812c35240ebf801360c9064310a6e5746",
+      "finalSha256": "66cd054596c04ce62b9f4e3dd1a5767812c35240ebf801360c9064310a6e5746",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/SceneTemplateSettings.json",
+      "initialSha256": "cc162d7cbfe1df7c0c126c3ebe69cc461c6ddba825a30559dc79efd7dafb0414",
+      "finalSha256": "cc162d7cbfe1df7c0c126c3ebe69cc461c6ddba825a30559dc79efd7dafb0414",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/ShaderGraphSettings.asset",
+      "initialSha256": "cdba1e5d65bcf6e3269d76ed3e60b6c21f98322002996642c9d74f1eb89f6b91",
+      "finalSha256": "cdba1e5d65bcf6e3269d76ed3e60b6c21f98322002996642c9d74f1eb89f6b91",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/TagManager.asset",
+      "initialSha256": "27d326950d58d1a06e683970961dc84dd8114793ac27a8b6f68f5760c59f1e81",
+      "finalSha256": "27d326950d58d1a06e683970961dc84dd8114793ac27a8b6f68f5760c59f1e81",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/TimeManager.asset",
+      "initialSha256": "6514b9f8ea9fe4c16aff8d45668c0c2648581154cc830634782dd6c0a48611e4",
+      "finalSha256": "56648ff16fa7bcde5ee6d0daed9d6541f2270132db40c3f1b7798b916a3b7ba8",
+      "sameBytes": false
+    },
+    {
+      "path": "ProjectSettings/TimelineSettings.asset",
+      "initialSha256": "1c63fbda5a79fb6a2ee33f5c664a234633dd0f9524e8669cb28dc82132047309",
+      "finalSha256": "1c63fbda5a79fb6a2ee33f5c664a234633dd0f9524e8669cb28dc82132047309",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/UnityConnectSettings.asset",
+      "initialSha256": "5cdfe155165a2093ecb40e4a3153b062c58acd185a551966afa93d439cd30ae7",
+      "finalSha256": "5cdfe155165a2093ecb40e4a3153b062c58acd185a551966afa93d439cd30ae7",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/VFXManager.asset",
+      "initialSha256": "5e1b2b4ef81bf80c4717da8d7bdf9d20e5fd731f477f5035e5ab67e11e193814",
+      "finalSha256": "5e1b2b4ef81bf80c4717da8d7bdf9d20e5fd731f477f5035e5ab67e11e193814",
+      "sameBytes": true
+    },
+    {
+      "path": "ProjectSettings/VersionControlSettings.asset",
+      "initialSha256": "e3348273559dfaf1ec14ef3ceced480915bb73c9ed811741d08cbc6996076ee4",
+      "finalSha256": "e3348273559dfaf1ec14ef3ceced480915bb73c9ed811741d08cbc6996076ee4",
+      "sameBytes": true
+    }
+  ],
+  "protectedUserSources": [
+    {
+      "path": "ProjectSettings/GraphicsSettings.asset",
+      "expectedSha256": "d259b9bd45c13972bde2ea181a92e52c697ece3baae032270b9311aac866fab6",
+      "actualSha256": "d259b9bd45c13972bde2ea181a92e52c697ece3baae032270b9311aac866fab6"
+    },
+    {
+      "path": "ProjectSettings/QualitySettings.asset",
+      "expectedSha256": "66cd054596c04ce62b9f4e3dd1a5767812c35240ebf801360c9064310a6e5746",
+      "actualSha256": "66cd054596c04ce62b9f4e3dd1a5767812c35240ebf801360c9064310a6e5746"
+    },
+    {
+      "path": "ProjectSettings/ProjectSettings.asset",
+      "expectedSha256": "530e6798c96fc020b7647f955178e9e976d0d6cb2aac3bac1533dfc3bfa35b6a",
+      "actualSha256": "530e6798c96fc020b7647f955178e9e976d0d6cb2aac3bac1533dfc3bfa35b6a"
+    },
+    {
+      "path": "ProjectSettings/EditorBuildSettings.asset",
+      "expectedSha256": "7f4c587f127fab85624ceba50d5264697cd2a8d1d47f9898dac4076b522d8771",
+      "actualSha256": "7f4c587f127fab85624ceba50d5264697cd2a8d1d47f9898dac4076b522d8771"
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+      "expectedSha256": "0b987d060327f5baf5e9d2faefdd9ddafadeddabe962f90016698fbe408de341",
+      "actualSha256": "0b987d060327f5baf5e9d2faefdd9ddafadeddabe962f90016698fbe408de341"
+    },
+    {
+      "path": "Assets/Scene/Spazon/Scene_Spazon.unity.meta",
+      "expectedSha256": "36fb9d0329fc735eca7d4c5548b21000d75bc11c5d24744a92f7a6822f8154c1",
+      "actualSha256": "36fb9d0329fc735eca7d4c5548b21000d75bc11c5d24744a92f7a6822f8154c1"
+    }
+  ],
+  "retiredTaskBakeArtifacts": [
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/Lightmap-0_comp_light.exr",
+      "sha256BeforeRetirement": "4284b5803d10c790f15e1677dc74e8e2f28db8c324cdc57bb06abeb01a9eb3b7",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/Lightmap-0_comp_dir.png",
+      "sha256BeforeRetirement": "ba663af710ef860d8b75ad1134019c24eddbfee85d91b970af8ab043bc234584",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/Lightmap-0_comp_shadowmask.png",
+      "sha256BeforeRetirement": "429c4288ac8fff5fd71b8552add2b38590bbb511dfad3a59894460cf0af59383",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/Lightmap-0_comp_dir.png.meta",
+      "sha256BeforeRetirement": "c3c6b726c9e1cdfeed7743ae23a1e22eacca06a7ed0b08f04c41c56f7d2d9b49",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/Lightmap-0_comp_shadowmask.png.meta",
+      "sha256BeforeRetirement": "149bacf29ec558253c707448ed968e470f21c8de6a83eec0a7b269fd0c49202c",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/Lightmap-0_comp_light.exr.meta",
+      "sha256BeforeRetirement": "560493435a53e72eb3d724be2419c378baf05f1febc2710616bad2239cf95b6d",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/ReflectionProbe-0.exr",
+      "sha256BeforeRetirement": "edde42fb1494571477e020345c9fa268873d3d98e2a9731eff6eeb5c596fa660",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/ReflectionProbe-1.exr",
+      "sha256BeforeRetirement": "4fd47283ac0dd66615ee2e698f959530d30fb1e812e9b7f6f277b913391695f3",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/ReflectionProbe-0.exr.meta",
+      "sha256BeforeRetirement": "b7587b51ceae2e6d57f1e44fc5661d104d5b1e28bd0c8ee51796d99415c3e748",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/ReflectionProbe-1.exr.meta",
+      "sha256BeforeRetirement": "de8899835681da92f6b07ac40fc93d9593dc2355ec1bf5d1c89df1b4c182bb63",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/LightingData.asset",
+      "sha256BeforeRetirement": "23973b16f94fae6b8989a5db9e4433f8c5b30e005f57eb651864accaf524fcb4",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting/LightingData.asset.meta",
+      "sha256BeforeRetirement": "4b12730073d1ec327590b272c5698e57338e132942a1b4e930ab40f45ca54686",
+      "status": "task bake/probe artifact, retained until final consumer then intentionally retired"
+    }
+  ],
+  "correction": "The former18-item protected set contains6user/settings sources and12task-owned bake/probe files. All18 were protected until final acceptance; the12task files were intentionally retired afterward. Do not call all18 user assets.",
+  "afterFinalMarkerRecheck": "All427source paths and recorded final hashes match after64/64recheck, normal53193exit and finalmarker scratch deletion."
+}

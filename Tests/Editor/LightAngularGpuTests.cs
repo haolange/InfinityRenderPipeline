@@ -39,7 +39,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        [Category("Unverified_0_5")]
         public void PackedCone_UsesSmoothAngularWindowOnGpu(bool transformed)
         {
             Scene preview = EditorSceneManager.NewPreviewScene();
@@ -91,7 +90,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void PointPyramidAndBox_RetainTheirAngularSupportOnGpu()
         {
             Vector4[] positions = { new Vector4(0.5f, 0.5f, 4, 0), new Vector4(3, 0, 4, 0),

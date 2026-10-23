@@ -11,7 +11,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             p.z <= 0 ? 1 : Mathf.Clamp01(Mathf.Cos(angleDegrees * Mathf.Deg2Rad) * p.x + p.y);
 
         [Test]
-        [Category("Unverified_0_5")]
         public void AngleFade_DisabledAt180_RampsBetweenStartAndEnd()
         {
             Assert.AreEqual(Vector4.zero, DecalComponent.AngleFadeParameters(180, 180));

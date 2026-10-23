@@ -21,7 +21,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         };
 
         [Test]
-        [Category("Unverified_0_5")]
         public void UInt32Statistics_PreserveIntegerRangeAndRoi()
         {
             uint[] values = { 0, 1, uint.MaxValue, 17, 65536, 42 };

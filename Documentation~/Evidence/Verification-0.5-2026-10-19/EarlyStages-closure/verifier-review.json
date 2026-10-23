@@ -1,0 +1,12 @@
+{
+  "reviewer": "independent /root/stage_verifier",
+  "decision": "Accepted corrected v2 evidence coverage before original retirement",
+  "archiveBytes": 22913134,
+  "archiveSha256": "b840f46e788b761ce13972baf83f5bd99699af2695e71efff92225d9c77aa2f2",
+  "membersVerified": 1922,
+  "checkpointCapsulesVerified": 54,
+  "fullRunsNativeOmissionCountEach": 33,
+  "actualNonemptySkippedObjectsPerFullCapsule": 42,
+  "rejectedCandidate": "v1 exact status equality omitted Skipped variants; superseded before deletion. f32 scratch retired with SHA.",
+  "scope": "S1-S9 promotion, S6/S7 exact original/final tests/nativeUI/source/restore/keyimages; not blanket image/performance acceptance"
+}
