@@ -157,6 +157,9 @@ namespace InfinityTech.Rendering.Pipeline
                     case "TAADepth": id = InfinityShaderIDs.TAADepthBuffer; break;
                     case "TAAReprojection": id = InfinityShaderIDs.TAAReprojectionBuffer; break;
                     case "Depth": id = InfinityShaderIDs.DepthBuffer; break;
+                    case "DBufferA": id = InfinityShaderIDs.DBufferA; break;
+                    case "DBufferB": id = InfinityShaderIDs.DBufferB; break;
+                    case "DBufferC": id = InfinityShaderIDs.DBufferC; break;
                     case "GBufferA": id = InfinityShaderIDs.GBufferA; break;
                     case "GBufferB": id = InfinityShaderIDs.GBufferB; break;
                     case "GBufferC": id = InfinityShaderIDs.GBufferC; break;
@@ -227,6 +230,8 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, m_CameraUniform.historyReset);
             staging.evidence.sourceQueue = sourceQueue;
+            // External contents predate this graph; their production frame is unknown to this capture.
+            if (sourceQueue == "External") staging.evidence.producerFrame = -1;
             staging.evidence.sourceDescriptor = sourceDescriptor;
             staging.evidence.sourceMip = sourceMip;
             RGTextureRef destination = m_RGBuilder.ImportTexture(staging.handle);

@@ -112,10 +112,6 @@ namespace InfinityTech.Rendering.Pipeline
             bool hasPyramid = bindPyramid && m_RGScoper.TryQueryTexture(InfinityShaderIDs.ColorPyramidBuffer, out colorPyramid);
             bool hasTranslucentDepth = m_RGScoper.TryQueryTexture(InfinityShaderIDs.TranslucentDepthBuffer, out translucentDepth);
 
-            Shader.SetKeyword(TranslucentPassUtilityData.VolumetricFogKeyword, hasFog);
-            Shader.SetKeyword(TranslucentPassUtilityData.AerialKeyword, hasAerial);
-            Shader.SetKeyword(TranslucentPassUtilityData.RefractionKeyword, hasPyramid);
-
             float fogMaxDistance = ActiveVolumeStack.GetComponent<InfinityTech.Rendering.PostProcess.VolumetricFog>().MaxDistance.value;
             float aerialDistance = pipelineAsset.atmosphericalProfile != null
                 ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
@@ -171,6 +167,9 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
+                    cmdEncoder.SetKeyword(TranslucentPassUtilityData.VolumetricFogKeyword, passData.bindFog);
+                    cmdEncoder.SetKeyword(TranslucentPassUtilityData.AerialKeyword, passData.bindAerial);
+                    cmdEncoder.SetKeyword(TranslucentPassUtilityData.RefractionKeyword, passData.bindPyramid);
                     cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_MaxDistanceID, passData.fogMaxDistance);
                     cmdEncoder.SetGlobalFloat(TranslucentPassUtilityData.VolFog_AerialDistanceID, passData.aerialDistance);
                     if (passData.bindFog)

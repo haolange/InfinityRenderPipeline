@@ -28,7 +28,6 @@ namespace InfinityTech.Rendering.Editor
                     if (check.fix != null && !check.isSatisfied())
                         check.fix();
                 }
-                AssetDatabase.SaveAssets();
             }
         }
 
@@ -53,7 +52,6 @@ namespace InfinityTech.Rendering.Editor
                         if (GUILayout.Button("Fix", GUILayout.Width(48)))
                         {
                             check.fix();
-                            AssetDatabase.SaveAssets();
                         }
                     }
                 }

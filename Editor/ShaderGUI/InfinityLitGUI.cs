@@ -33,6 +33,10 @@ namespace InfinityTech.Rendering.Editor
                 DrawSssIndexWarning(material);
             }
 
+            // Keep GI explicit: graph emission cannot be inferred from a fixed _EmissionColor property.
+            EditorGUILayout.LabelField("Baked Emission", EditorStyles.boldLabel);
+            materialEditor.LightmapEmissionFlagsProperty(0, true, true);
+
             DrawGroup(materialEditor, properties, "Advanced / Render State", false, "_ZTest", "_ZWrite");
 
             if (EditorGUI.EndChangeCheck())

@@ -1,0 +1,24 @@
+#pragma kernel Compare
+#include "../../../Shaders/ShaderLibrary/Common.hlsl"
+#include "../../../Shaders/ShaderLibrary/Montcalo.hlsl"
+#include "../../../Shaders/ShaderLibrary/ImageBasedLighting.hlsl"
+#include "../../../Shaders/ShaderLibrary/Lighting/ReflectionProbes.hlsl"
+Texture2DArray<float4> TestArray;
+TextureCube<float4> TestCube;
+StructuredBuffer<float4> Samples;
+RWStructuredBuffer<float4> Results;
+int CaseCount;
+[numthreads(1, 1, 1)]
+void Compare(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= CaseCount) return;
+    float4 s = Samples[id.x];
+    FReflectionProbeRecord probe = (FReflectionProbeRecord)0;
+    probe.worldToBox0 = float4(1, 0, 0, 0);
+    probe.worldToBox1 = float4(0, 1, 0, 0);
+    probe.worldToBox2 = float4(0, 0, 1, 0);
+    probe.parameters = float4(0.37, 6, 4, 0);
+    Results[id.x * 3] = float4(SampleGGXCubemapArray(TestArray, s.xyz, s.w / 4, 4), 1);
+    Results[id.x * 3 + 1] = float4(SampleReflectionProbe(probe, s.xyz, s.w / 4), 1);
+    Results[id.x * 3 + 2] = TestCube.SampleLevel(Global_trilinear_clamp_sampler, s.xyz, s.w);
+}

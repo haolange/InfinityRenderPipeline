@@ -118,11 +118,8 @@ float3 ProbeSampleDirection(FReflectionProbeRecord probe, float3 boxPosition, fl
 float3 SampleReflectionProbe(FReflectionProbeRecord probe, float3 directionBox, float roughness)
 {
     float3 directionWS = mul(directionBox, float3x3(probe.worldToBox0.xyz, probe.worldToBox1.xyz, probe.worldToBox2.xyz));
-    uint face;
-    float2 uv;
-    CubemapDirectionToFaceUv(normalize(directionWS), face, uv);
-    float mip = saturate(roughness) * probe.parameters.z;
-    return SRV_ReflectionProbeAtlas.SampleLevel(Global_trilinear_clamp_sampler, float3(uv, probe.parameters.y + face), mip).rgb * probe.parameters.x;
+    return SampleCubemapArraySeamless(SRV_ReflectionProbeAtlas, (uint)probe.parameters.y, directionWS,
+        saturate(roughness) * probe.parameters.z) * probe.parameters.x;
 }
 
 // Specular radiance from the probes reaching pixelCoord, and their total weight (0..1). The caller adds the sky times

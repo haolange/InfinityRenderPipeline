@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ForwardPassUtilityData
     {
+        internal static readonly GlobalKeyword ContactShadowKeyword = GlobalKeyword.Create("INFINITY_FORWARD_CONTACT_SHADOW");
         internal static readonly GlobalKeyword OcclusionKeyword = GlobalKeyword.Create("INFINITY_FORWARD_AO");
         internal static string TextureName = "LightingTexture";
     }
@@ -40,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, directionalLightmap);
                 commands.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, shadowmask);
                 shadows.BindGlobal(commands);
-                commands.SetGlobalInt(ContactShadowPassUtilityData.ContactShadowEnabledID, hasContactShadow ? 1 : 0);
+                commands.SetKeyword(ForwardPassUtilityData.ContactShadowKeyword, hasContactShadow);
                 if (hasContactShadow)
                 {
                     commands.SetGlobalTexture(ContactShadowPassUtilityData.SRV_ContactShadowSunID, contactShadowSun);

@@ -1,0 +1,40 @@
+{
+  "reason": "Generated new_meta.py output has trailing spaces on empty YAML values. Cached diff check caught them before commit. Strip whitespace only; token stream/GUIDs unchanged, no import schema change.",
+  "files": [
+    {
+      "path": "Tests/Editor/CubemapArraySamplingGpuTests.cs.meta",
+      "beforeSha256": "2313ef119b88179b34c9491d345ef42f9f00af2a7b791b8b36fec85e3b6432e5",
+      "afterSha256": "618f7d9304c122db3d5ced8c5dd1f678e73c94305d56f8d79f8a53e061fd9eea",
+      "yamlTokensUnchanged": true,
+      "guid": "9468fd16eb8b4f37a8d517ade9379852"
+    },
+    {
+      "path": "Tests/Editor/DBufferCompositeGpuTests.cs.meta",
+      "beforeSha256": "d45f81b28faa97b5cc5c3059382ec7649c4b3d125ccbf07480d0281a1e60f37d",
+      "afterSha256": "d26e2a817f1621b24fca295bf694cfa24cad716e7e67f038aeacb5b97446945e",
+      "yamlTokensUnchanged": true,
+      "guid": "e6d909335a1b47a89ac0799c115acadb"
+    },
+    {
+      "path": "Tests/Editor/LivenessMarkerPlacementTests.cs.meta",
+      "beforeSha256": "e0e892be5998f348d3d52bb4fc3c4329536b83c8e6b9ed4c8c709503c2a7c32e",
+      "afterSha256": "40d104a7a08f72434b1a611cd323df6e9c6b046b4866d9f5df050c2ecadf3b13",
+      "yamlTokensUnchanged": true,
+      "guid": "a6b484dd7e1d473e9f76d01d41e35dd6"
+    },
+    {
+      "path": "Tests/Editor/Shaders/Compute_CubemapArraySamplingContract.compute.meta",
+      "beforeSha256": "b938ebbe336ac58ff5619cf18405682d4256a4451a1838c18ec2b8b8c15294ed",
+      "afterSha256": "e604abc4edd72ff02e5ff8e98cec01dada942fe6a08ebbb111dfa92bede21cbc",
+      "yamlTokensUnchanged": true,
+      "guid": "36bd7ee1d51540f9bc36e04f694067ff"
+    },
+    {
+      "path": "Tests/Editor/Shaders/Compute_DBufferContract.compute.meta",
+      "beforeSha256": "ddb164a6c1e0a1dc5e5c1e4aab5eaa785a760938b8d5cf6e396692156a6d57f7",
+      "afterSha256": "58e322b6071765e172b205c6ca566fd0e3bf91e1ac6e4777ccd89cc95466e619",
+      "yamlTokensUnchanged": true,
+      "guid": "321c7ce582294a18854f668a0a12faa1"
+    }
+  ]
+}

@@ -9,10 +9,11 @@
 Texture2D<float> SRV_CascadeShadowMap;
 Texture2D<float> SRV_LocalShadowMap;
 // Screen-space traced shadows (ContactShadowPass): sun visibility and the local-light contact mask. Deferred binds them
-// under DEFERRED_CONTACT_SHADOW; Forward reads them when g_ContactShadowEnabled != 0.
+// only in enabled variants so Metal never validates an unbound integer texture in the off path.
+#if defined(DEFERRED_CONTACT_SHADOW) || defined(INFINITY_FORWARD_CONTACT_SHADOW)
 Texture2D<float> SRV_ContactShadowSun;
 Texture2D<uint> SRV_ContactShadowMask;
-int g_ContactShadowEnabled;
+#endif
 // Specular microfacet term (GGX, height-correlated Smith, Schlick); unclamped so HDR highlights keep their energy.
 float3 SpecularBRDF(float3 N, float3 V, float3 L, MicrofaceContext microfaceCtx)
 {
@@ -75,11 +76,10 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
     float3 direct = 0;
     float contactSun = 1;
     uint contactMask = 0;
-    if (g_ContactShadowEnabled != 0)
-    {
-        contactSun = SRV_ContactShadowSun.Load(int3(positionSS, 0));
-        contactMask = SRV_ContactShadowMask.Load(int3(positionSS, 0));
-    }
+#if defined(INFINITY_FORWARD_CONTACT_SHADOW)
+    contactSun = SRV_ContactShadowSun.Load(int3(positionSS, 0));
+    contactMask = SRV_ContactShadowMask.Load(int3(positionSS, 0));
+#endif
     for (int i = 0; i < g_DirectionalLightCount; i++)
     {
         FLightRecord light = g_LightRecordBuffer[i];

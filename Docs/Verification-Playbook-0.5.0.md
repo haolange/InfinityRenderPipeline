@@ -404,6 +404,14 @@ still fails. Retain the original failed check; these missing historical images a
    frame once, also with two cameras.
 8. A Forward-route material inside the probe reflects the same as a deferred one.
 9. Reimport a task-owned cubemap from Linear to sRGB while preserving GUID and identity. Its sampling format can change without updateCount or image hash changing; the first normal frame must filter the new contents, then stable frames must reuse it.
+   Run `CubemapArraySamplingGpuTests`: constant colors, asymmetric face gradients, all edges and corners, fractional
+   LOD, the 1x1 mip and nonzero atlas slices must remain finite and continuous. The array sampler uses a symmetric
+   three-face vertex convention; compare native Cube only when the effective filter footprint has no corner tap,
+   and use the independent three-face/full-1x1 oracle elsewhere. Test both actual cube-filter input kernels as well.
+   For image comparison, bind the same task-owned baked cubemaps, freeze marker rotation and match camera matrices.
+   Compare original/candidate/repeat normal frames: Depth/GBuffer and source GUID/hashes stay identical, and cube-face
+   boundaries on rough reflections disappear. Other dark regions require separate diagnosis; this is not a blanket
+   acceptance of every black area or a performance claim.
 10. RP Asset Max Reflection Probes = 0: probes disappear, only the sky remains; `ComputeReflectionProbes` is gone.
 11. Commit a red custom probe, change its source to green, then fail camera A after filter recording but before queue acceptance. Camera B in the same frame must record `ComputeReflectionProbes` and its normal Lighting capture must be green. Preserve the intended A failure and drain all readbacks. Also verify accepted production deduplicates across cameras, a later unqueued update cannot revive an overwritten version, and uncertain queue acceptance invalidates contents at frame completion.
 
@@ -443,9 +451,28 @@ still fails. Retain the original failed check; these missing historical images a
 3. A Lit graph with a texture into Base Color and a normal map, on a cube next to an InfinityLit cube with the same
    inputs: both look the same in Deferred; switch the material's Surface Route to Forward: still the same, Frame
    Debugger draws it in `ForwardPass`.
+   After changing target-generation code, reimport the task graph and inspect its actual keyword space before frame
+   acceptance; an already loaded graph can retain its prior generated shader across a script reload.
+   Preserve a black-output control even when later frames recover. Confirm the current normal-frame result again after
+   a cold restart without a preceding Frame Debugger/import/CompilePass sequence; a later healthy draw cannot identify
+   the earlier state failure or retrospectively validate its captured pixels.
+   Exercise native Lit, Instanced Lit through MeshComponent, and generated Lit Graph Forward materials with Contact Shadows off and on.
+   With no contact producer, Metal must report no uint mask/default color texture mismatch. With the producer active,
+   retain the sun and local contact result; run two Game cameras with opposite overrides in both depth orders.
 4. Translucent Stage T1 on the material: refraction through the color pyramid; T0: fog applies; T2: plain blend. Motion
    vectors: Debug View Motion shows the moving object.
+   Use a patterned opaque background and a tilted surface. Compare zero and nonzero Refraction Strength on both native
+   Lit and generated Lit Graph; a recorded pyramid alone does not prove refraction. Inspect the actual T1 draw in Frame
+   Debugger for `_REFRACTION_PYRAMID`. Compare T0 with fog on/off against the same T2 control, keeping opaque lighting
+   and depth fixed. T2 must clear fog/aerial/refraction keywords after T0/T1; repeat toggles and opposite camera overrides
+   to check state isolation. Read pre-temporal TAAInput as well as final output to distinguish history from shading.
 5. Bake lighting with a static Lit-graph object: it receives the lightmap (Meta pass gives the right albedo / emission).
+   For an emitting graph, explicitly set the material GI control to Baked; keep a None/black control and a native
+   InfinityLit emitter with the same effective linear HDR emission, geometry, sky and bake settings. A Graph HDR color
+   constant is linear; the native ShaderLab Color property stores a Gamma-space color, so matching stored numeric
+   literals is not a matched shader input. Record both stored and effective values. Compare actual lightmaps and normal
+   Baked Diffuse frames; a visible bright surface or a lightmap index alone does not prove emitted bounce. Inspector
+   repaint must preserve existing GI choices, including None; Undo restores explicit changes.
 6. Unlit graph: drawn in T2 with alpha. Decal graph on a Decal Projector: the projected texture shows on the GBuffer
    surfaces, its normal follows the projector.
 7. A Scene Color node in a T1 graph samples the opaque scene; Scene Depth outside decal graphs returns Shader Graph's constant 1
@@ -458,8 +485,13 @@ still fails. Retain the original failed check; these missing historical images a
    changed on purpose. Set Color Space to Gamma → the check turns yellow, Fix restores Linear.
 3. Remove one component from the default Volume profile → "Default Volume profile complete" fails; Window/Infinity/Append
    Missing Default Volume Components (or Fix) adds it back with packaged values, others unchanged; Undo removes it.
+   Redo restores the concrete component type (including APV `ProbeVolumesOptions`), not only its serialized class-name
+   text. Save/reimport must retain that type and a second completion must add zero. Run the persistent completion
+   Undo/Redo contract in `RenderPipelineWizardTests`; record exact local IDs as invariant strings in JSON receipts.
 4. Edit a light's native Type through the Debug Inspector → "Light shapes synced" fails; Fix restores it (Undo works).
 5. Scene with Baked GI and the default skybox → "Baking sky" fails; Fix runs Use Atmosphere As Baking Sky.
+6. Keep an unrelated task-owned native asset dirty while applying one Fix and Fix All: its bytes and dirty state stay
+   unchanged. Profile completion and mixed-lighting fixes persist only their own edited asset; scene edits retain Undo.
 
 ## S15c — Frame Settings
 
@@ -477,8 +509,17 @@ still fails. Retain the original failed check; these missing historical images a
 1. Window/Rendering/Light Explorer: tabs Lights, Infinity Lights, Reflection Probes, Infinity Probes, Light Probes,
    Volumes, Static Emissives. Editing Shadow Filter / Contact Shadows / Volume Priority in the table changes the object
    (Undo works); the Infinity Lights Shape column is read-only text (Sphere, Tube, Cone Spot, Rect, ...).
-2. Window/Rendering/Lighting → Environment: Atmosphere Profile field edits the RP Asset; Baking Sky shows the scene
-   skybox until Use Atmosphere As Baking Sky is pressed, then "Atmosphere".
+   Lights shows read-only Native Type and effective Shape; Tube, Pyramid and Box must display without unsupported-type
+   errors. Edit Type/Shape through the Light inspector so authored and native fields share one Undo transaction.
+   Leave Lights open while closing a task-owned scene containing those lights: stale rows must disappear without
+   NullReferenceException or GUILayout errors. Reopen the scene and verify that all rows return.
+   In Volumes, toggle Global and edit Priority, then Undo/Redo each change. All columns must continue drawing without
+   a null SerializedProperty error; Global uses CoreRP's serialized `m_IsGlobal` field.
+2. Window/Rendering/Lighting → Environment: Atmosphere Profile edits the current effective RP Asset.
+   If the scene already uses an Infinity baking sky, Baking Sky shows "Atmosphere (in sync on every bake)" and the
+   conversion button is absent. Otherwise it shows "Scene skybox (<name or none>)" and Use Atmosphere As Baking Sky.
+   Exercise both initial states on task-owned assets; explicit conversion changes the label to Atmosphere. The label
+   identifies the sky material type; verify actual baking output separately from this UI state.
 
 ## S15e — Inspectors and handles
 
@@ -487,12 +528,21 @@ still fails. Retain the original failed check; these missing historical images a
    sphere and the tube line with an end handle; dragging changes the inspector values, Undo restores them, and the native
    Light (Debug Inspector) follows (Type Tube, Area Size x = length).
 3. Spot cone / pyramid: outline at the range with a rim handle for the outer angle; rect: a size box; disk: radius handle.
+   Start the disk at Source Radius 0 and drag its center handle outward, then repeat from a nonzero radius. Both edits
+   update the native area size; Undo/Redo restores the authored radius and native fields together.
 4. Light inspector Additional Properties shows soft source radius / angle, barn doors, shadow near plane and biases,
    weights and distance fade; off hides them.
    Select a Point and Directional light together: General shows a mixed Type, Shape is hidden, and the following
    sections draw without a GUILayout error. Select each separately: Shape reappears with the corresponding fields.
 5. Decal: drag a face of the box handle; the opposite face stays. UV Scale 2 tiles the texture; Start / End Angle Fade
-   30 / 60 removes the decal from vertical walls under a downward projector.
+   30 / 60 removes the decal from vertical walls under a downward projector while retaining the horizontal floor.
+   Compare against a no-decal frame: pixels outside the projector and fully clipped walls preserve the receiver
+   GBuffer. Use a nonsymmetric camera and projector placement to expose Y-mirrored depth reconstruction. Run
+   `DBufferCompositeGpuTests` for zero, half, full and fractional coverage plus two ordered overlapping decals;
+   DBuffer RGB already contains coverage, so it must not be multiplied by alpha again when applied.
+   Capture DBufferA/B/C to check actual MRT coverage and premultiplied values, including overlapping and partially
+   faded decals. Run two Game cameras with opposite Decals overrides in both depth orders; compare GBuffer and
+   Lighting for order independence and verify that only the enabled camera records RenderDBuffer.
 6. Reflection probe with Infinity data Influence = Sphere: a sphere handle edits Sphere Radius.
 
 ## S15f — Rendering Debugger panels and Draw Modes
@@ -508,31 +558,43 @@ still fails. Retain the original failed check; these missing historical images a
    (forward pixels black). Reflection Probe Atlas shows six faces; Reflection Probe Index switches probes. Contact
    Shadows shows the sun trace (white = lit). Missing producers show magenta.
 5. Volume: select the Game camera and a component (e.g. Exposure); the table lists each influencing volume.
+   Run `VolumeCameraSelector_TracksEnabledInfinityGameCamera`: CoreRP's actual selector must include enabled Infinity
+   Game cameras and remove/reinclude them on disable/reenable. A menu listing only SceneCamera fails this gate.
 6. Timings: Record Pass Timings on; the Passes foldout fills with GPU / CPU ms (previous frame, summed over cameras).
 7. Scene view Draw Mode menu: sections Infinity Material / Lighting / Screen Space / Rendering. Choosing one changes
    only that Scene view (the Game view keeps the debugger's view); Shaded returns it to the debugger's view. Shadow
    Cascades, Overdraw, Mipmaps and the Deferred modes are disabled.
 8. Bake a Reflection Probe with a debug view active: the probe stays normally shaded.
+   Preserve and verify the original global lightmap array and mode around temporary additive Editor scenes. In the
+   tested 6000.6.0f1 Editor, creating an empty additive scene clears the global array even after making the original
+   scene active again. Restore the captured references before baking and after closing the temporary scene; check
+   the original scene remains clean and its LightingData/texture identities are unchanged. Do not treat a renderer's
+   lightmap index alone as proof that its lightmap is bound, or silently save/rebake assets to repair a fixture.
 
 ## S15g — Render Graph Viewer
 
-1. Run `RenderGraphViewerTests`.
+1. Run `RenderGraphViewerTests`. Its compiled-snapshot control stops at publication before any pass executes and
+   preserves the previous debug session; this is not a real GPU submission or native Viewer interaction check.
 2. Window/Analysis/Infinity Render Graph Viewer with the Game view playing: the camera popup lists the Game and Scene
    cameras; columns show every pass (orange = async compute such as the light tile mask, gray = culled). Hovering a
    header names the pass; clicking shows its queue, wait / signal passes and resource lists.
 3. Rows: GBufferA/B/C are written by RenderGBuffer and read by DeferredShading; the blue band spans from the
    allocating pass to the releasing pass. Imported rows (•) such as history textures have no band.
+   Toggle Imported and select an imported row: read/write cells remain visible while pool allocation/release are absent.
 4. Turn SSR off in the Volume: its passes disappear (not recorded). Pause freezes the capture; Copy puts the graph as
    text on the clipboard.
 5. Close the window: no further capture (no allocations from the viewer in the Profiler).
 
 ## S15h — Material conversion and create menus
 
-1. Run `MaterialUpgraderTests`.
+1. Run `MaterialUpgraderTests`. Color preservation compares exactly with an independent target Material's native
+   setter/getter round trip from the source's stored color; do not use literal float-bit equality or infer an image pass.
 2. Import a few Standard materials (e.g. from an Asset Store pack) and URP Lit materials if available; Window/Infinity/
    Material Conversion Wizard → Scan Project lists them with their source shader and dropped maps. Convert Selected:
    the materials switch to InfinityLit with the same color, map and tiling; glossy stays glossy (roughness = 1 −
-   smoothness); a Standard Fade material becomes translucent T0. Undo restores the source shader.
+   smoothness); a Standard Fade material becomes translucent T0. Undo restores the source shader. Keep an unrelated
+   task-owned native asset dirty: conversion persists only converted materials, preserves GUIDs, and leaves that
+   asset's bytes and dirty state unchanged. Run the conversion save-boundary/Undo test in `MaterialUpgraderTests`.
 3. Edit/Rendering/Materials/Convert Selected Built-In Materials to Current SRP converts with the same result.
 4. Render Pipeline Wizard: a scene with a Standard material fails "Scene materials use Infinity shaders"; Fix opens the
    conversion window with those materials.
@@ -546,14 +608,40 @@ still fails. Retain the original failed check; these missing historical images a
 
 ## S15i — Validation fixtures
 
-Each creator replaces `Assets/Scene/Validation/Validation_<Name>.unity` and its asset folder; run it once after
-updating, then use the fixture for the stage it names.
+Newly created fixtures keep the rotating liveness cube inside a small viewport corner and the camera clip range.
+Check that it remains visible and moves in normal Game frames, including a narrow/orthographic camera and a larger
+near plane. Existing saved markers are not moved on load. For fixed-image feature comparisons, freeze only the
+task-owned marker's rotation in the Play copy, retain its Renderer, and restore its prior rotation/enabled state
+afterward. Do not compare different rotating-marker poses as if their depth or temporal histories were identical.
+Metal raw readbacks use texture row order; apply the recorded Present scale/bias when making window-oriented preview
+images. Keep raw values unchanged for numerical comparisons.
+
+Each menu creator replaces `Assets/Scene/Validation/Validation_<Name>.unity` and its asset folder; run it once after
+updating, then use the fixture for the stage it names. For verification beside existing user fixtures, invoke the same
+internal `CreateInDirectory` logic with a new task-owned Assets subdirectory; record that path explicitly. Confirm a clean
+current scene and preserve its setup before the Single-scene switch. Save only the generated scene and fixture-owned
+assets. Unity SaveScene can implicitly save unrelated dirty native assets, so fixture Save rejects those edits before
+calling it; the refusal must leave their bytes and dirty state intact. Resolve only explicitly intended edits before retrying.
+Run `ValidationFixtureSaveTests` through UTF EditMode (its isolated bootstrap scene), then verify the outer saved scene
+was restored; do not directly invoke that integration test on a user scene.
 
 1. Create Shadows Fixture: five poles under spots labeled by filter. Hard has aliased edges; PCF smooth constant
    width; PCSS sharp at the pole base and wider at the tip; VSM / EVSM smooth with possible faint light bleeding where
    shadows overlap. Sphere Light PCSS casts soft cube-map shadows; Spot OnDemand renders once (move the box: the shadow
    stays until `RequestShadowMapRendering`). Pebbles show contact shadows from the sun and the Contact Point light;
    disabling ContactShadow in the Volume removes them.
+   The generated profile sets Thickness to 0.03 m: at the fixture's 10-12 m eye depths, 0.01 m is below the trace's
+   relative bias and cannot demonstrate pebble grounding. Keep that authored value for this fixture; do not change
+   the runtime default. Compare matching camera jitter/Depth and inspect Sun/local masks beside each pebble.
+   When capturing `CachedShadow` on a cache-hit frame, verify `sourceQueue=External` and an `Imported:` producer:
+   those contents were produced before this graph. A save frame reports its actual writer instead.
+   Check `producerFrame=-1` (unknown original production time) and the current `recordedFrame`; a cache-hit capture
+   does not identify the original save frame. Imports must retain the cache's authoritative texture descriptor.
+   Run `CaptureProvenance_DistinguishesPersistentImportFromMissingProducer`; graph-owned textures without a writer must
+   still fail. Do not interpret an external import as a current-frame shadow re-render.
+   Unallocated cache slots have undefined contents. A full-atlas diagnostic may correctly fail its finite-data gate;
+   retain that failure, analyze only a valid slot identified by its light/face/scene-mask entry and sampling production,
+   and obtain a separate successful normal-frame capture. Never derive valid slots from the finite-pixel bounds.
 2. Create Cookies Fixture: checker on the spot and (stretched 2:1) on the pyramid; tiled 4 m checker from the sun;
    colored stripes around the point light; rings from the IES light (Console warns if the IES import produced
    nothing).

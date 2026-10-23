@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.Editor
 
                 int start = resource.createPass >= 0 ? resource.createPass : resource.firstUse;
                 int end = resource.releasePass >= 0 ? resource.releasePass : resource.lastUse;
-                if (start >= 0 && end >= start)
+                if (!resource.imported && start >= 0 && end >= start)
                 {
                     float x0 = float.MaxValue, x1 = float.MinValue;
                     for (int p = start; p <= end; p++)

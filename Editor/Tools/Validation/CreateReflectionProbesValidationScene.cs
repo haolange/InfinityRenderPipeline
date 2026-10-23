@@ -12,10 +12,12 @@ namespace InfinityTech.Rendering.Editor.Validation
     public static class CreateReflectionProbesValidationScene
     {
         [MenuItem("Window/Infinity/Create Reflection Probes Fixture", false, 57)]
-        public static void Create()
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
+
+        internal static void CreateInDirectory(string sceneDirectory)
         {
-            if (!ValidationFixture.LeavePlayMode(Create)) return;
-            var fixture = new ValidationFixture("ReflectionProbes");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            var fixture = new ValidationFixture("ReflectionProbes", sceneDirectory);
             Material floor = fixture.Lit("Glossy Floor", new Color(0.12f, 0.12f, 0.13f), 0.08f);
             Material red = fixture.Lit("Red Wall", new Color(0.8f, 0.1f, 0.08f), 0.6f, 0, new Color(0.4f, 0.03f, 0.02f));
             Material blue = fixture.Lit("Blue Wall", new Color(0.08f, 0.15f, 0.8f), 0.6f, 0, new Color(0.02f, 0.05f, 0.4f));

@@ -26,10 +26,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
         internal static int UAV_ContactShadowSunID = Shader.PropertyToID("UAV_ContactShadowSun");
         internal static int UAV_ContactShadowMaskID = Shader.PropertyToID("UAV_ContactShadowMask");
-        // Consumer side (Deferred keyword DEFERRED_CONTACT_SHADOW; Forward globals guarded by g_ContactShadowEnabled).
+        // Consumers compile contact resources only in their enabled Deferred or Forward variant.
         internal static int SRV_ContactShadowSunID = Shader.PropertyToID("SRV_ContactShadowSun");
         internal static int SRV_ContactShadowMaskID = Shader.PropertyToID("SRV_ContactShadowMask");
-        internal static int ContactShadowEnabledID = Shader.PropertyToID("g_ContactShadowEnabled");
 
         // x, y = m22, m23 of the GPU projection (linear view depth from device depth), z = 1 when orthographic.
         internal static Vector4 DepthParams(Camera camera)

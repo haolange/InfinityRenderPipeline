@@ -12,10 +12,12 @@ namespace InfinityTech.Rendering.Editor.Validation
     public static class CreateShadowsValidationScene
     {
         [MenuItem("Window/Infinity/Create Shadows Fixture", false, 57)]
-        public static void Create()
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
+
+        internal static void CreateInDirectory(string sceneDirectory)
         {
-            if (!ValidationFixture.LeavePlayMode(Create)) return;
-            var fixture = new ValidationFixture("Shadows");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            var fixture = new ValidationFixture("Shadows", sceneDirectory);
             Material floor = fixture.Lit("Floor", new Color(0.6f, 0.6f, 0.58f), 0.7f);
             Material pole = fixture.Lit("Pole", new Color(0.8f, 0.75f, 0.7f), 0.5f);
 
@@ -66,6 +68,8 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 ContactShadow contactShadow = ValidationFixture.AddComponent<ContactShadow>(profile);
                 contactShadow.enable.value = true;
+                // The pebbles are 10-12 m deep: 1 cm is below the tracer's relative depth bias here.
+                contactShadow.Thickness.value = 0.03f;
             });
             fixture.Camera(new Vector3(0, 6, -14), new Vector3(0, 0.5f, 0), new Color(0.05f, 0.05f, 0.06f));
             fixture.Save();

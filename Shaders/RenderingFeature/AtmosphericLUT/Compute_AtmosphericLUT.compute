@@ -429,19 +429,6 @@ float3 SampleSkyViewLUT(float3 rayDir)
     return SRV_SkyViewLUT.SampleLevel(Global_bilinear_repeat_sampler, uv, 0).rgb;
 }
 
-float3 CubemapFaceDirection(uint face, float2 uv)
-{
-    float2 st = uv * 2.0 - 1.0;
-    float3 dir;
-    if (face == 0) dir = float3(1.0, -st.y, -st.x);
-    else if (face == 1) dir = float3(-1.0, -st.y, st.x);
-    else if (face == 2) dir = float3(st.x, 1.0, st.y);
-    else if (face == 3) dir = float3(st.x, -1.0, -st.y);
-    else if (face == 4) dir = float3(st.x, -st.y, 1.0);
-    else dir = float3(-st.x, -st.y, -1.0);
-    return normalize(dir);
-}
-
 // applyGroundTerm belongs to the sky only. Aerial perspective must keep its transmittance, because
 // scene geometry is what terminates those rays; zeroing it there erases the shaded pixel underneath.
 void IntegrateAtmosphereRay(float altitude, float3 rayDir, float tMax, bool applyGroundTerm, out float3 luminance, out float3 transmittance)

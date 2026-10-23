@@ -202,11 +202,7 @@ float3 PreintegratedGF_ClothCharlie(float3 SpecularColor, float Roughness, float
 
 float3 SampleGGXCubemapArray(Texture2DArray<float4> cubemap, float3 direction, float roughness, float maxMip)
 {
-    uint face;
-    float2 uv;
-    CubemapDirectionToFaceUv(normalize(direction), face, uv);
-    float mip = saturate(roughness) * maxMip;
-    return cubemap.SampleLevel(Global_trilinear_clamp_sampler, float3(uv, face), mip).rgb;
+    return SampleCubemapArraySeamless(cubemap, 0, direction, saturate(roughness) * maxMip);
 }
 
 float3 EvaluateSplitSumIBL(float3 albedo, float3 specular, float roughness, float3 normal, float3 view, StructuredBuffer<float4> shCoefficients, Texture2DArray<float4> ggxPrefilter, float maxMip)

@@ -9,7 +9,7 @@ namespace InfinityTech.Component
     [RequireComponent(typeof(Camera))]
     [AddComponentMenu("InfinityRenderer/Additional Camera Data")]
     [HelpURL(InfinityTech.Rendering.Pipeline.InfinityDocumentation.BaseUrl + "cameras.md")]
-    public sealed class InfinityAdditionalCameraData : BaseComponent
+    public sealed class InfinityAdditionalCameraData : BaseComponent, IAdditionalData
     {
         public LayerMask volumeLayerMask = ~0;
         public Transform volumeTrigger;

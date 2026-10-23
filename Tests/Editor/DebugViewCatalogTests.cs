@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using InfinityTech.Component;
+using UnityEngine.Rendering;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -8,7 +11,29 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class DebugViewCatalogTests
     {
         [Test]
-        [Category("Unverified_0_5")]
+        public void VolumeCameraSelector_TracksEnabledInfinityGameCamera()
+        {
+            var go = new GameObject("Volume selector contract");
+            try
+            {
+                go.SetActive(false);
+                var camera = go.AddComponent<Camera>();
+                InfinityAdditionalCameraData.GetOrCreate(camera, false);
+                go.SetActive(true);
+                var selector = new DebugUI.CameraSelector();
+                Assert.IsTrue(selector.getObjects().Contains(camera), "CoreRP must discover an enabled Infinity Game camera.");
+                camera.enabled = false;
+                Assert.IsFalse(selector.getObjects().Contains(camera), "Disabled cameras leave CoreRP's active camera choices.");
+                camera.enabled = true;
+                Assert.IsTrue(selector.getObjects().Contains(camera), "Reenabled cameras return without a second registry.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void EveryView_BelongsToExactlyOnePanel()
         {
             var seen = new HashSet<EDebugView>();
@@ -30,7 +55,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void SceneViewModes_RoundTrip()
         {
             Assert.AreEqual("SSR Tile Class", DebugViewCatalog.DisplayName(EDebugView.SSRTileClass));
@@ -49,7 +73,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void DebugViews_SkipProbeCapturesAndPreviews()
         {
             Assert.IsTrue(DebugViewCatalog.AppliesTo(CameraType.Game));

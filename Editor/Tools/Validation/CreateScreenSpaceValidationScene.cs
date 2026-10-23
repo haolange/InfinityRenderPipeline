@@ -12,10 +12,12 @@ namespace InfinityTech.Rendering.Editor.Validation
     public static class CreateScreenSpaceValidationScene
     {
         [MenuItem("Window/Infinity/Create Screen Space Fixture", false, 57)]
-        public static void Create()
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
+
+        internal static void CreateInDirectory(string sceneDirectory)
         {
-            if (!ValidationFixture.LeavePlayMode(Create)) return;
-            var fixture = new ValidationFixture("ScreenSpace");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            var fixture = new ValidationFixture("ScreenSpace", sceneDirectory);
             Material mirror = fixture.Lit("Mirror Floor", new Color(0.05f, 0.05f, 0.05f), 0.02f, 1);
             Material rough = fixture.Lit("Rough Floor", new Color(0.5f, 0.5f, 0.5f), 0.45f, 0.5f);
             Material white = fixture.Lit("White", new Color(0.85f, 0.85f, 0.85f), 0.9f);

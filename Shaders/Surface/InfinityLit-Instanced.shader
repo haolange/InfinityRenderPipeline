@@ -299,6 +299,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#pragma vertex vert
 			#pragma fragment frag
             #pragma multi_compile _ INFINITY_FORWARD_AO
+            #pragma multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW
 #if defined(INFINITY_FORWARD_AO)
             Texture2D<float> SRV_ForwardOcclusion;
 #endif

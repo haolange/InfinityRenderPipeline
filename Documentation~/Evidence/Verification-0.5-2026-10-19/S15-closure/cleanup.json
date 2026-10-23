@@ -1,0 +1,152 @@
+{
+  "taskDirectory": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S15",
+  "ownPid": 95505,
+  "normalQuitRequested": true,
+  "ownPidExited": true,
+  "quitReceipt": {
+    "success": true,
+    "command": "command run_script",
+    "data": {
+      "command": "run_script",
+      "parameters": {
+        "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S15/S15FinalMainAuditV1.cs",
+        "entry": "S15FinalMainAuditV1.Quit",
+        "args": "[]"
+      },
+      "result": {
+        "diagnostics": [],
+        "compileMs": 84,
+        "executeMs": 31,
+        "assemblyName": "PipelineRunScript_S15FinalMainAuditV1_534d7f5330144d5783b180a7f634cd2f",
+        "success": true,
+        "result": {
+          "pid": 95505,
+          "quitting": true,
+          "state": {
+            "pid": 95505,
+            "scene": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting.unity",
+            "isDirty": false,
+            "rootCount": 20,
+            "capture": {
+              "status": "Idle",
+              "finished": true,
+              "outstanding": 0,
+              "evidence": null
+            },
+            "dirty": [],
+            "buildScenes": [
+              {
+                "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+                "enabled": true,
+                "guid": "52096513fd20eba4fadae74e1bbe51db"
+              },
+              {
+                "path": "Assets/Scene/Landscape/Scene_Landscape.unity",
+                "enabled": false,
+                "guid": "582161ec9e686dc469c34709228c72d0"
+              },
+              {
+                "path": "Assets/Scene/BoxMatrix/BoxMatix_SRPBatcher.unity",
+                "enabled": false,
+                "guid": "fa289ef7cddef6d42b1752e3fdeac0bb"
+              },
+              {
+                "path": "Assets/Scene/BoxMatrix/BoxMatix_MeshPipeline.unity",
+                "enabled": false,
+                "guid": "a14e0526867dcd44086794a71fca66ff"
+              },
+              {
+                "path": "Assets/Scene/BoxMatrix/BoxMatix_HybridRenderer.unity",
+                "enabled": false,
+                "guid": "a34c2669962c99f448af5753853306a0"
+              }
+            ]
+          }
+        }
+      },
+      "target": {
+        "host": "127.0.0.1",
+        "port": 7800,
+        "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+      }
+    },
+    "errors": [],
+    "warnings": []
+  },
+  "quitState": {
+    "pid": 95505,
+    "scene": "Assets/InfinityRPVerification_0_5_20261020_run02/S15/ShaderGraphs/GraphLighting.unity",
+    "isDirty": false,
+    "rootCount": 20,
+    "capture": {
+      "status": "Idle",
+      "finished": true,
+      "outstanding": 0,
+      "evidence": null
+    },
+    "dirty": [],
+    "buildScenes": [
+      {
+        "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+        "enabled": true,
+        "guid": "52096513fd20eba4fadae74e1bbe51db"
+      },
+      {
+        "path": "Assets/Scene/Landscape/Scene_Landscape.unity",
+        "enabled": false,
+        "guid": "582161ec9e686dc469c34709228c72d0"
+      },
+      {
+        "path": "Assets/Scene/BoxMatrix/BoxMatix_SRPBatcher.unity",
+        "enabled": false,
+        "guid": "fa289ef7cddef6d42b1752e3fdeac0bb"
+      },
+      {
+        "path": "Assets/Scene/BoxMatrix/BoxMatix_MeshPipeline.unity",
+        "enabled": false,
+        "guid": "a14e0526867dcd44086794a71fca66ff"
+      },
+      {
+        "path": "Assets/Scene/BoxMatrix/BoxMatix_HybridRenderer.unity",
+        "enabled": false,
+        "guid": "a34c2669962c99f448af5753853306a0"
+      }
+    ]
+  },
+  "buildSettingsBytesUnchanged": true,
+  "protectedSourceExact": 18,
+  "remainingInventoryFiles": 11752,
+  "remainingPayloadBytes": 1425245927,
+  "allocatedBytesRemainingBeforeRetry": 4307025920,
+  "remainingInventorySha256": "a0c8ea0b7441ee44664c2b09094763cf3691577a93e7b88d75c79cc9e015a243",
+  "firstCleanupAttempt": "Stopped on ENOENT for an AppleDouble companion removed automatically with its primary. Earlier removed bytes are not included in this remaining-inventory lower bound.",
+  "carryDirectory": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5/20261020-run02/S16",
+  "carryFiles": [
+    {
+      "path": "call-owned.py",
+      "bytes": 669,
+      "sha256": "732a7d2619178f216f7f66852e6de7a0bba72d2ce8d48fef03a3495df55f294a"
+    },
+    {
+      "path": "owned-cold-launch-v1.py",
+      "bytes": 1756,
+      "sha256": "b7829a9e4f584970f50913c494d5af7b7b0fcb951a715a771daa759f6aade8ba"
+    },
+    {
+      "path": "carry/s15-repaired-source.tar.gz",
+      "bytes": 327414,
+      "sha256": "f3538bfa1ec21dbfa82e79dd82762884d906af841c0793e30a1324b744c41dfb"
+    },
+    {
+      "path": "carry/s15-repaired-source.json",
+      "bytes": 37670,
+      "sha256": "52c76175473115a92a1002b04c90576b88310fd32947dc81abf609cf129fe594"
+    }
+  ],
+  "carryConsumer": "S16 original 38b4620 replay plus accepted S15 source merge; original Example CLI drivers. Preserve S16 ShadowAllocator additions when carrying S15 repair. No Library/cache/database data.",
+  "taskAssetsConsumer": "Assets/InfinityRPVerification_0_5_20261020_run02/S15 remains for S16 image baselines and S17 same-baseline acceptance, then exact task cleanup.",
+  "deleted": true,
+  "directoryAbsent": true,
+  "carryPayloadBytes": 367509,
+  "intermediateBoundary": "Overall task unfinished: named S16 source carry remains from S15 intermediates; earlier-stage and other-task directories untouched."
+}

@@ -1,0 +1,25 @@
+{
+  "verifier": "/root/stage_verifier",
+  "date": "2026-10-23",
+  "verdict": "Approved scoped Fix S15 commit and explicit PR-branch push; S16 unlock only after remote SHA confirmation.",
+  "reviewedManifestSha256": "65b168c30f3a7708c241006e2c0e2edb065acec819a4aa5df44eb04ec28a619e",
+  "sourceFiles": 61,
+  "historicalFull": {
+    "passed": 1740,
+    "failed": 0,
+    "skipped": 53
+  },
+  "mainFull": {
+    "passed": 1754,
+    "failed": 1,
+    "skipped": 53
+  },
+  "focusedAfterTags": 21,
+  "knownFailure": "S17 PipelineSeamTests retired DepthPass path",
+  "bounds": [
+    "Historical transient black outputs/first purple probe/Display residuals not root-cause-closed",
+    "Perf/D3D12/Vulkan/Player/HDR remain Open",
+    "S15 task directory absent; named S16 carry and task Assets remain for declared consumers",
+    "No other-session Editor action; no PR Ready transition"
+  ]
+}

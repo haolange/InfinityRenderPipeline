@@ -365,7 +365,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
 
         public static PassDescriptor ForwardPass(InfinityTarget target) =>
             Pass(kForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, EqualDepthStates(target),
-                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO"),
+                With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW"),
                 Defines(target), Includes(kSurfaceLighting, kForward), true);
 
         public static PassDescriptor MotionPass(InfinityTarget target) =>

@@ -26,7 +26,6 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (renderContext.WorldDecalCount == 0 || !ShouldRecordFeature(EFrameFeature.DBuffer))
             {
-                Shader.SetKeyword(GBufferPassUtilityData.DBufferKeyword, false);
                 return;
             }
 
@@ -39,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferADsc.dimension = TextureDimension.Tex2D;
                 dBufferADsc.colorFormat = GraphicsFormat.R8G8B8A8_SRGB;
                 dBufferADsc.depthBufferBits = EDepthBits.None;
+                dBufferADsc.clearColor = Color.clear;
             }
             RGTextureRef dBufferA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
 
@@ -48,6 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferBDsc.dimension = TextureDimension.Tex2D;
                 dBufferBDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
                 dBufferBDsc.depthBufferBits = EDepthBits.None;
+                dBufferBDsc.clearColor = Color.clear;
             }
             RGTextureRef dBufferB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
 
@@ -57,6 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferCDsc.dimension = TextureDimension.Tex2D;
                 dBufferCDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
                 dBufferCDsc.depthBufferBits = EDepthBits.None;
+                dBufferCDsc.clearColor = Color.clear;
             }
             RGTextureRef dBufferC = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);
 

@@ -92,6 +92,39 @@ Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for s
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- S15 Editor/Metal validation now records the actual generated-graph, native UI and normal-frame consumer boundaries.
+  Only the 16 category attributes covering 20 exercised S15 test cases are retired; unrelated unverified tests remain
+  marked. Historical transient black outputs and final Display differences remain documented observations.
+- The Shadows validation fixture explicitly uses 3 cm contact thickness for its receivers 10-12 m from the camera.
+  The 1 cm default was below their relative trace bias and could not demonstrate pebble grounding. Runtime defaults
+  and the contact tracing algorithm are unchanged.
+- Normal-frame capture now identifies a persistent imported resource with no current-frame writer as external
+  provenance (for example, an OnDemand shadow cache hit). Unproduced graph-owned resources still fail; a current
+  writer takes precedence over the import identity. Imports from `FTextureRef` preserve their authoritative descriptor.
+  External capture evidence records an unknown production frame (-1) separately from its current recording frame.
+- Sky GGX and reflection-probe array cubemaps now filter taps across face boundaries at each sampled mip instead of
+  clamping each face independently. The shared path preserves atlas slices, intensity and roughness LOD; cube vertices
+  use a symmetric three-face corner value. Sky prefilter input uses the same cross-face sampling.
+
+- Validation liveness markers use the viewport's shorter dimension and a rotating-cube bound when explicitly
+  created/placed. Their faces stay inside the corner and near/far planes instead of producing large clipped strips
+  in front of the fixture camera. Loading an existing scene does not reposition its marker.
+- Decals clear all DBuffer attachments to zero coverage, reconstruct sampled depth with the screen-oriented jittered inverse, and consume premultiplied attributes once. Clipped and uncovered pixels preserve receivers; fractional opacity and overlapping decals retain their intended color, normal and material response in native and Shader Graph paths. The GBuffer decal keyword is recorded per draw, keeping opposite camera overrides independent.
+- Translucent fog, aerial perspective and refraction keywords are recorded immediately before each pass draws.
+  Recording T2 no longer disables T0/T1 variants before graph execution; every pass explicitly clears absent features.
+- Infinity camera additional data implements CoreRP's marker interface so the Rendering Debugger Volume camera selector includes enabled Game cameras and tracks disable/reenable without a separate registry.
+- Forward contact shadows use an explicit shader variant shared by native and Shader Graph materials. The disabled variant no longer declares an unbound uint mask that Metal otherwise validates against Unity's incompatible default color texture.
+- Render Graph Viewer draws pool lifetime bands only for graph-owned resources; imported resources retain read/write markers without implying pool allocation or release.
+- Light Explorer's Lights tab shows native types and effective Infinity shapes read-only, including Tube, Pyramid and Box, instead of invoking Unity's legacy unsupported-type popups. Shape edits remain in the Light inspector's synchronization/Undo transaction. Rows whose native light was destroyed during scene close no longer dereference the stale target.
+- Disk source-radius handles use an absolute radial slider so a disk with zero radius can be expanded, with the existing native-light synchronization and Undo transaction.
+- Light Explorer binds Volume Global to CoreRP's serialized `m_IsGlobal` field, preventing a null-property exception that stopped the remaining Volume columns from drawing.
+- Default Volume completion records a new component reference only after its Undo creation and subasset identity are established. Persistent Profile Undo/Redo preserves concrete component types, including CoreRP APV options.
+- Material Conversion Wizard persists only materials it actually converted; Render Pipeline Wizard fixes no longer save unrelated dirty assets. Default-profile completion and mixed-lighting fixes persist their own edited asset when applicable.
+- Lit and Lit Shader Graph inspectors expose Unity's explicit GI emission flags without inferring graph emission from `_EmissionColor`; newly generated fixture materials with nonzero emission enable baked emission instead of retaining `EmissiveIsBlack`.
+
+- Validation fixtures can target an internal project-relative Assets directory while menus retain their default paths; saving explicitly targets fixture-owned assets and rejects unrelated dirty native assets before Unity SaveScene can implicitly save them.
+
+- Material conversion tests compare the upgraded color exactly with an independent native Material setter/getter round trip; Unity does not preserve the input literal's float bits. Render Graph Viewer tests stop at their unique compiled-snapshot publication before any GPU pass, verify the sentinel and restore the prior debug session instead of submitting an empty render context.
 - SSGI verification now distinguishes final post-TAA display evidence from raw GI/debug signals. Production-kernel regression coverage checks reset samples, configured temporal accumulation, premultiplied confidence, invalid history and spatial normalization without requiring an unrequested first-frame prefilter. No production filtering algorithm is changed.
 - Camera culling requests reflection probes explicitly. Overwriting Unity's native culling options without `NeedsReflectionProbes` returned an empty visible-probe list, so the configured atlas and reflection consumers never received scene probes.
 - Present GPU contract tests queue readback behind the tested draw and yield Editor updates instead of blocking Metal submission. The same three dimensions, five output policies, finite values, coverage/padding and transfer equations remain asserted; timeout retains resources until its callback drains.

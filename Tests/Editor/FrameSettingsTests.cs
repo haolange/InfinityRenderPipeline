@@ -5,7 +5,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class FrameSettingsTests
     {
         [Test]
-        [Category("Unverified_0_5")]
         public void Default_IsAllEnabled_ReflectionDefaultsSkipScreenSpace()
         {
             foreach (EFrameSetting setting in FrameSettingsUtility.All)
@@ -18,7 +17,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        [Category("Unverified_0_5")]
         public void Resolve_PicksBaselineByCameraKind_AndAppliesOnlyOverriddenSettings()
         {
             FFrameSettings defaults = FFrameSettings.AllEnabled;

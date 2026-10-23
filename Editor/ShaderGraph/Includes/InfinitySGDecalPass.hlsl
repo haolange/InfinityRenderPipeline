@@ -12,7 +12,7 @@ void frag(PackedVaryings packedInput, out float4 DBufferA : SV_Target0, out floa
     Varyings input = UnpackVaryings(packedInput);
     float2 screenUV = input.positionCS.xy * rcp(_ScreenParams.xy);
     float sceneDepth = _DepthTexture.Load(int3(input.positionCS.xy, 0)).r;
-    float3 positionWS = GetWorldSpacePos(GetNDCPos(screenUV, sceneDepth), Matrix_InvViewJitterProj);
+    float3 positionWS = GetWorldSpacePos(GetNDCPos(screenUV, sceneDepth), Matrix_InvViewFlipYJitterProj);
     float3 objectPos = mul(UNITY_MATRIX_I_M, float4(positionWS, 1.0)).xyz;
     clip(0.5 - abs(objectPos));
 

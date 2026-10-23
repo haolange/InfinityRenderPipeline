@@ -19,10 +19,12 @@ namespace InfinityTech.Rendering.Editor.Validation
             "1000 1000 300 300 900 900 250 250 700 700 200 200 500 500 150 150 300 100 0\n";
 
         [MenuItem("Window/Infinity/Create Cookies Fixture", false, 57)]
-        public static void Create()
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
+
+        internal static void CreateInDirectory(string sceneDirectory)
         {
-            if (!ValidationFixture.LeavePlayMode(Create)) return;
-            var fixture = new ValidationFixture("Cookies");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            var fixture = new ValidationFixture("Cookies", sceneDirectory);
             Material floor = fixture.Lit("Floor", new Color(0.7f, 0.7f, 0.7f), 0.8f);
             fixture.Primitive(PrimitiveType.Plane, "Floor", Vector3.zero, new Vector3(4, 1, 3), floor);
             fixture.Primitive(PrimitiveType.Cube, "Back Wall", new Vector3(0, 3, 8), new Vector3(40, 6, 0.2f), floor);

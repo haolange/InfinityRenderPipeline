@@ -393,6 +393,13 @@ namespace InfinityTech.Rendering.RenderGraph
             return new RGTextureRef(newHandle);
         }
 
+        internal RGTextureRef ImportTexture(RTHandle rt, in TextureDescriptor descriptor, in int shaderProperty)
+        {
+            RGTextureRef reference = ImportTexture(rt, shaderProperty);
+            GetTextureResource(reference.handle).descriptor = descriptor;
+            return reference;
+        }
+
         // The backbuffer has no owning RenderTexture, so it can only be bound as a RenderTargetIdentifier.
         // Imported resources skip Create/Release, which keeps the single RTHandle wrapper valid across frames.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

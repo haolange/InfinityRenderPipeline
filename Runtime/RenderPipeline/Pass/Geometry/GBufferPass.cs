@@ -88,7 +88,6 @@ namespace InfinityTech.Rendering.Pipeline
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferB, out dBufferB)
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferC, out dBufferC);
 
-            Shader.SetKeyword(GBufferPassUtilityData.DBufferKeyword, bindDBuffer);
 
             RGDrawListRef gbufferDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.GBuffer);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.GBufferPass, cullingResults, camera);
@@ -138,6 +137,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passRef.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
+                    cmdEncoder.SetKeyword(GBufferPassUtilityData.DBufferKeyword, passData.bindDBuffer);
                     cmdEncoder.SetGlobalInt(Shader.PropertyToID("_InfinityHasProbes"), passData.hasProbes);
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, passData.directionalLightmap);
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.ShadowmaskKeyword, passData.shadowmask);

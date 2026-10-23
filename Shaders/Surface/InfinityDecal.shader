@@ -65,7 +65,7 @@ Shader "InfinityPipeline/InfinityDecal"
 				float2 screenUV = In.positionCS.xy * rcp(_ScreenParams.xy);
 				float sceneDepth = _DepthTexture.Load(int3(In.positionCS.xy, 0)).r;
 				float3 ndcPos = GetNDCPos(screenUV, sceneDepth);
-				float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewJitterProj);
+				float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewFlipYJitterProj);
 				float3 objectPos = mul(unity_WorldToObject, float4(worldPos, 1.0)).xyz;
 				clip(0.5 - abs(objectPos));
 

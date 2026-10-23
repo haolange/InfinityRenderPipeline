@@ -368,8 +368,11 @@ namespace InfinityTech.Component.Editor
                         break;
                     case EInfinityLightType.Disk:
                         Handles.DrawWireDisc(Vector3.zero, Vector3.forward, shape.sourceRadius);
-                        shape.sourceRadius = Mathf.Max(0, Handles.ScaleValueHandle(shape.sourceRadius, new Vector3(shape.sourceRadius, 0, 0), Quaternion.identity,
-                            HandleUtility.GetHandleSize(Vector3.zero) * 0.5f, Handles.DotHandleCap, 0));
+                        Vector3 radiusPoint = new Vector3(shape.sourceRadius, 0, 0);
+                        // An absolute radial slider can grow a zero-radius disk; multiplicative scaling cannot.
+                        Vector3 movedRadius = Handles.Slider(radiusPoint, Vector3.right,
+                            HandleUtility.GetHandleSize(radiusPoint) * 0.05f, Handles.DotHandleCap, 0);
+                        shape.sourceRadius = Mathf.Max(0, movedRadius.x);
                         range = RangeHandle(range);
                         break;
                 }

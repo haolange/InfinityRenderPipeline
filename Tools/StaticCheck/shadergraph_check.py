@@ -22,7 +22,7 @@ PASSES = [
     ("ShadowPass", "SHADERPASS_SHADOWS", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["normalOS", "positionWS"], [], True),
     ("DepthPass", "SHADERPASS_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
     ("GBufferPass", "SHADERPASS_GBUFFER", "InfinitySGBakedLighting.hlsl", "InfinitySGGBufferPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["_DBUFFER"]], True),
-    ("ForwardPass", "SHADERPASS_FORWARD", "InfinitySGSurfaceLighting.hlsl", "InfinitySGForwardPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["INFINITY_FORWARD_AO"]], True),
+    ("ForwardPass", "SHADERPASS_FORWARD", "InfinitySGSurfaceLighting.hlsl", "InfinitySGForwardPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["INFINITY_FORWARD_AO"], ["INFINITY_FORWARD_CONTACT_SHADOW"]], True),
     ("MotionPass", "SHADERPASS_MOTION", None, "InfinitySGMotionPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
     ("TranslucentDepthPass", "SHADERPASS_TRANSLUCENT_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
     ("TranslucentT0Pass", "SHADERPASS_TRANSLUCENT_T0", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, SURFACE, [["_VOLUMETRIC_FOG"], ["_AERIAL_PERSPECTIVE"]], True),

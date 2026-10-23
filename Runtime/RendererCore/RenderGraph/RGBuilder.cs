@@ -334,6 +334,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RGTextureRef ImportTexture(in FTextureRef texture, in int shaderProperty = 0)
+        {
+            return m_Resources.ImportTexture(texture.texture, texture.descriptor, shaderProperty);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in TextureDescriptor descriptor, in int shaderProperty = 0)
         {
             return m_Resources.ImportBackbuffer(backBuffer, descriptor, shaderProperty);
@@ -362,12 +368,21 @@ namespace InfinityTech.Rendering.RenderGraph
 
         string GetProducer(in RGResourceHandle handle, out string queue)
         {
+            if (!handle.IsValid()) throw new InvalidOperationException("Capture source handle is invalid.");
             for (int i = m_PassList.Count - 1; i >= 0; --i)
             {
                 IRGPass pass = m_PassList[i];
                 if (!pass.resourceWriteLists[handle.iType].Contains(handle)) continue;
                 queue = pass.enableAsyncCompute ? "AsyncCompute" : "Graphics";
                 return pass.name;
+            }
+            // A persistent import can be read without being produced again in this graph (for example,
+            // an OnDemand shadow cache hit). Keep that external provenance distinct from a frame pass.
+            m_Resources.DescribeResource(handle.iType, handle.index, out string name, out bool imported, out _);
+            if (imported)
+            {
+                queue = "External";
+                return "Imported: " + name;
             }
             throw new InvalidOperationException("Capture source has no recorded producer.");
         }

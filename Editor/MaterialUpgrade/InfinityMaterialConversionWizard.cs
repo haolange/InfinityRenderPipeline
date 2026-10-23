@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Editor
             window.SetEntries(materials);
         }
 
-        void SetEntries(IEnumerable<Material> materials)
+        internal void SetEntries(IEnumerable<Material> materials)
         {
             m_Entries.Clear();
             foreach (Material material in materials)
@@ -124,10 +124,10 @@ namespace InfinityTech.Rendering.Editor
             }
         }
 
-        void ConvertSelected()
+        internal void ConvertSelected()
         {
             Entry[] selected = m_Entries.Where(e => e.selected && e.material != null).ToArray();
-            int converted = 0;
+            var converted = new List<Material>();
             try
             {
                 for (int i = 0; i < selected.Length; i++)
@@ -136,19 +136,22 @@ namespace InfinityTech.Rendering.Editor
                     if (EditorUtility.DisplayCancelableProgressBar("Material Conversion", entry.path, (float)i / selected.Length)) break;
                     MaterialUpgrader upgrader = InfinityMaterialUpgraders.Find(entry.material);
                     if (upgrader == null) continue;
+                    if (Shader.Find(upgrader.NewShaderPath) == null)
+                        throw new System.InvalidOperationException($"Material conversion target shader is missing: {upgrader.NewShaderPath} ({entry.path}).");
                     Undo.RecordObject(entry.material, "Convert Material to Infinity");
                     upgrader.Upgrade(entry.material, MaterialUpgrader.UpgradeFlags.None);
                     EditorUtility.SetDirty(entry.material);
-                    converted++;
+                    converted.Add(entry.material);
                 }
             }
             finally
             {
                 EditorUtility.ClearProgressBar();
             }
-            AssetDatabase.SaveAssets();
+            foreach (Material material in converted)
+                AssetDatabase.SaveAssetIfDirty(material);
             m_Entries.RemoveAll(e => e.material == null || InfinityMaterialUpgraders.Find(e.material) == null);
-            m_Status = $"Converted {converted} material(s); {m_Entries.Count} left.";
+            m_Status = $"Converted {converted.Count} material(s); {m_Entries.Count} left.";
         }
     }
 }

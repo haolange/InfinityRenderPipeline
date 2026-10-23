@@ -20,29 +20,13 @@ TextureCube<float4> SRV_CubeSource;
 Texture2DArray<float4> SRV_CubeArraySource;
 RWTexture2DArray<float4> UAV_CubeArray;
 
-float3 CubemapFaceDirection(uint face, float2 uv)
-{
-    float2 st = uv * 2.0 - 1.0;
-    float3 dir;
-    if (face == 0) dir = float3(1.0, -st.y, -st.x);
-    else if (face == 1) dir = float3(-1.0, -st.y, st.x);
-    else if (face == 2) dir = float3(st.x, 1.0, st.y);
-    else if (face == 3) dir = float3(st.x, -1.0, -st.y);
-    else if (face == 4) dir = float3(st.x, -st.y, 1.0);
-    else dir = float3(-st.x, -st.y, -1.0);
-    return normalize(dir);
-}
-
 float3 SampleSource(bool fromCube, float3 direction, float lod)
 {
     if (fromCube)
     {
         return SRV_CubeSource.SampleLevel(Global_trilinear_clamp_sampler, direction, lod).rgb;
     }
-    uint face;
-    float2 uv;
-    CubemapDirectionToFaceUv(direction, face, uv);
-    return SRV_CubeArraySource.SampleLevel(Global_bilinear_clamp_sampler, float3(uv, face), 0).rgb;
+    return SampleCubemapArraySeamless(SRV_CubeArraySource, 0, direction, 0);
 }
 
 float D_GGXForFilter(float NoH, float alpha)

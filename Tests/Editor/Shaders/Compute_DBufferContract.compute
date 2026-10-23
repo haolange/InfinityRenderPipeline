@@ -1,0 +1,15 @@
+#pragma kernel Composite
+#include "../../../Shaders/ShaderLibrary/DBuffer.hlsl"
+RWStructuredBuffer<float4> Results;
+int CaseCount;
+[numthreads(1, 1, 1)]
+void Composite(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= CaseCount) return;
+    float3 albedo = float3(0.18, 0.4, 0.7);
+    float3 normal = float3(0, 1, 0);
+    float roughness = 0.8, materialG = 0.15;
+    ApplyDBuffer(float2((id.x + 0.5) / CaseCount, 0.5), albedo, normal, roughness, materialG);
+    Results[id.x * 2] = float4(albedo, roughness);
+    Results[id.x * 2 + 1] = float4(normal, materialG);
+}

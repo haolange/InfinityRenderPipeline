@@ -45,6 +45,10 @@ namespace InfinityTech.Rendering.Editor
             EditorGUILayout.LabelField("Graph Inputs", EditorStyles.boldLabel);
             materialEditor.PropertiesDefaultGUI(properties);
 
+            // Keep GI explicit: graph emission cannot be inferred from a fixed _EmissionColor property.
+            EditorGUILayout.LabelField("Baked Emission", EditorStyles.boldLabel);
+            materialEditor.LightmapEmissionFlagsProperty(0, true, true);
+
             if (routeChanged)
                 InfinityLitGUI.ApplyTargets(materialEditor, true);
         }

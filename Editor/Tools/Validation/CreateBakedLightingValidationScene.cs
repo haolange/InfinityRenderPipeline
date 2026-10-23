@@ -14,10 +14,12 @@ namespace InfinityTech.Rendering.Editor.Validation
     public static class CreateBakedLightingValidationScene
     {
         [MenuItem("Window/Infinity/Create Baked Lighting Fixture", false, 57)]
-        public static void Create()
+        public static void Create() => CreateInDirectory("Assets/Scene/Validation");
+
+        internal static void CreateInDirectory(string sceneDirectory)
         {
-            if (!ValidationFixture.LeavePlayMode(Create)) return;
-            var fixture = new ValidationFixture("BakedLighting");
+            if (!ValidationFixture.LeavePlayMode(() => CreateInDirectory(sceneDirectory))) return;
+            var fixture = new ValidationFixture("BakedLighting", sceneDirectory);
             Material white = fixture.Lit("White", new Color(0.75f, 0.75f, 0.75f), 0.8f);
             Material red = fixture.Lit("Red", new Color(0.75f, 0.08f, 0.06f), 0.8f);
             Material green = fixture.Lit("Green", new Color(0.08f, 0.7f, 0.1f), 0.8f);

@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -22,11 +24,13 @@ namespace InfinityTech.Rendering.Editor.Validation
         const string SceneDirectory = "Assets/Scene/Validation";
 
         readonly string m_Name;
+        readonly string m_SceneDirectory;
         readonly string m_AssetDirectory;
         readonly Scene m_Scene;
+        readonly List<UnityEngine.Object> m_OwnedAssets = new List<UnityEngine.Object>();
         Shader m_LitShader;
 
-        public string ScenePath => SceneDirectory + "/Validation_" + m_Name + ".unity";
+        public string ScenePath => m_SceneDirectory + "/Validation_" + m_Name + ".unity";
         public string AssetDirectory => m_AssetDirectory;
 
         // Stops Play mode first (fixture creation edits scenes and assets); returns false when it deferred the call.
@@ -38,10 +42,14 @@ namespace InfinityTech.Rendering.Editor.Validation
             return false;
         }
 
-        public ValidationFixture(string name)
+        public ValidationFixture(string name, string sceneDirectory = SceneDirectory)
         {
+            if (string.IsNullOrWhiteSpace(sceneDirectory) || !sceneDirectory.StartsWith("Assets/", StringComparison.Ordinal) ||
+                sceneDirectory.Contains("..") || sceneDirectory.Contains('\\') || sceneDirectory.EndsWith("/", StringComparison.Ordinal))
+                throw new ArgumentException("Fixture directory must be a project-relative Assets subdirectory.", nameof(sceneDirectory));
             m_Name = name;
-            m_AssetDirectory = SceneDirectory + "/Validation_" + name + "Assets";
+            m_SceneDirectory = sceneDirectory;
+            m_AssetDirectory = m_SceneDirectory + "/Validation_" + name + "Assets";
             Directory.CreateDirectory(Path.GetFullPath(m_AssetDirectory));
             if (File.Exists(Path.GetFullPath(ScenePath)))
             {
@@ -61,6 +69,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 AssetDatabase.DeleteAsset(path);
             }
             AssetDatabase.CreateAsset(asset, path);
+            m_OwnedAssets.Add(asset);
             return asset;
         }
 
@@ -76,7 +85,10 @@ namespace InfinityTech.Rendering.Editor.Validation
             material.SetFloat("_Roughness", roughness);
             material.SetFloat("_Reflectance", metallic);
             material.SetFloat("_SpecularLevel", 0.5f);
-            material.SetColor("_EmissionColor", emission ?? Color.black);
+            Color emissionColor = emission ?? Color.black;
+            material.SetColor("_EmissionColor", emissionColor);
+            material.globalIlluminationFlags = emissionColor.maxColorComponent > 0
+                ? MaterialGlobalIlluminationFlags.BakedEmissive : MaterialGlobalIlluminationFlags.EmissiveIsBlack;
             MaterialRouteUtility.ApplyPassState(material);
             return SaveAsset(material, name + ".mat");
         }
@@ -154,9 +166,21 @@ namespace InfinityTech.Rendering.Editor.Validation
 
         public void Save()
         {
-            EditorSceneManager.SaveScene(m_Scene, ScenePath);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
+            var ownedPaths = new HashSet<string>(m_OwnedAssets.Select(AssetDatabase.GetAssetPath), StringComparer.Ordinal);
+            string[] unrelatedDirty = Resources.FindObjectsOfTypeAll<UnityEngine.Object>()
+                .Where(asset => asset != null && EditorUtility.IsPersistent(asset) && AssetDatabase.IsNativeAsset(asset) && EditorUtility.IsDirty(asset))
+                .Select(AssetDatabase.GetAssetPath)
+                .Where(path => !string.IsNullOrEmpty(path) &&
+                    (path.StartsWith("Assets/", StringComparison.Ordinal) || path.StartsWith("Packages/", StringComparison.Ordinal)) &&
+                    !ownedPaths.Contains(path))
+                .Distinct().OrderBy(path => path, StringComparer.Ordinal).ToArray();
+            // Unity SaveScene also saves unrelated dirty native assets; imported shader compilation state is not such an edit. Reject before entering that native API.
+            if (unrelatedDirty.Length != 0)
+                throw new InvalidOperationException("Resolve unrelated unsaved asset edits before saving the fixture: " + string.Join(", ", unrelatedDirty));
+            if (!EditorSceneManager.SaveScene(m_Scene, ScenePath))
+                throw new IOException("Could not save fixture scene: " + ScenePath);
+            foreach (UnityEngine.Object asset in m_OwnedAssets)
+                AssetDatabase.SaveAssetIfDirty(asset);
             Debug.Log($"[InfinityRP][Validation] {m_Name} fixture written: {ScenePath}");
         }
     }

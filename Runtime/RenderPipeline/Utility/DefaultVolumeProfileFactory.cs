@@ -183,14 +183,20 @@ namespace InfinityTech.Rendering.Pipeline
                     if (profile.TryGet(template.GetType(), out VolumeComponent existing) && existing != null)
                         continue;
 
-                    if (added == 0)
-                        Undo.RegisterCompleteObjectUndo(profile, "Complete default Volume profile");
-                    VolumeComponent component = profile.Add(template.GetType(), false);
+                    VolumeComponent component = (VolumeComponent)ScriptableObject.CreateInstance(template.GetType());
                     EditorUtility.CopySerialized(template, component);
                     component.name = template.GetType().Name;
                     if (EditorUtility.IsPersistent(profile))
                         AssetDatabase.AddObjectToAsset(component, profile);
                     Undo.RegisterCreatedObjectUndo(component, "Complete default Volume profile");
+                    // Record the reference only after the new component has its persistent identity.
+                    using (var serializedProfile = new SerializedObject(profile))
+                    {
+                        SerializedProperty components = serializedProfile.FindProperty(nameof(VolumeProfile.components));
+                        components.arraySize++;
+                        components.GetArrayElementAtIndex(components.arraySize - 1).objectReferenceValue = component;
+                        serializedProfile.ApplyModifiedProperties();
+                    }
                     EditorUtility.SetDirty(component);
                     added++;
                 }

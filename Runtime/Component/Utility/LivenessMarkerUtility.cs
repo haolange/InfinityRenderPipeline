@@ -24,7 +24,6 @@ namespace InfinityTech.Component
 
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = ObjectName;
-            go.transform.localScale = Vector3.one * 0.25f;
             PlaceInCameraNearCorner(go.transform, camera);
             return go.AddComponent<LivenessMarker>();
         }
@@ -67,11 +66,35 @@ namespace InfinityTech.Component
                 return;
             }
 
-            // Bottom-right of the view, ~0.35m in front so Game-view captures show motion.
-            target.position = camera.transform.position
-                + camera.transform.forward * 0.35f
-                + camera.transform.right * 0.18f
-                + camera.transform.up * -0.12f;
+            // Size the fixture cube against the shorter viewport dimension. Its rotating bounding sphere must stay
+            // inside both the corner region and the clip range; a fixed distance can put its faces through near.
+            const float halfDiagonalPerSide = 0.8660254f;
+            float clipSpan = camera.farClipPlane - camera.nearClipPlane;
+            float padding = Mathf.Min(0.05f, clipSpan * 0.01f);
+            float near = camera.nearClipPlane + padding;
+            float far = camera.farClipPlane - padding;
+            float shortAspect = Mathf.Min(1f, camera.aspect);
+            float radius;
+            float distance;
+            if (camera.orthographic)
+            {
+                radius = camera.orthographicSize * shortAspect * 0.12f * halfDiagonalPerSide;
+                radius = Mathf.Min(radius, (far - near) * 0.45f);
+                distance = Mathf.Clamp(1f, near + radius, far - radius);
+            }
+            else
+            {
+                float shortTangent = Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * shortAspect;
+                float radiusPerDepth = shortTangent * 0.12f * halfDiagonalPerSide;
+                // Distance from the projected center (.9, .1) to the outer viewport planes, with a 20% margin.
+                float cornerRadiusPerDepth = 0.16f * shortTangent / Mathf.Sqrt(1f + shortTangent * shortTangent);
+                radiusPerDepth = Mathf.Min(radiusPerDepth, cornerRadiusPerDepth,
+                    0.9f * (far - near) / (far + near));
+                distance = Mathf.Clamp(1f, near / (1f - radiusPerDepth), far / (1f + radiusPerDepth));
+                radius = radiusPerDepth * distance;
+            }
+            target.localScale = Vector3.one * (radius / halfDiagonalPerSide);
+            target.position = camera.ViewportToWorldPoint(new Vector3(0.9f, 0.1f, distance));
         }
     }
 }

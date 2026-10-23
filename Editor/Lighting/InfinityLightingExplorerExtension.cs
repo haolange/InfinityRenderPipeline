@@ -37,6 +37,31 @@ namespace InfinityTech.Rendering.Editor
         static LightingExplorerTableColumn Column(LightingExplorerTableColumn.DataType type, string label, string property, int width) =>
             new LightingExplorerTableColumn(type, new GUIContent(label), property, width);
 
+        protected override LightingExplorerTableColumn[] GetLightColumns()
+        {
+            LightingExplorerTableColumn[] columns = base.GetLightColumns();
+            // Unity 6000.6's legacy Type/Shape popups omit Tube, Pyramid and Box. Keep the other native columns;
+            // shape edits belong to the Infinity inspector's authored-shape/native-light Undo transaction.
+            columns[2] = new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Custom,
+                new GUIContent("Native Type", "Read-only; edit Type and Shape in the Light inspector."), "m_Type", 120,
+                (r, prop, dep) =>
+                {
+                    var light = prop?.serializedObject.targetObject as Light;
+                    if (light) EditorGUI.LabelField(r, light.type.ToString());
+                });
+            columns[3] = new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Custom,
+                new GUIContent("Shape", "Read-only effective Infinity shape."), "m_Type", 120, (r, prop, dep) =>
+                {
+                    var light = prop?.serializedObject.targetObject as Light;
+                    // Scene close can repaint a table row after its native Light has been destroyed.
+                    if (!light) return;
+                    FLightShape shape = light.TryGetComponent<InfinityAdditionalLightData>(out var data)
+                        ? data.shape : LightShapeUtility.FromUnityLight(light);
+                    EditorGUI.LabelField(r, DescribeShape(shape));
+                });
+            return columns;
+        }
+
         static LightingExplorerTableColumn[] GetInfinityLightColumns()
         {
             return new[]
@@ -90,7 +115,7 @@ namespace InfinityTech.Rendering.Editor
             {
                 new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Checkbox, s_Enabled, "m_Enabled", 50),
                 new LightingExplorerTableColumn(LightingExplorerTableColumn.DataType.Name, s_Name, null, 200),
-                Column(LightingExplorerTableColumn.DataType.Checkbox, "Global", "isGlobal", 50),
+                Column(LightingExplorerTableColumn.DataType.Checkbox, "Global", "m_IsGlobal", 50),
                 Column(LightingExplorerTableColumn.DataType.Float, "Priority", "priority", 60),
                 Column(LightingExplorerTableColumn.DataType.Float, "Weight", "weight", 60),
                 Column(LightingExplorerTableColumn.DataType.Float, "Blend Distance", "blendDistance", 90),

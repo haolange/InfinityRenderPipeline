@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public string semantic, producer, sourceQueue, queue = "Graphics", format, file, error;
             public string colorSpace, transferEncoding;
-            public int width, height, layers, samples, producerFrame, completionFrame, submissionFrame, sourceMip, captureIndex;
+            public int width, height, layers, samples, producerFrame, recordedFrame, completionFrame, submissionFrame, sourceMip, captureIndex;
             public long bytes;
             public string resourceKind = "Texture", bufferTarget;
             public int bufferCount, bufferStride;
@@ -241,7 +241,7 @@ namespace InfinityTech.Rendering.Pipeline
                 colorSpace = semantic == "DisplayColor" || semantic == "PostProcess" ? "DisplayLinear-Rec709" : "SemanticData",
                 transferEncoding = semantic == "DisplayColor" || semantic == "PostProcess" ? "Linear; final target transfer belongs to Present" : "None",
                 width = texture.width, height = texture.height, layers = texture.volumeDepth, samples = texture.antiAliasing,
-                producerFrame = Time.frameCount, captureIndex = m_CaptureIndex, historyReset = historyReset, sourceDescriptor = descriptor,
+                producerFrame = Time.frameCount, recordedFrame = Time.frameCount, captureIndex = m_CaptureIndex, historyReset = historyReset, sourceDescriptor = descriptor,
                 sourceRoi = ScaleRoi(descriptor.width, descriptor.height) };
             var staging = new Staging { texture = texture, handle = handle, evidence = evidence, owner = this, readbackFormat = readbackFormat };
             m_Staging.Add(staging); m_Evidence.buffers.Add(evidence);

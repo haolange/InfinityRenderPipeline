@@ -109,6 +109,8 @@ namespace InfinityTech.Rendering.Editor
                     Undo.RecordObject(settings, "Mixed Lighting Mode");
                     settings.mixedBakeMode = MixedLightingMode.Shadowmask;
                     EditorUtility.SetDirty(settings);
+                    if (EditorUtility.IsPersistent(settings))
+                        AssetDatabase.SaveAssetIfDirty(settings);
                 },
             },
             new InfinityWizardCheck
@@ -270,6 +272,8 @@ namespace InfinityTech.Rendering.Editor
                 return;
             }
             int added = DefaultVolumeProfileFactory.ValidateAndComplete(profile);
+            if (added > 0)
+                AssetDatabase.SaveAssetIfDirty(profile);
             Debug.Log($"[InfinityRP] Added {added} missing default Volume components to {AssetDatabase.GetAssetPath(profile)}; existing components and values are unchanged.");
         }
 
