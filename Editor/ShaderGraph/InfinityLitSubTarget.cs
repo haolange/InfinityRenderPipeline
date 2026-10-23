@@ -33,16 +33,16 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
                 generatesPreview = true,
                 passes = new PassCollection
                 {
-                    InfinityPasses.ShadowPass(target),
+                    InfinityPasses.RasterShadowPass(target),
                     InfinityPasses.ShadowCaster(target),
-                    InfinityPasses.DepthPass(target),
-                    InfinityPasses.GBufferPass(target),
-                    InfinityPasses.ForwardPass(target),
-                    InfinityPasses.MotionPass(target),
-                    InfinityPasses.TranslucentDepthPass(target),
-                    InfinityPasses.TranslucentT0Pass(target),
-                    InfinityPasses.TranslucentT1Pass(target),
-                    InfinityPasses.TranslucentT2Pass(target, InfinityPasses.LitBlocks),
+                    InfinityPasses.RasterDepthPass(target),
+                    InfinityPasses.RasterGBufferPass(target),
+                    InfinityPasses.RasterForwardPass(target),
+                    InfinityPasses.RasterMotionPass(target),
+                    InfinityPasses.RasterTranslucentDepthPass(target),
+                    InfinityPasses.RasterTranslucentT0Pass(target),
+                    InfinityPasses.RasterTranslucentT1Pass(target),
+                    InfinityPasses.RasterTranslucentT2Pass(target, InfinityPasses.LitBlocks),
                     InfinityPasses.Meta(target),
                 }
             };

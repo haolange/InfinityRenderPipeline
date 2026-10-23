@@ -16,10 +16,11 @@ void ReprojectSurface(float2 uv, float depth, float2 surfaceMotion, float4x4 inv
     historyUV = previous.xy / previous.w * 0.5 + 0.5 + cameraMotion - surfaceMotion;
     expectedDepth = previous.z / previous.w;
 }
-float HistoryDepthConfidence(Texture2D history, float2 uv, float expectedDepth, uint channel)
+float HistoryDepthConfidence(Texture2D history, float4 textureView, float2 uv, float expectedDepth, uint channel)
 {
     if (any(uv < 0) || any(uv >= 1)) return 0;
     uint width, height; history.GetDimensions(width, height);
+    if (textureView.x > 0) { width = textureView.x; height = textureView.y; }
     int2 pixel = (int2)(uv * float2(width, height));
     float low = ScreenSpaceDepthParams.y, high = ScreenSpaceDepthParams.x;
     [unroll]

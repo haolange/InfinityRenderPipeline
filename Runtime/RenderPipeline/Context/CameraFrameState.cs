@@ -26,6 +26,8 @@ namespace InfinityTech.Rendering.Pipeline
         public int lastSeenFrame;
         public CameraType cameraType;
         public CameraDimensionDescriptor dimensions;
+        internal readonly TextureCapacityState internalCapacity = new TextureCapacityState();
+        internal readonly TextureCapacityState displayCapacity = new TextureCapacityState();
         public bool postProcessingEnabled = true;
         public bool sceneLightingEnabled = true;
         public GraphicsFormat colorFormat;
@@ -86,6 +88,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (!executeSucceeded) return;
             cameraUniform.Commit();
+            internalCapacity.Commit(); displayCapacity.Commit();
             meshMotionHistory.Commit();
             successfulRenderCount++;
             preparedThisRender = false;

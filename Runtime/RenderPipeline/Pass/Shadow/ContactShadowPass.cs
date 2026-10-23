@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
 
-            TextureDescriptor sunDsc = new TextureDescriptor(width, height)
+            TextureDescriptor sunDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal)
             {
                 name = ContactShadowPassUtilityData.SunTextureName,
                 dimension = TextureDimension.Tex2D,

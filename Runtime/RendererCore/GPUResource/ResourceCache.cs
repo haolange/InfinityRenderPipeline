@@ -74,6 +74,20 @@ namespace InfinityTech.Rendering.GPUResource
 
         public int width;
         public int height;
+        public int allocationWidth, allocationHeight;
+        public ETextureSizingDomain sizingDomain;
+        public int viewDivisor;
+        public int physicalWidth => allocationWidth > 0 ? allocationWidth : width;
+        public int physicalHeight => allocationHeight > 0 ? allocationHeight : height;
+        public FTextureView view => new FTextureView(new Unity.Mathematics.int2(width, height), new Unity.Mathematics.int2(physicalWidth, physicalHeight));
+        public TextureDescriptor PhysicalDescriptor()
+        {
+            var physical = this;
+            physical.width = physicalWidth; physical.height = physicalHeight;
+            physical.allocationWidth = physical.allocationHeight = 0;
+            physical.sizingDomain = ETextureSizingDomain.Exact; physical.viewDivisor = 0;
+            return physical;
+        }
         public int slices;
         public EDepthBits depthBufferBits;
         public GraphicsFormat colorFormat;
@@ -91,6 +105,9 @@ namespace InfinityTech.Rendering.GPUResource
         public EMSAASamples msaaSamples;
         public bool clearBuffer;
         public Color clearColor;
+
+        public TextureDescriptor(int width, int height, ETextureSizingDomain domain, int divisor = 1) : this(width, height)
+        { sizingDomain = domain; viewDivisor = divisor; }
 
         public TextureDescriptor(int Width, int Height) : this()
         {
@@ -130,7 +147,9 @@ namespace InfinityTech.Rendering.GPUResource
 
         public bool Equals(TextureDescriptor target)
         {
-            return width == target.width
+            return allocationWidth == target.allocationWidth && allocationHeight == target.allocationHeight
+                && sizingDomain == target.sizingDomain && viewDivisor == target.viewDivisor
+                && width == target.width
                 && height == target.height
                 && slices == target.slices
                 && mipMapBias.Equals(target.mipMapBias)
@@ -144,6 +163,7 @@ namespace InfinityTech.Rendering.GPUResource
                 && useMipMap == target.useMipMap
                 && autoGenerateMips == target.autoGenerateMips
                 && isShadowMap == target.isShadowMap
+                && msaaSamples == target.msaaSamples
                 && bindTextureMS == target.bindTextureMS;
         }
 
@@ -155,6 +175,10 @@ namespace InfinityTech.Rendering.GPUResource
         public override int GetHashCode()
         {
             int hashCode = 17;
+            hashCode = hashCode * 23 + allocationWidth;
+            hashCode = hashCode * 23 + allocationHeight;
+            hashCode = hashCode * 23 + (int)sizingDomain;
+            hashCode = hashCode * 23 + viewDivisor;
             hashCode = hashCode * 23 + width;
             hashCode = hashCode * 23 + height;
             hashCode = hashCode * 23 + slices;
@@ -169,6 +193,7 @@ namespace InfinityTech.Rendering.GPUResource
             hashCode = hashCode * 23 + (useMipMap ? 1 : 0);
             hashCode = hashCode * 23 + (autoGenerateMips ? 1 : 0);
             hashCode = hashCode * 23 + (isShadowMap ? 1 : 0);
+            hashCode = hashCode * 23 + (int)msaaSamples;
             hashCode = hashCode * 23 + (bindTextureMS ? 1 : 0);
             return hashCode;
         }
@@ -214,92 +239,106 @@ namespace InfinityTech.Rendering.GPUResource
         {
             public TDescriptor descriptor;
             public TResource resource;
+            public long lastUse, bytes;
         }
-
-        protected Dictionary<int, List<Entry>> m_ResourcePool = new Dictionary<int, List<Entry>>(64);
-
-        abstract protected void ReleaseInternalResource(TResource res);
-        abstract protected string GetResourceName(TResource res);
-        abstract protected string GetResourceTypeName();
-
+        struct RetiredEntry { public Entry entry; public GraphicsFence fence; }
+        protected readonly Dictionary<int, List<Entry>> m_ResourcePool = new Dictionary<int, List<Entry>>(64);
+        readonly List<RetiredEntry> m_Retired = new List<RetiredEntry>();
+        long m_Epoch;
+        public long estimatedIdleBytes { get; private set; }
+        public long estimatedRetiredBytes { get; private set; }
+        public long allocationCount { get; private set; }
+        public long reuseCount { get; private set; }
+        public long evictionCount { get; private set; }
+        public long estimatedAllocatedBytes { get; private set; }
+        public long estimatedPeakBytes { get; private set; }
+        public long estimatedActiveBytes => estimatedAllocatedBytes - estimatedIdleBytes - estimatedRetiredBytes;
+        protected abstract void ReleaseInternalResource(TResource resource);
+        protected abstract long EstimateBytes(in TDescriptor descriptor);
+        public void RecordAllocation(in TDescriptor descriptor)
+        {
+            allocationCount++;
+            estimatedAllocatedBytes += EstimateBytes(descriptor);
+            estimatedPeakBytes = Math.Max(estimatedPeakBytes, estimatedAllocatedBytes);
+        }
         public bool Pull(in int hashCode, in TDescriptor descriptor, out TResource resource)
         {
-            if (m_ResourcePool.TryGetValue(hashCode, out var list) && list.Count > 0)
-            {
+            if (m_ResourcePool.TryGetValue(hashCode, out var list))
                 for (int i = list.Count - 1; i >= 0; --i)
                 {
                     Entry entry = list[i];
-                    if (!entry.descriptor.Equals(descriptor))
-                    {
-                        continue;
-                    }
-
-                    resource = entry.resource;
-                    list.RemoveAt(i);
+                    if (!entry.descriptor.Equals(descriptor)) continue;
+                    resource = entry.resource; list.RemoveAt(i);
+                    if (list.Count == 0) m_ResourcePool.Remove(hashCode);
+                    estimatedIdleBytes -= entry.bytes; reuseCount++;
                     return true;
                 }
-            }
-
             resource = null;
             return false;
         }
-
         public void Push(in int hash, in TDescriptor descriptor, TResource resource)
         {
-            if (!m_ResourcePool.TryGetValue(hash, out var list))
-            {
-                list = new List<Entry>();
-                m_ResourcePool.Add(hash, list);
-            }
-
-            list.Add(new Entry { descriptor = descriptor, resource = resource });
+            if (!m_ResourcePool.TryGetValue(hash, out var list)) m_ResourcePool.Add(hash, list = new List<Entry>());
+            long bytes = EstimateBytes(descriptor);
+            list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch });
+            estimatedIdleBytes += bytes;
         }
-
+        public void AfterSubmit(long watermark, GraphicsFence fence)
+        {
+            m_Epoch++;
+            for (int i = m_Retired.Count - 1; i >= 0; --i)
+            {
+                if (!m_Retired[i].fence.passed) continue;
+                Entry entry = m_Retired[i].entry;
+                ReleaseInternalResource(entry.resource);
+                estimatedRetiredBytes -= entry.bytes; estimatedAllocatedBytes -= entry.bytes;
+                m_Retired.RemoveAt(i);
+            }
+            while (estimatedAllocatedBytes - estimatedRetiredBytes > watermark)
+            {
+                int bucket = 0, index = -1; long oldest = long.MaxValue;
+                foreach (var pair in m_ResourcePool)
+                    for (int i = 0; i < pair.Value.Count; ++i)
+                    {
+                        Entry candidate = pair.Value[i];
+                        if (m_Epoch - candidate.lastUse <= 2 || candidate.lastUse >= oldest) continue;
+                        bucket = pair.Key; index = i; oldest = candidate.lastUse;
+                    }
+                if (index < 0) break;
+                var entries = m_ResourcePool[bucket]; Entry entry = entries[index]; entries.RemoveAt(index);
+                if (entries.Count == 0) m_ResourcePool.Remove(bucket);
+                estimatedIdleBytes -= entry.bytes; estimatedRetiredBytes += entry.bytes; evictionCount++;
+                m_Retired.Add(new RetiredEntry { entry = entry, fence = fence });
+            }
+        }
         public void Dispose()
         {
-            foreach (var kvp in m_ResourcePool)
+            foreach (var pair in m_ResourcePool) foreach (var entry in pair.Value) ReleaseInternalResource(entry.resource);
+            foreach (var entry in m_Retired) ReleaseInternalResource(entry.entry.resource);
+            m_ResourcePool.Clear(); m_Retired.Clear();
+            estimatedAllocatedBytes = estimatedIdleBytes = estimatedRetiredBytes = 0;
+        }
+    }
+    public sealed class BufferCache : FGPUResourceCache<ComputeBuffer, BufferDescriptor>
+    {
+        protected override void ReleaseInternalResource(ComputeBuffer resource) => resource.Release();
+        protected override long EstimateBytes(in BufferDescriptor descriptor) => (long)descriptor.count * descriptor.stride;
+    }
+    public sealed class TextureCache : FGPUResourceCache<RTHandle, TextureDescriptor>
+    {
+        protected override void ReleaseInternalResource(RTHandle resource) => resource.Release();
+        protected override long EstimateBytes(in TextureDescriptor descriptor)
+        {
+            long bytes = 0;
+            var format = descriptor.colorFormat != GraphicsFormat.None ? descriptor.colorFormat : GraphicsFormat.D32_SFloat;
+            int width = descriptor.physicalWidth, height = descriptor.physicalHeight;
+            do
             {
-                foreach (Entry entry in kvp.Value)
-                {
-                    ReleaseInternalResource(entry.resource);
-                }
-            }
-        }
-    }
-
-    public class BufferCache : FGPUResourceCache<ComputeBuffer, BufferDescriptor>
-    {
-        protected override void ReleaseInternalResource(ComputeBuffer res)
-        {
-            res.Release();
-        }
-
-        protected override string GetResourceName(ComputeBuffer res)
-        {
-            return "BufferNameNotAvailable";
-        }
-
-        override protected string GetResourceTypeName()
-        {
-            return "Buffer";
-        }
-    }
-
-    public class TextureCache : FGPUResourceCache<RTHandle, TextureDescriptor>
-    {
-        protected override void ReleaseInternalResource(RTHandle res)
-        {
-            res.Release();
-        }
-
-        protected override string GetResourceName(RTHandle res)
-        {
-            return res.name;
-        }
-
-        override protected string GetResourceTypeName()
-        {
-            return "Texture";
+                bytes += (long)GraphicsFormatUtility.ComputeMipmapSize(width, height, format) * Math.Max(1, descriptor.slices) * Math.Max(1, (int)descriptor.msaaSamples);
+                if (!descriptor.useMipMap || (width == 1 && height == 1)) break;
+                width = Math.Max(1, width / 2); height = Math.Max(1, height / 2);
+            } while (true);
+            return bytes;
         }
     }
 }

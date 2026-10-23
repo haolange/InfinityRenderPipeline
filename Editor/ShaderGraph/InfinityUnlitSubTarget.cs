@@ -29,7 +29,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
                 generatesPreview = true,
                 passes = new PassCollection
                 {
-                    InfinityPasses.TranslucentT2Pass(target, InfinityPasses.ColorBlocks),
+                    InfinityPasses.RasterTranslucentT2Pass(target, InfinityPasses.ColorBlocks),
                 }
             };
             context.AddSubShader(subShader);

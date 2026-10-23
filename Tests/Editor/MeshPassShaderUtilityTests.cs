@@ -16,16 +16,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var material = new Material(lit);
             try
             {
-                int expected = material.FindPass("ForwardPass");
+                int expected = material.FindPass("RasterForwardPass");
                 Assert.GreaterOrEqual(expected, 0);
-                Assert.AreEqual(expected, MeshPassShaderUtility.FindPassIndex(material, "ForwardPass"));
+                Assert.AreEqual(expected, MeshPassShaderUtility.FindPassIndex(material, "RasterForwardPass"));
                 material.shader = fullscreen;
-                Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(material, "ForwardPass"));
-                Assert.AreEqual(material.FindPass("DefaultFullScreen"),
-                    MeshPassShaderUtility.FindPassIndex(material, "DefaultFullScreen"));
+                Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(material, "RasterForwardPass"));
+                Assert.AreEqual(material.FindPass("RasterDefaultFullScreen"),
+                    MeshPassShaderUtility.FindPassIndex(material, "RasterDefaultFullScreen"));
                 material.shader = lit;
-                Assert.AreEqual(expected, MeshPassShaderUtility.FindPassIndex(material, "ForwardPass"));
-                Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(material, "DefaultFullScreen"));
+                Assert.AreEqual(expected, MeshPassShaderUtility.FindPassIndex(material, "RasterForwardPass"));
+                Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(material, "RasterDefaultFullScreen"));
             }
             finally
             {
@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [Test]
         public void FindPassIndex_NullMaterialOrEmptyLightMode_ReturnsInvalid()
         {
-            Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(null, "GBufferPass"));
+            Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(null, "RasterGBufferPass"));
             Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(null, string.Empty));
         }
 

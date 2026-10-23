@@ -9,10 +9,14 @@ passes, resources and features, with a modern feature baseline as the default de
 - [Docs/FeatureStatus.md](Docs/FeatureStatus.md) — what is recorded, tested, image-verified and measured, per feature
 - [DESIGN.md](DESIGN.md) — architecture as implemented: RenderGraph, Mesh Drawing Pipeline, frame order, ownership contracts
 - [AGENTS.md](AGENTS.md) — coding conventions and rules for contributors and coding agents
-- [PLAN.md](PLAN.md) — the active task ledger (0.5.0 upgrade)
 - [CHANGELOG.md](CHANGELOG.md)
 - [Documentation~/index.md](Documentation~/index.md) — user documentation
 - [Docs/History/](Docs/History) — archived plans, delivery reports and evidence (immutable)
+
+Framebuffer resources distinguish logical viewport size from physical capacity,
+with bounded idle retention. TAA uses a fused resolve/sharpen dispatch; Mesh Drawing
+Pipeline preparation is explicit in RenderGraph. Platform and runtime evidence is
+recorded in [FeatureStatus](Docs/FeatureStatus.md).
 
 ### Features
 
@@ -32,7 +36,7 @@ The pipeline currently records:
   denoising), quality presets
 - Burley subsurface scattering, DBuffer decals, three-stage translucency (T0 / T1 refraction / T2)
 - TAA, fixed-ratio super resolution, exposure (manual / histogram), bloom, ACES tonemapping and grading LUT, vignette,
-  film grain, display-transfer encoding in the final Present pass
+  film grain, raster final output with demand-driven intermediate colors and display-transfer encoding
 - Editor: Shader Graph target (Lit / Unlit / Decal), Render Pipeline Wizard, Frame Settings, Light Explorer, Rendering
   Debugger panels and Scene view Draw Modes, Render Graph Viewer, material conversion, create menus, validation
   fixtures and image regression, shader stripping
@@ -40,8 +44,7 @@ The pipeline currently records:
 Verification state differs per feature; [Docs/FeatureStatus.md](Docs/FeatureStatus.md) is authoritative. Nothing in
 this README claims image or performance acceptance.
 
-Everything added by 0.5.0 ([PLAN.md](PLAN.md)) passed only the offline gate; it has not been compiled by Unity yet
-([Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md)).
+Current per-feature verification and platform limits are recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md).
 
 Not supported: hardware ray tracing outside UnifiedRayTracing, depth of field, motion blur, XR, MSAA, dynamic
 resolution, VFX Graph outputs.

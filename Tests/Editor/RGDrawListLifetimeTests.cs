@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using Unity.Mathematics;
+using InfinityTech.Core.Geometry;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -172,8 +174,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshView view = TestView();
                     graph.CreateDrawList(view, MeshPassId.Depth);
                     graph.CreateDrawList(view, MeshPassId.GBuffer);
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshGpuCull"));
-                    Assert.AreEqual(0, CountSamplerPasses(graph, "ComputeMeshGpuCullCascade"));
+                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCull"));
+                    Assert.AreEqual(0, CountSamplerPasses(graph, "ComputeMeshDrawCullCascade"));
                 }
                 finally
                 {
@@ -206,7 +208,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     graph.SetMeshWorld(world);
                     MeshView view = TestView();
                     graph.CreateDrawList(view, MeshPassId.Depth);
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshGpuCull"));
+                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCull"));
 
                     MethodInfo compile = typeof(RGBuilder).GetMethod("CompilePass", BindingFlags.Instance | BindingFlags.NonPublic);
                     compile.Invoke(graph, null);
@@ -256,9 +258,9 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     graph.EnsureMeshGpuCull(cascade);
                     graph.CreateDrawList(main, MeshPassId.Depth);
                     graph.CreateDrawList(cascade, MeshPassId.Shadow);
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshGpuCull"));
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshGpuCullCascade"));
-                    Assert.AreEqual(0, CountSamplerPasses(graph, "ComputeMeshGpuCullLocal"));
+                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCull"));
+                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCullCascade"));
+                    Assert.AreEqual(0, CountSamplerPasses(graph, "ComputeMeshDrawCullLocal"));
                 }
                 finally
                 {
@@ -267,6 +269,47 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     pool.Dispose();
                     MeshDrawGPUBackend.SetShader(null);
                 }
+            }
+        }
+
+        struct DrawPreparationData { public RGDrawListRef draws; }
+        [TestCase(EMeshBackendPolicy.CpuDirect,true)]
+        [TestCase(EMeshBackendPolicy.GpuIndirect,true)]
+        [TestCase(EMeshBackendPolicy.GpuIndirect,false)]
+        public void CompiledGraph_PreparesSharedLiveListsOnce_AndOmitsDeadPreparation(EMeshBackendPolicy backend,bool live)
+        {
+            if(!TryBindMeshDrawShader())Assert.Ignore("Mesh compute unavailable.");
+            using(var scene=new MeshScene(16))
+            {
+                var update=scene.BeginUpdate();var transform=update.CreateTransform(float4x4.identity);
+                var instance=update.CreateInstance(transform,new FBound(float3.zero,new float3(1)),~0,1,EMeshInstanceFlags.Visible,EMotionType.Object,ECastShadowMethod.Off);
+                update.CreateDraw(instance,100,0,1,EPassEligibility.GBuffer,2000,0);update.Commit();
+                var pool=new ResourcePool();var world=new MeshWorld(scene,pool);var graph=new RGBuilder("PreparationContract",pool);
+                try
+                {
+                    world.SetBackendOverride(backend);world.UpdateResidency();graph.SetMeshWorld(world);
+                    var draws=graph.CreateDrawList(TestView(),MeshPassId.GBuffer);
+                    var target=graph.CreateTexture(new TextureDescriptor(1,1){colorFormat=UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm,dimension=TextureDimension.Tex2D});
+                    for(int i=0;i<2;i++)
+                    {
+                        using(var pass=graph.AddRasterPass<DrawPreparationData>(ProfilingSampler.Get(i==0?CustomSamplerId.RasterGBuffer:CustomSamplerId.RasterDepth)))
+                        {
+                            pass.SetColorAttachment(target,0,RenderBufferLoadAction.DontCare,RenderBufferStoreAction.Store);
+                            pass.EnablePassCulling(!live);ref var data=ref pass.GetPassData<DrawPreparationData>();data.draws=pass.UseDrawList(draws);
+                            pass.SetExecuteFunc((in DrawPreparationData data,in RGRasterEncoder commands,RGObjectPool objects)=>commands.Draw(data.draws));
+                        }
+                    }
+                    typeof(RGBuilder).GetMethod("CompilePass",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(graph,null);
+                    Assert.AreEqual(live?1:0,CountSamplerPasses(graph,"UploadMeshDrawData"));
+                    Assert.AreEqual(live&&backend==EMeshBackendPolicy.GpuIndirect?1:0,CountSamplerPasses(graph,"ComputeMeshDrawCompact"));
+                    if(live)
+                    {
+                        string compiled=graph.DescribeCompiledGraph();
+                        Assert.Less(compiled.IndexOf("UploadMeshDrawData"),compiled.IndexOf("RasterGBuffer"));
+                        if(backend==EMeshBackendPolicy.GpuIndirect)Assert.Less(compiled.IndexOf("ComputeMeshDrawCompact"),compiled.IndexOf("RasterGBuffer"));
+                    }
+                }
+                finally{graph.Dispose();world.Dispose();pool.Dispose();MeshDrawGPUBackend.SetShader(null);}
             }
         }
 

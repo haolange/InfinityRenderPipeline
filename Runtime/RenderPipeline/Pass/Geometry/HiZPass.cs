@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
             int height = depthDescriptor.height;
             int mipCount = PyramidMipBatch.MipCount(width, height);
 
-            TextureDescriptor hiZTextureDsc = new TextureDescriptor(width, height);
+            TextureDescriptor hiZTextureDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
                 hiZTextureDsc.name = HiZPassUtilityData.TextureName;
                 hiZTextureDsc.dimension = TextureDimension.Tex2D;

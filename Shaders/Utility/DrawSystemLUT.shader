@@ -667,7 +667,7 @@
 	{
 		Pass 
 		{
-			Name "PBR_DiffuseGF"
+			Name "RasterPBR_DiffuseGF"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Integrated_DiffuseGF
@@ -676,7 +676,7 @@
 
 		Pass 
 		{
-			Name "PBR_SpecularGF"
+			Name "RasterPBR_SpecularGF"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Integrated_SpecularGF
@@ -685,7 +685,7 @@
 
 		Pass 
 		{
-			Name "PBR_ClothGF"
+			Name "RasterPBR_ClothGF"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Integrated_ClothGF
@@ -694,7 +694,7 @@
 
 		Pass 
 		{
-			Name "Skin_Scatter"
+			Name "RasterSkin_Scatter"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Integrated_SkinScatter
@@ -703,7 +703,7 @@
 
 		Pass 
 		{
-			Name "Skin_Shadow"
+			Name "RasterSkin_Shadow"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Integrated_SkinShadow
@@ -712,7 +712,7 @@
 
 		Pass 
 		{
-			Name "Prefilter_Diffuse"
+			Name "RasterPrefilter_Diffuse"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Prefilter_Diffuse
@@ -721,7 +721,7 @@
 
 		Pass 
 		{
-			Name "Proxy_Shadow"
+			Name "RasterProxy_Shadow"
 			CGPROGRAM
 				#pragma vertex CustomRenderTextureVertexShader
 				#pragma fragment frag_Integrated_ProxyShadow

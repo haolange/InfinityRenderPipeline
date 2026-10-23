@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 // Stochastic screen-space reflections after Frostbite (Stachowiak 2015, "Stochastic Screen-Space Reflections").
 //
 //   SSRClassify      one group per 8x8 trace tile: skip, Hi-Z (smooth) or linear (rough) by the tile's minimum roughness
@@ -260,8 +261,8 @@ void TraceTilePixel(uint3 groupId, uint3 groupThreadId, bool linearMarch)
     float jitter = GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 2);
     float3 hit;
     bool found = linearMarch
-        ? TraceScreenSpaceRayLinear(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_LinearSteps, jitter, Matrix_Proj, SRV_HiZTexture, SSR_TraceScale - 1, hit)
-        : TraceScreenSpaceRay(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_HiZSteps, jitter, Matrix_Proj, SRV_HiZTexture, hit);
+        ? TraceScreenSpaceRayLinear(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_LinearSteps, jitter, Matrix_Proj, SRV_HiZTexture, SRV_HiZTexture_InfinityView, SSR_TraceScale - 1, hit)
+        : TraceScreenSpaceRay(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_HiZSteps, jitter, Matrix_Proj, SRV_HiZTexture, SRV_HiZTexture_InfinityView, hit);
 
     UAV_RayHit[tracePixel] = found ? EncodeRayHit(hit, pdf) : EncodeRayMiss(L, pdf);
 }
@@ -305,7 +306,7 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
     bool mirror = surface.roughness < SSR_MirrorRoughness;
 
     uint lightingWidth, lightingHeight, lightingMips;
-    SRV_LightingPyramid.GetDimensions(0, lightingWidth, lightingHeight, lightingMips);
+    InfinityGetMipDimensions(SRV_LightingPyramid, 0, lightingWidth, lightingHeight, lightingMips);
     // Pixels covered by one world unit at eye depth 1.
     float projectionScale = 0.5 * SSR_Resolution.y * abs(Matrix_Proj[1][1]);
 
@@ -353,7 +354,7 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
 
             // Filtered importance sampling: mirrors read the full-resolution image.
             float mip = mirror ? 0 : RayConeMip(pdf, sampleCount, hitDistance, projectionScale, ScreenSpaceLinearEyeDepth(ray.z), lightingMips);
-            radiance = SRV_LightingPyramid.SampleLevel(Global_trilinear_clamp_sampler, ray.xy, mip).rgb;
+            radiance = InfinitySampleLevelTrilinear(SRV_LightingPyramid,Global_trilinear_clamp_sampler,ray.xy,mip).rgb;
         }
         else
         {
@@ -433,10 +434,10 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
 
     float historyAge = 0;
     float4 history = current;
-    float historyValid = SSR_HistoryValid * HistoryDepthConfidence(SRV_HistoryMeta, surfaceUV, expectedDepth, 2);
+    float historyValid = SSR_HistoryValid * HistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth, 2);
     if (historyValid > 0)
     {
-        float4 historyMeta = SRV_HistoryMeta.SampleLevel(Global_point_clamp_sampler, surfaceUV, 0);
+        float4 historyMeta = InfinitySampleLevel(SRV_HistoryMeta,Global_point_clamp_sampler,surfaceUV,0);
         float normalAgreement = dot(surface.normalWS, OctahedronToUnitVector(historyMeta.xy));
         historyValid = normalAgreement > 0.9 && historyMeta.w >= 1 ? 1 : 0;
         historyAge = historyValid > 0 ? historyMeta.w : 0;
@@ -444,14 +445,14 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
 
     if (historyValid > 0)
     {
-        float4 surfaceHistory = SRV_HistoryRadiance.SampleLevel(Global_bilinear_clamp_sampler, surfaceUV, 0);
+        float4 surfaceHistory = InfinitySampleLevel(SRV_HistoryRadiance,Global_bilinear_clamp_sampler,surfaceUV,0);
         history = surfaceHistory;
         float hitDistance = SRV_HitDistance[pixel];
         float2 virtualUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_HistoryViewProj) : -1;
         if (all(virtualUV >= 0) && all(virtualUV <= 1))
         {
             // Smooth lobes follow the reflected image; rough lobes follow the surface. The neighborhood arbitrates.
-            float4 virtualHistory = SRV_HistoryRadiance.SampleLevel(Global_bilinear_clamp_sampler, virtualUV, 0);
+            float4 virtualHistory = InfinitySampleLevel(SRV_HistoryRadiance,Global_bilinear_clamp_sampler,virtualUV,0);
             float prior = 1 - smoothstep(0.1, 0.4, surface.roughness);
             float virtualWeight = prior * exp2(-NeighborhoodDistance(virtualHistory, moments));
             float surfaceWeight = (1 - prior) * exp2(-NeighborhoodDistance(surfaceHistory, moments)) + 1e-4;

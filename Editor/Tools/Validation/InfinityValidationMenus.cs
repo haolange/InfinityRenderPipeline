@@ -382,9 +382,9 @@ namespace InfinityTech.Rendering.Editor.Validation
                 {
                     Material material = mesh.materials[0];
                     builder.Append(" shader=").Append(material.shader != null ? material.shader.name : "null");
-                    builder.Append(" depthPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "DepthPass"));
-                    builder.Append(" gbufferPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "GBufferPass"));
-                    builder.Append(" gbufferEnabled=").Append(material.GetShaderPassEnabled("GBufferPass"));
+                    builder.Append(" depthPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "RasterDepthPass"));
+                    builder.Append(" gbufferPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "RasterGBufferPass"));
+                    builder.Append(" gbufferEnabled=").Append(material.GetShaderPassEnabled("RasterGBufferPass"));
                 }
                 builder.AppendLine();
             }

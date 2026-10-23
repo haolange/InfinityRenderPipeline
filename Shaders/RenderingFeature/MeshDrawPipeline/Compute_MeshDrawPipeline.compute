@@ -106,8 +106,8 @@ void CullFrustum(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void ClearCounts(uint3 id : SV_DispatchThreadID)
 {
-    uint commandIndex = id.x;
-    if (commandIndex >= _CommandCount)
+    uint commandIndex = _CommandBegin + id.x;
+    if (id.x >= _CommandCount)
     {
         return;
     }
@@ -155,16 +155,16 @@ void Compact(uint3 id : SV_DispatchThreadID)
     }
 
     uint slot;
-    InterlockedAdd(_VisibleCounts[localCommand], 1u, slot);
-    uint baseOffset = _CommandMeta[localCommand * 4u + 3u];
+    InterlockedAdd(_VisibleCounts[commandId], 1u, slot);
+    uint baseOffset = _CommandMeta[commandId * 4u + 3u];
     _ShadingIndices[baseOffset + slot] = _InstanceToTransform[instanceIndex];
 }
 
 [numthreads(64, 1, 1)]
 void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
 {
-    uint commandIndex = id.x;
-    if (commandIndex >= _CommandCount)
+    uint commandIndex = _CommandBegin + id.x;
+    if (id.x >= _CommandCount)
     {
         return;
     }

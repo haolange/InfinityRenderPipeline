@@ -8,16 +8,16 @@ namespace InfinityTech.Rendering.Pipeline
     public enum CustomSamplerId
     {
         ComputeCombineLuts,
-        RenderDepth,
-        RenderDBuffer,
-        RenderGBuffer,
-        RenderObjectMotion,
-        RenderCameraMotion,
+        RasterDepth,
+        RasterDBuffer,
+        RasterGBuffer,
+        RasterObjectMotion,
+        RasterCameraMotion,
         ComputeHiZ,
         ComputeHalfResDownsample,
-        RenderCascadeShadow,
-        RenderLocalShadow,
-        CopyCachedLocalShadow,
+        RasterCascadeShadow,
+        RasterLocalShadow,
+        RasterCopyShadowDepthTiles,
         ComputeShadowMoments,
         ComputeAtmosphericLUT,
         ComputeLightTileMask,
@@ -26,6 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeProbeTileMask,
         ComputeGroundTruthOcclusion,
         ComputeRayTracedOcclusion,
+        RayTracingOcclusion,
         ComputeContactShadow,
         ComputeScreenSpaceReflection,
         ComputeScreenSpaceIndirect,
@@ -34,42 +35,46 @@ namespace InfinityTech.Rendering.Pipeline
         CopyHistorySSR,
         CopyHistorySSGI,
         ComputeDeferredShading,
-        RenderForward,
+        RasterForward,
         ComputeBurleySubsurface,
-        RenderAtmosphericSkyAndFog,
+        ComputeAtmosphericSkyAndFog,
         ComputeVolumetricFog,
         ComputeVolumetricCloud,
         CopyHistoryVolumetricFog,
         CopyHistoryVolumetricCloud,
         ComputeFogComposite,
-        ClearReactiveMask,
-        RenderTranslucentDepth,
-        RenderTranslucentT0,
-        RenderTranslucentT1,
-        RenderTranslucentT2,
+        RasterTranslucentDepth,
+        RasterTranslucentT0,
+        RasterTranslucentT1,
+        RasterTranslucentT2,
         ComputeColorPyramid,
         CopyHistoryOcclusion,
         CopyHistoryOcclusionDepth,
         ComputeSuperResolution,
         ComputeAntiAliasing,
-        ComputeTemporalSharpen,
-        CopyHistoryAntiAliasing,
-        CopyHistoryDepth,
         CopyHistorySuperResolution,
         PostProcessing,
         ComputeBloom,
-        ComputePostCombine,
+        RasterPostCombine,
         ComputeExposure,
         ComputeDebugView,
-        RenderWireOverlay,
-        RenderGizmos,
-        RenderUIOverlay,
-        CopyPostProcessInput,
-        ResolveDisplayDepth,
-        Present,
-        ComputeMeshGpuCull,
-        ComputeMeshGpuCullCascade,
-        ComputeMeshGpuCullLocal,
+        RasterWireOverlay,
+        RasterGizmos,
+        RasterUIOverlay,
+        RasterOutputCopy,
+        RasterUpscaleDepthForEditorOverlays,
+        RasterFinalOutput,
+        UploadMeshDrawData,
+        ComputeMeshDrawCompact,
+        Depth,
+        GBuffer,
+        ObjectMotion,
+        CascadeShadow,
+        LocalShadow,
+        Forward,
+        ComputeMeshDrawCull,
+        ComputeMeshDrawCullCascade,
+        ComputeMeshDrawCullLocal,
         Max,
     }
 
@@ -193,16 +198,16 @@ namespace InfinityTech.Rendering.Pipeline
 
     public static class InfinityPassIDs
     {
-        public static ShaderTagId DepthPass = new ShaderTagId("DepthPass");
-        public static ShaderTagId DBufferPass = new ShaderTagId("DBufferPass");
-        public static ShaderTagId GBufferPass = new ShaderTagId("GBufferPass");
-        public static ShaderTagId ShadowPass = new ShaderTagId("ShadowPass");
-        public static ShaderTagId MotionPass = new ShaderTagId("MotionPass");
-        public static ShaderTagId ForwardPass = new ShaderTagId("ForwardPass");
-        public static ShaderTagId TranslucentDepthPass = new ShaderTagId("TranslucentDepthPass");
-        public static ShaderTagId TranslucentT0Pass = new ShaderTagId("TranslucentT0Pass");
-        public static ShaderTagId TranslucentT1Pass = new ShaderTagId("TranslucentT1Pass");
-        public static ShaderTagId TranslucentT2Pass = new ShaderTagId("TranslucentT2Pass");
+        public static ShaderTagId RasterDepthPass = new ShaderTagId("RasterDepthPass");
+        public static ShaderTagId RasterDBufferPass = new ShaderTagId("RasterDBufferPass");
+        public static ShaderTagId RasterGBufferPass = new ShaderTagId("RasterGBufferPass");
+        public static ShaderTagId RasterShadowPass = new ShaderTagId("RasterShadowPass");
+        public static ShaderTagId RasterMotionPass = new ShaderTagId("RasterMotionPass");
+        public static ShaderTagId RasterForwardPass = new ShaderTagId("RasterForwardPass");
+        public static ShaderTagId RasterTranslucentDepthPass = new ShaderTagId("RasterTranslucentDepthPass");
+        public static ShaderTagId RasterTranslucentT0Pass = new ShaderTagId("RasterTranslucentT0Pass");
+        public static ShaderTagId RasterTranslucentT1Pass = new ShaderTagId("RasterTranslucentT1Pass");
+        public static ShaderTagId RasterTranslucentT2Pass = new ShaderTagId("RasterTranslucentT2Pass");
     }
 
     public static class InfinityRenderQueue

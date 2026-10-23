@@ -47,8 +47,8 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
 
         Pass
         {
-			Name "GBufferPass"
-			Tags { "LightMode" = "GBufferPass" }
+			Name "RasterGBufferPass"
+			Tags { "LightMode" = "RasterGBufferPass" }
 
             Blend One One
 			ZTest Equal ZWrite Off Cull Back
@@ -75,8 +75,8 @@ Shader "Hidden/InfinityPipeline/TerrainLitAdd"
 
         Pass
         {
-			Name "TerrainAdd"
-			Tags { "LightMode" = "ForwardPass" }
+			Name "RasterTerrainAdd"
+			Tags { "LightMode" = "RasterForwardPass" }
 
             Blend One One
 			ZTest Equal ZWrite Off Cull Back

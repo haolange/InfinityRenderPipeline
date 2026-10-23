@@ -111,7 +111,7 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
 
-            TextureDescriptor subsurfaceTextureDsc = new TextureDescriptor(width, height);
+            TextureDescriptor subsurfaceTextureDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
                 subsurfaceTextureDsc.name = SubsurfacePassUtilityData.TextureName;
                 subsurfaceTextureDsc.dimension = TextureDimension.Tex2D;

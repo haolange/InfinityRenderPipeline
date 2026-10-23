@@ -136,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 id = EFrameFeature.TAA,
                 requiresTemporal = true,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.taaShader), s => s.taaShader, "Main", "MainDebug", "Sharpen") }
+                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.taaShader), s => s.taaShader, "Main", "MainDebug") }
             });
             Add(new FeatureDescriptor
             {
@@ -160,7 +160,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 id = EFrameFeature.PostProcess,
                 shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.postProcessingShader), s => s.postProcessingShader,
-                    "BloomDownsample", "BloomUpsample", "FinalCombine", "ExposureClear", "ExposureHistogram", "ExposureReduce", "FinalCombineNoBloom") }
+                    "BloomDownsample", "BloomUpsample", "ExposureClear", "ExposureHistogram", "ExposureReduce") }
             });
             Add(new FeatureDescriptor
             {

@@ -2,6 +2,7 @@
 #define _CommonInclude
 
 #include "ColorUtility.hlsl"
+#include "TextureView.hlsl"
 
 //#define float half
 //#define float2 half2

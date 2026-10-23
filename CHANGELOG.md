@@ -2,8 +2,16 @@
 
 ## [0.5.0] - Unreleased
 
-Work in progress on branch `claude/infinityrp-0.5`. See [PLAN.md](PLAN.md) for stages and
-[Docs/FeatureStatus.md](Docs/FeatureStatus.md) for verification state. Entries are added as stages land.
+Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md). Historical upgrade records are archived under Docs/History.
+
+### Changed
+- Screen framebuffer textures separate logical view extents from retained physical capacity; shared graph/resource pools evict aged idle allocations above retention watermarks.
+- TAA accumulates and sharpens in one tiled dispatch, writing unsharpened pending history directly.
+- MeshDraw upload and compaction are explicit graph producers; raster scopes contain draws only, and batches use disjoint output ranges.
+- Raster post-combine can write the camera target directly; linear consumers retain an explicitly owned intermediate. Hardware-sRGB SDR UI can blend after direct output.
+- ReactiveMask initialization uses the first transparent color attachment clear instead of a compute dispatch; non-TAA variants omit the MRT output.
+- Editor depth upsampling is consumer-driven; cached shadow atlas copies use the canonical raster tile-copy path.
+- Root task ledger retired; active work uses conversation tasks.
 
 ### Added
 - Stochastic screen-space reflections (Frostbite): tile classification into Hi-Z / linear / skip with indirect

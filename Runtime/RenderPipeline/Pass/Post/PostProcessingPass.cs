@@ -27,7 +27,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int PP_ExposureMultiplierID = Shader.PropertyToID("PP_ExposureMultiplier");
         internal static int PP_AutoExposureID = Shader.PropertyToID("PP_AutoExposure");
         internal static int SRV_SceneColorTextureID = Shader.PropertyToID("SRV_SceneColorTexture");
-        internal static int UAV_PostProcessTextureID = Shader.PropertyToID("UAV_PostProcessTexture");
         internal static int SRV_CombineLUTID = Shader.PropertyToID("SRV_CombineLUT");
         internal static int SRV_ExposureEVID = Shader.PropertyToID("SRV_ExposureEV");
 
@@ -46,24 +45,30 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int PP_ExposureAdaptID = Shader.PropertyToID("PP_ExposureAdapt");
         internal static int PP_ExposureResetID = Shader.PropertyToID("PP_ExposureReset");
 
-        internal static int KernelBloomDownsample = 0;
-        internal static int KernelBloomUpsample = 1;
-        internal static int KernelExposureClear = 3;
-        internal static int KernelExposureHistogram = 4;
-        internal static int KernelExposureReduce = 5;
-
         internal static int MaxBloomMips = 6;
     }
 
     public partial class InfinityRenderPipeline
     {
-        struct PostBypassPassData
+        readonly struct FPostComputeKernels
         {
-            public RGTextureRef source, output;
+            internal readonly int bloomDownsample, bloomUpsample, exposureClear, exposureHistogram, exposureReduce;
+            internal FPostComputeKernels(ComputeShader shader)
+            {
+                bloomDownsample = shader.FindKernel("BloomDownsample");
+                bloomUpsample = shader.FindKernel("BloomUpsample");
+                exposureClear = shader.FindKernel("ExposureClear");
+                exposureHistogram = shader.FindKernel("ExposureHistogram");
+                exposureReduce = shader.FindKernel("ExposureReduce");
+            }
         }
+        ComputeShader m_PostKernelShader;
+        FPostComputeKernels m_PostComputeKernels;
+        static readonly GlobalKeyword s_PostBloomKeyword = GlobalKeyword.Create("INFINITY_POST_BLOOM");
 
         struct BloomPassData
         {
+            public FPostComputeKernels kernels;
             public int2 resolution;
             public float bloomThreshold;
             public float bloomScatter;
@@ -78,7 +83,6 @@ namespace InfinityTech.Rendering.Pipeline
         struct PostCombinePassData
         {
             public bool hasBloom;
-            public int kernel;
             public int2 resolution;
             public float bloomIntensity;
             public float vignetteIntensity;
@@ -88,16 +92,16 @@ namespace InfinityTech.Rendering.Pipeline
             public float exposureMultiplier;
             public float autoExposure;
             public int frameIndex;
-            public ComputeShader postProcessingShader;
+            public FinalOutputPassData output;
             public RGTextureRef sceneColorTexture;
             public RGTextureRef bloomTexture;
             public RGTextureRef combineLUT;
             public RGTextureRef exposureEV;
-            public RGTextureRef postProcessTexture;
         }
 
         struct ExposurePassData
         {
+            public FPostComputeKernels kernels;
             public int2 resolution;
             public float lowPercentile;
             public float highPercentile;
@@ -129,11 +133,11 @@ namespace InfinityTech.Rendering.Pipeline
 
         static readonly string[] PostProcessingKernelNames =
         {
-            "BloomDownsample", "BloomUpsample", "FinalCombine",
-            "ExposureClear", "ExposureHistogram", "ExposureReduce", "FinalCombineNoBloom"
+            "BloomDownsample", "BloomUpsample",
+            "ExposureClear", "ExposureHistogram", "ExposureReduce"
         };
 
-        void ComputePostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState)
+        void RasterPostProcessing(RenderContext renderContext, Camera camera, CameraFrameState frameState, in OutputTransformDecision decision, in FOutputPlan plan, RGTextureRef target)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.PostProcess);
 
@@ -151,22 +155,28 @@ namespace InfinityTech.Rendering.Pipeline
 
             if (!frameState.postProcessingEnabled)
             {
-                var descriptor = m_RGBuilder.GetTextureDescriptor(sceneColorTexture);
-                descriptor.name = "PostProcessTexture";
-                RGTextureRef output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, descriptor);
-                using (var pass = m_RGBuilder.AddTransferPass<PostBypassPassData>(ProfilingSampler.Get(CustomSamplerId.CopyPostProcessInput)))
+                if (plan.linearIntermediate)
                 {
-                    ref var data = ref pass.GetPassData<PostBypassPassData>();
-                    data.source = pass.ReadTexture(sceneColorTexture);
-                    data.output = pass.WriteTexture(output);
-                    pass.SetExecuteFunc((in PostBypassPassData data, in RGTransferEncoder commands, RGObjectPool pool) =>
+                    // Only writers need an independent texture; a read-only capture can alias the source.
+                    if (frameState.debugView == EDebugView.None && (plan.editorDepth || plan.uiOverlay))
                     {
-                        commands.CopyTexture(data.source, data.output);
-                    });
+                        var descriptor = m_RGBuilder.GetTextureDescriptor(sceneColorTexture);
+                        descriptor.name = "PostProcessTexture";
+                        var output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, descriptor);
+                        RasterFinalOutput(camera, decision, sceneColorTexture, output, false);
+                    }
+                    else m_RGScoper.RegisterTexture(InfinityShaderIDs.PostProcessBuffer, sceneColorTexture);
                 }
+                else RasterFinalOutput(camera, decision, sceneColorTexture, target, true);
                 frameState.exposureState.evCompensation = 0;
                 MarkFeatureProduced(EFrameFeature.PostProcess);
                 return;
+            }
+
+            if (m_PostKernelShader != shaders.postProcessingShader)
+            {
+                m_PostComputeKernels = new FPostComputeKernels(shaders.postProcessingShader);
+                m_PostKernelShader = shaders.postProcessingShader;
             }
 
             if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.CombineLookupTexture, out RGTextureRef combineLUT))
@@ -180,22 +190,23 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.displaySize.x;
             int height = m_ActiveFrameState.dimensions.displaySize.y;
 
-            TextureDescriptor postProcessDsc = new TextureDescriptor(width, height);
+            TextureDescriptor postProcessDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Display);
             postProcessDsc.name = PostProcessingPassUtilityData.TextureName;
             postProcessDsc.dimension = TextureDimension.Tex2D;
             postProcessDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
             postProcessDsc.depthBufferBits = EDepthBits.None;
-            postProcessDsc.enableRandomWrite = true;
+            postProcessDsc.enableRandomWrite = false;
             postProcessDsc.filterMode = FilterMode.Bilinear;
             postProcessDsc.wrapMode = TextureWrapMode.Clamp;
-            RGTextureRef postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, postProcessDsc);
+            RGTextureRef postProcessTexture = plan.linearIntermediate
+                ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, postProcessDsc) : target;
 
             RGTextureRef bloomTexture = default;
             if (volumes.bloomIntensity > 0)
             {
                 int bloomWidth = Mathf.Max(1, width >> 1);
                 int bloomHeight = Mathf.Max(1, height >> 1);
-                TextureDescriptor bloomDsc = new TextureDescriptor(bloomWidth, bloomHeight);
+                TextureDescriptor bloomDsc = new TextureDescriptor(bloomWidth, bloomHeight, ETextureSizingDomain.Display, 2);
                 bloomDsc.name = PostProcessingPassUtilityData.BloomTextureName;
                 bloomDsc.dimension = TextureDimension.Tex2D;
                 bloomDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
@@ -222,7 +233,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 if (volumes.bloomIntensity > 0)
                     ComputeBloom(camera, sceneColorTexture, bloomTexture, exposureEV, volumes);
-                ComputePostCombine(camera, sceneColorTexture, bloomTexture, combineLUT, exposureEV, postProcessTexture, volumes);
+                RasterPostCombine(camera, sceneColorTexture, bloomTexture, combineLUT, exposureEV, postProcessTexture, volumes, decision, !plan.linearIntermediate);
             }
 
             MarkFeatureProduced(EFrameFeature.PostProcess);
@@ -311,6 +322,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ExposurePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeExposure)))
             {
                 ref ExposurePassData passData = ref passRef.GetPassData<ExposurePassData>();
+                passData.kernels = m_PostComputeKernels;
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.lowPercentile = volumes.lowPercentile;
                 passData.highPercentile = volumes.highPercentile;
@@ -338,21 +350,21 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(shader, PostProcessingPassUtilityData.PP_ExposureResetID, passData.resetHistory);
 
                     cmdEncoder.BeginSample("ExposureClear");
-                    cmdEncoder.SetComputeBufferParam(shader, PostProcessingPassUtilityData.KernelExposureClear, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
-                    cmdEncoder.DispatchCompute(shader, PostProcessingPassUtilityData.KernelExposureClear, 4, 1, 1);
+                    cmdEncoder.SetComputeBufferParam(shader, passData.kernels.exposureClear, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
+                    cmdEncoder.DispatchCompute(shader, passData.kernels.exposureClear, 4, 1, 1);
                     cmdEncoder.EndSample("ExposureClear");
 
                     cmdEncoder.BeginSample("ExposureHistogram");
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelExposureHistogram, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
-                    cmdEncoder.SetComputeBufferParam(shader, PostProcessingPassUtilityData.KernelExposureHistogram, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
-                    cmdEncoder.DispatchCompute(shader, PostProcessingPassUtilityData.KernelExposureHistogram, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernels.exposureHistogram, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
+                    cmdEncoder.SetComputeBufferParam(shader, passData.kernels.exposureHistogram, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
+                    cmdEncoder.DispatchCompute(shader, passData.kernels.exposureHistogram, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                     cmdEncoder.EndSample("ExposureHistogram");
 
                     cmdEncoder.BeginSample("ExposureReduce");
-                    cmdEncoder.SetComputeBufferParam(shader, PostProcessingPassUtilityData.KernelExposureReduce, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelExposureReduce, PostProcessingPassUtilityData.SRV_ExposureHistoryEVID, passData.exposureHistory);
-                    cmdEncoder.SetComputeTextureParam(shader, PostProcessingPassUtilityData.KernelExposureReduce, PostProcessingPassUtilityData.UAV_ExposureEVID, passData.exposureEV);
-                    cmdEncoder.DispatchCompute(shader, PostProcessingPassUtilityData.KernelExposureReduce, 1, 1, 1);
+                    cmdEncoder.SetComputeBufferParam(shader, passData.kernels.exposureReduce, PostProcessingPassUtilityData.UAV_ExposureHistogramID, passData.histogram);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernels.exposureReduce, PostProcessingPassUtilityData.SRV_ExposureHistoryEVID, passData.exposureHistory);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernels.exposureReduce, PostProcessingPassUtilityData.UAV_ExposureEVID, passData.exposureEV);
+                    cmdEncoder.DispatchCompute(shader, passData.kernels.exposureReduce, 1, 1, 1);
                     cmdEncoder.EndSample("ExposureReduce");
                 });
             }
@@ -366,6 +378,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<BloomPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBloom)))
             {
                 ref BloomPassData passData = ref passRef.GetPassData<BloomPassData>();
+                passData.kernels = m_PostComputeKernels;
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
                 passData.bloomThreshold = volumes.bloomThreshold;
                 passData.bloomScatter = volumes.bloomScatter;
@@ -383,7 +396,7 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomScatterID, passData.bloomScatter);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_ExposureMultiplierID, passData.exposureMultiplier);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_AutoExposureID, passData.autoExposure);
-                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.SRV_ExposureEVID, passData.exposureEV);
+                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.kernels.bloomDownsample, PostProcessingPassUtilityData.SRV_ExposureEVID, passData.exposureEV);
 
                     int bloomWidth = Mathf.Max(1, passData.resolution.x >> 1);
                     int bloomHeight = Mathf.Max(1, passData.resolution.y >> 1);
@@ -392,9 +405,9 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.BeginSample("BloomDownsample");
                     cmdEncoder.SetComputeVectorParam(passData.postProcessingShader, PostProcessingPassUtilityData.BloomMipSizeID, new Vector4(bloomWidth, bloomHeight, 1.0f / bloomWidth, 1.0f / bloomHeight));
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomPrefilterID, 1.0f);
-                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.sceneColorTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, 0);
-                    cmdEncoder.DispatchCompute(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, Mathf.CeilToInt(bloomWidth / 8.0f), Mathf.CeilToInt(bloomHeight / 8.0f), 1);
+                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.kernels.bloomDownsample, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.sceneColorTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.kernels.bloomDownsample, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, 0);
+                    cmdEncoder.DispatchCompute(passData.postProcessingShader, passData.kernels.bloomDownsample, Mathf.CeilToInt(bloomWidth / 8.0f), Mathf.CeilToInt(bloomHeight / 8.0f), 1);
 
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomPrefilterID, 0.0f);
                     int prevWidth = bloomWidth;
@@ -405,9 +418,9 @@ namespace InfinityTech.Rendering.Pipeline
                         int mipHeight = Mathf.Max(1, prevHeight >> 1);
 
                         cmdEncoder.SetComputeVectorParam(passData.postProcessingShader, PostProcessingPassUtilityData.BloomMipSizeID, new Vector4(mipWidth, mipHeight, 1.0f / mipWidth, 1.0f / mipHeight));
-                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.bloomTexture, mip - 1);
-                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, mip);
-                        cmdEncoder.DispatchCompute(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomDownsample, Mathf.CeilToInt(mipWidth / 8.0f), Mathf.CeilToInt(mipHeight / 8.0f), 1);
+                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.kernels.bloomDownsample, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.bloomTexture, mip - 1);
+                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.kernels.bloomDownsample, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, mip);
+                        cmdEncoder.DispatchCompute(passData.postProcessingShader, passData.kernels.bloomDownsample, Mathf.CeilToInt(mipWidth / 8.0f), Mathf.CeilToInt(mipHeight / 8.0f), 1);
 
                         prevWidth = mipWidth;
                         prevHeight = mipHeight;
@@ -421,67 +434,60 @@ namespace InfinityTech.Rendering.Pipeline
                         int mipHeight = Mathf.Max(1, bloomHeight >> mip);
 
                         cmdEncoder.SetComputeVectorParam(passData.postProcessingShader, PostProcessingPassUtilityData.BloomMipSizeID, new Vector4(mipWidth, mipHeight, 1.0f / mipWidth, 1.0f / mipHeight));
-                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomUpsample, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.bloomTexture, mip + 1);
-                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomUpsample, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, mip);
-                        cmdEncoder.DispatchCompute(passData.postProcessingShader, PostProcessingPassUtilityData.KernelBloomUpsample, Mathf.CeilToInt(mipWidth / 8.0f), Mathf.CeilToInt(mipHeight / 8.0f), 1);
+                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.kernels.bloomUpsample, PostProcessingPassUtilityData.SRV_BloomSourceID, passData.bloomTexture, mip + 1);
+                        cmdEncoder.SetComputeTextureParam(passData.postProcessingShader, passData.kernels.bloomUpsample, PostProcessingPassUtilityData.UAV_BloomTargetID, passData.bloomTexture, mip);
+                        cmdEncoder.DispatchCompute(passData.postProcessingShader, passData.kernels.bloomUpsample, Mathf.CeilToInt(mipWidth / 8.0f), Mathf.CeilToInt(mipHeight / 8.0f), 1);
                     }
                     cmdEncoder.EndSample("BloomUpsample");
                 });
             }
         }
 
-        void ComputePostCombine(
-            Camera camera,
-            in RGTextureRef sceneColorTexture,
-            in RGTextureRef bloomTexture,
-            in RGTextureRef combineLUT,
-            in RGTextureRef exposureEV,
-            in RGTextureRef postProcessTexture,
-            in PostVolumeState volumes)
+        void RasterPostCombine(Camera camera, RGTextureRef sceneColor, RGTextureRef bloom, RGTextureRef lut,
+            RGTextureRef exposure, RGTextureRef target, in PostVolumeState volumes, in OutputTransformDecision decision, bool finalTarget)
         {
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<PostCombinePassData>(ProfilingSampler.Get(CustomSamplerId.ComputePostCombine)))
+            var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterPostCombine;
+            using (var pass = m_RGBuilder.AddRasterPass<PostCombinePassData>(ProfilingSampler.Get(sampler)))
             {
-                ref PostCombinePassData passData = ref passRef.GetPassData<PostCombinePassData>();
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
-                passData.bloomIntensity = volumes.bloomIntensity;
-                passData.vignetteIntensity = volumes.vignetteIntensity;
-                passData.vignetteSmoothness = volumes.vignetteSmoothness;
-                passData.filmGrainIntensity = volumes.filmGrainIntensity;
-                passData.filmGrainResponse = volumes.filmGrainResponse;
-                passData.exposureMultiplier = volumes.exposureMultiplier;
-                passData.autoExposure = volumes.autoExposure;
-                passData.frameIndex = Time.frameCount;
-                passData.postProcessingShader = shaders.postProcessingShader;
-                passData.sceneColorTexture = passRef.ReadTexture(sceneColorTexture);
-                passData.hasBloom = volumes.bloomIntensity > 0;
-                passData.kernel = shaders.postProcessingShader.FindKernel(passData.hasBloom ? "FinalCombine" : "FinalCombineNoBloom");
-                if (passData.hasBloom) passData.bloomTexture = passRef.ReadTexture(bloomTexture);
-                passData.combineLUT = passRef.ReadTexture(combineLUT);
-                passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);
-                passData.exposureEV = passRef.ReadTexture(exposureEV);
-
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in PostCombinePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                pass.EnablePassCulling(false);
+                if (finalTarget) pass.EnableNativeRenderPass(false);
+                pass.SetColorAttachment(target, 0, finalTarget && !FOutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                ref var data = ref pass.GetPassData<PostCombinePassData>();
+                data.output = PrepareFinalOutput(camera, decision, sceneColor, finalTarget, "RasterPostCombine");
+                data.resolution = m_ActiveFrameState.dimensions.displaySize;
+                data.bloomIntensity = volumes.bloomIntensity;
+                data.vignetteIntensity = volumes.vignetteIntensity;
+                data.vignetteSmoothness = volumes.vignetteSmoothness;
+                data.filmGrainIntensity = volumes.filmGrainIntensity;
+                data.filmGrainResponse = volumes.filmGrainResponse;
+                data.exposureMultiplier = volumes.exposureMultiplier;
+                data.autoExposure = volumes.autoExposure;
+                data.frameIndex = Time.frameCount;
+                data.hasBloom = volumes.bloomIntensity > 0;
+                data.sceneColorTexture = pass.ReadTexture(sceneColor);
+                if (data.hasBloom) data.bloomTexture = pass.ReadTexture(bloom);
+                data.combineLUT = pass.ReadTexture(lut);
+                data.exposureEV = pass.ReadTexture(exposure);
+                if (data.output.displayProbe != null) pass.SetQueueObserver(data.output.displayProbe);
+                pass.SetExecuteFunc((in PostCombinePassData data, in RGRasterEncoder commands, RGObjectPool pool) =>
                 {
-                    ComputeShader shader = passData.postProcessingShader;
-                    cmdEncoder.SetComputeVectorParam(shader, PostProcessingPassUtilityData.PP_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_BloomIntensityID, passData.bloomIntensity);
-                    cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_VignetteIntensityID, passData.vignetteIntensity);
-                    cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_VignetteSmoothnessID, passData.vignetteSmoothness);
-                    cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_FilmGrainIntensityID, passData.filmGrainIntensity);
-                    cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_FilmGrainResponseID, passData.filmGrainResponse);
-                    cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_ExposureMultiplierID, passData.exposureMultiplier);
-                    cmdEncoder.SetComputeFloatParam(shader, PostProcessingPassUtilityData.PP_AutoExposureID, passData.autoExposure);
-                    cmdEncoder.SetComputeIntParam(shader, PostProcessingPassUtilityData.PP_FrameIndexID, passData.frameIndex);
-
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
-                    if (passData.hasBloom)
-                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_BloomTextureID, passData.bloomTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_CombineLUTID, passData.combineLUT);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.UAV_PostProcessTextureID, passData.postProcessTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, PostProcessingPassUtilityData.SRV_ExposureEVID, passData.exposureEV);
-
-                    cmdEncoder.DispatchCompute(shader, passData.kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    BindFinalOutput(data.output, commands);
+                    commands.SetKeyword(s_PostBloomKeyword, data.hasBloom);
+                    commands.SetGlobalVector(PostProcessingPassUtilityData.PP_ResolutionID, new Vector4(data.resolution.x, data.resolution.y, 1f / data.resolution.x, 1f / data.resolution.y));
+                    commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_BloomIntensityID, data.bloomIntensity);
+                    commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_VignetteIntensityID, data.vignetteIntensity);
+                    commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_VignetteSmoothnessID, data.vignetteSmoothness);
+                    commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_FilmGrainIntensityID, data.filmGrainIntensity);
+                    commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_FilmGrainResponseID, data.filmGrainResponse);
+                    commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_ExposureMultiplierID, data.exposureMultiplier);
+                    commands.SetGlobalFloat(PostProcessingPassUtilityData.PP_AutoExposureID, data.autoExposure);
+                    commands.SetGlobalInt(PostProcessingPassUtilityData.PP_FrameIndexID, data.frameIndex);
+                    commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_SceneColorTextureID, data.sceneColorTexture);
+                    if (data.hasBloom) commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_BloomTextureID, data.bloomTexture);
+                    commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_CombineLUTID, data.combineLUT);
+                    commands.SetGlobalTexture(PostProcessingPassUtilityData.SRV_ExposureEVID, data.exposureEV);
+                    commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, data.output.shaderPass);
+                    CompleteFinalOutput(data.output, commands);
                 });
             }
         }

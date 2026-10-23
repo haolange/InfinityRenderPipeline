@@ -6,7 +6,7 @@ Shader "Hidden/InfinityTests/ShaderStripping/InfinityGBufferPass"
         Pass
         {
             Name "Fixture"
-            Tags { "LightMode" = "GBufferPass" }
+            Tags { "LightMode" = "RasterGBufferPass" }
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag

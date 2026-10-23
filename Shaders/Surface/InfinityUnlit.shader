@@ -67,13 +67,15 @@ Shader "InfinityPipeline/InfinityUnlit"
 
         Pass
         {
-            Name "TranslucentT2Pass"
-            Tags { "LightMode" = "TranslucentT2Pass" }
+            Name "RasterTranslucentT2Pass"
+            Tags { "LightMode" = "RasterTranslucentT2Pass" }
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
             Cull Off
 
             HLSLPROGRAM
+            #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
+            #include "../ShaderLibrary/TranslucentOutput.hlsl"
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
@@ -113,12 +115,17 @@ Shader "InfinityPipeline/InfinityUnlit"
 
             void Frag(Varyings input,
                 out float4 color : SV_Target0,
+
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
                 out float4 reactive : SV_Target1,
-                out float4 motion : SV_Target2,
-                out float4 metadata : SV_Target3)
+#endif
+                out float4 motion : INFINITY_MOTION_TARGET,
+                out float4 metadata : INFINITY_METADATA_TARGET)
             {
                 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv) * _BaseColor * input.color;
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
                 reactive = float4(color.a, 0, 0, 1);
+#endif
                 motion = 0;
                 metadata = 0;
             }

@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         static TextureDescriptor CreateColorPyramidDescriptor(int width, int height, string name)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height);
+            TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             descriptor.name = name;
             descriptor.dimension = TextureDimension.Tex2D;
             descriptor.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;

@@ -87,7 +87,7 @@ namespace InfinityTech.Rendering.Pipeline
             atmosphereParameter.ThrowIfInvalid();
 
 
-            var indirectDescriptor = new TextureDescriptor(width, height)
+            var indirectDescriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal)
             { name = "IndirectDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = true };
             RGTextureRef indirectDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectDiffuseBuffer, indirectDescriptor);
             indirectDescriptor.name = "IndirectSpecular";

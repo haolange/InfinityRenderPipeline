@@ -15,14 +15,15 @@ Shader "InfinityPipeline/InfinityDecal"
 
 		Pass
 		{
-			Name "DBufferPass"
-			Tags { "LightMode" = "DBufferPass" }
+			Name "RasterDBufferPass"
+			Tags { "LightMode" = "RasterDBufferPass" }
 			ZTest Always ZWrite Off Cull Front
 			Blend 0 SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
 			Blend 1 SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
 			Blend 2 SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -71,7 +72,7 @@ Shader "InfinityPipeline/InfinityDecal"
 
 				float2 uv = DecalProjectedUV(objectPos);
 				float3 decalNormalWS = normalize(mul((float3x3)UNITY_MATRIX_M, float3(0, 1, 0)));
-				float4 albedo = _MainTex.Sample(sampler_MainTex, uv) * _BaseColor;
+				float4 albedo = _MainTex.Sample(sampler_MainTex,uv) * _BaseColor;
 				albedo.a *= DecalAngleFade(worldPos, decalNormalWS, _WorldSpaceCameraPos);
 				clip(albedo.a - 1e-4);
 

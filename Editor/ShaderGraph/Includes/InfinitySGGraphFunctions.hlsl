@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #ifndef INFINITY_SG_GRAPH_FUNCTIONS
 #define INFINITY_SG_GRAPH_FUNCTIONS
 // Last pre-graph include: binds the Shader Graph scene / lighting nodes to Infinity resources where the pass has them,
@@ -11,7 +12,7 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TranslucentCommon.hlsl"
 float3 InfinitySampleSceneColor(float2 uv)
 {
-    return _ColorPyramidTexture.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb;
+    return InfinitySampleLevel(_ColorPyramidTexture,Global_bilinear_clamp_sampler,uv,0).rgb;
 }
 #define SHADERGRAPH_SAMPLE_SCENE_COLOR(uv) InfinitySampleSceneColor(uv)
 #endif
@@ -20,7 +21,7 @@ float3 InfinitySampleSceneColor(float2 uv)
 Texture2D _DepthTexture;
 float InfinitySampleSceneDepth(float2 uv)
 {
-    return _DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0).r;
+    return InfinitySampleLevel(_DepthTexture,Global_point_clamp_sampler,uv,0).r;
 }
 #define SHADERGRAPH_SAMPLE_SCENE_DEPTH(uv) InfinitySampleSceneDepth(uv)
 #endif

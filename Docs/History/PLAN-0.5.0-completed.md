@@ -1,3 +1,26 @@
+# Historical task ledger — retired 2026-10-24
+
+This is a historical record, not an active plan or current verification authority.
+Current architecture and verification state live in DESIGN.md and Docs/FeatureStatus.md at the repository root.
+Task execution uses the conversation Todo list.
+
+---
+
+# Raster / Compute / RayTracing naming convergence (2026-10-24)
+
+Current task baseline: main 2e05bc2; no branch creation. Historical upgrade ledger follows unchanged.
+
+- [x] Inspect pass kinds and consumers; confirm approved naming contract.
+- [x] Rename pass markers, recording methods, custom shader tags and all consumers.
+- [x] Update architecture rules and contract checks; static 0/0, offline 11/11.
+- [x] Run Unity compilation 0/0, selected tests 63/63, actual Shader Graph import and normal frames. Hardware RT/non-Metal remain platform verification items; cache-cycle/Overlay pixel limits are in FeatureStatus.
+- [x] Review diff, record platform boundaries, and clean task-owned intermediate data. Own Editor closed gracefully; task root/log/temporary assets absent. See Docs/FeatureStatus.md for verification and platform/coverage limits.
+
+RTAO markers follow the owned context backend; graph pass type remains RayTracing.
+Unity ShadowCaster, Meta and SRPDefaultUnlit remain canonical engine entrypoints.
+
+---
+
 # InfinityRP 0.5.0 — upgrade and convergence ledger
 
 Current checkpoint (2026-10-23): S0–S16 delivered. Local main and remote claude/infinityrp-0.5 are e01e08222c6018ed1d3b6b84fcffea4fdb7a7760; remote main remains c92be77. S16 repaired historical full1769P/0F/53Skipped and main1770P/1F/53Skipped are independently reconciled; sole failure is S17's six old PipelineSeam source paths. Eight fixed-input cases reuse the same accepted baseline pairs; negative/cancel/recovery gates passed. Known image defects and unavailable performance remain Open. S16 temporary root is absent,608436224allocatedbytes reclaimed; three small CLI/case helpers plus management metadata carry to S17. S17 is active: original eab18e5 plus212accepted predecessor files, exact57script/meta move audit, nativeGUID/reference integrity, original failure and minimal test-path fix, full/native-frame comparison, final main acceptance and whole-task cleanup. No other session Editor control, Player build or data migration.
@@ -12,7 +35,7 @@ S15 actual ShaderGraph:baseLit/Unlit/Decalimport13passes0errors/fiveexistingLitw
 
 S15 carry owners/consumers: S15/ owns CLI scripts/receipts, frozen historical source88tracked+61quarantined newfiles for repaired-stage replay, bounded640x360 normal captures for matched-frame/abnormal-geometry review, and reviewed lightmap comparison receipts (the four raw1MiB payloads are retired). Native interaction JSON is retained for independent review and final closure manifest. Task-owned Assets/InfinityRPVerification_0_5_20261020_run02/S15 graphs/fixtures/materials/lighting outputs and exact GraphLighting GUID941327271e45845eca178d729054adbe baking-sky assets are temporary, awaiting historical/final acceptance before explicit cleanup. graph-producer-final-v2.cs/meta is only a source receipt, no longer compiled. S13 sky carry is solely for final-main Lighting comparison. Preserve original scene/settings/profile hashes; no other-session input, DataStore migration or large backup.
 
-This is the only active task ledger. Earlier partial S12 receipts remain in the task evidence directory, including original failures; they are not current acceptance claims. The 0.4.0 ledger is archived in [Docs/History/PLAN-0.4.0-editor-convergence.md](Docs/History/PLAN-0.4.0-editor-convergence.md).
+This is the only active task ledger. Earlier partial S12 receipts remain in the task evidence directory, including original failures; they are not current acceptance claims. The 0.4.0 ledger is archived in [Docs/History/PLAN-0.4.0-editor-convergence.md](PLAN-0.4.0-editor-convergence.md).
 
 S12 evidence (2026-10-22, Unity 6000.6.0f1 / macOS Metal): actual native lightmap/probe/APV/sky bakes, normal-frame lightmap and Shadowmask controls, Terrain near/far/holes, dynamic Mesh SH, asynchronous topology invalidation, LPPV gradient, APV L1/L2/Off and two-camera enable gating have separate numeric/image receipts. Matched pre-0.5, S11 and S12 shadow draws prove the observer-dependent matrix defect predates 0.5; S12 fixed-light local atlas is byte-identical between observer poses. Post-shadow GPU reads verify both matrix aliases for two cameras. Main restored Profile `fe022b4c…` is an explicit current-schema save plus APV completion: native change audit preserves IDs/references/effective old components while enumerating 34 schema deltas; it is not a binary append-only change. Main whole-frame timing attempted 60 warm-up and 120 samples but obtained zero valid GPU samples, so S12 Perf stays Open. Known later-stage full-suite failures are MaterialUpgrader color rounding, ReflectionProbe layout expectation, RenderGraphViewer exception identity and the S17 geometry-path seam.
 
@@ -547,7 +570,7 @@ reflection probe, LightingSettings asset), Screen Space (mirror / rough strips, 
   FeatureStatus remain unchanged until the final verification update; the overall task and cleanup are incomplete.
 
 The user verifies in commit order with
-[Docs/Verification-Playbook-0.5.0.md](Docs/Verification-Playbook-0.5.0.md) (one section per stage, in stage order).
+[Docs/Verification-Playbook-0.5.0.md](../Verification-Playbook-0.5.0.md) (one section per stage, in stage order).
 
 - S3 original8032704 plus accepted S1/S2 repairs compiled and passed FeatureRegistry5/5. The first all-Example run
   discovered/started/finished1549:1495Passed/1Failed/53Skipped; the sole failure was resource preflight with a null

@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 // Screen-space traced (contact) shadows from the depth buffer.
 //   Sun: one ray toward the sun record (g_SunRecordIndex) -> UAV_ContactShadowSun (R8, 1 = lit), soft by intensity and
 //        distance fade.
@@ -54,7 +55,7 @@ bool TraceContactShadow(float3 worldPos, float3 dir, float rayLength, int steps,
         uv.y = 1.0 - uv.y;
 #endif
         if (any(uv < 0.0) || any(uv > 1.0)) return false;
-        float sceneDepth = ContactLinearDepth(SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, uv, 0));
+        float sceneDepth = ContactLinearDepth(InfinitySampleLevel(SRV_DepthTexture,Global_point_clamp_sampler,uv,0));
         float rayDepth = ContactShadow_DepthParams.z != 0 ? ContactLinearDepth(ndc.z) : clip.w;
         float delta = rayDepth - sceneDepth;
         // A small relative bias keeps the receiver itself from occluding the start of its ray.
@@ -70,7 +71,7 @@ void ContactShadowCS(uint3 id : SV_DispatchThreadID)
         return;
 
     float2 screenUV = (id.xy + 0.5) * ContactShadow_Resolution.zw;
-    float rawDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float rawDepth = InfinitySampleLevel(SRV_DepthTexture,Global_point_clamp_sampler,screenUV,0);
     float sun = 1.0;
     uint mask = 0u;
 

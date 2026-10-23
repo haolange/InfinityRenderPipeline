@@ -121,10 +121,10 @@ namespace InfinityTech.Rendering.RenderGraph
         MeshWorld m_MeshWorld;
         readonly Dictionary<MeshGpuVisibilityKey, RGBufferRef> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferRef>(8);
 
-        public RGBuilder(string name)
+        public RGBuilder(string name, ResourcePool resourcePool = null)
         {
             this.name = name;
-            this.m_Resources = new RGResourceFactory();
+            this.m_Resources = new RGResourceFactory(resourcePool);
             this.m_PassCompileInfos = new DynamicArray<RGPassCompileInfo>();
             this.m_ResourcesCompileInfos = new DynamicArray<RGResourceCompileInfo>[(int)ERGResourceType.Max];
 
@@ -133,6 +133,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 this.m_ResourcesCompileInfos[i] = new DynamicArray<RGResourceCompileInfo>();
             }
         }
+
+        public void SetTextureCapacity(FTextureCapacityContext capacity) => m_Resources.textureCapacity = capacity;
 
         public void SetMeshWorld(MeshWorld meshWorld)
         {
@@ -178,11 +180,11 @@ namespace InfinityTech.Rendering.RenderGraph
             switch (kind)
             {
                 case EMeshViewKind.CascadeShadow:
-                    return CustomSamplerId.ComputeMeshGpuCullCascade;
+                    return CustomSamplerId.ComputeMeshDrawCullCascade;
                 case EMeshViewKind.LocalShadow:
-                    return CustomSamplerId.ComputeMeshGpuCullLocal;
+                    return CustomSamplerId.ComputeMeshDrawCullLocal;
                 default:
-                    return CustomSamplerId.ComputeMeshGpuCull;
+                    return CustomSamplerId.ComputeMeshDrawCull;
             }
         }
 
@@ -1135,6 +1137,84 @@ namespace InfinityTech.Rendering.RenderGraph
             m_RendererListRecords.ReleaseAll();
         }
 
+        struct MeshDrawPreparePassData { public RGDrawListContext lists; public int index; }
+
+        static CustomSamplerId MeshDrawGroup(string passName)
+        {
+            switch (passName)
+            {
+                case "RasterDepth": return CustomSamplerId.Depth;
+                case "RasterGBuffer": return CustomSamplerId.GBuffer;
+                case "RasterObjectMotion": return CustomSamplerId.ObjectMotion;
+                case "RasterCascadeShadow": return CustomSamplerId.CascadeShadow;
+                case "RasterLocalShadow": return CustomSamplerId.LocalShadow;
+                default: return CustomSamplerId.Forward;
+            }
+        }
+        RGBufferRef ImportMeshBuffer(ComputeBuffer buffer, string name, ComputeBufferType type = ComputeBufferType.Structured)
+            => ImportBuffer(new FBufferRef(-1, new BufferDescriptor(buffer.count, buffer.stride, type) { name = name }, buffer));
+
+        void InsertDrawListPreparation()
+        {
+            var original = m_PassList.ToArray();
+            var ordered = new List<IRGPass>(original.Length);
+            var prepared = new Dictionary<int, RGBufferRef[]>();
+            for (int passIndex = 0; passIndex < original.Length; ++passIndex)
+            {
+                IRGPass consumer = original[passIndex];
+                if (m_PassCompileInfos[passIndex].culled || consumer.usedDrawLists.Count == 0)
+                { ordered.Add(consumer); continue; }
+                var group = ProfilingSampler.Get(MeshDrawGroup(consumer.name));
+                BeginProfilingSampler(group);
+                ordered.Add(m_PassList[m_PassList.Count - 1]);
+                foreach (var draws in consumer.usedDrawLists)
+                {
+                    if (!prepared.TryGetValue(draws.index, out var outputs))
+                    {
+                        var record = m_DrawListRecords.PrepareGraphRecord(draws.index);
+                        if (record.pipeline == null) continue;
+                        bool gpu = record.gpuPayload != null;
+                        var metadata = gpu ? ImportMeshBuffer(record.gpuPayload.commandMeta, "MeshDrawMetadata")
+                            : record.cpuIndexBuffer.buffer != null ? ImportBuffer(record.cpuIndexBuffer) : default;
+                        if (!metadata.IsValid()) { prepared.Add(draws.index, Array.Empty<RGBufferRef>()); continue; }
+                        using (var upload = AddTransferPass<MeshDrawPreparePassData>(ProfilingSampler.Get(CustomSamplerId.UploadMeshDrawData)))
+                        {
+                            upload.WriteBuffer(metadata);
+                            ref var data = ref upload.GetPassData<MeshDrawPreparePassData>(); data.lists = m_DrawListRecords; data.index = draws.index;
+                            upload.SetExecuteFunc((in MeshDrawPreparePassData data, in RGTransferEncoder commands, RGObjectPool pool) => data.lists.Upload(data.index, commands.m_CommandBuffer));
+                        }
+                        ordered.Add(m_PassList[m_PassList.Count - 1]);
+                        if (gpu)
+                        {
+                            var indices = ImportMeshBuffer(record.gpuPayload.compactedIndices, "MeshDrawCompactedIndices");
+                            var counts = ImportMeshBuffer(record.gpuPayload.visibleCounts, "MeshDrawVisibleCounts");
+                            var args = ImportMeshBuffer(record.gpuPayload.argsBuffer, "MeshDrawIndirectArgs", ComputeBufferType.IndirectArguments);
+                            var candidates = ImportMeshBuffer(record.pipeline.CandidateBuffer(record.passId), "MeshDrawCandidates");
+                            var transforms = ImportBuffer(record.pipeline.InstanceTransformIndices);
+                            using (var compact = AddComputePass<MeshDrawPreparePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeMeshDrawCompact)))
+                            {
+                                compact.ReadBuffer(metadata); compact.ReadBuffer(candidates); compact.ReadBuffer(transforms);
+                                compact.ReadBuffer(record.gpuVisibilityBuffer);
+                                compact.WriteBuffer(indices); compact.WriteBuffer(counts); compact.WriteBuffer(args);
+                                ref var data = ref compact.GetPassData<MeshDrawPreparePassData>(); data.lists = m_DrawListRecords; data.index = draws.index;
+                                compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands, RGObjectPool pool) => data.lists.Compact(data.index, commands.m_CommandBuffer));
+                            }
+                            ordered.Add(m_PassList[m_PassList.Count - 1]);
+                            outputs = new[] { indices, args };
+                        }
+                        else outputs = new[] { metadata };
+                        prepared.Add(draws.index, outputs);
+                    }
+                    foreach (var output in outputs) consumer.AddResourceRead(output.handle);
+                }
+                ordered.Add(consumer);
+                EndProfilingSampler(group);
+                ordered.Add(m_PassList[m_PassList.Count - 1]);
+            }
+            m_PassList.Clear(); m_PassList.AddRange(ordered);
+            for (int i = 0; i < m_PassList.Count; ++i) m_PassList[i].index = i;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void CompilePass()
         {
@@ -1142,6 +1222,11 @@ namespace InfinityTech.Rendering.RenderGraph
             CountPassReference();
             CullingUnusedPass();
             CompileDrawLists();
+            InsertDrawListPreparation();
+            InitializeCompileData();
+            CountPassReference();
+            CullingUnusedPass();
+            CompileRendererLists();
             UpdateResource();
         }
 
@@ -1542,7 +1627,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     RenderTexture target = m_Resources.GetTexture(viewportTarget).rt;
                     if (target != null)
-                        graphContext.cmdBuffer.SetViewport(new Rect(0, 0, target.width, target.height));
+                        graphContext.cmdBuffer.SetViewport(new Rect(0, 0, GetTextureDescriptor(viewportTarget).width, GetTextureDescriptor(viewportTarget).height));
                 }
             }
         }
@@ -1633,59 +1718,6 @@ namespace InfinityTech.Rendering.RenderGraph
                         }
                         try
                         {
-                            List<RGDrawListRef> usedDrawLists = pass.usedDrawLists;
-                            for (int i = 0; i < usedDrawLists.Count; ++i)
-                            {
-                                EnsureDrawListResolved(usedDrawLists[i]);
-                            }
-
-                            // D3D12: SetBufferData / DispatchCompute cannot run inside BeginRenderPass.
-                            bool anyGpuPrepare = false;
-                            for (int i = 0; i < usedDrawLists.Count; ++i)
-                            {
-                                if (m_DrawListRecords.NeedsGpuPrepare(usedDrawLists[i]))
-                                {
-                                    anyGpuPrepare = true;
-                                    break;
-                                }
-                            }
-
-                            if (anyGpuPrepare)
-                            {
-                                graphContext.cmdBuffer.BeginSample("ComputeMeshGpuCompact");
-                            }
-                            try
-                            {
-                                for (int i = 0; i < usedDrawLists.Count; ++i)
-                                {
-                                    string sliceSample = m_DrawListRecords.NeedsGpuPrepare(usedDrawLists[i])
-                                        ? m_DrawListRecords.SliceSampleName(usedDrawLists[i])
-                                        : null;
-                                    if (sliceSample != null)
-                                    {
-                                        graphContext.cmdBuffer.BeginSample(sliceSample);
-                                    }
-                                    try
-                                    {
-                                        m_DrawListRecords.PrepareSubmit(graphContext.cmdBuffer, usedDrawLists[i]);
-                                    }
-                                    finally
-                                    {
-                                        if (sliceSample != null)
-                                        {
-                                            graphContext.cmdBuffer.EndSample(sliceSample);
-                                        }
-                                    }
-                                }
-                            }
-                            finally
-                            {
-                                if (anyGpuPrepare)
-                                {
-                                    graphContext.cmdBuffer.EndSample("ComputeMeshGpuCompact");
-                                }
-                            }
-
                             PrePassExecute(ref graphContext, passInfo);
                             pass.Execute(ref graphContext);
                             PostPassExecute(ref graphContext, ref passInfo);

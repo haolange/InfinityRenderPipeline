@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel VolumetricCloudCS
 
 #include "../../ShaderLibrary/Common.hlsl"
@@ -182,7 +183,7 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
     float3 worldPos = worldPosH.xyz / worldPosH.w;
     float3 rayDir = normalize(worldPos - _WorldSpaceCameraPos);
 
-    float rawDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float rawDepth = InfinitySampleLevel(SRV_DepthTexture,Global_point_clamp_sampler,screenUV,0);
 #if UNITY_REVERSED_Z
     const bool reversedZ = true;
 #else
@@ -244,7 +245,7 @@ void VolumetricCloudCS(uint3 id : SV_DispatchThreadID)
     }
 
     float4 current = float4(accumulatedLight, transmittance);
-    float4 history = SRV_HistoryVolumetricCloud.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0);
+    float4 history = InfinitySampleLevel(SRV_HistoryVolumetricCloud,Global_bilinear_clamp_sampler,screenUV,0);
     float weight = saturate(VolCloud_TemporalWeight);
     UAV_VolumetricCloudTexture[id.xy] = lerp(current, history, weight);
 }

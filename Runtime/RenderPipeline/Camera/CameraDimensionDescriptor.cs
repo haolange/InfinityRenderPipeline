@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Component;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -15,6 +16,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         public readonly int2 displaySize;
         public readonly int2 internalSize;
+        public readonly int2 internalCapacity, displayCapacity;
+        public FTextureCapacityContext textureCapacity => new FTextureCapacityContext(internalCapacity, displayCapacity);
         public readonly float renderScale;
         public readonly bool superResolution;
         public readonly Rect outputViewport;
@@ -22,6 +25,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public CameraDimensionDescriptor(int2 displaySize, float renderScale, bool superResolution, Rect outputViewport)
         {
+            internalCapacity = displayCapacity = int2.zero;
             this.displaySize = new int2(math.max(1, displaySize.x), math.max(1, displaySize.y));
             this.renderScale = superResolution ? math.clamp(renderScale, 0.5f, 1.0f) : 1.0f;
             this.superResolution = superResolution;
@@ -37,6 +41,15 @@ namespace InfinityTech.Rendering.Pipeline
                 internalSize = this.displaySize;
             }
         }
+
+        CameraDimensionDescriptor(in CameraDimensionDescriptor source, int2 internalCapacity, int2 displayCapacity)
+        {
+            displaySize = source.displaySize; internalSize = source.internalSize;
+            renderScale = source.renderScale; superResolution = source.superResolution; outputViewport = source.outputViewport;
+            this.internalCapacity = internalCapacity; this.displayCapacity = displayCapacity;
+        }
+        internal CameraDimensionDescriptor WithCapacity(int2 internalCapacity, int2 displayCapacity)
+            => new CameraDimensionDescriptor(this, internalCapacity, displayCapacity);
 
         public static CameraDimensionDescriptor FromCamera(Camera camera, InfinityRenderPipelineAsset asset, InfinityAdditionalCameraData additional)
         {

@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (dependency == "BaseMapShader")
                 {
                     Assert.GreaterOrEqual(material.FindPass("Meta"), 0);
-                    Assert.GreaterOrEqual(material.FindPass("GBufferPass"), 0);
+                    Assert.GreaterOrEqual(material.FindPass("RasterGBufferPass"), 0);
                     Assert.GreaterOrEqual(material.FindPass("ShadowCaster"), 0);
                 }
                 else

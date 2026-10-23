@@ -1,12 +1,11 @@
-Shader "Hidden/InfinityTests/ShaderStripping/InfinityTerrainAdd"
+Shader "Hidden/InfinityTests/ShaderStripping/UntaggedTerrainAdd"
 {
     SubShader
     {
-        Tags { "RenderPipeline" = "InfinityRenderPipeline" }
         Pass
         {
             Name "Fixture"
-            Tags { "LightMode" = "TerrainAdd" }
+            Tags { "LightMode" = "RasterTerrainAdd" }
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag

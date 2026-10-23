@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using Unity.Mathematics;
+using InfinityTech.Rendering.GPUResource;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
@@ -21,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
         }
 
-        void ResolveDisplayDepth()
+        void RasterUpscaleDepthForEditorOverlays()
         {
             RGTextureRef source = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var dimensions = m_ActiveFrameState.dimensions;
@@ -34,10 +35,11 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.width = dimensions.displaySize.x;
             descriptor.height = dimensions.displaySize.y;
             descriptor.name = "DisplayDepthTexture";
+            descriptor.sizingDomain = ETextureSizingDomain.Display; descriptor.viewDivisor = 1;
             RGTextureRef output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, descriptor);
-            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("UpscaleDepth");
+            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterUpscaleDepth");
             if (shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required UpscaleDepth shader pass is missing.");
-            using (var pass = m_RGBuilder.AddRasterPass<DisplayDepthPassData>(ProfilingSampler.Get(CustomSamplerId.ResolveDisplayDepth)))
+            using (var pass = m_RGBuilder.AddRasterPass<DisplayDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUpscaleDepthForEditorOverlays)))
             {
                 pass.SetDepthStencilAttachment(output, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, EDepthAccess.Write);
                 ref var data = ref pass.GetPassData<DisplayDepthPassData>();
@@ -58,14 +60,14 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 screenParams;
         }
         
-        void RenderWireOverlay(RenderContext renderContext, Camera camera)
+        void RasterWireOverlay(RenderContext renderContext, Camera camera)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
             RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
             RendererList wireOverlayRendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RenderWireOverlay)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterWireOverlay)))
             {
                 // Unity forbids drawing gizmos / wire overlay inside BeginRenderPass.
                 passRef.EnableNativeRenderPass(false);
@@ -94,7 +96,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 screenParams;
         }
 
-        void RenderGizmos(RenderContext renderContext, Camera camera)
+        void RasterGizmos(RenderContext renderContext, Camera camera)
         {
             if (Handles.ShouldRenderGizmos())
             {
@@ -103,7 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 RendererList gizmosRendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
 
-                using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RenderGizmos)))
+                using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGizmos)))
                 {
                     // Unity forbids drawing gizmos inside BeginRenderPass.
                     passRef.EnableNativeRenderPass(false);
@@ -120,96 +122,138 @@ namespace InfinityTech.Rendering.Pipeline
                     passRef.SetExecuteFunc((in GizmosPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
                     {
                         cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);
-                    cmdEncoder.DrawRendererList(passData.rendererList);
+                        cmdEncoder.DrawRendererList(passData.rendererList);
                     });
                 }
             }
         }
 #endif
 
-        // Present Graph
-        struct PresentPassData
+        struct FinalOutputPassData
         {
             public Rect viewport;
-            public Vector4 scaleBias;
-            public Vector4 outputTransfer;
-            public int shaderPass;
-            public int sourceWidth, sourceHeight;
+            public Vector4 scaleBias, outputTransfer;
+            public int shaderPass, sourceWidth, sourceHeight;
             public string targetIdentity;
             public RenderCaptureSession captureSession;
             public RGTextureRef srcTexture;
             public NativeDisplayProbe displayProbe;
         }
 
-        void RenderPresent(RenderContext renderContext, Camera camera, in OutputTransformDecision decision)
+        void RecordCameraOutput(RenderContext renderContext, Camera camera, CameraFrameState frameState, in OutputTransformDecision decision)
         {
-            var captureSession = RenderCaptureService.current;
-            if (captureSession != null && !captureSession.request.Matches(camera)) captureSession = null;
-            captureSession?.RecordOutputDecision(decision);
-            RGTextureRef srcTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer);
-            RenderTexture targetTexture = camera.targetTexture;
-            var targetIdentifier = targetTexture != null
-                ? new RenderTargetIdentifier(targetTexture)
-                : new RenderTargetIdentifier(BuiltinRenderTextureType.CameraTarget);
-            var targetDescriptor = new InfinityTech.Rendering.GPUResource.TextureDescriptor
+            bool wire = false, gizmos = false;
+#if UNITY_EDITOR
+            gizmos = Handles.ShouldRenderGizmos();
+            foreach (SceneView view in SceneView.sceneViews)
             {
-                name = targetTexture != null ? targetTexture.name : "DisplayBackbuffer",
-                width = targetTexture != null ? targetTexture.width : 0,
-                height = targetTexture != null ? targetTexture.height : 0,
-                colorFormat = decision.backbufferFormat,
-                dimension = TextureDimension.Tex2D,
-                slices = 1
+                if (view.camera != camera) continue;
+                wire = view.cameraMode.drawMode == DrawCameraMode.TexturedWire || view.cameraMode.drawMode == DrawCameraMode.Wireframe;
+                break;
+            }
+#endif
+            var capture = RenderCaptureService.current;
+            bool linearCapture = capture != null && !capture.Finished && capture.request.Matches(camera) &&
+                (System.Array.IndexOf(capture.request.buffers, "DisplayColor") >= 0 || System.Array.IndexOf(capture.request.buffers, "PostProcess") >= 0);
+            var plan = new FOutputPlan(camera.cameraType == CameraType.Game && camera.targetTexture == null,
+                decision.policy, frameState.debugView != EDebugView.None, linearCapture, wire, gizmos);
+            RGTextureRef target = ImportCameraOutput(camera, decision);
+            RasterPostProcessing(renderContext, camera, frameState, decision, plan, target);
+            if (plan.linearIntermediate)
+            {
+                ComputeDebugView(renderContext, camera);
+#if UNITY_EDITOR
+                if (plan.editorDepth) RasterUpscaleDepthForEditorOverlays();
+                if (plan.wireOverlay) RasterWireOverlay(renderContext, camera);
+                if (plan.gizmos) RasterGizmos(renderContext, camera);
+#endif
+                m_RGScoper.RegisterTexture(InfinityShaderIDs.DisplayColorBuffer, m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer));
+                if (plan.uiOverlay) RasterUIOverlay(renderContext, camera, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), false);
+                RecordNormalFrameCapture(camera);
+                RasterFinalOutput(camera, decision, m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayColorBuffer), target, true);
+            }
+            else
+            {
+                // Hardware sRGB targets decode before blending and encode after it.
+                if (plan.uiOverlay) RasterUIOverlay(renderContext, camera, target, true);
+                RecordNormalFrameCapture(camera);
+            }
+            ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Display);
+            MarkFeatureProduced(EFrameFeature.Display);
+        }
+
+        RGTextureRef ImportCameraOutput(Camera camera, in OutputTransformDecision decision)
+        {
+            RenderTexture texture = camera.targetTexture;
+            var identifier = texture != null ? new RenderTargetIdentifier(texture) : new RenderTargetIdentifier(BuiltinRenderTextureType.CameraTarget);
+            var descriptor = new InfinityTech.Rendering.GPUResource.TextureDescriptor
+            {
+                name = texture != null ? texture.name : "DisplayBackbuffer",
+                width = texture != null ? texture.width : 0, height = texture != null ? texture.height : 0,
+                colorFormat = decision.backbufferFormat, dimension = TextureDimension.Tex2D, slices = 1
             };
-            RGTextureRef backbufferTexture = m_RGBuilder.ImportBackbuffer(targetIdentifier, targetDescriptor);
+            return m_RGBuilder.ImportBackbuffer(identifier, descriptor);
+        }
 
-            // Add PresentPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<PresentPassData>(ProfilingSampler.Get(CustomSamplerId.Present)))
+        FinalOutputPassData PrepareFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureRef source,
+            bool finalTarget, string shaderPass)
+        {
+            var dimensions = m_ActiveFrameState.dimensions;
+            var descriptor = m_RGBuilder.GetTextureDescriptor(source);
+            var data = new FinalOutputPassData
             {
-                //Setup Phase
-                passRef.EnablePassCulling(false);
-                // The backbuffer has no owning RenderTexture, so it cannot be a native render pass attachment.
-                passRef.EnableNativeRenderPass(false);
-                passRef.SetColorAttachment(backbufferTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                srcTexture = source, sourceWidth = descriptor.width, sourceHeight = descriptor.height,
+                viewport = finalTarget ? dimensions.outputViewport : new Rect(0, 0, dimensions.displaySize.x, dimensions.displaySize.y),
+                scaleBias = finalTarget && camera.targetTexture == null ? new Vector4(1, -1, 0, 1) : new Vector4(1, 1, 0, 0),
+                outputTransfer = finalTarget ? new Vector4((int)decision.policy, decision.outputGamut == OutputTransformUtility.OutputGamutRec2020 ? 1 : 0, 100, 0)
+                    : new Vector4((int)EOutputEncodePolicy.LinearTarget, 0, 100, 0),
+                shaderPass = GraphicsUtility.BlitMaterial.FindPass(shaderPass)
+            };
+            if (data.shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required output shader pass is missing: " + shaderPass);
+            if (finalTarget)
+            {
+                var capture = RenderCaptureService.current;
+                data.captureSession = capture != null && !capture.Finished && capture.request.Matches(camera) ? capture : null;
+                data.captureSession?.RecordOutputDecision(decision);
+                data.targetIdentity = camera.targetTexture != null ? "RenderTexture:" + camera.targetTexture.GetEntityId() : "BuiltinRenderTextureType.CameraTarget";
+                data.captureSession?.RecordPresent(camera, data.targetIdentity, data.viewport, data.scaleBias, data.sourceWidth, data.sourceHeight, false);
+                data.displayProbe = data.captureSession?.ReserveNativeProbe();
+            }
+            return data;
+        }
 
-                ref PresentPassData passData = ref passRef.GetPassData<PresentPassData>();
-                {
-                    var sourceDescriptor = m_RGBuilder.GetTextureDescriptor(srcTexture);
-                    var dimensions = m_ActiveFrameState.dimensions;
-                    passData.viewport = dimensions.outputViewport;
-                    passData.outputTransfer = new Vector4((int)decision.policy, decision.outputGamut == OutputTransformUtility.OutputGamutRec2020 ? 1 : 0, 100f, 0);
-                    passData.shaderPass = GraphicsUtility.BlitMaterial.FindPass("Present");
-                    if (passData.shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required Present shader pass is missing.");
-                    passData.scaleBias = new Vector4(dimensions.displaySize.x / (float)sourceDescriptor.width,
-                        dimensions.displaySize.y / (float)sourceDescriptor.height, 0, 0);
-                    if (camera.targetTexture == null)
-                    {
-                        passData.scaleBias.w = passData.scaleBias.y;
-                        passData.scaleBias.y = -passData.scaleBias.y;
-                    }
-                    passData.sourceWidth = sourceDescriptor.width;
-                    passData.sourceHeight = sourceDescriptor.height;
-                    passData.targetIdentity = targetTexture != null ? "RenderTexture:" + targetTexture.GetEntityId() : "BuiltinRenderTextureType.CameraTarget";
-                    passData.captureSession = captureSession;
-                    captureSession?.RecordPresent(camera, passData.targetIdentity, passData.viewport, passData.scaleBias, passData.sourceWidth, passData.sourceHeight, false);
-                    passData.srcTexture = passRef.ReadTexture(srcTexture);
-                    passData.displayProbe = RenderCaptureService.current?.ReserveNativeProbe();
-                    passRef.SetQueueObserver(passData.displayProbe);
-                }
+        static void BindFinalOutput(in FinalOutputPassData data, in RGRasterEncoder commands)
+        {
+            commands.SetViewport(data.viewport);
+            commands.SetGlobalVector(Shader.PropertyToID("_InfinityOutputTransfer"), data.outputTransfer);
+            commands.SetGlobalVector(InfinityShaderIDs.ScaleBias, data.scaleBias);
+        }
 
-                //Execute Phase
-                passRef.SetExecuteFunc((in PresentPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+        static void CompleteFinalOutput(in FinalOutputPassData data, in RGRasterEncoder commands)
+        {
+            data.captureSession?.RecordPresent(null, data.targetIdentity, data.viewport, data.scaleBias, data.sourceWidth, data.sourceHeight, true);
+            if (data.displayProbe != null)
+                commands.IssuePluginEventAndData(data.displayProbe.callback, 0, data.displayProbe.payload);
+        }
+
+        void RasterFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureRef source, RGTextureRef target, bool finalTarget)
+        {
+            var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterOutputCopy;
+            using (var pass = m_RGBuilder.AddRasterPass<FinalOutputPassData>(ProfilingSampler.Get(sampler)))
+            {
+                pass.EnablePassCulling(false);
+                if (finalTarget) pass.EnableNativeRenderPass(false);
+                pass.SetColorAttachment(target, 0, finalTarget && !FOutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
+                ref var data = ref pass.GetPassData<FinalOutputPassData>();
+                data = PrepareFinalOutput(camera, decision, source, finalTarget, "RasterFinalOutput");
+                data.srcTexture = pass.ReadTexture(source);
+                if (data.displayProbe != null) pass.SetQueueObserver(data.displayProbe);
+                pass.SetExecuteFunc((in FinalOutputPassData data, in RGRasterEncoder commands, RGObjectPool pool) =>
                 {
-                    RenderTexture srcBuffer = passData.srcTexture;
-                    cmdEncoder.SetViewport(passData.viewport);
-                    cmdEncoder.SetGlobalVector(Shader.PropertyToID("_InfinityOutputTransfer"), passData.outputTransfer);
-                    cmdEncoder.SetGlobalVector(InfinityShaderIDs.ScaleBias, passData.scaleBias);
-                    cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, srcBuffer);
-                    cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, passData.shaderPass);
-                    passData.captureSession?.RecordPresent(null, passData.targetIdentity, passData.viewport, passData.scaleBias, passData.sourceWidth, passData.sourceHeight, true);
-                    if (passData.displayProbe != null)
-                    {
-                        cmdEncoder.IssuePluginEventAndData(passData.displayProbe.callback, 0, passData.displayProbe.payload);
-                    }
+                    BindFinalOutput(data, commands);
+                    commands.SetGlobalTexture(InfinityShaderIDs.MainTexture, data.srcTexture);
+                    commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, data.shaderPass);
+                    CompleteFinalOutput(data, commands);
                 });
             }
         }

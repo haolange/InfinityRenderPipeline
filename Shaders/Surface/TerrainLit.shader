@@ -51,8 +51,8 @@ Shader "InfinityPipeline/TerrainLit"
 
         Pass
         {
-			Name "GBufferPass"
-			Tags { "LightMode" = "GBufferPass" }
+			Name "RasterGBufferPass"
+			Tags { "LightMode" = "RasterGBufferPass" }
             
 			ZTest LEqual ZWrite On Cull Back
 
@@ -84,8 +84,8 @@ Shader "InfinityPipeline/TerrainLit"
 
         Pass
         {
-			Name "ForwardPass"
-			Tags { "LightMode" = "ForwardPass" }
+			Name "RasterForwardPass"
+			Tags { "LightMode" = "RasterForwardPass" }
             
 			ZTest Equal ZWrite On Cull Back
 

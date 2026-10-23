@@ -8,11 +8,6 @@ namespace InfinityTech.Rendering.Pipeline
             return fogProduced || cloudProduced;
         }
 
-        public static bool ShouldProduceReactiveMask(bool taaPathActive)
-        {
-            return taaPathActive;
-        }
-
         public static RGResourceKey ResolveTemporalSceneColorId()
         {
             return InfinityShaderIDs.FoggedSceneColorBuffer;

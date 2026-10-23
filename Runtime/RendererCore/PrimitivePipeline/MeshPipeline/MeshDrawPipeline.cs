@@ -96,31 +96,21 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
-        /// <summary>
-        /// CPU direct draw path only. GPU indirect submit is owned by RenderGraph via <see cref="SubmitGpu"/>.
-        /// Temporary instance-index buffers are retired by <see cref="ReleaseFrameBuffers"/> and physically
-        /// returned by <see cref="FlushRetiredBuffers"/> after <c>ScriptableRenderContext.Submit</c>.
-        /// </summary>
-        public void Submit(CommandBuffer cmdBuffer, in PassView drawList, int shaderPassIndex, string lightModeTag = null)
+        // Allocation happens while the graph compiles; the explicit Upload producer fills the buffer.
+        internal FBufferRef AllocateCpuDirect(in PassView drawList)
         {
-            FBufferRef indexBuffer = PrepareCpuDirect(cmdBuffer, drawList);
-            SubmitCpuDirect(cmdBuffer, drawList, shaderPassIndex, indexBuffer, lightModeTag);
-        }
-
-        internal FBufferRef PrepareCpuDirect(CommandBuffer cmdBuffer, in PassView drawList)
-        {
-            if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
-                || m_Residency.TransformBuffer.buffer == null)
-            {
-                return default;
-            }
-
+            if (!drawList.isValid || drawList.commandCount == 0) return default;
             int indexCount = math.max(1, drawList.instanceCount);
-            FBufferRef indexBufferRef = m_ResourcePool.GetBuffer(new BufferDescriptor(math.max(indexCount, 16), Marshal.SizeOf<int>()));
-            m_FrameRentedBuffers.Add(indexBufferRef);
-            cmdBuffer.SetBufferData(indexBufferRef.buffer, drawList.instanceIndices, 0, 0, drawList.instanceCount);
-            return indexBufferRef;
+            var buffer = m_ResourcePool.GetBuffer(new BufferDescriptor(math.max(indexCount, 16), Marshal.SizeOf<int>()));
+            m_FrameRentedBuffers.Add(buffer); return buffer;
         }
+        internal void UploadCpuDirect(CommandBuffer commands, in PassView drawList, in FBufferRef buffer)
+        {
+            if (buffer.buffer != null && drawList.instanceCount > 0)
+                commands.SetBufferData(buffer.buffer, drawList.instanceIndices, 0, 0, drawList.instanceCount);
+        }
+        internal ComputeBuffer CandidateBuffer(MeshPassId passId) => m_CandidateTables.GetCandidateBuffer(passId);
+        internal FBufferRef InstanceTransformIndices => m_Residency.InstanceTransformIndexBuffer;
 
         internal bool PrepareGpu(
             CommandBuffer cmdBuffer,
@@ -215,7 +205,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            cmdBuffer.BeginSample("RenderLoop.DrawMesh");
+            cmdBuffer.BeginSample("RasterMeshDrawDirect");
             try
             {
                 for (int i = 0; i < drawList.commandCount; ++i)
@@ -248,7 +238,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             finally
             {
-                cmdBuffer.EndSample("RenderLoop.DrawMesh");
+                cmdBuffer.EndSample("RasterMeshDrawDirect");
             }
         }
     }

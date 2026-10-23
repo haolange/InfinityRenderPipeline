@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #include "Common.hlsl"
 #include "Occlusion.hlsl"
 #include "SpatialFilter.hlsl"
@@ -7,7 +8,7 @@
 #pragma kernel OcclusionSpatialY
 #pragma kernel OcclusionTemporal
 #pragma kernel OcclusionUpsample
-#pragma enable_d3d11_debug_symbols
+#pragma enable_debug_symbols
 
 RWTexture2D<float> UAV_OcclusionTexture;
 [numthreads(16, 16, 1)]
@@ -34,7 +35,7 @@ void OcclusionTrace(uint3 id : SV_DispatchThreadID)
 	float3 WorldNormal = normalize(normalSample.xyz * 2 - 1);
     float3 ViewNormal = mul((float3x3)Matrix_WorldToView, WorldNormal);
 
-    float Occlusion = GTAO(NumRay, NumStep, Radius, Power, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, ScreenSpaceViewDirection(ViewPos), ViewNormal, Resolution, Matrix_InvProj, SRV_DepthTexture, Global_point_clamp_sampler);
+    float Occlusion = GTAO(NumRay, NumStep, Radius, Power, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, ScreenSpaceViewDirection(ViewPos), ViewNormal, Resolution, Matrix_InvProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, Global_point_clamp_sampler);
     UAV_OcclusionTexture[id.xy] = lerp(1, Occlusion, Intensity);
 }
 
@@ -62,14 +63,14 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     if (any(id.xy >= (uint2)Resolution.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
     float2 sourceUV = HalfResSourceUV(ScreenUV);
-    float2 Velocity = SRV_MotionTexture.SampleLevel(Global_point_clamp_sampler, sourceUV, 0);
+    float2 Velocity = InfinitySampleLevel(SRV_MotionTexture,Global_point_clamp_sampler,sourceUV,0);
 
     float SampleColors[9];
 
     [unroll]
     for(uint i = 0; i < 9; i++)
     {
-        SampleColors[i] = SRV_OcclusionTexture.SampleLevel(Global_point_clamp_sampler, ScreenUV + (SampleOffset[i] * Resolution.zw), 0);
+        SampleColors[i] = InfinitySampleLevel(SRV_OcclusionTexture,Global_point_clamp_sampler,ScreenUV + (SampleOffset[i] * Resolution.zw),0);
     }
 
 
@@ -99,7 +100,7 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     MaxColor = max(MaxColor, CurrColor);
     PrevColor = clamp(PrevColor, MinColor, MaxColor);
 
-    float DepthReject = HistoryDepthConfidence(SRV_HistoryDepthTexture, HistoryUV, expectedHistoryDepth, 0);
+    float DepthReject = HistoryDepthConfidence(SRV_HistoryDepthTexture, SRV_HistoryDepthTexture_InfinityView, HistoryUV, expectedHistoryDepth, 0);
 
 	float VelocityWeight = clamp(lerp(TemporalWeight, 0.0, length(Velocity) * 200.0), 0.0, TemporalWeight) * DepthReject;
     if (any(HistoryUV < 0) || any(HistoryUV > 1)) VelocityWeight = 0;

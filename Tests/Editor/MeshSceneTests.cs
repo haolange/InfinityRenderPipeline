@@ -829,7 +829,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void ComputePayloadBudget_TakesMaxAcrossSplitBatches()
+        public void ComputePayloadBudget_ReservesDisjointRangesAcrossSplitBatches()
         {
             uint half = (uint)(MeshDrawGPUBackend.MaxInstances / 2 + 1);
             var counts = new uint[] { half, half };
@@ -837,8 +837,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
             MeshDrawGPUBackend.ComputePayloadBudget(counts, 2, boundsCount, out int maxCommands, out int maxInstances);
 
-            Assert.AreEqual(1, maxCommands);
-            Assert.AreEqual((int)half, maxInstances);
+            Assert.AreEqual(2, maxCommands);
+            Assert.AreEqual((int)half * 2, maxInstances);
         }
 
         [Test]

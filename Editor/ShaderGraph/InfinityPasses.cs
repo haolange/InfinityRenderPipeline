@@ -8,18 +8,18 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
     static class InfinityPasses
     {
         // LightMode tags (InfinityPassIDs).
-        public const string kShadowPass = "ShadowPass";
+        public const string kRasterShadowPass = "RasterShadowPass";
         public const string kShadowCaster = "ShadowCaster";
-        public const string kDepthPass = "DepthPass";
-        public const string kGBufferPass = "GBufferPass";
-        public const string kForwardPass = "ForwardPass";
-        public const string kMotionPass = "MotionPass";
-        public const string kTranslucentDepthPass = "TranslucentDepthPass";
-        public const string kTranslucentT0Pass = "TranslucentT0Pass";
-        public const string kTranslucentT1Pass = "TranslucentT1Pass";
-        public const string kTranslucentT2Pass = "TranslucentT2Pass";
+        public const string kRasterDepthPass = "RasterDepthPass";
+        public const string kRasterGBufferPass = "RasterGBufferPass";
+        public const string kRasterForwardPass = "RasterForwardPass";
+        public const string kRasterMotionPass = "RasterMotionPass";
+        public const string kRasterTranslucentDepthPass = "RasterTranslucentDepthPass";
+        public const string kRasterTranslucentT0Pass = "RasterTranslucentT0Pass";
+        public const string kRasterTranslucentT1Pass = "RasterTranslucentT1Pass";
+        public const string kRasterTranslucentT2Pass = "RasterTranslucentT2Pass";
         public const string kMeta = "Meta";
-        public const string kDBufferPass = "DBufferPass";
+        public const string kRasterDBufferPass = "RasterDBufferPass";
 
         const string kCore = InfinityTarget.kIncludePath + "InfinitySGCore.hlsl";
         const string kGraphFunctions = InfinityTarget.kIncludePath + "InfinitySGGraphFunctions.hlsl";
@@ -349,49 +349,49 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
             };
         }
 
-        public static PassDescriptor ShadowPass(InfinityTarget target) =>
-            Pass(kShadowPass, "SHADERPASS_SHADOWS", AlphaBlocks, ShadowFields, DepthOnlyStates(target), Instanced, Defines(target), Includes(null, kDepthOnly), false);
+        public static PassDescriptor RasterShadowPass(InfinityTarget target) =>
+            Pass(kRasterShadowPass, "SHADERPASS_SHADOWS", AlphaBlocks, ShadowFields, DepthOnlyStates(target), Instanced, Defines(target), Includes(null, kDepthOnly), false);
 
         public static PassDescriptor ShadowCaster(InfinityTarget target) =>
             Pass(kShadowCaster, "SHADERPASS_SHADOWS", AlphaBlocks, ShadowFields, DepthOnlyStates(target), Instanced, Defines(target), Includes(null, kDepthOnly), false);
 
-        public static PassDescriptor DepthPass(InfinityTarget target) =>
-            Pass(kDepthPass, "SHADERPASS_DEPTH", AlphaBlocks, PositionFields, DepthOnlyStates(target), Instanced, Defines(target), Includes(null, kDepthOnly), true);
+        public static PassDescriptor RasterDepthPass(InfinityTarget target) =>
+            Pass(kRasterDepthPass, "SHADERPASS_DEPTH", AlphaBlocks, PositionFields, DepthOnlyStates(target), Instanced, Defines(target), Includes(null, kDepthOnly), true);
 
-        public static PassDescriptor GBufferPass(InfinityTarget target) =>
-            Pass(kGBufferPass, "SHADERPASS_GBUFFER", LitBlocks, SurfaceFields, GBufferStates(target),
+        public static PassDescriptor RasterGBufferPass(InfinityTarget target) =>
+            Pass(kRasterGBufferPass, "SHADERPASS_GBUFFER", LitBlocks, SurfaceFields, GBufferStates(target),
                 With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ _DBUFFER"),
                 Defines(target), Includes(kBakedLighting, kGBuffer), true);
 
-        public static PassDescriptor ForwardPass(InfinityTarget target) =>
-            Pass(kForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, EqualDepthStates(target),
+        public static PassDescriptor RasterForwardPass(InfinityTarget target) =>
+            Pass(kRasterForwardPass, "SHADERPASS_FORWARD", LitBlocks, SurfaceFields, EqualDepthStates(target),
                 With(new PragmaCollection { Instanced, BakedLightingKeywords }, "multi_compile _ INFINITY_FORWARD_AO", "multi_compile _ INFINITY_FORWARD_CONTACT_SHADOW"),
                 Defines(target), Includes(kSurfaceLighting, kForward), true);
 
-        public static PassDescriptor MotionPass(InfinityTarget target) =>
-            Pass(kMotionPass, "SHADERPASS_MOTION", AlphaBlocks, PositionFields, MotionStates(target), Instanced, Defines(target), Includes(null, kMotion), false);
+        public static PassDescriptor RasterMotionPass(InfinityTarget target) =>
+            Pass(kRasterMotionPass, "SHADERPASS_MOTION", AlphaBlocks, PositionFields, MotionStates(target), Instanced, Defines(target), Includes(null, kMotion), false);
 
-        public static PassDescriptor TranslucentDepthPass(InfinityTarget target) =>
-            Pass(kTranslucentDepthPass, "SHADERPASS_TRANSLUCENT_DEPTH", AlphaBlocks, PositionFields, DepthOnlyStates(target), Instanced, Defines(target), Includes(null, kDepthOnly), false);
+        public static PassDescriptor RasterTranslucentDepthPass(InfinityTarget target) =>
+            Pass(kRasterTranslucentDepthPass, "SHADERPASS_TRANSLUCENT_DEPTH", AlphaBlocks, PositionFields, DepthOnlyStates(target), Instanced, Defines(target), Includes(null, kDepthOnly), false);
 
-        public static PassDescriptor TranslucentT0Pass(InfinityTarget target) =>
-            Pass(kTranslucentT0Pass, "SHADERPASS_TRANSLUCENT_T0", LitBlocks, SurfaceFields, TranslucentStates(target),
-                With(Instanced, "multi_compile _ _VOLUMETRIC_FOG", "multi_compile _ _AERIAL_PERSPECTIVE"),
+        public static PassDescriptor RasterTranslucentT0Pass(InfinityTarget target) =>
+            Pass(kRasterTranslucentT0Pass, "SHADERPASS_TRANSLUCENT_T0", LitBlocks, SurfaceFields, TranslucentStates(target),
+                With(Instanced, "multi_compile _ INFINITY_WRITE_REACTIVE_MASK", "multi_compile _ _VOLUMETRIC_FOG", "multi_compile _ _AERIAL_PERSPECTIVE"),
                 Defines(target), Includes(kTranslucent, kTranslucentPass), false);
 
-        public static PassDescriptor TranslucentT1Pass(InfinityTarget target) =>
-            Pass(kTranslucentT1Pass, "SHADERPASS_TRANSLUCENT_T1", LitBlocks, SurfaceFields, TranslucentStates(target),
-                With(Instanced, "multi_compile _ _REFRACTION_PYRAMID"),
+        public static PassDescriptor RasterTranslucentT1Pass(InfinityTarget target) =>
+            Pass(kRasterTranslucentT1Pass, "SHADERPASS_TRANSLUCENT_T1", LitBlocks, SurfaceFields, TranslucentStates(target),
+                With(Instanced, "multi_compile _ INFINITY_WRITE_REACTIVE_MASK", "multi_compile _ _REFRACTION_PYRAMID"),
                 Defines(target), Includes(kTranslucent, kTranslucentPass), false);
 
-        public static PassDescriptor TranslucentT2Pass(InfinityTarget target, BlockFieldDescriptor[] pixelBlocks) =>
-            Pass(kTranslucentT2Pass, "SHADERPASS_TRANSLUCENT_T2", pixelBlocks, PositionFields, TranslucentStates(target), Instanced,
+        public static PassDescriptor RasterTranslucentT2Pass(InfinityTarget target, BlockFieldDescriptor[] pixelBlocks) =>
+            Pass(kRasterTranslucentT2Pass, "SHADERPASS_TRANSLUCENT_T2", pixelBlocks, PositionFields, TranslucentStates(target), With(Instanced, "multi_compile _ INFINITY_WRITE_REACTIVE_MASK"),
                 Defines(target), Includes(kTranslucent, kTranslucentPass), true);
 
         public static PassDescriptor Meta(InfinityTarget target) =>
             Pass(kMeta, "SHADERPASS_META", MetaBlocks, MetaFields, MetaStates, NotInstanced, Defines(target), Includes(null, kMetaPass), false);
 
-        public static PassDescriptor DBufferPass(InfinityTarget target) =>
-            Pass(kDBufferPass, "SHADERPASS_DBUFFER", DecalBlocks, PositionFields, DecalStates, NotInstanced, new DefineCollection(), Includes(null, kDecalPass), false);
+        public static PassDescriptor RasterDBufferPass(InfinityTarget target) =>
+            Pass(kRasterDBufferPass, "SHADERPASS_DBUFFER", DecalBlocks, PositionFields, DecalStates, NotInstanced, new DefineCollection(), Includes(null, kDecalPass), false);
     }
 }

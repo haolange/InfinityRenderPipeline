@@ -6,10 +6,11 @@
 		
 		Pass
 		{
-			Name"DefaultFullScreen"
+			Name"RasterDefaultFullScreen"
 			ZTest Always ZWrite Off Blend Off Cull Off
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -42,7 +43,7 @@
 			{
 				float2 UV = i.uv.xy;
 				//return GBufferB / 127.0 - 1;
-				return _MainTex.SampleLevel(sampler_MainTex, UV, 0);
+				return InfinitySampleLevel(_MainTex,sampler_MainTex,UV,0);
 				//return SAMPLE_TEXTURE2D_X_LOD(_MainTex, sampler_MainTex, UV, 0);
 			}
 			ENDHLSL
@@ -50,10 +51,11 @@
 
 		Pass
 		{
-			Name"SmartFullScreen"
+			Name"RasterSmartFullScreen"
 			ZTest Always ZWrite Off Blend Off Cull Off
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -91,7 +93,7 @@
 			float4 frag(Varyings i) : SV_Target
 			{
 				float2 uv = i.uv.xy;
-				return _MainTex.SampleLevel(Global_bilinear_clamp_sampler, uv, 0);
+				return InfinitySampleLevel(_MainTex,Global_bilinear_clamp_sampler,uv,0);
 
 
 			}
@@ -100,7 +102,7 @@
 
 		Pass
 		{
-			Name"CameraMotion"
+			Name"RasterCameraMotion"
 			ZTest Always ZWrite Off Blend Off Cull Off
 			Stencil 
 			{
@@ -110,6 +112,7 @@
 			}
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -181,9 +184,10 @@
 		}
         Pass
         {
-            Name "Present"
+            Name "RasterFinalOutput"
             ZTest Always ZWrite Off Blend Off Cull Off
             HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
@@ -203,7 +207,7 @@
             }
             float4 frag(Varyings i) : SV_Target
             {
-                float4 color = _MainTex.SampleLevel(Global_bilinear_clamp_sampler, i.uv, 0);
+                float4 color = InfinitySampleLevel(_MainTex,Global_bilinear_clamp_sampler,i.uv,0);
                 return float4(InfinityEncodeOutput(color.rgb, (int)_InfinityOutputTransfer.x,
                     (int)_InfinityOutputTransfer.y, _InfinityOutputTransfer.z), color.a);
             }
@@ -211,9 +215,41 @@
         }
         Pass
         {
-            Name "UpscaleDepth"
+            Name "RasterPostCombine"
+            ZTest Always ZWrite Off Blend Off Cull Off
+            HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_fragment _ INFINITY_POST_BLOOM
+            #include "../ShaderLibrary/Common.hlsl"
+            #include "../ShaderLibrary/PostCombine.hlsl"
+            #include "../ShaderLibrary/OutputTransform.hlsl"
+            float4 _ScaleBais;
+            float4 _InfinityOutputTransfer;
+            struct Attributes { float4 vertex : POSITION; };
+            struct Varyings { float2 uv : TEXCOORD0; float4 position : SV_POSITION; };
+            Varyings vert(Attributes v)
+            {
+                Varyings o;
+                o.position = float4(v.vertex.x, -v.vertex.y, 0, 1);
+                o.uv = ((v.vertex.xy + 1) * 0.5) * _ScaleBais.xy + _ScaleBais.zw;
+                return o;
+            }
+            float4 frag(Varyings i) : SV_Target
+            {
+                return float4(InfinityEncodeOutput(InfinityPostCombine(i.uv), (int)_InfinityOutputTransfer.x,
+                    (int)_InfinityOutputTransfer.y, _InfinityOutputTransfer.z), 1);
+            }
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "RasterUpscaleDepth"
             ZTest Always ZWrite On ColorMask 0 Cull Off
             HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
@@ -230,15 +266,16 @@
             }
             float frag(Varyings i) : SV_Depth
             {
-                return _InfinitySourceDepth.SampleLevel(Global_point_clamp_sampler, i.uv, 0);
+                return InfinitySampleLevel(_InfinitySourceDepth,Global_point_clamp_sampler,i.uv,0);
             }
             ENDHLSL
         }
         Pass
         {
-            Name "CopyShadowDepthTile"
+            Name "RasterCopyShadowDepthTile"
             ZTest Always ZWrite On ColorMask 0 Cull Off
             HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
             #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag

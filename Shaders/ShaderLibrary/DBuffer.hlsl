@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #ifndef _DBufferInclude
 #define _DBufferInclude
 
@@ -9,9 +10,9 @@ Texture2D _DBufferTextureC;
 
 void ApplyDBuffer(float2 screenUV, inout float3 albedo, inout float3 normalWS, inout float roughness, inout float reflectance)
 {
-    float4 dBufferA = _DBufferTextureA.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
-    float4 dBufferB = _DBufferTextureB.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
-    float4 dBufferC = _DBufferTextureC.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float4 dBufferA = InfinitySampleLevel(_DBufferTextureA,Global_point_clamp_sampler,screenUV,0);
+    float4 dBufferB = InfinitySampleLevel(_DBufferTextureB,Global_point_clamp_sampler,screenUV,0);
+    float4 dBufferC = InfinitySampleLevel(_DBufferTextureC,Global_point_clamp_sampler,screenUV,0);
 
     // The MRT blend has already premultiplied each attribute by accumulated coverage.
     albedo = albedo * (1.0 - dBufferA.a) + dBufferA.rgb;

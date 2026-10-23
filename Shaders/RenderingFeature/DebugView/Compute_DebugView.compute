@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel DebugViewGBuffer DV_KERNEL_GBUFFER
 #pragma kernel DebugViewMotion DV_KERNEL_MOTION
 #pragma kernel DebugViewSceneColor DV_KERNEL_SCENECOLOR
@@ -99,9 +100,9 @@ void DebugViewGBuffer(uint3 id : SV_DispatchThreadID)
     float3 color;
     FGBufferData gbuffer;
     uint width, height;
-    SRV_GBufferTextureA.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_GBufferTextureA, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
-    DecodeGBuffer(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbuffer);
+    DecodeGBuffer(inputPixel, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbuffer);
     bool validSurface = (gbuffer.Flags & GBUFFER_FLAG_VALID_SURFACE) != 0;
     if (DV_Mode == DEBUGVIEW_ALBEDO)
     {
@@ -150,7 +151,7 @@ void DebugViewMotion(uint3 id : SV_DispatchThreadID)
     }
 
     uint width, height;
-    SRV_MotionTexture.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_MotionTexture, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     float3 color = saturate(length(SRV_MotionTexture[inputPixel].xy) * 10.0).xxx;
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
@@ -167,7 +168,7 @@ void DebugViewSceneColor(uint3 id : SV_DispatchThreadID)
     }
 
     uint width, height;
-    SRV_SceneColorTexture.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_SceneColorTexture, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     float3 color = Rec709Luminance(SRV_SceneColorTexture[inputPixel].rgb).xxx;
     UAV_PostProcessTexture[id.xy] = float4(color, 1.0);
@@ -184,7 +185,7 @@ void DebugViewOptional(uint3 id : SV_DispatchThreadID)
     }
 
     uint width, height;
-    SRV_OptionalTexture.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_OptionalTexture, width, height);
     uint2 inputPixel = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     float3 color = SRV_OptionalTexture[inputPixel].rgb;
     if (DV_Mode == DEBUGVIEW_AO || DV_Mode == DEBUGVIEW_CONTACTSHADOWS) color = color.r.xxx;
@@ -214,7 +215,7 @@ void DebugViewShadow(uint3 id : SV_DispatchThreadID)
     }
 
     uint width, height;
-    SRV_ShadowAtlasTexture.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_ShadowAtlasTexture, width, height);
     uint2 inputPixel = min((uint2)(uv * float2(width, height)), uint2(width, height) - 1);
     float value = SRV_ShadowAtlasTexture[inputPixel].r;
     float3 color;
@@ -250,7 +251,7 @@ void DebugViewLightLoop(uint3 id : SV_DispatchThreadID)
     }
 
     uint width, height;
-    SRV_DepthTexture.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_DepthTexture, width, height);
     uint2 pixelCoord = min((uint2)(((id.xy + 0.5) * DV_Resolution.zw) * uint2(width, height)), uint2(width, height) - 1);
     float rawDepth = SRV_DepthTexture[pixelCoord];
     if (abs(rawDepth - DV_FarDepth) <= 1e-5)
@@ -301,7 +302,7 @@ void DebugViewProbeAtlas(uint3 id : SV_DispatchThreadID)
 
     uint2 cell = (uint2)grid;
     uint width, height, slices;
-    SRV_ProbeAtlasTexture.GetDimensions(width, height, slices);
+    InfinityGetVolumeDimensions(SRV_ProbeAtlasTexture, width, height, slices);
     uint slice = min((uint)DV_Params.x + cell.y * 3u + cell.x, slices - 1u);
     uint2 texel = min((uint2)(frac(grid) * float2(width, height)), uint2(width, height) - 1);
     UAV_PostProcessTexture[id.xy] = float4(SRV_ProbeAtlasTexture[uint3(texel, slice)].rgb, 1.0);

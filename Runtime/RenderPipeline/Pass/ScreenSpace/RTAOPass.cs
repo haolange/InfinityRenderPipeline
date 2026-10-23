@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef occlusionTexture;
         }
 
-        void ComputeRayTracedOcclusion(RenderContext renderContext, Camera camera, HistoryCache historyCache)
+        void TraceOcclusion(RenderContext renderContext, Camera camera, HistoryCache historyCache)
         {
             if (!ShouldRecordFeature(EFrameFeature.RTAO))
             {
@@ -65,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new System.InvalidOperationException("InfinityRP: RTAO is active but UnifiedRayTracing accel/shader is not ready: " + InfinityRayTracingEnvironment.lastBlockReason);
             }
 
-            TextureDescriptor occlusionDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+            TextureDescriptor occlusionDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             occlusionDsc.name = RTAOPassUtilityData.OcclusionTextureName;
             occlusionDsc.dimension = TextureDimension.Tex2D;
             occlusionDsc.colorFormat = GraphicsFormat.R16_SFloat;
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
             occlusionDsc.wrapMode = TextureWrapMode.Clamp;
             RGTextureRef occlusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
 
-            using (RGRayTracingPassRef passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeRayTracedOcclusion)))
+            using (RGRayTracingPassRef passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
             {
                 ref RTAOPassData passData = ref passRef.GetPassData<RTAOPassData>();
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);

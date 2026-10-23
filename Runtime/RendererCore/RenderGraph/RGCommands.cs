@@ -170,11 +170,13 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, nameID, rt);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, nameID, rt, mipLevel);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt, mipLevel);
         }
 
@@ -315,6 +317,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value)
         {
+            TextureViewBindings.Global(m_CommandBuffer, nameID, value);
             m_CommandBuffer.SetGlobalTexture(nameID, value);
         }
 

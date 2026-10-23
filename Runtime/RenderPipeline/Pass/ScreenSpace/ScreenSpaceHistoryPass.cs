@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static TextureDescriptor CreateFilterDescriptor(int width, int height, string name, GraphicsFormat format, bool randomWrite)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height);
+            TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             descriptor.name = name;
             descriptor.dimension = TextureDimension.Tex2D;
             descriptor.colorFormat = format;

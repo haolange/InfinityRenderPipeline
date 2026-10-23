@@ -1,6 +1,5 @@
 #pragma kernel Main
 #pragma kernel MainDebug TAA_WRITE_DIAGNOSTICS
-#pragma kernel Sharpen TAA_SHARPEN
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceDepth.hlsl"
@@ -8,7 +7,7 @@
 float4 TAA_Resolution;
 float4 TAA_JitterUV; // current xy, previous zw, in sampled framebuffer UV.
 float TAA_ResetBlend;
-float TAA_Sharpness;
+static const float TAA_Sharpness = 0.35;
 Texture2D<float4> SRV_AliasingColorTexture;
 Texture2D<float4> SRV_HistoryColorTexture;
 Texture2D<float> SRV_HistoryDepthTexture;
@@ -16,6 +15,7 @@ Texture2D<float2> SRV_MotionTexture;
 Texture2D<float4> SRV_MotionMetadata;
 Texture2D<float> SRV_ReactiveMaskTexture;
 RWTexture2D<float4> UAV_AccumulateColorTexture;
+RWTexture2D<float4> UAV_SharpenedColorTexture;
 RWTexture2D<float> UAV_TemporalDepthTexture;
 #if defined(TAA_WRITE_DIAGNOSTICS)
 RWTexture2D<float4> UAV_TAADiagnostics;
@@ -109,10 +109,8 @@ bool TaaReadHistory(float2 colorUV, float2 depthUV, float expectedDepth, out flo
     history.a = clamp(history.a, 1, 32);
     return true;
 }
-void TemporalAntiAlias(uint3 id)
+float4 ResolveTemporalPixel(int2 pixel, out float depth, out float4 diagnostics, out float4 reprojection)
 {
-    if (any(id.xy >= (uint2)TAA_Resolution.xy)) return;
-    int2 pixel = id.xy;
     float2 uv = (pixel + 0.5) * TAA_Resolution.zw;
     float2 velocity = SRV_MotionTexture.Load(int3(pixel, 0));
     float4 metadata = SRV_MotionMetadata.Load(int3(pixel, 0));
@@ -153,39 +151,64 @@ void TemporalAntiAlias(uint3 id)
         reason = reactive >= 1 ? 5 : 0;
     }
     float3 result = valid ? lerp(currentLinear, clamp(TaaExpand(history.rgb), linearLow, linearHigh), weight) : currentLinear;
-    UAV_AccumulateColorTexture[pixel] = float4(min(result, 65504), count);
-    UAV_TemporalDepthTexture[pixel] = metadata.y;
-#if defined(TAA_WRITE_DIAGNOSTICS)
-    UAV_TAADiagnostics[pixel] = float4(valid ? coverage : 0, weight, reason, count);
-    UAV_TAAReprojection[pixel] = float4(historyUV, historyDepthUV);
-#endif
+    depth = metadata.y;
+    diagnostics = float4(valid ? coverage : 0, weight, reason, count);
+    reprojection = float4(historyUV, historyDepthUV);
+    return float4(min(result, 65504), count);
 }
-[numthreads(8, 8, 1)]
-void Main(uint3 id : SV_DispatchThreadID) { TemporalAntiAlias(id); }
-[numthreads(8, 8, 1)]
-void MainDebug(uint3 id : SV_DispatchThreadID) { TemporalAntiAlias(id); }
-[numthreads(8, 8, 1)]
-void Sharpen(uint3 id : SV_DispatchThreadID)
+
+// Every group solves its own halo, so no cross-group producer ordering is required.
+groupshared float3 TemporalTile[100];
+float3 QuantizeHistory(float3 color) { return f16tof32(f32tof16(color)); }
+void TemporalAntiAlias(uint3 groupId, uint3 threadId, uint groupIndex)
 {
-    if (any(id.xy >= (uint2)TAA_Resolution.xy)) return;
-    int2 pixel = id.xy;
-    const float3 luminanceWeights = float3(0.2126, 0.7152, 0.0722);
-    float3 rgb = max(SRV_AliasingColorTexture.Load(int3(pixel, 0)).rgb, 0);
-    float luminance = dot(rgb, luminanceWeights);
+    int2 origin = int2(groupId.xy * 8);
+    int2 pixel = origin + int2(threadId.xy);
+    float ownDepth; float4 diagnostics, reprojection;
+    float4 own = ResolveTemporalPixel(TaaClampPixel(pixel), ownDepth, diagnostics, reprojection);
+    uint centerIndex = (threadId.y + 1) * 10 + threadId.x + 1;
+    TemporalTile[centerIndex] = QuantizeHistory(own.rgb);
+    if (groupIndex < 36)
+    {
+        int2 halo;
+        if (groupIndex < 10) halo = int2(groupIndex, 0);
+        else if (groupIndex < 20) halo = int2(groupIndex - 10, 9);
+        else if (groupIndex < 28) halo = int2(0, groupIndex - 19);
+        else halo = int2(9, groupIndex - 27);
+        float depth; float4 debugValue, reprojectionValue;
+        float4 value = ResolveTemporalPixel(TaaClampPixel(origin + halo - 1), depth, debugValue, reprojectionValue);
+        TemporalTile[halo.y * 10 + halo.x] = QuantizeHistory(value.rgb);
+    }
+    GroupMemoryBarrierWithGroupSync();
+    // All lanes reach the barrier, including lanes outside odd-sized images.
+    if (any(pixel >= (int2)TAA_Resolution.xy)) return;
+    float3 rgb = TemporalTile[centerIndex];
+    const float3 weights = float3(0.2126, 0.7152, 0.0722);
+    float luminance = dot(rgb, weights);
     float center = luminance / (1 + luminance);
     float average = 0, low = center, high = center;
-    const int2 offsets[4] = {int2(-1,0), int2(1,0), int2(0,-1), int2(0,1)};
-    [unroll] for (int i = 0; i < 4; i++)
+    const int offsets[4] = {-1, 1, -10, 10};
+    [unroll] for (int n = 0; n < 4; n++)
     {
-        float3 neighbor = max(SRV_AliasingColorTexture.Load(int3(TaaClampPixel(pixel + offsets[i]), 0)).rgb, 0);
-        float value = dot(neighbor, luminanceWeights);
+        float value = dot(TemporalTile[(int)centerIndex + offsets[n]], weights);
         value /= 1 + value;
-        average += value * 0.25; low = min(low, value); high = max(high, value);
+        average += value * 0.25;
+        low = min(low, value); high = max(high, value);
     }
     float target = clamp(center + (center - average) * TAA_Sharpness, low, high);
     float targetLuminance = target / max(1 - target, 1.0 / 65504);
-    // Rescale radiance instead of adding an equal RGB offset: chromaticity and
-    // zero channels remain unchanged even beside high-contrast colored edges.
     float scale = min(targetLuminance / max(luminance, 1e-6), 65504 / max(max3(rgb.r, rgb.g, rgb.b), 1e-6));
-    UAV_AccumulateColorTexture[pixel] = float4(rgb * scale, 1);
+    UAV_AccumulateColorTexture[pixel] = own;
+    UAV_TemporalDepthTexture[pixel] = ownDepth;
+    UAV_SharpenedColorTexture[pixel] = float4(rgb * scale, 1);
+#if defined(TAA_WRITE_DIAGNOSTICS)
+    UAV_TAADiagnostics[pixel] = diagnostics;
+    UAV_TAAReprojection[pixel] = reprojection;
+#endif
 }
+[numthreads(8, 8, 1)]
+void Main(uint3 groupId : SV_GroupID, uint3 threadId : SV_GroupThreadID, uint index : SV_GroupIndex)
+{ TemporalAntiAlias(groupId, threadId, index); }
+[numthreads(8, 8, 1)]
+void MainDebug(uint3 groupId : SV_GroupID, uint3 threadId : SV_GroupThreadID, uint index : SV_GroupIndex)
+{ TemporalAntiAlias(groupId, threadId, index); }

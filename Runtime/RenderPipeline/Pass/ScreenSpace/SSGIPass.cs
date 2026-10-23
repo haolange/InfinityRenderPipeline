@@ -139,7 +139,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureRef rayHit = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIRayHitBuffer,
                 // Hit UV and depth are geometric data: half precision can move them into another depth texel.
-                SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSGIPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point));
+                SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSGIPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, settings.halfResolution ? 2 : 1));
             RGTextureRef resolved = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIResolvedBuffer,
                 SSRPassUtilityData.CreateDescriptor(width, height, SSGIPassUtilityData.ResolvedName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear));
             RGTextureRef temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITemporalBuffer,

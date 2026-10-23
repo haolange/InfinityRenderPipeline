@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #ifndef _SpatialFilter_
 #define _SpatialFilter_
 
@@ -7,8 +8,8 @@
 
 void GetAO_Depth(float2 sampleUV, inout float occlusion, inout float depth)
 {
-	depth = ScreenSpaceLinearEyeDepth(SRV_DepthTexture.SampleLevel(Global_bilinear_clamp_sampler, sampleUV, 0).r);
-	occlusion = SRV_OcclusionTexture.SampleLevel(Global_bilinear_clamp_sampler, sampleUV, 0).r;
+	depth = ScreenSpaceLinearEyeDepth(InfinitySampleLevel(SRV_DepthTexture,Global_bilinear_clamp_sampler,sampleUV,0).r);
+	occlusion = InfinitySampleLevel(SRV_OcclusionTexture,Global_bilinear_clamp_sampler,sampleUV,0).r;
 }
 
 float CrossBilateralWeight(float radius, float sampleDepth, float sceneDepth)

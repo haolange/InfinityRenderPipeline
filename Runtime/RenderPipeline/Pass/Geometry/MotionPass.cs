@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
         }
 
-        void RenderMotion(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterMotion(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
             if (!ShouldRecordFeature(EFrameFeature.Motion))
             {
@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
                     commands.SetBufferData(data.buffer, data.previous, 0, 0, data.previous.Length));
             }
 
-            TextureDescriptor motionTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+            TextureDescriptor motionTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 motionTextureDsc.name = MotionPassUtilityData.MotionTextureName;
                 motionTextureDsc.dimension = TextureDimension.Tex2D;
@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             m_MeshWorld.BindPreviousTransforms(view.viewKey, previousTransforms.buffer);
             RGDrawListRef motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Motion);
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.MotionPass, cullingResults, camera);
+            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterMotionPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
@@ -82,7 +82,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGRendererListRef motionRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             //Add ObjectMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderObjectMotion)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
@@ -107,7 +107,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add CameraMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCameraMotion)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);

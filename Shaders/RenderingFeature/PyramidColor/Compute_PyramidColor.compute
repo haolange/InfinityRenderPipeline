@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 float4 _Size;
 float4 _DstSize;
 int _MipWriteCount;
@@ -99,10 +100,10 @@ void KMain(uint2 groupId : SV_GroupID, uint2 groupThreadId : SV_GroupThreadID, u
     int2 threadUL = (int2)(groupThreadId << 1) + (int2)(groupId << groupShift) - 4;
 
     float2 offset = float2(threadUL);
-    float4 p00 = _Source.SampleLevel(sampler_LinearClamp, (offset                    + 0.5) * _Size.zw, 0.0);
-    float4 p10 = _Source.SampleLevel(sampler_LinearClamp, (offset + float2(1.0, 0.0) + 0.5) * _Size.zw, 0.0);
-    float4 p01 = _Source.SampleLevel(sampler_LinearClamp, (offset + float2(0.0, 1.0) + 0.5) * _Size.zw, 0.0);
-    float4 p11 = _Source.SampleLevel(sampler_LinearClamp, (offset + float2(1.0, 1.0) + 0.5) * _Size.zw, 0.0);
+    float4 p00 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset                    + 0.5) * _Size.zw,0.0);
+    float4 p10 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset + float2(1.0, 0.0) + 0.5) * _Size.zw,0.0);
+    float4 p01 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset + float2(0.0, 1.0) + 0.5) * _Size.zw,0.0);
+    float4 p11 = InfinitySampleLevel(_Source,sampler_LinearClamp,(offset + float2(1.0, 1.0) + 0.5) * _Size.zw,0.0);
 
     uint destIdx = groupThreadId.x + (groupThreadId.y << 4u);
     Store2Pixels(destIdx     , p00, p10);

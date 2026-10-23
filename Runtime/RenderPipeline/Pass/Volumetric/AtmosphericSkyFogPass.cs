@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGBufferRef sunBuffer;
         }
 
-        void RenderAtmosphericSkyAndFog(RenderContext renderContext, Camera camera)
+        void ComputeAtmosphericSkyAndFog(RenderContext renderContext, Camera camera)
         {
             if (!GraphicsUtility.HasRequiredKernels(shaders.atmosphericLUTShader, "AtmosphereComposite"))
             {
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             parameter.ThrowIfInvalid();
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.RenderAtmosphericSkyAndFog)))
+            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog)))
             {
                 ref AtmosphericSkyFogPassData passData = ref passRef.GetPassData<AtmosphericSkyFogPassData>();
                 passData.parameter = parameter;

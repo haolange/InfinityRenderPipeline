@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public TerrainPassProcessor()
         {
-            m_DrawProfiler = new ProfilingSampler("RenderLoop.DrawTerrainBatcher");
+            m_DrawProfiler = new ProfilingSampler("RasterDrawTerrainBatcher");
         }
 
         internal void DispatchSetup()

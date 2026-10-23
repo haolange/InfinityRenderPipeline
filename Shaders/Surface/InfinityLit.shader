@@ -49,12 +49,13 @@
 		//ShadowPass
 		Pass
 		{
-			Name "ShadowPass"
-			Tags { "LightMode" = "ShadowPass" }
+			Name "RasterShadowPass"
+			Tags { "LightMode" = "RasterShadowPass" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -118,6 +119,7 @@
 			ColorMask 0
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -169,12 +171,13 @@
 		//DepthPass
 		Pass
 		{
-			Name "DepthPass"
-			Tags { "LightMode" = "DepthPass" }
+			Name "RasterDepthPass"
+			Tags { "LightMode" = "RasterDepthPass" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -229,11 +232,12 @@
 		//GBufferPass
 		Pass
 		{
-			Name "GBufferPass"
-			Tags { "LightMode" = "GBufferPass" }
+			Name "RasterGBufferPass"
+			Tags { "LightMode" = "RasterGBufferPass" }
 			ZTest[_ZTest] ZWrite[_ZWrite] Cull Back
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -307,8 +311,8 @@
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
-				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture, In.uv0 * _NormalTile));
+				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
+				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;
@@ -349,11 +353,12 @@
 		//ForwardPlus
 		Pass
 		{
-			Name "ForwardPass"
-			Tags { "LightMode" = "ForwardPass" }
+			Name "RasterForwardPass"
+			Tags { "LightMode" = "RasterForwardPass" }
 			ZTest Equal ZWrite Off Cull Back
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -436,8 +441,8 @@
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
-				float4 albedoMap = _MainTex.Sample(sampler_MainTex, In.uv0 * _BaseColorTile);
-				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture, In.uv0 * _NormalTile));
+				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
+				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
 
 				float3 vnormalWS = normalize(In.normalWS.xyz);
 				float3 positionWS = In.vertexWS.xyz;
@@ -474,8 +479,8 @@
 		//MotionBuffer
 		Pass
 		{
-			Name "MotionPass"
-			Tags { "LightMode" = "MotionPass" }
+			Name "RasterMotionPass"
+			Tags { "LightMode" = "RasterMotionPass" }
 			ZTest Equal ZWrite Off Cull Back
             Stencil
 			{
@@ -485,6 +490,7 @@
             }
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -541,12 +547,13 @@
 
 		Pass
 		{
-			Name "TranslucentDepthPass"
-			Tags { "LightMode" = "TranslucentDepthPass" }
+			Name "RasterTranslucentDepthPass"
+			Tags { "LightMode" = "RasterTranslucentDepthPass" }
 			ZTest LEqual ZWrite On Cull Back
 			ColorMask 0
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -590,8 +597,8 @@
 
 		Pass
 		{
-			Name "TranslucentT0Pass"
-			Tags { "LightMode" = "TranslucentT0Pass" }
+			Name "RasterTranslucentT0Pass"
+			Tags { "LightMode" = "RasterTranslucentT0Pass" }
 			ZTest LEqual ZWrite Off Cull Back
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
@@ -599,6 +606,9 @@
             Blend 3 One Zero
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
+            #include "../ShaderLibrary/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -636,9 +646,12 @@
 			struct FragOutput
 			{
 				float4 color : SV_Target0;
+
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
 				float reactive : SV_Target1;
-				float2 motion : SV_Target2;
-                float4 motionMetadata : SV_Target3;
+#endif
+				float2 motion : INFINITY_MOTION_TARGET;
+                float4 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -659,10 +672,12 @@
 			{
 				float2 screenUV = In.vertex.xy / _ScreenParams.xy;
 				float linearDepth = length(In.worldPos - _WorldSpaceCameraPos);
-				float3 albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
+				float3 albedo = _MainTex.Sample(sampler_MainTex,In.uv).rgb * _BaseColor.rgb;
 				FragOutput o;
 				o.color = ApplyT0Fog(albedo, _BaseColor.a, screenUV, linearDepth);
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
 				o.reactive = TranslucentReactive(_BaseColor.a);
+#endif
 				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
                 o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
@@ -672,8 +687,8 @@
 
 		Pass
 		{
-			Name "TranslucentT1Pass"
-			Tags { "LightMode" = "TranslucentT1Pass" }
+			Name "RasterTranslucentT1Pass"
+			Tags { "LightMode" = "RasterTranslucentT1Pass" }
 			ZTest LEqual ZWrite Off Cull Back
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
@@ -681,6 +696,9 @@
             Blend 3 One Zero
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
+            #include "../ShaderLibrary/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -718,9 +736,12 @@
 			struct FragOutput
 			{
 				float4 color : SV_Target0;
+
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
 				float reactive : SV_Target1;
-				float2 motion : SV_Target2;
-                float4 motionMetadata : SV_Target3;
+#endif
+				float2 motion : INFINITY_MOTION_TARGET;
+                float4 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -740,14 +761,16 @@
 			FragOutput frag(Varyings In)
 			{
 				float2 screenUV = In.vertex.xy / _ScreenParams.xy;
-				float glassDepth = _TranslucentDepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
+				float glassDepth = InfinitySampleLevel(_TranslucentDepthTexture,Global_point_clamp_sampler,screenUV,0).r;
 				float thickness = saturate(abs(LinearEyeDepth(In.vertex.z, _ZBufferParams) - LinearEyeDepth(glassDepth, _ZBufferParams)) * 0.05);
 				float4 refracted = SampleRefractionPyramid(screenUV, normalize(In.normalWS), _RefractionStrength * (0.25 + thickness), _Roughness);
-				float3 albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
+				float3 albedo = _MainTex.Sample(sampler_MainTex,In.uv).rgb * _BaseColor.rgb;
 				float3 color = lerp(albedo, refracted.rgb * albedo, saturate(_BaseColor.a));
 				FragOutput o;
 				o.color = float4(color, _BaseColor.a);
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
 				o.reactive = TranslucentReactive(_BaseColor.a);
+#endif
 				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
                 o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
@@ -757,8 +780,8 @@
 
 		Pass
 		{
-			Name "TranslucentT2Pass"
-			Tags { "LightMode" = "TranslucentT2Pass" }
+			Name "RasterTranslucentT2Pass"
+			Tags { "LightMode" = "RasterTranslucentT2Pass" }
 			ZTest LEqual ZWrite Off Cull Back
 			Blend 0 SrcAlpha OneMinusSrcAlpha
 			Blend 1 One Zero
@@ -766,6 +789,9 @@
             Blend 3 One Zero
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
+            #pragma multi_compile _ INFINITY_WRITE_REACTIVE_MASK
+            #include "../ShaderLibrary/TranslucentOutput.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
@@ -800,9 +826,12 @@
 			struct FragOutput
 			{
 				float4 color : SV_Target0;
+
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
 				float reactive : SV_Target1;
-				float2 motion : SV_Target2;
-                float4 motionMetadata : SV_Target3;
+#endif
+				float2 motion : INFINITY_MOTION_TARGET;
+                float4 motionMetadata : INFINITY_METADATA_TARGET;
 			};
 
 			Varyings vert(Attributes In)
@@ -820,10 +849,12 @@
 
 			FragOutput frag(Varyings In)
 			{
-				float3 albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
+				float3 albedo = _MainTex.Sample(sampler_MainTex,In.uv).rgb * _BaseColor.rgb;
 				FragOutput o;
 				o.color = float4(albedo, _BaseColor.a);
+#if defined(INFINITY_WRITE_REACTIVE_MASK)
 				o.reactive = TranslucentReactive(_BaseColor.a);
+#endif
 				o.motion = SurfaceVelocity(In.clipPos, In.clipPosOld);
                 o.motionMetadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);
 				return o;
@@ -840,6 +871,7 @@
 			Cull Off
 
 			HLSLPROGRAM
+            #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma vertex vert
 			#pragma fragment frag
 
@@ -937,7 +969,7 @@
 			float4 frag(Varyings In) : SV_Target
 			{
 				MetaInput Out;
-				Out.Albedo = _MainTex.Sample(sampler_MainTex, In.uv).rgb * _BaseColor.rgb;
+				Out.Albedo = _MainTex.Sample(sampler_MainTex,In.uv).rgb * _BaseColor.rgb;
 				Out.Emission = _EmissionColor.rgb;
 				Out.SpecularColor = 0.04;
 				return MetaFragment(Out);

@@ -6,7 +6,7 @@ Shader "Hidden/InfinityTests/UnusedLightMode"
         Pass
         {
             Name "GBuffer"
-            Tags { "LightMode" = "GBufferPass" }
+            Tags { "LightMode" = "RasterGBufferPass" }
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag

@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #ifndef _TranslucentCommonInclude
 #define _TranslucentCommonInclude
 
@@ -16,7 +17,7 @@ float4 SampleVolumetricFog(float2 screenUV, float linearDepth)
 {
 #if defined(_VOLUMETRIC_FOG)
     float slice = saturate(sqrt(linearDepth / max(VolFog_MaxDistance, 1.0)));
-    return _VolumetricFogTexture.SampleLevel(Global_trilinear_clamp_sampler, float3(screenUV, slice), 0);
+    return InfinitySampleLevelTrilinear(_VolumetricFogTexture,Global_trilinear_clamp_sampler,float3(screenUV, slice),0);
 #else
     return float4(0, 0, 0, 1);
 #endif
@@ -45,7 +46,7 @@ float4 SampleRefractionPyramid(float2 screenUV, float3 normalWS, float refractio
 #if defined(_REFRACTION_PYRAMID)
     float2 offset = normalWS.xy * refractionStrength;
     float lod = roughness * 4.0;
-    return _ColorPyramidTexture.SampleLevel(Global_bilinear_clamp_sampler, saturate(screenUV + offset), lod);
+    return InfinitySampleLevel(_ColorPyramidTexture,Global_bilinear_clamp_sampler,saturate(screenUV + offset),lod);
 #else
     return 0;
 #endif

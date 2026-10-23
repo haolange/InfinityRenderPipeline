@@ -171,6 +171,7 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             base.Reset();
             resource = null;
+            descriptor = default;
         }
     }
 
@@ -214,8 +215,9 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        BufferCache m_BufferPool = new BufferCache();
-        TextureCache m_TexturePool = new TextureCache();
+        readonly ResourcePool m_Pool;
+        readonly bool m_OwnsPool;
+        internal FTextureCapacityContext textureCapacity;
         readonly List<FTextureRef> m_RetiredTextures = new List<FTextureRef>();
         readonly List<FBufferRef> m_RetiredBuffers = new List<FBufferRef>();
         internal int RetiredResourceCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
@@ -223,8 +225,10 @@ namespace InfinityTech.Rendering.RenderGraph
         RenderTargetIdentifier m_BackbufferIdentifier;
         DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
 
-        public RGResourceFactory()
+        public RGResourceFactory(ResourcePool pool = null)
         {
+            m_OwnsPool = pool == null;
+            m_Pool = pool ?? new ResourcePool();
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 m_Resources[i] = new DynamicArray<IRGResource>();
@@ -242,6 +246,18 @@ namespace InfinityTech.Rendering.RenderGraph
         internal RTHandle GetTexture(in RGTextureRef textureRef)
         {
             return GetTextureResource(textureRef.handle).resource;
+        }
+
+        internal bool TryGetTextureView(RenderTargetIdentifier identifier, out FTextureView view)
+        {
+            for (int i = m_Resources[(int)ERGResourceType.Texture].size - 1; i >= 0; --i)
+            {
+                var texture = (RGTexture)m_Resources[(int)ERGResourceType.Texture][i];
+                if (texture.resource == null || texture.descriptor.width <= 0) continue;
+                if (!new RenderTargetIdentifier(texture.resource.rt).Equals(identifier)) continue;
+                view = texture.descriptor.view; return true;
+            }
+            view = default; return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -279,7 +295,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (descriptor.width > 0)
                 {
                     string format = descriptor.colorFormat != GraphicsFormat.None ? descriptor.colorFormat.ToString() : "Depth" + (int)descriptor.depthBufferBits;
-                    description = descriptor.width + "x" + descriptor.height + (descriptor.slices > 1 ? "x" + descriptor.slices : "") + " " + format;
+                    description = descriptor.width + "x" + descriptor.height + " capacity " + descriptor.physicalWidth + "x" + descriptor.physicalHeight + (descriptor.slices > 1 ? "x" + descriptor.slices : "") + " " + format;
                 }
                 else if (importedTexture != null)
                 {
@@ -387,6 +403,17 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Texture], out RGTexture rdgTexture);
             rdgTexture.resource = rt;
+            if (rt.rt != null)
+            {
+                var texture = rt.rt;
+                rdgTexture.descriptor = new TextureDescriptor(texture.width, texture.height, texture.volumeDepth)
+                {
+                    name = texture.name, colorFormat = texture.graphicsFormat, depthBufferBits = (EDepthBits)texture.depth,
+                    dimension = texture.dimension, filterMode = texture.filterMode, wrapMode = texture.wrapMode,
+                    useMipMap = texture.useMipMap, autoGenerateMips = texture.autoGenerateMips,
+                    enableRandomWrite = texture.enableRandomWrite, msaaSamples = (EMSAASamples)texture.antiAliasing
+                };
+            }
             rdgTexture.imported = true;
             rdgTexture.shaderProperty = shaderProperty;
 
@@ -429,7 +456,7 @@ namespace InfinityTech.Rendering.RenderGraph
         internal RGTextureRef CreateTexture(in TextureDescriptor descriptor, in int shaderProperty = 0, in int temporalPassIndex = -1)
         {
             int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Texture], out RGTexture rdgTexture);
-            rdgTexture.descriptor = descriptor;
+            rdgTexture.descriptor = textureCapacity.Resolve(descriptor);
             rdgTexture.shaderProperty = shaderProperty;
             rdgTexture.temporalPassIndex = temporalPassIndex;
             return new RGTextureRef(newHandle);
@@ -466,11 +493,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource != null)
                     throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
-                resource.resource = null;
-                if (!m_BufferPool.Pull(hashCode, desc, out resource.resource))
-                {
-                    resource.resource = new ComputeBuffer(resource.descriptor.count, resource.descriptor.stride, resource.descriptor.type);
-                }
+                resource.resource = m_Pool.GetBuffer(desc).buffer;
                 resource.cachedHash = hashCode;
             }
         }
@@ -485,7 +508,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource == null)
                     throw new InvalidOperationException($"Tried to release a compute buffer ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
-                m_BufferPool.Push(resource.cachedHash, resource.descriptor, resource.resource);
+                m_Pool.ReleaseBuffer(new FBufferRef(resource.cachedHash, resource.descriptor, resource.resource));
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
@@ -505,12 +528,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource != null)
                     throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
-                resource.resource = null;
-                if (!m_TexturePool.Pull(hashCode, desc, out resource.resource))
-                {
-                    resource.resource = RTHandles.Alloc(desc.width, desc.height, desc.slices, (DepthBits)desc.depthBufferBits, desc.colorFormat, desc.filterMode, desc.wrapMode, desc.dimension, desc.enableRandomWrite,
-                    desc.useMipMap, desc.autoGenerateMips, desc.isShadowMap, desc.anisoLevel, desc.mipMapBias, (MSAASamples)desc.msaaSamples, desc.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, desc.name);
-                }
+                resource.resource = m_Pool.GetTexture(desc).texture;
                 resource.cachedHash = hashCode;
             }
         }
@@ -525,7 +543,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource == null)
                     throw new InvalidOperationException($"Tried to release a texture ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
-                m_TexturePool.Push(resource.cachedHash, resource.descriptor, resource.resource);
+                m_Pool.ReleaseTexture(new FTextureRef(resource.cachedHash, resource.descriptor, resource.resource));
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
@@ -543,6 +561,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     if (Texture.resource != null)
                     {
                         graphContext.cmdBuffer.SetGlobalTexture(Texture.shaderProperty, Texture.resource);
+                        TextureViewBindings.Global(graphContext.cmdBuffer, Texture.shaderProperty, Texture.resource);
                     }
                 }
             }
@@ -577,9 +596,9 @@ namespace InfinityTech.Rendering.RenderGraph
         internal void FlushRetired()
         {
             foreach (FTextureRef texture in m_RetiredTextures)
-                m_TexturePool.Push(texture.handle, texture.descriptor, texture.texture);
+                m_Pool.ReleaseTexture(texture);
             foreach (FBufferRef buffer in m_RetiredBuffers)
-                m_BufferPool.Push(buffer.handle, buffer.descriptor, buffer.buffer);
+                m_Pool.ReleaseBuffer(buffer);
             m_RetiredTextures.Clear();
             m_RetiredBuffers.Clear();
         }
@@ -593,8 +612,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             FlushRetired();
-            m_BufferPool.Dispose();
-            m_TexturePool.Dispose();
+            if (m_OwnsPool) m_Pool.Dispose();
         }
     }
 }

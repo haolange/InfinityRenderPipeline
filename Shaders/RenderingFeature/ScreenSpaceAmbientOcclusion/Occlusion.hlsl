@@ -19,7 +19,7 @@ float IntegrateArc_CosWeight(float2 h, float n)
     return 0.25 * (Arc.x + Arc.y);
 }
 
-float GTAO(int numRay, int numStep, float radius, float power, float halfProjScale, float temporalOffset, float temporalDirection, float sceneDepth, float2 screenUV, uint2 pixelPosition, float3 viewPos, float3 viewDir, float3 viewNormal, float4 resolution, float4x4 matrix_InvProj, Texture2D DepthTexture, SamplerState DepthSampler)
+float GTAO(int numRay, int numStep, float radius, float power, float halfProjScale, float temporalOffset, float temporalDirection, float sceneDepth, float2 screenUV, uint2 pixelPosition, float3 viewPos, float3 viewDir, float3 viewNormal, float4 resolution, float4x4 matrix_InvProj, Texture2D DepthTexture, float4 textureView, SamplerState DepthSampler)
 {
 	float2 radius_thickness = float2(radius, 1);
 	float stepRadius = (max(min((radius_thickness.x * abs(halfProjScale)) / (ScreenSpaceDepthParams.z != 0 ? 1 : max(-viewPos.z, 1e-5)), 512), (float)numStep)) / ((float)numStep + 1);
@@ -47,8 +47,8 @@ float GTAO(int numRay, int numStep, float radius, float power, float halfProjSca
 			float4 uvSlice = screenUV.xyxy + float4(uvOffset.xy, -uvOffset);
 
 
-			float3 h1 = GetViewSpacePos(GetScreenSpacePos(HalfResSourceUV(uvSlice.xy), DepthTexture.SampleLevel(DepthSampler, uvSlice.xy, 0).r), matrix_InvProj) - viewPos;
-			float3 h2 = GetViewSpacePos(GetScreenSpacePos(HalfResSourceUV(uvSlice.zw), DepthTexture.SampleLevel(DepthSampler, uvSlice.zw, 0).r), matrix_InvProj) - viewPos;
+			float3 h1 = GetViewSpacePos(GetScreenSpacePos(HalfResSourceUV(uvSlice.xy), DepthTexture.SampleLevel(DepthSampler, InfinityTextureUV(uvSlice.xy, textureView, 0), 0).r), matrix_InvProj) - viewPos;
+			float3 h2 = GetViewSpacePos(GetScreenSpacePos(HalfResSourceUV(uvSlice.zw), DepthTexture.SampleLevel(DepthSampler, InfinityTextureUV(uvSlice.zw, textureView, 0), 0).r), matrix_InvProj) - viewPos;
 
 			float2 h1h2 = float2(dot(h1, h1), dot(h2, h2));
 			float2 h1h2Length = rsqrt(h1h2 + 0.001);

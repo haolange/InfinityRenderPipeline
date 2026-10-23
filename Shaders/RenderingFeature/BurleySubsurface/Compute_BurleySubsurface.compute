@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel BurleySubsurfaceCS
 
 #include "../../ShaderLibrary/Common.hlsl"
@@ -82,7 +83,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
     }
 
     FGBufferData gbufferData;
-    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbufferData);
+    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbufferData);
 
     float sssStrength = 0;
     if (gbufferData.ShadingModel == GBUFFER_SHADING_MODEL_SUBSURFACE || (gbufferData.Flags & GBUFFER_FLAG_SUBSURFACE) != 0)
@@ -159,7 +160,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
         if (any(sampleUV < 0) || any(sampleUV > 1))
             continue;
 
-        float sampleDepth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, sampleUV, 0);
+        float sampleDepth = InfinitySampleLevel(SRV_DepthTexture,Global_point_clamp_sampler,sampleUV,0);
         if (sampleDepth <= 1e-7)
             continue;
 
@@ -171,7 +172,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
             continue;
 
         // Normal-based rejection
-        float4 sampleGB = SRV_GBufferTextureB.SampleLevel(Global_point_clamp_sampler, sampleUV, 0);
+        float4 sampleGB = InfinitySampleLevel(SRV_GBufferTextureB,Global_point_clamp_sampler,sampleUV,0);
         float3 sampleNormal = normalize(sampleGB.xyz * 2 - 1);
         float normalWeight = saturate(dot(centerNormal, sampleNormal));
 
@@ -182,7 +183,7 @@ void BurleySubsurfaceCS(uint3 id : SV_DispatchThreadID)
         float worldR = r * worldRadius;
         float3 profile = EvaluateBurleyDiffusionProfile(worldR, scatterDistance * surfaceAlbedo);
 
-        float3 sampleColor = SRV_LightingTexture.SampleLevel(Global_point_clamp_sampler, sampleUV, 0).rgb;
+        float3 sampleColor = InfinitySampleLevel(SRV_LightingTexture,Global_point_clamp_sampler,sampleUV,0).rgb;
 
         float3 w = profile * normalWeight;
         totalColor += sampleColor * w;

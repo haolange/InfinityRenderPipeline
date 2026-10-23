@@ -18,14 +18,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var shader = AssetDatabase.LoadAssetAtPath<Shader>("Packages/com.infinity.render-pipeline/Shaders/Utility/DrawFullScreen.shader");
             Assert.IsNotNull(shader);
             var material = new Material(shader);
-            int presentPass = material.FindPass("Present");
+            int presentPass = material.FindPass("RasterFinalOutput");
             Assert.GreaterOrEqual(presentPass, 0);
             var source = new Texture2D(2, 2, TextureFormat.RGBAFloat, false, true);
             try
             {
                 source.SetPixels(new[] { new Color(.18f,.18f,.18f,1), new Color(.18f,.18f,.18f,1), new Color(.18f,.18f,.18f,1), new Color(.18f,.18f,.18f,1) });
                 source.Apply();
-                material.SetTexture("_MainTex", source);
+                material.SetTexture("_MainTex", source); material.SetVector("_MainTex_InfinityView",Vector4.zero);
                 material.SetVector("_ScaleBais", new Vector4(1,1,0,0));
                 var formats = new[] { GraphicsFormat.R16G16B16A16_SFloat, GraphicsFormat.R8G8B8A8_UNorm, GraphicsFormat.R8G8B8A8_SRGB };
                 var policies = new[] { EOutputEncodePolicy.LinearTarget, EOutputEncodePolicy.ShaderLinearToSRGB, EOutputEncodePolicy.HardwareSRGB };

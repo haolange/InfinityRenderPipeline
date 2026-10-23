@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 // Uploads a cookie / IES texture into its block of the light cookie atlas (LightCookieAtlas.cs) and builds the
 // block's mip chain. No Blit: every write is a compute dispatch over the block.
 //   CookieCopy2D:            2D source -> block (trilinear minification from the source's own mips).
@@ -43,7 +44,7 @@ void CookieCopy2D(uint3 id : SV_DispatchThreadID)
     uint size = (uint)Cookie_Block.z;
     if (any(id.xy >= size)) return;
     float2 uv = (id.xy + 0.5) / size;
-    float4 value = SRV_CookieSource.SampleLevel(Global_trilinear_clamp_sampler, uv, max(Cookie_Block.w, 0.0));
+    float4 value = InfinitySampleLevelTrilinear(SRV_CookieSource,Global_trilinear_clamp_sampler,uv,max(Cookie_Block.w, 0.0));
     UAV_CookieAtlas[(uint2)Cookie_Block.xy + id.xy] = SelectChannels(value);
 }
 

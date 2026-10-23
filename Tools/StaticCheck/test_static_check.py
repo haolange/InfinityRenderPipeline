@@ -48,16 +48,22 @@ class StaticCheckTests(unittest.TestCase):
 
     def test_commented_tags_are_ignored_but_live_unknown_tag_fails(self):
         self.write('Runtime/RenderPipeline/Utility/PipelineIDs.cs',
-                   'new ShaderTagId("GBufferPass"); // new ShaderTagId("UnknownPass");')
+                   'new ShaderTagId("RasterGBufferPass"); // new ShaderTagId("UnknownPass");')
         self.write('Surface.shader', '''/* Tags { "LightMode" = "OldPass" } */
 // Tags { "LightMode" = "AnotherOldPass" }
-Tags { "LightMode" = "GBufferPass" }
+Tags { "LightMode" = "RasterGBufferPass" }
 Tags { "LightMode" = "UnknownPass" }
 ''')
         out = []
         static_check.check_lightmode(str(self.repo), out)
         self.assertEqual([('ERROR', 'lightmode',
                           'Surface.shader: LightMode "UnknownPass" not in InfinityPassIDs')], out)
+
+    def test_legacy_declared_lightmode_is_rejected(self):
+        self.write('Runtime/RenderPipeline/Utility/PipelineIDs.cs', 'new ShaderTagId("DepthPass");')
+        out = []
+        static_check.check_lightmode(str(self.repo), out)
+        self.assertTrue(any('RasterXXXPass' in item[2] for item in out))
 
     def test_comment_delimiters_in_strings_and_newlines_are_preserved(self):
         text = '"http://host/*literal*/" /* comment\nsecond line */ "escaped\\\"//literal"\n'
@@ -72,6 +78,24 @@ Tags { "LightMode" = "UnknownPass" }
         out = []
         static_check.check_links(str(self.repo), out)
         self.assertEqual([('ERROR', 'links', 'README.md: broken link missing.md')], out)
+
+    def test_texture_view_registry_rejects_missing_or_stale_bindings(self):
+        generator = pathlib.Path(__file__).resolve().parent.parent / 'TextureViews.py'
+        self.write('Tools/TextureViews.py', generator.read_text())
+        self.write('Shaders/Test.hlsl', 'Texture2D SRV_Test;')
+        out = []
+        static_check.check_texture_views(str(self.repo), out)
+        self.assertEqual(2, len(out))
+        registry = static_check.runpy.run_path(str(self.repo / 'Tools/TextureViews.py'), run_name='registry_test')
+        for path, text in registry['outputs']().items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
+        out = []
+        static_check.check_texture_views(str(self.repo), out)
+        self.assertEqual([], out)
+        self.write('Shaders/Test.hlsl', 'Texture2D SRV_Test;\nTexture2D SRV_New;')
+        static_check.check_texture_views(str(self.repo), out)
+        self.assertEqual(2, len(out))
 
     def historical_receipt(self):
         self.write('old.md', '[missing](missing.md)\n[another](another.md)')

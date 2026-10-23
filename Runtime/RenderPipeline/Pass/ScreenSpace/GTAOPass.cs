@@ -96,7 +96,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         static TextureDescriptor CreateGTAOHalfDescriptor(int width, int height, string name, GraphicsFormat format)
         {
-            TextureDescriptor descriptor = new TextureDescriptor(width, height);
+            TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal, 2);
             descriptor.name = name;
             descriptor.dimension = TextureDimension.Tex2D;
             descriptor.colorFormat = format;
@@ -139,7 +139,7 @@ namespace InfinityTech.Rendering.Pipeline
             int halfWidth = Mathf.Max(1, fullWidth >> 1);
             int halfHeight = Mathf.Max(1, fullHeight >> 1);
 
-            TextureDescriptor occlusionTextureDsc = new TextureDescriptor(fullWidth, fullHeight);
+            TextureDescriptor occlusionTextureDsc = new TextureDescriptor(fullWidth, fullHeight, ETextureSizingDomain.Internal);
             {
                 occlusionTextureDsc.name = GTAOPassUtilityData.OcclusionTextureName;
                 occlusionTextureDsc.dimension = TextureDimension.Tex2D;

@@ -1,7 +1,7 @@
 # InfinityRP — Design (as implemented)
 
 This document describes the code as it is. Verification state is in [Docs/FeatureStatus.md](Docs/FeatureStatus.md);
-the active plan is [PLAN.md](PLAN.md); archived delivery reports are in [Docs/History/](Docs/History).
+active tasks are tracked in the conversation; archived delivery reports are in [Docs/History/](Docs/History).
 
 Part I (sections 1–14) is the Mesh Drawing Pipeline. Part II (sections 15–24) is the frame and its ownership contracts.
 
@@ -51,7 +51,7 @@ transform that already has an owner ("TransformId already owned"). There is no m
 | `MeshGpuVisibilityCache.cs` | One GPU visibility buffer per view key for the GPU `CullFrustum` path |
 | `MeshDrawCompiler.cs` | `MeshPassExtractJob`: bin commands × visibility → draw commands and transform/slot index streams |
 | `MeshCandidateTableStore.cs` | Per-pass GPU command table and candidate table (`uint2` instance slot, local command) |
-| `MeshDrawPipeline.cs` | CPU Extract / Resolve / Submit and GPU prepare/submit delegation; frame-buffer retirement |
+| `MeshDrawPipeline.cs` | CPU Extract / Resolve and graph-owned prepare/submit delegation; frame-buffer retirement |
 | `MeshDrawGPUBackend.cs` | Kernel resolution, backend policy, per-DrawList payload pool, ClearCounts/Compact/BuildIndirectArgs, `DrawMeshInstancedIndirect` |
 | `MeshBakedLighting.cs` | Per-instance lightmap index/scale-offset and probe SH capture; per-draw lightmap keywords |
 | `MeshPipelineDiagnostics.cs` | Counters (see §11) |
@@ -199,17 +199,18 @@ Phase 6  Deferred → Forward → SSS → AtmosphericSkyAndFog
 Phase 7  TranslucentDepth → VolCloud (+ history) → VolFog (+ history)
          → FogComposite → FoggedSceneColor
          → T0 → ColorPyramid → T1 → T2
-Phase 8  TAA or SuperResolution (+ history) → Post (Exposure → Bloom → CombineLUT
-         → Vignette → FilmGrain) → DebugView → Gizmo/WireOverlay (linear PostProcessBuffer)
-         → DisplayColorBuffer (display-linear) → Game-display UIOverlay → Present (transfer encoding)
+Phase 8  TAA or SuperResolution (+ history) → Exposure / Bloom / CombineLUT
+         → raster post-combine (grading, vignette, grain)
+         → direct final output + hardware-sRGB UI, OR
+           linear intermediate → DebugView → Gizmo/WireOverlay → UI → final output
 ```
 
 Contracts that stay locked:
 
 - Atmosphere lives only on `AtmosphericalProfile`. Volume does not override it.
 - History lives only in `HistoryCache`. CopyHistory is Transfer `CopyTexture` after the producer.
-- `DisplayColorBuffer` is display-linear and is the sole Present source. Final Present owns transfer encoding.
-- Present stays Raster. Gizmo / WireOverlay / Present disable native RP for API reasons only.
+- `DisplayColorBuffer` exists only for a requested linear intermediate. Encoded targets never alias it; output conversion is resolved before recording.
+- Final output stays Raster. Gizmo / WireOverlay / FinalOutput disable native RP for API reasons only.
 - Not supported: hardware RT outside UnifiedRayTracing, DOF, motion blur, upscalers beyond fixed-ratio SR, XR, MSAA, dynamic resolution. Baked GI is completed in 0.5.0 (PLAN S12).
 
 Image / Frame Debugger / GPU-trace verification state is tracked in [Docs/FeatureStatus.md](Docs/FeatureStatus.md).
@@ -220,7 +221,7 @@ Project-wide resources and the default Volume profile live on `InfinityRenderPip
 
 Pipeline creation requires a complete default Volume registry. The constructor calls `VolumeManager.Initialize(defaultProfile, qualityProfile)` once; disposal deinitializes that manager and restores process-global graphics flags captured at construction. Required color/exposure consumers read the resolved camera stack. Optional features record when `IsActive()` is true. CombineLUT has no inactive-component constant fallback. Atmosphere remains separately owned by AtmosphericalProfile.
 
-The Present output decision resolves the target format in this order (first hit wins; `GraphicsFormat.None` is not a hit):
+The final output decision resolves the target format in this order (first hit wins; `GraphicsFormat.None` is not a hit):
 
 1. `camera.targetTexture.graphicsFormat`
 2. `camera.activeTexture.graphicsFormat`
@@ -229,7 +230,7 @@ The Present output decision resolves the target format in this order (first hit 
 
 All missing throws at record time. HDR `HDROutputSettings.graphicsFormat` and `SystemInfo.GetGraphicsFormat(DefaultFormat.LDR)` are not authorities.
 
-Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before final Present, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. Present remains the single transfer-encoding owner; `DisplayColorBuffer` remains the present source.
+Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView and before final output, so editor overlays are encoded with the scene. They keep `EnableNativeRenderPass(false)` because Unity forbids gizmos inside `BeginRenderPass`. Final output encodes the composed intermediate; direct SDR UI uses target-owned hardware sRGB blending.
 
 ## 17. DebugView, Rendering Debugger, and SceneView temporal gating
 
@@ -247,7 +248,7 @@ SceneView uses the full pipeline. Volume selection on SceneView uses the unique 
 | Camera Volume mask/trigger, SR override | `InfinityAdditionalCameraData` |
 | Light layers, weights, volumetric, contact, distance | `InfinityAdditionalLightData` |
 | DebugView / Volume dump / Mesh stats | Rendering Debugger |
-| Screen Space Overlay UI | `CreateUIOverlayRendererList` on display-linear color before Present, only for Game cameras without a target texture |
+| Screen Space Overlay UI | `CreateUIOverlayRendererList` on a hardware-sRGB final target or on a required linear intermediate, only for Game cameras without a target texture |
 | Screen Space Camera / World Space UI, particles, lines | Translucent RendererList |
 
 Adding a Camera or Light (GameObject menu, Add Component or `ObjectFactory`) and the Infinity inspectors add additional data with Undo. `GameObject > Create` default materials come from the RP Asset (`defaultMaterial`, `defaultParticleMaterial`, `defaultLineMaterial`, `defaultTerrainMaterial`, `default2DMaterial`).
@@ -272,13 +273,13 @@ Exposure, FilmTonemap and ColorGrading are required active components; their con
 
 ### 19.3 Native SDR display transfer authority
 
-A Player camera targeting a native Display need not expose a RenderTexture. Its sRGB conversion requirement comes from that display's `requiresSrgbBlitToBackbuffer`, not from a guessed default format. Output decisions keep `backbufferFormat = None` and `displayTransferAuthority = true` when only this capability is known. Linear projects use hardware conversion when the display supports it; otherwise Present performs LinearToSRGB. Camera RenderTextures and Editor surfaces keep their observed texture-format path.
+A Player camera targeting a native Display need not expose a RenderTexture. Its sRGB conversion requirement comes from that display's `requiresSrgbBlitToBackbuffer`, not from a guessed default format. Output decisions keep `backbufferFormat = None` and `displayTransferAuthority = true` when only this capability is known. Linear projects use hardware conversion when the display supports it; otherwise final output performs LinearToSRGB. Camera RenderTextures and Editor surfaces keep their observed texture-format path.
 
 ## 20. Normal-frame capture ownership
 
 `RenderCaptureService` owns one immutable request and session shared by Editor and Player. A matching camera warms on successful submitted frames. Capture records explicit RG Transfer reads and copies to session-owned imported staging whose descriptor is the actual source `TextureDescriptor`. Raw readbacks keep nonfinite values and fail validation. The normal camera target, DebugView and history are not changed.
 
-Staging is reserved before recording and stays alive until both frame submission and the asynchronous readback callback. Cancellation/timeout stop new recording and drain outstanding work. Evidence I/O failure records the original error, fails the session and continues retirement. A read-only native Metal event in the Present raster pass records the actual color attachment format/dimensions.
+Staging is reserved before recording and stays alive until both frame submission and the asynchronous readback callback. Cancellation/timeout stop new recording and drain outstanding work. Evidence I/O failure records the original error, fails the session and continues retirement. A read-only native Metal event in the final output raster pass records the actual color attachment format/dimensions.
 
 The Editor Frame Debugger adapter is an independent, paused inspection after normal capture ends. It restores prior enabled/limit/pause state and removes callbacks even when capture or persistence fails.
 
@@ -320,3 +321,93 @@ one 32-bit mask word per tile per 32 lights. `Shaders/ShaderLibrary/Lighting/Lig
 Forward (`SV_Position`), volumetric fog and clouds use it; tiles are not culled by opaque depth so transparents and
 volumes share the list.
 
+
+### Execution and shader pass naming
+
+GPU work markers and recording methods use Raster for draw, Compute for dispatch,
+Copy for resource copy, and Upload for CPU uploads. Unity ShadowCaster, Meta and
+SRPDefaultUnlit are fixed engine entrypoints. Infinity custom LightModes and their
+matching pass names use RasterXXXPass. Other owned raster shader names use Raster.
+RTAO selects ComputeRayTracedOcclusion or RayTracingOcclusion from its owned URT
+context backend; its RenderGraph pass type remains RayTracing. Pass names continue
+to come from the existing ProfilingSampler. No old-name aliases are supported.
+
+Shader integration migration: DepthPass, DBufferPass, GBufferPass, ShadowPass,
+MotionPass, ForwardPass, TranslucentDepthPass and TranslucentT0/T1/T2Pass now use
+an additional Raster prefix in LightMode, matching pass Name, and InfinityPassIDs.
+Custom shaders must update both their tags and pass names; update any explicitly
+stored disabled-pass names with the same mapping. Shader asset identities and
+material properties remain unchanged. Present is replaced by RasterFinalOutput;
+UpscaleDepth and CopyShadowDepthTile pass Names gain Raster. TerrainAdd retains its distinct name as
+RasterTerrainAdd while its LightMode is RasterForwardPass.
+
+## Output and temporal attachment convergence
+
+`FOutputPlan` selects the target before post processing. Raster post-combine uses
+`Shaders/ShaderLibrary/PostCombine.hlsl` for one grading/exposure/Bloom/vignette/grain
+algorithm. With no display-linear consumer, this draw also performs output conversion
+and writes the imported camera target. Hardware-sRGB SDR UI blends on that target.
+HDR/non-hardware-sRGB UI, DebugView, requested linear captures and Editor overlays
+retain a display-linear intermediate; an output-only draw encodes it after composition.
+Encoded targets are never published as linear semantic buffers. Partial viewports Load
+the destination; full target overwrites use DontCare. Post bypass aliases read-only
+inputs, but acquires an independent output before an overlay writes to it.
+
+ReactiveMask is an R8 transparent attachment only on TAA cameras. Its first color pass
+uses Clear(0) even with zero draws; subsequent stages Load. Other temporal policies
+omit this attachment and its shader output, compacting motion/metadata slots. The
+FogComposite shader has no reactive-mask initialization role.
+
+Editor overlays share one demand decision with display-depth upsampling. Equal-size
+depth is referenced; scaled depth is point-upsampled only for a consumer. Cached
+shadow tiles use one raster copy implementation in separate save/load passes; Unity
+requires whole-resource CopyTexture for depth-only textures, so partial atlas copies
+read exact integer texels and write SV_Depth without conversion.
+
+
+## Texture views, bounded retention and fused temporal output
+
+A camera's logical Internal/Display extents and physical capacities are separate.
+TextureDescriptor.width/height remain logical; explicit sizing domains resolve
+allocationWidth/Height from that camera's transactional TextureCapacityState.
+The physical descriptor is the allocation/cache key, with field-level equality;
+FTextureView supplies the active extent and normalized sampling transform.
+Standalone fixed resources use Exact. No size-based inference classifies textures.
+Shader Graph and hand shaders share screen texture helpers; material textures
+retain their original sampling. Mip sampling maps and clamps each contributing
+LOD independently, including fractional LOD and odd image sizes. Raw capture
+staging stays logical-sized and copies only the valid rectangle.
+
+The implementation borrows principles from local UE 5.4.4 SceneTextures.cpp and
+RenderTargetPool.cpp, not its editor-only permanent Grow policy: 64-texel buckets,
+12.5% growth, a three-accepted-request peak and 30-request/75%-area shrink hysteresis.
+Per-camera state prevents previews from contaminating main-view capacity.
+ResourcePool owns both graph and external transient caches. Its texture/buffer
+retention watermarks are 400/64 MiB; idle age greater than two successful
+submission epochs selects oldest entries above the watermark. Retired entries
+are destroyed only after the CPU-queryable completion fence passes. Active
+working sets may exceed a watermark; allocation failures are not hidden.
+Diagnostics distinguish estimated active, idle, pending-retirement and peak bytes.
+
+TAA solves an 8x8 tile plus a one-pixel halo in one compute dispatch. Shared RGB
+is quantized to the original RGBA16F precision before luminance sharpening at
+0.35. Unsharpened color/sample age and surface depth write pending HistoryCache
+resources directly; sharpened output never feeds history. Reads retain the accepted
+texture and its own previous view until commit. Capacity-only changes preserve
+valid history; failed resize writers leave the accepted target untouched. Commit/rollback and
+capture semantics remain graph-owned. The two-dispatch algorithm exists only in
+a test fixture as an independent numeric reference.
+
+## Explicit MeshDraw preparation
+
+Structural culling identifies live consumers before DrawLists resolve. Compilation
+then inserts UploadMeshDrawData and optional ComputeMeshDrawCompact producers
+before the first consumer, with explicit visibility, metadata, transformed-index,
+count and indirect-argument dependencies. Other consumers reuse their outputs.
+CPU Direct records no Compact producer. Raster execution contains no implicit
+upload/dispatch prelude. GPU batch metadata, indices and args use global disjoint
+ranges, so preparing a later batch cannot overwrite an earlier one.
+Neutral functional scopes contain prepare and Raster passes as peers. Samplers
+remain the naming authority; internal markers distinguish RasterMeshDrawDirect,
+RasterMeshDrawIndirect and RasterRendererList. Unity's native batching labels
+and shadow slice context remain intact.

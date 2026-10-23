@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(1f)]
         public void FilmGrain_PreservesMeanAndBlackWithoutBloomBinding(float signal)
         {
-            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_Root + "Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute");
+            var shader = new Material(AssetDatabase.LoadAssetAtPath<Shader>(k_Root + "Shaders/Utility/DrawFullScreen.shader"));
             Assert.IsNotNull(shader);
             const int width = 257, height = 129;
             var source = new Texture2D(1, 1, TextureFormat.RGBAFloat, false, true);
@@ -36,11 +36,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int i = 0; i < colors.Length; i++) colors[i] = new Color(signal, signal, signal, 1);
                 lut.SetPixels(colors); lut.Apply(false, false);
                 Assert.IsTrue(target.Create());
-                int kernel = shader.FindKernel("FinalCombineNoBloom");
-                shader.SetTexture(kernel, "SRV_SceneColorTexture", source);
-                shader.SetTexture(kernel, "SRV_ExposureEV", source);
-                shader.SetTexture(kernel, "SRV_CombineLUT", lut);
-                shader.SetTexture(kernel, "UAV_PostProcessTexture", target);
+                int pass = shader.FindPass("RasterPostCombine");
+                Assert.GreaterOrEqual(pass, 0);
+                shader.SetVector("_ScaleBais", new Vector4(1, 1, 0, 0));
+                shader.SetVector("_InfinityOutputTransfer", new Vector4((int)EOutputEncodePolicy.LinearTarget, 0, 100, 0));
+                shader.SetTexture("SRV_SceneColorTexture", source); shader.SetVector("SRV_SceneColorTexture_InfinityView",Vector4.zero);
+                shader.SetTexture("SRV_ExposureEV", source);
+                shader.SetTexture("SRV_CombineLUT", lut);
                 shader.SetVector("PP_Resolution", new Vector4(width, height, 1f / width, 1f / height));
                 shader.SetFloat("PP_ExposureMultiplier", 1); shader.SetFloat("PP_AutoExposure", 0);
                 shader.SetFloat("PP_VignetteIntensity", 0); shader.SetFloat("PP_FilmGrainResponse", 0.8f);
@@ -49,7 +51,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int frame = 0; frame < 2; frame++)
                 {
                     shader.SetInt("PP_FrameIndex", frame);
-                    shader.Dispatch(kernel, (width + 7) / 8, (height + 7) / 8, 1);
+                    using (var commands = new CommandBuffer())
+                    {
+                        commands.DisableShaderKeyword("INFINITY_POST_BLOOM");
+                        commands.SetRenderTarget(target);
+                        commands.SetViewport(new Rect(0, 0, width, height));
+                        commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, shader, 0, pass);
+                        Graphics.ExecuteCommandBuffer(commands);
+                    }
                     float[] values = Read(target, "grain-" + signal + "-frame-" + frame,
                         "Known uniform graded signal; no Bloom resource is bound. PCG grain intensity0.6/response0.8, mean tolerance1%relative, black exact0.");
                     double sum = 0, sumSquares = 0, difference = 0;
@@ -74,7 +83,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 target.Release(); UnityEngine.Object.DestroyImmediate(target);
-                UnityEngine.Object.DestroyImmediate(source); UnityEngine.Object.DestroyImmediate(lut);
+                UnityEngine.Object.DestroyImmediate(source); UnityEngine.Object.DestroyImmediate(lut); UnityEngine.Object.DestroyImmediate(shader);
             }
         }
 
@@ -126,10 +135,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(k_Root + "Shaders/Utility/DrawSystemLUT.shader");
             Assert.IsNotNull(shader);
             var material = new Material(shader);
+            material.SetVector("_MainTex_InfinityView",Vector4.zero);
+            material.SetVector("SRV_SceneColorTexture_InfinityView",Vector4.zero);
             var target = new RenderTexture(5, 5, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
             try
             {
-                int pass = material.FindPass("Proxy_Shadow");
+                int pass = material.FindPass("RasterProxy_Shadow");
                 Assert.GreaterOrEqual(pass, 0);
                 Assert.IsTrue(target.Create());
                 // The isolated EditMode fixture explicitly supplies the existing CRT vertex
@@ -267,7 +278,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 input.SetPixels(pixels); input.Apply(false, false);
                 Assert.IsTrue(target.Create());
-                material.SetTexture("_MainTex", input);
+                material.SetTexture("_MainTex", input); material.SetVector("_MainTex_InfinityView",Vector4.zero);
                 material.SetVector("_ScaleBais", new Vector4(1, 1, 0, 0));
                 for (int policy = 0; policy <= 4; policy++)
                 {
@@ -330,7 +341,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     material = new Material(shader) { name = "Infinity Present GPU Test Material" };
-                    pass = material.FindPass("Present");
+                    pass = material.FindPass("RasterFinalOutput");
                     Assert.GreaterOrEqual(pass, 0);
                     input = new Texture2D(width, height, TextureFormat.RGBAFloat, false, true) { name = "Infinity Present GPU Test Input" };
                     target = new RenderTexture(width + 7, height + 7, 0, RenderTextureFormat.ARGBFloat) { name = "Infinity Present GPU Test Target" };

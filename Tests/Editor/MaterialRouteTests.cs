@@ -8,6 +8,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class MaterialRouteTests
     {
+        [Test]
+        public void RayTracingSampler_UsesActualBackendAndRejectsUnknownBackend()
+        {
+            Assert.AreEqual(CustomSamplerId.ComputeRayTracedOcclusion,
+                InfinityRayTracingEnvironment.OcclusionSampler(UnityEngine.Rendering.UnifiedRayTracing.RayTracingBackend.Compute));
+            Assert.AreEqual(CustomSamplerId.RayTracingOcclusion,
+                InfinityRayTracingEnvironment.OcclusionSampler(UnityEngine.Rendering.UnifiedRayTracing.RayTracingBackend.Hardware));
+            Assert.Throws<ArgumentOutOfRangeException>(() => InfinityRayTracingEnvironment.OcclusionSampler(
+                (UnityEngine.Rendering.UnifiedRayTracing.RayTracingBackend)255));
+            using (var env = new InfinityRayTracingEnvironment())
+                Assert.Throws<InvalidOperationException>(() => { var backend = env.Backend; });
+        }
+
         Material m_Material;
 
         [SetUp]
@@ -34,17 +47,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             m_Material.SetFloat("_SurfaceRoute", route);
             m_Material.SetFloat("_TranslucentStage", stage);
             MaterialRouteUtility.ApplyPassState(m_Material);
-            string expected = stage == 0 ? (route == 0 ? "GBufferPass" : "ForwardPass") : $"TranslucentT{stage - 1}Pass";
+            string expected = stage == 0 ? (route == 0 ? "RasterGBufferPass" : "RasterForwardPass") : $"RasterTranslucentT{stage - 1}Pass";
             int enabled = 0;
-            foreach (string pass in new[] { "GBufferPass", "ForwardPass", "TranslucentT0Pass", "TranslucentT1Pass", "TranslucentT2Pass" })
+            foreach (string pass in new[] { "RasterGBufferPass", "RasterForwardPass", "RasterTranslucentT0Pass", "RasterTranslucentT1Pass", "RasterTranslucentT2Pass" })
             {
                 Assert.GreaterOrEqual(m_Material.FindPass(pass), 0);
-                Assert.AreEqual(pass == expected || (stage == 0 && pass == "GBufferPass"), m_Material.GetShaderPassEnabled(pass), pass);
+                Assert.AreEqual(pass == expected || (stage == 0 && pass == "RasterGBufferPass"), m_Material.GetShaderPassEnabled(pass), pass);
                 if (m_Material.GetShaderPassEnabled(pass)) ++enabled;
             }
             Assert.AreEqual(stage == 0 && route == 1 ? 2 : 1, enabled);
-            Assert.AreEqual(stage == 0, m_Material.GetShaderPassEnabled("DepthPass"));
-            Assert.AreEqual(stage != 0, m_Material.GetShaderPassEnabled("TranslucentDepthPass"));
+            Assert.AreEqual(stage == 0, m_Material.GetShaderPassEnabled("RasterDepthPass"));
+            Assert.AreEqual(stage != 0, m_Material.GetShaderPassEnabled("RasterTranslucentDepthPass"));
             string before = EditorJsonUtility.ToJson(m_Material);
             MaterialRouteUtility.ApplyPassState(m_Material);
             Assert.AreEqual(before, EditorJsonUtility.ToJson(m_Material));
@@ -78,8 +91,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void EditorValidation_DoesNotRewriteSerializedMaterialState()
         {
             m_Material.SetFloat("_SurfaceRoute", 1);
-            m_Material.SetShaderPassEnabled("GBufferPass", true);
-            m_Material.SetShaderPassEnabled("ForwardPass", false);
+            m_Material.SetShaderPassEnabled("RasterGBufferPass", true);
+            m_Material.SetShaderPassEnabled("RasterForwardPass", false);
             string before = EditorJsonUtility.ToJson(m_Material);
             new InfinityLitGUI().ValidateMaterial(m_Material);
             Assert.AreEqual(before, EditorJsonUtility.ToJson(m_Material));

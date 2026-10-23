@@ -2,6 +2,7 @@
     "name": "Unity.RenderPipelines.Infinity.Tests",
     "rootNamespace": "",
     "references": [
+        "Unity.UnifiedRayTracing.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Unity.Mathematics",

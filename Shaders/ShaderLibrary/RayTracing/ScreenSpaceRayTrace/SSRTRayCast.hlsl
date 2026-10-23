@@ -14,7 +14,7 @@ float GetScreenFadeBord(float2 uv, float width)
 // can reject a ray, but only mip zero can produce a hit. UV and depth always
 // refer to the same surface texel, never a component-wise aggregate.
 bool TraceScreenSpaceRay(float3 originVS, float3 directionVS, float maxDistance, float thickness,
-    uint budget, float jitter, float4x4 projection, Texture2D depthPyramid, out float3 hit)
+    uint budget, float jitter, float4x4 projection, Texture2D depthPyramid, float4 textureView, out float3 hit)
 {
     hit = 0;
     float distance = maxDistance;
@@ -30,6 +30,7 @@ bool TraceScreenSpaceRay(float3 originVS, float3 directionVS, float maxDistance,
     float3 delta = end - start;
     uint width, height, mipCount;
     depthPyramid.GetDimensions(0, width, height, mipCount);
+    if (textureView.x > 0) { width = textureView.x; height = textureView.y; mipCount = 1 + floor(log2(max(width, height))); }
     float2 fullSize = float2(width, height);
     float pixels = max(abs(delta.x) * width, abs(delta.y) * height);
     if (pixels < 1) return false;
@@ -84,7 +85,7 @@ bool TraceScreenSpaceRay(float3 originVS, float3 directionVS, float maxDistance,
 // precise; the lobe noise of rough surfaces hides the step error. The hit is snapped to a mip-zero texel center so
 // UV and depth always describe the same surface texel, as in TraceScreenSpaceRay.
 bool TraceScreenSpaceRayLinear(float3 originVS, float3 directionVS, float maxDistance, float thickness,
-    uint steps, float jitter, float4x4 projection, Texture2D depthPyramid, uint level, out float3 hit)
+    uint steps, float jitter, float4x4 projection, Texture2D depthPyramid, float4 textureView, uint level, out float3 hit)
 {
     hit = 0;
     float distance = maxDistance;
@@ -108,6 +109,7 @@ bool TraceScreenSpaceRayLinear(float3 originVS, float3 directionVS, float maxDis
 
     uint width, height, mipCount;
     depthPyramid.GetDimensions(0, width, height, mipCount);
+    if (textureView.x > 0) { width = textureView.x; height = textureView.y; mipCount = 1 + floor(log2(max(width, height))); }
     level = min(level, mipCount - 1);
     uint2 mipSize = max(uint2(1, 1), uint2(width, height) >> level);
     float pixels = max(abs(delta.x) * width, abs(delta.y) * height) * exitT;

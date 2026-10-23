@@ -5,13 +5,18 @@ namespace InfinityTech.Rendering.GPUResource
 {
     public class ResourcePool
     {
-        BufferCache m_BufferPool;
-        TextureCache m_TexturePool;
+        public BufferCache buffers { get; }
+        public TextureCache textures { get; }
+        public void AfterSubmit(GraphicsFence fence)
+        {
+            textures.AfterSubmit(400L * 1024 * 1024, fence);
+            buffers.AfterSubmit(64L * 1024 * 1024, fence);
+        }
 
         public ResourcePool()
         {
-            m_BufferPool = new BufferCache();
-            m_TexturePool = new TextureCache();
+            buffers = new BufferCache();
+            textures = new TextureCache();
         }
 
         public FBufferRef GetBuffer(in BufferDescriptor descriptor)
@@ -19,10 +24,11 @@ namespace InfinityTech.Rendering.GPUResource
             ComputeBuffer buffer;
             int handle = descriptor.GetHashCode();
 
-            if (!m_BufferPool.Pull(handle, descriptor, out buffer))
+            if (!buffers.Pull(handle, descriptor, out buffer))
             {
                 buffer = new ComputeBuffer(descriptor.count, descriptor.stride, descriptor.type);
                 buffer.name = descriptor.name;
+                buffers.RecordAllocation(descriptor);
             }
 
             return new FBufferRef(handle, descriptor, buffer);
@@ -30,18 +36,20 @@ namespace InfinityTech.Rendering.GPUResource
 
         public void ReleaseBuffer(in FBufferRef bufferRef)
         {
-            m_BufferPool.Push(bufferRef.handle, bufferRef.descriptor, bufferRef.buffer);
+            buffers.Push(bufferRef.handle, bufferRef.descriptor, bufferRef.buffer);
         }
 
         public FTextureRef GetTexture(in TextureDescriptor descriptor)
         {
             RTHandle texture;
-            int handle = descriptor.GetHashCode();
+            var physical = descriptor.PhysicalDescriptor();
+            int handle = physical.GetHashCode();
 
-            if (!m_TexturePool.Pull(handle, descriptor, out texture))
+            if (!textures.Pull(handle, physical, out texture))
             {
-                texture = RTHandles.Alloc(descriptor.width, descriptor.height, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
+                texture = RTHandles.Alloc(descriptor.physicalWidth, descriptor.physicalHeight, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
                                           descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, descriptor.name);
+                textures.RecordAllocation(physical);
             }
 
             return new FTextureRef(handle, descriptor, texture);
@@ -49,13 +57,14 @@ namespace InfinityTech.Rendering.GPUResource
 
         public void ReleaseTexture(in FTextureRef textureRef)
         {
-            m_TexturePool.Push(textureRef.handle, textureRef.descriptor, textureRef.texture);
+            var physical = textureRef.descriptor.PhysicalDescriptor();
+            textures.Push(physical.GetHashCode(), physical, textureRef.texture);
         }
 
         public void Dispose()
         {
-            m_BufferPool.Dispose();
-            m_TexturePool.Dispose();
+            buffers.Dispose();
+            textures.Dispose();
         }
     }
 }

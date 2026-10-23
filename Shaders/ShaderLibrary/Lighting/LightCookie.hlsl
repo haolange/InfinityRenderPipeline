@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #ifndef INFINITY_LIGHT_COOKIE
 #define INFINITY_LIGHT_COOKIE
 // Light cookies and IES profiles from the cookie atlas (LightCookieAtlas.cs). record.cookieIndex selects an
@@ -38,12 +39,12 @@ float2 CookieOctahedralEncode(float3 n)
 float3 SampleCookieBlock(float4 rect, float2 uv, float lod, float maxMip)
 {
     uint width, height;
-    SRV_LightCookieAtlas.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_LightCookieAtlas, width, height);
     lod = clamp(lod, 0.0, maxMip);
     // Keep bilinear taps inside the block at this mip.
     float texels = max(rect.z * width * exp2(-lod), 1.0);
     uv = clamp(uv, 0.5 / texels, 1.0 - 0.5 / texels);
-    return SRV_LightCookieAtlas.SampleLevel(Global_trilinear_clamp_sampler, rect.xy + uv * rect.zw, lod).rgb;
+    return InfinitySampleLevelTrilinear(SRV_LightCookieAtlas,Global_trilinear_clamp_sampler,rect.xy + uv * rect.zw,lod).rgb;
 }
 
 // Position relative to the light in its own frame (right, up, forward).

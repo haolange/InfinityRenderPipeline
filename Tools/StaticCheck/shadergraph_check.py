@@ -19,18 +19,18 @@ SURFACE = ["normalOS", "tangentOS", "uv1", "positionWS", "normalWS", "tangentWS"
 
 # (lightMode, SHADERPASS, pregraph include, pass include, blocks, required fields, keyword sets, lit properties)
 PASSES = [
-    ("ShadowPass", "SHADERPASS_SHADOWS", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["normalOS", "positionWS"], [], True),
-    ("DepthPass", "SHADERPASS_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
-    ("GBufferPass", "SHADERPASS_GBUFFER", "InfinitySGBakedLighting.hlsl", "InfinitySGGBufferPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["_DBUFFER"]], True),
-    ("ForwardPass", "SHADERPASS_FORWARD", "InfinitySGSurfaceLighting.hlsl", "InfinitySGForwardPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["INFINITY_FORWARD_AO"], ["INFINITY_FORWARD_CONTACT_SHADOW"]], True),
-    ("MotionPass", "SHADERPASS_MOTION", None, "InfinitySGMotionPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
-    ("TranslucentDepthPass", "SHADERPASS_TRANSLUCENT_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
-    ("TranslucentT0Pass", "SHADERPASS_TRANSLUCENT_T0", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, SURFACE, [["_VOLUMETRIC_FOG"], ["_AERIAL_PERSPECTIVE"]], True),
-    ("TranslucentT1Pass", "SHADERPASS_TRANSLUCENT_T1", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, SURFACE, [["_REFRACTION_PYRAMID"]], True),
-    ("TranslucentT2Pass(Lit)", "SHADERPASS_TRANSLUCENT_T2", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, ["positionWS"], [], True),
-    ("TranslucentT2Pass(Unlit)", "SHADERPASS_TRANSLUCENT_T2", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", COLOR_BLOCKS, ["positionWS"], [], False),
+    ("RasterShadowPass", "SHADERPASS_SHADOWS", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["normalOS", "positionWS"], [], True),
+    ("RasterDepthPass", "SHADERPASS_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
+    ("RasterGBufferPass", "SHADERPASS_GBUFFER", "InfinitySGBakedLighting.hlsl", "InfinitySGGBufferPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["_DBUFFER"]], True),
+    ("RasterForwardPass", "SHADERPASS_FORWARD", "InfinitySGSurfaceLighting.hlsl", "InfinitySGForwardPass.hlsl", LIT_BLOCKS, SURFACE, BAKED + [["INFINITY_FORWARD_AO"], ["INFINITY_FORWARD_CONTACT_SHADOW"]], True),
+    ("RasterMotionPass", "SHADERPASS_MOTION", None, "InfinitySGMotionPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
+    ("RasterTranslucentDepthPass", "SHADERPASS_TRANSLUCENT_DEPTH", None, "InfinitySGDepthOnlyPass.hlsl", ALPHA_BLOCKS, ["positionWS"], [], True),
+    ("RasterTranslucentT0Pass", "SHADERPASS_TRANSLUCENT_T0", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, SURFACE, [["_VOLUMETRIC_FOG"], ["_AERIAL_PERSPECTIVE"], ["INFINITY_WRITE_REACTIVE_MASK"]], True),
+    ("RasterTranslucentT1Pass", "SHADERPASS_TRANSLUCENT_T1", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, SURFACE, [["_REFRACTION_PYRAMID"], ["INFINITY_WRITE_REACTIVE_MASK"]], True),
+    ("TranslucentT2Pass(Lit)", "SHADERPASS_TRANSLUCENT_T2", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", LIT_BLOCKS, ["positionWS"], [["INFINITY_WRITE_REACTIVE_MASK"]], True),
+    ("TranslucentT2Pass(Unlit)", "SHADERPASS_TRANSLUCENT_T2", "InfinitySGTranslucent.hlsl", "InfinitySGTranslucentPass.hlsl", COLOR_BLOCKS, ["positionWS"], [["INFINITY_WRITE_REACTIVE_MASK"]], False),
     ("Meta", "SHADERPASS_META", None, "InfinitySGMetaPass.hlsl", META_BLOCKS, ["uv1", "uv2"], [], True),
-    ("DBufferPass", "SHADERPASS_DBUFFER", None, "InfinitySGDecalPass.hlsl", DECAL_BLOCKS, ["positionWS"], [], False),
+    ("RasterDBufferPass", "SHADERPASS_DBUFFER", None, "InfinitySGDecalPass.hlsl", DECAL_BLOCKS, ["positionWS"], [], False),
 ]
 
 ATTR = {"normalOS": ("float3", "NORMAL", "ATTRIBUTES_NEED_NORMAL"), "tangentOS": ("float4", "TANGENT", "ATTRIBUTES_NEED_TANGENT"),

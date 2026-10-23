@@ -40,16 +40,16 @@ namespace InfinityTech.Rendering.Pipeline
             bool opaque = stage == 0;
             // Both opaque routes provide surface data for AO, ray tracing and motion consumers.
             // Forward pixels are tagged so Deferred never shades them.
-            SetPass(material, "GBufferPass", opaque);
-            SetPass(material, "ForwardPass", opaque && route == 1);
-            SetPass(material, "DepthPass", opaque);
-            SetPass(material, "ShadowPass", opaque);
+            SetPass(material, "RasterGBufferPass", opaque);
+            SetPass(material, "RasterForwardPass", opaque && route == 1);
+            SetPass(material, "RasterDepthPass", opaque);
+            SetPass(material, "RasterShadowPass", opaque);
             SetPass(material, "ShadowCaster", opaque);
-            SetPass(material, "MotionPass", opaque);
-            SetPass(material, "TranslucentDepthPass", !opaque);
-            SetPass(material, "TranslucentT0Pass", stage == 1);
-            SetPass(material, "TranslucentT1Pass", stage == 2);
-            SetPass(material, "TranslucentT2Pass", stage == 3);
+            SetPass(material, "RasterMotionPass", opaque);
+            SetPass(material, "RasterTranslucentDepthPass", !opaque);
+            SetPass(material, "RasterTranslucentT0Pass", stage == 1);
+            SetPass(material, "RasterTranslucentT1Pass", stage == 2);
+            SetPass(material, "RasterTranslucentT2Pass", stage == 3);
 
             string renderType = opaque ? "Opaque" : "Transparent";
             if (material.GetTag("RenderType", false) != renderType)

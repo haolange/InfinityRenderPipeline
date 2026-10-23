@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel SuperResolutionCS
 
 #include "../../ShaderLibrary/Common.hlsl"
@@ -44,11 +45,11 @@ float4 SampleHistoryBicubic(float2 uv, float2 texSize, float2 invTexSize)
     float2 tc3 = (center + 2.0) * invTexSize;
 
     float4 result =
-        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc12.x, tc0.y), 0) * (w12.x * w0.y) +
-        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc0.x, tc12.y), 0) * (w0.x * w12.y) +
-        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc12.x, tc12.y), 0) * (w12.x * w12.y) +
-        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc3.x, tc12.y), 0) * (w3.x * w12.y) +
-        SRV_HistoryColorTexture.SampleLevel(Global_bilinear_clamp_sampler, float2(tc12.x, tc3.y), 0) * (w12.x * w3.y);
+        InfinitySampleLevel(SRV_HistoryColorTexture,Global_bilinear_clamp_sampler,float2(tc12.x, tc0.y),0) * (w12.x * w0.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture,Global_bilinear_clamp_sampler,float2(tc0.x, tc12.y),0) * (w0.x * w12.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture,Global_bilinear_clamp_sampler,float2(tc12.x, tc12.y),0) * (w12.x * w12.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture,Global_bilinear_clamp_sampler,float2(tc3.x, tc12.y),0) * (w3.x * w12.y) +
+        InfinitySampleLevel(SRV_HistoryColorTexture,Global_bilinear_clamp_sampler,float2(tc12.x, tc3.y),0) * (w12.x * w3.y);
 
     return max(0, result);
 }
@@ -99,7 +100,7 @@ void SuperResolutionCS(uint3 id : SV_DispatchThreadID)
     float2 motionVector = GetClosestMotionVector(pixelCoord, screenUV);
 
     // Sample current frame with jitter offset
-    float3 currentColor = SRV_SceneColorTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb;
+    float3 currentColor = InfinitySampleLevel(SRV_SceneColorTexture,Global_bilinear_clamp_sampler,screenUV,0).rgb;
 
     // Gather 3x3 neighborhood in tonemapped space for clipping
     float3 sampleColors[9];
@@ -109,7 +110,7 @@ void SuperResolutionCS(uint3 id : SV_DispatchThreadID)
     for (int i = 0; i < 9; ++i)
     {
         float2 offset = SampleOffset[i] * SR_InputResolution.zw;
-        sampleColors[i] = Tonemap(SRV_SceneColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV + offset, 0).rgb);
+        sampleColors[i] = Tonemap(InfinitySampleLevel(SRV_SceneColorTexture,Global_point_clamp_sampler,screenUV + offset,0).rgb);
         m1 += sampleColors[i];
         m2 += sampleColors[i] * sampleColors[i];
     }

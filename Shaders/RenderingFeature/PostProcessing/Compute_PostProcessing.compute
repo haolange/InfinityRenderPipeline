@@ -1,30 +1,20 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel BloomDownsample
 #pragma kernel BloomUpsample
-#pragma kernel FinalCombine
 #pragma kernel ExposureClear
 #pragma kernel ExposureHistogram
 #pragma kernel ExposureReduce
-#pragma kernel FinalCombineNoBloom
 
 #include "../../ShaderLibrary/Common.hlsl"
-#include "../../ShaderLibrary/Random.hlsl"
 #include "../../ShaderLibrary/ColorUtility.hlsl"
 
 float4 PP_Resolution;
-float PP_BloomIntensity;
 float PP_BloomThreshold;
 float PP_BloomScatter;
-float PP_VignetteIntensity;
-float PP_VignetteSmoothness;
-float PP_FilmGrainIntensity;
-float PP_FilmGrainResponse;
-int PP_FrameIndex;
 float PP_ExposureMultiplier;
 float PP_AutoExposure;
 
 Texture2D<float4> SRV_SceneColorTexture;
-RWTexture2D<float4> UAV_PostProcessTexture;
-Texture3D<float4> SRV_CombineLUT;
 Texture2D<float> SRV_ExposureEV;
 
 Texture2D<float4> SRV_BloomSource;
@@ -32,7 +22,6 @@ RWTexture2D<float4> UAV_BloomTarget;
 float4 BloomMipSize;
 float PP_BloomPrefilter;
 
-Texture2D<float4> SRV_BloomTexture;
 
 RWStructuredBuffer<uint> UAV_ExposureHistogram;
 Texture2D<float> SRV_ExposureHistoryEV;
@@ -42,15 +31,6 @@ float PP_ExposureLowPercentile;
 float PP_ExposureHighPercentile;
 float PP_ExposureAdapt;
 int PP_ExposureReset;
-
-float3 LinToLog(float3 linearColor)
-{
-    const float LinearRange = 14.0;
-    const float LinearGrey = 0.18;
-    const float ExposureGrey = 444.0;
-    float3 logColor = log2(max(linearColor, 1e-6)) / LinearRange - log2(LinearGrey) / LinearRange + ExposureGrey / 1023.0;
-    return saturate(logColor);
-}
 
 float CurrentExposureMultiplier()
 {
@@ -63,11 +43,6 @@ float CurrentExposureMultiplier()
     return multiplier;
 }
 
-float3 KarisAverage(float3 c)
-{
-    return c / (1.0 + Rec709Luminance(c));
-}
-
 [numthreads(8, 8, 1)]
 void BloomDownsample(uint3 id : SV_DispatchThreadID)
 {
@@ -77,19 +52,19 @@ void BloomDownsample(uint3 id : SV_DispatchThreadID)
     float2 uv = (id.xy + 0.5) * BloomMipSize.zw;
     float2 texelSize = BloomMipSize.zw;
 
-    float3 a = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-2, -2) * texelSize, 0).rgb;
-    float3 b = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0, -2) * texelSize, 0).rgb;
-    float3 c = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 2, -2) * texelSize, 0).rgb;
-    float3 d = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1, -1) * texelSize, 0).rgb;
-    float3 e = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1, -1) * texelSize, 0).rgb;
-    float3 f = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-2,  0) * texelSize, 0).rgb;
-    float3 g = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb;
-    float3 h = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 2,  0) * texelSize, 0).rgb;
-    float3 i = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1,  1) * texelSize, 0).rgb;
-    float3 j = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  1) * texelSize, 0).rgb;
-    float3 k = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-2,  2) * texelSize, 0).rgb;
-    float3 l = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0,  2) * texelSize, 0).rgb;
-    float3 m = SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 2,  2) * texelSize, 0).rgb;
+    float3 a = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-2, -2) * texelSize,0).rgb;
+    float3 b = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0, -2) * texelSize,0).rgb;
+    float3 c = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 2, -2) * texelSize,0).rgb;
+    float3 d = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1, -1) * texelSize,0).rgb;
+    float3 e = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1, -1) * texelSize,0).rgb;
+    float3 f = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-2,  0) * texelSize,0).rgb;
+    float3 g = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv,0).rgb;
+    float3 h = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 2,  0) * texelSize,0).rgb;
+    float3 i = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1,  1) * texelSize,0).rgb;
+    float3 j = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1,  1) * texelSize,0).rgb;
+    float3 k = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-2,  2) * texelSize,0).rgb;
+    float3 l = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0,  2) * texelSize,0).rgb;
+    float3 m = InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 2,  2) * texelSize,0).rgb;
 
     float3 result = 0;
     result += (d + e + i + j) * 0.5 * 0.25;
@@ -122,70 +97,20 @@ void BloomUpsample(uint3 id : SV_DispatchThreadID)
     float2 texelSize = BloomMipSize.zw;
 
     float3 result = 0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1, -1) * texelSize, 0).rgb * 1.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0, -1) * texelSize, 0).rgb * 2.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1, -1) * texelSize, 0).rgb * 1.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1,  0) * texelSize, 0).rgb * 2.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv                             , 0).rgb * 4.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  0) * texelSize, 0).rgb * 2.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2(-1,  1) * texelSize, 0).rgb * 1.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 0,  1) * texelSize, 0).rgb * 2.0;
-    result += SRV_BloomSource.SampleLevel(Global_bilinear_clamp_sampler, uv + float2( 1,  1) * texelSize, 0).rgb * 1.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1, -1) * texelSize,0).rgb * 1.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0, -1) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1, -1) * texelSize,0).rgb * 1.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1,  0) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv,0).rgb * 4.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1,  0) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2(-1,  1) * texelSize,0).rgb * 1.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 0,  1) * texelSize,0).rgb * 2.0;
+    result += InfinitySampleLevel(SRV_BloomSource,Global_bilinear_clamp_sampler,uv + float2( 1,  1) * texelSize,0).rgb * 1.0;
     result /= 16.0;
     // Scatter selects the wider mip contribution without increasing constant-field energy.
     result = lerp(UAV_BloomTarget[id.xy].rgb, result, PP_BloomScatter);
 
     UAV_BloomTarget[id.xy] = float4(max(0, result), 1);
-}
-
-float ComputeVignette(float2 uv)
-{
-    float2 d = abs(uv - 0.5) * 2.0;
-    float falloff = saturate(1.0 - dot(d, d) * PP_VignetteIntensity);
-    return pow(max(falloff, 1e-4), max(PP_VignetteSmoothness, 0.01) * 2.0);
-}
-
-float3 ApplyFilmGrain(float3 color, float2 uv, int frameIndex)
-{
-    if (PP_FilmGrainIntensity <= 0)
-        return color;
-
-    float noise = (Rand3DPCG16(int3(int2(uv * PP_Resolution.xy), frameIndex)).x + 0.5) / 65536.0;
-    noise = (noise - 0.5) * 2.0 * PP_FilmGrainIntensity;
-    float lum = Rec709Luminance(color);
-    float grainStrength = lerp(1.0, 1.0 - saturate(lum), PP_FilmGrainResponse);
-    // Signal-relative, zero-mean modulation preserves black and avoids clipping-induced exposure bias.
-    return color * (1.0 + noise * grainStrength);
-}
-
-void CombinePostColor(uint3 id, bool hasBloom)
-{
-    if (any(id.xy >= (uint2)PP_Resolution.xy))
-        return;
-
-    float2 screenUV = (id.xy + 0.5) * PP_Resolution.zw;
-    float3 sceneColor = SRV_SceneColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).rgb;
-    sceneColor *= CurrentExposureMultiplier();
-    if (hasBloom)
-        sceneColor += SRV_BloomTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0).rgb * PP_BloomIntensity;
-
-    float3 graded = SRV_CombineLUT.SampleLevel(Global_trilinear_clamp_sampler, LinToLog(max(sceneColor, 1e-6)), 0).rgb;
-    graded *= ComputeVignette(screenUV);
-    graded = ApplyFilmGrain(graded, screenUV, PP_FrameIndex);
-
-    UAV_PostProcessTexture[id.xy] = float4(max(0, graded), 1);
-}
-
-[numthreads(8, 8, 1)]
-void FinalCombine(uint3 id : SV_DispatchThreadID)
-{
-    CombinePostColor(id, true);
-}
-
-[numthreads(8, 8, 1)]
-void FinalCombineNoBloom(uint3 id : SV_DispatchThreadID)
-{
-    CombinePostColor(id, false);
 }
 
 [numthreads(64, 1, 1)]

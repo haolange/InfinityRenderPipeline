@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
         }
 
-        void RenderDBuffer(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterDBuffer(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
         {
             if (renderContext.WorldDecalCount == 0 || !ShouldRecordFeature(EFrameFeature.DBuffer))
             {
@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
 
-            TextureDescriptor dBufferADsc = new TextureDescriptor(width, height);
+            TextureDescriptor dBufferADsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
                 dBufferADsc.name = DBufferPassUtilityData.DBufferAName;
                 dBufferADsc.dimension = TextureDimension.Tex2D;
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef dBufferA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
 
-            TextureDescriptor dBufferBDsc = new TextureDescriptor(width, height);
+            TextureDescriptor dBufferBDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
                 dBufferBDsc.name = DBufferPassUtilityData.DBufferBName;
                 dBufferBDsc.dimension = TextureDimension.Tex2D;
@@ -52,7 +52,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef dBufferB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
 
-            TextureDescriptor dBufferCDsc = new TextureDescriptor(width, height);
+            TextureDescriptor dBufferCDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
                 dBufferCDsc.name = DBufferPassUtilityData.DBufferCName;
                 dBufferCDsc.dimension = TextureDimension.Tex2D;
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DBufferPass, cullingResults, camera);
+            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDBufferPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = new RenderQueueRange(2000, 2449);
@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGRendererListRef dBufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDBuffer)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(dBufferA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);

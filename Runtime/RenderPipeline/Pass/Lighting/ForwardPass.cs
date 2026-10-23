@@ -56,13 +56,13 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RenderForward(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterForward(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
 
             RGDrawListRef forwardDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Forward);
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.ForwardPass, cullingResults, camera);
+            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterForwardPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGRendererListRef forwardRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             //Add ForwardPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RenderForward)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward)))
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);

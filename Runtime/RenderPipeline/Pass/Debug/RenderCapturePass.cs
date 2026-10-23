@@ -27,13 +27,13 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        CaptureStageSnapshot PrepareStageSnapshot(RGComputePassRef pass, string semantic, RGTextureRef source, TextureDescriptor? sourceDescriptor = null)
+        CaptureStageSnapshot PrepareStageSnapshot(RGComputePassRef pass, string semantic, RGTextureRef source)
         {
             var session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, semantic) < 0) return default;
             var shader = Resources.Load<ComputeShader>("Compute_CaptureTexture");
             if (shader == null || !shader.HasKernel("CaptureTexture")) throw new InvalidOperationException("Stage capture shader is required.");
-            var descriptor = sourceDescriptor ?? m_RGBuilder.GetTextureDescriptor(source);
+            var descriptor = m_RGBuilder.GetTextureDescriptor(source);
             descriptor.name = "Capture_" + semantic;
             descriptor.enableRandomWrite = true;
             var snapshot = m_RGScoper.CreateAndRegisterTexture(Shader.PropertyToID(descriptor.name), descriptor);
@@ -45,9 +45,11 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef source, destination;
             public RenderCaptureSession.Staging staging;
             public RGBuilder graph;
-            public int sourceMip;
+            public int sourceMip, width, height;
         }
-        static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CaptureNormalFrame");
+        static readonly ProfilingSampler s_CaptureLightMaskSampler = new ProfilingSampler("ComputeCaptureLightMask");
+        static readonly ProfilingSampler s_CaptureDepthSampler = new ProfilingSampler("ComputeCaptureDepth");
+        static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CopyCaptureNormalFrame");
 
         void RecordLightingCapture()
         {
@@ -88,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
                 colorFormat = GraphicsFormat.R32G32B32A32_SFloat, enableRandomWrite = true
             };
             var destination = m_RGScoper.CreateAndRegisterTexture(id, descriptor);
-            using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureTransferSampler))
+            using (var pass = m_RGBuilder.AddComputePass<CaptureLightMaskPassData>(s_CaptureLightMaskSampler))
             {
                 ref var data = ref pass.GetPassData<CaptureLightMaskPassData>();
                 data.source = pass.ReadBuffer(QueryLightLoop(renderContext).tileMasks);
@@ -149,6 +151,7 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SSGIRayHit": id = InfinityShaderIDs.SSGIRayHitBuffer; break;
                     case "SSGIResolved": id = InfinityShaderIDs.SSGIResolvedBuffer; break;
                     case "SSGITemporal": id = InfinityShaderIDs.SSGITemporalBuffer; break;
+                    case "ReactiveMask": id = InfinityShaderIDs.ReactiveMaskBuffer; break;
                     case "DisplayColor": id = InfinityShaderIDs.DisplayColorBuffer; break;
                     case "PostProcess": id = InfinityShaderIDs.PostProcessBuffer; break;
                     case "Motion": id = InfinityShaderIDs.MotionBuffer; break;
@@ -194,7 +197,7 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureDepthValues";
             RGTextureRef destination = m_RGBuilder.CreateTexture(descriptor);
-            using (RGComputePassRef pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureTransferSampler))
+            using (RGComputePassRef pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
             {
                 ref var data = ref pass.GetPassData<CaptureDepthPassData>();
                 data.source = pass.ReadTexture(source);
@@ -220,6 +223,9 @@ namespace InfinityTech.Rendering.Pipeline
             var sourceDescriptor = descriptor;
             descriptor.width = PyramidMipBatch.MipSize(descriptor.width, sourceMip);
             descriptor.height = PyramidMipBatch.MipSize(descriptor.height, sourceMip);
+            descriptor.sizingDomain = ETextureSizingDomain.Exact;
+            descriptor.allocationWidth = descriptor.allocationHeight = 0;
+            descriptor.viewDivisor = 0;
             descriptor.useMipMap = false;
             descriptor.autoGenerateMips = false;
             string producer = m_RGBuilder.GetTextureProducer(source, out string sourceQueue);
@@ -244,11 +250,11 @@ namespace InfinityTech.Rendering.Pipeline
                 data.staging = staging;
                 pass.SetQueueObserver(staging);
                 data.graph = m_RGBuilder;
-                data.sourceMip = sourceMip;
+                data.sourceMip = sourceMip; data.width = descriptor.width; data.height = descriptor.height;
                 pass.SetExecuteFunc((in CaptureTransferPassData parameters, in RGTransferEncoder commands, RGObjectPool pool) =>
                 {
                     parameters.staging.owner.RecordGraph(parameters.graph, Time.frameCount);
-                    commands.CopyTexture(parameters.source, 0, parameters.sourceMip, parameters.destination, 0, 0);
+                    commands.CopyTexture(parameters.source, 0, parameters.sourceMip, 0, 0, parameters.width, parameters.height, parameters.destination, 0, 0, 0, 0);
                     commands.RequestAsyncReadback(parameters.staging.texture, parameters.staging.Complete);
                 });
             }

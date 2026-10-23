@@ -38,6 +38,16 @@ namespace InfinityTech.Rendering.Pipeline
         bool m_NeedsBuild;
         bool m_Disposed;
 
+        internal RayTracingBackend Backend => IsReady ? m_Context.BackendType
+            : throw new InvalidOperationException("URT context is not ready.");
+
+        internal static CustomSamplerId OcclusionSampler(RayTracingBackend backend) => backend switch
+        {
+            RayTracingBackend.Compute => CustomSamplerId.ComputeRayTracedOcclusion,
+            RayTracingBackend.Hardware => CustomSamplerId.RayTracingOcclusion,
+            _ => throw new ArgumentOutOfRangeException(nameof(backend))
+        };
+
         public IRayTracingAccelStruct Accel => m_Accel;
         public IRayTracingShader Shader => m_Shader;
         public int InstanceCount => m_InstanceCount;

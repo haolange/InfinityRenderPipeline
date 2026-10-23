@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel TransmittanceLUT
 #pragma kernel MultiScatteringLUT
 #pragma kernel SkyViewLUT
@@ -216,7 +217,7 @@ void TransmittanceLUTParamsFromUV(float2 uv, out float altitude, out float cosAn
 void TransmittanceLUT(uint3 id : SV_DispatchThreadID)
 {
     uint width, height;
-    UAV_TransmittanceLUT.GetDimensions(width, height);
+    InfinityGetDimensions(UAV_TransmittanceLUT, width, height);
     if (any(id.xy >= uint2(width, height))) return;
 
     float2 uv = (id.xy + 0.5) / float2(width, height);
@@ -264,7 +265,7 @@ float3 SampleTransmittanceLUT(float altitude, float cosAngle)
     float x_mu = (d - d_min) * rcp(max(d_max - d_min, 1e-6));
 
     float2 uv = saturate(float2(x_mu, x_r));
-    return SRV_TransmittanceLUT.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb;
+    return InfinitySampleLevel(SRV_TransmittanceLUT,Global_bilinear_clamp_sampler,uv,0).rgb;
 }
 
 // Henyey-Greenstein phase function
@@ -285,7 +286,7 @@ float RayleighPhase(float cosTheta)
 void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
 {
     uint width, height;
-    UAV_MultiScatteringLUT.GetDimensions(width, height);
+    InfinityGetDimensions(UAV_MultiScatteringLUT, width, height);
     if (any(id.xy >= uint2(width, height))) return;
 
     float2 uv = (id.xy + 0.5) / float2(width, height);
@@ -382,7 +383,7 @@ void MultiScatteringLUT(uint3 id : SV_DispatchThreadID)
 float3 SampleMultiScattering(float altitude, float cosSunZenith)
 {
     float2 uv = float2(saturate(cosSunZenith * 0.5 + 0.5), saturate(altitude / max(Atmo_AtmosphereHeight, 1.0)));
-    return SRV_MultiScatteringLUT.SampleLevel(Global_bilinear_clamp_sampler, uv, 0).rgb * Atmo_MultiScatterStrength;
+    return InfinitySampleLevel(SRV_MultiScatteringLUT,Global_bilinear_clamp_sampler,uv,0).rgb * Atmo_MultiScatterStrength;
 }
 
 //--------------------------------------------------------------
@@ -420,13 +421,13 @@ float2 RayToSkyViewUv(float3 rayDir)
 float3 SampleSkyViewLUT(float3 rayDir)
 {
     uint width, height;
-    SRV_SkyViewLUT.GetDimensions(width, height);
+    InfinityGetDimensions(SRV_SkyViewLUT, width, height);
 
     float2 uv = RayToSkyViewUv(rayDir);
     // u wraps through the repeating sampler; v must stay inside the first tile or it wraps as well.
     uv.y = clamp(uv.y, 0.5 / height, 1.0 - 0.5 / height);
 
-    return SRV_SkyViewLUT.SampleLevel(Global_bilinear_repeat_sampler, uv, 0).rgb;
+    return InfinitySampleLevel(SRV_SkyViewLUT,Global_bilinear_repeat_sampler,uv,0).rgb;
 }
 
 // applyGroundTerm belongs to the sky only. Aerial perspective must keep its transmittance, because
@@ -510,7 +511,7 @@ void IntegrateAtmosphereRay(float altitude, float3 rayDir, float tMax, bool appl
 void SkyViewLUT(uint3 id : SV_DispatchThreadID)
 {
     uint width, height;
-    UAV_SkyViewLUT.GetDimensions(width, height);
+    InfinityGetDimensions(UAV_SkyViewLUT, width, height);
     if (any(id.xy >= uint2(width, height))) return;
 
     float2 uv = (id.xy + 0.5) / float2(width, height);
@@ -531,7 +532,7 @@ void SkyViewLUT(uint3 id : SV_DispatchThreadID)
 void AerialPerspectiveLUT(uint3 id : SV_DispatchThreadID)
 {
     uint width, height, depth;
-    UAV_AerialPerspectiveLUT.GetDimensions(width, height, depth);
+    InfinityGetVolumeDimensions(UAV_AerialPerspectiveLUT, width, height, depth);
     if (any(id >= uint3(width, height, depth))) return;
 
     float2 uv = (id.xy + 0.5) / float2(width, height);
@@ -559,7 +560,7 @@ void AerialPerspectiveLUT(uint3 id : SV_DispatchThreadID)
 void AtmosphereCubemap(uint3 id : SV_DispatchThreadID)
 {
     uint width, height, elements;
-    UAV_AtmosphereCubemap.GetDimensions(width, height, elements);
+    InfinityGetVolumeDimensions(UAV_AtmosphereCubemap, width, height, elements);
     if (id.x >= width || id.y >= height || id.z >= 6) return;
 
     float2 uv = (id.xy + 0.5) / float2(width, height);
@@ -611,7 +612,7 @@ float3 SunDiskRadiance(float cosViewSun)
 void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
 {
     uint width, height;
-    UAV_LightingTexture.GetDimensions(width, height);
+    InfinityGetDimensions(UAV_LightingTexture, width, height);
     if (any(id.xy >= uint2(width, height))) return;
 
     float2 uv = (id.xy + 0.5) / float2(width, height);
@@ -633,7 +634,7 @@ void AtmosphereComposite(uint3 id : SV_DispatchThreadID)
 
     float linearDepth = length(world.xyz - _WorldSpaceCameraPos);
     float sliceT = saturate(sqrt(linearDepth / max(Atmo_AerialPerspectiveDistance, 1.0)));
-    float4 aerial = SRV_AerialPerspectiveLUT.SampleLevel(Global_trilinear_clamp_sampler, float3(uv, sliceT), 0);
+    float4 aerial = InfinitySampleLevelTrilinear(SRV_AerialPerspectiveLUT,Global_trilinear_clamp_sampler,float3(uv, sliceT),0);
     float3 scene = UAV_LightingTexture[id.xy].rgb;
     UAV_LightingTexture[id.xy] = float4(scene * aerial.a + aerial.rgb, 1);
 }

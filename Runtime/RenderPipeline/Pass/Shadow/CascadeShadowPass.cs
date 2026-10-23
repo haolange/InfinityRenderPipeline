@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListRef[] rendererLists;
         }
 
-        void RenderCascadeShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterCascadeShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
         {
             int shadowMapResolution = pipelineAsset.cascadeShadowMapResolution;
             float shadowDistance = pipelineAsset.shadowDistance;
@@ -126,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
             }
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RenderCascadeShadow)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);

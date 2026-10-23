@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.displaySize.x;
             int height = m_ActiveFrameState.dimensions.displaySize.y;
 
-            TextureDescriptor historyColorDescriptor = new TextureDescriptor(width, height)
+            TextureDescriptor historyColorDescriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Display)
             {
                 dimension = TextureDimension.Tex2D,
                 name = SuperResolutionPassUtilityData.HistoryColorTextureName,
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
             m_RGScoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
 
-            TextureDescriptor superResDsc = new TextureDescriptor(width, height);
+            TextureDescriptor superResDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Display);
             {
                 superResDsc.name = SuperResolutionPassUtilityData.TextureName;
                 superResDsc.dimension = TextureDimension.Tex2D;
@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void CopyHistorySuperResolution(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
-            TextureDescriptor historyColorDescriptor = new TextureDescriptor(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y)
+            TextureDescriptor historyColorDescriptor = new TextureDescriptor(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y, ETextureSizingDomain.Display)
             {
                 dimension = TextureDimension.Tex2D,
                 name = SuperResolutionPassUtilityData.HistoryColorTextureName,

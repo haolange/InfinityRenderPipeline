@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
             return hash.ToHashCode();
         }
 
-        void RenderLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterLocalShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
         {
             int shadowMapResolution = pipelineAsset.localShadowMapResolution;
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
@@ -189,7 +189,7 @@ namespace InfinityTech.Rendering.Pipeline
                 sliceRendererLists[slice] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
             }
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RenderLocalShadow)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
             {
                 passRef.EnablePassCulling(false);
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
@@ -287,7 +287,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef cacheAtlas = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
 
-            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("CopyShadowDepthTile");
+            int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterCopyShadowDepthTile");
             if (shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required CopyShadowDepthTile shader pass is missing.");
             var frameRects = new Vector4[saveCount + loadCount];
             var cacheRects = new Vector4[saveCount + loadCount];
@@ -313,7 +313,7 @@ namespace InfinityTech.Rendering.Pipeline
         void RecordShadowDepthCopies(RGTextureRef source, RGTextureRef destination, Vector4[] sourceRects, Vector4[] destinationRects,
             int first, int count, int shaderPass, IRGPassQueueObserver observer)
         {
-            using (var pass = m_RGBuilder.AddRasterPass<CopyCachedLocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.CopyCachedLocalShadow)))
+            using (var pass = m_RGBuilder.AddRasterPass<CopyCachedLocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCopyShadowDepthTiles)))
             {
                 pass.SetDepthStencilAttachment(destination, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.Write);
                 ref var data = ref pass.GetPassData<CopyCachedLocalShadowPassData>();

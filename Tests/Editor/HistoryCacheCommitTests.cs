@@ -38,27 +38,46 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         }
 
         [Test]
-        public void DescriptorChange_QueuesRetired_WithoutImmediateRelease()
+        public void ResizeRead_PreservesAcceptedView_UntilWriterCommits()
         {
-            const int id = 11;
-            TextureDescriptor small = MakeDescriptor(8, 8, "HistorySmall");
-            TextureDescriptor large = MakeDescriptor(16, 16, "HistoryLarge");
-
-            FTextureRef first = m_Cache.GetTexture(id, small, out bool created);
+            var small = MakeDescriptor(8, 8, "Accepted");
+            var large = MakeDescriptor(17, 13, "Pending");
+            FTextureRef first = m_Cache.GetTexture(11, small, out bool created);
             Assert.IsTrue(created);
-            Assert.IsNotNull(first.texture);
+            FTextureRef read = m_Cache.GetTexture(11, large, out bool invalid);
+            Assert.IsTrue(invalid);
+            Assert.AreSame(first.texture, read.texture);
+            Assert.AreEqual(8, read.descriptor.width);
             Assert.AreEqual(0, m_Cache.RetiredQueuedCount);
-
-            FTextureRef second = m_Cache.GetTexture(id, large, out bool recreated);
-            Assert.IsTrue(recreated);
-            Assert.IsNotNull(second.texture);
-            Assert.AreNotSame(first.texture, second.texture);
-            Assert.Greater(m_Cache.RetiredQueuedCount, 0);
-
-            int queued = m_Cache.RetiredQueuedCount;
+            FTextureRef pending = m_Cache.GetWriteTexture(11, large);
+            m_Cache.MarkProduced(11);
+            m_Cache.CommitFrame();
+            Assert.AreSame(pending.texture, m_Cache.GetTexture(11, large).texture);
+            // The old accepted target becomes the spare; replacing it retires only that spare.
+            m_Cache.GetWriteTexture(11, large);
+            Assert.AreEqual(1, m_Cache.RetiredQueuedCount);
+            Assert.IsTrue(first.texture.rt.IsCreated());
             m_Cache.FlushRetired();
             Assert.AreEqual(0, m_Cache.RetiredQueuedCount);
-            Assert.Greater(queued, 0);
+        }
+
+        [Test]
+        public void CapacityOnlyChange_PreservesHistoryValidityAndPreviousView()
+        {
+            var descriptor = MakeDescriptor(17, 13, "History");
+            descriptor.sizingDomain = ETextureSizingDomain.Internal;
+            m_Cache.SetTextureCapacity(new FTextureCapacityContext(new Unity.Mathematics.int2(64), new Unity.Mathematics.int2(64)));
+            FTextureRef accepted = m_Cache.GetTexture(12, descriptor);
+            m_Cache.SetTextureCapacity(new FTextureCapacityContext(new Unity.Mathematics.int2(128), new Unity.Mathematics.int2(128)));
+            FTextureRef read = m_Cache.GetTexture(12, descriptor, out bool invalid);
+            Assert.IsFalse(invalid);
+            Assert.AreSame(accepted.texture, read.texture);
+            Assert.AreEqual(64, read.descriptor.physicalWidth);
+            FTextureRef pending = m_Cache.GetWriteTexture(12, descriptor);
+            Assert.AreEqual(128, pending.descriptor.physicalWidth);
+            m_Cache.MarkProduced(12);
+            m_Cache.CommitFrame();
+            Assert.AreEqual(128, m_Cache.GetTexture(12, descriptor).descriptor.physicalWidth);
         }
 
         [Test]
@@ -67,6 +86,10 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             var small = MakeDescriptor(8, 8, "Committed");
             var large = MakeDescriptor(17, 13, "Pending");
             FTextureRef original = m_Cache.GetTexture(55, small);
+            FTextureRef readDuringResize = m_Cache.GetTexture(55, large, out bool invalid);
+            Assert.IsTrue(invalid);
+            Assert.AreSame(original.texture, readDuringResize.texture);
+            Assert.AreEqual(8, readDuringResize.descriptor.width);
             FTextureRef pending = m_Cache.GetWriteTexture(55, large);
             m_Cache.MarkProduced(55);
             m_Cache.RollbackPending();

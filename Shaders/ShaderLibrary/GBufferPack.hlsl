@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #ifndef _PackDataInclude
 #define _PackDataInclude
 
@@ -78,7 +79,7 @@ float3 EncodeBestFit(float3 Dir)
     texcoord = texcoord.x < texcoord.y ? texcoord.yx : texcoord.xy;
     texcoord.y /= texcoord.x;
     Dir /= maxNAbs;
-    Dir *= g_BestFitNormal_LUT.SampleLevel(Global_point_clamp_sampler, texcoord, 0).r;
+    Dir *= InfinitySampleLevel(g_BestFitNormal_LUT,Global_point_clamp_sampler,texcoord,0).r;
     return Dir;
 }
 
@@ -161,7 +162,7 @@ void DecodeGBuffer(FReconstructInput ReconstructInput, float4 GBufferA, float4 G
     GBufferData.RenderingLayer = (uint)(GBufferC.a * 255.0 + 0.5);
 }
 
-void DecodeGBuffer(uint2 pixel, Texture2D texA, Texture2D texB, Texture2D texC, out FGBufferData GBufferData)
+void DecodeGBuffer(uint2 pixel, Texture2D texA, Texture2D texB, Texture2D texC, float4 textureView, out FGBufferData GBufferData)
 {
     float4 gBufferA = texA[pixel];
     float4 gBufferB = texB[pixel];
@@ -171,6 +172,7 @@ void DecodeGBuffer(uint2 pixel, Texture2D texA, Texture2D texB, Texture2D texC, 
     reconstructInput.PixelCoord = pixel;
     uint width, height;
     texA.GetDimensions(width, height);
+    if (textureView.x > 0) { width = textureView.x; height = textureView.y; }
     int2 offsets[4] = { int2(1, 0), int2(-1, 0), int2(0, 1), int2(0, -1) };
     float2 chroma[4];
     float4 valid = 0;

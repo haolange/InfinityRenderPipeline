@@ -14,13 +14,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public readonly int width, height;
             public readonly ComputeShader shader;
             public Texture2D current, history, depth, motion, metadata, reactive;
-            public RenderTexture result, outputDepth, diagnostics, reprojection;
-            public Fixture(int w, int h)
+            public RenderTexture result, display, outputDepth, diagnostics, reprojection;
+            readonly bool reference;
+            public Fixture(int w, int h, bool reference = false)
             {
-                width=w; height=h; shader=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(Path));
+                this.reference=reference;
+                width=w; height=h; shader=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(reference ? "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/TemporalResolveReference.compute" : Path));
                 current=Input(new Color(.25f,.125f,.0625f,1)); history=Input(new Color(.25f,.125f,.0625f,32));
                 depth=Input(new Color(.4f,0,0,0)); motion=Input(Color.clear); metadata=Input(new Color(.4f,.8f,1,0)); reactive=Input(Color.clear);
-                result=Output(RenderTextureFormat.ARGBHalf); outputDepth=Output(RenderTextureFormat.RFloat);
+                result=Output(RenderTextureFormat.ARGBHalf); display=Output(RenderTextureFormat.ARGBHalf); outputDepth=Output(RenderTextureFormat.RFloat);
                 diagnostics=Output(RenderTextureFormat.ARGBFloat); reprojection=Output(RenderTextureFormat.ARGBFloat);
             }
             Texture2D Input(Color color)
@@ -46,9 +48,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetTexture(k,"SRV_AliasingColorTexture",current);shader.SetTexture(k,"SRV_HistoryColorTexture",history);
                 shader.SetTexture(k,"SRV_HistoryDepthTexture",depth);shader.SetTexture(k,"SRV_MotionTexture",motion);
                 shader.SetTexture(k,"SRV_MotionMetadata",metadata);shader.SetTexture(k,"SRV_ReactiveMaskTexture",reactive);
-                shader.SetTexture(k,"UAV_AccumulateColorTexture",result);shader.SetTexture(k,"UAV_TemporalDepthTexture",outputDepth);
+                if(!reference) shader.SetTexture(k,"UAV_SharpenedColorTexture",display);shader.SetTexture(k,"UAV_AccumulateColorTexture",result);shader.SetTexture(k,"UAV_TemporalDepthTexture",outputDepth);
                 shader.SetTexture(k,"UAV_TAADiagnostics",diagnostics);shader.SetTexture(k,"UAV_TAAReprojection",reprojection);
                 shader.Dispatch(k,(width+7)/8,(height+7)/8,1);
+                if(reference)
+                {
+                    k=shader.FindKernel("Sharpen");shader.SetFloat("TAA_Sharpness",.35f);
+                    shader.SetTexture(k,"SRV_AliasingColorTexture",result);shader.SetTexture(k,"UAV_AccumulateColorTexture",display);
+                    shader.Dispatch(k,(width+7)/8,(height+7)/8,1);
+                }
             }
             public Color[] Read(RenderTexture texture)
             {
@@ -57,10 +65,36 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
             public void Dispose()
             {
-                foreach(var texture in new Texture[]{current,history,depth,motion,metadata,reactive,result,outputDepth,diagnostics,reprojection}) UnityEngine.Object.DestroyImmediate(texture);
+                foreach(var texture in new Texture[]{current,history,depth,motion,metadata,reactive,result,display,outputDepth,diagnostics,reprojection}) UnityEngine.Object.DestroyImmediate(texture);
                 UnityEngine.Object.DestroyImmediate(shader);
             }
         }
+        [TestCase(17,13,0f)]
+        [TestCase(17,13,1f)]
+        [TestCase(1,9,1f)]
+        [TestCase(32,24,1f)]
+        public void FusedResolve_MatchesTwoDispatchReference(int width,int height,float historyValid)
+        {
+            using(var fused=new Fixture(width,height))
+            using(var reference=new Fixture(width,height,true))
+            {
+                var pixels=new Color[width*height];
+                for(int y=0;y<height;y++) for(int x=0;x<width;x++)
+                    pixels[y*width+x]=new Color((x%7)*.3f,(y%5)*.2f,(x+y)%3==0?8:.01f,1);
+                foreach(var f in new[]{fused,reference})
+                {
+                    f.current.SetPixels(pixels);f.current.Apply(false,false);
+                    f.Run(historyValid,new Vector4(.003f,-.002f,-.004f,.001f));
+                }
+                foreach(var pair in new[]{new[]{fused.result,reference.result},new[]{fused.display,reference.display},new[]{fused.outputDepth,reference.outputDepth},new[]{fused.diagnostics,reference.diagnostics}})
+                {
+                    var actual=fused.Read(pair[0]);var expected=reference.Read(pair[1]);
+                    for(int i=0;i<actual.Length;i++) for(int channel=0;channel<4;channel++)
+                        Assert.That(actual[i][channel],Is.EqualTo(expected[i][channel]).Within(Mathf.Max(.002f,Mathf.Abs(expected[i][channel])*.001f)),$"pixel {i} channel {channel}");
+                }
+            }
+        }
+
         [TestCase(17,13)][TestCase(1,9)][TestCase(9,1)]
         public void ResetDoesNotReadPoisonedHistoryAndWritesEveryPixel(int width,int height)
         {
@@ -107,11 +141,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             using(var f=new Fixture(17,13))
             {
-                Color color=new Color(8,2,1,1);f.Fill(f.current,color);int k=f.shader.FindKernel("Sharpen");
-                f.shader.SetVector("TAA_Resolution",new Vector4(17,13,1f/17,1f/13));f.shader.SetFloat("TAA_Sharpness",.35f);
-                f.shader.SetTexture(k,"SRV_AliasingColorTexture",f.current);f.shader.SetTexture(k,"UAV_AccumulateColorTexture",f.result);
-                f.shader.Dispatch(k,3,2,1);
-                foreach(var p in f.Read(f.result)) { Assert.That(p.r,Is.EqualTo(8).Within(.01));Assert.That(p.g,Is.EqualTo(2).Within(.003));Assert.That(p.b,Is.EqualTo(1).Within(.002)); }
+                Color color=new Color(8,2,1,1);f.Fill(f.current,color);f.Run(0);
+                foreach(var p in f.Read(f.display)) { Assert.That(p.r,Is.EqualTo(8).Within(.01));Assert.That(p.g,Is.EqualTo(2).Within(.003));Assert.That(p.b,Is.EqualTo(1).Within(.002)); }
                 foreach(var p in f.current.GetPixels()) Assert.AreEqual(color,p);
             }
         }
@@ -177,10 +208,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     float intensity = x % 3 == 0 ? 0.1f : x % 3 == 1 ? 0.5f : 0.8f;
                     pixels[y*17+x]=new Color(intensity,intensity*.2f,intensity*.1f,1);
                 }
-                f.current.SetPixels(pixels);f.current.Apply(false,false);int k=f.shader.FindKernel("Sharpen");
-                f.shader.SetVector("TAA_Resolution",new Vector4(17,13,1f/17,1f/13));f.shader.SetFloat("TAA_Sharpness",.35f);
-                f.shader.SetTexture(k,"SRV_AliasingColorTexture",f.current);f.shader.SetTexture(k,"UAV_AccumulateColorTexture",f.result);f.shader.Dispatch(k,3,2,1);
-                foreach(var color in f.Read(f.result))
+                f.current.SetPixels(pixels);f.current.Apply(false,false);f.Run(0);
+                foreach(var color in f.Read(f.display))
                 {
                     Assert.That(color.g/color.r,Is.EqualTo(.2f).Within(.001));
                     Assert.That(color.b/color.r,Is.EqualTo(.1f).Within(.001));

@@ -9,7 +9,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class FogCompositePassUtilityData
     {
-        internal static string ReactiveMaskName = "ReactiveMask";
         internal static int FogComposite_ResolutionID = Shader.PropertyToID("FogComposite_Resolution");
         internal static int FogComposite_MaxDistanceID = Shader.PropertyToID("FogComposite_MaxDistance");
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
@@ -17,17 +16,18 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int SRV_VolumetricFogTextureID = Shader.PropertyToID("SRV_VolumetricFogTexture");
         internal static int SRV_VolumetricCloudTextureID = Shader.PropertyToID("SRV_VolumetricCloudTexture");
         internal static int UAV_FoggedSceneColorTextureID = Shader.PropertyToID("UAV_FoggedSceneColorTexture");
-        internal static int UAV_ReactiveMaskID = Shader.PropertyToID("UAV_ReactiveMask");
-        internal static int KernelFogComposite = 0;
-        internal static int KernelClearReactiveMask = 1;
         internal const string FogKeyword = "FOG_COMPOSITE_FOG";
         internal const string CloudKeyword = "FOG_COMPOSITE_CLOUD";
     }
 
     public partial class InfinityRenderPipeline
     {
+        ComputeShader m_FogCompositeKernelShader;
+        int m_FogCompositeKernel;
+
         struct FogCompositePassData
         {
+            public int kernel;
             public int2 resolution;
             public float maxDistance;
             public int hasFog;
@@ -40,56 +40,6 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef depthTexture;
             public RGTextureRef volumetricFogTexture;
             public RGTextureRef volumetricCloudTexture;
-        }
-
-        struct ClearReactiveMaskPassData
-        {
-            public int2 resolution;
-            public ComputeShader fogCompositeShader;
-            public RGTextureRef reactiveMask;
-        }
-
-        void EnsureReactiveMask(Camera camera)
-        {
-            if (m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReactiveMaskBuffer, out _))
-            {
-                return;
-            }
-
-            if (!GraphicsUtility.HasRequiredKernels(shaders.fogCompositeShader, "ClearReactiveMask"))
-            {
-                throw new System.InvalidOperationException("InfinityRP: ReactiveMask is required but fogCompositeShader kernel ClearReactiveMask is missing.");
-            }
-
-            TextureDescriptor maskDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
-            maskDsc.name = FogCompositePassUtilityData.ReactiveMaskName;
-            maskDsc.dimension = TextureDimension.Tex2D;
-            maskDsc.colorFormat = GraphicsFormat.R8_UNorm;
-            maskDsc.depthBufferBits = EDepthBits.None;
-            maskDsc.enableRandomWrite = true;
-            maskDsc.filterMode = FilterMode.Point;
-            maskDsc.wrapMode = TextureWrapMode.Clamp;
-            RGTextureRef reactiveMask = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ReactiveMaskBuffer, maskDsc);
-
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ClearReactiveMaskPassData>(ProfilingSampler.Get(CustomSamplerId.ClearReactiveMask)))
-            {
-                ref ClearReactiveMaskPassData passData = ref passRef.GetPassData<ClearReactiveMaskPassData>();
-                passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
-                passData.fogCompositeShader = shaders.fogCompositeShader;
-                passData.reactiveMask = passRef.WriteTexture(reactiveMask);
-
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in ClearReactiveMaskPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    cmdEncoder.SetComputeTextureParam(passData.fogCompositeShader, FogCompositePassUtilityData.KernelClearReactiveMask, FogCompositePassUtilityData.UAV_ReactiveMaskID, passData.reactiveMask);
-                    cmdEncoder.DispatchCompute(
-                        passData.fogCompositeShader,
-                        FogCompositePassUtilityData.KernelClearReactiveMask,
-                        Mathf.Max(1, Mathf.CeilToInt(passData.resolution.x / 8.0f)),
-                        Mathf.Max(1, Mathf.CeilToInt(passData.resolution.y / 8.0f)),
-                        1);
-                });
-            }
         }
 
         void ComputeFogComposite(RenderContext renderContext, Camera camera)
@@ -106,13 +56,19 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new System.InvalidOperationException("InfinityRP: Volumetric fog/cloud produced this frame but fogCompositeShader kernel FogComposite is missing.");
             }
 
+            if (m_FogCompositeKernelShader != shaders.fogCompositeShader)
+            {
+                m_FogCompositeKernel = shaders.fogCompositeShader.FindKernel("FogComposite");
+                m_FogCompositeKernelShader = shaders.fogCompositeShader;
+            }
+
             RGTextureRef sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float maxDistance = 64.0f;
             var volFog = ActiveVolumeStack.GetComponent<InfinityTech.Rendering.PostProcess.VolumetricFog>();
             maxDistance = volFog.MaxDistance.value;
 
-            TextureDescriptor foggedDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+            TextureDescriptor foggedDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             foggedDsc.name = "FoggedSceneColor";
             foggedDsc.dimension = TextureDimension.Tex2D;
             foggedDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
@@ -125,6 +81,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite)))
             {
                 ref FogCompositePassData passData = ref passRef.GetPassData<FogCompositePassData>();
+                passData.kernel = m_FogCompositeKernel;
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
                 passData.maxDistance = maxDistance;
                 passData.hasFog = hasFog ? 1 : 0;
@@ -154,18 +111,18 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
                     shader.SetKeyword(new LocalKeyword(shader, FogCompositePassUtilityData.FogKeyword), passData.hasFog != 0);
                     shader.SetKeyword(new LocalKeyword(shader, FogCompositePassUtilityData.CloudKeyword), passData.hasCloud != 0);
-                    cmdEncoder.SetComputeTextureParam(shader, FogCompositePassUtilityData.KernelFogComposite, FogCompositePassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, FogCompositePassUtilityData.KernelFogComposite, FogCompositePassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
                     if (passData.hasFog != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, FogCompositePassUtilityData.KernelFogComposite, FogCompositePassUtilityData.SRV_VolumetricFogTextureID, passData.volumetricFogTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_VolumetricFogTextureID, passData.volumetricFogTexture);
                     }
                     if (passData.hasCloud != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, FogCompositePassUtilityData.KernelFogComposite, FogCompositePassUtilityData.SRV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.SRV_VolumetricCloudTextureID, passData.volumetricCloudTexture);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, FogCompositePassUtilityData.KernelFogComposite, FogCompositePassUtilityData.UAV_FoggedSceneColorTextureID, passData.foggedSceneColorTexture);
-                    cmdEncoder.DispatchCompute(shader, FogCompositePassUtilityData.KernelFogComposite, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, FogCompositePassUtilityData.UAV_FoggedSceneColorTextureID, passData.foggedSceneColorTexture);
+                    cmdEncoder.DispatchCompute(shader, passData.kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });
             }
         }

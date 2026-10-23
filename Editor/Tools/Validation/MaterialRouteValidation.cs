@@ -75,9 +75,9 @@ namespace InfinityTech.Rendering.Editor
                     try
                     {
                         MaterialRouteUtility.Read(material, out item.route, out item.stage);
-                        string expected = item.stage == 0 ? (item.route == 0 ? "GBufferPass" : "ForwardPass") : $"TranslucentT{item.stage - 1}Pass";
+                        string expected = item.stage == 0 ? (item.route == 0 ? "RasterGBufferPass" : "RasterForwardPass") : $"RasterTranslucentT{item.stage - 1}Pass";
                         var enabled = new List<string>();
-                        foreach (string pass in new[] { "GBufferPass", "ForwardPass", "TranslucentT0Pass", "TranslucentT1Pass", "TranslucentT2Pass" })
+                        foreach (string pass in new[] { "RasterGBufferPass", "RasterForwardPass", "RasterTranslucentT0Pass", "RasterTranslucentT1Pass", "RasterTranslucentT2Pass" })
                             if (material.FindPass(pass) >= 0 && material.GetShaderPassEnabled(pass)) enabled.Add(pass);
                         item.enabledShadingPasses = enabled.ToArray();
                         item.routeMatches = enabled.Count == 1 && enabled[0] == expected;

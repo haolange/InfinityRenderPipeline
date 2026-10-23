@@ -61,10 +61,10 @@ namespace InfinityTech.Rendering.Editor.Build
         static readonly HashSet<ShaderTagId> s_UsedLightModes = new HashSet<ShaderTagId>
         {
             ShaderTagId.none, new ShaderTagId("SRPDefaultUnlit"), new ShaderTagId("ShadowCaster"), new ShaderTagId("Meta"),
-            InfinityPassIDs.DepthPass, InfinityPassIDs.DBufferPass, InfinityPassIDs.GBufferPass,
-            InfinityPassIDs.ShadowPass, InfinityPassIDs.MotionPass, InfinityPassIDs.ForwardPass,
-            InfinityPassIDs.TranslucentDepthPass, InfinityPassIDs.TranslucentT0Pass,
-            InfinityPassIDs.TranslucentT1Pass, InfinityPassIDs.TranslucentT2Pass,
+            InfinityPassIDs.RasterDepthPass, InfinityPassIDs.RasterDBufferPass, InfinityPassIDs.RasterGBufferPass,
+            InfinityPassIDs.RasterShadowPass, InfinityPassIDs.RasterMotionPass, InfinityPassIDs.RasterForwardPass,
+            InfinityPassIDs.RasterTranslucentDepthPass, InfinityPassIDs.RasterTranslucentT0Pass,
+            InfinityPassIDs.RasterTranslucentT1Pass, InfinityPassIDs.RasterTranslucentT2Pass,
         };
         static int s_Kept;
         static int s_StrippedForeignTag;

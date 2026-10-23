@@ -27,6 +27,8 @@ namespace InfinityTech.Rendering.GPUResource
             public bool invalidateNextGet;
         }
 
+        FTextureCapacityContext m_TextureCapacity;
+        public void SetTextureCapacity(FTextureCapacityContext capacity) => m_TextureCapacity = capacity;
         readonly Dictionary<int, TextureSlot> m_Textures;
         readonly Dictionary<int, BufferSlot> m_Buffers;
         readonly List<RTHandle> m_RetiredTextures;
@@ -90,23 +92,39 @@ namespace InfinityTech.Rendering.GPUResource
             return GetTexture(id, descriptor, out _);
         }
 
-        public FTextureRef GetTexture(in int id, in TextureDescriptor descriptor, out bool created)
+        public FTextureRef GetTexture(in int id, in TextureDescriptor requestedDescriptor, out bool created)
         {
+            var descriptor = m_TextureCapacity.Resolve(requestedDescriptor);
             TextureSlot slot = GetOrCreateTextureSlot(id);
-            created = ReallocCommittedTextureIfNeeded(slot, descriptor);
+            created = slot.committed == null;
+            if (created)
+            {
+                slot.committed = AllocTexture(descriptor);
+                slot.committedDescriptor = descriptor;
+            }
+            else
+            {
+                // Reading never replaces accepted history. Keep its own logical view until commit.
+                var requestedLogical = descriptor;
+                var committedLogical = slot.committedDescriptor;
+                requestedLogical.allocationWidth = requestedLogical.allocationHeight = 0;
+                committedLogical.allocationWidth = committedLogical.allocationHeight = 0;
+                created = !requestedLogical.Equals(committedLogical);
+            }
             if (slot.invalidateNextGet)
             {
                 created = true;
                 slot.invalidateNextGet = false;
             }
 
-            return new FTextureRef(-1, descriptor, slot.committed);
+            return new FTextureRef(-1, slot.committedDescriptor, slot.committed);
         }
 
-        public FTextureRef GetWriteTexture(in int id, in TextureDescriptor descriptor)
+        public FTextureRef GetWriteTexture(in int id, in TextureDescriptor requestedDescriptor)
         {
+            var descriptor = m_TextureCapacity.Resolve(requestedDescriptor);
             TextureSlot slot = GetOrCreateTextureSlot(id);
-            if (slot.pending != null && !descriptor.Equals(slot.pendingDescriptor))
+            if (slot.pending != null && !descriptor.PhysicalDescriptor().Equals(slot.pendingDescriptor.PhysicalDescriptor()))
             {
                 Retire(slot.pending);
                 slot.pending = null;
@@ -333,25 +351,6 @@ namespace InfinityTech.Rendering.GPUResource
             return slot;
         }
 
-        bool ReallocCommittedTextureIfNeeded(TextureSlot slot, in TextureDescriptor descriptor)
-        {
-            if (slot.committed != null && !descriptor.Equals(slot.committedDescriptor))
-            {
-                Retire(slot.committed);
-                slot.committed = null;
-            }
-
-            if (slot.committed == null)
-            {
-                slot.committed = AllocTexture(descriptor);
-                slot.committedDescriptor = descriptor;
-                return true;
-            }
-
-            slot.committedDescriptor = descriptor;
-            return false;
-        }
-
         void ReallocCommittedBufferIfNeeded(BufferSlot slot, in BufferDescriptor descriptor)
         {
             if (slot.committed != null && !descriptor.Equals(slot.committedDescriptor))
@@ -374,8 +373,8 @@ namespace InfinityTech.Rendering.GPUResource
         static RTHandle AllocTexture(in TextureDescriptor descriptor)
         {
             return RTHandles.Alloc(
-                descriptor.width,
-                descriptor.height,
+                descriptor.physicalWidth,
+                descriptor.physicalHeight,
                 descriptor.slices,
                 (DepthBits)descriptor.depthBufferBits,
                 descriptor.colorFormat,

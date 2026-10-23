@@ -106,7 +106,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             name = "Depth",
             shaderPassIndex = 1,
-            lightModeTag = "DepthPass",
+            lightModeTag = "RasterDepthPass",
             eligibility = EPassEligibility.Depth,
             requiredEligibility = EPassEligibility.Depth,
             renderQueueMin = 0,
@@ -126,7 +126,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             name = "GBuffer",
             shaderPassIndex = 2,
-            lightModeTag = "GBufferPass",
+            lightModeTag = "RasterGBufferPass",
             eligibility = EPassEligibility.GBuffer,
             requiredEligibility = EPassEligibility.GBuffer,
             renderQueueMin = 0,
@@ -144,7 +144,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             name = "Forward",
             shaderPassIndex = 3,
-            lightModeTag = "ForwardPass",
+            lightModeTag = "RasterForwardPass",
             eligibility = EPassEligibility.Forward,
             requiredEligibility = EPassEligibility.Forward,
             renderQueueMin = 0,
@@ -162,7 +162,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             name = "Motion",
             shaderPassIndex = 4,
-            lightModeTag = "MotionPass",
+            lightModeTag = "RasterMotionPass",
             eligibility = EPassEligibility.Motion,
             requiredEligibility = EPassEligibility.Motion,
             renderQueueMin = 0,
@@ -182,7 +182,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             name = "Shadow",
             shaderPassIndex = 0,
-            lightModeTag = "ShadowPass",
+            lightModeTag = "RasterShadowPass",
             eligibility = EPassEligibility.Shadow,
             requiredEligibility = EPassEligibility.Shadow,
             renderQueueMin = 0,
@@ -199,13 +199,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         };
 
         public static readonly MeshPassDefinition TranslucentDepth = CreateTranslucent(
-            "TranslucentDepth", "TranslucentDepthPass", shaderPassIndex: 0);
+            "TranslucentDepth", "RasterTranslucentDepthPass", shaderPassIndex: 0);
         public static readonly MeshPassDefinition TranslucentT0 = CreateTranslucent(
-            "TranslucentT0", "TranslucentT0Pass", shaderPassIndex: 0);
+            "TranslucentT0", "RasterTranslucentT0Pass", shaderPassIndex: 0);
         public static readonly MeshPassDefinition TranslucentT1 = CreateTranslucent(
-            "TranslucentT1", "TranslucentT1Pass", shaderPassIndex: 0);
+            "TranslucentT1", "RasterTranslucentT1Pass", shaderPassIndex: 0);
         public static readonly MeshPassDefinition TranslucentT2 = CreateTranslucent(
-            "TranslucentT2", "TranslucentT2Pass", shaderPassIndex: 0);
+            "TranslucentT2", "RasterTranslucentT2Pass", shaderPassIndex: 0);
 
         static MeshPassDefinition CreateTranslucent(string name, string lightModeTag, int shaderPassIndex)
         {

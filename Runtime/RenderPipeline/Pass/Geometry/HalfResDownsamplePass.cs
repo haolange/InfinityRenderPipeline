@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
             int halfWidth = Mathf.Max(1, fullWidth >> 1);
             int halfHeight = Mathf.Max(1, fullHeight >> 1);
 
-            TextureDescriptor halfResDepthDsc = new TextureDescriptor(halfWidth, halfHeight);
+            TextureDescriptor halfResDepthDsc = new TextureDescriptor(halfWidth, halfHeight, ETextureSizingDomain.Internal, 2);
             {
                 halfResDepthDsc.name = HalfResDownsamplePassUtilityData.DepthTextureName;
                 halfResDepthDsc.dimension = TextureDimension.Tex2D;
@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef halfResDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
 
-            TextureDescriptor halfResNormalDsc = new TextureDescriptor(halfWidth, halfHeight);
+            TextureDescriptor halfResNormalDsc = new TextureDescriptor(halfWidth, halfHeight, ETextureSizingDomain.Internal, 2);
             {
                 halfResNormalDsc.name = HalfResDownsamplePassUtilityData.NormalTextureName;
                 halfResNormalDsc.dimension = TextureDimension.Tex2D;

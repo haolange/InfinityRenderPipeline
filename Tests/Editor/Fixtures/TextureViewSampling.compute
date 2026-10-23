@@ -1,0 +1,17 @@
+#pragma kernel SampleView
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/Common.hlsl"
+Texture2D<float4> SRV_SceneColorTexture;
+StructuredBuffer<float4> SRV_ViewSamples;
+RWStructuredBuffer<float4> UAV_ViewResults;
+int ViewUseLinearMips;
+int ViewUseMetadata;
+[numthreads(8,1,1)]
+void SampleView(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= 12) return;
+    float4 sample = SRV_ViewSamples[id.x];
+    if (ViewUseMetadata == 0)
+        UAV_ViewResults[id.x] = ViewUseLinearMips != 0 ? SRV_SceneColorTexture.SampleLevel(Global_trilinear_clamp_sampler, sample.xy, sample.z) : SRV_SceneColorTexture.SampleLevel(Global_bilinear_clamp_sampler, sample.xy, sample.z);
+    else
+        UAV_ViewResults[id.x] = ViewUseLinearMips != 0 ? InfinitySampleLevelTrilinear(SRV_SceneColorTexture, Global_trilinear_clamp_sampler, sample.xy, sample.z) : InfinitySampleLevel(SRV_SceneColorTexture, Global_bilinear_clamp_sampler, sample.xy, sample.z);
+}

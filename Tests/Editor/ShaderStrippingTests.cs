@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader()
         {
             Assert.IsTrue(InfinityShaderStripper.IsInfinityActive);
-            Shader used = LoadFixture("GBufferPass", true);
+            Shader used = LoadFixture("RasterGBufferPass", true);
             Shader unused = LoadFixture("ForwardBase", true);
             var usedVariants = new List<UnityEditor.Rendering.ShaderCompilerData> { default, default };
             new InfinityShaderStripper().OnProcessShader(used, default, usedVariants);
@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase("ShadowCaster", true)]
         [TestCase("SRPDefaultUnlit", true)]
         [TestCase("Meta", true)]
-        [TestCase("TerrainAdd", false)]
+        [TestCase("RasterTerrainAdd", false)]
         [TestCase("SystemLUT", false)]
         public void ActualShaderCallback_PreservesNativeAndSystemPasses(string pass, bool infinityTagged)
         {
@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [TestCase("ForwardBase")]
-        [TestCase("TerrainAdd")]
+        [TestCase("RasterTerrainAdd")]
         [TestCase("SystemLUT")]
         public void ActualShaderCallback_StripsUndrawnLightModesOnlyInInfinitySubShader(string pass)
         {

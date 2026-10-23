@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         static void ValidateMotionInput(in MeshPassContext pass)
         {
-            if (pass.lightModeTag == "MotionPass" && pass.previousTransforms == null)
+            if (pass.lightModeTag == "RasterMotionPass" && pass.previousTransforms == null)
                 throw new System.InvalidOperationException("Motion draws require the selected view's previous-transform producer.");
         }
 
@@ -382,31 +382,34 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        public void PrepareSubmit(CommandBuffer cmdBuffer, in RGDrawListRef draws)
+        internal RGDrawListRecord PrepareGraphRecord(int index)
         {
-            if (cmdBuffer == null || !IsLiveRef(draws))
+            EnsureResolved(index);
+            var record = m_Records[index];
+            if (record.state == ERGDrawListCompileState.Resolved && record.pipeline != null && record.gpuPayload == null)
+                record.cpuIndexBuffer = record.pipeline.AllocateCpuDirect(record.resolvedList);
+            m_Records[index] = record;
+            return record;
+        }
+        internal void Upload(int index, CommandBuffer commands)
+        {
+            var record = m_Records[index];
+            if (record.gpuPayload != null)
+                commands.SetBufferData(record.gpuPayload.commandMeta, record.gpuStaging.commandMeta, 0, 0, record.gpuStaging.commandCount * 4);
+            else if (record.pipeline != null)
+                record.pipeline.UploadCpuDirect(commands, record.resolvedList, record.cpuIndexBuffer);
+        }
+        internal void Compact(int index, CommandBuffer commands)
+        {
+            var record = m_Records[index];
+            string slice = SliceSampleName(new RGDrawListRef(m_ContextId, index, m_GraphGeneration));
+            if (slice != null) commands.BeginSample(slice);
+            try
             {
-                return;
+                if (!record.pipeline.PrepareGpu(commands, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.view, record.passId))
+                    throw new System.InvalidOperationException("MeshDraw GPU preparation failed after its record-time budget and backend decision.");
             }
-
-            RGDrawListRecord record = m_Records[draws.index];
-            if (record.state != ERGDrawListCompileState.Resolved || record.pipeline == null)
-            {
-                return;
-            }
-
-            if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect
-                && record.gpuPayload != null
-                && record.gpuStaging != null
-                && record.pipeline.PrepareGpu(cmdBuffer, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.view, record.passId))
-            {
-                m_Records[draws.index] = record;
-                return;
-            }
-
-            FallbackCpuDirect(ref record, countOverflow: false);
-            record.cpuIndexBuffer = record.pipeline.PrepareCpuDirect(cmdBuffer, record.resolvedList);
-            m_Records[draws.index] = record;
+            finally { if (slice != null) commands.EndSample(slice); }
         }
 
         static void AcquireCpuVisibility(ref RGDrawListRecord record, MeshWorld producer)

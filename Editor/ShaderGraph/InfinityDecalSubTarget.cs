@@ -29,7 +29,7 @@ namespace UnityEditor.Rendering.Infinity.ShaderGraph
                 generatesPreview = false,
                 passes = new PassCollection
                 {
-                    InfinityPasses.DBufferPass(target),
+                    InfinityPasses.RasterDBufferPass(target),
                 }
             };
             context.AddSubShader(subShader);

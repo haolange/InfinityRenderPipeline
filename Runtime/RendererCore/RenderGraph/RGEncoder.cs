@@ -157,21 +157,25 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetGlobalTexture(string name, RenderTargetIdentifier value)
         {
+            TextureViewBindings.Global(m_CommandBuffer, Shader.PropertyToID(name), value);
             m_CommandBuffer.SetGlobalTexture(name, value);
         }
 
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value)
         {
+            TextureViewBindings.Global(m_CommandBuffer, nameID, value);
             m_CommandBuffer.SetGlobalTexture(nameID, value);
         }
 
         public void SetGlobalTexture(string name, RenderTargetIdentifier value, RenderTextureSubElement element)
         {
+            TextureViewBindings.Global(m_CommandBuffer, Shader.PropertyToID(name), value);
             m_CommandBuffer.SetGlobalTexture(name, value, element);
         }
 
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value, RenderTextureSubElement element)
         {
+            TextureViewBindings.Global(m_CommandBuffer, nameID, value);
             m_CommandBuffer.SetGlobalTexture(nameID, value, element);
         }
 
@@ -299,31 +303,37 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, nameID, rt);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt, 0, RenderTextureSubElement.Default);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, Shader.PropertyToID(name), rt);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, 0, RenderTextureSubElement.Default);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, nameID, rt, mipLevel);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt, mipLevel, RenderTextureSubElement.Default);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt, int mipLevel)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, Shader.PropertyToID(name), rt, mipLevel);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, mipLevel, RenderTextureSubElement.Default);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel, RenderTextureSubElement element)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, nameID, rt, mipLevel);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, nameID, rt, mipLevel, element);
         }
 
         public void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, string name, RenderTargetIdentifier rt, int mipLevel, RenderTextureSubElement element)
         {
+            TextureViewBindings.Compute(m_CommandBuffer, computeShader, Shader.PropertyToID(name), rt, mipLevel);
             m_CommandBuffer.SetComputeTextureParam(computeShader, kernelIndex, name, rt, mipLevel, element);
         }
 
@@ -818,21 +828,25 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void SetGlobalTexture(string name, RenderTargetIdentifier value)
         {
+            TextureViewBindings.Global(m_CommandBuffer, Shader.PropertyToID(name), value);
             m_CommandBuffer.SetGlobalTexture(name, value);
         }
 
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value)
         {
+            TextureViewBindings.Global(m_CommandBuffer, nameID, value);
             m_CommandBuffer.SetGlobalTexture(nameID, value);
         }
 
         public void SetGlobalTexture(string name, RenderTargetIdentifier value, RenderTextureSubElement element)
         {
+            TextureViewBindings.Global(m_CommandBuffer, Shader.PropertyToID(name), value);
             m_CommandBuffer.SetGlobalTexture(name, value, element);
         }
 
         public void SetGlobalTexture(int nameID, RenderTargetIdentifier value, RenderTextureSubElement element)
         {
+            TextureViewBindings.Global(m_CommandBuffer, nameID, value);
             m_CommandBuffer.SetGlobalTexture(nameID, value, element);
         }
 
@@ -949,12 +963,16 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void DrawRendererList(in RendererList rendererList)
         {
-            m_CommandBuffer.DrawRendererList(rendererList);
+            m_CommandBuffer.BeginSample("RasterRendererList");
+            try { m_CommandBuffer.DrawRendererList(rendererList); }
+            finally { m_CommandBuffer.EndSample("RasterRendererList"); }
         }
 
         public void DrawRendererList(in RGRendererListRef rendererList)
         {
-            m_RendererLists?.Submit(m_CommandBuffer, rendererList);
+            m_CommandBuffer.BeginSample("RasterRendererList");
+            try { m_RendererLists?.Submit(m_CommandBuffer, rendererList); }
+            finally { m_CommandBuffer.EndSample("RasterRendererList"); }
         }
 
         public void DrawProcedural(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, in int vertexCount, in int instanceCount, MaterialPropertyBlock properties)

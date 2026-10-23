@@ -11,7 +11,7 @@ namespace InfinityTech.Rendering.Pipeline
         static DateTime s_LastRequestWrite;
         static bool s_ArgumentsRead;
 
-        internal static bool IsSupportedBuffer(string name) => name == "TAAInput" || name == "TAAHistoryColor" || name == "TAAHistoryDepth" || name == "TAAAccumulation" || name == "TAADepth" || name == "TAAReprojection" || name == "MotionMetadata" || name == "AOTrace" || name == "AOSpatialX" || name == "AOSpatialY" || name == "AOTemporal" || name == "DisplayColor" || name == "PostProcess" ||
+        internal static bool IsSupportedBuffer(string name) => name == "TAAInput" || name == "TAAHistoryColor" || name == "TAAHistoryDepth" || name == "TAAAccumulation" || name == "TAADepth" || name == "TAAReprojection" || name == "MotionMetadata" || name == "ReactiveMask" || name == "AOTrace" || name == "AOSpatialX" || name == "AOSpatialY" || name == "AOTemporal" || name == "DisplayColor" || name == "PostProcess" ||
             name == "Lighting" || name == "DeferredLighting" || name == "LightTileMask" || name == "Motion" || name == "Depth" || name == "DBufferA" || name == "DBufferB" || name == "DBufferC" || name == "GBufferA" ||
             name == "GBufferB" || name == "GBufferC" || name == "Occlusion" || name == "SSR" ||
             name == "SSGI" || name == "SceneColor" || name == "AntiAliasing" ||

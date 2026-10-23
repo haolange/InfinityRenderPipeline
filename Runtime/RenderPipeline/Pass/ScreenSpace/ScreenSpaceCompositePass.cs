@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
 
-            TextureDescriptor compositeDsc = new TextureDescriptor(width, height);
+            TextureDescriptor compositeDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             compositeDsc.name = ScreenSpaceCompositePassUtilityData.TextureName;
             compositeDsc.dimension = TextureDimension.Tex2D;
             compositeDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;

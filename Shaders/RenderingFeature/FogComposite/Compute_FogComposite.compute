@@ -1,5 +1,5 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel FogComposite
-#pragma kernel ClearReactiveMask
 
 #pragma multi_compile_local _ FOG_COMPOSITE_FOG
 #pragma multi_compile_local _ FOG_COMPOSITE_CLOUD
@@ -20,7 +20,6 @@ Texture3D<float4> SRV_VolumetricFogTexture;
 Texture2D<float4> SRV_VolumetricCloudTexture;
 #endif
 RWTexture2D<float4> UAV_FoggedSceneColorTexture;
-RWTexture2D<float> UAV_ReactiveMask;
 
 [numthreads(8, 8, 1)]
 void FogComposite(uint3 id : SV_DispatchThreadID)
@@ -29,8 +28,8 @@ void FogComposite(uint3 id : SV_DispatchThreadID)
         return;
 
     float2 screenUV = (id.xy + 0.5) * FogComposite_Resolution.zw;
-    float3 sceneColor = SRV_SceneColorTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).rgb;
-    float depth = SRV_DepthTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0).r;
+    float3 sceneColor = InfinitySampleLevel(SRV_SceneColorTexture,Global_point_clamp_sampler,screenUV,0).rgb;
+    float depth = InfinitySampleLevel(SRV_DepthTexture,Global_point_clamp_sampler,screenUV,0).r;
 
     float2 ndc = screenUV * 2.0 - 1.0;
     float4 world = mul(Matrix_InvViewProj, float4(ndc, depth, 1.0));
@@ -39,24 +38,14 @@ void FogComposite(uint3 id : SV_DispatchThreadID)
 
 #if defined(FOG_COMPOSITE_FOG)
     float fogSlice = saturate(sqrt(linearDepth / max(FogComposite_MaxDistance, 1.0)));
-    float4 fogData = SRV_VolumetricFogTexture.SampleLevel(Global_trilinear_clamp_sampler, float3(screenUV, fogSlice), 0);
+    float4 fogData = InfinitySampleLevelTrilinear(SRV_VolumetricFogTexture,Global_trilinear_clamp_sampler,float3(screenUV, fogSlice),0);
     sceneColor = sceneColor * fogData.a + fogData.rgb;
 #endif
 
 #if defined(FOG_COMPOSITE_CLOUD)
-    float4 cloudData = SRV_VolumetricCloudTexture.SampleLevel(Global_bilinear_clamp_sampler, screenUV, 0);
+    float4 cloudData = InfinitySampleLevel(SRV_VolumetricCloudTexture,Global_bilinear_clamp_sampler,screenUV,0);
     sceneColor = sceneColor * cloudData.a + cloudData.rgb;
 #endif
 
     UAV_FoggedSceneColorTexture[id.xy] = float4(max(0, sceneColor), 1);
-}
-
-[numthreads(8, 8, 1)]
-void ClearReactiveMask(uint3 id : SV_DispatchThreadID)
-{
-    uint width, height;
-    UAV_ReactiveMask.GetDimensions(width, height);
-    if (any(id.xy >= uint2(width, height)))
-        return;
-    UAV_ReactiveMask[id.xy] = 0;
 }

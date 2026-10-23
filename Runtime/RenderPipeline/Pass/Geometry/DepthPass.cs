@@ -20,10 +20,10 @@ namespace InfinityTech.Rendering.Pipeline
             public RGRendererListRef rendererList;
         }
 
-        void RenderDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
+        void RasterDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.Depth);
-            TextureDescriptor depthTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
+            TextureDescriptor depthTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
                 depthTextureDsc.name = DepthPassUtilityData.TextureName;
                 depthTextureDsc.dimension = TextureDimension.Tex2D;
@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGTextureRef depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
             RGDrawListRef depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Depth);
-            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.DepthPass, cullingResults, camera);
+            RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDepthPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
                 rendererListDesc.renderQueueRange = new RenderQueueRange(0, 2999);
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             RGRendererListRef depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RenderDepth)))
+            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
             {
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 

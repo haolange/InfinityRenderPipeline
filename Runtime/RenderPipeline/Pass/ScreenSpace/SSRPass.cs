@@ -108,10 +108,11 @@ namespace InfinityTech.Rendering.Pipeline
         internal static bool IsDebugView(EDebugView view) =>
             view == EDebugView.SSRTileClass || view == EDebugView.SSRRayHit || view == EDebugView.SSRConfidence || view == EDebugView.SSRHistoryAge;
 
-        internal static TextureDescriptor CreateDescriptor(int width, int height, string name, GraphicsFormat format, FilterMode filter)
+        internal static TextureDescriptor CreateDescriptor(int width, int height, string name, GraphicsFormat format, FilterMode filter, int divisor = 1)
         {
             TextureDescriptor descriptor = ScreenSpaceHistoryUtility.CreateFilterDescriptor(width, height, name, format, true);
             descriptor.filterMode = filter;
+            descriptor.viewDivisor = divisor;
             return descriptor;
         }
     }
@@ -186,7 +187,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             RGTextureRef rayHit = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRayHitBuffer,
                 // Hit UV and depth are geometric data: half precision can move them into another depth texel.
-                SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSRPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point));
+                SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSRPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, settings.halfResolution ? 2 : 1));
             RGTextureRef resolved = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRResolvedBuffer,
                 SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.ResolvedName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear));
             RGTextureRef hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDistanceBuffer,
@@ -264,7 +265,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passData.tileArgs = passRef.CreateTemporaryBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * 3, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "SSRTileArgs" });
                 passData.tileList = passRef.CreateTemporaryBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * maxTiles, sizeof(uint), ComputeBufferType.Structured) { name = "SSRTileList" });
-                TextureDescriptor tileClassDescriptor = SSRPassUtilityData.CreateDescriptor(tileCount.x, tileCount.y, "SSRTileClass", GraphicsFormat.R32_UInt, FilterMode.Point);
+                TextureDescriptor tileClassDescriptor = SSRPassUtilityData.CreateDescriptor(tileCount.x, tileCount.y, "SSRTileClass", GraphicsFormat.R32_UInt, FilterMode.Point, 8 * (settings.halfResolution ? 2 : 1));
                 RenderCaptureSession capture = RenderCaptureService.current;
                 bool captureTileClass = capture != null && capture.CaptureThisFrame && capture.request.Matches(camera)
                     && System.Array.IndexOf(capture.request.buffers, "SSRTileClass") >= 0;

@@ -13,7 +13,7 @@ Checks
   records   C# structs marked `// GPU-RECORD: <HlslStruct> <hlsl file>` match the HLSL struct field order/types
   sgstrings string contracts in Editor/ShaderGraph (shader includes, GUI class names) resolve
 """
-import argparse, hashlib, json, os, re, sys
+import argparse, hashlib, json, os, re, sys, runpy
 
 IGNORED_DIRS = {'.git', '.cursor', 'Documentation~', '.github'}
 UNITY_LIGHTMODES = {'ShadowCaster', 'Meta', 'SRPDefaultUnlit', 'Always', 'ForwardBase', 'DepthOnly', 'MotionVectors', 'RTAO'}
@@ -94,9 +94,15 @@ def check_respath(repo, out):
 
 def check_lightmode(repo, out):
     declared = set(re.findall(r'new ShaderTagId\("(\w+)"\)', without_comments(read(os.path.join(repo, 'Runtime/RenderPipeline/Utility/PipelineIDs.cs')))))
+    for tag in declared:
+        if not tag.startswith('Raster') or not tag.endswith('Pass'):
+            out.append(('ERROR', 'lightmode', f'Infinity LightMode must use RasterXXXPass: {tag}'))
     for p in all_files(repo, {'.shader', '.template'}):
         if os.sep + 'Tests' + os.sep in p:
             continue  # test fixtures deliberately use foreign LightModes
+        for name in re.findall(r'(?<!["\w])Name\s*"([^"\n]+)"', without_comments(read(p))):
+            if not name.startswith('Raster') and name not in {'ShadowCaster', 'Meta', 'SRPDefaultUnlit'}:
+                out.append(('ERROR', 'lightmode', f'{os.path.relpath(p, repo)}: raster pass Name must use Raster prefix: {name}'))
         for m in re.finditer(r'"LightMode"\s*=\s*"(\w+)"', without_comments(read(p))):
             if m.group(1) not in declared and m.group(1) not in UNITY_LIGHTMODES:
                 out.append(('ERROR', 'lightmode', f'{os.path.relpath(p, repo)}: LightMode "{m.group(1)}" not in InfinityPassIDs'))
@@ -225,6 +231,17 @@ def check_sgstrings(repo, out):
             if m.group(1) not in declared and m.group(1) not in UNITY_LIGHTMODES:
                 out.append(('ERROR', 'sgstrings', f'InfinityPasses.cs: LightMode "{m.group(1)}" not in InfinityPassIDs'))
 
+def check_texture_views(repo, out):
+    generator = os.path.join(repo, 'Tools', 'TextureViews.py')
+    if not os.path.exists(generator):
+        out.append(('ERROR', 'textureviews', 'missing texture view registry generator'))
+        return
+    registry = runpy.run_path(generator, run_name='texture_view_registry')
+    for path, expected in registry['outputs']().items():
+        if not path.exists() or path.read_text() != expected:
+            out.append(('ERROR', 'textureviews', 'stale generated binding registry: ' + os.path.relpath(path, repo)))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -232,7 +249,7 @@ def main():
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings)):
+                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

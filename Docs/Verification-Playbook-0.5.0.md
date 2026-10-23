@@ -10,7 +10,7 @@ S0–S17. S1 acceptance combines its historical related contracts/behavior with 
 suite; the missing historical whole-Example run is explicitly waived, not represented as executed. The 53 external
 SDK skips retain their actual reasons and outcomes outside Infinity acceptance. Current picture defects, required
 whole-frame performance comparisons, three cold-start transient checks and final normal-image regressions remain
-separate gates under the active `PLAN.md` ledger.
+separate gates in the conversation task list.
 
 ```
 git log --reverse --format='%h %s' origin/main..claude/infinityrp-0.5
@@ -252,7 +252,7 @@ still fails. Retain the original failed check; these missing historical images a
    bias to hide a same-plane failure; gradient correction must use the actual sampled texel center. Local blocker
    search must cover the possible near-plane emitter footprint, rather than only its receiver-plane radius.
 2. RP Asset → Lighting & Shadows: new Cascade Count, Cascade Blend Width and Shadow Filter Quality. Cascade Count 1–4
-   changes the number of cascades in Frame Debugger (`RenderCascadeShadow`); with Blend Width 0.1 the cascade seams on a
+   changes the number of cascades in Frame Debugger (`RasterCascadeShadow`); with Blend Width 0.1 the cascade seams on a
    long floor are no longer visible as a hard line.
 3. Shadow Filter Quality Low → Ultra: PCF edges grow from 3×3 to 7×7 texels. Custom shows editable fields; Copy Preset
    To Custom copies the current preset. Seed all seven Custom fields with different legal values before copying; native Undo must restore that complete struct and quality, and Redo must restore the copied state. Use a transient clone so source assets remain unchanged.
@@ -281,7 +281,7 @@ still fails. Retain the original failed check; these missing historical images a
    The producer→RGBA16F→visibility cases must keep equal-depth surfaces lit and independent receivers behind them
    shadowed; a float-only moment helper does not cover storage precision. Receiver comparison accounts for the
    half-float mean's conservative representation bound, without changing the authored shadow bias or atlas format.
-2. Sun Shadow Filter = EVSM: Frame Debugger shows `ComputeShadowMoments` after `RenderLocalShadow`, with one
+2. Sun Shadow Filter = EVSM: Frame Debugger shows `ComputeShadowMoments` after `RasterLocalShadow`, with one
    `MomentFromDepth` + two blur dispatches per cascade; Rendering Debugger → Frame Features lists ShadowMoments as
    Records. Confirm actual dispatches separately; the feature state alone does not prove production. Shadows are smooth; contact areas stay dark.
 3. Switch to VSM: overlapping occluders at different depths show light bleeding (a lighter halo inside the far
@@ -298,8 +298,8 @@ still fails. Retain the original failed check; these missing historical images a
 
 1. Compile; run `LocalShadowCacheTests` and `ShadowDepthCopyGpuTests` (actual depth-tile GPU round trip). Check nonzero source/destination offsets, different atlas sizes, every neighbour pixel and the independent legal R32 color-copy reference. Depth-only atlases use separate save/load Raster passes; no region `CopyTexture` is allowed. A green slot-state test alone does not prove cached depth contents.
 2. A shadowed spot light → Shadow Update Mode = OnEnable. Rendering Debugger → Infinity Lighting: Cached Shadow Tiles 1,
-   Cached Shadow Re-renders 1 on the first frame, then 0. Frame Debugger: `CopyCachedLocalShadow` appears and the
-   spot's `LocalShadowSlice` draw disappears from `RenderLocalShadow` on later frames.
+   Cached Shadow Re-renders 1 on the first frame, then 0. Frame Debugger: `RasterCopyShadowDepthTiles` appears and the
+   spot's `LocalShadowSlice` draw disappears from `RasterLocalShadow` on later frames.
 3. Move a cube under the spot: its shadow stays where it was (cached). Move or rotate the light: one re-render.
    Disable and re-enable the Infinity component: one re-render.
 4. OnDemand on a point light: six cached tiles; moving the light does not re-render; the inspector button
@@ -320,7 +320,7 @@ still fails. Retain the original failed check; these missing historical images a
 1. Compile; run `ShadowmaskCasterFilterTests`.
 2. Project Settings → Quality → Shadowmask Mode = Shadowmask; Lighting → Mixed Lighting = Shadowmask; a Mixed sun and a
    Mixed spot; a static cube (Contribute GI, lightmapped) and a dynamic sphere. Bake.
-3. Frame Debugger → `RenderCascadeShadow` / `RenderLocalShadow`: the static cube is not drawn; the sphere is. On
+3. Frame Debugger → `RasterCascadeShadow` / `RasterLocalShadow`: the static cube is not drawn; the sphere is. On
    screen the cube's shadow still appears (from the shadowmask), the sphere's shadow is realtime.
 4. Switch Shadowmask Mode to Distance Shadowmask: the cube is drawn into the shadow maps again.
 5. With a MeshComponent (Static mobility) using a lightmapped renderer as its baked source: same result as step 3.
@@ -457,7 +457,7 @@ still fails. Retain the original failed check; these missing historical images a
    a translucent stage). Save: the shader compiles without errors (Inspector of the graph asset → no error list).
 3. A Lit graph with a texture into Base Color and a normal map, on a cube next to an InfinityLit cube with the same
    inputs: both look the same in Deferred; switch the material's Surface Route to Forward: still the same, Frame
-   Debugger draws it in `ForwardPass`.
+   Debugger draws it in `RasterForwardPass`.
    After changing target-generation code, reimport the task graph and inspect its actual keyword space before frame
    acceptance; an already loaded graph can retain its prior generated shader across a script reload.
    Preserve a black-output control even when later frames recover. Confirm the current normal-frame result again after
@@ -549,7 +549,7 @@ still fails. Retain the original failed check; these missing historical images a
    DBuffer RGB already contains coverage, so it must not be multiplied by alpha again when applied.
    Capture DBufferA/B/C to check actual MRT coverage and premultiplied values, including overlapping and partially
    faded decals. Run two Game cameras with opposite Decals overrides in both depth orders; compare GBuffer and
-   Lighting for order independence and verify that only the enabled camera records RenderDBuffer.
+   Lighting for order independence and verify that only the enabled camera records RasterDBuffer.
 6. Reflection probe with Infinity data Influence = Sphere: a sphere handle edits Sphere Radius.
 
 ## S15f — Rendering Debugger panels and Draw Modes
@@ -585,7 +585,7 @@ still fails. Retain the original failed check; these missing historical images a
 2. Window/Analysis/Infinity Render Graph Viewer with the Game view playing: the camera popup lists the Game and Scene
    cameras; columns show every pass (orange = async compute such as the light tile mask, gray = culled). Hovering a
    header names the pass; clicking shows its queue, wait / signal passes and resource lists.
-3. Rows: GBufferA/B/C are written by RenderGBuffer and read by DeferredShading; the blue band spans from the
+3. Rows: GBufferA/B/C are written by RasterGBuffer and read by DeferredShading; the blue band spans from the
    allocating pass to the releasing pass. Imported rows (•) such as history textures have no band.
    Toggle Imported and select an imported row: read/write cells remain visible while pool allocation/release are absent.
 4. Turn SSR off in the Volume: its passes disappear (not recorded). Pause freezes the capture; Copy puts the graph as
@@ -734,3 +734,40 @@ RenderTexture omits final backbuffer Present/overlay; whole-Editor timing is not
 requires same-code observation-state controls before attributing it to a code regression. A repaired missing DBuffer
 adds real work and is not an equal-image speed comparison. APV/lightmap/bake-process cost remains separate from baked
 environment input sampling. See performance-report.md for exact exclusions and retained original groups.
+
+## Output convergence verification
+
+Use bounded normal-frame captures and exact camera/viewport identities. Compare direct
+and linear-intermediate output with SDR UI, HDR transfer policies on controlled RTs,
+partial viewports, multiple cameras, post bypass and DebugView. Verify no encoded
+target is exposed as DisplayColor. Validate TAA reactive initialization with zero draws
+and T0/T1/T2 layers, then switch to SR and confirm the attachment/output is absent.
+Verify Editor overlays request display depth only when recorded; exercise cached-shadow
+first save, cache hit, explicit invalidation and neighboring tile preservation. Record
+GPU timing only if the counters provide positive, credible samples.
+
+
+## Capacity, fused TAA and MeshDraw verification
+
+Use a fixed camera and frozen animation for baseline/candidate captures. Drive
+bounded size sequences within a bucket, across growth boundaries, through
+landscape/portrait and back to a smaller stable size. Observe accepted-request
+capacity, pool allocation/reuse/eviction estimates and pending retirement; repeated
+size cycles must stabilize after warmup. Exercise Main, SceneView, Preview, SR,
+RenderTexture, UI, DebugView and camera disposal without changing saved assets.
+Poison unused texture regions; validate valid edges and fractional/odd mip samples
+against exact-sized textures. Test rollback without advancing extent history.
+Run TextureCapacityTests, TemporalResolveGpuTests, MeshDrawBatchGpuTests,
+RGDrawListLifetimeTests, MeshSceneTests and related graph/history/output contracts.
+Read accepted history before requesting a resized pending target; roll back and
+verify that its old logical/physical view survives. Also change only capacity and
+verify that history remains valid. Capture a zero-warmup resize frame to prove
+current and previous dimensions remain separate.
+Verify one fused TAA dispatch and unsharpened pending history. Compare both history
+and sharpened display with the test-only two-stage reference at half precision.
+Verify shared live DrawLists prepare once, dead lists do not prepare, CPU Direct
+has no Compact producer, and later GPU batches preserve earlier output ranges.
+Inspect normal frames and graph resource dependencies; report incomplete debugger
+exports separately. Use 32 warmup plus 120 timing samples per representative path,
+and report GPU timing only when actually available. Stop/drain all producers,
+restore the owned Editor and remove task-generated data at completion.

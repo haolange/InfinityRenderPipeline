@@ -119,7 +119,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 readback = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
                     "Packages/com.infinity.render-pipeline/Runtime/Resources/Compute_CaptureDepth.compute"));
                 commands = new CommandBuffer();
-                int pass = material.FindPass("CopyShadowDepthTile");
+                int pass = material.FindPass("RasterCopyShadowDepthTile");
                 Assert.GreaterOrEqual(pass, 0);
                 Copy(commands, material, triangle, pass, source, frame, new RectInt(0, 0, 32, 24), new RectInt(0, 0, 32, 24));
                 Copy(commands, material, triangle, pass, sentinel, cache, new RectInt(0, 0, 48, 40), new RectInt(0, 0, 48, 40));

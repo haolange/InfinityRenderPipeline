@@ -1,3 +1,4 @@
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel DeferredShadingCS
 #pragma multi_compile_local _ DEFERRED_AO
 #pragma multi_compile_local _ DEFERRED_CONTACT_SHADOW
@@ -52,7 +53,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     }
 
     FGBufferData gbufferData;
-    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, gbufferData);
+    DecodeGBuffer(pixelCoord, SRV_GBufferTextureA, SRV_GBufferTextureB, SRV_GBufferTextureC, SRV_GBufferTextureA_InfinityView, gbufferData);
 
     if ((gbufferData.Flags & GBUFFER_FLAG_FORWARD) != 0)
     {
@@ -75,7 +76,7 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     MicrofaceContext microfaceCtx = InitMicrofaceContext(specular, roughness, reflectance, albedo);
 
 #if defined(DEFERRED_AO)
-    float ao = SRV_OcclusionTexture.SampleLevel(Global_point_clamp_sampler, screenUV, 0);
+    float ao = InfinitySampleLevel(SRV_OcclusionTexture,Global_point_clamp_sampler,screenUV,0);
 #else
     float ao = 1.0;
 #endif

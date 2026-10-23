@@ -31,13 +31,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void ShouldProduceReactiveMask_WhenTaaPathActive()
-        {
-            Assert.IsTrue(TranslucentFeatureUtility.ShouldProduceReactiveMask(true));
-            Assert.IsFalse(TranslucentFeatureUtility.ShouldProduceReactiveMask(false));
-        }
-
-        [Test]
         public void VolumetricFog_IsActive_RequiresEnable()
         {
             VolumetricFog fog = ScriptableObject.CreateInstance<VolumetricFog>();
