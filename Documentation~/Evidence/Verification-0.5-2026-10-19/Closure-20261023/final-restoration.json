@@ -1,0 +1,157 @@
+{
+  "final-restored.json": {
+    "success": true,
+    "command": "command run_script",
+    "data": {
+      "command": "run_script",
+      "parameters": {
+        "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/ClosurePreflight.cs",
+        "entry": "ClosurePreflight.Read",
+        "args": "[]"
+      },
+      "result": {
+        "diagnostics": [],
+        "compileMs": 31,
+        "executeMs": 16,
+        "assemblyName": "PipelineRunScript_ClosurePreflight_4fdf7d45894645ffbb38fc917fea7ac2",
+        "success": true,
+        "result": {
+          "pid": 42623,
+          "playing": false,
+          "compiling": false,
+          "baking": false,
+          "scenes": [
+            {
+              "path": "Assets/Scene/Spazon/Scene_Spazon.unity",
+              "isDirty": false,
+              "rootCount": 9
+            }
+          ],
+          "selection": [],
+          "dirty": [
+            "ProjectSettings/EditorBuildSettings.asset"
+          ],
+          "options": 3,
+          "background": false
+        }
+      },
+      "target": {
+        "host": "127.0.0.1",
+        "port": 7800,
+        "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+      }
+    },
+    "errors": [],
+    "warnings": []
+  },
+  "final-idle-guard.json": {
+    "success": true,
+    "command": "command run_script",
+    "data": {
+      "command": "run_script",
+      "parameters": {
+        "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/FinalGuard.cs",
+        "entry": "FinalGuard.Read",
+        "args": "[]"
+      },
+      "result": {
+        "diagnostics": [],
+        "compileMs": 26,
+        "executeMs": 1,
+        "assemblyName": "PipelineRunScript_FinalGuard_3576c4d57b694892bc566e4ac64b006b",
+        "success": true,
+        "result": {
+          "pid": 42623,
+          "compiling": false,
+          "playing": false,
+          "baking": false,
+          "frameDebugger": false,
+          "capture": {
+            "status": "Completed",
+            "finished": true,
+            "outstanding": 0,
+            "evidence": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/cold-start-3"
+          },
+          "tests": {
+            "active": false,
+            "evidence": null,
+            "run": null
+          },
+          "assemblies": [
+            {
+              "name": "Unity.RenderPipelines.Infinity.Runtime",
+              "mvid": "91d74da2-1ea4-460a-b59e-21c1eab2d962"
+            },
+            {
+              "name": "Unity.RenderPipelines.Infinity.Editor",
+              "mvid": "286219ca-327d-4446-8e39-01ee417557e3"
+            },
+            {
+              "name": "Unity.RenderPipelines.Infinity.Cli.Editor",
+              "mvid": "7c4d6e54-372d-4448-ab6c-3c21761b0f36"
+            },
+            {
+              "name": "Unity.RenderPipelines.Infinity.Tests",
+              "mvid": "b6f108a3-4c0d-400b-85b7-d3ad55d3d594"
+            }
+          ]
+        }
+      },
+      "target": {
+        "host": "127.0.0.1",
+        "port": 7800,
+        "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+      }
+    },
+    "errors": [],
+    "warnings": []
+  },
+  "final-runner-idle.json": {
+    "success": true,
+    "command": "command run_script",
+    "data": {
+      "command": "run_script",
+      "parameters": {
+        "file": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/RegressionControl.cs",
+        "entry": "RegressionControl.State",
+        "args": "[]"
+      },
+      "result": {
+        "diagnostics": [],
+        "compileMs": 38,
+        "executeMs": 1,
+        "assemblyName": "PipelineRunScript_RegressionControl_0a2741a4a4b54dfbbc98fa43ecc30c9f",
+        "success": true,
+        "result": {
+          "pid": 42623,
+          "playing": false,
+          "scene": "Assets/Scene/Spazon/Scene_Spazon.unity",
+          "dirty": false,
+          "selection": [],
+          "runner": {
+            "active": false,
+            "phase": null,
+            "outcome": null,
+            "index": null,
+            "total": null,
+            "report": "",
+            "persistenceError": null,
+            "outstanding": 0
+          }
+        }
+      },
+      "target": {
+        "host": "127.0.0.1",
+        "port": 7800,
+        "projectPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample"
+      }
+    },
+    "errors": [],
+    "warnings": []
+  },
+  "protectedSources": {
+    "count": 427,
+    "changed": [],
+    "shaManifest": "final-acceptance-evidence.tar.gz/input-source-hashes.json"
+  }
+}

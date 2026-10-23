@@ -1,0 +1,3164 @@
+[
+  {
+    "run": "after-cold-decal-replace-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "decal-replace",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.318604,
+        "p95": 9.373542,
+        "minimum": 6.657667,
+        "maximum": 10.190792
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 6.920354165231402,
+        "p95": 9.165583333015093,
+        "minimum": 3.3281250007348717,
+        "maximum": 12.983291666387231
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.1278755,
+        "p95": 1.302708,
+        "minimum": 0.895876,
+        "maximum": 1.677209
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.673708,
+        "p95": 6.705875,
+        "minimum": 3.936583,
+        "maximum": 6.993417
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.213041,
+        "p95": 1.358252,
+        "minimum": 0.91875,
+        "maximum": 2.604708
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3270005,
+          "p95": 9.334625,
+          "minimum": 7.099292,
+          "maximum": 9.66975
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.809729166889156,
+          "p95": 9.165583333015093,
+          "minimum": 3.3281250007348717,
+          "maximum": 12.745041666676116
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.121105,
+          "p95": 1.324293,
+          "minimum": 0.966916,
+          "maximum": 1.677209
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.2993335,
+          "p95": 9.407458,
+          "minimum": 6.663542,
+          "maximum": 10.153167
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 7.0245208344204,
+          "p95": 9.558291666508012,
+          "minimum": 4.372875000626664,
+          "maximum": 12.983291666387231
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1343115,
+          "p95": 1.298625,
+          "minimum": 0.895876,
+          "maximum": 1.493417
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3242915,
+          "p95": 9.33575,
+          "minimum": 6.657667,
+          "maximum": 10.190792
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.789520833535789,
+          "p95": 9.114291668083752,
+          "minimum": 4.472958333280985,
+          "maximum": 12.186083335109288
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1332909999999998,
+          "p95": 1.293458,
+          "minimum": 0.960959,
+          "maximum": 1.590043
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-cold-fog-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "fog",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.3082915,
+        "p95": 9.4015,
+        "minimum": 6.467041,
+        "maximum": 11.401
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 6.522520833186718,
+        "p95": 15.55654166622844,
+        "minimum": 3.1234583348123124,
+        "maximum": 20.34837500013964
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.4322095,
+        "p95": 1.618458,
+        "minimum": 1.20896,
+        "maximum": 7.238333
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.2095825,
+        "p95": 6.305208,
+        "minimum": 0.000208,
+        "maximum": 6.555375
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.3799175,
+        "p95": 1.530169,
+        "minimum": 1.193956,
+        "maximum": 1.682875
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3082915,
+          "p95": 9.391916,
+          "minimum": 6.751542,
+          "maximum": 9.85525
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.750249998731306,
+          "p95": 17.043458335137984,
+          "minimum": 3.904583332769107,
+          "maximum": 20.34837500013964
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.418604,
+          "p95": 1.593418,
+          "minimum": 1.221625,
+          "maximum": 1.917792
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.2756045,
+          "p95": 9.4545,
+          "minimum": 6.467041,
+          "maximum": 11.401
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.763874998796382,
+          "p95": 15.412166666465055,
+          "minimum": 3.516666664836521,
+          "maximum": 19.414833333939896
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.4359790000000001,
+          "p95": 1.648626,
+          "minimum": 1.20896,
+          "maximum": 7.238333
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.328624999999999,
+          "p95": 9.298,
+          "minimum": 6.9805,
+          "maximum": 9.824959
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 5.925583333919349,
+          "p95": 15.096625001206121,
+          "minimum": 3.1234583348123124,
+          "maximum": 20.260916668121354
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.442874,
+          "p95": 1.618458,
+          "minimum": 1.263208,
+          "maximum": 1.820456
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-cold-lights-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.319749999999999,
+        "p95": 9.431417,
+        "minimum": 6.468375,
+        "maximum": 10.905958
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 6.086166666591453,
+        "p95": 11.52649999858113,
+        "minimum": 1.6671250023136963,
+        "maximum": 13.353833333894727
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.1874995,
+        "p95": 1.414876,
+        "minimum": 0.775375,
+        "maximum": 5.734167
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.6995625,
+        "p95": 6.64725,
+        "minimum": 0.170292,
+        "maximum": 7.170625
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.121812,
+        "p95": 1.263833,
+        "minimum": 0.855623,
+        "maximum": 1.537457
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3145835,
+          "p95": 9.454125,
+          "minimum": 6.468375,
+          "maximum": 10.088417
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.137125000350352,
+          "p95": 11.242583334023948,
+          "minimum": 2.7270833334114286,
+          "maximum": 13.094916665977507
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1948539999999999,
+          "p95": 1.397627,
+          "minimum": 0.953083,
+          "maximum": 1.632293
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.326708,
+          "p95": 9.455542,
+          "minimum": 6.597417,
+          "maximum": 10.176042
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.228208333141083,
+          "p95": 11.541666666744277,
+          "minimum": 2.7537500027392525,
+          "maximum": 13.353833333894727
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1668555,
+          "p95": 1.365959,
+          "minimum": 0.902584,
+          "maximum": 1.600748
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.302375,
+          "p95": 9.348666,
+          "minimum": 6.509333,
+          "maximum": 10.905958
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 5.636062500798289,
+          "p95": 11.549000001650711,
+          "minimum": 1.6671250023136963,
+          "maximum": 13.211958334068186
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.2031874999999999,
+          "p95": 1.465997,
+          "minimum": 0.775375,
+          "maximum": 5.734167
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-cold-probes-repeat-v1",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "probes",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 10.5360625,
+        "p95": 11.457166,
+        "minimum": 9.577834,
+        "maximum": 15.439083
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 17.382395834829367,
+        "p95": 21.384249994298443,
+        "minimum": 9.15670833819604,
+        "maximum": 27.998000002298795
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 4.996459,
+        "p95": 5.482042,
+        "minimum": 4.070874,
+        "maximum": 10.331625
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000208,
+        "p95": 0.000417,
+        "minimum": 0.0,
+        "maximum": 0.005041
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 8.4500205,
+        "p95": 9.18525,
+        "minimum": 7.572083,
+        "maximum": 10.542833
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 10.537104,
+          "p95": 11.226584,
+          "minimum": 9.577834,
+          "maximum": 15.367
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.421020827896427,
+          "p95": 21.261666659484035,
+          "minimum": 11.132958340567711,
+          "maximum": 24.814458329274203
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.0054165,
+          "p95": 5.424375,
+          "minimum": 4.269375,
+          "maximum": 10.331625
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 10.523958,
+          "p95": 11.365125,
+          "minimum": 9.595667,
+          "maximum": 15.439083
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.376770837927324,
+          "p95": 21.30891665819945,
+          "minimum": 10.343416673094907,
+          "maximum": 23.682124994593323
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.9775220000000004,
+          "p95": 5.422375,
+          "minimum": 4.241001,
+          "maximum": 9.998417
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 10.542646,
+          "p95": 11.65575,
+          "minimum": 9.604416,
+          "maximum": 15.16025
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.316041667072568,
+          "p95": 21.607416662845935,
+          "minimum": 9.15670833819604,
+          "maximum": 27.998000002298795
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.0124794999999995,
+          "p95": 5.627917,
+          "minimum": 4.070874,
+          "maximum": 9.658875
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-cold-probes-v1",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "probes",
+    "validSamples": 900,
+    "warmValid": 134,
+    "gameFrames": 1020,
+    "rejected": 1,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 10.6458335,
+        "p95": 12.019791,
+        "minimum": 9.38275,
+        "maximum": 277.648
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 18.192791666024277,
+        "p95": 21.728625002651825,
+        "minimum": 9.199791669743718,
+        "maximum": 40.29183333477704
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 5.0326450000000005,
+        "p95": 5.643499,
+        "minimum": 3.982541,
+        "maximum": 13.550082
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000209,
+        "p95": 0.0005,
+        "minimum": 0.0,
+        "maximum": 3.782542
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 8.483732,
+        "p95": 9.554166,
+        "minimum": 7.382206,
+        "maximum": 10.902625
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 10.867249999999999,
+          "p95": 12.371916,
+          "minimum": 9.38275,
+          "maximum": 277.648
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 18.192791666024277,
+          "p95": 21.82416667437792,
+          "minimum": 9.199791669743718,
+          "maximum": 40.29183333477704
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.1248955,
+          "p95": 5.751749,
+          "minimum": 3.982541,
+          "maximum": 10.745875
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 10.594562499999999,
+          "p95": 11.690083,
+          "minimum": 9.423917,
+          "maximum": 18.412583
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 18.734583334662602,
+          "p95": 22.05304166636779,
+          "minimum": 9.724375014229736,
+          "maximum": 24.259666665784607
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.017583,
+          "p95": 5.683793,
+          "minimum": 3.984084,
+          "maximum": 13.550082
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 10.573104,
+          "p95": 11.280167,
+          "minimum": 9.577709,
+          "maximum": 14.924541
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.585708326805616,
+          "p95": 21.56933332753397,
+          "minimum": 10.523125007239287,
+          "maximum": 24.035000006733753
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.976354499999999,
+          "p95": 5.368419,
+          "minimum": 4.244877,
+          "maximum": 9.822375
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-cold-shadows-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "shadows",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.307103999999999,
+        "p95": 9.348708,
+        "minimum": 6.715792,
+        "maximum": 11.51625
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 7.149604164624179,
+        "p95": 14.720916665282857,
+        "minimum": 3.7392083340819227,
+        "maximum": 21.961791666399222
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.5783135000000001,
+        "p95": 1.760042,
+        "minimum": 1.331666,
+        "maximum": 6.148416
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 4.969583,
+        "p95": 6.02125,
+        "minimum": 0.000251,
+        "maximum": 6.284417
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.491083,
+        "p95": 1.648877,
+        "minimum": 1.268709,
+        "maximum": 1.793458
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.33475,
+          "p95": 9.341417,
+          "minimum": 6.804917,
+          "maximum": 9.910875
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 7.421000000704225,
+          "p95": 14.883041667417274,
+          "minimum": 4.593583334099094,
+          "maximum": 18.717750001087552
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.5759575,
+          "p95": 1.755291,
+          "minimum": 1.383623,
+          "maximum": 5.854041
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.303332999999999,
+          "p95": 9.331666,
+          "minimum": 7.081709,
+          "maximum": 9.62775
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.983562501773122,
+          "p95": 12.894875000711181,
+          "minimum": 4.112833334147581,
+          "maximum": 17.603624999537715
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.5904375,
+          "p95": 1.765959,
+          "minimum": 1.331666,
+          "maximum": 1.942084
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.294562500000001,
+          "p95": 9.4055,
+          "minimum": 6.715792,
+          "maximum": 11.51625
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.922708331330796,
+          "p95": 15.480749999369436,
+          "minimum": 3.7392083340819227,
+          "maximum": 21.961791666399222
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.5698115000000001,
+          "p95": 1.745792,
+          "minimum": 1.372584,
+          "maximum": 6.148416
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-cold-ssgi-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "ssgi",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.305854,
+        "p95": 9.393292,
+        "minimum": 6.425459,
+        "maximum": 11.159916
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 10.270729168496473,
+        "p95": 17.60970833402098,
+        "minimum": 3.0187499996827682,
+        "maximum": 21.99345833287225
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.2559155,
+        "p95": 1.43975,
+        "minimum": 1.004249,
+        "maximum": 7.369626
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.5888335,
+        "p95": 6.579583,
+        "minimum": 0.000208,
+        "maximum": 6.973708
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.209937,
+        "p95": 1.323375,
+        "minimum": 0.95875,
+        "maximum": 1.485374
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.276333000000001,
+          "p95": 9.453125,
+          "minimum": 6.660458,
+          "maximum": 10.059
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.336645834286173,
+          "p95": 17.211541668984864,
+          "minimum": 3.8624583339696983,
+          "maximum": 21.99345833287225
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.264542,
+          "p95": 1.469916,
+          "minimum": 1.068959,
+          "maximum": 1.660625
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3031465,
+          "p95": 9.280042,
+          "minimum": 6.575958,
+          "maximum": 9.999292
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.53491666652917,
+          "p95": 19.184750000022177,
+          "minimum": 3.0187499996827682,
+          "maximum": 21.57699999952456
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.2456235,
+          "p95": 1.410624,
+          "minimum": 1.004249,
+          "maximum": 1.525876
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3224375,
+          "p95": 9.399167,
+          "minimum": 6.425459,
+          "maximum": 11.159916
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.888041667636571,
+          "p95": 16.756999998506217,
+          "minimum": 3.287500000624277,
+          "maximum": 20.310250000875385
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.2579794999999998,
+          "p95": 1.452668,
+          "minimum": 1.056167,
+          "maximum": 7.369626
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-cold-ssr-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "ssr",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.316979,
+        "p95": 9.398625,
+        "minimum": 5.820416,
+        "maximum": 12.364209
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 9.693125000012515,
+        "p95": 17.287374997067673,
+        "minimum": 2.4918333319874364,
+        "maximum": 21.812833330841386
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.2543115,
+        "p95": 1.457252,
+        "minimum": 0.996499,
+        "maximum": 7.157083
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.56275,
+        "p95": 6.571291,
+        "minimum": 0.000291,
+        "maximum": 6.863291
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.2431860000000001,
+        "p95": 1.359251,
+        "minimum": 0.999585,
+        "maximum": 1.503333
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.345312499999999,
+          "p95": 9.289959,
+          "minimum": 6.655041,
+          "maximum": 10.027
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.76772916601476,
+          "p95": 17.01216666788241,
+          "minimum": 2.4918333319874364,
+          "maximum": 21.781416667181475
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.2438545,
+          "p95": 1.462958,
+          "minimum": 0.996499,
+          "maximum": 1.816582
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.2874375,
+          "p95": 9.426375,
+          "minimum": 7.213084,
+          "maximum": 10.129666
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.325291665845725,
+          "p95": 17.231375001756533,
+          "minimum": 3.17612500020914,
+          "maximum": 21.812833330841386
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.2666245,
+          "p95": 1.443792,
+          "minimum": 1.043625,
+          "maximum": 1.721541
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.322312499999999,
+          "p95": 9.421625,
+          "minimum": 5.820416,
+          "maximum": 12.364209
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.917270833739167,
+          "p95": 17.534249998789164,
+          "minimum": 3.2417499996881816,
+          "maximum": 20.121625002502697
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.2509785,
+          "p95": 1.462833,
+          "minimum": 1.058791,
+          "maximum": 7.157083
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-decal-replace-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "decal-replace",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 99.997917,
+        "p95": 100.811541,
+        "minimum": 99.00875,
+        "maximum": 101.016583
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 11.085229165928467,
+        "p95": 19.66308333339839,
+        "minimum": 3.4007916665359517,
+        "maximum": 39.957500000127766
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 3.361439,
+        "p95": 4.062376,
+        "minimum": 1.565667,
+        "maximum": 15.894083
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.001001,
+        "p95": 0.001417,
+        "minimum": 0.000208,
+        "maximum": 0.00625
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 3.1473755,
+        "p95": 3.703749,
+        "minimum": 1.247792,
+        "maximum": 4.847334
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 99.997687,
+          "p95": 100.785459,
+          "minimum": 99.014458,
+          "maximum": 101.016583
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.78881250032282,
+          "p95": 19.964041666753474,
+          "minimum": 3.441499999098596,
+          "maximum": 39.957500000127766
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.4046250000000002,
+          "p95": 3.987915,
+          "minimum": 2.156126,
+          "maximum": 4.686331
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 99.9982505,
+          "p95": 100.8515,
+          "minimum": 99.00875,
+          "maximum": 101.000625
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 11.29214583306748,
+          "p95": 19.827000000987027,
+          "minimum": 3.4007916665359517,
+          "maximum": 35.64525000001595
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.3710625,
+          "p95": 3.896374,
+          "minimum": 1.565667,
+          "maximum": 4.586791
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 99.998042,
+          "p95": 100.717875,
+          "minimum": 99.020875,
+          "maximum": 100.994583
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 11.2139791658592,
+          "p95": 18.984875000569446,
+          "minimum": 3.4420000001773587,
+          "maximum": 28.455583331378875
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.3164575000000003,
+          "p95": 4.904583,
+          "minimum": 1.797668,
+          "maximum": 15.894083
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-fog-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "fog",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 100.0018125,
+        "p95": 100.210083,
+        "minimum": 99.578042,
+        "maximum": 100.43975
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 33.05087500029913,
+        "p95": 86.2390416659764,
+        "minimum": 14.979041666265402,
+        "maximum": 134.9838333308071
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 3.7960624999999997,
+        "p95": 4.695374,
+        "minimum": 1.837293,
+        "maximum": 15.330167
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000833,
+        "p95": 0.001167,
+        "minimum": 0.000125,
+        "maximum": 0.010084
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 3.5024154999999997,
+        "p95": 3.949125,
+        "minimum": 1.650209,
+        "maximum": 6.015125
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 100.002042,
+          "p95": 100.207458,
+          "minimum": 99.663125,
+          "maximum": 100.350667
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 34.00956249834053,
+          "p95": 87.09183333121473,
+          "minimum": 18.52787499956321,
+          "maximum": 134.9838333308071
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.860666,
+          "p95": 4.60154,
+          "minimum": 1.934623,
+          "maximum": 4.919542
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 100.0030835,
+          "p95": 100.218,
+          "minimum": 99.664959,
+          "maximum": 100.352083
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 34.01633333442078,
+          "p95": 87.78695833552774,
+          "minimum": 14.979041666265402,
+          "maximum": 127.03504166620405
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.814498,
+          "p95": 5.00875,
+          "minimum": 1.837293,
+          "maximum": 15.330167
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 99.99995849999999,
+          "p95": 100.180125,
+          "minimum": 99.578042,
+          "maximum": 100.43975
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 30.881124999723397,
+          "p95": 82.9823749991192,
+          "minimum": 17.20649999970192,
+          "maximum": 117.1467083349853
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.729647,
+          "p95": 4.601958,
+          "minimum": 1.86129,
+          "maximum": 5.554083
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-lights-v1",
+    "phase": "Failed",
+    "error": "System.Exception: Workload dimensions or Play state changed\n  at PerformanceControl.End (UnityEngine.Rendering.ScriptableRenderContext context, System.Collections.Generic.List`1[T] cameras) [0x00194] in /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/PerformanceControl.cs:40 ",
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 173,
+    "warmValid": 135,
+    "gameFrames": 293,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 173,
+        "median": 99.999917,
+        "p95": 100.623625,
+        "minimum": 99.135417,
+        "maximum": 101.011209
+      },
+      "gpu": {
+        "samples": 173,
+        "median": 9.535958332890004,
+        "p95": 21.02495833332796,
+        "minimum": 2.193999999690277,
+        "maximum": 26.31212500091351
+      },
+      "cpuMainThread": {
+        "samples": 173,
+        "median": 1.23325,
+        "p95": 1.712748,
+        "minimum": 0.933959,
+        "maximum": 2.889418
+      },
+      "presentWait": {
+        "samples": 173,
+        "median": 0.000458,
+        "p95": 0.000958,
+        "minimum": 0.000167,
+        "maximum": 0.004959
+      },
+      "renderThread": {
+        "samples": 173,
+        "median": 1.072914,
+        "p95": 2.085751,
+        "minimum": 0.925041,
+        "maximum": 3.240042
+      }
+    },
+    "groups": []
+  },
+  {
+    "run": "after-lights-v2",
+    "phase": "Failed",
+    "error": "System.Exception: Unknown context\n  at PerformanceControl.End (UnityEngine.Rendering.ScriptableRenderContext context, System.Collections.Generic.List`1[T] cameras) [0x000cf] in /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/PerformanceControl.cs:40 ",
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 0,
+    "warmValid": 16,
+    "gameFrames": 1,
+    "rejected": 0,
+    "overall": {
+      "cpu": null,
+      "gpu": null,
+      "cpuMainThread": null,
+      "presentWait": null,
+      "renderThread": null
+    },
+    "groups": []
+  },
+  {
+    "run": "after-lights-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 100.002104,
+        "p95": 100.787875,
+        "minimum": 98.965625,
+        "maximum": 101.050167
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 4.833770832192386,
+        "p95": 19.3187916675015,
+        "minimum": 1.248249999662221,
+        "maximum": 38.87295833465032
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 2.9913334999999996,
+        "p95": 3.648125,
+        "minimum": 1.121125,
+        "maximum": 14.02554
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.0008335,
+        "p95": 0.00125,
+        "minimum": 0.000207,
+        "maximum": 0.032624
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 2.7089375,
+        "p95": 3.132709,
+        "minimum": 0.847417,
+        "maximum": 4.874915
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 100.0079995,
+          "p95": 100.776792,
+          "minimum": 98.965625,
+          "maximum": 101.013542
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 5.494312501468812,
+          "p95": 16.03016666649637,
+          "minimum": 1.6598333340880345,
+          "maximum": 27.65262499815435
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 2.8890000000000002,
+          "p95": 3.548169,
+          "minimum": 1.121125,
+          "maximum": 3.874332
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 99.9992705,
+          "p95": 100.786041,
+          "minimum": 98.969125,
+          "maximum": 100.964791
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 4.324875000293105,
+          "p95": 22.833416665889672,
+          "minimum": 1.3113750019329018,
+          "maximum": 33.60300000076677
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 2.982125,
+          "p95": 3.579418,
+          "minimum": 1.301794,
+          "maximum": 4.477041
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 99.999375,
+          "p95": 100.799375,
+          "minimum": 99.033167,
+          "maximum": 101.050167
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 4.303791666643519,
+          "p95": 20.95087499856163,
+          "minimum": 1.248249999662221,
+          "maximum": 38.87295833465032
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.1125625,
+          "p95": 3.841542,
+          "minimum": 1.205501,
+          "maximum": 14.02554
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-probes-v1",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "probes",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1021,
+    "rejected": 1,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 13.483834,
+        "p95": 15.213792,
+        "minimum": 9.34025,
+        "maximum": 31.7355
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 18.189750003784866,
+        "p95": 25.309666667453712,
+        "minimum": 8.7720416704542,
+        "maximum": 125.47729166544741
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 5.1959979999999995,
+        "p95": 5.863293,
+        "minimum": 3.981584,
+        "maximum": 14.740959
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000208,
+        "p95": 0.000459,
+        "minimum": 0.0,
+        "maximum": 0.180249
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 10.5645835,
+        "p95": 12.51479,
+        "minimum": 7.06196,
+        "maximum": 14.938251
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 13.914104,
+          "p95": 15.490375,
+          "minimum": 9.651792,
+          "maximum": 30.864916
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.64166666634992,
+          "p95": 23.377875000733184,
+          "minimum": 8.7720416704542,
+          "maximum": 125.47729166544741
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.1030845,
+          "p95": 5.770167,
+          "minimum": 4.168499,
+          "maximum": 12.012751
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 13.225146,
+          "p95": 15.452,
+          "minimum": 9.34025,
+          "maximum": 31.7355
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 19.331104166212754,
+          "p95": 30.69300001152442,
+          "minimum": 9.178749998682179,
+          "maximum": 60.695499993926205
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.2540215,
+          "p95": 5.902,
+          "minimum": 4.099457,
+          "maximum": 13.450581
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 13.262875000000001,
+          "p95": 14.441041,
+          "minimum": 9.687291,
+          "maximum": 19.668708
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 18.121395841717458,
+          "p95": 24.242833339485514,
+          "minimum": 10.790916670885053,
+          "maximum": 28.962208335542527
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.253375,
+          "p95": 5.863749,
+          "minimum": 3.981584,
+          "maximum": 14.740959
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-shadows-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "shadows",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 99.9994795,
+        "p95": 100.783459,
+        "minimum": 98.973625,
+        "maximum": 101.109959
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 23.042333335524745,
+        "p95": 52.258625001741166,
+        "minimum": 2.356375000999833,
+        "maximum": 102.75645833280578
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 4.460478,
+        "p95": 5.374084,
+        "minimum": 1.795749,
+        "maximum": 16.308625
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000916,
+        "p95": 0.00125,
+        "minimum": 0.000167,
+        "maximum": 0.161917
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 3.7169995,
+        "p95": 4.244544,
+        "minimum": 1.519542,
+        "maximum": 5.676706
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 99.9963955,
+          "p95": 100.813708,
+          "minimum": 98.983708,
+          "maximum": 101.109959
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.651291667523765,
+          "p95": 39.78487500080519,
+          "minimum": 2.356375000999833,
+          "maximum": 49.62991666798189
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.3252500000000005,
+          "p95": 5.397417,
+          "minimum": 1.795749,
+          "maximum": 16.183416
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 100.001333,
+          "p95": 100.712959,
+          "minimum": 98.973625,
+          "maximum": 101.011875
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 23.97254166771745,
+          "p95": 54.2254583333488,
+          "minimum": 2.5917499988281634,
+          "maximum": 102.75645833280578
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.48302,
+          "p95": 5.374084,
+          "minimum": 1.972666,
+          "maximum": 6.611625
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 99.9993755,
+          "p95": 100.803333,
+          "minimum": 98.995917,
+          "maximum": 100.995917
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 27.546312498543557,
+          "p95": 53.27687499902822,
+          "minimum": 13.623750000988366,
+          "maximum": 90.8181249997142
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.544542,
+          "p95": 5.293043,
+          "minimum": 1.977707,
+          "maximum": 16.308625
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-ssgi-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "ssgi",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 99.9994585,
+        "p95": 100.067667,
+        "minimum": 98.968917,
+        "maximum": 101.044917
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 27.964520834302675,
+        "p95": 55.21150000004127,
+        "minimum": 10.828625000613101,
+        "maximum": 109.72975000004226
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 3.391687,
+        "p95": 4.292875,
+        "minimum": 1.812667,
+        "maximum": 14.367416
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000875,
+        "p95": 0.00125,
+        "minimum": 0.000125,
+        "maximum": 0.018584
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 3.2481445,
+        "p95": 3.826789,
+        "minimum": 1.265042,
+        "maximum": 5.05379
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 100.00004150000001,
+          "p95": 100.073417,
+          "minimum": 98.968917,
+          "maximum": 101.044917
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 27.940583333474933,
+          "p95": 52.90570833312813,
+          "minimum": 10.828625000613101,
+          "maximum": 81.57716666937631
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.5144159999999998,
+          "p95": 4.306751,
+          "minimum": 2.060208,
+          "maximum": 5.598293
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 99.99910449999999,
+          "p95": 100.070541,
+          "minimum": 99.801708,
+          "maximum": 100.147041
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 26.37312499973632,
+          "p95": 56.12975000167353,
+          "minimum": 11.006166666447825,
+          "maximum": 109.72975000004226
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.3161875,
+          "p95": 4.484375,
+          "minimum": 2.142457,
+          "maximum": 14.367416
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 99.999354,
+          "p95": 100.063708,
+          "minimum": 99.810375,
+          "maximum": 100.146208
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 30.756374999782565,
+          "p95": 57.25174999952287,
+          "minimum": 11.827958333014976,
+          "maximum": 99.8373749998791
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.3458534999999996,
+          "p95": 4.131084,
+          "minimum": 1.812667,
+          "maximum": 4.725377
+        }
+      }
+    ]
+  },
+  {
+    "run": "after-ssr-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "ssr",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 99.99947900000001,
+        "p95": 100.625,
+        "minimum": 98.977583,
+        "maximum": 101.042541
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 31.356312500975037,
+        "p95": 52.23849999765662,
+        "minimum": 9.53920833308075,
+        "maximum": 117.27924999922834
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 3.5645,
+        "p95": 4.108668,
+        "minimum": 1.466126,
+        "maximum": 9.417125
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000876,
+        "p95": 0.001249,
+        "minimum": 0.000292,
+        "maximum": 0.016291
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 3.179624,
+        "p95": 3.560459,
+        "minimum": 1.377584,
+        "maximum": 4.248376
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 99.999229,
+          "p95": 100.130167,
+          "minimum": 99.293084,
+          "maximum": 100.706333
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 29.315229165149503,
+          "p95": 48.515333334762545,
+          "minimum": 9.53920833308075,
+          "maximum": 89.73404166681576
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.5960840000000003,
+          "p95": 4.137915,
+          "minimum": 1.466126,
+          "maximum": 4.618374
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 99.9995625,
+          "p95": 100.645708,
+          "minimum": 98.977583,
+          "maximum": 101.042541
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 33.31200000047829,
+          "p95": 54.974333332211245,
+          "minimum": 10.566625001047214,
+          "maximum": 117.27924999922834
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.518187,
+          "p95": 4.062792,
+          "minimum": 1.641501,
+          "maximum": 9.417125
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 99.99966649999999,
+          "p95": 100.659084,
+          "minimum": 99.153666,
+          "maximum": 100.889458
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 27.39570833318794,
+          "p95": 52.07975000212173,
+          "minimum": 9.915999999975611,
+          "maximum": 90.53929166566377
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 3.5690215,
+          "p95": 4.102665,
+          "minimum": 1.547251,
+          "maximum": 4.533375
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-decal-replace-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "decal-replace",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.314833,
+        "p95": 8.824333,
+        "minimum": 6.185,
+        "maximum": 10.614541
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 5.91956249991199,
+        "p95": 10.23162499859609,
+        "minimum": 2.2144166659927578,
+        "maximum": 10.741416665950965
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.028855,
+        "p95": 1.271583,
+        "minimum": 0.719873,
+        "maximum": 2.194666
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.874062,
+        "p95": 6.351583,
+        "minimum": 3.685791,
+        "maximum": 6.852876
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.1926459999999999,
+        "p95": 1.414791,
+        "minimum": 0.761333,
+        "maximum": 2.010083
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.309438,
+          "p95": 8.832375,
+          "minimum": 6.185,
+          "maximum": 10.614541
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 5.861770833234914,
+          "p95": 10.181416666455334,
+          "minimum": 2.2144166659927578,
+          "maximum": 10.473749998709536
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.0278749999999999,
+          "p95": 1.305624,
+          "minimum": 0.736,
+          "maximum": 2.194666
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.322208499999999,
+          "p95": 8.782125,
+          "minimum": 6.313708,
+          "maximum": 10.479959
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 5.765062498994666,
+          "p95": 10.242041667879676,
+          "minimum": 2.2552500004167086,
+          "maximum": 10.656041667971294
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.0510009999999999,
+          "p95": 1.274918,
+          "minimum": 0.719873,
+          "maximum": 1.880417
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.311542,
+          "p95": 8.884,
+          "minimum": 7.044625,
+          "maximum": 9.370667
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 6.803229166507663,
+          "p95": 10.252791666061967,
+          "minimum": 4.372958331259724,
+          "maximum": 10.741416665950965
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.013208,
+          "p95": 1.235249,
+          "minimum": 0.765001,
+          "maximum": 1.626584
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-fog-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "fog",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.3214165,
+        "p95": 8.913,
+        "minimum": 5.873458,
+        "maximum": 11.604708
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 10.431125000650354,
+        "p95": 20.39920833249198,
+        "minimum": 3.16412499978469,
+        "maximum": 26.21616666783666
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.3431045,
+        "p95": 1.517916,
+        "minimum": 1.101749,
+        "maximum": 6.873332
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.4730834999999995,
+        "p95": 5.794917,
+        "minimum": 0.000126,
+        "maximum": 6.050583
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.342959,
+        "p95": 1.469458,
+        "minimum": 1.078792,
+        "maximum": 1.787624
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.320874499999999,
+          "p95": 8.870583,
+          "minimum": 7.48525,
+          "maximum": 9.25275
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.414375000891596,
+          "p95": 20.37354166895966,
+          "minimum": 3.16412499978469,
+          "maximum": 26.21616666783666
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.3446245000000001,
+          "p95": 1.548376,
+          "minimum": 1.101749,
+          "maximum": 1.806042
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3161245,
+          "p95": 8.918208,
+          "minimum": 5.873458,
+          "maximum": 11.604708
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.14308333151348,
+          "p95": 20.36125000086031,
+          "minimum": 3.300375002254441,
+          "maximum": 24.82095833420317
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.3493135,
+          "p95": 1.488209,
+          "minimum": 1.180333,
+          "maximum": 6.873332
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3330415,
+          "p95": 8.907959,
+          "minimum": 7.464625,
+          "maximum": 9.069292
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.949229166271834,
+          "p95": 20.485708333580988,
+          "minimum": 3.3109166661233758,
+          "maximum": 21.534374998736894
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.3385625,
+          "p95": 1.471125,
+          "minimum": 1.180581,
+          "maximum": 1.871084
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-lights-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "lights",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.3150415,
+        "p95": 9.138667,
+        "minimum": 5.999167,
+        "maximum": 25.494
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 10.054333331936505,
+        "p95": 11.874666665789846,
+        "minimum": 2.0986250001442386,
+        "maximum": 16.163583332854614
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.060209,
+        "p95": 1.290667,
+        "minimum": 0.707668,
+        "maximum": 6.750834
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.876479,
+        "p95": 6.271167,
+        "minimum": 0.000208,
+        "maximum": 22.84425
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.1819994999999999,
+        "p95": 1.392081,
+        "minimum": 0.774502,
+        "maximum": 1.753707
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.319604,
+          "p95": 9.150583,
+          "minimum": 7.156,
+          "maximum": 17.484083
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.129458332357899,
+          "p95": 11.859500001264678,
+          "minimum": 4.822291663913347,
+          "maximum": 12.280749999263207
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.052333,
+          "p95": 1.282832,
+          "minimum": 0.785001,
+          "maximum": 1.754873
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.31025,
+          "p95": 9.1525,
+          "minimum": 7.288208,
+          "maximum": 25.494
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 7.251291666761972,
+          "p95": 11.867541667925252,
+          "minimum": 2.0986250001442386,
+          "maximum": 16.163583332854614
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.077791,
+          "p95": 1.317917,
+          "minimum": 0.707668,
+          "maximum": 1.882958
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3157705,
+          "p95": 9.107417,
+          "minimum": 5.999167,
+          "maximum": 17.089458
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 10.305874998266518,
+          "p95": 11.895500001628534,
+          "minimum": 4.795791666765581,
+          "maximum": 13.48320833494654
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.0486665,
+          "p95": 1.263625,
+          "minimum": 0.762709,
+          "maximum": 6.750834
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-probes-v1",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "probes",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 9.516896,
+        "p95": 10.161584,
+        "minimum": 8.655417,
+        "maximum": 14.294291
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 17.000124996684463,
+        "p95": 20.058499998413026,
+        "minimum": 8.281791672743566,
+        "maximum": 24.183166668990452
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 4.639082500000001,
+        "p95": 5.08,
+        "minimum": 4.148707,
+        "maximum": 9.421833
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000208,
+        "p95": 0.000334,
+        "minimum": 4.1e-05,
+        "maximum": 0.011625
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 7.834334,
+        "p95": 8.289542,
+        "minimum": 6.977918,
+        "maximum": 9.268125
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 9.500667,
+          "p95": 10.011417,
+          "minimum": 8.922167,
+          "maximum": 14.088917
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 16.517000003659632,
+          "p95": 19.641708331619157,
+          "minimum": 9.35587499589019,
+          "maximum": 20.876041657174937
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.6300835,
+          "p95": 4.959249,
+          "minimum": 4.285207,
+          "maximum": 9.129666
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 9.549,
+          "p95": 10.264291,
+          "minimum": 8.655417,
+          "maximum": 14.294291
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.498104173682805,
+          "p95": 20.283666659452138,
+          "minimum": 8.281791672743566,
+          "maximum": 24.183166668990452
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.634437,
+          "p95": 5.109583,
+          "minimum": 4.182917,
+          "maximum": 9.421833
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 9.517687500000001,
+          "p95": 10.037042,
+          "minimum": 8.95525,
+          "maximum": 13.993375
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 16.971708332675917,
+          "p95": 20.058499998413026,
+          "minimum": 9.209583332449256,
+          "maximum": 22.492124992822937
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.6492305,
+          "p95": 5.104251,
+          "minimum": 4.148707,
+          "maximum": 9.143458
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-reverse-observed-probes-v1",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "probes",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 10.500499999999999,
+        "p95": 11.34875,
+        "minimum": 9.538166,
+        "maximum": 17.187
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 17.356666665364173,
+        "p95": 21.399833337454766,
+        "minimum": 10.034291669398954,
+        "maximum": 32.14499999739928
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 5.0082295000000006,
+        "p95": 5.418083,
+        "minimum": 4.039125,
+        "maximum": 12.409582
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000208,
+        "p95": 0.000416,
+        "minimum": 0.0,
+        "maximum": 0.006958
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 8.377581500000002,
+        "p95": 9.181625,
+        "minimum": 7.299124,
+        "maximum": 11.200167
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 10.4979165,
+          "p95": 11.398,
+          "minimum": 9.746875,
+          "maximum": 17.187
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.749104161339346,
+          "p95": 21.58308333309833,
+          "minimum": 10.034291669398954,
+          "maximum": 23.53062499605585
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.0152095,
+          "p95": 5.473085,
+          "minimum": 4.041084,
+          "maximum": 12.409582
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 10.4776875,
+          "p95": 11.281083,
+          "minimum": 9.538166,
+          "maximum": 16.128041
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 16.3691666680279,
+          "p95": 20.47108333954384,
+          "minimum": 11.66045833087992,
+          "maximum": 23.197833333142626
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.988187,
+          "p95": 5.374917,
+          "minimum": 4.255876,
+          "maximum": 10.908667
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 10.528292,
+          "p95": 11.371708,
+          "minimum": 9.597666,
+          "maximum": 13.93875
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 18.048916665065917,
+          "p95": 21.963291658721573,
+          "minimum": 10.940083330751804,
+          "maximum": 32.14499999739928
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 5.0168765,
+          "p95": 5.407291,
+          "minimum": 4.039125,
+          "maximum": 8.824292
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-reverse-probes-v1",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "probes",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 9.469333500000001,
+        "p95": 10.025375,
+        "minimum": 8.832208,
+        "maximum": 16.450333
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 16.441687499536783,
+        "p95": 19.764041659982468,
+        "minimum": 8.899333321096492,
+        "maximum": 22.209708339687495
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 4.6592295,
+        "p95": 5.03225,
+        "minimum": 4.258208,
+        "maximum": 11.160502
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 0.000208,
+        "p95": 0.000333,
+        "minimum": 0.0,
+        "maximum": 0.005917
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 7.764645,
+        "p95": 8.20225,
+        "minimum": 7.16092,
+        "maximum": 10.472709
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 9.465125,
+          "p95": 10.094541,
+          "minimum": 8.916917,
+          "maximum": 15.63025
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 16.441687499536783,
+          "p95": 19.717750002200773,
+          "minimum": 8.899333321096492,
+          "maximum": 20.966875000340224
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.673500000000001,
+          "p95": 5.03225,
+          "minimum": 4.258208,
+          "maximum": 10.874083
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 9.449104,
+          "p95": 9.984791,
+          "minimum": 8.832208,
+          "maximum": 15.793208
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 16.529395831639704,
+          "p95": 19.715458331120317,
+          "minimum": 10.977041665682918,
+          "maximum": 21.351250003135647
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.644083999999999,
+          "p95": 4.939832,
+          "minimum": 4.320543,
+          "maximum": 10.984124
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 9.487979,
+          "p95": 10.020958,
+          "minimum": 8.936334,
+          "maximum": 16.450333
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 16.31208333219547,
+          "p95": 19.875624997439445,
+          "minimum": 9.005583331600064,
+          "maximum": 22.209708339687495
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 4.655604,
+          "p95": 5.086333,
+          "minimum": 4.283916,
+          "maximum": 11.160502
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-shadows-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "shadows",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.3111255,
+        "p95": 9.307334,
+        "minimum": 6.447459,
+        "maximum": 12.351875
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 8.571208332796232,
+        "p95": 17.979333331823,
+        "minimum": 3.607875001762295,
+        "maximum": 25.063333333491755
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.501396,
+        "p95": 1.691751,
+        "minimum": 1.340584,
+        "maximum": 6.198291
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.212292,
+        "p95": 6.208458,
+        "minimum": 0.000126,
+        "maximum": 6.492249
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.4311045,
+        "p95": 1.55546,
+        "minimum": 1.218666,
+        "maximum": 1.808957
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3111255,
+          "p95": 9.101625,
+          "minimum": 6.750792,
+          "maximum": 11.697208
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 8.782604164025543,
+          "p95": 18.75537500200153,
+          "minimum": 3.607875001762295,
+          "maximum": 24.546999997255625
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.481875,
+          "p95": 1.652958,
+          "minimum": 1.342211,
+          "maximum": 5.060373
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.325124500000001,
+          "p95": 9.323083,
+          "minimum": 6.842375,
+          "maximum": 9.880417
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 8.524916667283833,
+          "p95": 16.548291669096216,
+          "minimum": 5.585291668467107,
+          "maximum": 25.063333333491755
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.505,
+          "p95": 1.643585,
+          "minimum": 1.340584,
+          "maximum": 1.961041
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.2901245,
+          "p95": 9.420083,
+          "minimum": 6.447459,
+          "maximum": 12.351875
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 8.412333333581046,
+          "p95": 18.063583331240807,
+          "minimum": 4.85233333256474,
+          "maximum": 20.234708332282025
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.514333,
+          "p95": 1.758416,
+          "minimum": 1.342708,
+          "maximum": 6.198291
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-ssgi-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "ssgi",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.307458,
+        "p95": 9.339625,
+        "minimum": 6.879042,
+        "maximum": 10.091916
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 10.127958334123832,
+        "p95": 19.574250000914617,
+        "minimum": 3.203083333573886,
+        "maximum": 25.450125000133994
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.1702495000000002,
+        "p95": 1.37796,
+        "minimum": 0.937707,
+        "maximum": 5.622707
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.6856035,
+        "p95": 6.724625,
+        "minimum": 0.804126,
+        "maximum": 7.036042
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.2629795000000001,
+        "p95": 1.450917,
+        "minimum": 0.964667,
+        "maximum": 2.478125
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.297479,
+          "p95": 9.283084,
+          "minimum": 7.081833,
+          "maximum": 10.091916
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.465750000799744,
+          "p95": 19.39849999962462,
+          "minimum": 3.323041663861659,
+          "maximum": 25.450125000133994
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1708145,
+          "p95": 1.377456,
+          "minimum": 0.937707,
+          "maximum": 1.709252
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.314750499999999,
+          "p95": 9.398625,
+          "minimum": 6.973042,
+          "maximum": 9.760833
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 12.004354166037956,
+          "p95": 18.982624998898245,
+          "minimum": 3.7430833326652646,
+          "maximum": 23.381916666039615
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1685835,
+          "p95": 1.355085,
+          "minimum": 0.962417,
+          "maximum": 1.535916
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.310437499999999,
+          "p95": 9.332584,
+          "minimum": 6.879042,
+          "maximum": 9.764209
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.999708332543378,
+          "p95": 19.9371250000695,
+          "minimum": 3.203083333573886,
+          "maximum": 25.232875001165667
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.170313,
+          "p95": 1.389624,
+          "minimum": 0.962582,
+          "maximum": 5.622707
+        }
+      }
+    ]
+  },
+  {
+    "run": "before-ssr-v3",
+    "phase": "Completed",
+    "error": null,
+    "revision": "1307adc",
+    "kind": "ssr",
+    "validSamples": 900,
+    "warmValid": 135,
+    "gameFrames": 1020,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 900,
+        "median": 8.3246875,
+        "p95": 8.6675,
+        "minimum": 5.890291,
+        "maximum": 11.32
+      },
+      "gpu": {
+        "samples": 900,
+        "median": 9.514708333426825,
+        "p95": 20.74745833306224,
+        "minimum": 3.1334166651504347,
+        "maximum": 23.581458333865157
+      },
+      "cpuMainThread": {
+        "samples": 900,
+        "median": 1.1933315,
+        "p95": 1.409831,
+        "minimum": 0.923835,
+        "maximum": 8.08029
+      },
+      "presentWait": {
+        "samples": 900,
+        "median": 5.675667000000001,
+        "p95": 5.975667,
+        "minimum": 0.000291,
+        "maximum": 6.285749
+      },
+      "renderThread": {
+        "samples": 900,
+        "median": 1.2810625,
+        "p95": 1.453541,
+        "minimum": 0.943334,
+        "maximum": 1.666457
+      }
+    },
+    "groups": [
+      {
+        "group": 1,
+        "cpu": {
+          "samples": 300,
+          "median": 8.32425,
+          "p95": 8.622833,
+          "minimum": 7.687792,
+          "maximum": 9.254166
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.420875000614615,
+          "p95": 20.673416666795674,
+          "minimum": 3.1334166651504347,
+          "maximum": 22.081750001234468
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1877915,
+          "p95": 1.367959,
+          "minimum": 0.995792,
+          "maximum": 1.665669
+        }
+      },
+      {
+        "group": 2,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3211665,
+          "p95": 8.717,
+          "minimum": 7.558959,
+          "maximum": 8.918291
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 17.243812500510103,
+          "p95": 20.955250000042724,
+          "minimum": 7.86012500157085,
+          "maximum": 21.997583335178206
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.2092095,
+          "p95": 1.380457,
+          "minimum": 0.95175,
+          "maximum": 1.642586
+        }
+      },
+      {
+        "group": 3,
+        "cpu": {
+          "samples": 300,
+          "median": 8.3296665,
+          "p95": 8.618917,
+          "minimum": 5.890291,
+          "maximum": 11.32
+        },
+        "gpu": {
+          "samples": 300,
+          "median": 9.340333332147566,
+          "p95": 20.41458333224,
+          "minimum": 3.160291666063131,
+          "maximum": 23.581458333865157
+        },
+        "cpuMainThread": {
+          "samples": 300,
+          "median": 1.1783744999999999,
+          "p95": 1.479625,
+          "minimum": 0.923835,
+          "maximum": 8.08029
+        }
+      }
+    ]
+  },
+  {
+    "run": "pilot-lights-1280-v1",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 30,
+    "warmValid": 45,
+    "gameFrames": 60,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 30,
+        "median": 100.000958,
+        "p95": 100.876875,
+        "minimum": 99.117917,
+        "maximum": 100.904958
+      },
+      "gpu": {
+        "samples": 30,
+        "median": 9.306916666901088,
+        "p95": 19.30937500037544,
+        "minimum": 2.8541249994304962,
+        "maximum": 25.91408333319123
+      },
+      "cpuMainThread": {
+        "samples": 30,
+        "median": 1.2906255,
+        "p95": 1.39725,
+        "minimum": 1.032542,
+        "maximum": 1.440252
+      },
+      "presentWait": {
+        "samples": 30,
+        "median": 0.0005005000000000001,
+        "p95": 0.000791,
+        "minimum": 0.000208,
+        "maximum": 0.003583
+      },
+      "renderThread": {
+        "samples": 30,
+        "median": 1.1017915,
+        "p95": 1.233497,
+        "minimum": 1.011666,
+        "maximum": 1.29325
+      }
+    },
+    "groups": []
+  },
+  {
+    "run": "pilot-lights-640-v2",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 30,
+    "warmValid": 45,
+    "gameFrames": 60,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 30,
+        "median": 100.00285450000001,
+        "p95": 100.968792,
+        "minimum": 98.99275,
+        "maximum": 100.982667
+      },
+      "gpu": {
+        "samples": 30,
+        "median": 1.5810833342584374,
+        "p95": 3.4735416675175657,
+        "minimum": 0.8899166687115212,
+        "maximum": 4.486749999159656
+      },
+      "cpuMainThread": {
+        "samples": 30,
+        "median": 1.168458,
+        "p95": 1.400668,
+        "minimum": 1.06454,
+        "maximum": 1.518335
+      },
+      "presentWait": {
+        "samples": 30,
+        "median": 0.000438,
+        "p95": 0.002499,
+        "minimum": 0.000249,
+        "maximum": 0.010083
+      },
+      "renderThread": {
+        "samples": 30,
+        "median": 1.03746,
+        "p95": 1.120084,
+        "minimum": 0.934208,
+        "maximum": 1.141626
+      }
+    },
+    "groups": []
+  },
+  {
+    "run": "pilot-target-lights-1280-v1",
+    "phase": "Failed",
+    "error": "System.Exception: Unknown context\n  at PerformanceControl.End (UnityEngine.Rendering.ScriptableRenderContext context, System.Collections.Generic.List`1[T] cameras) [0x000cf] in /Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01/PerformanceControl.cs:40 ",
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 0,
+    "warmValid": 16,
+    "gameFrames": 1,
+    "rejected": 0,
+    "overall": {
+      "cpu": null,
+      "gpu": null,
+      "cpuMainThread": null,
+      "presentWait": null,
+      "renderThread": null
+    },
+    "groups": []
+  },
+  {
+    "run": "pilot-target-lights-1280-v2",
+    "phase": "Completed",
+    "error": null,
+    "revision": "602e649",
+    "kind": "lights",
+    "validSamples": 30,
+    "warmValid": 45,
+    "gameFrames": 60,
+    "rejected": 0,
+    "overall": {
+      "cpu": {
+        "samples": 30,
+        "median": 99.995542,
+        "p95": 100.767417,
+        "minimum": 99.155916,
+        "maximum": 100.787708
+      },
+      "gpu": {
+        "samples": 30,
+        "median": 6.236791665742203,
+        "p95": 27.550624999093998,
+        "minimum": 1.7229166660399642,
+        "maximum": 28.59599999828788
+      },
+      "cpuMainThread": {
+        "samples": 30,
+        "median": 2.890104,
+        "p95": 3.495958,
+        "minimum": 2.332834,
+        "maximum": 3.913751
+      },
+      "presentWait": {
+        "samples": 30,
+        "median": 0.000833,
+        "p95": 0.001167,
+        "minimum": 0.000375,
+        "maximum": 0.002125
+      },
+      "renderThread": {
+        "samples": 30,
+        "median": 2.6774165,
+        "p95": 3.097582,
+        "minimum": 2.413042,
+        "maximum": 3.320957
+      }
+    },
+    "groups": []
+  }
+]

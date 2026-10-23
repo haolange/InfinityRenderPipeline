@@ -714,3 +714,23 @@ was restored; do not directly invoke that integration test on a user scene.
 3. Render any fixture: identical to the S16 image (Image Regression → Run Comparison passes against S16 baselines).
 
 Final verified-marker note (2026-10-23): historical snapshots can retain `Unverified_0_5` categories. The validated main test contracts have had their executed markers retired. A zero-match category run is still a failure to select tests, never a pass; use the stage classes or exact names recorded in the stage receipts, then the full suite. Marker retirement changes metadata only and does not upgrade unrelated image/performance cells.
+
+## Approved remaining-acceptance result (2026-10-23)
+
+The closure report in `Documentation~/Evidence/Verification-0.5-2026-10-19/Closure-20261023/` records the approved
+S1/SDK scope adjustment, 625/625 current Infinity tests, eight unchanged-baseline comparisons, three independent cold
+first/stable pairs and seven composite performance loads. The old full-Example historical instruction above remains
+historical; it is not an extra requirement of this approved closure. Retain original failures and reasons.
+
+For the probe cold check, arm capture before the first Game submission of a newly created RP in each independently
+started Editor. Record accepted Game count zero, necessary Reflection six-face preproduction, first capture index1
+and stable index121, history reset true/false, actual Present/null target, finite buffers and zero pending readbacks.
+Do not relabel this as the absolute first render before any Reflection preparation. Three current successes classify
+an unreproduced historical transient without proving its root cause fixed.
+
+For performance, use fixed1280×720 High, independent SSR/SSGI loads, accepted Game warmup120 and3×300 unique valid
+CPU/GPU timestamps. Preserve all diagnostics, invalid samples and observation state; compare like targets. A fixed
+RenderTexture omits final backbuffer Present/overlay; whole-Editor timing is not pass cost. A repeated probe offset
+requires same-code observation-state controls before attributing it to a code regression. A repaired missing DBuffer
+adds real work and is not an equal-image speed comparison. APV/lightmap/bake-process cost remains separate from baked
+environment input sampling. See performance-report.md for exact exclusions and retained original groups.

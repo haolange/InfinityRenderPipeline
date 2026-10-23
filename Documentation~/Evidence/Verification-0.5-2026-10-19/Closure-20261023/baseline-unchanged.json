@@ -1,0 +1,86 @@
+{
+  "sourceArchive": "../S16-closure/evidence.tar.gz",
+  "matched": 16,
+  "members": [
+    {
+      "path": "baseline/AreaLights-a20c64d74b92f38a59cf335f55590a61b2ea029ea79602daff479c9bcd8c611e.bin",
+      "sha256": "a20c64d74b92f38a59cf335f55590a61b2ea029ea79602daff479c9bcd8c611e",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/AreaLights.json",
+      "sha256": "50c281fb437399e039cd13783aa79090e7ac485d40479aa4af92dadc62cb4162",
+      "bytes": 420
+    },
+    {
+      "path": "baseline/Cookies-0f0ded0adf295a69d41d0637a2706e6e4530c565f342f41f0b1dc664b0ad4a72.bin",
+      "sha256": "0f0ded0adf295a69d41d0637a2706e6e4530c565f342f41f0b1dc664b0ad4a72",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/Cookies.json",
+      "sha256": "351b96cddc792a85ffe446bb07d5982f3590569d4dc2991b4f5e69b0a5e2538d",
+      "bytes": 417
+    },
+    {
+      "path": "baseline/Decal-1794ce496a356b4d7b9ffdb53d39084fffd500d92c15810075e29d251fd55abd.bin",
+      "sha256": "1794ce496a356b4d7b9ffdb53d39084fffd500d92c15810075e29d251fd55abd",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/Decal.json",
+      "sha256": "ac6ad880098aadd85d10795fe9b0c7fb8964ad6c59f6be928cb9723a34ca1d54",
+      "bytes": 415
+    },
+    {
+      "path": "baseline/LocalLights-8f5afff7103aa9110e035e8ada42a02d264fb93dd61e3cad4dfde53b231eadd7.bin",
+      "sha256": "8f5afff7103aa9110e035e8ada42a02d264fb93dd61e3cad4dfde53b231eadd7",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/LocalLights.json",
+      "sha256": "8d465e1eaca53cef3c1ade03375084e08973aef8409a0a01ae14f0eb3b3cd63f",
+      "bytes": 421
+    },
+    {
+      "path": "baseline/ReflectionProbes-08f0517a5b69b5f85cc475ea942405d2ec293ca5d9b1071ba8aad4954ef5f3ad.bin",
+      "sha256": "08f0517a5b69b5f85cc475ea942405d2ec293ca5d9b1071ba8aad4954ef5f3ad",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/ReflectionProbes.json",
+      "sha256": "c3cb3c0d74e0b1574df105ab2eed9eafd93d418d35a7bf5026e729d71c4bd38c",
+      "bytes": 426
+    },
+    {
+      "path": "baseline/ScreenSpace-9efc75246d34d01a03435ee629f3ed613c52c1f4f2b3057ccd035d65a15c9049.bin",
+      "sha256": "9efc75246d34d01a03435ee629f3ed613c52c1f4f2b3057ccd035d65a15c9049",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/ScreenSpace.json",
+      "sha256": "74cc4d6618b21fcbf4ea94e4569439b17a1e016063894b53c137edb936516777",
+      "bytes": 421
+    },
+    {
+      "path": "baseline/Shadows-e9fe0c589baaed65d35c2bb8bdf599e4172db88b45a1689b4cb37d539ac757e6.bin",
+      "sha256": "e9fe0c589baaed65d35c2bb8bdf599e4172db88b45a1689b4cb37d539ac757e6",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/Shadows.json",
+      "sha256": "0844fdcf58c0491da70ac9b0d0cd0bec0b941ed1737ed928708fe688284f6e6c",
+      "bytes": 417
+    },
+    {
+      "path": "baseline/Translucent-a84fc11f3c82af57941cf1f45a07591c311248086178cd83c8e48825397b9a93.bin",
+      "sha256": "a84fc11f3c82af57941cf1f45a07591c311248086178cd83c8e48825397b9a93",
+      "bytes": 2048000
+    },
+    {
+      "path": "baseline/Translucent.json",
+      "sha256": "9e8b12b991487daa5ba997faa05e46ac91e04b621e7958af99b736e6534812a0",
+      "bytes": 421
+    }
+  ]
+}

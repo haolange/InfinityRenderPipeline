@@ -1,0 +1,715 @@
+{
+  "root": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01",
+  "files": [
+    {
+      "path": "ground-controls-result.json",
+      "bytes": 3901,
+      "allocated": 262144,
+      "sha256": "8b4ecf80ac52b705b2cd25658235286c8227bda1f15af86d70fb1ff2013b61a6"
+    },
+    {
+      "path": "local-ab-exit.json",
+      "bytes": 767,
+      "allocated": 262144,
+      "sha256": "f4710577036ee5c169956a714e97372d90784ee6238d7f85a6c0e1d3072dc9b8"
+    },
+    {
+      "path": "local-ab-restored.json",
+      "bytes": 1102,
+      "allocated": 262144,
+      "sha256": "9e60e09679706624ea64cebb0f7c091fb85fb429beaf36c0812dd982fba22395"
+    },
+    {
+      "path": "local-ground-off/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "cece19cb3ca1a436a00a6d25a68284389ddf6e4fb207936449928e569c44f0c3"
+    },
+    {
+      "path": "local-ground-off/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "3603d574a63a745f0f63cae10136ba358bdaab12b6f797c58c823287085bcb4b"
+    },
+    {
+      "path": "local-ground-off/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "b1deac99bb5f4f02eed057d280865106a456fed976c979989fa8f57f3d383f18"
+    },
+    {
+      "path": "local-ground-off/capture.json",
+      "bytes": 24245,
+      "allocated": 262144,
+      "sha256": "0da868815f7b5470f94c5328df17e74eaa477d399a4ae85ab7abec8d7c972259"
+    },
+    {
+      "path": "local-ground-off/compiled-graph-121-1.txt",
+      "bytes": 7366,
+      "allocated": 262144,
+      "sha256": "4019e04234336bf38fdf133a021f2a9f080d8ed6de7cab6bfa54086d9e64353a"
+    },
+    {
+      "path": "local-ground-off/request.json",
+      "bytes": 801,
+      "allocated": 262144,
+      "sha256": "e33889166b9dce8bacbbf8cd77733b0cd8d03d27179ad0bc891daa38cd85305b"
+    },
+    {
+      "path": "local-ground-off-config.json",
+      "bytes": 1015,
+      "allocated": 262144,
+      "sha256": "62367bfd94bdb53496f647d43af1bc0396d88542a269f8046eb90dc3ef2c404f"
+    },
+    {
+      "path": "local-ground-off-request.json",
+      "bytes": 428,
+      "allocated": 262144,
+      "sha256": "a8e80fcb5e0cc8833359ff5f661583bebcf182dc214196eed6fa4145937aaa92"
+    },
+    {
+      "path": "local-ground-off-start.json",
+      "bytes": 1000,
+      "allocated": 262144,
+      "sha256": "aa86a9b1f8742f1d93265d06054588c39372c9b082cabb0025cbc30ee9d411b6"
+    },
+    {
+      "path": "local-ground-off-warm-v2.json",
+      "bytes": 958,
+      "allocated": 262144,
+      "sha256": "6c34401998cf6de2d79aad8f848971ed578a7ce91425ddbf10207dd02981edc4"
+    },
+    {
+      "path": "local-ground-off-warm.json",
+      "bytes": 938,
+      "allocated": 262144,
+      "sha256": "acbca74d78971274c3cf08ccca525cca8a6550f0deecda619b960b0cee611e22"
+    },
+    {
+      "path": "local-ground-on/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "308fb118756691dafc2d8b2cc504c813b296496c0661917789d0b2f9d3b521b5"
+    },
+    {
+      "path": "local-ground-on/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "5e9e38aeef1ec7b6a1290b42a77b4491c8463cc69c4d2d53ca714be23c0dc55c"
+    },
+    {
+      "path": "local-ground-on/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "f102d12dc69490849a89c9475d8cba800848576d283f26f37b1498417ea0cc4a"
+    },
+    {
+      "path": "local-ground-on/capture.json",
+      "bytes": 24302,
+      "allocated": 262144,
+      "sha256": "8c4b477bf36b13c013ed9946c85d2d69cbb2706909ce68331f503f619ead2e66"
+    },
+    {
+      "path": "local-ground-on/compiled-graph-121-1.txt",
+      "bytes": 7366,
+      "allocated": 262144,
+      "sha256": "4019e04234336bf38fdf133a021f2a9f080d8ed6de7cab6bfa54086d9e64353a"
+    },
+    {
+      "path": "local-ground-on/request.json",
+      "bytes": 800,
+      "allocated": 262144,
+      "sha256": "6f0a51bfa11a9e32fa971bdcdc28de4613a3eab6f247c80f05ad0da60c589e93"
+    },
+    {
+      "path": "local-ground-on-config.json",
+      "bytes": 1010,
+      "allocated": 262144,
+      "sha256": "41a5ccf2b8f39cbd9e54c1941ed38b76d6ee37146939c7b9072cb869451b63eb"
+    },
+    {
+      "path": "local-ground-on-request.json",
+      "bytes": 427,
+      "allocated": 262144,
+      "sha256": "6b680b30527cfb3a557f31fd8f3d29e759b89b5b85ad1f50c255695aa14189d5"
+    },
+    {
+      "path": "local-ground-on-start.json",
+      "bytes": 997,
+      "allocated": 262144,
+      "sha256": "39c9abd4a47c73d230da16b2ad564e2b371986230d59fdcf79c911256904a097"
+    },
+    {
+      "path": "local-ground-on-warm-v2.json",
+      "bytes": 958,
+      "allocated": 262144,
+      "sha256": "c7a71c295b51a65c712052a1aaed8045ac98fe24323de079616945a914118c67"
+    },
+    {
+      "path": "local-ground-on-warm.json",
+      "bytes": 916,
+      "allocated": 262144,
+      "sha256": "999d61369878638e8dee6ad85ed807b26b1cf8459074553591f00b68588e8dcb"
+    },
+    {
+      "path": "local-ground-prepare.json",
+      "bytes": 822,
+      "allocated": 262144,
+      "sha256": "4733234457cdf0689a6ab11c0d586461625fc66b5dd47564946ec73a50cf6f3c"
+    },
+    {
+      "path": "local-marker-exit.json",
+      "bytes": 768,
+      "allocated": 262144,
+      "sha256": "497a783c96780564f198d514cb2c284211eef414f266f656535f2445a5ffbe56"
+    },
+    {
+      "path": "local-marker-off/Depth-121-2314.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "e07c8d3bb003aa91440ebd0bc25af6cb406409d52f5904b9a86ccc3d26571cd1"
+    },
+    {
+      "path": "local-marker-off/DisplayColor-121-2314.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "f8dde7f7e67c624b3a956d00c7bcc86689b0acda7c4f05632dafe218642dc227"
+    },
+    {
+      "path": "local-marker-off/Lighting-121-2314.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "6c295879152009aec2f0a6600f1674ed673fc85e9205a115d86027f15c0b59a2"
+    },
+    {
+      "path": "local-marker-off/capture.json",
+      "bytes": 24243,
+      "allocated": 262144,
+      "sha256": "c923e158bda683fdf6e7261223fd61a9db99f6ec199921a6deeaa157725eb0f1"
+    },
+    {
+      "path": "local-marker-off/compiled-graph-121-2314.txt",
+      "bytes": 7366,
+      "allocated": 262144,
+      "sha256": "4019e04234336bf38fdf133a021f2a9f080d8ed6de7cab6bfa54086d9e64353a"
+    },
+    {
+      "path": "local-marker-off/request.json",
+      "bytes": 800,
+      "allocated": 262144,
+      "sha256": "2da860a51f1196219911a04afae4a367d75a5e3fb467b287f545c0546a61172a"
+    },
+    {
+      "path": "local-marker-off-request.json",
+      "bytes": 428,
+      "allocated": 262144,
+      "sha256": "fb12a7b186e82182e935b7b2593f9ddb2ec6b8d21f84096cf49cef978e8952b9"
+    },
+    {
+      "path": "local-marker-off-start.json",
+      "bytes": 1017,
+      "allocated": 262144,
+      "sha256": "16598012ce1619184d66c36664f35e672aa9941a66669213cba7c98093d657f8"
+    },
+    {
+      "path": "local-marker-off-state.json",
+      "bytes": 848,
+      "allocated": 262144,
+      "sha256": "6cabef14affe77b0af7c16655bd4602734d90659e79fd456a99762eed24b206f"
+    },
+    {
+      "path": "local-marker-on/Depth-121-249.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "110ff54429f5b46310b27cc0fd741d93b3c8a38a96e7c950a091abec1e934609"
+    },
+    {
+      "path": "local-marker-on/DisplayColor-121-249.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "3125705fc7495acb510118843a2a2fd96ce4331ed17b3e2fd2eec7ac8ef66d8c"
+    },
+    {
+      "path": "local-marker-on/Lighting-121-249.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "8702c80222718b87a4dc7c12a9a75bc200575b7291e4963f5411341f5840a155"
+    },
+    {
+      "path": "local-marker-on/capture.json",
+      "bytes": 24345,
+      "allocated": 262144,
+      "sha256": "1f894d72bf30ba3fc191ff20cc94c099175ae9a51222ee1d5a96e5a27113f5af"
+    },
+    {
+      "path": "local-marker-on/compiled-graph-121-249.txt",
+      "bytes": 7366,
+      "allocated": 262144,
+      "sha256": "4019e04234336bf38fdf133a021f2a9f080d8ed6de7cab6bfa54086d9e64353a"
+    },
+    {
+      "path": "local-marker-on/request.json",
+      "bytes": 799,
+      "allocated": 262144,
+      "sha256": "f4243176cc9a49d7aadf131e962f212fc1cf7a3e11bcbc796e1933a0d8b72733"
+    },
+    {
+      "path": "local-marker-on-config.json",
+      "bytes": 1010,
+      "allocated": 262144,
+      "sha256": "ec350b34d0d182be38f8f5cadc14cf40bba2b47f7af37abb0a471a6ed7a1ce7d"
+    },
+    {
+      "path": "local-marker-on-request.json",
+      "bytes": 427,
+      "allocated": 262144,
+      "sha256": "afd6ec8cd7d9fb4415dd9cd4800b2b70c236d9eb8492d69b5eb48ad84f432848"
+    },
+    {
+      "path": "local-marker-on-start.json",
+      "bytes": 998,
+      "allocated": 262144,
+      "sha256": "00eb3f881813a95b14a2e8fbff95e04ca77750895f7b06c98266ae21cbefa9c9"
+    },
+    {
+      "path": "local-marker-on-state.json",
+      "bytes": 844,
+      "allocated": 262144,
+      "sha256": "42df4631fe50d1cf04d975f54be988d437f8a49111ff0c581248222aafd9bdef"
+    },
+    {
+      "path": "local-marker-prepare.json",
+      "bytes": 822,
+      "allocated": 262144,
+      "sha256": "84f28382ae5fbcd8f96b8fbf763fca62884e07942e7096d01d452f277a959297"
+    },
+    {
+      "path": "local-marker-restored.json",
+      "bytes": 845,
+      "allocated": 262144,
+      "sha256": "7cffa47acce06bf1e2e0837b563a69035c8619e1ddde73a9723619796bc1188f"
+    },
+    {
+      "path": "local-marker-warm.json",
+      "bytes": 958,
+      "allocated": 262144,
+      "sha256": "bb8d91d20448d5ee41348c99575d47f7b054b0a1a5756d5ad6796590ecfbd731"
+    },
+    {
+      "path": "local-off-restored.json",
+      "bytes": 1154,
+      "allocated": 262144,
+      "sha256": "6127a4d217a0f15e24c3287019e8e6537ecb8477ac7bce971b21eb2b02fa66ee"
+    },
+    {
+      "path": "marker-shadow-result.json",
+      "bytes": 416,
+      "allocated": 262144,
+      "sha256": "25cfd3079a47b1cce024ff061af730b42fabe756b4028054b17900cdc5da45c6"
+    },
+    {
+      "path": "original-eight-v2/Shadows/DisplayColor-91-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "74c67c14790c060ba3ab068376cb1db8d675dd6b423fcb6f8b028fe9282ea793"
+    },
+    {
+      "path": "original-eight-v2/Shadows/capture.json",
+      "bytes": 19577,
+      "allocated": 262144,
+      "sha256": "e655376b3828142e5cf890d5cb7e77091822ced8e851b01e10b644fdd0e3005e"
+    },
+    {
+      "path": "original-eight-v2/Shadows/compiled-graph-91-1.txt",
+      "bytes": 8523,
+      "allocated": 262144,
+      "sha256": "ee2862bd20dde90f50c47866c681987e33a2dbf93ba020ce6236714f5f8d3166"
+    },
+    {
+      "path": "original-eight-v2/Shadows/request.json",
+      "bytes": 755,
+      "allocated": 262144,
+      "sha256": "548bfd5afd317e7945f675bc9ab27f1980ee352ab9727ce92a36fcbf157706f4"
+    },
+    {
+      "path": "original-eight-v2/report.json",
+      "bytes": 8509,
+      "allocated": 262144,
+      "sha256": "2acd0227d807053059f5acc4e0e5fad6643d01330246ff7d09a8bf063f789f53"
+    },
+    {
+      "path": "picture-controls-restored.json",
+      "bytes": 1201,
+      "allocated": 262144,
+      "sha256": "27d76e1f09521472283ba7ad126e762737233cca9319b582b5232177c9e4fdbf"
+    },
+    {
+      "path": "picture-loop-restored.json",
+      "bytes": 972,
+      "allocated": 262144,
+      "sha256": "38a47f28cec29ce2d02e6ce5331b219d6988b51c9a90662b499bcd762b061aca"
+    },
+    {
+      "path": "picture-restoration-state.json",
+      "bytes": 1174,
+      "allocated": 262144,
+      "sha256": "eecd214fd2953f418a235d18c077964cbe59dc048321e5a9243aff4189201927"
+    },
+    {
+      "path": "shadows-advancing-final-state.json",
+      "bytes": 1281,
+      "allocated": 262144,
+      "sha256": "408e9e4c85a856cfb1ff04893575e61340e6abc9350d331967e8646ce2f5548f"
+    },
+    {
+      "path": "shadows-advancing-proof.json",
+      "bytes": 864,
+      "allocated": 262144,
+      "sha256": "6fa8b9921241efeafae57e339aaca12a820670b112db3f9805f10d0e7dcc4971"
+    },
+    {
+      "path": "shadows-advancing-v1/Shadows/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "feaa852d6445f5379b6e87ad60bd3728fee41caeb4918df68e69b2fdb95f93f8"
+    },
+    {
+      "path": "shadows-advancing-v1/Shadows/capture.json",
+      "bytes": 19584,
+      "allocated": 262144,
+      "sha256": "cced02518ec0dcb67fbefaa56fe4b5a13f241d825ac4e620990a39b026380681"
+    },
+    {
+      "path": "shadows-advancing-v1/Shadows/compiled-graph-91-92.txt",
+      "bytes": 8523,
+      "allocated": 262144,
+      "sha256": "ee2862bd20dde90f50c47866c681987e33a2dbf93ba020ce6236714f5f8d3166"
+    },
+    {
+      "path": "shadows-advancing-v1/Shadows/request.json",
+      "bytes": 758,
+      "allocated": 262144,
+      "sha256": "ecf1576220d31f4dbd568e01bef00aec6648c000cfaa99cdb3b7c97e79a5da12"
+    },
+    {
+      "path": "shadows-advancing-v1/report.json",
+      "bytes": 1986,
+      "allocated": 262144,
+      "sha256": "ed5536ce529ab182d40c0d698f27122709c55788b986ec29e226dc267fa1e4c0"
+    },
+    {
+      "path": "shadows-advancing-v1-start.json",
+      "bytes": 1328,
+      "allocated": 262144,
+      "sha256": "af36d1dbf92e28bb55d4152a1191306e066e4fadfdb4715cd16c0c1a0551d2f0"
+    },
+    {
+      "path": "shadows-auto-loop-arm.json",
+      "bytes": 832,
+      "allocated": 262144,
+      "sha256": "f0f80f89eeb89a58748aafbcbe5ad3d15a3307771cda05628baf391807f0c6eb"
+    },
+    {
+      "path": "shadows-live-bg-v1/Shadows/DisplayColor-91-92.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "a62b0211649bb6b7cd32809abc83695d453d91bb1bb0716ae00f81234516ad13"
+    },
+    {
+      "path": "shadows-live-bg-v1/Shadows/capture.json",
+      "bytes": 19599,
+      "allocated": 262144,
+      "sha256": "19682721e958ad02f15d72a8322908731f19ec501098b8c5431660f55fa817fd"
+    },
+    {
+      "path": "shadows-live-bg-v1/Shadows/compiled-graph-91-92.txt",
+      "bytes": 8523,
+      "allocated": 262144,
+      "sha256": "ee2862bd20dde90f50c47866c681987e33a2dbf93ba020ce6236714f5f8d3166"
+    },
+    {
+      "path": "shadows-live-bg-v1/Shadows/request.json",
+      "bytes": 756,
+      "allocated": 262144,
+      "sha256": "889da5e28549cca9c3626e0383e76a9dfc37c39487ed5347896a1bd9533372ff"
+    },
+    {
+      "path": "shadows-live-bg-v1/report.json",
+      "bytes": 1987,
+      "allocated": 262144,
+      "sha256": "dcb0a0084ded10ab1728f1c0da3a159cd6f28498345c01418c2f5c676dfe7e86"
+    },
+    {
+      "path": "shadows-live-bg-v1-start.json",
+      "bytes": 1323,
+      "allocated": 262144,
+      "sha256": "a3ae0d146e19637ece31473f4726e438c7982608359257d441098a2f2210d96b"
+    },
+    {
+      "path": "shadows-live-bg-v1-state.json",
+      "bytes": 1279,
+      "allocated": 262144,
+      "sha256": "10de9196f0e0f4bf9e3556e24b18ab55bbfd19922c5d4d00f14181542c516b69"
+    },
+    {
+      "path": "shadows-live-loop-state.json",
+      "bytes": 1244,
+      "allocated": 262144,
+      "sha256": "58bb49a0d1103ba6d722fa40555792503bc52f0b8e28ed7f937df81c26cee13f"
+    },
+    {
+      "path": "shadows-live-v1/Shadows/DisplayColor-91-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "74c67c14790c060ba3ab068376cb1db8d675dd6b423fcb6f8b028fe9282ea793"
+    },
+    {
+      "path": "shadows-live-v1/Shadows/capture.json",
+      "bytes": 19578,
+      "allocated": 262144,
+      "sha256": "87df851a9e815d58b098603765da31993b90f1b904d4add46ecaa735cc6567af"
+    },
+    {
+      "path": "shadows-live-v1/Shadows/compiled-graph-91-1.txt",
+      "bytes": 8523,
+      "allocated": 262144,
+      "sha256": "ee2862bd20dde90f50c47866c681987e33a2dbf93ba020ce6236714f5f8d3166"
+    },
+    {
+      "path": "shadows-live-v1/Shadows/request.json",
+      "bytes": 753,
+      "allocated": 262144,
+      "sha256": "71c8a84f0ca88be25aa32516d8c5de69eab61a1c284287d93081623dbf133742"
+    },
+    {
+      "path": "shadows-live-v1/report.json",
+      "bytes": 1978,
+      "allocated": 262144,
+      "sha256": "cc2e168ad18565d00e17e5b07cc61fec879b8401e4e9d29d0f0e9cdcd40110d9"
+    },
+    {
+      "path": "shadows-live-v1-start.json",
+      "bytes": 1322,
+      "allocated": 262144,
+      "sha256": "b8bcacbc1e0025777c8aac16f660d78b65692e1d34fd4ed5f1b8fc0c284befad"
+    },
+    {
+      "path": "shadows-live-v1-state.json",
+      "bytes": 1276,
+      "allocated": 262144,
+      "sha256": "bb2c0bc21109603ed99c8c95f0e4a316f4648fc277f98e8b5960a44119edadff"
+    },
+    {
+      "path": "shadows-loop-enable.json",
+      "bytes": 1059,
+      "allocated": 262144,
+      "sha256": "df964e250c0841b0dc5cc3d223c1ac19967988c06cb7a266daad81b11b8d9d20"
+    },
+    {
+      "path": "shadows-loop-exit.json",
+      "bytes": 767,
+      "allocated": 262144,
+      "sha256": "066d225a0e8e11f0d07eb7c5989d57d2e800e9d8bf60595267f8e27cd6785e83"
+    },
+    {
+      "path": "shadows-loop-prepare.json",
+      "bytes": 814,
+      "allocated": 262144,
+      "sha256": "a7828d961d34b34d7e22f2138a4efdb1b4dfb0682ccbbc3ee606ba219d568728"
+    },
+    {
+      "path": "shadows-loop-proof.json",
+      "bytes": 868,
+      "allocated": 262144,
+      "sha256": "3c904808bc949e63d31720a754a3c6c677da72cab24c80786dd12081e107f206"
+    },
+    {
+      "path": "shadows-loop-restored.json",
+      "bytes": 1207,
+      "allocated": 262144,
+      "sha256": "0f09e8879334191e3f31ced2367ecc48aab8d45f4a304be7d6b359c4a0a7e69a"
+    },
+    {
+      "path": "translucent-ab-exit.json",
+      "bytes": 767,
+      "allocated": 262144,
+      "sha256": "1d839c56032b8666f950322d56e92da78b273240cbb3e3973494aee4e1b1d8e9"
+    },
+    {
+      "path": "translucent-ab-restored.json",
+      "bytes": 1205,
+      "allocated": 262144,
+      "sha256": "2fa0daf9a397105d9e8c053564048860877d33ca28671693385ac223fc3f7e53"
+    },
+    {
+      "path": "translucent-ground-off/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "fc13f456647d6e9f561fef37473b5957444b01fe98699c4c22028c5ad6a72842"
+    },
+    {
+      "path": "translucent-ground-off/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "92f852a9facfd2f159957caccd60de39fd533577527624c895fa4d62481a2bfe"
+    },
+    {
+      "path": "translucent-ground-off/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "d77b310cdb3d04d473de69ee09d7568f7dca9b445f957d482f5d32246eb1aa40"
+    },
+    {
+      "path": "translucent-ground-off/capture.json",
+      "bytes": 24239,
+      "allocated": 262144,
+      "sha256": "0f85279a955110b815dbae719ae3e4a78a3080c847aca8fe5e8c9408e4a1b918"
+    },
+    {
+      "path": "translucent-ground-off/compiled-graph-121-1.txt",
+      "bytes": 5676,
+      "allocated": 262144,
+      "sha256": "39f5e4bc3e06c625ed6368031f3c5739c266cfb196421b1b982eb2b1925a8fc7"
+    },
+    {
+      "path": "translucent-ground-off/request.json",
+      "bytes": 807,
+      "allocated": 262144,
+      "sha256": "80ae56be3166e561ede79e3532c76a3813ed1e683d50026ad53e19fc0569ac7f"
+    },
+    {
+      "path": "translucent-ground-off-config.json",
+      "bytes": 1026,
+      "allocated": 262144,
+      "sha256": "fc4307ba4b35975d662a56b827c1600b334377d53b7dbac62fd681986c67673e"
+    },
+    {
+      "path": "translucent-ground-off-request.json",
+      "bytes": 434,
+      "allocated": 262144,
+      "sha256": "bf52a33e7cc1b1049132d58dadd7d7ac510ff801fc693c9d72b4d9185cd4e718"
+    },
+    {
+      "path": "translucent-ground-off-start.json",
+      "bytes": 1011,
+      "allocated": 262144,
+      "sha256": "42cce2a59b1a22cf33f7ee36ca560bb25ff2f767ec66ae4556ebe29041b6ccf5"
+    },
+    {
+      "path": "translucent-ground-off-warm-v2.json",
+      "bytes": 958,
+      "allocated": 262144,
+      "sha256": "0779233ca1777ff4dbfdb5733ba8207490820da7b754ec09763cf6cc2c4ca16e"
+    },
+    {
+      "path": "translucent-ground-off-warm.json",
+      "bytes": 938,
+      "allocated": 262144,
+      "sha256": "cc5bbbfcf7311730ca48181e4ca8820dd3e26bf65f545aa40120bb607c418c5b"
+    },
+    {
+      "path": "translucent-ground-on/Depth-121-1.bin",
+      "bytes": 1024000,
+      "allocated": 1048576,
+      "sha256": "67868c48e11f3bae2fb553849118753b2009f0f909ad006a54e2b609314a1803"
+    },
+    {
+      "path": "translucent-ground-on/DisplayColor-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "244efac81fcc2a5bac07d35b262fbebfe5c6d056e2aba9529e2a2c8732fb3cbe"
+    },
+    {
+      "path": "translucent-ground-on/Lighting-121-1.bin",
+      "bytes": 2048000,
+      "allocated": 2097152,
+      "sha256": "e6d313013d4bc697222b0a4879983e77f812824ad142328112f13a3a2fa6f17a"
+    },
+    {
+      "path": "translucent-ground-on/capture.json",
+      "bytes": 24239,
+      "allocated": 262144,
+      "sha256": "f5b8f1e06ab87c9c1b6ea1cff7fdf3b757531d11ac96c1f545540f79868aeb19"
+    },
+    {
+      "path": "translucent-ground-on/compiled-graph-121-1.txt",
+      "bytes": 5676,
+      "allocated": 262144,
+      "sha256": "39f5e4bc3e06c625ed6368031f3c5739c266cfb196421b1b982eb2b1925a8fc7"
+    },
+    {
+      "path": "translucent-ground-on/request.json",
+      "bytes": 806,
+      "allocated": 262144,
+      "sha256": "21dafc682038de225555e0c63d712713c2ef60d66382dd0d28816bb8526f1722"
+    },
+    {
+      "path": "translucent-ground-on-config.json",
+      "bytes": 1022,
+      "allocated": 262144,
+      "sha256": "ae20a803fbbc6c6a8d8a5475a30bcf0c048166a3ee7976105b746cd60c455105"
+    },
+    {
+      "path": "translucent-ground-on-request.json",
+      "bytes": 433,
+      "allocated": 262144,
+      "sha256": "f8c09069bd48e6d9996cc4a145f78f7d1b2e86af46057cf6312c7b5ba38ce4b3"
+    },
+    {
+      "path": "translucent-ground-on-start.json",
+      "bytes": 1010,
+      "allocated": 262144,
+      "sha256": "a0c969be5db51e4b947325ccaf91b6551c1b2098f4a1287e87e565f0f9a44fed"
+    },
+    {
+      "path": "translucent-ground-on-warm-v2.json",
+      "bytes": 958,
+      "allocated": 262144,
+      "sha256": "a0bcb77f07d8a9d5afd08ec3d6f7f71d625baa5fc1cfe2c3f5087c178fe9325a"
+    },
+    {
+      "path": "translucent-ground-on-warm.json",
+      "bytes": 916,
+      "allocated": 262144,
+      "sha256": "a88f8ac8ab4b7b422c3134cfe01fd3cdaaa97251f8e6c4fd4f3cf2e9a805e475"
+    },
+    {
+      "path": "translucent-ground-prepare.json",
+      "bytes": 821,
+      "allocated": 262144,
+      "sha256": "e427dabd7e4e537ef96d4033b24fd06c4c2b122b0be1889ec6e56208b5a31d21"
+    },
+    {
+      "path": "translucent-off-restored.json",
+      "bytes": 1257,
+      "allocated": 262144,
+      "sha256": "2b22b40b6af4b1fff87c05d6510894f4a307b51a12ebba94d61702a6a758e421"
+    },
+    {
+      "path": "ground-controls.jpg",
+      "bytes": 57100,
+      "allocated": 262144,
+      "sha256": "2f375f728720d8ba27699a86059b72364413ef22b94ff2ea14407e9ec4505e2f"
+    },
+    {
+      "path": "marker-shadow-control.jpg",
+      "bytes": 26308,
+      "allocated": 262144,
+      "sha256": "d47359eaf41f3e409914ece939eb7d8d70cf90d491b74f9b5d42d33ca0b929fa"
+    },
+    {
+      "path": "loop-project-settings-original-bytes.bin",
+      "bytes": 80440,
+      "allocated": 262144,
+      "sha256": "530e6798c96fc020b7647f955178e9e976d0d6cb2aac3bac1533dfc3bfa35b6a",
+      "reason": "single small current-byte backup; restored settings disk identity matches, private bytes need no archive"
+    }
+  ],
+  "count": 117,
+  "bytes": 39454343,
+  "allocatedLowerBound": 64749568,
+  "deleted": true,
+  "producer": "capture callbacks finished; Playoff; hooksremoved; Spazon restored; same original native dirty state",
+  "consumer": "independent frame/control review approved; baseline files and other seven initial cases excluded",
+  "verifiedAbsent": 117
+}

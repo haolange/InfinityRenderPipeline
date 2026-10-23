@@ -1100,3 +1100,22 @@ Before curation task+fixture allocation was252182528bytes;36consumed raw buffers
 payloadbytes/atleast50331648allocatedbytes after durable exact inventory. Original8case regression/baselines and fixture sources
 remain named inputs for later closure. See Documentation~/Evidence/Verification-0.5-2026-10-19/Closure-20261023/decal-report.md.
 Performance/final suite/cold-start/regression/final cleanup remain pending; this focused batch does not establish PR readiness.
+
+Closure picture follow-through: focused FixS15 delivered as602e649 and remotePRbranchSHA matched. Independent normal-frame controls explain LocalLights/Translucent/Decal finite-floor bands as disabled planetary ground; task-marker shadow explains the small floor dot. No atmosphere/light shader fix attributed. Original Shadows failure retained; actual advancing Play retry passes unchanged baseline (RMSE.005385155/outliers.1566406%/finite). Picture source/frame/restoration evidence curated in Closure-20261023; consumed117files/39,454,343payloadbytes/atleast64,749,568allocatedbytes retired after memberSHA verification. Six performance groups plus decal replacement work are next: pilot confirms unique positive FTM CPU/GPU and actual effective camera High; CPU100ms is Editor scheduling dominated and reported separately from main-thread work. Remaining final package suite/eightcase/threecoldstarts/probe review and cleanup still pending.
+
+### Closure acceptance result — 2026-10-23–24 (supersedes pending closure notes above)
+
+- [x] Original main1307adc scope frozen; no historical stage rerun or externalSDK rerun. S1 approved historical-related + current-package acceptance is explicit in acceptance-scope.md.
+- [x] FixS15 602e649 pushed explicitly to PR branch: actual replacement DBuffer recovery, lifecycle5/5/related8/8, off/restore/multicamera frames independently accepted.
+- [x] Persistent picture controls reviewed: finite-floor/ground horizon and marker shadow explained, initial frozen-Time Shadows failure retained, advancing retry and final8 pass unchanged baseline. No atmosphere root-cause patch claimed.
+- [x] Probe/Display historical transient: three independent Editor34863/39066/42623 freshRPfirstGame +120successful-submission stable pairs accepted; sixReflectionface necessarypreproduction disclosed, root unknown/currentnotreproduced.
+- [x] Seven1280×720High representative workloads, before1307adc/after602e,120validwarm +3×300positiveuniqueCPU/GPU each. WholeEditor/fixedtarget boundaries retained. Probe offset investigated with reverse and same-code observation control, no stable patch-attributable regression; independent performance approval.
+- [x] Final Infinity-only discovered/started/finished625, Passed625/Failed0/Skipped0, XML/framework/callbackcomplete. Final8normalregressionsPass and old16baselinefilesbyteexact. StaticCheck0errors/0warnings.
+- [x] OriginalSpazon9clean/emptyselection/options3/backgroundfalse/priorBuildSettingsdirty restored;427sourcesbyteexact. Own42623normallyclosed, lifetimeexitobserved, capture0pending/tests+regressioninactive/bake+FDoff. NootherEditor/Library/DataStore intervention.
+- [x] Final140memberarchive and finaldocs independently approved. Final755taskfiles/104843792payloadbytes/287047680allocatedbytes retired after durable inventory; runroot/ownedfixture+meta absent, postdelete427sourcesbyteexact. cleanup-receipt verifiedAbsent=true.
+Delivery contract for this completed acceptance batch: commit onmain and push only explicitHEAD:refs/heads/claude/infinityrp-0.5; final response records actual local/remoteSHAequality. Remote main is never pushed; noautomaticReadyconversion/merge. All technical closure gates and independent acceptance are complete.
+
+Permanent current receipts: Documentation~/Evidence/Verification-0.5-2026-10-19/Closure-20261023/closure-report.md,
+performance-report.md, final-acceptance-evidence.tar.gz + manifest, picture-report.md, acceptance-scope.md,
+final-restoration.json and cleanup-receipt.json. Three cold images are included losslessly in the final archive;
+normal eightcase preview retained. Original diagnosis failures and timing limitations remain distinct from passes.

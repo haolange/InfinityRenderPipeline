@@ -1,0 +1,599 @@
+{
+  "root": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/verification-0.5-closure/20261023-close01",
+  "files": [
+    {
+      "path": "decal-ab-exit.json",
+      "bytes": 767,
+      "sha256": "bdcf6f8cf13a110b8974a88f2ab8cc4ed02059a50f3648a7344019b63f77047a",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ab-scene-restored.json",
+      "bytes": 1107,
+      "sha256": "5af841b4f2f5ff9e3d1f9e3699a67f7fde43594ec0887c8bec5adb38938e01c4",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-bind-reset-v2.json",
+      "bytes": 1161,
+      "sha256": "47edbfd2183c95b19c92c983d2153dcc508d93c3a139865a5cb5352551a0364a",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-bind-reset.json",
+      "bytes": 1161,
+      "sha256": "84b82b4322c7e5d3bc25a88bcf4dab995967565829d6179e143e0cf2edc1ccdc",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-diagnostic-prepare-v2.json",
+      "bytes": 809,
+      "sha256": "39a4f30c8d9de04e34ab31efb53133100915c5773def30a7dfb4ad3756bb12e3",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-diagnostic-prepare.json",
+      "bytes": 2356,
+      "sha256": "d1664689e65ddaa3d4814e2d25d8d142091c8b3d60615b97494090e262404111",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disable-multicamera-result.json",
+      "bytes": 355,
+      "sha256": "8b8fcf1d1acff34a0efe2102d0830a0dba388f42d68f82abe745390128772826",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disabled/capture.json",
+      "bytes": 31154,
+      "sha256": "7d087d8fd1531c8240f4e03c50a8e8adb8d50aa8790c781062d79d10d9086cbf",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disabled/compiled-graph-121-1.txt",
+      "bytes": 5079,
+      "sha256": "5d211635b22eb77c04e560759ec9381c8f73990eeda8e23564c7d919408fbfaa",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disabled/request.json",
+      "bytes": 852,
+      "sha256": "d86caab93ffc64c9cb108be9e60624c907c2d1b8609a17f736b7959910708ff6",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disabled-config.json",
+      "bytes": 859,
+      "sha256": "bb78b4a6c6704a8ee3695673a87211175174306ca9ed01a97dfbf7511c127216",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disabled-request.json",
+      "bytes": 453,
+      "sha256": "64a7d732efc476a1cc2afb95e3b470d75efcc70735b52c8bd74e383c27254907",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disabled-start.json",
+      "bytes": 995,
+      "sha256": "25aeb32168a6525a2ff082b7544d9a71a1d69725ff3b02c8c1f28fd9b74a0835",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-enabled-secondary/capture.json",
+      "bytes": 31092,
+      "sha256": "5699448abe00737b2963f73b18a64cf9b5ebee7f7b6a1fb12fcab7d35219ed5b",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-enabled-secondary/compiled-graph-121-1.txt",
+      "bytes": 5278,
+      "sha256": "8c9393a4acc7970d8a795cd1080d5e921b09cca4d1fedb2e761b42c6328a5715",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-enabled-secondary/request.json",
+      "bytes": 861,
+      "sha256": "9f182eb23441f716f5fe96341060f801aef9f39ca2f063aeeb31bb5cc81c04cd",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-enabled-secondary-config.json",
+      "bytes": 894,
+      "sha256": "97ac1bdfdfce5bb8f5c6cbb57d6eccc9cced39248437c770e9b89f73780c849a",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-enabled-secondary-request.json",
+      "bytes": 462,
+      "sha256": "d00dbd497fbdc2ed4749e4b7b9ea413948455effab671e70962e4ed3ead96f10",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-enabled-secondary-start.json",
+      "bytes": 1013,
+      "sha256": "faafe03bc849c20a158d377c94206fd58a5002692f2a792dd4ca7fc000c0d70d",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-final-exit.json",
+      "bytes": 767,
+      "sha256": "69181b2dcb082b06a664a998b1e2df5c5ffa2ca9cb2fdb96ec38c99b00564c20",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-final-scene-restored.json",
+      "bytes": 1110,
+      "sha256": "c9a10757e11f543cead079ab9b6db3fb0b5c0849a9be1655a6e3b1167207b236",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-config.json",
+      "bytes": 1013,
+      "sha256": "9a0e4fe0a94f03c941373ad7a21d0cf34e40641791fa30e8ffabd39878a17052",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-request.json",
+      "bytes": 454,
+      "sha256": "63e7c2176152568e30aacb991023859cf7749166ae1dc71a7670e0fdb7328d58",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-restored.json",
+      "bytes": 1150,
+      "sha256": "d6f39008207f78ccb664177e8b39acd005b3f4c6ba6cc58423967c2f63cbc500",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-start.json",
+      "bytes": 998,
+      "sha256": "da4734b4d4ed951934f0a9bc8bb76c57613c18ba3b29bdb3d61359679585f8e1",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-v2-config.json",
+      "bytes": 1019,
+      "sha256": "85bb48c3feed3b4de9dcd8d1ca3c2e833484b687f5feb02a235e431f21067ffe",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-v2-request.json",
+      "bytes": 494,
+      "sha256": "4b8252749d5448fd75cb80a3b8d0c8269e65a86e7c08ec2d82565d0afe84b894",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-v2-start.json",
+      "bytes": 1004,
+      "sha256": "c8425a96526164243ca895647914769e9868fb3755b991f7571ed22717da80fc",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-v3/capture.json",
+      "bytes": 31121,
+      "sha256": "fab01e35c7e0ee3e524bf940430b8ee175bebf3c7f04354b37f6af621f97105e",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-v3/compiled-graph-121-1.txt",
+      "bytes": 5278,
+      "sha256": "8c9393a4acc7970d8a795cd1080d5e921b09cca4d1fedb2e761b42c6328a5715",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-v3/request.json",
+      "bytes": 856,
+      "sha256": "7a21f7ddab43de77bb342f3f447e8296ff0d81db53e2644424f78e1aac4020a3",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-v3-start.json",
+      "bytes": 1003,
+      "sha256": "02bed0d2b47f0127df8c8f75042c1110ea64627a5bdf5603d750340e244511b9",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off-warm.json",
+      "bytes": 877,
+      "sha256": "901be8db46fcffd8ceebce39fabfcbbffca076c083e08efd82d36b99402b0bcd",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on/capture.json",
+      "bytes": 31148,
+      "sha256": "6fb4ad2d9568413ce402c27cbd6a2e7b51f7ef97dcaaa601b4bc76f53c8f8a59",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on/compiled-graph-121-1.txt",
+      "bytes": 5278,
+      "sha256": "8c9393a4acc7970d8a795cd1080d5e921b09cca4d1fedb2e761b42c6328a5715",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on/request.json",
+      "bytes": 852,
+      "sha256": "abfec90e966986cc2b6f83f12748e54b6e5c632ff04e7a7ef90e4706654d063b",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on-config.json",
+      "bytes": 1008,
+      "sha256": "d04b3f731cf78c77d27af3d746c65d3d3e7a8a8e95892aa8010c68c9b8affffb",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on-request.json",
+      "bytes": 453,
+      "sha256": "ecc32cf4b4ceb07f8e4631ccde07e055cd8c96ce8945241b0318b9ffaa7b376d",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on-start.json",
+      "bytes": 995,
+      "sha256": "75170c52583baebea84462d49a92c1fddcb44fc856a6faf5e7c4120802eb4aa5",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on-warm-v2.json",
+      "bytes": 877,
+      "sha256": "cc3f88675516475a2dbd1c888fd364627aaa7264d25cbeb3a9b00af88a84018c",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on-warm.json",
+      "bytes": 844,
+      "sha256": "dbc939d39f1afe33995ac71ee775fe54507d1451f6c5de88f8a49a6ad0bd80b7",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-prepare-v2.json",
+      "bytes": 810,
+      "sha256": "add17f951d0ae734fd8e9256769117c3d4601bc018748236fcbbdaf611a29088",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-prepare.json",
+      "bytes": 810,
+      "sha256": "0812443ff862cc9a04cfc195917f516df1d1c03b2a0f46acd9999c4252dee902",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-reload-exit.json",
+      "bytes": 767,
+      "sha256": "5900a8688b09121915d830cfbccf4b0bdb9a285fad123135d9077ad67dd418b0",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-scene-restored.json",
+      "bytes": 1109,
+      "sha256": "bafc260657a5e572921129cdde53e8505c4e8ccd2f0fdd5828ce22e775519eda",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-capture-v2.json",
+      "bytes": 1006,
+      "sha256": "56b935a7549b6a1c0319f8bf73df8863fed968725bc7276173321acbf275ce0d",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-configured.json",
+      "bytes": 1020,
+      "sha256": "617fbd6081078f7313d2aca0f235539c730571de208b0583edbf61524da2ffeb",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-request.json",
+      "bytes": 455,
+      "sha256": "1a775ba45f129ef533f57ac49b675301b778f8001996714efb3efd3069b50ab1",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-start-v2.json",
+      "bytes": 1720,
+      "sha256": "8249aadc0c4a4cad72705ee2b2f518bc8d172bb546ac62cd9edc03c66bce9b47",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-start-v3.json",
+      "bytes": 1096,
+      "sha256": "3f0e271ab7651212debf437bf4f1f957152bde2cfedf4d653a7f8d4910c94322",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-start.json",
+      "bytes": 2145,
+      "sha256": "6ea69778ef93b0d7aa5538f2083d7bcff89e55c5f970e15737b53bc635b82969",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-v2/capture.json",
+      "bytes": 31026,
+      "sha256": "8b894eded2414cd4008dd6bbf6f4569c163bc4832be84ce624d21b8dcc15a9b7",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-v2/compiled-graph-121-1.txt",
+      "bytes": 5079,
+      "sha256": "5d211635b22eb77c04e560759ec9381c8f73990eeda8e23564c7d919408fbfaa",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-v2/request.json",
+      "bytes": 857,
+      "sha256": "466f74797c5795f424a978d3ba2dd626e918c313d4451775c04cf0acfaa75a5b",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off-v2-request.json",
+      "bytes": 458,
+      "sha256": "2c5e8cbdffbc5d7303ba8c587f03bc4fc99c67797fc4f910e5e624a3263241bc",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-on-capture-v2.json",
+      "bytes": 1000,
+      "sha256": "9e4ee72e51c6db9bfc69965755df0791f5a0e77341bd44f6c78de6fd649616bd",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-on-capture.json",
+      "bytes": 1706,
+      "sha256": "eefea88f50fb2f6bf8da06fd07cbe16d414b21e68882a816b2e0bbf9f3466127",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-on-request.json",
+      "bytes": 494,
+      "sha256": "7eed114352558a50ea9067cfefca7c138aa117bcacec16b20f659e5d1c3a3f1f",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-on-start.json",
+      "bytes": 1092,
+      "sha256": "7a84e70e211f61109cd3a9797d940b0579b11b7fc5cf094e2d81ce76f22d2ab4",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-off-restored.json",
+      "bytes": 1155,
+      "sha256": "778bd23502169b7ddc3e5ffe4be00e860d273a76afae1bfbf2b00fc449d3439f",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-off-state-v2.json",
+      "bytes": 1142,
+      "sha256": "c84872a36c4cf284f095323db3ad95b59459185a83f92b817289dfaa71a12093",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-off-state.json",
+      "bytes": 1146,
+      "sha256": "431cada5384b99965b449b02897d2b884407154bc99443959f1dc807a598a35a",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-on-restored.json",
+      "bytes": 1150,
+      "sha256": "bcf70cb09869ba6b9189fe4f56b9dde25e871648aff6742fc781b52f139fc18b",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/callback-results.xml",
+      "bytes": 6287,
+      "sha256": "b7e0ef6b8c679076317a4be5ec565be34be726810ec8f390524030aaa2c0969d",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/failed-test-2.xml",
+      "bytes": 1385,
+      "sha256": "52d8d293bf992a67d5b397b3f47072af771397c03ce1c4c46ec93448084d388e",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/failed-test-3.xml",
+      "bytes": 1596,
+      "sha256": "b7bdddc2192beae0b790a9e9478e6061f2206928d1330f186dc75e3a90a36af3",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/failed-test-4.xml",
+      "bytes": 1593,
+      "sha256": "7354e5322c1f82fcefe7065a0cab4ea4cd4202d1ecd07441f5241ccfcb08cd2d",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/progress.jsonl",
+      "bytes": 10816,
+      "sha256": "7180e0d66d7525d86b28eca636d5ca1532d665b8055f9443912926028b455f01",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/reload-checkpoint.json",
+      "bytes": 2462,
+      "sha256": "b6b0271294d6265f401193ef0842f98a218974ffe4ef06494928fd7e26e234b8",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/results.xml",
+      "bytes": 11548,
+      "sha256": "f40a14562b383c9bbda85a593871a0978fa092039177b6ec61b715220d891d79",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests/run.json",
+      "bytes": 1213,
+      "sha256": "1551a43200534bbe69310f41275f1df3528ae155058429f1ec7307198e49b712",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v2/callback-results.xml",
+      "bytes": 4803,
+      "sha256": "acf9c7f361313ec024a041b6c2e81b02d6cd59df88db5617f29802c9a45656c1",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v2/progress.jsonl",
+      "bytes": 10802,
+      "sha256": "d3eb6316b75facf1bf122351faca4722994338c117d8f494feba290f31e24a7b",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v2/reload-checkpoint.json",
+      "bytes": 2462,
+      "sha256": "1227392a95038d0fa3d5db4389fdf9d7bfc4cf0ff996c91ad334e39f61686ec3",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v2/results.xml",
+      "bytes": 8062,
+      "sha256": "37de0e27c31b877474b253f93598d7e9cfae73bc1db4963ad7421257bf16eabf",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v2/run.json",
+      "bytes": 1199,
+      "sha256": "ce81fd1072cdb5dea17c29be086e1ce3008bb627e38575eba53343302ec2ea75",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v3/callback-results.xml",
+      "bytes": 7078,
+      "sha256": "ef6a2b93c18013df3f5732b64688196a9019560181a94189998ae60b6aadd5d3",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v3/failed-test-3.xml",
+      "bytes": 2250,
+      "sha256": "1a55bc742fb779df205776c81bab14eac431c57f3bc444da9f15bfec98c1cdd3",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v3/progress.jsonl",
+      "bytes": 12675,
+      "sha256": "210230b7060efd2cfa5c5c971922100a9bead6aafbd55fea6168f2da3abdd59e",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v3/reload-checkpoint.json",
+      "bytes": 2934,
+      "sha256": "d653285b98403ef90602434618a5ce32ff8ad0712c90c327e5245b9b6bc998c5",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v3/results.xml",
+      "bytes": 11275,
+      "sha256": "fcf991f55f3bc39cfa1bdd09243e3c2138632f435f01152d283982e8b419e5aa",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v3/run.json",
+      "bytes": 1212,
+      "sha256": "09eab0dbd0ac64ee365973c9b2eb6093b3fd2c1ed122fba3bebc27166ebe9788",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v4/callback-results.xml",
+      "bytes": 5766,
+      "sha256": "38d1982c9b3a322d2f4ac04231f94471aecd58809c40aa07761fc94236b48cf3",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v4/progress.jsonl",
+      "bytes": 12650,
+      "sha256": "50e8686cd01f014bf322bb4d63e4442edb6ef99d95a4cc5005ba9559ac7089f9",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v4/reload-checkpoint.json",
+      "bytes": 2934,
+      "sha256": "dbd8d65dfa075e91e0547b23da27259a556a8e6b4ca10799f9744aa359d117a5",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v4/results.xml",
+      "bytes": 8775,
+      "sha256": "ec422aea5f5070fb63879478a1890743e6ec64a0366b267e47e18b9b73fc311b",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-registration-tests-v4/run.json",
+      "bytes": 1199,
+      "sha256": "04973cc01f4e271fb61f182a07f0f92c46d59dc6109e5dfd29685806c61b1f44",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-related-tests/callback-results.xml",
+      "bytes": 9351,
+      "sha256": "1b419796cdc25a05790f1204b02ce0dc3b22ac147dd25d2e4902e601ab6de374",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-related-tests/progress.jsonl",
+      "bytes": 17852,
+      "sha256": "e91cbda0149229d659050a2ee6367052564a1a026894370662b24526fd0d43c2",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-related-tests/reload-checkpoint.json",
+      "bytes": 4486,
+      "sha256": "1f16f1ee0d3729fd7782142da17bfc8a5593a76e0002718b4a7e02cdf091ff55",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-related-tests/results.xml",
+      "bytes": 13657,
+      "sha256": "a36baa2e37610129d7c363a34b191f6b98be13e5c5157bc4047e8a21a5633a57",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-related-tests/run.json",
+      "bytes": 1162,
+      "sha256": "58a0c7cfa52f2daf155e97c7be8fd709292c2e2c12d3f1cee75da96512bec289",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-secondary-removed.json",
+      "bytes": 1159,
+      "sha256": "fcc53aae68a03c18e2a437e228de563eb436fcbcc565f7405c0965bd95a909ed",
+      "allocated": 262144
+    },
+    {
+      "path": "decal-ground-off.jpg",
+      "sha256": "30cf9c459ea5dbc85aa8732c1ee6917e247564ae0e41b467ffcb12ce15e86ccb",
+      "bytes": 9282,
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-off.jpg",
+      "sha256": "959c3073c01a652683a50d2279ae892666e08516cb104758a9b0bdaa0efd03d2",
+      "bytes": 12081,
+      "allocated": 262144
+    },
+    {
+      "path": "decal-fixed-on.jpg",
+      "sha256": "0db974f653e08cb0ae6ca5f0d023fc42fd31b4154da937ff2a3f1fc46ec9db31",
+      "bytes": 10694,
+      "allocated": 262144
+    },
+    {
+      "path": "decal-disabled.jpg",
+      "sha256": "48eb06a2207768e6598dccc9aa16c61387dc5b5f9c4b225feb4ae4b0d5397b10",
+      "bytes": 8094,
+      "allocated": 262144
+    },
+    {
+      "path": "decal-enabled-secondary.jpg",
+      "sha256": "a2ba80530ea7e7dfab102599fb10cfd4e226968ce496680ac7f4b802c11eacf4",
+      "bytes": 10423,
+      "allocated": 262144
+    }
+  ],
+  "count": 98,
+  "bytes": 463767,
+  "allocatedLowerBound": 25690112,
+  "deleted": true,
+  "scope": "exact archived focused-fix receipts/duplicate images, capture producers ended; shared helpers and remaining inputs excluded",
+  "verifiedAbsent": 98
+}

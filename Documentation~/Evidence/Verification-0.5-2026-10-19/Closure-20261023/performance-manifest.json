@@ -1,0 +1,442 @@
+{
+  "archive": "performance-evidence.tar.gz",
+  "bytes": 1373837,
+  "sha256": "dbf54be0037f73a5f0d584175831b7aa0bf3b1568f821ae4df94432c8487a39c",
+  "members": [
+    {
+      "path": "PerformanceControl.cs",
+      "bytes": 24397,
+      "sha256": "22215036487970e6bda7de490f39f088100831b3744eb3042c682d63aff1f2b5"
+    },
+    {
+      "path": "ProbeInput.cs",
+      "bytes": 1510,
+      "sha256": "429442bb8ec8a1ea75186ee421cdac7054c4c44a3d575bc87ed7243ff30b8db1"
+    },
+    {
+      "path": "after-cold-decal-replace-v3/measurement.json",
+      "bytes": 275329,
+      "sha256": "e9293002f50a985e544172b8d8d886101ef4bfe83ee123f079f9ea8c18997d89"
+    },
+    {
+      "path": "after-cold-editor-identity.json",
+      "bytes": 859,
+      "sha256": "5fa7e4e9a391af56b22adbc69c2506ced24f6ac6cd83634eabd77fefdb1cc7f6"
+    },
+    {
+      "path": "after-cold-fog-v3/measurement.json",
+      "bytes": 279866,
+      "sha256": "cbee3071367f4d2bc7653849b7a68b77248760035506969a0ffb145b3bfe09ac"
+    },
+    {
+      "path": "after-cold-lights-v3/measurement.json",
+      "bytes": 296081,
+      "sha256": "a8a936aa45902d4fc414ee17c854586867a6d9d3044de0bcb1573f1e67ba7a19"
+    },
+    {
+      "path": "after-cold-loop-arm.json",
+      "bytes": 832,
+      "sha256": "7bcce61f125eb626bbb3b5f09a522532d690aeecf6d0bd00b1bd8728cf0b9de5"
+    },
+    {
+      "path": "after-cold-loop-restore.json",
+      "bytes": 971,
+      "sha256": "31ec01afc5ecf1b82720acf496c08af7af90654b9ad9a5f4511f8a2c6e70d8a6"
+    },
+    {
+      "path": "after-cold-probes-exit.json",
+      "bytes": 767,
+      "sha256": "d3eb9dd765485354d920a02ed8460ea7b1e3ff4abc9656ffed5afe819e6bfb37"
+    },
+    {
+      "path": "after-cold-probes-repeat-v1/measurement.json",
+      "bytes": 278270,
+      "sha256": "ac5afbf472dce00fbe67ddb149e7616b92095768c5cced2cc767623a098f1819"
+    },
+    {
+      "path": "after-cold-probes-restore.json",
+      "bytes": 825,
+      "sha256": "095c31f453730ef07bd20a7c9677ab9e60217113c87fe38d088f0bbb5309a637"
+    },
+    {
+      "path": "after-cold-probes-scene.json",
+      "bytes": 1196,
+      "sha256": "1d9c541a539139b586818ba0863bc5ab092f7e354716eba389f41ec0bd10bccc"
+    },
+    {
+      "path": "after-cold-probes-v1/measurement.json",
+      "bytes": 275643,
+      "sha256": "d8fc14e853afb9d26bcc6b333212583056a6a84d9507590af9a52b593ad19ce3"
+    },
+    {
+      "path": "after-cold-shadows-v3/measurement.json",
+      "bytes": 287090,
+      "sha256": "c7f929e4631084b52c839c06cdb97347cdfd2524f972c518a0f6e85c996ab905"
+    },
+    {
+      "path": "after-cold-ssgi-v3/measurement.json",
+      "bytes": 275443,
+      "sha256": "ef7881680ec501c3d25a36c8dab36ff108b9da2815908aba2c6e0128b09b4f31"
+    },
+    {
+      "path": "after-cold-ssr-v3/measurement.json",
+      "bytes": 275382,
+      "sha256": "e1f29107e2712d3c49faddea824b936128fbdd714b05fbfdfe209fe2b13a2273"
+    },
+    {
+      "path": "after-decal-replace-v3/measurement.json",
+      "bytes": 275040,
+      "sha256": "72b7fd40361a9ca76788c3aadf51f20a7fecb0392602d1556c1f033195941f48"
+    },
+    {
+      "path": "after-fog-v3/measurement.json",
+      "bytes": 279626,
+      "sha256": "2091e3e642f2e7eb1c98d8eb44679c31a04a521289e153af4dfb5030074a80fd"
+    },
+    {
+      "path": "after-lights-v1/measurement.json",
+      "bytes": 104269,
+      "sha256": "f28de6da1f5e96834a416928adc78c7ac66a6499aaac638e804f1eed26659ba8"
+    },
+    {
+      "path": "after-lights-v2/measurement.json",
+      "bytes": 49250,
+      "sha256": "f11a1ca2d6539f4596c1083a70ebbb6e6617d78c974b7588c89ca102ac0e3cf5"
+    },
+    {
+      "path": "after-lights-v3/measurement.json",
+      "bytes": 297321,
+      "sha256": "5f38b35df6e629f299573c19fe64108a3e18f122849c97e416e02e72ba2d63eb"
+    },
+    {
+      "path": "after-probes-v1/measurement.json",
+      "bytes": 278559,
+      "sha256": "db1a09bd8e9b0e23e2cc7ccfe32e9db42fd39da15761d942e55236e4cc86afd7"
+    },
+    {
+      "path": "after-shadows-v3/measurement.json",
+      "bytes": 286173,
+      "sha256": "ed2e49e9589db26a2177a71a0164a14b9c612e23579fc86caa7a2c609ca06e76"
+    },
+    {
+      "path": "after-ssgi-v3/measurement.json",
+      "bytes": 274685,
+      "sha256": "e2ab4b51be045f5625624428338658e5c9e9ccb4449bd22b5f0bbe15c8465321"
+    },
+    {
+      "path": "after-ssr-v3/measurement.json",
+      "bytes": 274611,
+      "sha256": "b2c94aed4adb9958aa0e01720709dfc2e340aaa03ee287d9a80880377b9d7903"
+    },
+    {
+      "path": "baseline-editor-identity.json",
+      "bytes": 859,
+      "sha256": "f2ae91b916a182cb49b515f61ec19bbdfa143c78b9dc33695e6c9986438f6414"
+    },
+    {
+      "path": "baseline-loop-arm.json",
+      "bytes": 833,
+      "sha256": "40057e5be214dff135c7d0f5095f391b506c1b1243042e5cbf666dbdc1d6520e"
+    },
+    {
+      "path": "before-baseline-preflight.json",
+      "bytes": 1174,
+      "sha256": "ec05b96888fce49936b724ce170693e2aca8926e27793ae9eb4a133074f002b2"
+    },
+    {
+      "path": "before-decal-replace-v3/measurement.json",
+      "bytes": 275201,
+      "sha256": "1ebb003dc470460b4aa883c7e80dde91481196aef159f8391b833e246ea04156"
+    },
+    {
+      "path": "before-fog-v3/measurement.json",
+      "bytes": 279737,
+      "sha256": "c204d90eb01eec06fb0fcf3f75d453729e763a29b056da85a2edf89933c03ca7"
+    },
+    {
+      "path": "before-lights-v3/measurement.json",
+      "bytes": 296006,
+      "sha256": "4bcffb585493c1ed85dcbb85ca74bca2eb326331bcbff84f9b31d6f781b514c4"
+    },
+    {
+      "path": "before-loop-restore.json",
+      "bytes": 971,
+      "sha256": "fece37633c7690d5080522eceecf843a63be4cc62a131627deee5d798e3905d9"
+    },
+    {
+      "path": "before-main-restore-preflight.json",
+      "bytes": 1175,
+      "sha256": "8a1148e42a6d8f62a6c354a70cafeb952d5b397807ae5dc8f0e3405b13d480bf"
+    },
+    {
+      "path": "before-probes-exit.json",
+      "bytes": 767,
+      "sha256": "556c176c0b82a5e418bfc438743559ed2c6fb84c202d5875a8c3a6e1f7bcb9cc"
+    },
+    {
+      "path": "before-probes-restore.json",
+      "bytes": 825,
+      "sha256": "7696871166a4e9a6a93ba22a853350f4fb21e8863149befaa4bbe41d1fd2b40e"
+    },
+    {
+      "path": "before-probes-scene.json",
+      "bytes": 1077,
+      "sha256": "36508cfb9e9c5d4c20e69c88c33a2fd54aaf8b60a8a0e316146cb82645141edf"
+    },
+    {
+      "path": "before-probes-v1/measurement.json",
+      "bytes": 275061,
+      "sha256": "349cc1d6d68aa71464a66840277399bf6327a5b2dc9771f78ae1e50b41a113ee"
+    },
+    {
+      "path": "before-reverse-observed-probes-v1/measurement.json",
+      "bytes": 281480,
+      "sha256": "fc0e99997747c79dcbe40766698965d045e6e1121a87e5a386219f2f0f6ec029"
+    },
+    {
+      "path": "before-reverse-probes-v1/measurement.json",
+      "bytes": 274974,
+      "sha256": "656ca221f267ad44da9aeea2810c25710f14443927d3c082ccc967dcb82e58f6"
+    },
+    {
+      "path": "before-shadows-v3/measurement.json",
+      "bytes": 286885,
+      "sha256": "2ecc759e1fd7f1a7d5d4423b0e304ea2d03795460bed6f3344a7303f7cc8b1e9"
+    },
+    {
+      "path": "before-ssgi-v3/measurement.json",
+      "bytes": 275273,
+      "sha256": "dd568e179365907116e03fd53f91678beb0ac0c8b9126c9dcb05e9bd8a024550"
+    },
+    {
+      "path": "before-ssr-v3/measurement.json",
+      "bytes": 275175,
+      "sha256": "35ba5e536f38386148e2c9f8333ecddf32fee94a09b6c95ec1d81786bc9b578f"
+    },
+    {
+      "path": "measure-batch.py",
+      "bytes": 1629,
+      "sha256": "f80ec019419fadf86967cd600498b9d816309c026c9090c06e8036f856411af6"
+    },
+    {
+      "path": "perf-after-cold-probes-begin.json",
+      "bytes": 1200,
+      "sha256": "339abecf8c87e406ea9b5418b87baff6a5e6768bddf4955299233f04933a2454"
+    },
+    {
+      "path": "perf-after-cold-probes-config.json",
+      "bytes": 1269,
+      "sha256": "db50723f271abec2392d3055ce2e0004ab7470eeabc9a73b9d01fec237d49bcc"
+    },
+    {
+      "path": "perf-after-cold-probes-prepare.json",
+      "bytes": 831,
+      "sha256": "8f8126813850205d7964ce8bca5ca8e6faf1b727ec0d89b8840f942867bf3dbb"
+    },
+    {
+      "path": "perf-arm.json",
+      "bytes": 832,
+      "sha256": "3db6b5ab4690f2f6c60abbc5953eec87ad435917f55c9d4a0a531f20daae986c"
+    },
+    {
+      "path": "perf-batch-call.json",
+      "bytes": 1195,
+      "sha256": "8700573714d4973f1498816ae4da86ea357d79bac1b5b6a9ece32aeaec79a8f7"
+    },
+    {
+      "path": "perf-before-probes-begin.json",
+      "bytes": 1196,
+      "sha256": "8572e3d82f166c252127189f65a830ea8232789c64a9852b3b884456a647399c"
+    },
+    {
+      "path": "perf-before-probes-config.json",
+      "bytes": 1268,
+      "sha256": "473cf3e75712741aecdb2509aa916e82b30aed39a78787248530013628c18dc6"
+    },
+    {
+      "path": "perf-before-probes-prepare.json",
+      "bytes": 831,
+      "sha256": "a7dba61276839fae46689f0579ec0b9ed0da0675d61185825adafb94fc091d44"
+    },
+    {
+      "path": "perf-begin.json",
+      "bytes": 1203,
+      "sha256": "de9a3bcadf896676a7d1c789332a0fc38b8a09ca89f0b8d03f8e3a39af0856c4"
+    },
+    {
+      "path": "perf-config-pilot.json",
+      "bytes": 1180,
+      "sha256": "fdcef74d0187166613722a130d93efccbbe071542f686381738c91cbd9c06f95"
+    },
+    {
+      "path": "perf-config.json",
+      "bytes": 1180,
+      "sha256": "9d6ea3df1e6ada8df137ca0f1f0959280255bbdaa6fd732c046d91ea1a42f1af"
+    },
+    {
+      "path": "perf-failure-identity.json",
+      "bytes": 15850,
+      "sha256": "50093da5709248f09d73abed1efade226ab3f97c9fa78a0af034fd5f89098773"
+    },
+    {
+      "path": "perf-failure-state.json",
+      "bytes": 1252,
+      "sha256": "6855371aeea73e3193893af7f26fd860b0f912382789548080bcff23dbddd799"
+    },
+    {
+      "path": "perf-loop-restore.json",
+      "bytes": 961,
+      "sha256": "47a218318e7713213b79ed3855a3bbb9a829c89f6e49c2c77dff7599776766e8"
+    },
+    {
+      "path": "perf-prepare.json",
+      "bytes": 819,
+      "sha256": "834b31e9d0ebe6510a10a5cba425a220b2b0ee16d2c3ea30477ae59bc2be73e3"
+    },
+    {
+      "path": "perf-probe-repeat.json",
+      "bytes": 1208,
+      "sha256": "6f8d24cb99097a29abdf9f603697bdc0b3f114ebb31e2594a6ca80820d28b374"
+    },
+    {
+      "path": "perf-probes-bake.json",
+      "bytes": 1095,
+      "sha256": "18484e69cc393a688c26677879e0a2efd7c94728f2dac9c6719bf44fdfdee1f0"
+    },
+    {
+      "path": "perf-probes-begin.json",
+      "bytes": 1195,
+      "sha256": "38f3a64177f121d12b177562c7e3bc1245a46430047ed79ed97a384e0a34c3d5"
+    },
+    {
+      "path": "perf-probes-config.json",
+      "bytes": 1268,
+      "sha256": "2990051063496ff55d3fbfd6d23a704e7aeb52379d09344003bb81b9fe74131c"
+    },
+    {
+      "path": "perf-probes-exit.json",
+      "bytes": 767,
+      "sha256": "21572f028e5baea5245b5e70ac89cfd31bb754d95450a84b8c6c8685142f3cde"
+    },
+    {
+      "path": "perf-probes-prepare.json",
+      "bytes": 832,
+      "sha256": "244b4634d3b089cafaa2a0fc4c6afed8d47f59197effefa1603e96ad9b919eda"
+    },
+    {
+      "path": "perf-probes-restore.json",
+      "bytes": 826,
+      "sha256": "e957f05b4c7e663723c5e6411b0e971dc987947a5cb181a3e3afbcec882c58d0"
+    },
+    {
+      "path": "perf-probes-scene.json",
+      "bytes": 1200,
+      "sha256": "61aba72a2ae143dc9709ca7e4c6b315ad92fa640cc1c64448e0eddb729967626"
+    },
+    {
+      "path": "perf-restore.json",
+      "bytes": 825,
+      "sha256": "9384acd86709578ca428ab3a288d4c12220080554868201ef4992389f734cd74"
+    },
+    {
+      "path": "perf-status.json",
+      "bytes": 1483,
+      "sha256": "ddef0538cb6491c388e3914456b8296117824c70356b2cea305ee2df1e746e19"
+    },
+    {
+      "path": "perf-warm.json",
+      "bytes": 1195,
+      "sha256": "d8d2083c8ec62b0f3485c722c3add096cb849d5eab73abf84b7da296d85349a7"
+    },
+    {
+      "path": "performance-code-overlay.json",
+      "bytes": 1538,
+      "sha256": "4e64696f404109865d0440c877b8df7e5bda5c616b77cd2d690e264d4ebad410"
+    },
+    {
+      "path": "pilot-lights-1280-v1/measurement.json",
+      "bytes": 58935,
+      "sha256": "90018dc1572e5c47bc2b90bb7d7d09928afdfc4d70f20c1a63b204ae8e7ac89d"
+    },
+    {
+      "path": "pilot-lights-640-v2/measurement.json",
+      "bytes": 58908,
+      "sha256": "f85345c196eb5f31537837a77965d0affab1275af3858a54f18206b3120cc96c"
+    },
+    {
+      "path": "pilot-target-lights-1280-v1/measurement.json",
+      "bytes": 49248,
+      "sha256": "2859feccb69fac3ebac841cb5e489f043d1a191ddf7568bfa54e2ba8c206c2e9"
+    },
+    {
+      "path": "pilot-target-lights-1280-v2/measurement.json",
+      "bytes": 59591,
+      "sha256": "508c788270fb40fe6ec1e9c44b5959755a47e49370bed0aa0951e427803f8088"
+    },
+    {
+      "path": "reverse-editor-identity.json",
+      "bytes": 859,
+      "sha256": "a4026859b990c02ba8167255ae61200aa3f5fa80f5b13f67d484bddc407e0a8a"
+    },
+    {
+      "path": "reverse-final-preflight.json",
+      "bytes": 1175,
+      "sha256": "eb154d55d6ce94b3fda89612ee15808838c24af7b29ed35b67c7aed7f6ddb79a"
+    },
+    {
+      "path": "reverse-loop-arm.json",
+      "bytes": 833,
+      "sha256": "432ccb689736b1f74e9fe05aafb11cf195701f62c03e6cc695ef3bd97971d617"
+    },
+    {
+      "path": "reverse-observed-exit.json",
+      "bytes": 767,
+      "sha256": "1bb6a9d678385c9b1766d4e04257c84dcbfa7598b8aced69126b7b50e202679a"
+    },
+    {
+      "path": "reverse-observed-loop.json",
+      "bytes": 970,
+      "sha256": "c1eba21b0dee7c745a44d72c1b589e5cda0d966b0a0cace727af7c02d4f253af"
+    },
+    {
+      "path": "reverse-observed-probes-begin.json",
+      "bytes": 1213,
+      "sha256": "1ef25938ea34936f3ddefe69d050db6636664ad9b55c8cbe0c2ee17bdd23ccdf"
+    },
+    {
+      "path": "reverse-observed-restore.json",
+      "bytes": 825,
+      "sha256": "0cd2cadc57d4e2514dc8b868b6396cc3fd4ec55220b3f812eb6d774034dc87c7"
+    },
+    {
+      "path": "reverse-observed-scene.json",
+      "bytes": 1076,
+      "sha256": "f6ea4e4658f26cfc7e9b38f2329254fd0cb6431717575d52bafe550986dfb1cb"
+    },
+    {
+      "path": "reverse-preflight.json",
+      "bytes": 1175,
+      "sha256": "28e2595d9bb699a413bcbb44884cf5432f7e53afed9193a0ff6d1978c92d834c"
+    },
+    {
+      "path": "reverse-probes-begin.json",
+      "bytes": 1204,
+      "sha256": "3e33fbad830a3fe7bc3adb404f26e4af2a403c9cd7e38f71ea5d08093c782040"
+    },
+    {
+      "path": "reverse-probes-config.json",
+      "bytes": 1269,
+      "sha256": "dc4235c083b3a6fbb467f742f1a6688a0288a80cd0baf616f12094e44ffa59a6"
+    },
+    {
+      "path": "reverse-probes-prepare.json",
+      "bytes": 832,
+      "sha256": "8fa18b53feee68b979c034a5d6d4fd24630ad2ca5f38fba487f71762ff428acd"
+    },
+    {
+      "path": "swap-source.py",
+      "bytes": 1188,
+      "sha256": "b2b19ca09f7a0bc447791e3a352b0cac46522974c9eab8135d1555c5d4e37654"
+    }
+  ]
+}

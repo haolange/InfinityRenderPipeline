@@ -1,0 +1,18 @@
+{
+  "archive": "baked-probe-input.tar.gz",
+  "sha256": "c69bc61229291f432e4881b5f9c97718f21190e14c2ba1fe8ebaa2c3eabafcf3",
+  "bytes": 207888,
+  "producer": "Lightmapping.BakeReflectionProbe in owned Play fixture, 128 cubemap; perf-probes-bake.json in performance archive",
+  "members": [
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S16/Fixtures/ClosureBakedLeft.exr",
+      "bytes": 222280,
+      "sha256": "f935964525c681d4abe6b66faf1e239205d324b04299b34d19340b6989bb31a8"
+    },
+    {
+      "path": "Assets/InfinityRPVerification_0_5_20261020_run02/S16/Fixtures/ClosureBakedLeft.exr.meta",
+      "bytes": 2715,
+      "sha256": "2c4484b2b90bd93b1e6c38818979d88650e0d61c51d45984956ca74d768203fb"
+    }
+  ]
+}
