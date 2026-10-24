@@ -1,4 +1,5 @@
 #pragma kernel ScreenSpaceComposite
+#pragma multi_compile_local _ INFINITY_SSS_OUTPUT
 #pragma multi_compile_local _ COMPOSITE_SSR
 #pragma multi_compile_local _ COMPOSITE_SSGI
 
@@ -27,6 +28,9 @@ Texture2D<float4> SRV_SSRTexture;
 Texture2D<float4> SRV_SSGITexture;
 #endif
 RWTexture2D<float4> UAV_SceneColor;
+#if defined(INFINITY_SSS_OUTPUT)
+RWTexture2D<float4> UAV_ScatterDiffuse;
+#endif
 
 [numthreads(16, 16, 1)]
 void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
@@ -52,6 +56,10 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
 #if defined(COMPOSITE_SSGI)
     float4 ssgiColor = SRV_SSGITexture[pixelCoord];
     lighting = ReplaceIndirectContribution(lighting, SRV_IndirectDiffuse[pixelCoord].rgb, microfaceCtx.AlbedoColor * ssgiColor.rgb, ssgiColor.a);
+#if defined(INFINITY_SSS_OUTPUT)
+    float3 scatter = UAV_ScatterDiffuse[pixelCoord].rgb;
+    UAV_ScatterDiffuse[pixelCoord] = float4(ReplaceIndirectContribution(scatter, SRV_IndirectDiffuse[pixelCoord].rgb, microfaceCtx.AlbedoColor * ssgiColor.rgb, ssgiColor.a), 1);
+#endif
 #endif
 
 #if defined(COMPOSITE_SSR)

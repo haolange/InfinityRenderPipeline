@@ -46,15 +46,17 @@ namespace InfinityTech.Rendering.RenderGraph
         public bool culled;
         public bool hasSideEffect;
         public bool needGraphicsFence;
-        public GraphicsFence fence;
+        public GraphicsFence fence, completionFence;
+        public bool needResourceFence;
         public List<int>[] resourceCreateList;
         public List<int>[] resourceReleaseList;
         public bool enablePassCulling { get { return pass.enablePassCulling; } }
-        public bool enableAsyncCompute { get { return pass.enableAsyncCompute; } }
+        public bool enableAsyncCompute;
 
-        public void Reset(IRGPass pass)
+        public void Reset(IRGPass pass, bool asyncComputeSupported)
         {
             this.pass = pass;
+            enableAsyncCompute = pass.enableAsyncCompute && asyncComputeSupported;
 
             int resourceTypeCount = (int)ERGResourceType.Max;
             if (resourceCreateList == null || resourceCreateList.Length != resourceTypeCount)
@@ -80,7 +82,8 @@ namespace InfinityTech.Rendering.RenderGraph
             syncToPassIndex = -1;
             syncFromPassIndex = -1;
             needGraphicsFence = false;
-            fence = default;
+            fence = completionFence = default;
+            needResourceFence = false;
         }
     }
 
@@ -88,6 +91,7 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         public int refCount;
         public bool resourceCreated;
+        public int lastGraphicsUse, lastComputeUse;
         public List<int> consumers;
         public List<int> producers;
 
@@ -101,11 +105,12 @@ namespace InfinityTech.Rendering.RenderGraph
             producers.Clear();
             consumers.Clear();
             resourceCreated = false;
+            lastGraphicsUse = lastComputeUse = -1;
             refCount = 0;
         }
     }
 
-    public class RGBuilder 
+    public partial class RGBuilder
     {
         public string name;
         // Label of the next Execute in the RenderGraph Viewer (the pipeline sets the camera name).
@@ -121,8 +126,16 @@ namespace InfinityTech.Rendering.RenderGraph
         MeshWorld m_MeshWorld;
         readonly Dictionary<MeshGpuVisibilityKey, RGBufferRef> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferRef>(8);
 
+        readonly bool m_AsyncComputeSupported;
+
         public RGBuilder(string name, ResourcePool resourcePool = null)
+            : this(name, resourcePool, SystemInfo.supportsAsyncCompute && SystemInfo.supportsGraphicsFence) { }
+
+        // The capability is frozen for this graph. Tests can compile both topologies
+        // without submitting unsupported queue work on the host device.
+        internal RGBuilder(string name, ResourcePool resourcePool, bool asyncComputeSupported)
         {
+            m_AsyncComputeSupported = asyncComputeSupported;
             this.name = name;
             this.m_Resources = new RGResourceFactory(resourcePool);
             this.m_PassCompileInfos = new DynamicArray<RGPassCompileInfo>();
@@ -161,8 +174,22 @@ namespace InfinityTech.Rendering.RenderGraph
                 view,
                 passId,
                 m_MeshWorld);
+            RetainDrawListInputs(draws);
             EnsureMeshGpuCull(view, draws);
             return draws;
+        }
+
+        void RetainDrawListInputs(RGDrawListRef draws)
+        {
+            var record = m_DrawListRecords.GetRecordCopy(draws.index);
+            var residency = record.residency;
+            if (residency.TransformBuffer.buffer != null) ImportBuffer(residency.TransformBuffer);
+            if (residency.RenderingLayerBuffer.buffer != null) ImportBuffer(residency.RenderingLayerBuffer);
+            if (residency.BakedLightingBuffer.buffer != null) ImportBuffer(residency.BakedLightingBuffer);
+            if (residency.InstanceTransformIndexBuffer.buffer != null) ImportBuffer(residency.InstanceTransformIndexBuffer);
+            if (residency.version != null) ImportBuffer(residency.version.generations);
+            var previous = record.pass.previousTransforms.previous;
+            if (previous != null) { ImportBuffer(previous.matrices); ImportBuffer(previous.generations); }
         }
 
         public void EnsureMeshGpuCull(in MeshView view)
@@ -182,7 +209,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 return;
             }
 
-            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view);
+            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view, true);
             if (m_GpuCullVisibility.TryGetValue(key, out RGBufferRef existing))
             {
                 if (m_DrawListRecords.IsLiveRef(draws))
@@ -239,13 +266,9 @@ namespace InfinityTech.Rendering.RenderGraph
                 passData.instanceSceneCullingMask = passRef.ReadBuffer(instanceSceneCullingMask);
                 passData.instanceRenderingLayer = passRef.ReadBuffer(instanceRenderingLayer);
                 passRef.EnablePassCulling(true);
+                passRef.KeepImportedWritesLocal();
                 passRef.SetExecuteFunc((in MeshGpuCullPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
-                    if (passData.drawLists != null && !passData.drawLists.HasLiveView(passData.view))
-                    {
-                        return;
-                    }
-
                     MeshDrawGPUBackend.DispatchCullFrustum(
                         cmdEncoder,
                         passData.view,
@@ -362,7 +385,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 IRGPass pass = m_PassList[i];
                 if (!pass.resourceWriteLists[handle.iType].Contains(handle)) continue;
-                queue = pass.enableAsyncCompute ? "AsyncCompute" : "Graphics";
+                queue = m_AsyncComputeSupported && pass.enableAsyncCompute ? "AsyncCompute" : "Graphics";
                 return pass.name;
             }
             // A persistent import can be read without being produced again in this graph (for example,
@@ -385,7 +408,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 ref RGPassCompileInfo info = ref m_PassCompileInfos[i];
                 IRGPass pass = info.pass;
                 text.Append(i).Append('|').Append(pass.name).Append('|').Append(pass.passType).Append('|')
-                    .Append(pass.enableAsyncCompute ? "AsyncCompute" : "Graphics").Append('|').Append(info.culled)
+                    .Append(info.enableAsyncCompute ? "AsyncCompute" : "Graphics").Append('|').Append(info.culled)
                     .Append('|').Append(info.syncToPassIndex).Append('|').Append(info.syncFromPassIndex).Append('|');
                 foreach (var list in pass.resourceReadLists)
                     foreach (RGResourceHandle resource in list) text.Append(resource.type).Append(':').Append(resource.index).Append(',');
@@ -435,7 +458,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 int[] releases = FlattenIndices(info.resourceReleaseList, offsets, scratch);
                 snapshot.passes.Add(new RGPassSnapshot
                 {
-                    name = pass.name, type = pass.passType, asyncCompute = pass.enableAsyncCompute, culled = info.culled,
+                    name = pass.name, type = pass.passType, asyncCompute = info.enableAsyncCompute, culled = info.culled,
                     allowCulling = pass.enablePassCulling, waitsForPass = info.syncToPassIndex, signalsToPass = info.syncFromPassIndex,
                     graphicsFence = info.needGraphicsFence, reads = reads, writes = writes, creates = creates, releases = releases
                 });
@@ -673,9 +696,10 @@ namespace InfinityTech.Rendering.RenderGraph
             catch { m_QueueSubmissionFailed = true; throw; }
         }
 
-        internal void RecoverUnjoinedAsync(RenderContext context)
+        internal void RecoverUnjoinedAsync(RenderContext context, bool forceDrain = false)
         {
-            if (!m_UnrecoverableAsyncSubmission) return;
+            if (!m_UnrecoverableAsyncSubmission && !forceDrain) return;
+            if (!m_AsyncComputeSupported) { m_UnrecoverableAsyncSubmission = false; return; }
             var asyncCommands = CommandBufferPool.Get();
             var graphicsCommands = CommandBufferPool.Get();
             try
@@ -696,11 +720,12 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         internal int RetiredResourceCount => m_Resources.RetiredResourceCount;
-        internal void FlushRetiredResources() => m_Resources.FlushRetired();
+        internal void FlushRetiredResources(ResourceReuseFence reuseFence = default) => m_Resources.FlushRetired(reuseFence);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ClearPass()
         {
+            m_ScheduledMeshVersions.Clear();
             Exception failure = null;
             try { ReleaseAllDrawLists(); }
             catch (Exception error) { failure = error; }
@@ -752,7 +777,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_PassCompileInfos.Resize(m_PassList.Count);
             for (int i = 0; i < m_PassCompileInfos.size; ++i)
             {
-                m_PassCompileInfos[i].Reset(m_PassList[i]);
+                m_PassCompileInfos[i].Reset(m_PassList[i], m_AsyncComputeSupported);
             }
         }
 
@@ -781,7 +806,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         passInfo.refCount++;
 
                         // Writing to an imported texture is considered as a side effect because we don't know what users will do with it outside of render graph.
-                        if (m_Resources.IsResourceImported(resource)) {
+                        if (passInfo.pass.importedWritesAreSideEffects && m_Resources.IsResourceImported(resource)) {
                             passInfo.hasSideEffect = true;
                         }
                     }
@@ -857,52 +882,35 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void UpdateResourceSynchronization(ref int lastGraphicsPipeSync, ref int lastComputePipeSync, in int currentPassIndex, in RGResourceCompileInfo resourceInfo)
+        void UpdateResourceSynchronization(ref int lastGraphicsPipeSync, ref int lastComputePipeSync, int currentPassIndex,
+            in RGResourceCompileInfo resourceInfo, bool writesResource)
         {
-            int lastProducer = GetLatestProducerIndex(currentPassIndex, resourceInfo);
-            if (lastProducer != -1)
+            ref RGPassCompileInfo current = ref m_PassCompileInfos[currentPassIndex];
+            int dependency = -1;
+            foreach (int writer in resourceInfo.producers)
             {
-                ref RGPassCompileInfo currentPassInfo = ref m_PassCompileInfos[currentPassIndex];
-
-                //If the passes are on different pipes, we need synchronization.
-                if (m_PassCompileInfos[lastProducer].enableAsyncCompute != currentPassInfo.enableAsyncCompute)
+                if (writer >= currentPassIndex) break;
+                if (!m_PassCompileInfos[writer].culled && m_PassCompileInfos[writer].enableAsyncCompute != current.enableAsyncCompute)
+                    dependency = writer;
+            }
+            if (writesResource)
+            {
+                // A later writer must not overwrite data still sampled on the other queue.
+                foreach (int reader in resourceInfo.consumers)
                 {
-                    // Pass is on compute pipe, need sync with graphics pipe.
-                    if (currentPassInfo.enableAsyncCompute)
-                    {
-                        if (lastProducer > lastGraphicsPipeSync)
-                        {
-                            UpdatePassSynchronization(ref currentPassInfo, ref m_PassCompileInfos[lastProducer], currentPassIndex, lastProducer, ref lastGraphicsPipeSync);
-                        }
-                    } 
-                    else 
-                    {
-                        if (lastProducer > lastComputePipeSync)
-                        {
-                            UpdatePassSynchronization(ref currentPassInfo, ref m_PassCompileInfos[lastProducer], currentPassIndex, lastProducer, ref lastComputePipeSync);
-                        }
-                    }
+                    if (reader >= currentPassIndex) break;
+                    if (!m_PassCompileInfos[reader].culled && m_PassCompileInfos[reader].enableAsyncCompute != current.enableAsyncCompute)
+                        dependency = Math.Max(dependency, reader);
                 }
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetLatestProducerIndex(in int passIndex, in RGResourceCompileInfo resourceInfo)
-        {
-            // We want to know the highest pass index below the current pass that writes to the resource.
-            int result = -1;
-            foreach (var producer in resourceInfo.producers)
+            if (dependency < 0) return;
+            if (current.enableAsyncCompute)
             {
-                // producers are by construction in increasing order.
-                if (producer < passIndex)
-                {
-                    result = producer;
-                } else {
-                    return result;
-                }
+                if (dependency > lastGraphicsPipeSync)
+                    UpdatePassSynchronization(ref current, ref m_PassCompileInfos[dependency], currentPassIndex, dependency, ref lastGraphicsPipeSync);
             }
-
-            return result;
+            else if (dependency > lastComputePipeSync)
+                UpdatePassSynchronization(ref current, ref m_PassCompileInfos[dependency], currentPassIndex, dependency, ref lastComputePipeSync);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -976,22 +984,26 @@ namespace InfinityTech.Rendering.RenderGraph
                     var resourcesInfo = m_ResourcesCompileInfos[type];
                     foreach (int resource in passInfo.pass.resourceReadLists[type])
                     {
-                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource]);
+                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource], false);
                     }
 
                     foreach (int resource in passInfo.pass.resourceWriteLists[type])
                     {
-                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource]);
+                        UpdateResourceSynchronization(ref lastGraphicsPipeSync, ref lastComputePipeSync, passIndex, resourcesInfo[resource], true);
                     }
                 }
             }
+
+            bool hasAsync = false;
+            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+                hasAsync |= !m_PassCompileInfos[passIndex].culled && m_PassCompileInfos[passIndex].enableAsyncCompute;
 
             for (int type = 0; type < (int)ERGResourceType.Max; ++type)
             {
                 var resourceInfos = m_ResourcesCompileInfos[type];
                 for (int i = 0; i < resourceInfos.size; ++i)
                 {
-                    RGResourceCompileInfo resourceInfo = resourceInfos[i];
+                    ref RGResourceCompileInfo resourceInfo = ref resourceInfos[i];
 
                     int firstWriteIndex = GetFirstValidWriteIndex(resourceInfo);
                     if (firstWriteIndex != -1) 
@@ -1002,43 +1014,50 @@ namespace InfinityTech.Rendering.RenderGraph
                     int lastReadPassIndex = Math.Max(GetLatestValidReadIndex(resourceInfo), GetLatestValidWriteIndex(resourceInfo));
                     if (lastReadPassIndex != -1)
                     {
-                        int releasePassIndex = lastReadPassIndex;
-                        if (m_PassCompileInfos[lastReadPassIndex].enableAsyncCompute)
+                        m_PassCompileInfos[lastReadPassIndex].resourceReleaseList[type].Add(i);
+                        if ((hasAsync || m_AsyncComputeSupported && m_Resources.IsPoolTracked(new RGResourceHandle(i, (ERGResourceType)type)))
+                            && (!m_Resources.IsResourceImported(new RGResourceHandle(i, (ERGResourceType)type)) || m_Resources.IsPoolTracked(new RGResourceHandle(i, (ERGResourceType)type))))
                         {
-                            int currentPassIndex = lastReadPassIndex;
-                            int firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
-                            while (firstWaitingPassIndex == -1 && currentPassIndex + 1 < m_PassCompileInfos.size)
+                            // Physical pooling can alias otherwise unrelated logical resources.
+                            // Keep the last use from each queue with the allocation, so reuse waits
+                            // at acquisition instead of extending every lifetime to graph end.
+                            foreach (int passIndex in resourceInfo.consumers) RecordLastQueueUse(ref resourceInfo, passIndex);
+                            foreach (int passIndex in resourceInfo.producers) RecordLastQueueUse(ref resourceInfo, passIndex);
+                            if (resourceInfo.lastGraphicsUse >= 0)
                             {
-                                currentPassIndex++;
-                                if (m_PassCompileInfos[currentPassIndex].enableAsyncCompute)
-                                {
-                                    firstWaitingPassIndex = m_PassCompileInfos[currentPassIndex].syncFromPassIndex;
-                                }
+                                m_PassCompileInfos[resourceInfo.lastGraphicsUse].needGraphicsFence = true;
+                                m_PassCompileInfos[resourceInfo.lastGraphicsUse].needResourceFence = true;
                             }
-
-                            if (firstWaitingPassIndex != -1)
+                            if (resourceInfo.lastComputeUse >= 0)
                             {
-                                releasePassIndex = Math.Max(0, firstWaitingPassIndex - 1);
-                            }
-                            else
-                            {
-                                // No graphics fence was recorded. Keep the resource until the last
-                                // live pass so the pool cannot reuse it while async work is in flight.
-                                for (int pass = m_PassCompileInfos.size - 1; pass >= 0; --pass)
-                                {
-                                    if (!m_PassCompileInfos[pass].culled)
-                                    {
-                                        releasePassIndex = pass;
-                                        break;
-                                    }
-                                }
+                                m_PassCompileInfos[resourceInfo.lastComputeUse].needGraphicsFence = true;
+                                m_PassCompileInfos[resourceInfo.lastComputeUse].needResourceFence = true;
                             }
                         }
-
-                        m_PassCompileInfos[releasePassIndex].resourceReleaseList[type].Add(i);
                     }
                 }
             }
+        }
+
+        void RecordLastQueueUse(ref RGResourceCompileInfo resource, int passIndex)
+        {
+            ref RGPassCompileInfo pass = ref m_PassCompileInfos[passIndex];
+            if (pass.culled) return;
+            if (pass.enableAsyncCompute) resource.lastComputeUse = Math.Max(resource.lastComputeUse, passIndex);
+            else resource.lastGraphicsUse = Math.Max(resource.lastGraphicsUse, passIndex);
+        }
+
+        ResourceReuseFence GetResourceReuseFence(ERGResourceType type, int index)
+        {
+            ref RGResourceCompileInfo info = ref m_ResourcesCompileInfos[(int)type][index];
+            return new ResourceReuseFence
+            {
+                hasGraphics = info.lastGraphicsUse >= 0, hasCompute = info.lastComputeUse >= 0,
+                graphics = info.lastGraphicsUse >= 0 ? m_PassCompileInfos[info.lastGraphicsUse].fence : default,
+                compute = info.lastComputeUse >= 0 ? m_PassCompileInfos[info.lastComputeUse].fence : default,
+                graphicsCompletion = info.lastGraphicsUse >= 0 ? m_PassCompileInfos[info.lastGraphicsUse].completionFence : default,
+                computeCompletion = info.lastComputeUse >= 0 ? m_PassCompileInfos[info.lastComputeUse].completionFence : default
+            };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1130,7 +1149,8 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             switch (passName)
             {
-                case "RasterDepth": return CustomSamplerId.Depth;
+                case "RasterDepth":
+                case "RasterDepthRecovery": return CustomSamplerId.Depth;
                 case "RasterGBuffer": return CustomSamplerId.GBuffer;
                 case "RasterObjectMotion": return CustomSamplerId.ObjectMotion;
                 case "RasterCascadeShadow": return CustomSamplerId.CascadeShadow;
@@ -1146,11 +1166,29 @@ namespace InfinityTech.Rendering.RenderGraph
             var original = m_PassList.ToArray();
             var ordered = new List<IRGPass>(original.Length);
             var prepared = new Dictionary<int, RGBufferRef[]>();
+            var transformVersions = m_ScheduledMeshVersions;
             for (int passIndex = 0; passIndex < original.Length; ++passIndex)
             {
                 IRGPass consumer = original[passIndex];
                 if (m_PassCompileInfos[passIndex].culled || consumer.usedDrawLists.Count == 0)
                 { ordered.Add(consumer); continue; }
+                foreach (var draws in consumer.usedDrawLists)
+                {
+                    var record = m_DrawListRecords.GetRecordCopy(draws.index);
+                    var residency = record.residency;
+                    if (!residency.isValid) continue;
+                    int versionPassBegin = m_PassList.Count;
+                    residency.version.owner.Record(this, residency.version, MeshDrawGPUBackend.shader, transformVersions);
+                    for (int i = versionPassBegin; i < m_PassList.Count; ++i) ordered.Add(m_PassList[i]);
+                    consumer.AddResourceRead(ImportBuffer(residency.TransformBuffer).handle);
+                    consumer.AddResourceRead(ImportBuffer(residency.RenderingLayerBuffer).handle);
+                    consumer.AddResourceRead(ImportBuffer(residency.BakedLightingBuffer).handle);
+                    consumer.AddResourceRead(ImportBuffer(residency.version.generations).handle);
+                    var previous = record.pass.previousTransforms.previous;
+                    if (previous == null) continue;
+                    consumer.AddResourceRead(ImportBuffer(previous.matrices).handle);
+                    consumer.AddResourceRead(ImportBuffer(previous.generations).handle);
+                }
                 var group = ProfilingSampler.Get(MeshDrawGroup(consumer.name));
                 BeginProfilingSampler(group);
                 ordered.Add(m_PassList[m_PassList.Count - 1]);
@@ -1176,8 +1214,8 @@ namespace InfinityTech.Rendering.RenderGraph
                             var indices = ImportMeshBuffer(record.gpuPayload.compactedIndices, "MeshDrawCompactedIndices");
                             var counts = ImportMeshBuffer(record.gpuPayload.visibleCounts, "MeshDrawVisibleCounts");
                             var args = ImportMeshBuffer(record.gpuPayload.argsBuffer, "MeshDrawIndirectArgs", ComputeBufferType.IndirectArguments);
-                            var candidates = ImportMeshBuffer(record.pipeline.CandidateBuffer(record.passId), "MeshDrawCandidates");
-                            var transforms = ImportBuffer(record.pipeline.InstanceTransformIndices);
+                            var candidates = ImportMeshBuffer(record.gpuStaging.candidateTable, "MeshDrawCandidates");
+                            var transforms = ImportBuffer(record.residency.InstanceTransformIndexBuffer);
                             using (var compact = AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
                             {
                                 compact.ReadBuffer(metadata); compact.ReadBuffer(candidates); compact.ReadBuffer(transforms);
@@ -1579,16 +1617,6 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             IRGPass pass = passCompileInfo.pass;
 
-            foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERGResourceType.Buffer]) 
-            {
-                m_Resources.CreateBufferResource(bufferHandle);
-            }
-
-            foreach (var textureHandle in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture]) 
-            {
-                m_Resources.CreateTextureResource(ref graphContext, textureHandle);
-            }
-
             if (passCompileInfo.syncToPassIndex != -1)
             {
                 ref RGPassCompileInfo producerInfo = ref m_PassCompileInfos[passCompileInfo.syncToPassIndex];
@@ -1596,6 +1624,16 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     graphContext.cmdBuffer.WaitOnAsyncGraphicsFence(producerInfo.fence);
                 }
+            }
+
+            foreach (var bufferHandle in passCompileInfo.resourceCreateList[(int)ERGResourceType.Buffer])
+            {
+                m_Resources.CreateBufferResource(ref graphContext, bufferHandle, passCompileInfo.enableAsyncCompute);
+            }
+
+            foreach (var textureHandle in passCompileInfo.resourceCreateList[(int)ERGResourceType.Texture])
+            {
+                m_Resources.CreateTextureResource(ref graphContext, textureHandle, passCompileInfo.enableAsyncCompute);
             }
 
             if (pass.passType == EPassType.Raster)
@@ -1638,6 +1676,8 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 passCompileInfo.fence = graphContext.cmdBuffer.CreateAsyncGraphicsFence();
             }
+            if (passCompileInfo.needResourceFence)
+                passCompileInfo.completionFence = graphContext.cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
 
         }
 
@@ -1647,12 +1687,12 @@ namespace InfinityTech.Rendering.RenderGraph
 
             foreach (var buffer in passCompileInfo.resourceReleaseList[(int)ERGResourceType.Buffer]) 
             {
-                m_Resources.ReleaseBufferResource(buffer);
+                m_Resources.ReleaseBufferResource(buffer, GetResourceReuseFence(ERGResourceType.Buffer, buffer));
             }
 
             foreach (var texture in passCompileInfo.resourceReleaseList[(int)ERGResourceType.Texture]) 
             {
-                m_Resources.ReleaseTextureResource(texture);
+                m_Resources.ReleaseTextureResource(texture, GetResourceReuseFence(ERGResourceType.Texture, texture));
             }
         }
 
@@ -1684,7 +1724,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         IRGPass pass = passInfo.pass;
                         graphContext.cmdBuffer = graphicsCmdBuffer;
 
-                        if (pass.enableAsyncCompute)
+                        if (passInfo.enableAsyncCompute)
                         {
                             asyncCommands = CommandBufferPool.Get();
                             asyncCommands.SetExecutionFlags(CommandBufferExecutionFlags.AsyncCompute);
@@ -1715,7 +1755,15 @@ namespace InfinityTech.Rendering.RenderGraph
                         }
 
                         RenderFaultValidation.AtPass(ERenderFaultPoint.BeforePassQueue, pass.name);
-                        if (pass.enableAsyncCompute)
+                        var useFence = new ResourceReuseFence
+                        {
+                            hasGraphics = !passInfo.enableAsyncCompute && passInfo.needGraphicsFence,
+                            hasCompute = passInfo.enableAsyncCompute && passInfo.needGraphicsFence,
+                            graphics = passInfo.fence, compute = passInfo.fence,
+                            graphicsCompletion = passInfo.completionFence, computeCompletion = passInfo.completionFence
+                        };
+                        m_Resources.QueueAttempt(pass, passInfo.enableAsyncCompute, useFence);
+                        if (passInfo.enableAsyncCompute)
                         {
                             GraphicsFence completionFence = passInfo.needGraphicsFence
                                 ? passInfo.fence : asyncCommands.CreateAsyncGraphicsFence();
@@ -1781,6 +1829,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             catch (Exception error)
             {
+                m_Resources.SubmissionUncertain();
                 failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
             }
             finally

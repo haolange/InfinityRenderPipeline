@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Unity.Mathematics;
 using UnityEngine.Rendering;
@@ -9,127 +10,101 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class HiZPassUtilityData
     {
-        internal static string TextureName = "HiZTexture";
-        internal static int SRV_PyramidDepthID = Shader.PropertyToID("_PrevMipDepth");
-        internal static int UAV_HierarchicalDepth0ID = Shader.PropertyToID("_HierarchicalDepth0");
-        internal static int UAV_HierarchicalDepth1ID = Shader.PropertyToID("_HierarchicalDepth1");
-        internal static int UAV_HierarchicalDepth2ID = Shader.PropertyToID("_HierarchicalDepth2");
-        internal static int UAV_HierarchicalDepth3ID = Shader.PropertyToID("_HierarchicalDepth3");
-        internal static int HiZ_SrcMipID = Shader.PropertyToID("_SrcMip");
-        internal static int HiZ_SrcSizeID = Shader.PropertyToID("_SrcSize");
-        internal static int HiZ_DstSizeID = Shader.PropertyToID("_DstSize");
-        internal static int HiZ_CopySourceID = Shader.PropertyToID("_CopySource");
-        internal static int HiZ_MipWriteCountID = Shader.PropertyToID("_MipWriteCount");
-        internal const int KernelHiZGeneration = 0;
+        internal static readonly int HistoryFurthest = Shader.PropertyToID("HistoryHiZFurthest");
+        internal static readonly int RawDepth = Shader.PropertyToID("_HiZRawDepth");
+        internal static readonly int SourceClosest = Shader.PropertyToID("_HiZSourceClosest");
+        internal static readonly int SourceFurthest = Shader.PropertyToID("_HiZSourceFurthest");
+        internal static readonly int SourceMip = Shader.PropertyToID("_HiZSourceMip");
+        internal static readonly int SourceSize = Shader.PropertyToID("_HiZSourceSize");
+        internal static readonly int DestinationSize = Shader.PropertyToID("_HiZDestinationSize");
+        internal static readonly int RawSource = Shader.PropertyToID("_HiZRawSource");
+        internal static readonly int WriteCount = Shader.PropertyToID("_HiZMipWriteCount");
+        internal static readonly int[] Closest = { Shader.PropertyToID("_HiZClosest0"), Shader.PropertyToID("_HiZClosest1"), Shader.PropertyToID("_HiZClosest2"), Shader.PropertyToID("_HiZClosest3") };
+        internal static readonly int[] Furthest = { Shader.PropertyToID("_HiZFurthest0"), Shader.PropertyToID("_HiZFurthest1"), Shader.PropertyToID("_HiZFurthest2"), Shader.PropertyToID("_HiZFurthest3") };
     }
 
     public partial class InfinityRenderPipeline
     {
         struct HiZPassData
         {
-            public int mipCount;
-            public int2 depthSize;
-            public ComputeShader hiZShader;
-            public RGTextureRef depthTexture;
-            public RGTextureRef hiZTexture;
+            public int mipCount, kernel;
+            public int2 fullSize, baseSize;
+            public ComputeShader shader;
+            public RGTextureRef depth, closest, furthest;
         }
+        internal static TextureDescriptor HiZDescriptor(int width, int height, string name)
+            => new TextureDescriptor((width + 1) / 2, (height + 1) / 2, ETextureSizingDomain.Internal, 2)
+            {
+                name = name, dimension = TextureDimension.Tex2D, colorFormat = GraphicsFormat.R32_SFloat,
+                enableRandomWrite = true, useMipMap = true, autoGenerateMips = false,
+                filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp
+            };
 
         void ComputeHiZ(RenderContext renderContext, Camera camera)
         {
-            if (!ShouldRecordFeature(EFrameFeature.HiZ))
+            if (!ShouldRecordFeature(EFrameFeature.HiZ)) return;
+            var depth = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            var size = m_RGBuilder.GetTextureDescriptor(depth);
+            var closest = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HiZClosestBuffer, HiZDescriptor(size.width, size.height, "HiZClosest"));
+            var descriptor = HiZDescriptor(size.width, size.height, "HiZFurthest");
+            var history = m_ActiveFrameState.historyCache;
+            var furthest = m_RGBuilder.ImportTexture(history.GetWriteTexture(HiZPassUtilityData.HistoryFurthest, descriptor));
+            m_RGScoper.RegisterTexture(InfinityShaderIDs.HiZFurthestBuffer, furthest);
+            history.MarkProduced(HiZPassUtilityData.HistoryFurthest);
+            RecordHiZ(depth, closest, furthest, size.width, size.height, true, ProfilingSampler.Get(CustomSamplerId.ComputeHiZ));
+            MarkFeatureProduced(EFrameFeature.HiZ);
+        }
+
+        RGTextureRef ComputeEarlyFurthestHiZ()
+        {
+            var depth = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            var size = m_RGBuilder.GetTextureDescriptor(depth);
+            var far = m_RGBuilder.CreateTexture(HiZDescriptor(size.width, size.height, "EarlyFurthestHiZ"));
+            RecordHiZ(depth, default, far, size.width, size.height, false, ProfilingSampler.Get(CustomSamplerId.ComputeEarlyFurthestHiZ));
+            return far;
+        }
+
+        void RecordHiZ(RGTextureRef depth, RGTextureRef closest, RGTextureRef furthest, int width, int height, bool async, ProfilingSampler sampler)
+        {
+            var shader = shaders.hiZShader;
+            string name = closest.IsValid() ? "HiZ_Generation" : "HiZ_FurthestGeneration";
+            if (shader == null || !shader.HasKernel(name)) throw new InvalidOperationException("HiZ requires kernel " + name);
+            using (var pass = m_RGBuilder.AddComputePass<HiZPassData>(sampler))
             {
-                return;
-            }
-
-            if (!GraphicsUtility.HasRequiredKernels(shaders.hiZShader, "HiZ_Generation"))
-            {
-                return;
-            }
-
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            var depthDescriptor = m_RGBuilder.GetTextureDescriptor(depthTexture);
-            int width = depthDescriptor.width;
-            int height = depthDescriptor.height;
-            int mipCount = PyramidMipBatch.MipCount(width, height);
-
-            TextureDescriptor hiZTextureDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
-            {
-                hiZTextureDsc.name = HiZPassUtilityData.TextureName;
-                hiZTextureDsc.dimension = TextureDimension.Tex2D;
-                hiZTextureDsc.colorFormat = GraphicsFormat.R32_SFloat;
-                hiZTextureDsc.depthBufferBits = EDepthBits.None;
-                hiZTextureDsc.enableRandomWrite = true;
-                hiZTextureDsc.useMipMap = true;
-                hiZTextureDsc.autoGenerateMips = false;
-                hiZTextureDsc.filterMode = FilterMode.Point;
-                hiZTextureDsc.wrapMode = TextureWrapMode.Clamp;
-            }
-            RGTextureRef hiZTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HiZBuffer, hiZTextureDsc);
-
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<HiZPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHiZ)))
-            {
-                ref HiZPassData passData = ref passRef.GetPassData<HiZPassData>();
-                passData.mipCount = mipCount;
-                passData.depthSize = new int2(width, height);
-                passData.hiZShader = shaders.hiZShader;
-                passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.hiZTexture = passRef.WriteTexture(hiZTexture);
-
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in HiZPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                ref var data = ref pass.GetPassData<HiZPassData>(); data = default;
+                data.shader = shader; data.kernel = shader.FindKernel(name);
+                data.fullSize = new int2(width, height); data.baseSize = (data.fullSize + 1) / 2;
+                data.mipCount = PyramidMipBatch.MipCount(data.baseSize.x, data.baseSize.y);
+                data.depth = pass.ReadTexture(depth); data.furthest = pass.WriteTexture(furthest);
+                if (closest.IsValid()) data.closest = pass.WriteTexture(closest);
+                pass.EnableAsyncCompute(async);
+                pass.SetExecuteFunc((in HiZPassData data, in RGComputeEncoder commands, RGObjectPool objects) =>
                 {
-                    ComputeShader shader = passData.hiZShader;
-                    int kernel = HiZPassUtilityData.KernelHiZGeneration;
-                    int mipCount = passData.mipCount;
-                    int batchCount = PyramidMipBatch.HiZBatchCount(mipCount);
-
-                    for (int batch = 0; batch < batchCount; ++batch)
+                    for (int first = 0; first < data.mipCount; first += PyramidMipBatch.HiZMipsPerDispatch)
                     {
-                        int startMip = batch * PyramidMipBatch.HiZMipsPerDispatch;
-                        int writeCount = math.min(PyramidMipBatch.HiZMipsPerDispatch, mipCount - startMip);
-                        int lastMip = startMip + writeCount - 1;
-                        bool copySource = startMip == 0;
-                        int srcMip = copySource ? 0 : startMip - 1;
-                        int srcWidth = copySource ? passData.depthSize.x : PyramidMipBatch.MipSize(passData.depthSize.x, srcMip);
-                        int srcHeight = copySource ? passData.depthSize.y : PyramidMipBatch.MipSize(passData.depthSize.y, srcMip);
-                        int outWidth = PyramidMipBatch.MipSize(passData.depthSize.x, startMip);
-                        int outHeight = PyramidMipBatch.MipSize(passData.depthSize.y, startMip);
-                        int groupsX = math.max(1, Mathf.CeilToInt(outWidth / 8.0f));
-                        int groupsY = math.max(1, Mathf.CeilToInt(outHeight / 8.0f));
-
-                        cmdEncoder.BeginSample($"HiZ_Mip{startMip}-{lastMip}");
-                        cmdEncoder.SetComputeIntParam(shader, HiZPassUtilityData.HiZ_SrcMipID, srcMip);
-                        cmdEncoder.SetComputeIntParam(shader, HiZPassUtilityData.HiZ_CopySourceID, copySource ? 1 : 0);
-                        cmdEncoder.SetComputeIntParam(shader, HiZPassUtilityData.HiZ_MipWriteCountID, writeCount);
-                        cmdEncoder.SetComputeVectorParam(shader, HiZPassUtilityData.HiZ_SrcSizeID, new Vector4(srcWidth, srcHeight, 1.0f / srcWidth, 1.0f / srcHeight));
-                        cmdEncoder.SetComputeVectorParam(shader, HiZPassUtilityData.HiZ_DstSizeID, new Vector4(outWidth, outHeight, 1.0f / outWidth, 1.0f / outHeight));
-                        if (copySource)
-                        {
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, HiZPassUtilityData.SRV_PyramidDepthID, passData.depthTexture);
-                        }
-                        else
-                        {
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, HiZPassUtilityData.SRV_PyramidDepthID, passData.hiZTexture);
-                        }
-
+                        bool raw = first == 0;
+                        int sourceMip = raw ? 0 : first - 1;
+                        int2 source = raw ? data.fullSize : math.max(1, data.baseSize >> sourceMip);
+                        int2 destination = math.max(1, data.baseSize >> first);
+                        int writes = math.min(PyramidMipBatch.HiZMipsPerDispatch, data.mipCount - first);
+                        commands.SetComputeIntParam(data.shader, HiZPassUtilityData.SourceMip, sourceMip);
+                        commands.SetComputeIntParam(data.shader, HiZPassUtilityData.RawSource, raw ? 1 : 0);
+                        commands.SetComputeIntParam(data.shader, HiZPassUtilityData.WriteCount, writes);
+                        commands.SetComputeVectorParam(data.shader, HiZPassUtilityData.SourceSize, new Vector4(source.x, source.y, 1f / source.x, 1f / source.y));
+                        commands.SetComputeVectorParam(data.shader, HiZPassUtilityData.DestinationSize, new Vector4(destination.x, destination.y, 1f / destination.x, 1f / destination.y));
+                        commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.RawDepth, data.depth);
+                        commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.SourceFurthest, raw ? data.depth : data.furthest);
+                        if (data.closest.IsValid()) commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.SourceClosest, raw ? data.depth : data.closest);
                         for (int i = 0; i < PyramidMipBatch.HiZMipsPerDispatch; ++i)
                         {
-                            int mip = i < writeCount ? startMip + i : lastMip;
-                            int uavId = i == 0 ? HiZPassUtilityData.UAV_HierarchicalDepth0ID
-                                : i == 1 ? HiZPassUtilityData.UAV_HierarchicalDepth1ID
-                                : i == 2 ? HiZPassUtilityData.UAV_HierarchicalDepth2ID
-                                : HiZPassUtilityData.UAV_HierarchicalDepth3ID;
-                            cmdEncoder.SetComputeTextureParam(shader, kernel, uavId, passData.hiZTexture, mip);
+                            int mip = first + math.min(i, writes - 1);
+                            commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.Furthest[i], data.furthest, mip);
+                            if (data.closest.IsValid()) commands.SetComputeTextureParam(data.shader, data.kernel, HiZPassUtilityData.Closest[i], data.closest, mip);
                         }
-
-                        cmdEncoder.DispatchCompute(shader, kernel, groupsX, groupsY, 1);
-                        cmdEncoder.EndSample($"HiZ_Mip{startMip}-{lastMip}");
+                        commands.DispatchCompute(data.shader, data.kernel, (destination.x + 7) / 8, (destination.y + 7) / 8, 1);
                     }
                 });
             }
-
-            MarkFeatureProduced(EFrameFeature.HiZ);
         }
     }
 }

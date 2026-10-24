@@ -13,7 +13,7 @@
 // Trace resolution is full or half; tiles, quad rotation, ray records and ray reuse are shared with SSGI
 // (RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl).
 // Resolved / Temporal / SSRTexture (RGBA16F): rgb = radiance premultiplied by confidence, a = confidence.
-// Meta (RGBA16F): octahedral world normal, raw depth, history age in frames (0 = no history).
+// Meta (RGBA32F): octahedral world normal, raw depth, history age in frames (0 = no history).
 
 #pragma kernel SSRClassify
 #pragma kernel SSRClearSkipped
@@ -27,6 +27,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceDepth.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
+#include "../../ShaderLibrary/TemporalColorSource.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
@@ -68,11 +69,11 @@ float4x4 Matrix_Proj, Matrix_InvProj, Matrix_InvViewProj, Matrix_WorldToView;
 float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
 
 Texture2D<float> SRV_DepthTexture;
-Texture2D SRV_HiZTexture;
+Texture2D<float> SRV_HiZClosestTexture;
 Texture2D SRV_GBufferA;
 Texture2D SRV_GBufferB;
 Texture2D SRV_GBufferC;
-Texture2D SRV_LightingPyramid;
+Texture2D<float4> SRV_HitMotionMetadata;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryRadiance;
 Texture2D SRV_HistoryMeta;
@@ -264,8 +265,8 @@ void TraceTilePixel(uint3 groupId, uint3 groupThreadId, bool linearMarch)
     float jitter = GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 2);
     float3 hit;
     bool found = linearMarch
-        ? TraceScreenSpaceRayLinear(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_LinearSteps, jitter, Matrix_Proj, SRV_HiZTexture, SRV_HiZTexture_InfinityView, SSR_TraceScale - 1, hit)
-        : TraceScreenSpaceRay(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_HiZSteps, jitter, Matrix_Proj, SRV_HiZTexture, SRV_HiZTexture_InfinityView, hit);
+        ? TraceScreenSpaceRayLinear(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_LinearSteps, jitter, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SSR_TraceScale - 1, hit)
+        : TraceScreenSpaceRay(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_HiZSteps, jitter, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, hit);
 
     UAV_RayHit[tracePixel] = found ? EncodeRayHit(hit, pdf) : EncodeRayMiss(L, pdf);
 }
@@ -308,10 +309,9 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
     float roughness4 = pow4(roughness);
     bool mirror = surface.roughness < SSR_MirrorRoughness;
 
-    uint lightingWidth, lightingHeight, lightingMips;
-    InfinityGetMipDimensions(SRV_LightingPyramid, 0, lightingWidth, lightingHeight, lightingMips);
+    uint lightingMips = (uint)TemporalColorMipCount;
     // Pixels covered by one world unit at eye depth 1.
-    float projectionScale = 0.5 * SSR_Resolution.y * abs(Matrix_Proj[1][1]);
+    float projectionScale = 0.5 * TemporalColorResolution.y * abs(Matrix_Proj[1][1]);
 
     uint2 traceCenter = FullToTracePixel(pixel);
     uint sampleCount = mirror ? 1u : clamp(SSR_ResolveSamples, 1u, 16u);
@@ -357,7 +357,10 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
 
             // Filtered importance sampling: mirrors read the full-resolution image.
             float mip = mirror ? 0 : RayConeMip(pdf, sampleCount, hitDistance, projectionScale, ScreenSpaceLinearEyeDepth(ray.z), lightingMips);
-            radiance = InfinitySampleLevelTrilinear(SRV_LightingPyramid,Global_trilinear_clamp_sampler,ray.xy,mip).rgb;
+            float colorConfidence;
+            radiance = SampleTemporalHitColor(ray.xy,ray.z,SRV_MotionTexture[hitPixel].xy,SRV_HitMotionMetadata[hitPixel],mip,
+                Matrix_InvViewProj,Matrix_HistoryViewProj,Matrix_MotionViewProj,Matrix_LastMotionViewProj,colorConfidence);
+            hitConfidence *= colorConfidence;
         }
         else
         {
@@ -437,7 +440,11 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
 
     float historyAge = 0;
     float4 history = current;
-    float historyValid = SSR_HistoryValid * HistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth, 2);
+    float4 motionSurface = SRV_HitMotionMetadata[pixel];
+    bool validMotionSurface = motionSurface.z > 0 && isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
+    // Use the previous object surface depth, rather than projecting its current pose.
+    expectedDepth = validMotionSurface ? motionSurface.x : expectedDepth;
+    float historyValid = (validMotionSurface ? SSR_HistoryValid : 0) * HistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth, 2);
     if (historyValid > 0)
     {
         float4 historyMeta = InfinitySampleLevel(SRV_HistoryMeta,Global_point_clamp_sampler,surfaceUV,0);
@@ -452,7 +459,8 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
         history = surfaceHistory;
         float hitDistance = SRV_HitDistance[pixel];
         float2 virtualUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_HistoryViewProj) : -1;
-        if (all(virtualUV >= 0) && all(virtualUV <= 1))
+
+    if (all(virtualUV >= 0) && all(virtualUV <= 1))
         {
             // Smooth lobes follow the reflected image; rough lobes follow the surface. The neighborhood arbitrates.
             float4 virtualHistory = InfinitySampleLevel(SRV_HistoryRadiance,Global_bilinear_clamp_sampler,virtualUV,0);
@@ -546,11 +554,11 @@ void SSRDebug(uint3 id : SV_DispatchThreadID)
     }
     else if (SSR_DebugMode == DEBUGVIEW_SSRCONFIDENCE)
     {
-        color = SRV_Resolved[pixel].aaa;
+        color = SRV_Resolved[tracePixel].aaa;
     }
     else if (SSR_DebugMode == DEBUGVIEW_SSRHISTORYAGE)
     {
-        color = saturate(SRV_Meta[pixel].w / 16.0).xxx;
+        color = saturate(SRV_Meta[tracePixel].w / 16.0).xxx;
     }
     UAV_Debug[pixel] = float4(color, 1);
 }

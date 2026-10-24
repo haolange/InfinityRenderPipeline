@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 throw new System.InvalidOperationException("InfinityRP: Atmosphere is designed on but AtmosphereComposite kernel is missing.");
             }
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightingBuffer, out RGTextureRef lightingTexture) ||
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureRef lightingTexture) ||
                 !m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureRef depthTexture) ||
                 !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureRef skyViewLUT) ||
                 !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureRef aerialPerspectiveLUT) ||

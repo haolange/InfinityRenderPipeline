@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -17,6 +18,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal struct PassTable
         {
             public ComputeBuffer candidateTable;
+            public FBufferRef allocation;
             public MeshDrawCommand[] commands;
             public uint[] commandMeta;
             public uint[] candidateOffsets;
@@ -28,13 +30,15 @@ namespace InfinityTech.Rendering.MeshPipeline
             public int capacityCandidates;
         }
 
+        private readonly ResourcePool m_Pool;
         private readonly MeshScene m_Scene;
         private readonly PassBinStore m_Bins;
         private readonly PassTable[] m_Tables = new PassTable[PassRegistry.Count];
         private bool m_Disposed;
 
-        public MeshCandidateTableStore(MeshScene scene, PassBinStore bins)
+        public MeshCandidateTableStore(MeshScene scene, PassBinStore bins, ResourcePool pool)
         {
+            m_Pool = pool ?? throw new ArgumentNullException(nameof(pool));
             m_Scene = scene ?? throw new ArgumentNullException(nameof(scene));
             m_Bins = bins ?? throw new ArgumentNullException(nameof(bins));
             for (int i = 0; i < m_Tables.Length; ++i)
@@ -118,6 +122,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             return new MeshDrawGpuStaging
             {
+                candidateTable = table.candidateTable,
                 commandCount = table.commandCount,
                 candidateCount = table.candidateCount,
                 boundsInstanceCount = math.max(1, boundsInstanceCount),
@@ -130,11 +135,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
-        public ComputeBuffer GetCandidateBuffer(MeshPassId passId)
-        {
-            return Ensure(passId).candidateTable;
-        }
-
         public void Dispose()
         {
             if (m_Disposed)
@@ -145,7 +145,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Disposed = true;
             for (int i = 0; i < m_Tables.Length; ++i)
             {
-                m_Tables[i].candidateTable?.Release();
+                if (m_Tables[i].allocation.buffer != null) m_Pool.ReleaseBuffer(m_Tables[i].allocation);
+                m_Tables[i].allocation = default;
                 m_Tables[i].candidateTable = null;
             }
         }
@@ -228,21 +229,19 @@ namespace InfinityTech.Rendering.MeshPipeline
             table.candidates = candidates.ToArray();
             table.commandCount = table.commands.Length;
             table.candidateCount = table.candidates.Length;
-            table.builtSerial = epoch;
 
-            int needed = math.max(1, table.candidateCount);
-            if (table.candidateTable == null || table.capacityCandidates < needed)
+            int capacity = math.max(256, table.candidateCount);
+            var allocation = m_Pool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint) * 2, ComputeBufferType.Structured));
+            try
             {
-                table.candidateTable?.Release();
-                table.capacityCandidates = math.max(needed, 256);
-                table.candidateTable = new ComputeBuffer(table.capacityCandidates, sizeof(uint) * 2, ComputeBufferType.Structured);
+                // This acquisition is CPU-safe. Published tables are immutable until the next rebuild.
+                if (table.candidateCount > 0) allocation.buffer.SetData(table.candidates, 0, 0, table.candidateCount);
             }
-
-            if (table.candidateCount > 0)
-            {
-                table.candidateTable.SetData(table.candidates, 0, 0, table.candidateCount);
-                MeshPipelineDiagnostics.CandidateUploadsBytes += table.candidateCount * sizeof(uint) * 2;
-            }
+            catch { m_Pool.ReleaseBuffer(allocation); throw; }
+            if (table.allocation.buffer != null) m_Pool.ReleaseBuffer(table.allocation);
+            table.allocation = allocation; table.candidateTable = allocation.buffer;
+            table.capacityCandidates = capacity; table.builtSerial = epoch;
+            MeshPipelineDiagnostics.CandidateUploadsBytes += table.candidateCount * sizeof(uint) * 2;
         }
     }
 }

@@ -26,15 +26,11 @@ namespace InfinityTech.Rendering.PostProcess
         public BoolParameter HalfResolution = new BoolParameter(true);
         [Tooltip("Hi-Z walk budget; the walk takes at most four times this many cell steps.")]
         public ClampedIntParameter NumSteps = new ClampedIntParameter(12, 4, 64);
-        [Tooltip("Rays reused per pixel by the resolve, including the pixel's own ray.")]
-        public ClampedIntParameter ResolveSamples = new ClampedIntParameter(6, 1, 16);
-        [Tooltip("Ray reuse radius in trace pixels.")]
-        public ClampedFloatParameter ResolveRadius = new ClampedFloatParameter(3.0f, 0.0f, 4.0f);
         [Tooltip("Maximum history weight of the temporal filter.")]
         public ClampedFloatParameter TemporalWeight = new ClampedFloatParameter(0.93f, 0.0f, 0.97f);
         [Tooltip("Width of the temporal variance clip box in standard deviations.")]
         public ClampedFloatParameter TemporalScale = new ClampedFloatParameter(1.25f, 0.0f, 8.0f);
-        [Tooltip("A-trous spatial passes after the temporal filter.")]
+        [Tooltip("World-space spatial passes after the temporal filter.")]
         public ClampedIntParameter SpatialPasses = new ClampedIntParameter(1, 0, 1);
 
         public bool IsActive() => active && enable.value;
@@ -46,8 +42,6 @@ namespace InfinityTech.Rendering.PostProcess
                 {
                     halfResolution = HalfResolution.value,
                     hiZSteps = NumSteps.value,
-                    resolveSamples = ResolveSamples.value,
-                    resolveRadius = ResolveRadius.value,
                     temporalWeight = TemporalWeight.value,
                     temporalClampScale = TemporalScale.value,
                     spatialPasses = SpatialPasses.value,

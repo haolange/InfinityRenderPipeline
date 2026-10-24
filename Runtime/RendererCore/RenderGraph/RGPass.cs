@@ -45,6 +45,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public string name;
         public ProfilingSampler customSampler;
         internal IRGPassQueueObserver queueObserver;
+        internal bool importedWritesAreSideEffects = true;
 
         public int refCount { get; protected set; }
         public EPassType passType { get; protected set; }
@@ -159,6 +160,7 @@ namespace InfinityTech.Rendering.RenderGraph
             index = -1;
             customSampler = null;
             queueObserver = null;
+            importedWritesAreSideEffects = true;
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
                 resourceReadLists[i].Clear();
@@ -313,6 +315,7 @@ namespace InfinityTech.Rendering.RenderGraph
         bool m_Disposed;
         IRGPass m_TransferPass;
         internal void SetQueueObserver(IRGPassQueueObserver observer) => m_TransferPass.queueObserver = observer;
+        internal void KeepImportedWritesLocal() => m_TransferPass.importedWritesAreSideEffects = false;
         RGResourceFactory m_ResourceFactory;
 
         internal RGTransferPassRef(IRGPass transferPass, RGResourceFactory resourceFactory)
@@ -405,6 +408,7 @@ namespace InfinityTech.Rendering.RenderGraph
         bool m_Disposed;
         IRGPass m_ComputePass;
         internal void SetQueueObserver(IRGPassQueueObserver observer) => m_ComputePass.queueObserver = observer;
+        internal void KeepImportedWritesLocal() => m_ComputePass.importedWritesAreSideEffects = false;
         RGResourceFactory m_ResourceFactory;
 
         internal RGComputePassRef(IRGPass computePass, RGResourceFactory resourceFactory)

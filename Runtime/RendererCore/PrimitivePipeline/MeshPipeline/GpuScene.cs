@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
     /// Resident GPU tables for MeshScene. Uploads dirty pages every Update().
-    /// Current transforms are transform-indexed; previous poses stay on per-camera history.
+    /// Immutable transform versions are scene-owned; views retain accepted version references.
     /// Bounds + InstanceTransformIndex are instance-indexed so GPU cull can sample per instance
     /// while compact remaps to TransformId.Index for shading.
     /// </summary>
@@ -20,7 +20,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly ResourcePool m_ResourcePool;
         private readonly ProfilingSampler m_ProfileSampler;
 
-        private FBufferRef m_TransformBuffer;
+        internal readonly MeshTransformVersionCache transformVersions;
         private FBufferRef m_RenderingLayerBuffer;
         private FBufferRef m_BakedLightingBuffer;
         private FBufferRef m_BoundsCenterBuffer;
@@ -35,7 +35,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private bool m_HasTransformBuffer;
         private bool m_HasInstanceBuffer;
 
-        public FBufferRef TransformBuffer => m_TransformBuffer;
+        public FBufferRef TransformBuffer => transformVersions.current != null ? transformVersions.current.matrices : default;
         public FBufferRef RenderingLayerBuffer => m_RenderingLayerBuffer;
         public FBufferRef BakedLightingBuffer => m_BakedLightingBuffer;
         public FBufferRef BoundsCenterBuffer => m_BoundsCenterBuffer;
@@ -52,6 +52,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public GpuScene(ResourcePool resourcePool, MeshScene scene)
         {
             m_Scene = scene;
+            transformVersions = new MeshTransformVersionCache(resourcePool);
             m_ResourcePool = resourcePool;
             m_ProfileSampler = new ProfilingSampler("UpdateGpuScene");
             m_TransformBufferCapacity = 0;
@@ -67,58 +68,37 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
+            if (m_Scene.isUpdating)
+                throw new System.InvalidOperationException("GPU residency cannot observe an uncommitted MeshScene transaction.");
+
             using (new ProfilingScope(m_ProfileSampler))
             {
-                int neededTransforms = math.max(16, m_Scene.TransformCapacity);
-                int neededInstances = math.max(16, m_Scene.InstanceCapacity);
+                int neededTransforms = math.max(math.max(16, m_Scene.TransformCapacity), m_TransformBufferCapacity);
+                int neededInstances = math.max(math.max(16, m_Scene.InstanceCapacity), m_InstanceBufferCapacity);
                 bool recreateTransforms = !m_HasTransformBuffer || m_TransformBufferCapacity < neededTransforms;
                 bool recreateInstances = !m_HasInstanceBuffer || m_InstanceBufferCapacity < neededInstances;
+                if (m_HasTransformBuffer && m_Scene.HasTransformDirtyRange)
+                    recreateTransforms |= !m_ResourcePool.CanWriteBuffer(m_RenderingLayerBuffer) || !m_ResourcePool.CanWriteBuffer(m_BakedLightingBuffer);
+                if (m_HasInstanceBuffer && m_Scene.HasBoundsDirtyRange)
+                    recreateInstances |= !m_ResourcePool.CanWriteBuffer(m_BoundsCenterBuffer) || !m_ResourcePool.CanWriteBuffer(m_BoundsExtentBuffer)
+                        || !m_ResourcePool.CanWriteBuffer(m_InstanceTransformIndexBuffer) || !m_ResourcePool.CanWriteBuffer(m_InstanceFlagsBuffer)
+                        || !m_ResourcePool.CanWriteBuffer(m_InstanceLayerMaskBuffer) || !m_ResourcePool.CanWriteBuffer(m_InstanceSceneCullingMaskBuffer)
+                        || !m_ResourcePool.CanWriteBuffer(m_InstanceRenderingLayerBuffer);
 
-                if (recreateTransforms)
+
+                if (transformVersions.current == null || transformVersions.current.revision != m_Scene.TransformRevision)
                 {
-                    if (m_HasTransformBuffer)
+                    var transformRuns = new NativeList<int2>(8, Allocator.Temp);
+                    try
                     {
-                        m_ResourcePool.ReleaseBuffer(m_TransformBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_RenderingLayerBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_BakedLightingBuffer);
+                        m_Scene.CollectTransformDirtyRuns(transformRuns);
+                        transformVersions.Prepare(m_Scene, transformRuns);
                     }
-
-                    m_TransformBufferCapacity = neededTransforms;
-                    m_TransformBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, Marshal.SizeOf<float4x4>()));
-                    m_RenderingLayerBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, sizeof(uint)));
-                    m_BakedLightingBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_TransformBufferCapacity, Marshal.SizeOf<FMeshBakedLighting>()));
-                    m_HasTransformBuffer = true;
-
-                    UploadTransformRange(0, m_Scene.TransformHighWater);
-                    m_Scene.ClearTransformDirtyRange();
+                    finally { transformRuns.Dispose(); }
                 }
 
-                if (recreateInstances)
-                {
-                    if (m_HasInstanceBuffer)
-                    {
-                        m_ResourcePool.ReleaseBuffer(m_BoundsCenterBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_BoundsExtentBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_InstanceTransformIndexBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_InstanceFlagsBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_InstanceLayerMaskBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_InstanceSceneCullingMaskBuffer);
-                        m_ResourcePool.ReleaseBuffer(m_InstanceRenderingLayerBuffer);
-                    }
-
-                    m_InstanceBufferCapacity = neededInstances;
-                    m_BoundsCenterBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, Marshal.SizeOf<float4>()));
-                    m_BoundsExtentBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, Marshal.SizeOf<float4>()));
-                    m_InstanceTransformIndexBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
-                    m_InstanceFlagsBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
-                    m_InstanceLayerMaskBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
-                    m_InstanceSceneCullingMaskBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, Marshal.SizeOf<uint2>()));
-                    m_InstanceRenderingLayerBuffer = m_ResourcePool.GetBuffer(new BufferDescriptor(m_InstanceBufferCapacity, sizeof(uint)));
-                    m_HasInstanceBuffer = true;
-
-                    UploadBoundsRange(0, m_Scene.InstanceHighWater);
-                    m_Scene.ClearBoundsDirtyRange();
-                }
+                if (recreateTransforms) RecreateTransformAttributes(neededTransforms);
+                if (recreateInstances) RecreateInstanceAttributes(neededInstances);
 
                 if (recreateTransforms && recreateInstances)
                 {
@@ -158,6 +138,64 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
+        void ReturnIfCreated(FBufferRef buffer)
+        {
+            if (buffer.buffer != null) m_ResourcePool.ReleaseBuffer(buffer);
+        }
+        void RecreateTransformAttributes(int capacity)
+        {
+            var old = (m_RenderingLayerBuffer, m_BakedLightingBuffer);
+            FBufferRef layers = default, baked = default;
+            try
+            {
+                layers = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint)));
+                baked = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, Marshal.SizeOf<FMeshBakedLighting>()));
+                m_RenderingLayerBuffer = layers; m_BakedLightingBuffer = baked;
+                UploadTransformRange(0, m_Scene.TransformHighWater);
+            }
+            catch
+            {
+                (m_RenderingLayerBuffer, m_BakedLightingBuffer) = old;
+                ReturnIfCreated(layers); ReturnIfCreated(baked); throw;
+            }
+            if (m_HasTransformBuffer) { ReturnIfCreated(old.Item1); ReturnIfCreated(old.Item2); }
+            m_TransformBufferCapacity = capacity; m_HasTransformBuffer = true;
+            m_Scene.ClearTransformDirtyRange();
+        }
+        void RecreateInstanceAttributes(int capacity)
+        {
+            var old = (m_BoundsCenterBuffer, m_BoundsExtentBuffer, m_InstanceTransformIndexBuffer, m_InstanceFlagsBuffer,
+                m_InstanceLayerMaskBuffer, m_InstanceSceneCullingMaskBuffer, m_InstanceRenderingLayerBuffer);
+            FBufferRef center = default, extent = default, transforms = default, flags = default, layers = default, masks = default, rendering = default;
+            try
+            {
+                center = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, Marshal.SizeOf<float4>()));
+                extent = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, Marshal.SizeOf<float4>()));
+                transforms = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint)));
+                flags = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint)));
+                layers = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint)));
+                masks = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, Marshal.SizeOf<uint2>()));
+                rendering = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint)));
+                (m_BoundsCenterBuffer, m_BoundsExtentBuffer, m_InstanceTransformIndexBuffer, m_InstanceFlagsBuffer,
+                    m_InstanceLayerMaskBuffer, m_InstanceSceneCullingMaskBuffer, m_InstanceRenderingLayerBuffer) = (center, extent, transforms, flags, layers, masks, rendering);
+                UploadBoundsRange(0, m_Scene.InstanceHighWater);
+            }
+            catch
+            {
+                (m_BoundsCenterBuffer, m_BoundsExtentBuffer, m_InstanceTransformIndexBuffer, m_InstanceFlagsBuffer,
+                    m_InstanceLayerMaskBuffer, m_InstanceSceneCullingMaskBuffer, m_InstanceRenderingLayerBuffer) = old;
+                ReturnIfCreated(center); ReturnIfCreated(extent); ReturnIfCreated(transforms); ReturnIfCreated(flags);
+                ReturnIfCreated(layers); ReturnIfCreated(masks); ReturnIfCreated(rendering); throw;
+            }
+            if (m_HasInstanceBuffer)
+            {
+                ReturnIfCreated(old.Item1); ReturnIfCreated(old.Item2); ReturnIfCreated(old.Item3); ReturnIfCreated(old.Item4);
+                ReturnIfCreated(old.Item5); ReturnIfCreated(old.Item6); ReturnIfCreated(old.Item7);
+            }
+            m_InstanceBufferCapacity = capacity; m_HasInstanceBuffer = true;
+            m_Scene.ClearBoundsDirtyRange();
+        }
+
         private void UploadTransformRange(int begin, int exclusiveEnd)
         {
             begin = math.max(0, begin);
@@ -167,29 +205,25 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            var transforms = m_Scene.GetTransforms();
             int count = exclusiveEnd - begin;
-            var currentMatrices = new NativeArray<float4x4>(count, Allocator.Temp);
+            if (!m_ResourcePool.CanWriteBuffer(m_RenderingLayerBuffer) || !m_ResourcePool.CanWriteBuffer(m_BakedLightingBuffer))
+                throw new System.InvalidOperationException("Transform attributes are still referenced by recorded or pending GPU work.");
             var layers = new NativeArray<uint>(count, Allocator.Temp);
             var baked = new NativeArray<FMeshBakedLighting>(count, Allocator.Temp);
             try
             {
                 for (int i = begin; i < exclusiveEnd; ++i)
                 {
-                    TransformRecord transform = transforms[i];
-                    currentMatrices[i - begin] = transform.current;
                     layers[i - begin] = m_Scene.GetTransformRenderingLayer(i);
                     baked[i - begin] = m_Scene.GetTransformBakedLighting(i);
                 }
 
-                m_TransformBuffer.buffer.SetData(currentMatrices, 0, begin, count);
                 m_RenderingLayerBuffer.buffer.SetData(layers, 0, begin, count);
                 m_BakedLightingBuffer.buffer.SetData(baked, 0, begin, count);
-                AccountUpload(count, Marshal.SizeOf<float4x4>() + sizeof(uint) + Marshal.SizeOf<FMeshBakedLighting>());
+                AccountUpload(count, sizeof(uint) + Marshal.SizeOf<FMeshBakedLighting>());
             }
             finally
             {
-                currentMatrices.Dispose();
                 layers.Dispose();
                 baked.Dispose();
             }
@@ -205,6 +239,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             int count = exclusiveEnd - begin;
+            if (!m_ResourcePool.CanWriteBuffer(m_BoundsCenterBuffer) || !m_ResourcePool.CanWriteBuffer(m_BoundsExtentBuffer)
+                || !m_ResourcePool.CanWriteBuffer(m_InstanceTransformIndexBuffer) || !m_ResourcePool.CanWriteBuffer(m_InstanceFlagsBuffer)
+                || !m_ResourcePool.CanWriteBuffer(m_InstanceLayerMaskBuffer) || !m_ResourcePool.CanWriteBuffer(m_InstanceSceneCullingMaskBuffer)
+                || !m_ResourcePool.CanWriteBuffer(m_InstanceRenderingLayerBuffer))
+                throw new System.InvalidOperationException("Instance attributes are still referenced by recorded or pending GPU work.");
             var centers = new NativeArray<float4>(count, Allocator.Temp);
             var extents = new NativeArray<float4>(count, Allocator.Temp);
             var transformIndices = new NativeArray<uint>(count, Allocator.Temp);
@@ -278,9 +317,9 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Dispose()
         {
+            transformVersions.Dispose();
             if (m_HasTransformBuffer)
             {
-                m_ResourcePool.ReleaseBuffer(m_TransformBuffer);
                 m_ResourcePool.ReleaseBuffer(m_RenderingLayerBuffer);
                 m_ResourcePool.ReleaseBuffer(m_BakedLightingBuffer);
                 m_HasTransformBuffer = false;

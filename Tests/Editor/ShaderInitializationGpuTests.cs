@@ -154,24 +154,28 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(false, 0f)]
         public void TraceExit_PreservesPlaneHitsSkyMissesAndZeroLengthRejection(bool sky, float distance)
         {
-            var pyramid = new Texture2D(16, 8, TextureFormat.RGBAFloat, true, true);
+            var surface = new Texture2D(16, 8, TextureFormat.RGBAFloat, false, true);
+            var pyramid = new Texture2D(8, 4, TextureFormat.RGBAFloat, true, true);
             bool reversed = SystemInfo.usesReversedZBuffer;
             float rawDepth = sky ? (reversed ? 0 : 1) : .5f;
             try
             {
                 for (int mip = 0; mip < pyramid.mipmapCount; mip++)
                 {
-                    var pixels = new Color[Math.Max(1, 16 >> mip) * Math.Max(1, 8 >> mip)];
+                    var pixels = new Color[Math.Max(1, 8 >> mip) * Math.Max(1, 4 >> mip)];
                     Array.Fill(pixels, new Color(rawDepth, 0, 0, 0));
                     pyramid.SetPixels(pixels, mip);
                 }
                 pyramid.Apply(false, false);
+                var surfacePixels = new Color[16 * 8]; Array.Fill(surfacePixels, new Color(rawDepth, 0, 0, 0));
+                surface.SetPixels(surfacePixels); surface.Apply(false, false);
                 Vector4[] results = Run("TraceContract", new[] { Vector4.zero, Vector4.one }, (shader, kernel) =>
                 {
                     Matrix4x4 projection = Matrix4x4.identity;
                     projection.m22 = -1;
                     shader.SetMatrix("ContractProjection", projection);
                     shader.SetTexture(kernel, "ContractDepthPyramid", pyramid);
+                    shader.SetTexture(kernel, "ContractSurfaceDepth", surface);
                     shader.SetVector("ContractOrigin", new Vector4(-.6f, 0, reversed ? -.8f : -.2f, 0));
                     shader.SetVector("ContractDirection", new Vector4(.8f, 0, reversed ? .6f : -.6f, 0));
                     shader.SetFloat("ContractTraceDistance", distance);
@@ -189,7 +193,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     }
                 }
             }
-            finally { Object.DestroyImmediate(pyramid); }
+            finally { Object.DestroyImmediate(pyramid); Object.DestroyImmediate(surface); }
         }
     }
 }

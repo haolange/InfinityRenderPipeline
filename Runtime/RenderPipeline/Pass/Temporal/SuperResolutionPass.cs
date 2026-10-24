@@ -13,6 +13,9 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string TextureName = "SuperResolutionTexture";
         internal static string HistoryColorTextureName = "HistorySuperResolutionColor";
         internal static int HistoryColorTextureID = Shader.PropertyToID("HistorySuperResolutionColor");
+        internal static readonly int HistoryDepthTextureID = Shader.PropertyToID("HistorySuperResolutionDepth");
+        internal static readonly int UAV_HistoryColorTextureID = Shader.PropertyToID("UAV_SRHistoryColorTexture");
+        internal static readonly int UAV_HistoryDepthTextureID = Shader.PropertyToID("UAV_SRHistoryDepthTexture");
         internal static int SR_ResolutionID = Shader.PropertyToID("SR_Resolution");
         internal static int SR_JitterID = Shader.PropertyToID("SR_Jitter");
         internal static int SR_FrameIndexID = Shader.PropertyToID("SR_FrameIndex");
@@ -31,14 +34,14 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 resolution, inputResolution;
             public bool resetHistory;
             public float2 jitter;
-            public int frameIndex;
+            public int frameIndex, kernel;
             public float sharpness;
             public ComputeShader superResolutionShader;
             public RGTextureRef sceneColorTexture;
             public RGTextureRef depthTexture;
             public RGTextureRef motionTexture;
             public RGTextureRef historyColorTexture;
-            public RGTextureRef superResolutionTexture;
+            public RGTextureRef superResolutionTexture, pendingColor, pendingDepth;
         }
 
         void ComputeSuperResolution(RenderContext renderContext, Camera camera, HistoryCache historyCache, in float2 jitter)
@@ -53,16 +56,18 @@ namespace InfinityTech.Rendering.Pipeline
             int width = m_ActiveFrameState.dimensions.displaySize.x;
             int height = m_ActiveFrameState.dimensions.displaySize.y;
 
-            TextureDescriptor historyColorDescriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Display)
-            {
-                dimension = TextureDimension.Tex2D,
-                name = SuperResolutionPassUtilityData.HistoryColorTextureName,
-                colorFormat = GraphicsFormat.B10G11R11_UFloatPack32,
-                depthBufferBits = EDepthBits.None,
-                enableRandomWrite = false
-            };
+            TextureDescriptor historyColorDescriptor = TemporalColorDescriptor(width, height,
+                SuperResolutionPassUtilityData.HistoryColorTextureName, true, ETextureSizingDomain.Display);
             RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
             m_RGScoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
+            var pendingColor = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
+            var depthHistoryDescriptor = TemporalDepthDescriptor(width, height,
+                "HistorySuperResolutionDepth", true, ETextureSizingDomain.Display);
+            var pendingDepth = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryDepthTextureID, depthHistoryDescriptor));
+            m_RGScoper.RegisterTexture(InfinityShaderIDs.SRAccumulationBuffer, pendingColor);
+            m_RGScoper.RegisterTexture(InfinityShaderIDs.SRDepthBuffer, pendingDepth);
+            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
+            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryDepthTextureID);
 
             TextureDescriptor superResDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Display);
             {
@@ -83,9 +88,11 @@ namespace InfinityTech.Rendering.Pipeline
                 ref SuperResolutionPassData passData = ref passRef.GetPassData<SuperResolutionPassData>();
                 passData.resolution = new int2(width, height);
                 passData.inputResolution = m_ActiveFrameState.dimensions.internalSize;
-                passData.resetHistory = m_CameraUniform.historyReset || historyCreated;
+                passData.resetHistory = m_CameraUniform.historyReset || historyCreated
+                    || historyCache.TextureGeneration(SuperResolutionPassUtilityData.HistoryColorTextureID) == 0;
                 passData.jitter = jitter;
                 passData.frameIndex = Time.frameCount;
+                passData.kernel = shaders.superResolutionShader.FindKernel("SuperResolutionCS");
                 passData.sharpness = 0.5f;
                 passData.superResolutionShader = shaders.superResolutionShader;
                 passData.sceneColorTexture = passRef.ReadTexture(lightingTexture);
@@ -93,6 +100,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.motionTexture = passRef.ReadTexture(motionTexture);
                 passData.historyColorTexture = passRef.ReadTexture(historyColorTexture);
                 passData.superResolutionTexture = passRef.WriteTexture(superResolutionTexture);
+                passData.pendingColor = passRef.WriteTexture(pendingColor);
+                passData.pendingDepth = passRef.WriteTexture(pendingDepth);
 
                 passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in SuperResolutionPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
@@ -104,52 +113,19 @@ namespace InfinityTech.Rendering.Pipeline
                     cmdEncoder.SetComputeIntParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_FrameIndexID, passData.frameIndex);
                     cmdEncoder.SetComputeFloatParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_SharpnessID, passData.sharpness);
 
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, 0, SuperResolutionPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, 0, SuperResolutionPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, 0, SuperResolutionPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, 0, SuperResolutionPassUtilityData.SRV_HistoryColorTextureID, passData.historyColorTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, 0, SuperResolutionPassUtilityData.UAV_SuperResolutionTextureID, passData.superResolutionTexture);
-                    cmdEncoder.DispatchCompute(passData.superResolutionShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_SceneColorTextureID, passData.sceneColorTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.SRV_HistoryColorTextureID, passData.historyColorTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_SuperResolutionTextureID, passData.superResolutionTexture);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_HistoryColorTextureID, passData.pendingColor);
+                    cmdEncoder.SetComputeTextureParam(passData.superResolutionShader, passData.kernel, SuperResolutionPassUtilityData.UAV_HistoryDepthTextureID, passData.pendingDepth);
+                    cmdEncoder.DispatchCompute(passData.superResolutionShader, passData.kernel, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
                 });
             }
 
             MarkFeatureProduced(EFrameFeature.SuperResolution);
         }
 
-        struct CopyHistorySuperResolutionPassData
-        {
-            public RGTextureRef historyColorTexture;
-            public RGTextureRef superResolutionTexture;
-        }
-
-        void CopyHistorySuperResolution(RenderContext renderContext, HistoryCache historyCache, Camera camera)
-        {
-            TextureDescriptor historyColorDescriptor = new TextureDescriptor(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y, ETextureSizingDomain.Display)
-            {
-                dimension = TextureDimension.Tex2D,
-                name = SuperResolutionPassUtilityData.HistoryColorTextureName,
-                colorFormat = GraphicsFormat.B10G11R11_UFloatPack32,
-                depthBufferBits = EDepthBits.None,
-                enableRandomWrite = false
-            };
-            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
-            RGTextureRef superResolutionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.SuperResolutionBuffer);
-            historyCache.MarkProduced(SuperResolutionPassUtilityData.HistoryColorTextureID);
-
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistorySuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySuperResolution)))
-            {
-                passRef.ReadTexture(superResolutionTexture);
-                passRef.WriteTexture(historyColorTexture);
-
-                ref CopyHistorySuperResolutionPassData passData = ref passRef.GetPassData<CopyHistorySuperResolutionPassData>();
-                passData.superResolutionTexture = superResolutionTexture;
-                passData.historyColorTexture = historyColorTexture;
-
-                passRef.SetExecuteFunc((in CopyHistorySuperResolutionPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    cmdEncoder.CopyTexture(passData.superResolutionTexture, passData.historyColorTexture);
-                });
-            }
-        }
     }
 }

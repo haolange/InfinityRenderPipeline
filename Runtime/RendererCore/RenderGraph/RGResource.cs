@@ -137,6 +137,8 @@ namespace InfinityTech.Rendering.RenderGraph
     internal class IRGResource
     {
         public bool imported;
+        internal ResourceUsage usage;
+        internal bool recordingLease;
         public int cachedHash;
         public int shaderProperty;
         public int temporalPassIndex;
@@ -145,6 +147,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public virtual void Reset()
         {
             imported = false;
+            usage = null; recordingLease = false;
             cachedHash = -1;
             shaderProperty = 0;
             temporalPassIndex = -1;
@@ -194,6 +197,23 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal class RGTexture : RGResource<TextureDescriptor, RTHandle>
     {
+        internal readonly List<int> additionalShaderProperties = new List<int>();
+        internal bool hasExplicitDescriptor;
+
+        public override void Reset()
+        {
+            base.Reset();
+            additionalShaderProperties.Clear();
+            hasExplicitDescriptor = false;
+        }
+
+        internal void AddShaderProperty(int property)
+        {
+            if (property == 0 || property == shaderProperty) return;
+            if (shaderProperty == 0) shaderProperty = property;
+            else if (!additionalShaderProperties.Contains(property)) additionalShaderProperties.Add(property);
+        }
+
         public override string GetName()
         {
             return descriptor.name;
@@ -221,6 +241,9 @@ namespace InfinityTech.Rendering.RenderGraph
         readonly List<FTextureRef> m_RetiredTextures = new List<FTextureRef>();
         readonly List<FBufferRef> m_RetiredBuffers = new List<FBufferRef>();
         internal int RetiredResourceCount => m_RetiredTextures.Count + m_RetiredBuffers.Count;
+        readonly Dictionary<ComputeBuffer, int> m_ImportedBuffers = new Dictionary<ComputeBuffer, int>();
+        readonly Dictionary<GraphicsBuffer, int> m_ImportedGraphicsBuffers = new Dictionary<GraphicsBuffer, int>();
+        readonly Dictionary<RenderTargetIdentifier, int> m_ImportedTextures = new Dictionary<RenderTargetIdentifier, int>();
         RTHandle m_Backbuffer;
         RenderTargetIdentifier m_BackbufferIdentifier;
         DynamicArray<IRGResource>[] m_Resources = new DynamicArray<IRGResource>[(int)ERGResourceType.Max];
@@ -260,9 +283,32 @@ namespace InfinityTech.Rendering.RenderGraph
             view = default; return false;
         }
 
+        static void RetainRecording(IRGResource resource, ResourceUsage usage)
+        {
+            resource.usage = usage;
+            if (usage == null) return;
+            usage.RetainRecording(); resource.recordingLease = true;
+        }
+        static void ReleaseRecording(IRGResource resource)
+        {
+            if (!resource.recordingLease) return;
+            resource.usage.ReleaseRecording(); resource.recordingLease = false;
+        }
+        internal bool IsPoolTracked(RGResourceHandle handle) => m_Resources[handle.iType][handle.index].usage != null;
+        internal void QueueAttempt(IRGPass pass, bool asyncCompute, ResourceReuseFence fence)
+        {
+            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+            {
+                foreach (var handle in pass.resourceReadLists[type]) m_Pool.QueueAttempt(m_Resources[type][handle.index].usage, asyncCompute, fence);
+                foreach (var handle in pass.resourceWriteLists[type]) m_Pool.QueueAttempt(m_Resources[type][handle.index].usage, asyncCompute, fence);
+            }
+        }
+        internal void SubmissionUncertain() => m_Pool.SubmissionUncertain();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void BeginRender()
         {
+            m_Pool.EnsureRecording();
             current = this;
         }
 
@@ -348,8 +394,11 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (buffer.buffer == null || !buffer.buffer.IsValid())
                 throw new ArgumentException("Cannot import an invalid buffer.", nameof(buffer));
+            if (m_ImportedBuffers.TryGetValue(buffer.buffer, out int existing)) return new RGBufferRef(existing);
             int index = AddNewResource(m_Resources[(int)ERGResourceType.Buffer], out RGBuffer resource);
+            m_ImportedBuffers.Add(buffer.buffer, index);
             resource.resource = buffer.buffer;
+            RetainRecording(resource, m_Pool.BufferUsage(buffer.buffer));
             resource.descriptor = buffer.descriptor;
             resource.imported = true;
             return new RGBufferRef(index);
@@ -359,7 +408,9 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (buffer == null || !buffer.IsValid())
                 throw new ArgumentException("Cannot import an invalid GraphicsBuffer.", nameof(buffer));
+            if (m_ImportedGraphicsBuffers.TryGetValue(buffer, out int existing)) return new RGBufferRef(existing);
             int index = AddNewResource(m_Resources[(int)ERGResourceType.Buffer], out RGBuffer resource);
+            m_ImportedGraphicsBuffers.Add(buffer, index);
             resource.graphicsResource = buffer;
             resource.graphicsTarget = buffer.target;
             resource.descriptor = new BufferDescriptor { name = name, count = buffer.count, stride = buffer.stride };
@@ -401,8 +452,17 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RGTextureRef ImportTexture(RTHandle rt, in int shaderProperty = 0)
         {
+            if (rt == null) throw new ArgumentNullException(nameof(rt));
+            var identity = rt.rt != null ? new RenderTargetIdentifier(rt.rt) : rt.nameID;
+            if (m_ImportedTextures.TryGetValue(identity, out int existing))
+            {
+                GetTextureResource(new RGTextureRef(existing).handle).AddShaderProperty(shaderProperty);
+                return new RGTextureRef(existing);
+            }
             int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Texture], out RGTexture rdgTexture);
+            m_ImportedTextures.Add(identity, newHandle);
             rdgTexture.resource = rt;
+            RetainRecording(rdgTexture, m_Pool.TextureUsage(rt));
             if (rt.rt != null)
             {
                 var texture = rt.rt;
@@ -423,8 +483,23 @@ namespace InfinityTech.Rendering.RenderGraph
         internal RGTextureRef ImportTexture(RTHandle rt, in TextureDescriptor descriptor, in int shaderProperty)
         {
             RGTextureRef reference = ImportTexture(rt, shaderProperty);
-            GetTextureResource(reference.handle).descriptor = descriptor;
+            RGTexture resource = GetTextureResource(reference.handle);
+            SetImportedTextureDescriptor(resource, descriptor);
             return reference;
+        }
+
+        static void SetImportedTextureDescriptor(RGTexture resource, in TextureDescriptor descriptor)
+        {
+            if (resource.hasExplicitDescriptor)
+            {
+                var current = resource.descriptor;
+                var requested = descriptor;
+                current.name = requested.name;
+                if (!current.Equals(requested))
+                    throw new InvalidOperationException("The same imported texture cannot have conflicting logical views in one graph.");
+            }
+            resource.descriptor = descriptor;
+            resource.hasExplicitDescriptor = true;
         }
 
         // The backbuffer has no owning RenderTexture, so it can only be bound as a RenderTargetIdentifier.
@@ -432,6 +507,13 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in TextureDescriptor descriptor, in int shaderProperty = 0)
         {
+            if (m_ImportedTextures.TryGetValue(backBuffer, out int existing))
+            {
+                RGTexture resource = GetTextureResource(new RGTextureRef(existing).handle);
+                SetImportedTextureDescriptor(resource, descriptor);
+                resource.AddShaderProperty(shaderProperty);
+                return new RGTextureRef(existing);
+            }
             // RTHandle.SetTexture is internal to CoreRP, so rebinding is done by reallocating on identifier change.
             if (m_Backbuffer == null || !m_BackbufferIdentifier.Equals(backBuffer))
             {
@@ -445,8 +527,10 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             int newHandle = AddNewResource(m_Resources[(int)ERGResourceType.Texture], out RGTexture texResource);
+            m_ImportedTextures.Add(backBuffer, newHandle);
             texResource.resource = m_Backbuffer;
             texResource.descriptor = descriptor;
+            texResource.hasExplicitDescriptor = true;
             texResource.imported = true;
             texResource.shaderProperty = shaderProperty;
             return new RGTextureRef(newHandle);
@@ -481,7 +565,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void CreateBufferResource(in int index)
+        internal void CreateBufferResource(ref RGContext graphContext, in int index, bool asyncCompute)
         {
             RGBuffer resource = m_Resources[(int)ERGResourceType.Buffer][index] as RGBuffer;
 
@@ -493,13 +577,15 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource != null)
                     throw new InvalidOperationException(string.Format("Trying to create an already created Compute Buffer ({0}). Buffer was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
-                resource.resource = m_Pool.GetBuffer(desc).buffer;
+                resource.resource = m_Pool.GetBuffer(desc, true, asyncCompute, out ResourceReuseFence reuseFence).buffer;
+                reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
+                RetainRecording(resource, m_Pool.BufferUsage(resource.resource));
                 resource.cachedHash = hashCode;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ReleaseBufferResource(int index)
+        internal void ReleaseBufferResource(int index, ResourceReuseFence reuseFence = default)
         {
             RGBuffer resource = m_Resources[(int)ERGResourceType.Buffer][index] as RGBuffer;
 
@@ -508,7 +594,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource == null)
                     throw new InvalidOperationException($"Tried to release a compute buffer ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
-                m_Pool.ReleaseBuffer(new FBufferRef(resource.cachedHash, resource.descriptor, resource.resource));
+                ReleaseRecording(resource);
+                m_Pool.ReleaseBuffer(new FBufferRef(resource.cachedHash, resource.descriptor, resource.resource), reuseFence);
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
@@ -516,7 +603,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void CreateTextureResource(ref RGContext graphContext, int index)
+        internal void CreateTextureResource(ref RGContext graphContext, int index, bool asyncCompute)
         {
             RGTexture resource = m_Resources[(int)ERGResourceType.Texture][index] as RGTexture;
 
@@ -528,13 +615,15 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource != null)
                     throw new InvalidOperationException(string.Format("Trying to create an already created texture ({0}). Texture was probably declared for writing more than once in the same pass.", resource.descriptor.name));
 
-                resource.resource = m_Pool.GetTexture(desc).texture;
+                resource.resource = m_Pool.GetTexture(desc, true, asyncCompute, out ResourceReuseFence reuseFence).texture;
+                reuseFence.Wait(graphContext.cmdBuffer, asyncCompute);
+                RetainRecording(resource, m_Pool.TextureUsage(resource.resource));
                 resource.cachedHash = hashCode;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ReleaseTextureResource(int index)
+        internal void ReleaseTextureResource(int index, ResourceReuseFence reuseFence = default)
         {
             RGTexture resource = m_Resources[(int)ERGResourceType.Texture][index] as RGTexture;
 
@@ -543,7 +632,8 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (resource.resource == null)
                     throw new InvalidOperationException($"Tried to release a texture ({resource.descriptor.name}) that was never created. Check that there is at least one pass writing to it first.");
 
-                m_Pool.ReleaseTexture(new FTextureRef(resource.cachedHash, resource.descriptor, resource.resource));
+                ReleaseRecording(resource);
+                m_Pool.ReleaseTexture(new FTextureRef(resource.cachedHash, resource.descriptor, resource.resource), reuseFence);
                 resource.cachedHash = -1;
                 resource.resource = null;
                 resource.wasReleased = true;
@@ -556,6 +646,13 @@ namespace InfinityTech.Rendering.RenderGraph
             foreach (var resource in textures)
             {
                 RGTexture Texture = GetTextureResource(resource);
+                if (Texture.resource == null)
+                    throw new InvalidOperationException($"Texture {Texture.GetName()} has no physical resource at binding.");
+                foreach (int property in Texture.additionalShaderProperties)
+                {
+                    graphContext.cmdBuffer.SetGlobalTexture(property, Texture.resource);
+                    TextureViewBindings.Global(graphContext.cmdBuffer, property, Texture.resource);
+                }
                 if (Texture.shaderProperty != 0)
                 {
                     if (Texture.resource != null)
@@ -570,6 +667,9 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Clear()
         {
+            m_ImportedBuffers.Clear();
+            m_ImportedGraphicsBuffers.Clear();
+            m_ImportedTextures.Clear();
             // A failed graph may never reach compiled last-use releases. Preserve those allocations
             // outside the reusable pool until the enclosing frame has been submitted.
             for (int i = 0; i < m_Resources[(int)ERGResourceType.Texture].size; i++)
@@ -590,15 +690,19 @@ namespace InfinityTech.Rendering.RenderGraph
                     buffer.resource = null;
                 }
             }
-            for (int i = 0; i < (int)ERGResourceType.Max; ++i) m_Resources[i].Clear();
+            for (int type = 0; type < (int)ERGResourceType.Max; ++type)
+            {
+                for (int i = 0; i < m_Resources[type].size; ++i) ReleaseRecording(m_Resources[type][i]);
+                m_Resources[type].Clear();
+            }
         }
 
-        internal void FlushRetired()
+        internal void FlushRetired(ResourceReuseFence reuseFence = default)
         {
             foreach (FTextureRef texture in m_RetiredTextures)
-                m_Pool.ReleaseTexture(texture);
+                m_Pool.ReleaseTexture(texture, reuseFence);
             foreach (FBufferRef buffer in m_RetiredBuffers)
-                m_Pool.ReleaseBuffer(buffer);
+                m_Pool.ReleaseBuffer(buffer, reuseFence);
             m_RetiredTextures.Clear();
             m_RetiredBuffers.Clear();
         }

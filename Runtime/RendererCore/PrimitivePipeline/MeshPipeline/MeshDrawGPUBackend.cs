@@ -6,6 +6,7 @@ using UnityEngine.Rendering;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.RenderGraph;
+using InfinityTech.Rendering.GPUResource;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
@@ -14,6 +15,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal sealed class MeshDrawGpuStaging
     {
+        public ComputeBuffer candidateTable;
         public uint[] commandMeta;
         public uint[] candidateOffsets;
         public uint[] candidateCounts;
@@ -97,52 +99,67 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal sealed class MeshDrawGpuPayload : IDisposable
     {
-        public ComputeBuffer argsBuffer;
-        public ComputeBuffer commandMeta;
-        public ComputeBuffer visibleCounts;
-        public ComputeBuffer compactedIndices;
+        ResourcePool m_Pool;
+        FBufferRef m_Args, m_Metadata, m_Counts, m_Indices;
+        ResourceReuseFence m_ArgsWait, m_MetadataWait, m_CountsWait, m_IndicesWait;
+        public ComputeBuffer argsBuffer => m_Args.buffer;
+        public ComputeBuffer commandMeta => m_Metadata.buffer;
+        public ComputeBuffer visibleCounts => m_Counts.buffer;
+        public ComputeBuffer compactedIndices => m_Indices.buffer;
 
         public int capacityCommands;
         public int capacityInstances;
         public int commandCount;
         public bool isRented;
 
-        /// <summary>
-        /// Grow GPU buffers to fit the requested budget. Allowed only before CommandBuffer recording.
-        /// </summary>
-        public void EnsureCapacity(int commands, int instances)
+        // Pre-record only. ResourcePool owns physical storage, including cancelled and
+        // unsubmitted references; the payload pool retains empty CPU objects only.
+        public void EnsureCapacity(ResourcePool pool, int commands, int instances)
         {
-            TryEnsureCapacity(commands, instances);
+            if (pool == null) throw new ArgumentNullException(nameof(pool));
+            commands = math.max(1, commands); instances = math.max(1, instances);
+            if (m_Pool != null && m_Pool != pool) throw new InvalidOperationException("A live payload cannot change its resource owner.");
+            if (RequireCapacity(commands, instances)) return;
+            int nextCommands = math.max(commands, 64), nextInstances = math.max(instances, 256);
+            FBufferRef args = default, metadata = default, counts = default, indices = default;
+            ResourceReuseFence argsWait = default, metadataWait = default, countsWait = default, indicesWait = default;
+            try
+            {
+                args = pool.GetBuffer(new BufferDescriptor(checked(nextCommands * 5), 4, ComputeBufferType.IndirectArguments), true, false, out argsWait);
+                metadata = pool.GetBuffer(new BufferDescriptor(checked(nextCommands * 4), 4, ComputeBufferType.Structured), true, false, out metadataWait);
+                counts = pool.GetBuffer(new BufferDescriptor(nextCommands, 4, ComputeBufferType.Structured), true, false, out countsWait);
+                indices = pool.GetBuffer(new BufferDescriptor(nextInstances, 4, ComputeBufferType.Structured), true, false, out indicesWait);
+            }
+            catch
+            {
+                if (args.buffer != null) pool.ReleaseBuffer(args);
+                if (metadata.buffer != null) pool.ReleaseBuffer(metadata);
+                if (counts.buffer != null) pool.ReleaseBuffer(counts);
+                if (indices.buffer != null) pool.ReleaseBuffer(indices);
+                throw;
+            }
+            ReturnBuffers();
+            m_Pool = pool; m_Args = args; m_Metadata = metadata; m_Counts = counts; m_Indices = indices;
+            m_ArgsWait = argsWait; m_MetadataWait = metadataWait; m_CountsWait = countsWait; m_IndicesWait = indicesWait;
+            capacityCommands = nextCommands; capacityInstances = nextInstances;
         }
-
-        /// <summary>
-        /// Grow GPU buffers to fit the requested budget. Allowed only before CommandBuffer recording.
-        /// </summary>
-        public bool TryEnsureCapacity(int commands, int instances)
+        internal void WaitForReuse(CommandBuffer commands)
         {
-            commands = math.max(1, commands);
-            instances = math.max(1, instances);
-
-            if (argsBuffer == null || capacityCommands < commands)
+            m_ArgsWait.Wait(commands, false); m_MetadataWait.Wait(commands, false);
+            m_CountsWait.Wait(commands, false); m_IndicesWait.Wait(commands, false);
+        }
+        void ReturnBuffers()
+        {
+            if (m_Pool != null)
             {
-                argsBuffer?.Release();
-                commandMeta?.Release();
-                visibleCounts?.Release();
-
-                capacityCommands = math.max(commands, 64);
-                argsBuffer = new ComputeBuffer(capacityCommands * 5, sizeof(uint), ComputeBufferType.IndirectArguments);
-                commandMeta = new ComputeBuffer(capacityCommands * 4, sizeof(uint), ComputeBufferType.Structured);
-                visibleCounts = new ComputeBuffer(capacityCommands, sizeof(uint), ComputeBufferType.Structured);
+                if (m_Args.buffer != null) m_Pool.ReleaseBuffer(m_Args);
+                if (m_Metadata.buffer != null) m_Pool.ReleaseBuffer(m_Metadata);
+                if (m_Counts.buffer != null) m_Pool.ReleaseBuffer(m_Counts);
+                if (m_Indices.buffer != null) m_Pool.ReleaseBuffer(m_Indices);
             }
-
-            if (compactedIndices == null || capacityInstances < instances)
-            {
-                compactedIndices?.Release();
-                capacityInstances = math.max(instances, 256);
-                compactedIndices = new ComputeBuffer(capacityInstances, sizeof(uint), ComputeBufferType.Structured);
-            }
-
-            return true;
+            m_Args = m_Metadata = m_Counts = m_Indices = default;
+            m_ArgsWait = m_MetadataWait = m_CountsWait = m_IndicesWait = default;
+            m_Pool = null; capacityCommands = capacityInstances = 0;
         }
 
         /// <summary>
@@ -167,19 +184,10 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Dispose()
         {
-            argsBuffer?.Release();
-            commandMeta?.Release();
-            visibleCounts?.Release();
-            compactedIndices?.Release();
-            argsBuffer = null;
-            commandMeta = null;
-            visibleCounts = null;
-            compactedIndices = null;
-            capacityCommands = 0;
-            capacityInstances = 0;
-            commandCount = 0;
-            isRented = false;
+            ReturnBuffers();
+            commandCount = 0; isRented = false;
         }
+
     }
 
     /// <summary>
@@ -191,6 +199,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public const int MaxInstances = 65536;
 
         private static ComputeShader s_Shader;
+        internal static ComputeShader shader => s_Shader;
         private static int s_KernelCull = -1;
         private static int s_KernelClearCounts = -1;
         private static int s_KernelCompact = -1;
@@ -301,16 +310,27 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferRef instanceRenderingLayer,
             RGBufferRef visibility)
         {
-            if (commands == null)
-            {
-                throw new ArgumentNullException(nameof(commands));
-            }
-
             if (!TryGetCullKernel(out ComputeShader shader, out int kernel))
-            {
                 throw new InvalidOperationException("MeshGpuCull requires CullFrustum.");
-            }
+            BindCullInputs(commands, shader, kernel, view, instanceCount, frustumPlanes, boundsCenter, boundsExtent,
+                instanceFlags, instanceLayerMask, instanceSceneCullingMask, instanceRenderingLayer, visibility);
+            commands.DispatchCompute(shader, kernel, math.max(1, (instanceCount + 63) / 64), 1, 1);
+            MeshPipelineDiagnostics.GpuCullDispatchesPerFrame++;
+        }
 
+        internal static void BindCullBounds(IComputeCommands commands, ComputeShader shader, int kernel, int instanceCount,
+            RGBufferRef center, RGBufferRef extent)
+        {
+            commands.SetComputeIntParam(shader, ID_InstanceCount, instanceCount);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsCenter, center);
+            commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, extent);
+        }
+        internal static void BindCullInputs(IComputeCommands commands, ComputeShader shader, int kernel,
+            in MeshView view, int instanceCount, Vector4[] frustumPlanes, RGBufferRef boundsCenter, RGBufferRef boundsExtent,
+            RGBufferRef instanceFlags, RGBufferRef instanceLayerMask, RGBufferRef instanceSceneCullingMask,
+            RGBufferRef instanceRenderingLayer, RGBufferRef visibility)
+        {
+            if (commands == null) throw new ArgumentNullException(nameof(commands));
             if (!visibility.IsValid()
                 || !boundsCenter.IsValid()
                 || !boundsExtent.IsValid()
@@ -323,23 +343,18 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             commands.SetComputeVectorArrayParam(shader, ID_FrustumPlanes, frustumPlanes);
-            commands.SetComputeIntParam(shader, ID_InstanceCount, math.max(0, instanceCount));
+            BindCullBounds(commands, shader, kernel, instanceCount, boundsCenter, boundsExtent);
             commands.SetComputeIntParam(shader, ID_ViewLayerMask, view.layerMask);
             commands.SetComputeIntParam(shader, ID_ViewSceneCullingMaskLow, unchecked((int)view.sceneCullingMask));
             commands.SetComputeIntParam(shader, ID_ViewSceneCullingMaskHigh, unchecked((int)(view.sceneCullingMask >> 32)));
             commands.SetComputeIntParam(shader, ID_ViewRenderingLayerMask, (int)view.renderingLayerMask);
             commands.SetComputeIntParam(shader, ID_FilterRenderingLayers, view.FilterRenderingLayers ? 1 : 0);
             commands.SetComputeIntParam(shader, ID_ViewExcludeFlags, unchecked((int)view.excludeInstanceFlags));
-            commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsCenter, boundsCenter);
-            commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, boundsExtent);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceFlags, instanceFlags);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceLayerMask, instanceLayerMask);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceSceneCullingMask, instanceSceneCullingMask);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceRenderingLayer, instanceRenderingLayer);
             commands.SetComputeBufferParam(shader, kernel, ID_Visibility, visibility);
-            int cullGroups = math.max(1, (math.max(instanceCount, 1) + 63) / 64);
-            commands.DispatchCompute(shader, kernel, cullGroups, 1, 1);
-            MeshPipelineDiagnostics.GpuCullDispatchesPerFrame++;
         }
 
         internal static MeshDrawGpuStaging CreateStaging(in PassView drawList, in MeshViewCullingResult culling, int boundsInstanceCount)
@@ -361,8 +376,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            payload.commandCount = 0;
-            payload.isRented = false;
+            if (!payload.isRented) throw new InvalidOperationException("Mesh payload returned twice.");
+            payload.Dispose();
             s_PayloadPool.Push(payload);
         }
 
@@ -382,7 +397,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Physical drain: return retired payloads to the pool after <c>ScriptableRenderContext.Submit</c>.
+        /// Release physical ownership to ResourcePool and retain empty CPU payloads after <c>ScriptableRenderContext.Submit</c>.
         /// </summary>
         public static void FlushRetiredPayloads()
         {
@@ -481,13 +496,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static bool PrepareIndirect(
             CommandBuffer cmdBuffer,
             in PassView drawList,
-            GpuScene residency,
+            in MeshGpuSceneSnapshot residency,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             MeshWorld world = null,
             MeshView view = default,
-            MeshPassId passId = default,
-            MeshCandidateTableStore candidateTables = null)
+            MeshPassId passId = default)
         {
             if (!CanPrepareIndirect(cmdBuffer, drawList, residency, payload, staging))
             {
@@ -526,7 +540,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             for (int i = 0; i < s_BatchPlan.Count; ++i)
             {
                 (int commandBegin, int batchCommands) batch = s_BatchPlan[i];
-                if (!PrepareBatch(cmdBuffer, residency, payload, staging, batch.commandBegin, batch.batchCommands, world, view, passId, candidateTables))
+                if (!PrepareBatch(cmdBuffer, residency, payload, staging, batch.commandBegin, batch.batchCommands, world, view, passId))
                 {
                     MeshPipelineDiagnostics.GpuOverflowCount++;
                     return false;
@@ -543,12 +557,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             CommandBuffer cmdBuffer,
             in PassView drawList,
             int shaderPassIndex,
-            GpuScene residency,
+            in MeshGpuSceneSnapshot residency,
             MaterialPropertyBlock propertyBlock,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             EMeshViewKind viewKind,
-            string lightModeTag = null, ComputeBuffer previousTransforms = null)
+            string lightModeTag = null, MeshMotionBinding previousTransforms = default)
         {
             if (cmdBuffer == null || !drawList.isValid || payload == null || staging == null || !staging.isValid)
             {
@@ -579,18 +593,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         private static bool CanPrepareIndirect(
             CommandBuffer cmdBuffer,
             in PassView drawList,
-            GpuScene residency,
+            in MeshGpuSceneSnapshot residency,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging)
         {
-            if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0 || residency == null
+            if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0 || !residency.isValid
                 || residency.TransformBuffer.buffer == null
-                || residency.BoundsCenterBuffer.buffer == null
                 || residency.InstanceTransformIndexBuffer.buffer == null
-                || residency.InstanceFlagsBuffer.buffer == null
-                || residency.InstanceLayerMaskBuffer.buffer == null
-                || residency.InstanceSceneCullingMaskBuffer.buffer == null
-                || residency.InstanceRenderingLayerBuffer.buffer == null
                 || payload == null || staging == null || !staging.isValid)
             {
                 return false;
@@ -650,24 +659,23 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private static bool PrepareBatch(
             CommandBuffer cmdBuffer,
-            GpuScene residency,
+            in MeshGpuSceneSnapshot residency,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             int commandBegin,
             int batchCommandCount,
             MeshWorld world,
             in MeshView view,
-            MeshPassId passId,
-            MeshCandidateTableStore candidateTables)
+            MeshPassId passId)
         {
             if (!TryGetBatchInstanceCapacity(staging, commandBegin, batchCommandCount, out int instanceCapacity)
                 || !payload.RequireCapacity(batchCommandCount, instanceCapacity)
-                || candidateTables == null)
+                || staging.candidateTable == null)
             {
                 return false;
             }
 
-            ComputeBuffer candidateTable = candidateTables.GetCandidateBuffer(passId);
+            ComputeBuffer candidateTable = staging.candidateTable;
             if (candidateTable == null)
             {
                 return false;
@@ -735,13 +743,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             CommandBuffer cmdBuffer,
             in PassView drawList,
             int shaderPassIndex,
-            GpuScene residency,
+            in MeshGpuSceneSnapshot residency,
             MaterialPropertyBlock propertyBlock,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             int commandBegin,
             int batchCommandCount,
-            string lightModeTag = null, ComputeBuffer previousTransforms = null)
+            string lightModeTag = null, MeshMotionBinding previousTransforms = default)
         {
             int candidateBegin = (int)staging.candidateOffsets[commandBegin];
             for (int i = 0; i < batchCommandCount; ++i)
@@ -761,7 +769,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 propertyBlock.SetInt(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.InstanceIndexOffset, batchCandOff);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.InstanceIndexBuffer, payload.compactedIndices);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.TransformBuffer, residency.TransformBuffer.buffer);
-                if (previousTransforms != null) propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.PreviousTransformBuffer, previousTransforms);
+                (previousTransforms.isValid ? previousTransforms : new MeshMotionBinding(residency.version, null)).Bind(propertyBlock);
                 propertyBlock.SetBuffer(InfinityTech.Rendering.Pipeline.InfinityShaderIDs.RenderingLayerBuffer, residency.RenderingLayerBuffer.buffer);
 
                 int passIndex = MeshPassShaderUtility.ResolvePassIndex(material, lightModeTag, shaderPassIndex);

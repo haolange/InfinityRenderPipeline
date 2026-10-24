@@ -105,7 +105,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Vector2Int m_Trace;
             readonly GraphicsBuffer m_Args, m_TileList;
             readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
-            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_HistoryMeta;
+            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_HistoryMeta, m_MotionMetadata;
 
             public Vector2Int TileCount { get; }
 
@@ -126,7 +126,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 float planeDepth = planeClip.z / planeClip.w;
 
                 m_Depth = Solid(width, height, new Color(planeDepth, 0, 0, 0), false);
-                m_HiZ = Solid(width, height, new Color(planeDepth, 0, 0, 0), true);
+                m_HiZ = Solid((width + 1) / 2, (height + 1) / 2, new Color(planeDepth, 0, 0, 0), true);
                 m_GBufferA = Solid(width, height, new Color(0, 0, roughness, 0), false);
                 m_GBufferB = Solid(width, height, new Color(0.5f, 0.5f, 1.0f, 0.5f), false);
                 // Default lit, flags = valid surface (4) in the high nibble.
@@ -135,6 +135,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Motion = Solid(width, height, Color.clear, false);
                 m_HistoryRadiance = Solid(width, height, new Color(5, 5, 5, 1), false);
                 m_HistoryMeta = Solid(width, height, new Color(0, 0, planeDepth, 8), false);
+                m_MotionMetadata = Solid(width,height,new Color(planeDepth,planeDepth,1,0),false);
 
                 m_Args = Buffer(GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured, 9);
                 m_TileList = Buffer(GraphicsBuffer.Target.Structured, Mathf.Max(1, 3 * TileCount.x * TileCount.y));
@@ -213,7 +214,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 BindSurface(kernel);
                 cmd.SetComputeIntParam(m_Shader, "SSR_TileListOffset", tileClass * maxTiles);
                 cmd.SetComputeBufferParam(m_Shader, kernel, "SRV_TileList", m_TileList);
-                cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_HiZTexture", m_HiZ);
+                cmd.SetComputeTextureParam(m_Shader, kernel, "SRV_HiZClosestTexture", m_HiZ);
                 cmd.SetComputeTextureParam(m_Shader, kernel, "_Ranking_Tile", LoadTexture("RankingTile256SPP"));
                 cmd.SetComputeTextureParam(m_Shader, kernel, "_Scrambled_Tile", LoadTexture("ScramblingTile256SPP"));
                 cmd.SetComputeTextureParam(m_Shader, kernel, "_ScrambledOwen_Noise", LoadTexture("ScrambledNoise_Owen"));
@@ -226,7 +227,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 int kernel = m_Shader.FindKernel(SSRPassUtilityData.ResolveKernelName);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_RayHit", m_RayHit);
-                m_Shader.SetTexture(kernel, "SRV_LightingPyramid", m_Lighting);
+                m_Shader.SetTexture(kernel, "SRV_TemporalColor", m_Lighting);
+                m_Shader.SetTexture(kernel, "SRV_TemporalColorMips", m_Lighting);
+                m_Shader.SetTexture(kernel, "SRV_TemporalDepth", m_Depth);
+                m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_HistoryMeta);
+                m_Shader.SetTexture(kernel, "SRV_MotionTexture", m_Motion);
+                m_Shader.SetInt("TemporalColorValid", 0);
+                m_Shader.SetInt("TemporalColorMipCount", m_Lighting.mipmapCount);
+                m_Shader.SetVector("TemporalColorResolution", new Vector4(m_Width,m_Height,1f/m_Width,1f/m_Height));
                 m_Shader.SetTexture(kernel, "UAV_Resolved", m_Resolved);
                 m_Shader.SetTexture(kernel, "UAV_HitDistance", m_HitDistance);
                 DispatchFull(kernel);
@@ -240,6 +248,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
                 RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
                 int kernel = m_Shader.FindKernel(SSRPassUtilityData.TemporalKernelName);
+                m_Shader.SetTexture(kernel,"SRV_HitMotionMetadata",m_MotionMetadata);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Resolved", m_Resolved);
                 m_Shader.SetTexture(kernel, "SRV_HitDistance", m_HitDistance);

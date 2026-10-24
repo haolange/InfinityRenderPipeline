@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly MeshDrawPipeline m_Processor;
         private readonly PassRegistry m_Registry;
         private readonly MeshGpuVisibilityCache m_GpuVisibility;
-        private readonly Dictionary<ulong, ComputeBuffer> m_PreviousTransforms = new Dictionary<ulong, ComputeBuffer>(8);
+        private readonly Dictionary<ulong, MeshMotionBinding> m_PreviousTransforms = new Dictionary<ulong, MeshMotionBinding>(8);
         private Camera m_ActiveCamera;
         private EMeshBackendPolicy? m_BackendOverride;
         private bool m_Disposed;
@@ -60,15 +60,15 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        public void BindPreviousTransforms(ulong viewKey, ComputeBuffer buffer)
+        internal void BindPreviousTransforms(ulong viewKey, MeshMotionBinding binding)
         {
-            if (buffer == null)
+            if (!binding.isValid)
             {
                 m_PreviousTransforms.Remove(viewKey);
                 return;
             }
 
-            m_PreviousTransforms[viewKey] = buffer;
+            m_PreviousTransforms[viewKey] = binding;
         }
 
         public void SetBackendOverride(EMeshBackendPolicy? policy)
@@ -94,7 +94,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshPassContext BindPass(in MeshView view, MeshPassId passId)
         {
             MeshPassDefinition definition = m_Registry.Get(passId);
-            m_PreviousTransforms.TryGetValue(view.viewKey, out ComputeBuffer previousTransforms);
+            m_PreviousTransforms.TryGetValue(view.viewKey, out MeshMotionBinding previousTransforms);
             return new MeshPassContext
             {
                 passId = passId,
@@ -136,6 +136,12 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_GpuVisibility.MarkCulled(view);
         }
 
+        internal void ReleaseView(ulong viewKey)
+        {
+            m_PreviousTransforms.Remove(viewKey);
+            m_GpuVisibility.ReleaseView(viewKey);
+        }
+
         public void UpdateResidency()
         {
             m_Residency.Update();
@@ -146,8 +152,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Residency.Clear();
         }
 
-        public void FlushRetired()
+        public void FlushRetired() => FlushRetired(default);
+
+        internal void FlushRetired(ResourceReuseFence reuseFence)
         {
+            m_Residency.transformVersions.AfterSubmit(reuseFence);
             MeshDrawGPUBackend.FlushRetiredPayloads();
             m_Processor.FlushRetiredBuffers();
             m_GpuVisibility.FlushRetired();

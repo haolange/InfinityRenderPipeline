@@ -483,12 +483,6 @@ MonoBehaviour:
   NumSteps:
     m_OverrideState: 0
     m_Value: 8
-  ResolveSamples:
-    m_OverrideState: 0
-    m_Value: 6
-  ResolveRadius:
-    m_OverrideState: 0
-    m_Value: 3
   TemporalWeight:
     m_OverrideState: 0
     m_Value: 0.93

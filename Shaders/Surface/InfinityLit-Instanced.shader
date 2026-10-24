@@ -298,6 +298,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			ZTest Equal ZWrite Off Cull Back
 
 			HLSLPROGRAM
+            #pragma multi_compile _ INFINITY_SSS_OUTPUT
             #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
@@ -387,7 +388,11 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				return Out;
 			}
 
-			void frag(Varyings In, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2)
+			void frag(Varyings In, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2
+#if defined(INFINITY_SSS_OUTPUT)
+                , out float4 scatterDiffuse : SV_Target3
+#endif
+                )
 			{
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
 				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
@@ -418,8 +423,12 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #endif
                 indirectDiffuse = float4(diffuse, 1);
                 indirectSpecular = float4(specular, 1);
-                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, renderingLayerBuffer[In.PrimitiveId], (uint2)In.vertexCS.xy)
+                float3 directDiffuse;
+                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, renderingLayerBuffer[In.PrimitiveId], (uint2)In.vertexCS.xy, directDiffuse)
                     + diffuse + specular + _EmissionColor.rgb, 1);
+#if defined(INFINITY_SSS_OUTPUT)
+                scatterDiffuse = float4(directDiffuse + diffuse, 1);
+#endif
 			}
 			ENDHLSL
 		}
@@ -469,10 +478,10 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				Varyings Out;
 				Out.PrimitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
 				FTransformData currBatch = transformBuffer[Out.PrimitiveId];
-				FTransformData prevBatch = previousTransformBuffer[Out.PrimitiveId];
+				float4x4 previousObjectToWorld = MeshPreviousObjectToWorld(Out.PrimitiveId);
 
 				float4 worldPos = mul(currBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
-				float4 worldPosOld = mul(prevBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
+				float4 worldPosOld = mul(previousObjectToWorld, float4(In.vertex.xyz, 1.0));
 
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
@@ -604,7 +613,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				Out.worldPos = worldPos.xyz;
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(previousTransformBuffer[primitiveId].matrix_LocalToWorld, float4(In.vertex.xyz, 1.0)));
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(primitiveId), float4(In.vertex.xyz, 1.0)));
 				return Out;
 			}
 
@@ -694,7 +703,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				Out.normalWS = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normal));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(previousTransformBuffer[primitiveId].matrix_LocalToWorld, float4(In.vertex.xyz, 1.0)));
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(primitiveId), float4(In.vertex.xyz, 1.0)));
 				return Out;
 			}
 
@@ -781,7 +790,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(previousTransformBuffer[primitiveId].matrix_LocalToWorld, float4(In.vertex.xyz, 1.0)));
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(primitiveId), float4(In.vertex.xyz, 1.0)));
 				return Out;
 			}
 

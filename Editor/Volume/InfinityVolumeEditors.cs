@@ -286,7 +286,7 @@ namespace InfinityTech.Rendering.Editor
     sealed class ScreenSpaceIndirectDiffuseEditor : InfinityQualityVolumeEditor
     {
         SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_Intensity;
-        SerializedDataParameter m_HalfResolution, m_HiZSteps, m_ResolveSamples, m_ResolveRadius, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
+        SerializedDataParameter m_HalfResolution, m_HiZSteps, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceIndirectDiffuse>(serializedObject);
@@ -297,8 +297,6 @@ namespace InfinityTech.Rendering.Editor
             SetQualityParameter(Unpack(o.Find(x => x.quality)));
             m_HalfResolution = Unpack(o.Find(x => x.HalfResolution));
             m_HiZSteps = Unpack(o.Find(x => x.NumSteps));
-            m_ResolveSamples = Unpack(o.Find(x => x.ResolveSamples));
-            m_ResolveRadius = Unpack(o.Find(x => x.ResolveRadius));
             m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
             m_TemporalScale = Unpack(o.Find(x => x.TemporalScale));
             m_SpatialPasses = Unpack(o.Find(x => x.SpatialPasses));
@@ -311,8 +309,6 @@ namespace InfinityTech.Rendering.Editor
             DrawQuality();
             QualityField(m_HalfResolution, l => Preset(l).halfResolution);
             QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
-            QualityField(m_ResolveSamples, l => Preset(l).resolveSamples);
-            QualityField(m_ResolveRadius, l => Preset(l).resolveRadius);
             QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
             QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
             QualityField(m_SpatialPasses, l => Preset(l).spatialPasses);
@@ -323,7 +319,6 @@ namespace InfinityTech.Rendering.Editor
             FSSGISettings preset = Preset(level);
             Set(m_HalfResolution, preset.halfResolution);
             Set(m_HiZSteps, preset.hiZSteps);
-            Set(m_ResolveSamples, preset.resolveSamples); Set(m_ResolveRadius, preset.resolveRadius);
             Set(m_TemporalWeight, preset.temporalWeight); Set(m_TemporalScale, preset.temporalClampScale);
             Set(m_SpatialPasses, preset.spatialPasses);
         }

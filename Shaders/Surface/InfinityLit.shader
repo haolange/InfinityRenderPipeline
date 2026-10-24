@@ -358,6 +358,7 @@
 			ZTest Equal ZWrite Off Cull Back
 
 			HLSLPROGRAM
+            #pragma multi_compile _ INFINITY_SSS_OUTPUT
             #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
 			#pragma vertex vert
@@ -437,7 +438,11 @@
 				return Out;
 			}
 
-			void frag(Varyings In, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2)
+			void frag(Varyings In, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2
+#if defined(INFINITY_SSS_OUTPUT)
+                , out float4 scatterDiffuse : SV_Target3
+#endif
+                )
 			{
 				UNITY_SETUP_INSTANCE_ID(In);
 
@@ -470,8 +475,12 @@
 #endif
                 indirectDiffuse = float4(diffuse, 1);
                 indirectSpecular = float4(specular, 1);
-                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)In.vertexCS.xy)
+                float3 directDiffuse;
+                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)In.vertexCS.xy, directDiffuse)
                     + diffuse + specular + _EmissionColor.rgb, 1);
+#if defined(INFINITY_SSS_OUTPUT)
+                scatterDiffuse = float4(directDiffuse + diffuse, 1);
+#endif
 			}
 			ENDHLSL
 		}

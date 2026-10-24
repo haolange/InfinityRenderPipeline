@@ -25,8 +25,9 @@ float3 SpecularBRDF(float3 N, float3 V, float3 L, MicrofaceContext microfaceCtx)
         * F_Schlick(microfaceCtx.SpecularColor, 1, ctx.LoH);
 }
 
-float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask)
+float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float contactShadow, float viewDepth, float4 bakedMask, out float3 diffuseRadiance)
 {
+    diffuseRadiance = 0;
     float3 L = DirectionalLightL(light);
     float NoL = saturate(dot(normal, L));
     float specularEnergy;
@@ -40,13 +41,16 @@ float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, f
         if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
         float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * NoL * LightDiffuseWeight(light);
         float3 specular = SpecularBRDF(normal, viewDir, specularL, microfaceCtx) * specularNoL * specularEnergy * LightSpecularWeight(light);
-        radiance = (diffuse + specular) * LightRadiance(light) * LightCookieColor(light, worldPos) * shadow;
+        float3 attenuation = LightRadiance(light) * LightCookieColor(light, worldPos) * shadow;
+        diffuseRadiance = diffuse * attenuation;
+        radiance = (diffuse + specular) * attenuation;
     }
     return radiance;
 }
 
-float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask)
+float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask, out float3 diffuseRadiance)
 {
+    diffuseRadiance = 0;
     float window = LocalLightWindow(light, worldPos);
     float3 radiance = 0;
     if (window > 0)
@@ -65,14 +69,17 @@ float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 
         }
         float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
         shadow *= ContactShadowFromMask(light, contactMask);
-        radiance = (diffuse + specular) * LightRadiance(light) * window * shadow;
+        float3 attenuation = LightRadiance(light) * window * shadow;
+        diffuseRadiance = diffuse * attenuation;
+        radiance = (diffuse + specular) * attenuation;
     }
     return radiance;
 }
 
 // Forward / translucent evaluation of every light that reaches positionSS (SV_Position.xy) at viewDepth.
-float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, MicrofaceContext material, float4 mask, float viewDepth, uint layer, uint2 positionSS)
+float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, MicrofaceContext material, float4 mask, float viewDepth, uint layer, uint2 positionSS, out float3 diffuseRadiance)
 {
+    diffuseRadiance = 0;
     float3 direct = 0;
     float contactSun = 1;
     uint contactMask = 0;
@@ -83,7 +90,12 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
     for (int i = 0; i < g_DirectionalLightCount; i++)
     {
         FLightRecord light = g_LightRecordBuffer[i];
-        if ((light.lightLayer & layer) != 0) direct += EvaluateDirectional(light, position, normal, view, material, i == g_SunRecordIndex ? contactSun : 1, viewDepth, mask);
+        if ((light.lightLayer & layer) != 0)
+        {
+            float3 diffuse;
+            direct += EvaluateDirectional(light, position, normal, view, material, i == g_SunRecordIndex ? contactSun : 1, viewDepth, mask, diffuse);
+            diffuseRadiance += diffuse;
+        }
     }
     FLightLoop lightLoop;
     BeginLightLoop(positionSS, viewDepth, lightLoop);
@@ -92,7 +104,12 @@ float3 EvaluateSurfaceLights(float3 position, float3 normal, float3 view, Microf
     while (NextLight(lightLoop, recordIndex))
     {
         FLightRecord light = g_LightRecordBuffer[recordIndex];
-        if ((light.lightLayer & layer) != 0) direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth, contactMask);
+        if ((light.lightLayer & layer) != 0)
+        {
+            float3 diffuse;
+            direct += EvaluateLocal(light, position, normal, view, material, mask, viewDepth, contactMask, diffuse);
+            diffuseRadiance += diffuse;
+        }
     }
     return direct;
 }

@@ -74,6 +74,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public string lightModeTag;
         public EMeshBackendPolicy backendPolicy;
         public ulong viewKey;
-        internal UnityEngine.ComputeBuffer previousTransforms;
+        internal MeshMotionBinding previousTransforms;
     }
 }

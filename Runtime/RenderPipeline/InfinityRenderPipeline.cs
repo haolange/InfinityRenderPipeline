@@ -224,8 +224,8 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, ProfilingSampler> m_CameraSamplers;
         private CameraUniform m_CameraUniform;
         private CameraFrameState m_ActiveFrameState;
-        private GraphicsBuffer m_DiffusionProfileBuffer;
-        private int m_DiffusionProfileCapacity;
+        private FBufferRef m_DiffusionProfileBuffer;
+        private FDiffusionProfileRecord[] m_DiffusionProfileRecords = Array.Empty<FDiffusionProfileRecord>();
         private AtmosphereSharedCache m_AtmosphereSharedCache;
         private LocalShadowCache m_LocalShadowCache;
         private LightCookieAtlas m_LightCookieAtlas;
@@ -326,8 +326,10 @@ namespace InfinityTech.Rendering.Pipeline
             // Begin FrameContext
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
+                m_ResourcePool.BeginFrame();
                 renderContext.scriptableRenderContext = scriptableRenderContext;
-                m_RGBuilder.RecoverUnjoinedAsync(renderContext);
+                m_RGBuilder.RecoverUnjoinedAsync(renderContext, m_ResourcePool.requiresQueueDrain);
+                m_ResourcePool.QueueDrainAccepted();
                 RenderCaptureService.Tick();
                 RenderFaultValidation.Tick(cameras);
                 PostEffectValidation.Tick(cameras);
@@ -378,6 +380,7 @@ namespace InfinityTech.Rendering.Pipeline
                             camera.cameraType == CameraType.Reflection, cameraComponent != null && cameraComponent.customFrameSettings,
                             cameraComponent != null ? cameraComponent.frameSettings : default);
                         frameState.executeSucceeded = false;
+                        frameState.temporalColorView = default;
                         using (new ProfilingScope(cmdBuffer, GetCameraSampler(camera, cameraComponent)))
                         {
                             BeginCameraRendering(scriptableRenderContext, camera);
@@ -446,6 +449,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                                     m_MeshWorld.BeginCamera(camera);
                                     mainView = MeshView.FromCamera(camera, ref cullingParameters);
+                                    frameState.meshViewKey = mainView.viewKey;
                                 }
 
                                 // ProcessLOD
@@ -574,9 +578,13 @@ namespace InfinityTech.Rendering.Pipeline
                                     ComputeCombineLuts(frameState, combineLutParameterDescriptor);
                                     ComputeAtmosphericLUT(renderContext, camera);
 
+                                    ComputeTemporalColorPyramid();
+
                                     // PHASE 1: geometry raster (shared depth attachment chain).
+                                    bool twoStageMesh = PrepareMeshOcclusion(ref mainView, out var meshOcclusion);
                                     RecordMeshGpuCulls(renderContext, camera, mainView, cullingResults);
-                                    RasterDepth(renderContext, camera, mainView, cullingResults);
+                                    RasterDepth(renderContext, camera, twoStageMesh ? meshOcclusion.first : mainView, cullingResults);
+                                    if (twoStageMesh) RecoverMeshOcclusion(meshOcclusion);
                                     RasterDBuffer(renderContext, camera, cullingResults);
                                     RasterGBuffer(renderContext, camera, mainView, cullingResults);
                                     RasterMotion(renderContext, camera, mainView, cullingResults);
@@ -586,6 +594,14 @@ namespace InfinityTech.Rendering.Pipeline
                                     ComputeHalfResDownsample(renderContext, camera);
                                     ComputeLightTileMask(renderContext, camera);
 
+                                    // Dispatch near-deadline AO/contact before the longer previous-color effects.
+                                    // Their graphics-independent results can overlap the shadow raster window.
+                                    TraceOcclusion(renderContext, camera, historyCache);
+                                    ComputeGroundTruthOcclusion(renderContext, camera, historyCache);
+                                    ComputeContactShadow(renderContext, camera);
+                                    ComputeScreenSpaceReflection(renderContext, camera, historyCache);
+                                    ComputeScreenSpaceIndirect(renderContext, camera, historyCache);
+
                                     // PHASE 3: shadow raster (longest ROP window).
                                     // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs.
                                     RecordAllocatedShadowCasterSplits(renderContext, cullingResults);
@@ -594,28 +610,19 @@ namespace InfinityTech.Rendering.Pipeline
                                     RasterLocalShadow(renderContext, camera, cullingResults);
                                     ComputeShadowMoments(renderContext);
 
-                                    // PHASE 4: reserved. VolFog moved after T0 depth so it can use CSM + ZBin.
-
-                                    // PHASE 5: screen-space after HiZ / HalfRes (GTAO / Contact only)
-                                    TraceOcclusion(renderContext, camera, historyCache);
-                                    ComputeGroundTruthOcclusion(renderContext, camera, historyCache);
-                                    CopyHistoryOcclusion(renderContext, historyCache, camera);
-                                    ComputeContactShadow(renderContext, camera);
-
-                                    // PHASE 6: DeferredBase → Forward → OpaqueLightingPyramid → SSR/SSGI → Composite → OpaqueSceneColor
+                                    // PHASE 6: base lighting, forward, indirect replacement and diffuse-only SSS.
                                     ComputeDeferredShading(renderContext, camera);
                                     RecordDeferredLightingCapture();
                                     RasterForward(renderContext, camera, mainView, cullingResults);
+                                    ComputeScreenSpaceComposite(renderContext, camera);
+                                    ResolveOpaqueSceneColor();
+                                    // History copies stay after the shadow window; an early graphics copy
+                                    // would join the async effects before independent shadow rasterization.
+                                    CopyHistorySSR(renderContext, historyCache, camera);
+                                    CopyHistorySSGI(renderContext, historyCache, camera);
                                     ComputeBurleySubsurface(renderContext, camera);
                                     ComputeAtmosphericSkyAndFog(renderContext, camera);
                                     RecordLightingCapture();
-                                    ComputeOpaqueLightingPyramid(renderContext, camera);
-                                    ComputeScreenSpaceReflection(renderContext, camera, historyCache);
-                                    CopyHistorySSR(renderContext, historyCache, camera);
-                                    ComputeScreenSpaceIndirect(renderContext, camera, historyCache);
-                                    CopyHistorySSGI(renderContext, historyCache, camera);
-                                    ComputeScreenSpaceComposite(renderContext, camera);
-                                    ResolveOpaqueSceneColor();
 
                                     // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
                                     RasterTranslucentDepth(renderContext, camera, cullingResults);
@@ -635,7 +642,6 @@ namespace InfinityTech.Rendering.Pipeline
                                     if (renderPolicy.temporal && frameState.dimensions.superResolution)
                                     {
                                         ComputeSuperResolution(renderContext, camera, historyCache, cameraUniform.jitter);
-                                        CopyHistorySuperResolution(renderContext, historyCache, camera);
                                     }
                                     else if (renderPolicy.temporal)
                                     {
@@ -695,27 +701,35 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 GraphicsFence poolFence = default;
-                if (SystemInfo.supportsGraphicsFence) poolFence = cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
+                ResourceReuseFence retiredReuseFence = default;
+                if (SystemInfo.supportsGraphicsFence)
+                {
+                    poolFence = cmdBuffer.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
+                    retiredReuseFence = new ResourceReuseFence
+                    {
+                        hasGraphics = true, graphics = cmdBuffer.CreateAsyncGraphicsFence(), graphicsCompletion = poolFence
+                    };
+                }
                 bool frameValid = FrameSubmission.Execute(new ContextFrameSubmission(scriptableRenderContext),
-                    cmdBuffer, ref firstCameraException, out submitted);
+                    cmdBuffer, ref firstCameraException, out submitted, out bool fenceCommandsQueued, out bool nativeSubmitted);
 
                 try
                 {
+                    if (!nativeSubmitted) m_MeshWorld.Residency.transformVersions.RollbackUnsubmitted();
+                    if (!nativeSubmitted) m_ResourcePool.SubmissionUncertain(true);
+                    else if (!fenceCommandsQueued || !m_RGBuilder.CanRetireSubmittedResources) m_ResourcePool.SubmissionNeedsJoin();
                     frameValid &= m_RGBuilder.CanRetireSubmittedResources;
                     CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
                     if (frameValid) { m_LocalShadowCache.CommitFrame(); m_LightCookieAtlas.CommitFrame(); m_ReflectionProbeAtlas.CommitFrame(); }
                     else { m_LocalShadowCache.RollbackPending(); m_LightCookieAtlas.RollbackPending(); m_ReflectionProbeAtlas.RollbackPending(); }
                     if (!frameValid)
                         RenderCaptureService.current?.Fail(firstCameraException?.ToString() ?? "Frame submission failed.");
-                    if (submitted)
+                    if (submitted) RenderCaptureService.current?.AfterSubmit();
+                    if (nativeSubmitted && fenceCommandsQueued && m_RGBuilder.CanRetireSubmittedResources)
                     {
-                        RenderCaptureService.current?.AfterSubmit();
-                        if (m_RGBuilder.CanRetireSubmittedResources)
-                        {
-                            FlushFrameRetirement();
-                            if (SystemInfo.supportsGraphicsFence) m_ResourcePool.AfterSubmit(poolFence);
-                            RecycleUnseenCameraStates(Time.frameCount);
-                        }
+                        FlushFrameRetirement(retiredReuseFence);
+                        if (SystemInfo.supportsGraphicsFence) m_ResourcePool.AfterSubmit(poolFence, retiredReuseFence);
+                        RecycleUnseenCameraStates(Time.frameCount);
                     }
                 }
                 catch (Exception exception)
@@ -764,9 +778,9 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void FlushFrameRetirement()
+        void FlushFrameRetirement(ResourceReuseFence reuseFence)
         {
-            m_RGBuilder.FlushRetiredResources();
+            m_RGBuilder.FlushRetiredResources(reuseFence);
             renderContext.lightContext.FlushRetiredBuffers();
             m_AtmosphereSharedCache.FlushRetired();
             m_LocalShadowCache.FlushRetired();
@@ -778,7 +792,7 @@ namespace InfinityTech.Rendering.Pipeline
                 state.atmosphereViewCache.FlushRetired();
                 state.combineLutCache.FlushRetired();
             }
-            m_MeshWorld?.FlushRetired();
+            m_MeshWorld?.FlushRetired(reuseFence);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1062,24 +1076,27 @@ namespace InfinityTech.Rendering.Pipeline
             }
             bool ownsSharedResources = s_GlobalStateOwner == this;
             if (ownsSharedResources) Release(() => RenderCaptureService.current?.Cancel("PipelineDisposed"));
-            Release(() => renderContext?.Dispose());
-            Release(() => m_MeshWorld?.Dispose());
-            if (ownsSharedResources) Release(MeshDrawGPUBackend.Dispose);
-            Release(() => m_RGScoper?.Dispose());
-            Release(() => m_RGBuilder?.Dispose());
-            Release(() => m_ResourcePool?.Dispose());
+            Release(() => m_RGBuilder?.ClearRecordedGraph());
             if (m_CameraStates != null)
             {
                 foreach (CameraFrameState state in m_CameraStates.Values) Release(state.Dispose);
                 m_CameraStates.Clear();
             }
+            Release(() => renderContext?.Dispose());
+            Release(() => m_MeshWorld?.Dispose());
+            if (ownsSharedResources) Release(MeshDrawGPUBackend.Dispose);
+            Release(() => m_RGScoper?.Dispose());
+            Release(() => m_RGBuilder?.Dispose());
+            if (m_DiffusionProfileBuffer.buffer != null) Release(() => m_ResourcePool.ReleaseBuffer(m_DiffusionProfileBuffer));
+            m_DiffusionProfileBuffer = default;
+            Release(() => m_ResourcePool?.Dispose());
+
             m_CameraSamplers?.Clear();
             if (ownsSharedResources && m_OwnsVolumeManager &&
                 ReferenceEquals(VolumeManager.instance.globalDefaultProfile, resources.defaultVolumeProfile) &&
                 ReferenceEquals(VolumeManager.instance.qualityDefaultProfile, m_InstalledQualityProfile)) Release(VolumeManager.instance.Deinitialize);
             m_OwnsVolumeManager = false;
-            Release(() => m_DiffusionProfileBuffer?.Release());
-            m_DiffusionProfileBuffer = null;
+            m_DiffusionProfileRecords = Array.Empty<FDiffusionProfileRecord>();
             Release(() => m_AtmosphereSharedCache?.Dispose());
             m_AtmosphereSharedCache = null;
             Release(() => m_LocalShadowCache?.Dispose());
@@ -1146,6 +1163,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int cameraId = m_CameraStateRecycleIds[i];
                 if (m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState))
                 {
+                    m_MeshWorld.ReleaseView(frameState.meshViewKey);
                     frameState.Dispose();
                     m_CameraStates.Remove(cameraId);
                 }
@@ -1180,6 +1198,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 features.Request(frameState.dimensions.superResolution ? EFrameFeature.SuperResolution : EFrameFeature.TAA);
             }
+
+            if (VolumeComponentActive(stack.GetComponent<SubsurfaceScattering>())) features.Request(EFrameFeature.SubsurfaceScattering);
 
             var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
             InfinityRayTracingEnvironment rayEnv = InfinityRayTracingEnvironment.EnsureOwned();
@@ -1233,6 +1253,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shaders = shaders,
                 textures = resources.textures,
                 temporal = temporal,
+                hasDiffusionProfiles = pipelineAsset.diffusionProfiles != null && System.Array.Exists(pipelineAsset.diffusionProfiles, profile => profile != null),
                 rayTracedOcclusionReady = rtaoReason == null,
                 rayTracedOcclusionReason = rtaoReason,
                 presentAvailable = GraphicsUtility.BlitMaterial != null && GraphicsUtility.BlitMaterial.FindPass("RasterFinalOutput") >= 0,

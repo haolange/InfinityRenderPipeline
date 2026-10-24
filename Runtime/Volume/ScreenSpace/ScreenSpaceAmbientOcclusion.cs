@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.PostProcess
         public ClampedFloatParameter Radius = new ClampedFloatParameter(3.0f, 1.0f, 5.0f);
         public ClampedFloatParameter Intensity = new ClampedFloatParameter(1.0f, 0.0f, 1.0f);
         public ClampedFloatParameter sharpness = new ClampedFloatParameter(0.5f, 0.0f, 1.0f);
+        [Tooltip("Sampling uncertainty margin for a weak geometry-compatible visibility guard; temporal accumulation stays in linear visibility.")]
         public ClampedFloatParameter TemporalScale = new ClampedFloatParameter(1.25f, 0.0f, 8.0f);
         public ClampedFloatParameter TemporalWeight = new ClampedFloatParameter(0.93f, 0.0f, 0.97f);
 

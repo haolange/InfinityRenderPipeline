@@ -141,3 +141,44 @@ void KMain(uint2 groupId : SV_GroupID, uint2 groupThreadId : SV_GroupThreadID, u
 }
 
 #endif
+
+#pragma kernel TemporalColorMip
+Texture2D<float> _TemporalSurfaceDepth;
+int _TemporalSourceValid, _TemporalMipFirst, _TemporalSourceMip;
+float _TemporalFarDepth;
+
+[numthreads(8,8,1)]
+void TemporalColorMip(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id.xy >= (uint2)_DstSize.xy)) return;
+    float3 sum = 0;
+    float coverage = 0;
+    uint samples = 0;
+    if (_TemporalSourceValid != 0)
+    {
+        uint2 begin = id.xy * 2;
+        uint2 end = min(begin + 2, (uint2)_Size.xy);
+        // The final cell owns a trailing odd texel; padding is never part of a footprint.
+        if (id.x + 1 == (uint)_DstSize.x) end.x = (uint)_Size.x;
+        if (id.y + 1 == (uint)_DstSize.y) end.y = (uint)_Size.y;
+        for (uint y = begin.y; y < end.y; ++y)
+        for (uint x = begin.x; x < end.x; ++x)
+        {
+            float4 value = _Source.Load(int3(x,y,_TemporalSourceMip));
+            float valid = saturate(value.a);
+            if (_TemporalMipFirst != 0)
+            {
+                float raw = _TemporalSurfaceDepth.Load(int3(x,y,0));
+                valid = value.a >= 1 && isfinite(raw) && raw >= 0 && raw <= 1 && raw != _TemporalFarDepth ? 1 : 0;
+            }
+            // The first level converts source sample age to coverage. Later levels
+            // already carry radiance premultiplied by coverage; never weight it twice.
+            if (valid > 0) sum += _TemporalMipFirst != 0 ? value.rgb * valid : value.rgb;
+            coverage += valid;
+            samples++;
+        }
+    }
+    float4 result = 0;
+    if (coverage > 0) result = float4(sum / samples, coverage / samples);
+    _Result[id.xy] = result;
+}

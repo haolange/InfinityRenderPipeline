@@ -120,6 +120,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetFloat("Sharpeness", 1);
                 shader.SetFloat("TemporalScale", 1);
                 shader.SetFloat("TemporalWeight", 0.9f);
+                shader.SetInt("GTAOHistoryValid", 0);
                 Texture2D depth = Solid(width, height, new Color(m_PlaneDepth, 0, 0, 0));
                 Texture2D normal = Solid(width, height, new Color(0.5f, 0.5f, 1, 0));
                 Texture2D ray = Dispatch(shader, "OcclusionTrace", width, height, true,
@@ -130,8 +131,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Texture2D spatialY = Dispatch(shader, "OcclusionSpatialY", width, height, true,
                     new[] { "UAV_SpatialTexture" }, ("SRV_DepthTexture", depth), ("SRV_OcclusionTexture", spatialX))[0];
                 Texture2D temporal = Dispatch(shader, "OcclusionTemporal", width, height, true,
-                    new[] { "UAV_AccmulateTexture" }, ("SRV_DepthTexture", depth), ("SRV_NormalTexture", normal), ("SRV_OcclusionTexture", spatialY),
-                    ("SRV_MotionTexture", m_Motion), ("SRV_HistoryTexture", spatialY), ("SRV_HistoryDepthTexture", depth))[0];
+                    new[] { "UAV_AccumulationTexture", "UAV_OcclusionHistoryTexture", "UAV_OcclusionHistoryDepth" }, ("SRV_DepthTexture", depth), ("SRV_NormalTexture", normal), ("SRV_OcclusionTexture", spatialY),
+                    ("SRV_MotionTexture", m_Motion), ("SRV_MotionMetadataTexture", Solid(m_Width,m_Height,new Color(m_PlaneDepth,m_PlaneDepth,1,0))), ("SRV_HistoryTexture", spatialY), ("SRV_HistoryDepthTexture", depth))[0];
                 Texture2D result = Dispatch(shader, "OcclusionUpsample", m_Width, m_Height, true,
                     new[] { "UAV_UpsampleTexture" }, ("SRV_HalfResDepthTexture", depth), ("SRV_HalfResNormalTexture", normal), ("SRV_DepthTexture", m_Depth),
                     ("SRV_NormalTexture", Solid(m_Width, m_Height, new Color(0.5f, 0.5f, 1, 0))), ("SRV_OcclusionTexture", temporal))[0];
@@ -157,15 +158,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 string label = (++m_Sequence).ToString("D2") + "-" + shader.name.Replace("(Clone)", "") + "-" + kernelName;
                 var targets = new RenderTexture[outputs.Length];
                 var requests = new AsyncGPUReadbackRequest[outputs.Length];
+                var outputScalars = new bool[outputs.Length];
                 var result = new Texture2D[outputs.Length];
                 using (var cmd = new CommandBuffer())
                 {
                     cmd.SetGlobalVector("_ZBufferParams", SystemInfo.usesReversedZBuffer ? new Vector4(999, 1, 9.99f, 0.01f) : new Vector4(-999, 1000, -9.99f, 10));
                     cmd.SetGlobalVector("_ProjectionParams", new Vector4(1, 0.1f, 100, 0.01f));
-                    foreach (var input in inputs) cmd.SetComputeTextureParam(shader, kernel, input.name, input.texture);
+                    foreach (var input in inputs)
+                    {
+                        cmd.SetComputeTextureParam(shader, kernel, input.name, input.texture);
+                        cmd.SetComputeVectorParam(shader, Shader.PropertyToID(input.name + "_InfinityView"),
+                            new Vector4(input.texture.width,input.texture.height,input.texture.width,input.texture.height));
+                    }
                     for (int i = 0; i < outputs.Length; ++i)
                     {
-                        var target = new RenderTexture(paddedWidth, paddedHeight, 0, scalar ? GraphicsFormat.R32_SFloat : GraphicsFormat.R32G32B32A32_SFloat)
+                        outputScalars[i] = scalar && outputs[i] != "UAV_OcclusionHistoryTexture";
+                        var target = new RenderTexture(paddedWidth, paddedHeight, 0, outputScalars[i] ? GraphicsFormat.R32_SFloat : GraphicsFormat.R32G32B32A32_SFloat)
                         {
                             enableRandomWrite = true,
                             hideFlags = HideFlags.HideAndDontSave,
@@ -186,14 +194,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Graphics.ExecuteCommandBuffer(cmd);
                 }
                 for (int i = 0; i < targets.Length; ++i) requests[i] = AsyncGPUReadback.Request(targets[i]);
-                AsyncGPUReadback.WaitAllRequests();
+                foreach (var request in requests) request.WaitForCompletion();
                 for (int i = 0; i < targets.Length; ++i)
                 {
                     Assert.IsFalse(requests[i].hasError, label + " readback error");
                     float[] raw = requests[i].GetData<float>().ToArray();
                     string rawPath = Path.Combine(m_Output, label + "-" + outputs[i] + ".f32");
                     using (var writer = new BinaryWriter(File.Create(rawPath))) foreach (float value in raw) writer.Write(value);
-                    int channels = scalar ? 1 : 4;
+                    int channels = outputScalars[i] ? 1 : 4;
                     Assert.AreEqual(paddedWidth * paddedHeight * channels, raw.Length, label + " raw length");
                     var colors = new Color[width * height];
                     int active = 0, protectedValues = 0;
@@ -212,7 +220,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         if (inside)
                         {
                             ++active;
-                            colors[y * width + x] = scalar ? new Color(raw[index], 0, 0, 1) : new Color(raw[index], raw[index + 1], raw[index + 2], raw[index + 3]);
+                            colors[y * width + x] = outputScalars[i] ? new Color(raw[index], 0, 0, 1) : new Color(raw[index], raw[index + 1], raw[index + 2], raw[index + 3]);
                         }
                     }
                     result[i] = Pixels(width, height, colors);

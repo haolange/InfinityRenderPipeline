@@ -60,6 +60,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private MeshSceneUpdate m_ActiveUpdate;
         private bool m_InTransaction;
+        internal bool isUpdating => m_InTransaction;
         private readonly List<MeshSectionId> m_PendingSectionReclaims = new List<MeshSectionId>(8);
         private readonly List<MaterialDataId> m_PendingMaterialReclaims = new List<MaterialDataId>(8);
         private MeshSceneStateSnapshot m_TransactionStateSnapshot;
@@ -73,6 +74,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int StructuralRevision { get; private set; }
         public int ContentRevision { get; private set; }
         public int VisibilityRevision { get; private set; }
+        internal ulong TransformRevision { get; private set; }
         public int BinEpoch { get; private set; }
 
         public int LogicalInstanceCount => m_LogicalInstanceCount;
@@ -208,6 +210,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             StructuralRevision = snapshot.StructuralRevision;
             ContentRevision = snapshot.ContentRevision;
             VisibilityRevision = snapshot.VisibilityRevision;
+            TransformRevision = snapshot.TransformRevision;
             m_TransformDirtyPages.Restore(snapshot.TransformDirtyPages);
             m_BoundsDirtyPages.Restore(snapshot.BoundsDirtyPages);
         }
@@ -371,7 +374,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 StructuralRevision = StructuralRevision,
                 ContentRevision = ContentRevision,
-                VisibilityRevision = VisibilityRevision
+                VisibilityRevision = VisibilityRevision,
+                TransformRevision = TransformRevision
             };
         }
 
@@ -380,6 +384,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             StructuralRevision = snapshot.StructuralRevision;
             ContentRevision = snapshot.ContentRevision;
             VisibilityRevision = snapshot.VisibilityRevision;
+            TransformRevision = snapshot.TransformRevision;
         }
 
         internal MeshSceneStateSnapshot SnapshotState()
@@ -389,6 +394,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 StructuralRevision = StructuralRevision,
                 ContentRevision = ContentRevision,
                 VisibilityRevision = VisibilityRevision,
+                TransformRevision = TransformRevision,
                 TransformDirtyPages = m_TransformDirtyPages.CopyWords(),
                 BoundsDirtyPages = m_BoundsDirtyPages.CopyWords()
             };
@@ -399,6 +405,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             EnsureTransformCapacity(m_TransformHighWater + 1);
             int index = AllocIndexedSlot(ref m_TransformFreeList, ref m_TransformHighWater, ref m_TransformCount, m_TransformGenerations);
             m_Transforms[index] = record;
+            TransformRevision++;
             MarkTransformDirty(index);
             StructuralRevision++;
             ContentRevision++;
@@ -412,7 +419,9 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
+            if (m_Transforms[(int)id.Index].current.Equals(record.current)) return;
             m_Transforms[(int)id.Index] = record;
+            TransformRevision++;
             MarkTransformDirty((int)id.Index);
             ContentRevision++;
         }
@@ -1131,6 +1140,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private void FreeTransformSlot(int index)
         {
+            TransformRevision++;
             m_TransformOwners[index] = -1;
             m_TransformGenerations[index] = NextGeneration(m_TransformGenerations[index]);
             m_Transforms[index] = default;

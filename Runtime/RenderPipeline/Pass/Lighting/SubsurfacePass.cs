@@ -14,15 +14,10 @@ namespace InfinityTech.Rendering.Pipeline
     {
         internal static string TextureName = "SubsurfaceTexture";
         internal static int SSS_ResolutionID = Shader.PropertyToID("SSS_Resolution");
-        internal static int SSS_ScatteringDistanceID = Shader.PropertyToID("SSS_ScatteringDistance");
-        internal static int SSS_SurfaceAlbedoID = Shader.PropertyToID("SSS_SurfaceAlbedo");
         internal static int SSS_NumSamplesID = Shader.PropertyToID("SSS_NumSamples");
-        internal static int SSS_MaxRadiusID = Shader.PropertyToID("SSS_MaxRadius");
         internal static int SSS_ProfileCountID = Shader.PropertyToID("SSS_ProfileCount");
-        internal static int SSS_HasOverrideID = Shader.PropertyToID("SSS_HasOverride");
         internal static int SRV_LightingTextureID = Shader.PropertyToID("SRV_LightingTexture");
         internal static int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static int SRV_GBufferTextureAID = Shader.PropertyToID("SRV_GBufferTextureA");
         internal static int SRV_GBufferTextureBID = Shader.PropertyToID("SRV_GBufferTextureB");
         internal static int SRV_GBufferTextureCID = Shader.PropertyToID("SRV_GBufferTextureC");
         internal static int SRV_DiffusionProfilesID = Shader.PropertyToID("SRV_DiffusionProfiles");
@@ -33,140 +28,100 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct SubsurfacePassData
         {
-            public float scatteringDistance;
-            public Color surfaceAlbedo;
             public int numSamples;
-            public float maxRadius;
             public int profileCount;
-            public int hasOverride;
+            public int kernel, composeKernel;
+            public Matrix4x4 projection, inverseProjection;
             public int2 resolution;
             public ComputeShader subsurfaceShader;
-            public GraphicsBuffer profileBuffer;
+            public RGBufferRef profileBuffer;
             public RGTextureRef lightingTexture;
+            public RGTextureRef sceneColor;
             public RGTextureRef depthTexture;
-            public RGTextureRef gBufferA;
             public RGTextureRef gBufferB;
             public RGTextureRef gBufferC;
             public RGTextureRef subsurfaceTexture;
         }
 
-        void EnsureDiffusionProfileBuffer(DiffusionProfile[] profiles, SubsurfaceScattering volume, out int profileCount, out float distance, out Color albedo, out float maxRadius, out int hasOverride)
+        int EnsureDiffusionProfileBuffer(DiffusionProfile[] profiles)
         {
-            profileCount = profiles != null ? profiles.Length : 0;
+            int profileCount = profiles != null ? profiles.Length : 0;
             int uploadCount = math.max(1, profileCount);
-            int stride = Marshal.SizeOf<FDiffusionProfileRecord>();
-            if (m_DiffusionProfileBuffer == null || m_DiffusionProfileCapacity < uploadCount)
+            bool changed = m_DiffusionProfileRecords.Length != uploadCount;
+            for (int i = 0; i < uploadCount && !changed; ++i)
             {
-                m_DiffusionProfileBuffer?.Release();
-                m_DiffusionProfileCapacity = uploadCount;
-                m_DiffusionProfileBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_DiffusionProfileCapacity, stride);
+                var record = i < profileCount && profiles[i] != null ? profiles[i].ToRecord() : default;
+                changed = !record.scatterAlbedoDistance.Equals(m_DiffusionProfileRecords[i].scatterAlbedoDistance)
+                    || !record.parameters.Equals(m_DiffusionProfileRecords[i].parameters);
             }
-
-            var records = new FDiffusionProfileRecord[uploadCount];
-            for (int i = 0; i < profileCount; ++i)
+            if (changed)
             {
-                records[i] = profiles[i] != null ? profiles[i].ToRecord() : default;
+                var next = m_ResourcePool.GetBuffer(new BufferDescriptor(uploadCount, Marshal.SizeOf<FDiffusionProfileRecord>()) { name = "DiffusionProfiles" });
+                var nextRecords = new FDiffusionProfileRecord[uploadCount];
+                for (int i = 0; i < profileCount; ++i) nextRecords[i] = profiles[i] != null ? profiles[i].ToRecord() : default;
+                try { next.buffer.SetData(nextRecords); }
+                catch { m_ResourcePool.ReleaseBuffer(next); throw; }
+                if (m_DiffusionProfileBuffer.buffer != null) m_ResourcePool.ReleaseBuffer(m_DiffusionProfileBuffer);
+                m_DiffusionProfileBuffer = next; m_DiffusionProfileRecords = nextRecords;
             }
-
-            m_DiffusionProfileBuffer.SetData(records);
-
-            distance = records[0].scatterAlbedoDistance.w;
-            albedo = new Color(records[0].scatterAlbedoDistance.x, records[0].scatterAlbedoDistance.y, records[0].scatterAlbedoDistance.z, 1.0f);
-            maxRadius = records[0].parameters.x;
-            hasOverride = GraphicsUtility.VolumeComponentActive(volume) ? 1 : 0;
+            return profileCount;
         }
 
         void ComputeBurleySubsurface(RenderContext renderContext, Camera camera)
         {
-            var sss = ActiveVolumeStack.GetComponent<SubsurfaceScattering>();
-            if (!VolumeComponentActive(sss))
+            if (!m_ActiveFrameState.subsurfaceEnabled) return;
+            var volume = ActiveVolumeStack.GetComponent<SubsurfaceScattering>();
+            int count = EnsureDiffusionProfileBuffer(pipelineAsset.diffusionProfiles);
+            int2 size = m_ActiveFrameState.dimensions.internalSize;
+            int2 halfSize = (size + 1) / 2;
+            var descriptor = SSRPassUtilityData.CreateDescriptor(halfSize.x, halfSize.y, "SubsurfaceDiffuse", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, 2);
+            RGTextureRef filtered = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
+            RGTextureRef color = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            using (var pass = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
             {
-                return;
-            }
-
-            if (!GraphicsUtility.HasRequiredKernels(shaders.subsurfaceShader, "BurleySubsurfaceCS"))
-            {
-                return;
-            }
-
-            DiffusionProfile[] profiles = pipelineAsset.diffusionProfiles;
-            int liveProfiles = 0;
-            if (profiles != null)
-            {
-                for (int i = 0; i < profiles.Length; ++i)
+                ref var data = ref pass.GetPassData<SubsurfacePassData>();
+                data.subsurfaceShader = shaders.subsurfaceShader;
+                data.kernel = shaders.subsurfaceShader.FindKernel("BurleySubsurfaceCS");
+                data.composeKernel = shaders.subsurfaceShader.FindKernel("ComposeSubsurfaceCS");
+                data.projection = m_CameraUniform.matrix_FlipYJitterProj;
+                data.inverseProjection = m_CameraUniform.matrix_InvFlipYJitterProj;
+                data.resolution = size;
+                data.profileCount = count;
+                data.numSamples = volume.numSamples.value;
+                data.profileBuffer = pass.ReadBuffer(m_RGBuilder.ImportBuffer(m_DiffusionProfileBuffer));
+                data.lightingTexture = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer));
+                data.depthTexture = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
+                data.gBufferB = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
+                data.gBufferC = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
+                data.subsurfaceTexture = pass.WriteTexture(filtered);
+                pass.ReadTexture(color); data.sceneColor = pass.WriteTexture(color);
+                pass.SetExecuteFunc((in SubsurfacePassData d, in RGComputeEncoder commands, RGObjectPool objects) =>
                 {
-                    if (profiles[i] != null)
-                        liveProfiles++;
-                }
-            }
-
-            if (liveProfiles == 0)
-            {
-                return;
-            }
-
-            EnsureDiffusionProfileBuffer(profiles, sss, out int profileCount, out float distance, out Color albedo, out float maxRadius, out int hasOverride);
-            int numSamples = sss.numSamples.value;
-
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
-
-            TextureDescriptor subsurfaceTextureDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
-            {
-                subsurfaceTextureDsc.name = SubsurfacePassUtilityData.TextureName;
-                subsurfaceTextureDsc.dimension = TextureDimension.Tex2D;
-                subsurfaceTextureDsc.colorFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-                subsurfaceTextureDsc.depthBufferBits = EDepthBits.None;
-                subsurfaceTextureDsc.enableRandomWrite = true;
-            }
-            RGTextureRef subsurfaceTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, subsurfaceTextureDsc);
-
-            RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
-            RGTextureRef gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
-            RGTextureRef gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
-
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
-            {
-                ref SubsurfacePassData passData = ref passRef.GetPassData<SubsurfacePassData>();
-                passData.scatteringDistance = distance;
-                passData.surfaceAlbedo = albedo;
-                passData.numSamples = numSamples;
-                passData.maxRadius = maxRadius;
-                passData.profileCount = profileCount;
-                passData.hasOverride = hasOverride;
-                passData.resolution = new int2(width, height);
-                passData.subsurfaceShader = shaders.subsurfaceShader;
-                passData.profileBuffer = m_DiffusionProfileBuffer;
-                passData.lightingTexture = passRef.ReadTexture(lightingTexture);
-                passData.depthTexture = passRef.ReadTexture(depthTexture);
-                passData.gBufferA = passRef.ReadTexture(gBufferA);
-                passData.gBufferB = passRef.ReadTexture(gBufferB);
-                passData.gBufferC = passRef.ReadTexture(gBufferC);
-                passData.subsurfaceTexture = passRef.WriteTexture(subsurfaceTexture);
-
-                passRef.EnablePassCulling(false);
-                passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in SubsurfacePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
-                {
-                    cmdEncoder.SetComputeVectorParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
-                    cmdEncoder.SetComputeFloatParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_ScatteringDistanceID, passData.scatteringDistance);
-                    cmdEncoder.SetComputeVectorParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_SurfaceAlbedoID, (Vector4)passData.surfaceAlbedo);
-                    cmdEncoder.SetComputeIntParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_NumSamplesID, passData.numSamples);
-                    cmdEncoder.SetComputeFloatParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_MaxRadiusID, passData.maxRadius);
-                    cmdEncoder.SetComputeIntParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_ProfileCountID, passData.profileCount);
-                    cmdEncoder.SetComputeIntParam(passData.subsurfaceShader, SubsurfacePassUtilityData.SSS_HasOverrideID, passData.hasOverride);
-                    cmdEncoder.SetComputeBufferParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_DiffusionProfilesID, passData.profileBuffer);
-                    cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_LightingTextureID, passData.lightingTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_DepthTextureID, passData.depthTexture);
-                    cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
-                    cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
-                    cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
-                    cmdEncoder.SetComputeTextureParam(passData.subsurfaceShader, 0, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, passData.subsurfaceTexture);
-                    cmdEncoder.DispatchCompute(passData.subsurfaceShader, 0, Mathf.CeilToInt(passData.resolution.x / 8.0f), Mathf.CeilToInt(passData.resolution.y / 8.0f), 1);
+                    var shader = d.subsurfaceShader;
+                    commands.SetComputeVectorParam(shader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(d.resolution.x,d.resolution.y,1f/d.resolution.x,1f/d.resolution.y));
+                    commands.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_Proj"), d.projection);
+                    commands.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvProj"), d.inverseProjection);
+                    commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_NumSamplesID, d.numSamples);
+                    commands.SetComputeIntParam(shader, SubsurfacePassUtilityData.SSS_ProfileCountID, d.profileCount);
+                    BindSubsurface(commands, shader, d.kernel, d);
+                    commands.SetComputeTextureParam(shader, d.kernel, SubsurfacePassUtilityData.UAV_SubsurfaceTextureID, d.subsurfaceTexture);
+                    commands.DispatchCompute(shader, d.kernel, ((d.resolution.x+1)/2+7)/8, ((d.resolution.y+1)/2+7)/8, 1);
+                    BindSubsurface(commands, shader, d.composeKernel, d);
+                    commands.SetComputeTextureParam(shader, d.composeKernel, Shader.PropertyToID("SRV_FilteredSubsurface"), d.subsurfaceTexture);
+                    commands.SetComputeTextureParam(shader, d.composeKernel, Shader.PropertyToID("UAV_SceneColor"), d.sceneColor);
+                    commands.DispatchCompute(shader, d.composeKernel, (d.resolution.x+7)/8, (d.resolution.y+7)/8, 1);
                 });
             }
+            MarkFeatureProduced(EFrameFeature.SubsurfaceScattering);
+        }
+
+        static void BindSubsurface(in RGComputeEncoder commands, ComputeShader shader, int kernel, in SubsurfacePassData d)
+        {
+            commands.SetComputeBufferParam(shader,kernel,SubsurfacePassUtilityData.SRV_DiffusionProfilesID,d.profileBuffer);
+            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_LightingTextureID,d.lightingTexture);
+            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_DepthTextureID,d.depthTexture);
+            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_GBufferTextureBID,d.gBufferB);
+            commands.SetComputeTextureParam(shader,kernel,SubsurfacePassUtilityData.SRV_GBufferTextureCID,d.gBufferC);
         }
     }
 }

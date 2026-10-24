@@ -34,6 +34,8 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvProj;
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
+            public bool hasSubsurface;
+            public RGTextureRef scatterDiffuse;
             public int hasAO;
             public int hasContactShadow;
             public RGBufferRef lightRecordBuffer;
@@ -98,6 +100,14 @@ namespace InfinityTech.Rendering.Pipeline
             indirectDescriptor.name = "IndirectSpecular";
             RGTextureRef indirectSpecular = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.IndirectSpecularBuffer, indirectDescriptor);
 
+            m_ActiveFrameState.subsurfaceEnabled = ShouldRecordFeature(EFrameFeature.SubsurfaceScattering);
+            RGTextureRef scatterDiffuse = default;
+            if (m_ActiveFrameState.subsurfaceEnabled)
+            {
+                indirectDescriptor.name = "ScatterDiffuse";
+                scatterDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ScatterDiffuseBuffer, indirectDescriptor);
+            }
+
             using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<DeferredShadingPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDeferredShading)))
             {
                 ref DeferredShadingPassData passData = ref passRef.GetPassData<DeferredShadingPassData>();
@@ -105,6 +115,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bakedOcclusion = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
                 passData.indirectDiffuse = passRef.WriteTexture(indirectDiffuse);
                 passData.indirectSpecular = passRef.WriteTexture(indirectSpecular);
+                passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
+                if (passData.hasSubsurface) passData.scatterDiffuse = passRef.WriteTexture(scatterDiffuse);
                 passData.kernel = kernel;
                 passData.groupCount = groupCount;
                 passData.resolution = new int2(width, height);
@@ -143,6 +155,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     ComputeShader shader = passData.deferredShadingShader;
+                    shader.SetKeyword(new LocalKeyword(shader, "INFINITY_SSS_OUTPUT"), passData.hasSubsurface);
+                    if (passData.hasSubsurface) cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("UAV_ScatterDiffuse"), passData.scatterDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("SRV_BakedDiffuse"), passData.bakedDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("SRV_BakedOcclusion"), passData.bakedOcclusion);
                     cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("UAV_IndirectDiffuse"), passData.indirectDiffuse);

@@ -1,0 +1,40 @@
+#pragma kernel Statistics
+Texture2D<float4> StatisticsColor;
+RWStructuredBuffer<float4> StatisticsResults;
+uint2 StatisticsExtent;
+uint StatisticsGroups;
+int StatisticsChannel;
+groupshared float4 StatisticsShared[64];
+[numthreads(64,1,1)]
+void Statistics(uint3 thread : SV_DispatchThreadID, uint lane : SV_GroupIndex, uint3 group : SV_GroupID)
+{
+    float4 aggregate = 0;
+    uint count = StatisticsExtent.x * StatisticsExtent.y;
+    for (uint pixel = thread.x; pixel < count; pixel += StatisticsGroups * 64)
+    {
+        float4 value = StatisticsColor.Load(int3(pixel % StatisticsExtent.x,pixel / StatisticsExtent.x,0));
+        int channel = clamp(StatisticsChannel,0,3);
+        float3 color = StatisticsChannel >= 0 ? value[channel].xxx : value.rgb;
+        aggregate.w += 1;
+        if (all(isfinite(value)))
+        {
+            float luminance = dot(color,float3(.2126,.7152,.0722));
+            aggregate.x += luminance;
+            aggregate.y = max(aggregate.y,luminance);
+        }
+        else aggregate.z += 1;
+    }
+    StatisticsShared[lane] = aggregate;
+    GroupMemoryBarrierWithGroupSync();
+    for (uint stride = 32; stride > 0; stride >>= 1)
+    {
+        if (lane < stride)
+        {
+            float4 other = StatisticsShared[lane+stride];
+            StatisticsShared[lane].xzw += other.xzw;
+            StatisticsShared[lane].y = max(StatisticsShared[lane].y,other.y);
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+    if (lane == 0) StatisticsResults[group.x] = StatisticsShared[0];
+}

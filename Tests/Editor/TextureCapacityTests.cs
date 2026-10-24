@@ -91,6 +91,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public IEnumerator Pool_EvictsOldestIdleAfterTwoEpochs_AndWaitsForFence()
         {
             if(!SystemInfo.supportsGraphicsFence)Assert.Ignore("Graphics fences unavailable on this test backend.");
+            var previousFocus = EditorWindow.focusedWindow;
+            EditorWindow gameView = null;
+            foreach (var window in Resources.FindObjectsOfTypeAll<EditorWindow>())
+                if (window.GetType().FullName == "UnityEditor.GameView") { gameView = window; break; }
+            gameView?.Focus();
             var pool=new ResourcePool();
             try
             {
@@ -103,13 +108,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 while(!fence.passed && UnityEditor.EditorApplication.timeSinceStartup<deadline)
                 {
                     UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+                    gameView?.Repaint();
                     UnityEditor.SceneView.RepaintAll();
                     yield return null;
                 }
                 Assert.IsTrue(fence.passed,"CPU-queryable submission fence did not complete.");
                 pool.buffers.AfterSubmit(1,fence);Assert.AreEqual(0,pool.buffers.estimatedAllocatedBytes);Assert.AreEqual(1,pool.buffers.evictionCount);
             }
-            finally{pool.Dispose();}
+            finally
+            {
+                pool.Dispose();
+                if (previousFocus != null) previousFocus.Focus();
+            }
         }
         [TestCase(false)]
         [TestCase(true)]

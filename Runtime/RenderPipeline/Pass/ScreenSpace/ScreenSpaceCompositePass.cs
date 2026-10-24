@@ -32,6 +32,8 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 resolution;
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
+            public bool hasSubsurface;
+            public RGTextureRef scatterDiffuse;
             public int hasSSR;
             public int hasSSGI;
             public ComputeShader compositeShader;
@@ -83,6 +85,13 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.resolution = new int2(width, height);
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.worldSpaceCameraPos = camera.transform.position;
+                passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
+                if (passData.hasSubsurface && hasSSGI)
+                {
+                    passData.scatterDiffuse = m_RGScoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer);
+                    passRef.ReadTexture(passData.scatterDiffuse);
+                    passRef.WriteTexture(passData.scatterDiffuse);
+                }
                 passData.hasSSR = hasSSR ? 1 : 0;
                 passData.hasSSGI = hasSSGI ? 1 : 0;
                 passData.compositeShader = shaders.screenSpaceCompositeShader;
@@ -107,6 +116,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in ScreenSpaceCompositePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     ComputeShader shader = passData.compositeShader;
+                    shader.SetKeyword(new LocalKeyword(shader, "INFINITY_SSS_OUTPUT"), passData.hasSubsurface);
+                    if (passData.hasSubsurface && passData.hasSSGI != 0) cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("UAV_ScatterDiffuse"), passData.scatterDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("SRV_IndirectDiffuse"), passData.indirectDiffuse);
                     cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("SRV_IndirectSpecular"), passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, ScreenSpaceCompositePassUtilityData.Composite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));

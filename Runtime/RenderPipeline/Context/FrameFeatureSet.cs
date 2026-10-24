@@ -22,7 +22,7 @@ namespace InfinityTech.Rendering.Pipeline
         PostProcess,
         Display,
         DBuffer,
-        OpaqueLightingPyramid,
+        TemporalColorPyramid,
         HalfResDownsample,
         // Content-phase features: requested after LightContext.Build from what is visible.
         // Local lights are visible.
@@ -32,7 +32,8 @@ namespace InfinityTech.Rendering.Pipeline
         // A visible light has a cookie or IES profile in the atlas.
         LightCookies,
         // Reflection probes reach the screen.
-        ReflectionProbes
+        ReflectionProbes,
+        SubsurfaceScattering
     }
 
     public class FrameFeatureSet

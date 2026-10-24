@@ -1,21 +1,17 @@
 #ifndef _OcclusionCommon_
 #define _OcclusionCommon_
 #include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
+int GTAOHistoryValid;
+Texture2D SRV_MotionMetadataTexture;
 float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj;
 
-//#define float half
-//#define float2 half2
-//#define float3 half3
-//#define float4 half4
-//#define float3x3 half3x3
-//#define float4x4 half4x4
-//#define float4x3 half4x3
 #define Inv_PI 0.3183091
 #define Two_PI 6.2831852
 #define Half_PI 1.5707963
 #define Inv_Two_PI 0.15915494
 
-cbuffer CBV_OcclusionUnifrom
+cbuffer CBV_OcclusionParameters
 {
     int NumRay;
     int NumStep;
@@ -38,11 +34,16 @@ cbuffer CBV_OcclusionUnifrom
     float4x4 Matrix_WorldToView;
 };
 
-Texture2D SRV_HalfResDepthTexture, SRV_HalfResNormalTexture;
-Texture2D SRV_DepthTexture, SRV_NormalTexture, SRV_OcclusionTexture, SRV_HistoryTexture, SRV_HistoryDepthTexture, SRV_MotionTexture;
+Texture2D SRV_HalfResDepthTexture;
+Texture2D SRV_HalfResNormalTexture;
+Texture2D SRV_DepthTexture;
+Texture2D SRV_NormalTexture;
+Texture2D SRV_OcclusionTexture;
+Texture2D SRV_HistoryTexture;
+Texture2D SRV_HistoryDepthTexture;
+Texture2D SRV_MotionTexture;
 SamplerState Global_point_clamp_sampler, Global_bilinear_clamp_sampler, Global_trilinear_clamp_sampler, Global_point_repeat_sampler, Global_bilinear_repeat_sampler, Global_trilinear_repeat_sampler;
 
-static const int2 SampleOffset[9] = { int2(-1, -1), int2(0, -1), int2(1, -1), int2(-1, 0), int2(0, 0), int2(1, 0), int2(-1, 1), int2(0, 1), int2(1, 1) };
 
 
 float Square(float x)

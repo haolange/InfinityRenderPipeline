@@ -43,7 +43,11 @@ namespace InfinityTech.Rendering.Pipeline
         public FResolvedFrameSettings frameSettings;
         // Debug view of this camera this frame (InfinityDebugDisplaySettings.ResolveDebugView).
         public EDebugView debugView;
-        public int gtaoValidFrames;
+        internal bool acceptedHiZ;
+        internal bool acceptedSSR, acceptedSSGI, acceptedGTAO;
+        internal bool acceptedTemporalColor, acceptedTemporalColorIsSR;
+        internal FTemporalColorView temporalColorView;
+        internal ulong meshViewKey;
 
         internal const int GameUnseenFramesToRecycle = 8;
         internal static bool ShouldRecycle(int lastSeenFrame, int frameCount, CameraType cameraType)
@@ -81,8 +85,10 @@ namespace InfinityTech.Rendering.Pipeline
             combineLutCache.RollbackPending();
             executeSucceeded = false;
             requiresHistoryReset = true;
-            gtaoValidFrames = 0;
         }
+
+        internal bool subsurfaceEnabled;
+        internal int acceptedSSGIFrameIndex;
 
         internal void CommitFrame()
         {
@@ -91,6 +97,13 @@ namespace InfinityTech.Rendering.Pipeline
             internalCapacity.Commit(); displayCapacity.Commit();
             meshMotionHistory.Commit();
             successfulRenderCount++;
+            if (features != null && features.IsProduced(EFrameFeature.SSGI)) acceptedSSGIFrameIndex = Time.frameCount;
+            acceptedHiZ = features != null && features.IsProduced(EFrameFeature.HiZ);
+            acceptedSSR = features != null && features.IsProduced(EFrameFeature.SSR);
+            acceptedSSGI = features != null && features.IsProduced(EFrameFeature.SSGI);
+            acceptedGTAO = features != null && features.IsProduced(EFrameFeature.GTAO);
+            acceptedTemporalColorIsSR = features != null && features.IsProduced(EFrameFeature.SuperResolution);
+            acceptedTemporalColor = acceptedTemporalColorIsSR || features != null && features.IsProduced(EFrameFeature.TAA);
             preparedThisRender = false;
             historyCache.CommitFrame();
             atmosphereViewCache.CommitFrame();

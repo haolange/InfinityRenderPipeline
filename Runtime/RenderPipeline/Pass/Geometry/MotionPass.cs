@@ -16,13 +16,6 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
-        static readonly ProfilingSampler s_UploadViewMotion = new ProfilingSampler("UploadViewMotionTransforms");
-        struct ViewMotionUploadData
-        {
-            public ComputeBuffer buffer;
-            public Unity.Mathematics.float4x4[] previous;
-        }
-
         struct ObjectMotionPassData
         {
             public RGDrawListRef draws;
@@ -42,18 +35,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            var previousMatrices = m_ActiveFrameState.meshMotionHistory.Prepare(renderContext.GetMeshScene());
-            FBufferRef previousTransforms = m_ActiveFrameState.historyCache.GetBuffer(InfinityShaderIDs.PreviousTransformBuffer,
-                new BufferDescriptor(previousMatrices.Length, 64));
-            RGBufferRef previousTransformInput;
-            using (RGTransferPassRef upload = m_RGBuilder.AddTransferPass<ViewMotionUploadData>(s_UploadViewMotion))
-            {
-                previousTransformInput = upload.WriteBuffer(m_RGBuilder.ImportBuffer(previousTransforms));
-                ref ViewMotionUploadData data = ref upload.GetPassData<ViewMotionUploadData>();
-                data.buffer = previousTransforms.buffer; data.previous = previousMatrices;
-                upload.SetExecuteFunc((in ViewMotionUploadData data, in RGTransferEncoder commands, RGObjectPool pool) =>
-                    commands.SetBufferData(data.buffer, data.previous, 0, 0, data.previous.Length));
-            }
+            var previousTransforms = m_ActiveFrameState.meshMotionHistory.pendingBinding;
 
             TextureDescriptor motionTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -68,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
             motionTextureDsc.clearColor = Color.clear;
             RGTextureRef motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
-            m_MeshWorld.BindPreviousTransforms(view.viewKey, previousTransforms.buffer);
+            m_MeshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
             RGDrawListRef motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Motion);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterMotionPass, cullingResults, camera);
             {
@@ -86,7 +68,6 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 //Setup Phase
                 passRef.EnablePassCulling(false);
-                passRef.ReadBuffer(previousTransformInput);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 // Write marks the depth-stencil resource (stencil 5). Shader ZWrite Off keeps depth values.

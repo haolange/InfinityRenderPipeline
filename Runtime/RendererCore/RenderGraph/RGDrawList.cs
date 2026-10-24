@@ -46,6 +46,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public MeshPassId passId;
         public MeshDrawPipeline pipeline;
         public MeshPassContext pass;
+        public MeshGpuSceneSnapshot residency;
         public MeshViewCullingResult culling;
         public MeshVisibilityHandle visibilityHandle;
         public MeshVisibilityShare visibilityShare;
@@ -94,7 +95,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         static void ValidateMotionInput(in MeshPassContext pass)
         {
-            if (pass.lightModeTag == "RasterMotionPass" && pass.previousTransforms == null)
+            if (pass.lightModeTag == "RasterMotionPass" && !pass.previousTransforms.isValid)
                 throw new System.InvalidOperationException("Motion draws require the selected view's previous-transform producer.");
         }
 
@@ -125,12 +126,14 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             int index = m_Records.Count;
+            var residency = pipeline != null ? pipeline.CaptureScene() : default;
+            residency.version?.Retain();
             m_Records.Add(new RGDrawListRecord
             {
                 view = view,
                 passId = passId,
                 pipeline = pipeline,
-                pass = pass,
+                pass = pass, residency = residency,
                 culling = culling,
                 visibilityHandle = MeshVisibilityHandle.Invalid,
                 visibilityShare = null,
@@ -166,12 +169,14 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             int index = m_Records.Count;
+            var residency = pipeline != null ? pipeline.CaptureScene() : default;
+            residency.version?.Retain();
             m_Records.Add(new RGDrawListRecord
             {
                 view = view,
                 passId = passId,
                 pipeline = pipeline,
-                pass = pass,
+                pass = pass, residency = residency,
                 culling = culling,
                 visibilityHandle = visibilityHandle,
                 visibilityShare = visibilityShare,
@@ -234,7 +239,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public bool HasLiveView(in MeshView view)
         {
-            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view);
+            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view, true);
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGDrawListRecord record = m_Records[i];
@@ -244,7 +249,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     continue;
                 }
 
-                if (MeshGpuVisibilityCache.MakeKey(record.view).Equals(key))
+                if (MeshGpuVisibilityCache.MakeKey(record.view, true).Equals(key))
                 {
                     return true;
                 }
@@ -326,7 +331,8 @@ namespace InfinityTech.Rendering.RenderGraph
                         if (maxCommands > 0)
                         {
                             record.gpuPayload = MeshDrawGPUBackend.RentPayload();
-                            record.gpuPayload.EnsureCapacity(maxCommands, maxInstances);
+                            try { record.gpuPayload.EnsureCapacity(record.pipeline.resourcePool, maxCommands, maxInstances); }
+                            catch { MeshDrawGPUBackend.ReturnPayload(record.gpuPayload); throw; }
                         }
                         else
                         {
@@ -395,7 +401,10 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             var record = m_Records[index];
             if (record.gpuPayload != null)
+            {
+                record.gpuPayload.WaitForReuse(commands);
                 commands.SetBufferData(record.gpuPayload.commandMeta, record.gpuStaging.commandMeta, 0, 0, record.gpuStaging.commandCount * 4);
+            }
             else if (record.pipeline != null)
                 record.pipeline.UploadCpuDirect(commands, record.resolvedList, record.cpuIndexBuffer);
         }
@@ -406,7 +415,7 @@ namespace InfinityTech.Rendering.RenderGraph
             if (slice != null) commands.BeginSample(slice);
             try
             {
-                if (!record.pipeline.PrepareGpu(commands, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.view, record.passId))
+                if (!record.pipeline.PrepareGpu(commands, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.residency, record.view, record.passId))
                     throw new System.InvalidOperationException("MeshDraw GPU preparation failed after its record-time budget and backend decision.");
             }
             finally { if (slice != null) commands.EndSample(slice); }
@@ -472,6 +481,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     cmdBuffer,
                     record.resolvedList,
                     record.pass.shaderPassIndex,
+                    record.residency,
                     record.gpuPayload,
                     record.gpuStaging,
                     record.view.kind,
@@ -479,7 +489,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 return;
             }
 
-            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.pass.shaderPassIndex, record.cpuIndexBuffer, record.view.kind, record.pass.lightModeTag, record.pass.previousTransforms);
+            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.pass.shaderPassIndex, record.residency, record.cpuIndexBuffer, record.view.kind, record.pass.lightModeTag, record.pass.previousTransforms);
         }
 
         /// <summary>
@@ -504,6 +514,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 }
 
                 record.gpuStaging = null;
+                record.residency.version?.Release(); record.residency = default;
 
                 if (record.visibilityHandle.IsValid && record.visibilityShare != null)
                 {

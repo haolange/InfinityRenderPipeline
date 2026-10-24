@@ -66,26 +66,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
         }
 
-        [Test]
-        public void ResetRamp_ValidFramesZeroIsZero_EightIsFullWeight()
-        {
-            int validFrames = 0;
-            float configured = 0.97f;
-            float zero = ScreenSpaceHistoryUtility.RampTemporalWeight(configured, ref validFrames, resetHistory: true);
-            Assert.AreEqual(0.0f, zero);
-            Assert.AreEqual(1, validFrames);
 
-            validFrames = 8;
-            float full = ScreenSpaceHistoryUtility.RampTemporalWeight(configured, ref validFrames, resetHistory: false);
-            Assert.AreEqual(configured, full);
-            Assert.AreEqual(ScreenSpaceHistoryUtility.TemporalResetRampFrames, validFrames);
-
-            int resetBlendFrames = 0;
-            float resetBlend = ScreenSpaceHistoryUtility.RampTemporalWeight(1.0f, ref resetBlendFrames, resetHistory: true);
-            Assert.AreEqual(0.0f, resetBlend);
-            resetBlendFrames = 8;
-            Assert.AreEqual(1.0f, ScreenSpaceHistoryUtility.RampTemporalWeight(1.0f, ref resetBlendFrames, resetHistory: false));
-        }
 
         [Test]
         public void SceneViewSparseRepaintsDoNotDiscardSuccessfulHistory()

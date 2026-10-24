@@ -84,6 +84,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
+            if (record.current.Equals(current)) return;
+
             Push(new MeshSceneUndoEntry
             {
                 op = EMeshSceneUndoOp.RestoreTransformRecord,

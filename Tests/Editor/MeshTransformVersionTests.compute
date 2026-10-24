@@ -1,0 +1,9 @@
+#pragma kernel ReadPrevious
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/GPUScene.hlsl"
+RWStructuredBuffer<float4> Result;
+uint TestTransformIndex;
+[numthreads(1, 1, 1)]
+void ReadPrevious(uint3 id : SV_DispatchThreadID)
+{
+    Result[0] = mul(MeshPreviousObjectToWorld(TestTransformIndex), float4(0, 0, 0, 1));
+}

@@ -4,6 +4,8 @@ using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
+    internal enum EMeshVisibilityPhase : byte { Final, First, Deferred, Recovered }
+
     /// <summary>
     /// One observation of MeshWorld: main camera, cascade, or local-shadow face.
     /// Layer masks live here; PassBin eligibility does not.
@@ -13,6 +15,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public const int MaxPlanes = 6;
 
         public ulong viewKey;
+        internal EMeshVisibilityPhase visibilityPhase;
+        internal ulong visibilityHistory;
         public EMeshViewKind kind;
         public float3 viewPosition;
         public int layerMask;

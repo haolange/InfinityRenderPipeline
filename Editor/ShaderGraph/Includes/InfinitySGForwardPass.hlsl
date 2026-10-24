@@ -2,7 +2,11 @@
 #define INFINITY_SG_FORWARD_PASS
 // ForwardPass of InfinityLit (Forward surface route): shared light loop, baked / probe / sky diffuse, reflection probes
 // blended with the sky, forward AO.
-void frag(PackedVaryings packedInput, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2)
+void frag(PackedVaryings packedInput, out float4 lightingBuffer : SV_Target0, out float4 indirectDiffuse : SV_Target1, out float4 indirectSpecular : SV_Target2
+#if defined(INFINITY_SSS_OUTPUT)
+                , out float4 scatterDiffuse : SV_Target3
+#endif
+                )
 {
     Varyings input = UnpackVaryings(packedInput);
     UNITY_SETUP_INSTANCE_ID(input);
@@ -29,7 +33,11 @@ void frag(PackedVaryings packedInput, out float4 lightingBuffer : SV_Target0, ou
 #endif
     indirectDiffuse = float4(diffuse, 1);
     indirectSpecular = float4(specular, 1);
-    lightingBuffer = float4(EvaluateSurfaceLights(positionWS, normalWS, viewDir, microface, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)input.positionCS.xy)
+    float3 directDiffuse;
+                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, normalWS, viewDir, microface, mask, viewDepth, asuint(unity_RenderingLayer.x), (uint2)input.positionCS.xy, directDiffuse)
         + diffuse + specular + surface.emission, 1);
+#if defined(INFINITY_SSS_OUTPUT)
+                scatterDiffuse = float4(directDiffuse + diffuse, 1);
+#endif
 }
 #endif

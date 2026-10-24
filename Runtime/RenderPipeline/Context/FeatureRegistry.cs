@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
         public InfinityRenderPipelineRuntimeTextures textures;
         // From CameraRenderPolicy.temporal: jitter, history and temporal resolve are allowed.
         public bool temporal;
+        public bool hasDiffusionProfiles;
         // RTAO readiness is decided by the UnifiedRayTracing environment before the registry runs.
         public bool rayTracedOcclusionReady;
         public string rayTracedOcclusionReason;
@@ -70,7 +71,7 @@ namespace InfinityTech.Rendering.Pipeline
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.HiZ,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.hiZShader), s => s.hiZShader, "HiZ_Generation") }
+                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.hiZShader), s => s.hiZShader, "HiZ_Generation", "HiZ_FurthestGeneration") }
             });
             Add(new FeatureDescriptor
             {
@@ -84,8 +85,9 @@ namespace InfinityTech.Rendering.Pipeline
             });
             Add(new FeatureDescriptor
             {
-                id = EFrameFeature.OpaqueLightingPyramid,
-                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.colorPyramidShader), s => s.colorPyramidShader, "KMain") }
+                id = EFrameFeature.TemporalColorPyramid,
+                requiresTemporal = true,
+                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.colorPyramidShader), s => s.colorPyramidShader, "TemporalColorMip") }
             });
             Add(new FeatureDescriptor
             {
@@ -105,12 +107,18 @@ namespace InfinityTech.Rendering.Pipeline
                 id = EFrameFeature.ContactShadow,
                 shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.contactShadowShader), s => s.contactShadowShader, "ContactShadowCS") }
             });
+            Add(new FeatureDescriptor
+            {
+                id = EFrameFeature.SubsurfaceScattering,
+                shaders = new[] { new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.subsurfaceShader), s => s.subsurfaceShader, "BurleySubsurfaceCS", "ComposeSubsurfaceCS") },
+                customSupport = c => c.hasDiffusionProfiles ? null : "The RP Asset has no live diffusion profiles."
+            });
             var composite = new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.screenSpaceCompositeShader), s => s.screenSpaceCompositeShader, "ScreenSpaceComposite");
             Add(new FeatureDescriptor
             {
                 id = EFrameFeature.SSR,
                 requiresTemporal = true,
-                dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.OpaqueLightingPyramid },
+                dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
                 shaders = new[]
                 {
                     new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssrShader), s => s.ssrShader, SSRPassUtilityData.RequiredKernels),
@@ -123,7 +131,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 id = EFrameFeature.SSGI,
                 requiresTemporal = true,
-                dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.OpaqueLightingPyramid },
+                dependsOn = new[] { EFrameFeature.HiZ, EFrameFeature.TemporalColorPyramid },
                 shaders = new[]
                 {
                     new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssgiShader), s => s.ssgiShader, SSGIPassUtilityData.RequiredKernels),

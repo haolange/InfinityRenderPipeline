@@ -17,6 +17,8 @@ Texture2D<float> SRV_DepthTexture;
 Texture2D<float2> SRV_MotionTexture;
 Texture2D<float4> SRV_HistoryColorTexture;
 RWTexture2D<float4> UAV_SuperResolutionTexture;
+RWTexture2D<float4> UAV_SRHistoryColorTexture;
+RWTexture2D<float> UAV_SRHistoryDepthTexture;
 
 static const int2 SampleOffset[9] = {
     int2(-1, -1), int2(0, -1), int2(1, -1),
@@ -101,6 +103,7 @@ void SuperResolutionCS(uint3 id : SV_DispatchThreadID)
 
     // Sample current frame with jitter offset
     float3 currentColor = InfinitySampleLevel(SRV_SceneColorTexture,Global_bilinear_clamp_sampler,screenUV,0).rgb;
+    float3 currentTonemapped = Tonemap(currentColor);
 
     // Gather 3x3 neighborhood in tonemapped space for clipping
     float3 sampleColors[9];
@@ -133,26 +136,31 @@ void SuperResolutionCS(uint3 id : SV_DispatchThreadID)
 
     // Sample history with bicubic filter
     float2 historyUV = screenUV - motionVector;
-    float4 historyColor = SampleHistoryBicubic(historyUV, SR_Resolution.xy, SR_Resolution.zw);
-
-    // Clip history to neighborhood bounds
-    float3 historyTonemapped = Tonemap(historyColor.rgb);
-    historyTonemapped = clamp(historyTonemapped, colorMin, colorMax);
+    bool historyValid = SR_ResetHistory == 0 && all(historyUV >= 0) && all(historyUV <= 1);
+    float3 historyTonemapped = currentTonemapped;
+    if (historyValid)
+    {
+        float4 historyColor = SampleHistoryBicubic(historyUV, SR_Resolution.xy, SR_Resolution.zw);
+        historyTonemapped = clamp(Tonemap(historyColor.rgb), colorMin, colorMax);
+    }
 
     // Blend weight based on motion
     float motionLength = length(motionVector * SR_Resolution.xy);
     float blendWeight = saturate(0.95 - motionLength * 0.1);
 
     // Reject history for out-of-screen samples
-    if (SR_ResetHistory != 0 || any(historyUV < 0) || any(historyUV > 1))
+    if (!historyValid)
         blendWeight = 0;
 
     // Blend in tonemapped space
-    float3 currentTonemapped = Tonemap(currentColor);
     float3 resultTonemapped = lerp(currentTonemapped, historyTonemapped, blendWeight);
 
     // Inverse tonemap back to HDR
     float3 result = InverseTonemap(resultTonemapped);
+
+    // Pending history owns the unsharpened resolve; display sharpening never feeds back.
+    UAV_SRHistoryColorTexture[id.xy] = float4(max(0, result), 1);
+    UAV_SRHistoryDepthTexture[id.xy] = SRV_DepthTexture[pixelCoord];
 
     // Optional sharpening via negative mip bias / unsharp mask
     if (SR_Sharpness > 0)

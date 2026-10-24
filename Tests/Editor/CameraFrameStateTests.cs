@@ -129,6 +129,35 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
+        public void ScreenSpaceHistory_TracksAcceptedProductionAcrossDisableAndFailure()
+        {
+            var manager = VolumeManager.instance;
+            bool initialize = !manager.isInitialized;
+            if (initialize) manager.Initialize(null, null);
+            CameraFrameState state = null;
+            try
+            {
+                state = new CameraFrameState(73);
+                state.features.MarkProduced(EFrameFeature.SSR);
+                state.features.MarkProduced(EFrameFeature.SSGI);
+                state.features.MarkProduced(EFrameFeature.GTAO);
+                state.executeSucceeded = true;
+                state.CommitFrame();
+                Assert.IsTrue(state.acceptedSSR && state.acceptedSSGI && state.acceptedGTAO);
+                int phase = state.acceptedSSGIFrameIndex;
+                state.features.Reset();
+                state.RollbackFrame();
+                state.CommitFrame();
+                Assert.IsTrue(state.acceptedSSR && state.acceptedSSGI && state.acceptedGTAO, "Rejected camera submissions preserve accepted history facts.");
+                Assert.AreEqual(phase, state.acceptedSSGIFrameIndex);
+                state.executeSucceeded = true;
+                state.CommitFrame();
+                Assert.IsFalse(state.acceptedSSR || state.acceptedSSGI || state.acceptedGTAO, "A successfully rendered disabled frame breaks effect-history continuity.");
+            }
+            finally { state?.Dispose(); if (initialize) manager.Deinitialize(); }
+        }
+
+        [Test]
         public void CameraFrameState_CreateDispose_DestroysVolumeStack()
         {
             var manager = VolumeManager.instance;

@@ -9,11 +9,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         ComputeCombineLuts,
         RasterDepth,
+        RasterDepthRecovery,
         RasterDBuffer,
         RasterGBuffer,
         RasterObjectMotion,
         RasterCameraMotion,
         ComputeHiZ,
+        ComputeEarlyFurthestHiZ,
         ComputeHalfResDownsample,
         RasterCascadeShadow,
         RasterLocalShadow,
@@ -30,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
         ComputeContactShadow,
         ComputeScreenSpaceReflection,
         ComputeScreenSpaceIndirect,
-        ComputeOpaqueLightingPyramid,
+        ComputeTemporalColorPyramid,
         ComputeScreenSpaceComposite,
         CopyHistorySSR,
         CopyHistorySSGI,
@@ -48,11 +50,8 @@ namespace InfinityTech.Rendering.Pipeline
         RasterTranslucentT1,
         RasterTranslucentT2,
         ComputeColorPyramid,
-        CopyHistoryOcclusion,
-        CopyHistoryOcclusionDepth,
         ComputeSuperResolution,
         ComputeAntiAliasing,
-        CopyHistorySuperResolution,
         PostProcessing,
         ComputeBloom,
         RasterPostCombine,
@@ -105,7 +104,8 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey PreDebugColorBuffer = new RGResourceKey("_PreDebugColorTexture");
         public static readonly RGResourceKey DisplayDepthBuffer = new RGResourceKey("_DisplayDepthTexture");
         public static readonly RGResourceKey DepthBuffer = new RGResourceKey("_DepthTexture");
-        public static readonly RGResourceKey HiZBuffer = new RGResourceKey("_HiZTexture");
+        public static readonly RGResourceKey HiZClosestBuffer = new RGResourceKey("_HiZClosestTexture");
+        public static readonly RGResourceKey HiZFurthestBuffer = new RGResourceKey("_HiZFurthestTexture");
         public static readonly RGResourceKey HalfResDepthBuffer = new RGResourceKey("_HalfResDepthTexture");
         public static readonly RGResourceKey HalfResNormalBuffer = new RGResourceKey("_HalfResNormalTexture");
         public static readonly RGResourceKey DBufferA = new RGResourceKey("_DBufferTextureA");
@@ -145,6 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey SSRRayHitBuffer = new RGResourceKey("_SSRRayHitTexture");
         public static readonly RGResourceKey SSRResolvedBuffer = new RGResourceKey("_SSRResolvedTexture");
         public static readonly RGResourceKey SSRHitDistanceBuffer = new RGResourceKey("_SSRHitDistanceTexture");
+        public static readonly RGResourceKey SSRFilteredBuffer = new RGResourceKey("_SSRFilteredTexture");
         public static readonly RGResourceKey SSRTemporalBuffer = new RGResourceKey("_SSRTemporalTexture");
         public static readonly RGResourceKey SSRMetaBuffer = new RGResourceKey("_SSRMetaTexture");
         public static readonly RGResourceKey SSRDebugBuffer = new RGResourceKey("_SSRDebugTexture");
@@ -152,25 +153,32 @@ namespace InfinityTech.Rendering.Pipeline
         public static readonly RGResourceKey HistorySSRMetaBuffer = new RGResourceKey("_HistorySSRMetaTexture");
         public static readonly RGResourceKey SSGIBuffer = new RGResourceKey("_SSGITexture");
         public static readonly RGResourceKey SSGIRayHitBuffer = new RGResourceKey("_SSGIRayHitTexture");
-        public static readonly RGResourceKey SSGIResolvedBuffer = new RGResourceKey("_SSGIResolvedTexture");
+        public static readonly RGResourceKey SSGITraceRadianceBuffer = new RGResourceKey("_SSGITraceRadianceTexture");
+        public static readonly RGResourceKey SSGIHitDistanceBuffer = new RGResourceKey("_SSGIHitDistanceTexture");
+        public static readonly RGResourceKey SSGIFilteredBuffer = new RGResourceKey("_SSGIFilteredTexture");
         public static readonly RGResourceKey SSGITemporalBuffer = new RGResourceKey("_SSGITemporalTexture");
         public static readonly RGResourceKey SSGIMetaBuffer = new RGResourceKey("_SSGIMetaTexture");
         public static readonly RGResourceKey HistorySSGIRadianceBuffer = new RGResourceKey("_HistorySSGIRadianceTexture");
         public static readonly RGResourceKey HistorySSGIMetaBuffer = new RGResourceKey("_HistorySSGIMetaTexture");
         public static readonly RGResourceKey LightingBuffer = new RGResourceKey("_LightingTexture");
-        public static readonly RGResourceKey OpaqueLightingPyramidBuffer = new RGResourceKey("_OpaqueLightingPyramidTexture");
+        public static readonly RGResourceKey TemporalColorMipBuffer = new RGResourceKey("_TemporalColorMipTexture");
+        public static readonly RGResourceKey TemporalColorSourceBuffer = new RGResourceKey("_TemporalColorSourceTexture");
+        public static readonly RGResourceKey TemporalColorDepthBuffer = new RGResourceKey("_TemporalColorDepthTexture");
         public static readonly RGResourceKey OpaqueSceneColorBuffer = new RGResourceKey("_OpaqueSceneColorTexture");
         public static readonly RGResourceKey FoggedSceneColorBuffer = new RGResourceKey("_FoggedSceneColorTexture");
         public static readonly RGResourceKey ReactiveMaskBuffer = new RGResourceKey("_ReactiveMaskTexture");
         public static readonly RGResourceKey HistoryVolumetricFogBuffer = new RGResourceKey("_HistoryVolumetricFogTexture");
         public static readonly RGResourceKey HistoryVolumetricCloudBuffer = new RGResourceKey("_HistoryVolumetricCloudTexture");
         public static readonly RGResourceKey ScreenSpaceCompositeBuffer = new RGResourceKey("_ScreenSpaceCompositeTexture");
+        public static readonly RGResourceKey ScatterDiffuseBuffer = new RGResourceKey("_ScatterDiffuseTexture");
         public static readonly RGResourceKey SubsurfaceBuffer = new RGResourceKey("_SubsurfaceTexture");
         public static readonly RGResourceKey VolumetricFogBuffer = new RGResourceKey("_VolumetricFogTexture");
         public static readonly RGResourceKey VolumetricCloudBuffer = new RGResourceKey("_VolumetricCloudTexture");
         public static readonly RGResourceKey TranslucentDepthBuffer = new RGResourceKey("_TranslucentDepthTexture");
         public static readonly RGResourceKey ColorPyramidBuffer = new RGResourceKey("_ColorPyramidTexture");
         public static readonly RGResourceKey SuperResolutionBuffer = new RGResourceKey("_SuperResolutionTexture");
+        public static readonly RGResourceKey SRAccumulationBuffer = new RGResourceKey("_SRAccumulationBuffer");
+        public static readonly RGResourceKey SRDepthBuffer = new RGResourceKey("_SRDepthBuffer");
         public static readonly RGResourceKey TAAAccumulationBuffer = new RGResourceKey("_TAAAccumulationBuffer");
         public static readonly RGResourceKey TAADepthBuffer = new RGResourceKey("_TAADepthBuffer");
         public static readonly RGResourceKey TAAReprojectionBuffer = new RGResourceKey("_TAAReprojectionBuffer");

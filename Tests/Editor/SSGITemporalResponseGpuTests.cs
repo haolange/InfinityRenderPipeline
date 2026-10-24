@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     // delayed lighting changes, invalid reprojection and filtering across another surface.
     public class SSGITemporalResponseGpuTests
     {
-        enum Signal { Constant, Noise, NoiseScrambled, SlopeNoise, Step, RejectDepth, RejectNormal, DepthEdge, NormalEdge, ZeroConfidence, LowConfidence, InvalidCenter, MatureNoise, NoisyStep, RadianceNoise, NearDepthEdge, FarDepthEdge, RadianceEdge, SpatialNoise, SpatialSlopeConstant }
+        enum Signal { Constant, Noise, NoiseScrambled, SlopeNoise, Step, RejectDepth, RejectNormal, DepthEdge, NormalEdge, ZeroConfidence, LowConfidence, InvalidCenter, MatureNoise, NoisyStep, RadianceNoise, NearDepthEdge, FarDepthEdge, RadianceEdge, SpatialNoise, SpatialSlopeConstant, MovingSurfaceDepth }
 
         [UnityTest]
         public IEnumerator Constant_PreservesPremultipliedEnergyAndHistoryAge() => Check(Signal.Constant);
@@ -22,6 +22,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public IEnumerator Reset_PreservesCurrentResolvedSample() => Check(Signal.Noise);
         [UnityTest]
         public IEnumerator LightingStep_RespondsWithoutSeparatingConfidenceFromRadiance() => Check(Signal.Step);
+        [UnityTest]
+        public IEnumerator MovingSurface_UsesExpectedPreviousObjectDepth() => Check(Signal.MovingSurfaceDepth);
         [UnityTest]
         public IEnumerator ChangedDepth_RejectsHistory() => Check(Signal.RejectDepth);
         [UnityTest]
@@ -109,7 +111,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                                 Assert.AreEqual(run.color[i] * .25f, run.color[i + 2], 1e-5f);
                                 Assert.AreEqual(.5f, run.color[i + 3], 1e-5f);
                             }
-                        Assert.Less(Math.Sqrt(squared / count), .03, "The existing B3 kernel attenuates this known front-plane signal.");
+                        Assert.Less(Math.Sqrt(squared / count), .03, "The world-space kernel must retain the established front-plane noise attenuation budget.");
                     }
                 }
                 else if (signal == Signal.MatureNoise || signal == Signal.NoisyStep)
@@ -297,10 +299,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     });
                     Texture previousColor = Texture((x, y) => signal == Signal.Step || signal == Signal.NoisyStep ? new Color(.05f, .025f, .0125f, .1f) : new Color(.25f, .125f, .0625f, .5f));
                     Texture previousMeta = Texture((x, y) => new Color(signal == Signal.RejectNormal ? 1 : slope ? .4f / 1.4f : 0,
-                        signal == Signal.RejectNormal ? 1 : 0, signal == Signal.RejectDepth ? other.z / other.w : Depth(x, y), 64));
+                        signal == Signal.RejectNormal ? 1 : 0, signal == Signal.RejectDepth || signal == Signal.MovingSurfaceDepth ? other.z / other.w : Depth(x, y), 64));
                     var colors = new[] { Target(), Target() };
                     var metas = new[] { Target(), Target() };
+                    Bind("SRV_HitMotionMetadata",Texture((x,y)=>new Color(signal==Signal.MovingSurfaceDepth?other.z/other.w:Depth(x,y),Depth(x,y),1,0)));
                     m_Commands.SetComputeVectorParam(shader, "SSGI_Resolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
+                    m_Commands.SetComputeVectorParam(shader, "SSGI_TraceResolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
+                    m_Commands.SetComputeIntParam(shader, "SSGI_TraceScale", 1);
+                    m_Commands.SetComputeMatrixParam(shader, "Matrix_Proj", projection);
+                    m_Commands.SetComputeMatrixParam(shader, "Matrix_WorldToView", Matrix4x4.identity);
+
                     m_Commands.SetComputeFloatParam(shader, "SSGI_HistoryValid", Noisy(signal) || signal == Signal.RadianceNoise || signal == Signal.RadianceEdge ? 0 : 1);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalWeight", .93f);
                     m_Commands.SetComputeFloatParam(shader, "SSGI_TemporalClampScale", 1.25f);
@@ -315,10 +323,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         if (Spatial(signal))
                         {
                             Bind("SRV_Temporal", Current(frame - 1)); Bind("UAV_Output", colors[target]);
+                            Bind("SRV_HitDistance", Texture((x,y) => new Color(20,0,0,0)));
                         }
                         else
                         {
-                            Bind("SRV_Resolved", Current(frame - 1));
+                            Bind("SRV_TraceRadiance", Current(frame - 1));
                             Bind("SRV_HistoryRadiance", previousColor); Bind("SRV_HistoryMeta", previousMeta);
                             Bind("UAV_Temporal", colors[target]); Bind("UAV_Meta", metas[target]);
                         }

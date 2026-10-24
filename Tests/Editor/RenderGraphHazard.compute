@@ -1,0 +1,16 @@
+#pragma kernel Write
+#pragma kernel Copy
+StructuredBuffer<uint> Input;
+RWStructuredBuffer<uint> Output;
+uint Value;
+uint Count;
+[numthreads(64,1,1)]
+void Write(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < Count) Output[id.x] = Value;
+}
+[numthreads(64,1,1)]
+void Copy(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < Count) Output[id.x] = Input[id.x];
+}

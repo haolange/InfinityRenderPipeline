@@ -12,9 +12,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void CandidateTable_MatchesVisibleExtractSlots()
         {
+            var pool = new InfinityTech.Rendering.GPUResource.ResourcePool();
+            try
+            {
             using (var scene = new MeshScene(16))
             using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
-            using (var tables = new MeshCandidateTableStore(scene, bins))
+            using (var tables = new MeshCandidateTableStore(scene, bins, pool))
             {
                 MeshSceneUpdate update = scene.BeginUpdate();
                 MeshInstanceId visible = Create(update, flags: EMeshInstanceFlags.Visible);
@@ -40,6 +43,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.AreEqual(1, visibleCandidates);
                 Assert.AreEqual(commands.Length, table.commandCount);
             }
+                    }
+            finally { pool.Dispose(); }
         }
 
         static MeshInstanceId Create(MeshSceneUpdate update, EMeshInstanceFlags flags)

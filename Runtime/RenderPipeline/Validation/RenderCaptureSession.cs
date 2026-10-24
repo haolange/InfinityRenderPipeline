@@ -87,6 +87,9 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector2 currentJitterUV, previousJitterUV;
             public string entity;
             public bool historyReset;
+            public bool temporalColorValid;
+            public string temporalColorSource;
+            public Vector4 temporalColorGrid;
             public Vector3 position;
             public Quaternion rotation;
             public Matrix4x4 view, projection, jitteredViewProjection, inverseJitteredViewProjection, previousJitteredViewProjection, motionViewProjection, previousMotionViewProjection;
@@ -211,6 +214,15 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 m_Evidence.volumeSnapshots = snapshots.ToArray();
             }
+        }
+
+        internal void RecordTemporalColorState(Camera camera, in FTemporalColorView source, bool superResolution)
+        {
+            if (!m_CaptureThisFrame || m_Camera != camera || m_Evidence.frames.Count == 0) return;
+            var frame = m_Evidence.frames[m_Evidence.frames.Count - 1];
+            frame.temporalColorValid = source.valid;
+            frame.temporalColorSource = superResolution ? "UnsharpenedSR" : "UnsharpenedTAA";
+            frame.temporalColorGrid = source.resolution;
         }
 
         internal void RecordShadowState(LightPipeline.ShadowAllocator allocator)

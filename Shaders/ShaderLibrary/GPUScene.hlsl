@@ -4,7 +4,7 @@
 #include "Common.hlsl"
 #include "Geometry.hlsl"
 
-// Transform table uploaded by MeshSceneResidency (current local-to-world matrices).
+// Immutable scene-owned transform version (current local-to-world matrices).
 struct FTransformData
 {
      float4x4 matrix_LocalToWorld;
@@ -14,6 +14,21 @@ uint instanceIndexOffset;
 StructuredBuffer<uint> instanceIndexBuffer;
 StructuredBuffer<FTransformData> transformBuffer;
 StructuredBuffer<FTransformData> previousTransformBuffer;
+StructuredBuffer<uint> transformGenerationBuffer;
+StructuredBuffer<uint> previousTransformGenerationBuffer;
+uint meshPreviousTransformCount, meshPreviousTransformValid;
+
+float4x4 MeshPreviousObjectToWorld(uint transformIndex)
+{
+    float4x4 previous = (float4x4)0;
+    if (meshPreviousTransformValid != 0 && transformIndex < meshPreviousTransformCount)
+    {
+        uint generation = transformGenerationBuffer[transformIndex];
+        if (generation != 0 && generation == previousTransformGenerationBuffer[transformIndex])
+            previous = previousTransformBuffer[transformIndex].matrix_LocalToWorld;
+    }
+    return previous;
+}
 StructuredBuffer<uint> renderingLayerBuffer;
 
 float MeshTransformSign(float4x4 objectToWorld)

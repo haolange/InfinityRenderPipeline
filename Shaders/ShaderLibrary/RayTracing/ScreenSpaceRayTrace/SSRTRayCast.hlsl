@@ -1,6 +1,7 @@
 #ifndef INFINITY_SCREEN_SPACE_RAY_TRACE
 #define INFINITY_SCREEN_SPACE_RAY_TRACE
 #include "../../ScreenSpaceDepth.hlsl"
+#include "../../HiZ.hlsl"
 #include "../../Common.hlsl"
 #include "../../Random.hlsl"
 #include "../../Montcalo.hlsl"
@@ -11,10 +12,10 @@ float GetScreenFadeBord(float2 uv, float width)
 }
 
 // Trace one projected segment through the closest-depth pyramid. Coarse cells
-// can reject a ray, but only mip zero can produce a hit. UV and depth always
+// can reject a ray, but only full-resolution surface depth can produce a hit. UV and depth always
 // refer to the same surface texel, never a component-wise aggregate.
 bool TraceScreenSpaceRay(float3 originVS, float3 directionVS, float maxDistance, float thickness,
-    uint budget, float jitter, float4x4 projection, Texture2D depthPyramid, float4 textureView, out float3 hit)
+    uint budget, float jitter, float4x4 projection, Texture2D<float> surfaceDepth, float4 surfaceView, Texture2D<float> depthPyramid, float4 textureView, out float3 hit)
 {
     hit = 0;
     float distance = maxDistance;
@@ -33,7 +34,10 @@ bool TraceScreenSpaceRay(float3 originVS, float3 directionVS, float maxDistance,
             float3 delta = end - start;
             uint width, height, mipCount;
             depthPyramid.GetDimensions(0, width, height, mipCount);
-            if (textureView.x > 0) { width = textureView.x; height = textureView.y; mipCount = 1 + floor(log2(max(width, height))); }
+            if (textureView.x > 0) mipCount = 1 + floor(log2(max(textureView.x, textureView.y)));
+            mipCount += 1; // Virtual level zero is the original surface, before the quad reduction.
+            surfaceDepth.GetDimensions(width, height);
+            if (surfaceView.x > 0) { width = surfaceView.x; height = surfaceView.y; }
             float2 fullSize = float2(width, height);
             float pixels = max(abs(delta.x) * width, abs(delta.y) * height);
             if (pixels >= 1)
@@ -45,18 +49,14 @@ bool TraceScreenSpaceRay(float3 originVS, float3 directionVS, float maxDistance,
                 {
                     float3 ray = start + delta * t;
                     if (any(ray.xy < 0) || any(ray.xy >= 1) || ray.z < 0 || ray.z > 1) break;
-                    uint2 mipSize = max(uint2(1, 1), uint2(width, height) >> level);
-                    float scale = (float)(1u << level);
-                    uint2 cell = min((uint2)(ray.xy * fullSize / scale), mipSize - 1);
-                    float2 lower = cell * scale / fullSize;
-                    float2 upper = min((cell + 1) * scale / fullSize, 1);
-                    if (cell.x == mipSize.x - 1) upper.x = 1;
-                    if (cell.y == mipSize.y - 1) upper.y = 1;
+                    uint2 cell = HiZCell(ray.xy, uint2(width, height), level);
+                    float2 lower, upper;
+                    HiZCellBounds(cell, uint2(width, height), level, lower, upper);
                     float2 boundary = float2(delta.x >= 0 ? upper.x : lower.x, delta.y >= 0 ? upper.y : lower.y);
                     float tx = abs(delta.x) > 1e-8 ? (boundary.x - ray.x) / delta.x : 1e20;
                     float ty = abs(delta.y) > 1e-8 ? (boundary.y - ray.y) / delta.y : 1e20;
                     float nextT = min(1, t + max(1e-7, min(tx, ty)));
-                    float surface = depthPyramid.Load(int3(cell, level)).r;
+                    float surface = level == 0 ? surfaceDepth.Load(int3(cell, 0)).r : depthPyramid.Load(int3(cell, level - 1)).r;
                     float endDepth = start.z + delta.z * nextT;
 #if UNITY_REVERSED_Z
                     bool inFront = min(ray.z, endDepth) > surface;
@@ -89,11 +89,11 @@ bool TraceScreenSpaceRay(float3 originVS, float3 directionVS, float maxDistance,
     return found;
 }
 // Linear march for rough surfaces: uniform steps over the screen-clipped projected segment against one level of the
-// closest-depth pyramid, then a secant refinement between the last two samples. Cheaper than the Hi-Z walk and less
-// precise; the lobe noise of rough surfaces hides the step error. The hit is snapped to a mip-zero texel center so
+// closest-depth hierarchy, then a secant refinement between the last two samples. Cheaper than the Hi-Z walk and less
+// precise; the lobe noise of rough surfaces hides the step error. The hit is snapped to an original-depth texel center so
 // UV and depth always describe the same surface texel, as in TraceScreenSpaceRay.
 bool TraceScreenSpaceRayLinear(float3 originVS, float3 directionVS, float maxDistance, float thickness,
-    uint steps, float jitter, float4x4 projection, Texture2D depthPyramid, float4 textureView, uint level, out float3 hit)
+    uint steps, float jitter, float4x4 projection, Texture2D<float> surfaceDepth, float4 surfaceView, Texture2D<float> depthPyramid, float4 textureView, uint level, out float3 hit)
 {
     hit = 0;
     float distance = maxDistance;
@@ -120,9 +120,12 @@ bool TraceScreenSpaceRayLinear(float3 originVS, float3 directionVS, float maxDis
 
             uint width, height, mipCount;
             depthPyramid.GetDimensions(0, width, height, mipCount);
-            if (textureView.x > 0) { width = textureView.x; height = textureView.y; mipCount = 1 + floor(log2(max(width, height))); }
+            if (textureView.x > 0) mipCount = 1 + floor(log2(max(textureView.x, textureView.y)));
+            mipCount += 1; // Virtual level zero is the original surface, before the quad reduction.
+            surfaceDepth.GetDimensions(width, height);
+            if (surfaceView.x > 0) { width = surfaceView.x; height = surfaceView.y; }
             level = min(level, mipCount - 1);
-            uint2 mipSize = max(uint2(1, 1), uint2(width, height) >> level);
+            uint2 mipSize = HiZLevelSize(uint2(width, height), level);
             float pixels = max(abs(delta.x) * width, abs(delta.y) * height) * exitT;
             if (pixels >= 1)
             {
@@ -137,8 +140,8 @@ bool TraceScreenSpaceRayLinear(float3 originVS, float3 directionVS, float maxDis
                 {
                     float3 ray = start + delta * t;
                     if (ray.z < 0 || ray.z > 1) break;
-                    uint2 cell = min((uint2)(ray.xy * float2(mipSize)), mipSize - 1);
-                    float surface = depthPyramid.Load(int3(cell, level)).r;
+                    uint2 cell = HiZCell(ray.xy, uint2(width, height), level);
+                    float surface = level == 0 ? surfaceDepth.Load(int3(cell, 0)).r : depthPyramid.Load(int3(cell, level - 1)).r;
                     if (!ScreenSpaceIsFarDepth(surface))
                     {
                         float rayEye = ScreenSpaceLinearEyeDepth(ray.z);
@@ -149,13 +152,14 @@ bool TraceScreenSpaceRayLinear(float3 originVS, float3 directionVS, float maxDis
                             float hitT = previousDelta < 0 ? lerp(previousT, t, saturate(-previousDelta / max(depthDelta - previousDelta, 1e-6))) : t;
                             float2 hitUV = start.xy + delta.xy * hitT;
                             uint2 texel = min((uint2)(hitUV * float2(width, height)), uint2(width, height) - 1);
-                            float texelDepth = depthPyramid.Load(int3(texel, 0)).r;
-                            if (!ScreenSpaceIsFarDepth(texelDepth))
+                            float texelDepth = surfaceDepth.Load(int3(texel, 0)).r;
+                            float actualDelta = ScreenSpaceLinearEyeDepth(start.z + delta.z * hitT) - ScreenSpaceLinearEyeDepth(texelDepth);
+                            if (!ScreenSpaceIsFarDepth(texelDepth) && abs(actualDelta) <= thickness)
                             {
                                 hit = float3((float2(texel) + 0.5) / float2(width, height), texelDepth);
                                 found = true;
+                                break;
                             }
-                            break;
                         }
                         previousDelta = depthDelta;
                     }

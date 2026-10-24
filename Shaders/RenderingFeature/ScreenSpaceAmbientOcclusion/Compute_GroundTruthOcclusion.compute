@@ -23,7 +23,9 @@ void OcclusionTrace(uint3 id : SV_DispatchThreadID)
     uint sourceOffset = (uint)round(normalSample.a * 8);
     float2 sourceUV = (id.xy * 2 + uint2(sourceOffset % 3, sourceOffset / 3) + 0.5) * UpsampleSize.zw;
 
-    if (ScreenSpaceIsFarDepth(SceneDepth))
+    float3 WorldNormal = normalSample.xyz * 2 - 1;
+    float normalLength = dot(WorldNormal,WorldNormal);
+    if (ScreenSpaceIsFarDepth(SceneDepth) || !isfinite(SceneDepth) || !all(isfinite(WorldNormal)) || normalLength <= 1e-8)
     {
         UAV_OcclusionTexture[id.xy] = 1;
         return;
@@ -32,11 +34,11 @@ void OcclusionTrace(uint3 id : SV_DispatchThreadID)
 	float3 ScreenPos = GetScreenSpacePos(sourceUV, SceneDepth);
 	float3 ViewPos = GetViewSpacePos(ScreenPos, Matrix_InvProj);
 
-	float3 WorldNormal = normalize(normalSample.xyz * 2 - 1);
+    WorldNormal *= rsqrt(normalLength);
     float3 ViewNormal = mul((float3x3)Matrix_WorldToView, WorldNormal);
 
-    float Occlusion = GTAO(NumRay, NumStep, Radius, Power, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, ScreenSpaceViewDirection(ViewPos), ViewNormal, Resolution, Matrix_InvProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, Global_point_clamp_sampler);
-    UAV_OcclusionTexture[id.xy] = lerp(1, Occlusion, Intensity);
+    float Occlusion = GTAO(NumRay, NumStep, Radius, HalfProjScale, TemporalOffset, TemporalDirection, SceneDepth, ScreenUV, PixelPosition, ViewPos, ScreenSpaceViewDirection(ViewPos), ViewNormal, Resolution, Matrix_InvProj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, Global_point_clamp_sampler);
+    UAV_OcclusionTexture[id.xy] = Occlusion;
 }
 
 RWTexture2D<float> UAV_SpatialTexture;
@@ -56,55 +58,81 @@ void OcclusionSpatialY(uint3 id : SV_DispatchThreadID)
     UAV_SpatialTexture[id.xy] = BilateralBlur(ScreenUV, float2(0, Resolution.w));
 }
 
-RWTexture2D<float> UAV_AccmulateTexture;
+RWTexture2D<float> UAV_AccumulationTexture;
+RWTexture2D<float4> UAV_OcclusionHistoryTexture;
+RWTexture2D<float> UAV_OcclusionHistoryDepth;
 [numthreads(16, 16, 1)]
 void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
 {
     if (any(id.xy >= (uint2)Resolution.xy)) return;
-    float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
-    float2 sourceUV = HalfResSourceUV(ScreenUV);
-    float2 Velocity = InfinitySampleLevel(SRV_MotionTexture,Global_point_clamp_sampler,sourceUV,0).xy;
-
-    float SampleColors[9];
-
-    [unroll]
-    for(uint i = 0; i < 9; i++)
+    float2 uv = (id.xy + 0.5) * Resolution.zw;
+    float2 sourceUV = HalfResSourceUV(uv);
+    float currentDepth = SRV_DepthTexture.Load(int3(id.xy,0)).r;
+    float visibility = saturate(SRV_OcclusionTexture.Load(int3(id.xy,0)).r);
+    float3 normal = SRV_NormalTexture.Load(int3(id.xy,0)).xyz * 2 - 1;
+    float normalLength = dot(normal,normal);
+    bool surfaceValid = isfinite(currentDepth) && currentDepth >= 0 && currentDepth <= 1
+        && !ScreenSpaceIsFarDepth(currentDepth) && all(isfinite(normal)) && normalLength > 1e-8;
+    float age = 0;
+    float2 packedNormal = 0;
+    if (surfaceValid)
     {
-        SampleColors[i] = InfinitySampleLevel(SRV_OcclusionTexture,Global_point_clamp_sampler,ScreenUV + (SampleOffset[i] * Resolution.zw),0).r;
+        normal *= rsqrt(normalLength);
+        packedNormal = PackNormalOctQuadEncode(normal);
+        float low = visibility, high = visibility;
+        float centerEyeDepth = ScreenSpaceLinearEyeDepth(currentDepth);
+        // Only a geometrically compatible neighborhood supplies the weak scalar guard.
+        [unroll]
+        for (int y=-1;y<=1;++y)
+        [unroll]
+        for (int x=-1;x<=1;++x)
+        {
+            int2 pixel = clamp(int2(id.xy)+int2(x,y),0,(int2)Resolution.xy-1);
+            float raw = SRV_DepthTexture.Load(int3(pixel,0)).r;
+            float3 neighborNormal = SRV_NormalTexture.Load(int3(pixel,0)).xyz * 2 - 1;
+            float lengthSquared = dot(neighborNormal,neighborNormal);
+            if (!ScreenSpaceIsFarDepth(raw) && lengthSquared > 1e-8)
+            {
+                neighborNormal *= rsqrt(lengthSquared);
+                if (dot(normal,neighborNormal) > .9 && abs(ScreenSpaceLinearEyeDepth(raw)-centerEyeDepth) <= max(.01*centerEyeDepth,.001))
+                {
+                    float value = saturate(SRV_OcclusionTexture.Load(int3(pixel,0)).r);
+                    low = min(low,value); high = max(high,value);
+                }
+            }
+        }
+        float4 metadata = InfinitySampleLevel(SRV_MotionMetadataTexture,Global_point_clamp_sampler,sourceUV,0);
+        if (GTAOHistoryValid != 0 && metadata.z > 0 && isfinite(metadata.x) && metadata.x >= 0 && metadata.x <= 1)
+        {
+            float2 motion = InfinitySampleLevel(SRV_MotionTexture,Global_point_clamp_sampler,sourceUV,0).xy;
+            float2 historyUV; float expectedDepth;
+            ReprojectSurface(sourceUV,currentDepth,motion,Matrix_InvViewProj,Matrix_HistoryViewProj,
+                Matrix_MotionViewProj,Matrix_LastMotionViewProj,historyUV,expectedDepth);
+            expectedDepth = metadata.x;
+            if (all(historyUV >= 0) && all(historyUV < 1)
+                && HistoryDepthConfidence(SRV_HistoryDepthTexture,SRV_HistoryDepthTexture_InfinityView,historyUV,expectedDepth,0) > 0)
+            {
+                float4 previous = InfinitySampleLevel(SRV_HistoryTexture,Global_point_clamp_sampler,historyUV,0);
+                if (all(isfinite(previous)) && previous.g >= 1
+                    && dot(normal,UnpackNormalOctQuadEncode(previous.ba)) > .9)
+                {
+                    age = min(previous.g,63);
+                    // Sampling uncertainty sets a generous scalar interval, rather than
+                    // clipping noisy visibility to a color-style variance AABB.
+                    float margin = TemporalScale * rsqrt((float)max(1,NumRay*NumStep));
+                    float oldVisibility = clamp(saturate(previous.r),max(0,low-margin),min(1,high+margin));
+                    float currentWeight = max(rcp(age+1),1-TemporalWeight);
+                    visibility = lerp(oldVisibility,visibility,currentWeight);
+                }
+            }
+        }
+        age += 1;
     }
-
-
-
-    float m1 = 0;
-    float m2 = 0;
-
-    [unroll]
-    for(uint x = 0; x < 9; x++)
-    {
-        m1 += SampleColors[x];
-        m2 += SampleColors[x] * SampleColors[x];
-    }
-
-    float mean = m1 / 9;
-    float stddev = sqrt(max(0, (m2 / 9) - pow2(mean)));
-
-    float MinColor = mean - TemporalScale * stddev;
-    float MaxColor = mean + TemporalScale * stddev;
-
-    float CurrColor = SampleColors[4];
-    float currentDepth = SRV_DepthTexture.Load(int3(id.xy, 0)).r;
-    float2 HistoryUV; float expectedHistoryDepth;
-    ReprojectSurface(sourceUV, currentDepth, Velocity, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, HistoryUV, expectedHistoryDepth);
-    float PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, HistoryUV, 0).r;
-    MinColor = min(MinColor, CurrColor);
-    MaxColor = max(MaxColor, CurrColor);
-    PrevColor = clamp(PrevColor, MinColor, MaxColor);
-
-    float DepthReject = HistoryDepthConfidence(SRV_HistoryDepthTexture, SRV_HistoryDepthTexture_InfinityView, HistoryUV, expectedHistoryDepth, 0);
-
-	float VelocityWeight = clamp(lerp(TemporalWeight, 0.0, length(Velocity) * 200.0), 0.0, TemporalWeight) * DepthReject;
-    if (any(HistoryUV < 0) || any(HistoryUV > 1)) VelocityWeight = 0;
-    UAV_AccmulateTexture[id.xy] = saturate(lerp(CurrColor, PrevColor, VelocityWeight));
+    else visibility = 1;
+    visibility = saturate(visibility);
+    UAV_AccumulationTexture[id.xy] = visibility;
+    UAV_OcclusionHistoryTexture[id.xy] = float4(visibility,age,packedNormal);
+    UAV_OcclusionHistoryDepth[id.xy] = currentDepth;
 }
 
 RWTexture2D<float> UAV_UpsampleTexture;
@@ -113,8 +141,16 @@ void OcclusionUpsample(uint3 id : SV_DispatchThreadID)
 {
     if (any(id.xy >= (uint2)UpsampleSize.xy)) return;
     float2 uv = (id.xy + 0.5) * UpsampleSize.zw;
-    float centerDepth = ScreenSpaceLinearEyeDepth(SRV_DepthTexture.Load(int3(id.xy, 0)).r);
-    float3 normal = normalize(SRV_NormalTexture.Load(int3(id.xy, 0)).xyz * 2 - 1);
+    float rawDepth = SRV_DepthTexture.Load(int3(id.xy, 0)).r;
+    float3 normal = SRV_NormalTexture.Load(int3(id.xy, 0)).xyz * 2 - 1;
+    float normalLength = dot(normal,normal);
+    if (ScreenSpaceIsFarDepth(rawDepth) || !isfinite(rawDepth) || !all(isfinite(normal)) || normalLength <= 1e-8)
+    {
+        UAV_UpsampleTexture[id.xy] = 1;
+        return;
+    }
+    float centerDepth = ScreenSpaceLinearEyeDepth(rawDepth);
+    normal *= rsqrt(normalLength);
     float2 lowPosition = uv * Resolution.xy - 0.5;
     int2 basePixel = (int2)floor(lowPosition);
     float2 fraction = frac(lowPosition);
@@ -126,12 +162,16 @@ void OcclusionUpsample(uint3 id : SV_DispatchThreadID)
     {
         int2 pixel = clamp(basePixel + int2(x, y), 0, (int2)Resolution.xy - 1);
         float depth = ScreenSpaceLinearEyeDepth(SRV_HalfResDepthTexture.Load(int3(pixel, 0)).r);
-        float3 lowNormal = normalize(SRV_HalfResNormalTexture.Load(int3(pixel, 0)).xyz * 2 - 1);
+        float3 lowNormal = SRV_HalfResNormalTexture.Load(int3(pixel, 0)).xyz * 2 - 1;
+        float lowLength = dot(lowNormal,lowNormal);
         float bilinear = (x == 0 ? 1 - fraction.x : fraction.x) * (y == 0 ? 1 - fraction.y : fraction.y);
-        float weight = bilinear * exp(-abs(depth - centerDepth) / max(0.01 * centerDepth, 0.001)) * pow(saturate(dot(normal, lowNormal)), 8);
+        float weight = 0;
+        if (lowLength > 1e-8 && all(isfinite(lowNormal)))
+            weight = bilinear * exp(-abs(depth - centerDepth) / max(0.01 * centerDepth, 0.001)) * pow(saturate(dot(normal, lowNormal * rsqrt(lowLength))), 8);
         total += SRV_OcclusionTexture.Load(int3(pixel, 0)).r * weight;
         weightSum += weight;
     }
     // No compatible surface sample means no supported occlusion contribution.
-    UAV_UpsampleTexture[id.xy] = weightSum > 1e-6 ? saturate(total / weightSum) : 1;
+    float visibility = weightSum > 1e-6 ? saturate(total / weightSum) : 1;
+    UAV_UpsampleTexture[id.xy] = lerp(1,pow(visibility,Power),Intensity);
 }

@@ -77,6 +77,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int StructuralRevision;
         public int ContentRevision;
         public int VisibilityRevision;
+        public ulong TransformRevision;
     }
 
     /// <summary>
@@ -88,6 +89,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int StructuralRevision;
         public int ContentRevision;
         public int VisibilityRevision;
+        public ulong TransformRevision;
 
         public ulong[] TransformDirtyPages;
         public ulong[] BoundsDirtyPages;

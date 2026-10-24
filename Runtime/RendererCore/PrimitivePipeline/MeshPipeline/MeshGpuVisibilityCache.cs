@@ -13,6 +13,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     public readonly struct MeshGpuVisibilityKey : IEquatable<MeshGpuVisibilityKey>
     {
         public readonly ulong viewKey;
+        readonly EMeshVisibilityPhase m_Phase;
+        readonly ulong m_History;
         public readonly int subviewIndex;
         public readonly int policyId;
         public readonly int layerMask;
@@ -21,8 +23,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly bool filterRenderingLayers;
         public readonly uint excludeInstanceFlags;
 
-        public MeshGpuVisibilityKey(in MeshView view)
+        public MeshGpuVisibilityKey(in MeshView view) : this(view, false) { }
+        internal MeshGpuVisibilityKey(in MeshView view, bool requestIdentity)
         {
+            m_Phase = view.visibilityPhase; m_History = requestIdentity ? view.visibilityHistory : 0;
             viewKey = view.viewKey;
             subviewIndex = view.subviewIndex;
             policyId = view.PolicyId;
@@ -35,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public bool Equals(MeshGpuVisibilityKey other)
         {
-            return viewKey == other.viewKey && subviewIndex == other.subviewIndex && policyId == other.policyId
+            return m_Phase == other.m_Phase && m_History == other.m_History && viewKey == other.viewKey && subviewIndex == other.subviewIndex && policyId == other.policyId
                 && layerMask == other.layerMask && renderingLayerMask == other.renderingLayerMask
                 && sceneCullingMask == other.sceneCullingMask
                 && filterRenderingLayers == other.filterRenderingLayers
@@ -49,6 +53,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             unchecked
             {
                 int hash = viewKey.GetHashCode();
+                hash = hash * 31 + (int)m_Phase;
+                hash = hash * 31 + m_History.GetHashCode();
                 hash = hash * 31 + subviewIndex;
                 hash = hash * 31 + policyId;
                 hash = hash * 31 + layerMask;
@@ -81,9 +87,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_ResourcePool = resourcePool ?? throw new ArgumentNullException(nameof(resourcePool));
         }
 
-        public static MeshGpuVisibilityKey MakeKey(in MeshView view)
+        public static MeshGpuVisibilityKey MakeKey(in MeshView view, bool requestIdentity = false)
         {
-            return new MeshGpuVisibilityKey(view);
+            return new MeshGpuVisibilityKey(view, requestIdentity);
         }
 
         public FBufferRef GetBufferRef(in MeshView view, int instanceCount)
@@ -140,6 +146,19 @@ namespace InfinityTech.Rendering.MeshPipeline
                 Slot slot = m_Slots[keys[i]];
                 slot.culled = false;
                 m_Slots[keys[i]] = slot;
+            }
+        }
+
+        internal int allocatedViewCount => m_Slots.Count;
+        internal void ReleaseView(ulong viewKey)
+        {
+            var keys = new List<MeshGpuVisibilityKey>();
+            foreach (var pair in m_Slots)
+                if (pair.Key.viewKey == viewKey) keys.Add(pair.Key);
+            foreach (var key in keys)
+            {
+                if (m_Slots[key].hasBuffer) m_Retired.Add(m_Slots[key].buffer);
+                m_Slots.Remove(key);
             }
         }
 

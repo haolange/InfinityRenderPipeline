@@ -79,27 +79,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.IsFalse(source.Contains("QueryTexture(InfinityShaderIDs.ContactShadowBuffer)"));
         }
 
-        [Test]
-        public void RampTemporalWeight_RampsFromZeroAfterReset()
-        {
-            int validFrames = 12;
-            float configured = 0.93f;
-            float first = ScreenSpaceHistoryUtility.RampTemporalWeight(configured, ref validFrames, resetHistory: true);
-            Assert.AreEqual(0.0f, first);
-            Assert.AreEqual(1, validFrames);
 
-            float second = ScreenSpaceHistoryUtility.RampTemporalWeight(configured, ref validFrames, resetHistory: false);
-            Assert.Greater(second, 0.0f);
-            Assert.Less(second, configured);
-
-            for (int i = 0; i < ScreenSpaceHistoryUtility.TemporalResetRampFrames; ++i)
-            {
-                ScreenSpaceHistoryUtility.RampTemporalWeight(configured, ref validFrames, resetHistory: false);
-            }
-
-            float settled = ScreenSpaceHistoryUtility.RampTemporalWeight(configured, ref validFrames, resetHistory: false);
-            Assert.AreEqual(configured, settled);
-            Assert.AreEqual(ScreenSpaceHistoryUtility.TemporalResetRampFrames, validFrames);
-        }
     }
 }

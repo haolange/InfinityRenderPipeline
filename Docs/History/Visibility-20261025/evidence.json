@@ -1,0 +1,2573 @@
+{
+  "baseline": "2485580d1a4708b1711c6780b4f73b464bf11d61",
+  "unity": "6000.6.0f1",
+  "api": "Metal",
+  "gpu": "Apple M3 Max",
+  "tests": [
+    {
+      "filter": "ResourcePoolLifecycleTests",
+      "runGuid": "04210148-05b2-4573-b1f7-e18bdac29f82",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "GpuSceneSubmissionTests",
+      "runGuid": "25429320-35d6-4c9f-af55-7320e0c4e1dd",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "FrameSubmissionTests",
+      "runGuid": "f79d8891-3d06-4769-97d7-4ab345350ce6",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "RenderGraph",
+      "runGuid": "73d9948b-efbb-44a1-ab97-0e60c20eee34",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 1,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "Mesh",
+      "runGuid": "7ea4761a-b8f3-48e7-8aec-32f5160c79c5",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 92,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "MeshTransformVersionGpu",
+      "runGuid": "c8b41954-1304-49b8-8ba4-a824f13841c4",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "MeshOcclusionGpuTests",
+      "runGuid": "a8359279-342b-46b9-94b3-2f409cfba4d7",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "MeshOcclusionIntegrationTests",
+      "runGuid": "244fdd67-8129-407a-9410-e190358ef785",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "HiZGpuTests",
+      "runGuid": "f96b5caf-25d6-4372-ad3e-0a06aa80785c",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "ShaderInitializationGpuTests",
+      "runGuid": "ddbc5749-efdc-4b58-aac2-77271b1551d6",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "SuperResolutionHistoryGpuTests",
+      "runGuid": "72278641-4cef-4062-8b59-603f38aed5ca",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "TemporalColor",
+      "runGuid": "40476719-66d8-4571-be44-5fbd50d71ab0",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "GtaoTemporalGpuTests",
+      "runGuid": "b84342b5-f783-4637-baf3-aafe81d0cacb",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "Stochastic",
+      "runGuid": "66653f90-65fa-4f4d-a4df-8496118ee803",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "SSGITemporalResponseGpuTests",
+      "runGuid": "acbc962f-a731-4060-afbd-6762951388b2",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "SubsurfaceGpuTests",
+      "runGuid": "74fae981-c423-4c2b-9a4d-ed16588d99ab",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "CameraFrameStateTests",
+      "runGuid": "f2b0b039-9b4e-4c91-8ca1-0310e0aba575",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "Quality",
+      "runGuid": "c964b776-f55b-499a-9a2b-13b4a318d3b0",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "DeferredLightLoopGpuTests",
+      "runGuid": "43250333-6acf-4b31-81e0-d7c5b0a7681c",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    },
+    {
+      "filter": "FeatureRegistryTests",
+      "runGuid": "a2036fde-35cc-430c-ac26-2d6620838bd8",
+      "status": "Completed",
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "unity": "6000.6.0f1"
+    }
+  ],
+  "frames": [
+    {
+      "name": "baseline-frame-valid",
+      "status": "Completed",
+      "successfulFrames": 33,
+      "capturedFrames": 1,
+      "outstanding": 0,
+      "frames": [
+        {
+          "frame": 10979,
+          "width": 1666,
+          "height": 1756,
+          "internalWidth": 1666,
+          "internalHeight": 1756,
+          "presentExecuted": true,
+          "temporalColorValid": null,
+          "temporalColorSource": null,
+          "historyReset": false,
+          "position": {
+            "x": 8.0,
+            "y": -1.25,
+            "z": 0.6000000238418579
+          },
+          "rotation": {
+            "x": -0.08945874869823456,
+            "y": -0.7585893869400024,
+            "z": -0.10661278665065765,
+            "w": 0.6365320682525635
+          }
+        }
+      ],
+      "buffers": [
+        {
+          "semantic": "DisplayColor",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.2757775997571638,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "Depth",
+          "width": 1666,
+          "height": 1756,
+          "format": "R32_SFloat",
+          "bytes": 11701984,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 0.0432816706597805,
+            "mean": 0.013669645442393743,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSR",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.08957867419259369,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGI",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 0.99951171875,
+            "mean": 0.014757698233685923,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TAAAccumulation",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 1.0311603546142578e-05,
+            "maximum": 32.0,
+            "mean": 7.817785068667758,
+            "hasFiniteRoiSamples": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "shared-prev-color-full-frame",
+      "status": "Completed",
+      "successfulFrames": 33,
+      "capturedFrames": 1,
+      "outstanding": 0,
+      "frames": [
+        {
+          "frame": 98,
+          "width": 1666,
+          "height": 1756,
+          "internalWidth": 1666,
+          "internalHeight": 1756,
+          "presentExecuted": true,
+          "temporalColorValid": true,
+          "temporalColorSource": "UnsharpenedTAA",
+          "historyReset": false,
+          "position": {
+            "x": 8.0,
+            "y": -1.25,
+            "z": 0.6000000238418579
+          },
+          "rotation": {
+            "x": -0.08945874869823456,
+            "y": -0.7585893869400024,
+            "z": -0.10661278665065765,
+            "w": 0.6365320682525635
+          }
+        }
+      ],
+      "buffers": [
+        {
+          "semantic": "DisplayColor",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.2755238692184157,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "Depth",
+          "width": 1666,
+          "height": 1756,
+          "format": "R32_SFloat",
+          "bytes": 11701984,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 0.04328329488635063,
+            "mean": 0.013686637050508817,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSR",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.08695243093461776,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGI",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 0.99951171875,
+            "mean": 0.014989626007653268,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TAAAccumulation",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 1.043081283569336e-05,
+            "maximum": 32.0,
+            "mean": 7.807619964263993,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorSource",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 32.0,
+            "mean": 7.808729712528518,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorDepth",
+          "width": 1666,
+          "height": 1756,
+          "format": "R32_SFloat",
+          "bytes": 11701984,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 0.0432816706597805,
+            "mean": 0.013681452752568393,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip0",
+          "width": 833,
+          "height": 878,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 5850992,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 1.5439453125,
+            "mean": 0.2697513586250588,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip1",
+          "width": 416,
+          "height": 439,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 1460992,
+          "error": "",
+          "statistics": {
+            "samples": 730496,
+            "nonFinite": 0,
+            "roiSamples": 730496,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.26975373184481066,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip2",
+          "width": 208,
+          "height": 219,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 364416,
+          "error": "",
+          "statistics": {
+            "samples": 182208,
+            "nonFinite": 0,
+            "roiSamples": 182208,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.26984910597853967,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip3",
+          "width": 104,
+          "height": 109,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 90688,
+          "error": "",
+          "statistics": {
+            "samples": 45344,
+            "nonFinite": 0,
+            "roiSamples": 45344,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.27008804580066603,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip4",
+          "width": 52,
+          "height": 54,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 22464,
+          "error": "",
+          "statistics": {
+            "samples": 11232,
+            "nonFinite": 0,
+            "roiSamples": 11232,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.2706119026351943,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip5",
+          "width": 26,
+          "height": 27,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 5616,
+          "error": "",
+          "statistics": {
+            "samples": 2808,
+            "nonFinite": 0,
+            "roiSamples": 2808,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.2706019674610888,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip6",
+          "width": 13,
+          "height": 13,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 1352,
+          "error": "",
+          "statistics": {
+            "samples": 676,
+            "nonFinite": 0,
+            "roiSamples": 676,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.2728310179780926,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip7",
+          "width": 6,
+          "height": 6,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 288,
+          "error": "",
+          "statistics": {
+            "samples": 144,
+            "nonFinite": 0,
+            "roiSamples": 144,
+            "minimum": 0.0081634521484375,
+            "maximum": 1.0,
+            "mean": 0.27698538038465714,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip8",
+          "width": 3,
+          "height": 3,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 72,
+          "error": "",
+          "statistics": {
+            "samples": 36,
+            "nonFinite": 0,
+            "roiSamples": 36,
+            "minimum": 0.0090484619140625,
+            "maximum": 1.0,
+            "mean": 0.2769650353325738,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorMips_Mip9",
+          "width": 1,
+          "height": 1,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 8,
+          "error": "",
+          "statistics": {
+            "samples": 4,
+            "nonFinite": 0,
+            "roiSamples": 4,
+            "minimum": 0.033050537109375,
+            "maximum": 0.9677734375,
+            "mean": 0.27692413330078125,
+            "hasFiniteRoiSamples": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "signals-profile-final-frame",
+      "status": "Completed",
+      "successfulFrames": 33,
+      "capturedFrames": 1,
+      "outstanding": 0,
+      "frames": [
+        {
+          "frame": 6447,
+          "width": 1666,
+          "height": 1756,
+          "internalWidth": 1666,
+          "internalHeight": 1756,
+          "presentExecuted": true,
+          "temporalColorValid": true,
+          "temporalColorSource": "UnsharpenedTAA",
+          "historyReset": false,
+          "position": {
+            "x": 8.0,
+            "y": -1.25,
+            "z": 0.6000000238418579
+          },
+          "rotation": {
+            "x": -0.08945874869823456,
+            "y": -0.7585893869400024,
+            "z": -0.10661278665065765,
+            "w": 0.6365320682525635
+          }
+        }
+      ],
+      "buffers": [
+        {
+          "semantic": "DisplayColor",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 2.1696090698242188e-05,
+            "maximum": 1.0,
+            "mean": 0.32340109165401476,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "ScatterDiffuse",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": -0.07666015625,
+            "maximum": 1.4404296875,
+            "mean": 0.3066739104011082,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SubsurfaceDiffuse",
+          "width": 833,
+          "height": 878,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 5850992,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 1.302734375,
+            "mean": 0.03651676449408517,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGI",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.3212890625,
+            "mean": 0.010892951850347821,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "Occlusion",
+          "width": 1666,
+          "height": 1756,
+          "format": "R8_UNorm",
+          "bytes": 2925496,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.11764705882352941,
+            "maximum": 1.0,
+            "mean": 0.8572688421539569,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "LocalShadowMoments",
+          "width": 1024,
+          "height": 1024,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 8388608,
+          "error": "",
+          "statistics": {
+            "samples": 4194304,
+            "nonFinite": 0,
+            "roiSamples": 4194304,
+            "minimum": -13.375,
+            "maximum": 48992.0,
+            "mean": 155.73329388074407,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "VolumetricCloud",
+          "width": 833,
+          "height": 878,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 5850992,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.25,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "DBufferA",
+          "width": 1666,
+          "height": 1756,
+          "format": "R8G8B8A8_SRGB",
+          "bytes": 11701984,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.02597513479465243,
+            "hasFiniteRoiSamples": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "signals-restored-final-frame",
+      "status": "Completed",
+      "successfulFrames": 33,
+      "capturedFrames": 1,
+      "outstanding": 0,
+      "frames": [
+        {
+          "frame": 9533,
+          "width": 1666,
+          "height": 1756,
+          "internalWidth": 1666,
+          "internalHeight": 1756,
+          "presentExecuted": true,
+          "temporalColorValid": true,
+          "temporalColorSource": "UnsharpenedTAA",
+          "historyReset": false,
+          "position": {
+            "x": 8.0,
+            "y": -1.25,
+            "z": 0.6000000238418579
+          },
+          "rotation": {
+            "x": -0.08945874869823456,
+            "y": -0.7585893869400024,
+            "z": -0.10661278665065765,
+            "w": 0.6365320682525635
+          }
+        }
+      ],
+      "buffers": [
+        {
+          "semantic": "DisplayColor",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.27647778928103867,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "Depth",
+          "width": 1666,
+          "height": 1756,
+          "format": "R32_SFloat",
+          "bytes": 11701984,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 0.04328877106308937,
+            "mean": 0.013671997537998724,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSRResolved",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.93359375,
+            "mean": 0.09404296487798591,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSRTemporal",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.2880859375,
+            "mean": 0.08876072346257136,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSRMeta",
+          "width": 1666,
+          "height": 1756,
+          "format": "R32G32B32A32_SFloat",
+          "bytes": 46807936,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": -0.9980430603027344,
+            "maximum": 64.0,
+            "mean": 12.942214559682663,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSR",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.08877553099815154,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGITraceRadiance",
+          "width": 833,
+          "height": 878,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 5850992,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.0215052453623327,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGITemporal",
+          "width": 833,
+          "height": 878,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 5850992,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.011797242139419524,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGIMeta",
+          "width": 833,
+          "height": 878,
+          "format": "R32G32B32A32_SFloat",
+          "bytes": 11701984,
+          "error": "",
+          "statistics": {
+            "samples": 2925496,
+            "nonFinite": 0,
+            "roiSamples": 2925496,
+            "minimum": -0.9980353713035583,
+            "maximum": 64.0,
+            "mean": 8.39603393006567,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGIHitDistance",
+          "width": 833,
+          "height": 878,
+          "format": "R32_SFloat",
+          "bytes": 2925496,
+          "error": "",
+          "statistics": {
+            "samples": 731374,
+            "nonFinite": 0,
+            "roiSamples": 731374,
+            "minimum": 0.0,
+            "maximum": 13.269698143005371,
+            "mean": 0.07706165612131556,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "SSGI",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.010881684431966578,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "TemporalColorSource",
+          "width": 1666,
+          "height": 1756,
+          "format": "R16G16B16A16_SFloat",
+          "bytes": 23403968,
+          "error": "",
+          "statistics": {
+            "samples": 11701984,
+            "nonFinite": 0,
+            "roiSamples": 11701984,
+            "minimum": 1.0132789611816406e-05,
+            "maximum": 32.0,
+            "mean": 7.824442271449132,
+            "hasFiniteRoiSamples": true
+          }
+        }
+      ]
+    }
+  ],
+  "performance": {
+    "baseline-static": {
+      "status": "Completed",
+      "sampleCount": 120,
+      "drained": true,
+      "camera": [
+        1666,
+        1756
+      ],
+      "hardwareAsync": false,
+      "textureBytesEstimate": 522615920,
+      "bufferBytesEstimate": 743220,
+      "newTextureAllocationsDuringSample": 0,
+      "newBufferAllocationsDuringSample": 0,
+      "managedPoseArrayBytes": 1600,
+      "sourceDerivedPreviousPoseUploadBytesPerFrame": 512,
+      "versionsFirst": null,
+      "versionsLast": null,
+      "gpuMsAvailable": false
+    },
+    "baseline-dynamic": {
+      "status": "Completed",
+      "sampleCount": 120,
+      "drained": true,
+      "camera": [
+        1666,
+        1756
+      ],
+      "hardwareAsync": false,
+      "textureBytesEstimate": 522615920,
+      "bufferBytesEstimate": 743400,
+      "newTextureAllocationsDuringSample": 0,
+      "newBufferAllocationsDuringSample": 0,
+      "managedPoseArrayBytes": 1800,
+      "sourceDerivedPreviousPoseUploadBytesPerFrame": 576,
+      "versionsFirst": null,
+      "versionsLast": null,
+      "gpuMsAvailable": false
+    },
+    "baseline-multiview": {
+      "status": "Completed",
+      "sampleCount": 120,
+      "drained": true,
+      "camera": [
+        1666,
+        1756
+      ],
+      "hardwareAsync": false,
+      "textureBytesEstimate": 524937240,
+      "bufferBytesEstimate": 744716,
+      "newTextureAllocationsDuringSample": 0,
+      "newBufferAllocationsDuringSample": 0,
+      "managedPoseArrayBytes": 3600,
+      "sourceDerivedPreviousPoseUploadBytesPerFrame": 1152,
+      "versionsFirst": null,
+      "versionsLast": null,
+      "gpuMsAvailable": false
+    },
+    "candidate-static": {
+      "status": "Completed",
+      "sampleCount": 120,
+      "drained": true,
+      "camera": [
+        1666,
+        1756
+      ],
+      "hardwareAsync": false,
+      "textureBytesEstimate": 558742496,
+      "bufferBytesEstimate": 786964,
+      "newTextureAllocationsDuringSample": 0,
+      "newBufferAllocationsDuringSample": 0,
+      "managedPoseArrayBytes": 0,
+      "sourceDerivedPreviousPoseUploadBytesPerFrame": 0,
+      "versionsFirst": {
+        "liveVersions": 1,
+        "productions": 1,
+        "uploadedBytes": 640
+      },
+      "versionsLast": {
+        "liveVersions": 1,
+        "productions": 1,
+        "uploadedBytes": 640
+      },
+      "gpuMsAvailable": false
+    },
+    "candidate-dynamic": {
+      "status": "Completed",
+      "sampleCount": 120,
+      "drained": true,
+      "camera": [
+        1666,
+        1756
+      ],
+      "hardwareAsync": false,
+      "textureBytesEstimate": 558742496,
+      "bufferBytesEstimate": 1450916,
+      "newTextureAllocationsDuringSample": 0,
+      "newBufferAllocationsDuringSample": 0,
+      "managedPoseArrayBytes": 0,
+      "sourceDerivedPreviousPoseUploadBytesPerFrame": 0,
+      "versionsFirst": {
+        "liveVersions": 1,
+        "productions": 34,
+        "uploadedBytes": 24400
+      },
+      "versionsLast": {
+        "liveVersions": 1,
+        "productions": 153,
+        "uploadedBytes": 110080
+      },
+      "gpuMsAvailable": false
+    },
+    "candidate-multiview": {
+      "status": "Completed",
+      "sampleCount": 120,
+      "drained": true,
+      "camera": [
+        1666,
+        1756
+      ],
+      "hardwareAsync": false,
+      "textureBytesEstimate": 561254960,
+      "bufferBytesEstimate": 1755444,
+      "newTextureAllocationsDuringSample": 0,
+      "newBufferAllocationsDuringSample": 0,
+      "managedPoseArrayBytes": 0,
+      "sourceDerivedPreviousPoseUploadBytesPerFrame": 0,
+      "versionsFirst": {
+        "liveVersions": 1,
+        "productions": 187,
+        "uploadedBytes": 134560
+      },
+      "versionsLast": {
+        "liveVersions": 1,
+        "productions": 306,
+        "uploadedBytes": 220240
+      },
+      "gpuMsAvailable": false
+    }
+  },
+  "shaderDiagnostics": {
+    "pid": 89493,
+    "frame": 8044,
+    "computeCount": 26,
+    "shaderCount": 28,
+    "computes": [
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Utility/Compute_Utility.compute",
+        "name": "Compute_Utility",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute",
+        "name": "Compute_MeshDrawPipeline",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/TemporalAntiAliasing/Compute_TemporalAntiAliasing.compute",
+        "name": "Compute_TemporalAntiAliasing",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceReflection/Compute_ScreenSpaceReflection.compute",
+        "name": "Compute_ScreenSpaceReflection",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceAmbientOcclusion/Compute_GroundTruthOcclusion.compute",
+        "name": "Compute_GroundTruthOcclusion",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceIndirectDiffuse/Compute_ScreenSpaceIndirectDiffuse.compute",
+        "name": "Compute_ScreenSpaceIndirectDiffuse",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/ColorGrading/Compute_CombineLUTs.compute",
+        "name": "Compute_CombineLUTs",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/PyramidDepth/Compute_PyramidDepth.compute",
+        "name": "Compute_PyramidDepth",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/HalfResDownsample/Compute_HalfResDownsample.compute",
+        "name": "Compute_HalfResDownsample",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/LightTileMask/Compute_LightTileMask.compute",
+        "name": "Compute_LightTileMask",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/CubeFilter/Compute_CubeFilter.compute",
+        "name": "Compute_CubeFilter",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/LightCookie/Compute_LightCookie.compute",
+        "name": "Compute_LightCookie",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ShadowMoment/Compute_ShadowMoment.compute",
+        "name": "Compute_ShadowMoment",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ContactShadow/Compute_ContactShadow.compute",
+        "name": "Compute_ContactShadow",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/DeferredShading/Compute_DeferredShading.compute",
+        "name": "Compute_DeferredShading",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/BurleySubsurface/Compute_BurleySubsurface.compute",
+        "name": "Compute_BurleySubsurface",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/AtmosphericLUT/Compute_AtmosphericLUT.compute",
+        "name": "Compute_AtmosphericLUT",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/VolumetricFog/Compute_VolumetricFog.compute",
+        "name": "Compute_VolumetricFog",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/VolumetricCloud/Compute_VolumetricCloud.compute",
+        "name": "Compute_VolumetricCloud",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/FogComposite/Compute_FogComposite.compute",
+        "name": "Compute_FogComposite",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/PyramidColor/Compute_PyramidColor.compute",
+        "name": "Compute_PyramidColor",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/ScreenSpaceComposite/Compute_ScreenSpaceComposite.compute",
+        "name": "Compute_ScreenSpaceComposite",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/SuperResolution/Compute_SuperResolution.compute",
+        "name": "Compute_SuperResolution",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/PostProcessing/Compute_PostProcessing.compute",
+        "name": "Compute_PostProcessing",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/DebugView/Compute_DebugView.compute",
+        "name": "Compute_DebugView",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/RayTracing/VisibilityRTAO.urtshader",
+        "name": "VisibilityRTAO",
+        "messages": []
+      }
+    ],
+    "shaders": [
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/InfinityLit.shader",
+        "name": "InfinityPipeline/InfinityLit",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/TerrainLit.shader",
+        "name": "InfinityPipeline/TerrainLit",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/InfinityLit-Instanced.shader",
+        "name": "InfinityPipeline/InfinityLit-Instanced",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/TerrainLitAdd.shader",
+        "name": "Hidden/InfinityPipeline/TerrainLitAdd",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Utility/DrawFullScreen.shader",
+        "name": "InfinityPipeline/Utility/DrawFullScreen",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Utility/DrawSystemLUT.shader",
+        "name": "InfinityPipeline/Utility/DrawSystemLUT",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/InfinityUnlit.shader",
+        "name": "InfinityPipeline/InfinityUnlit",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Utility/BakingSky.shader",
+        "name": "Hidden/InfinityPipeline/BakingSky",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/InfinityDecal.shader",
+        "name": "InfinityPipeline/InfinityDecal",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinityForwardBase.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinityForwardBase",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/UntaggedSystemLUT.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/UntaggedSystemLUT",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinityRasterGBufferPass.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinityGBufferPass",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinityShadowCaster.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinityShadowCaster",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/TerrainLitBase.shader",
+        "name": "Hidden/InfinityPipeline/TerrainLitBase",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Shaders/Surface/TerrainLitBasemapGen.shader",
+        "name": "Hidden/InfinityPipeline/TerrainLitBasemapGen",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/UnusedLightMode.shader",
+        "name": "Hidden/InfinityTests/UnusedLightMode",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinitySRPDefaultUnlit.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinitySRPDefaultUnlit",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinityMeta.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinityMeta",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/OutputUiBlend.shader",
+        "name": "Hidden/InfinityTests/OutputUiBlend",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/UntaggedRasterTerrainAdd.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/UntaggedTerrainAdd",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinityEmpty.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinityEmpty",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/GBufferContractRaster.shader",
+        "name": "Hidden/InfinityPipeline/GBufferContractRaster",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ForeignPipeline.shader",
+        "name": "Hidden/InfinityTests/ForeignPipeline",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinitySystemLUT.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinitySystemLUT",
+        "messages": []
+      },
+      {
+        "path": "Packages/com.infinity.render-pipeline/Tests/Editor/Fixtures/ShaderStripping/InfinityRasterTerrainAdd.shader",
+        "name": "Hidden/InfinityTests/ShaderStripping/InfinityTerrainAdd",
+        "messages": []
+      },
+      {
+        "path": "Assets/__InfinityVisibilityValidation/GraphsFinal/Lit.shadergraph",
+        "name": "Infinity Validation/Lit",
+        "messages": []
+      },
+      {
+        "path": "Assets/__InfinityVisibilityValidation/GraphsFinal/Unlit.shadergraph",
+        "name": "Infinity Validation/Unlit",
+        "messages": []
+      },
+      {
+        "path": "Assets/__InfinityVisibilityValidation/GraphsFinal/Decal.shadergraph",
+        "name": "Infinity Validation/Decal",
+        "messages": []
+      }
+    ]
+  },
+  "supplementFeatures": [
+    {
+      "camera": "MainCamera",
+      "successful": 3264,
+      "features": [
+        {
+          "name": "Depth",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "GBuffer",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "Motion",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "HiZ",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "GTAO",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "RTAO",
+          "requested": false,
+          "supported": false,
+          "produced": false,
+          "reason": "Ray tracing is disabled on the RP Asset."
+        },
+        {
+          "name": "ContactShadow",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "SSR",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "SSGI",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "DeferredShading",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "TAA",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "SuperResolution",
+          "requested": false,
+          "supported": true,
+          "produced": false,
+          "reason": null
+        },
+        {
+          "name": "ColorPyramid",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "VolumetricFog",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "VolumetricCloud",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "PostProcess",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "Display",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "DBuffer",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "TemporalColorPyramid",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "HalfResDownsample",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "LocalLightList",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "ShadowMoments",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "LightCookies",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        },
+        {
+          "name": "ReflectionProbes",
+          "requested": false,
+          "supported": true,
+          "produced": false,
+          "reason": null
+        },
+        {
+          "name": "SubsurfaceScattering",
+          "requested": true,
+          "supported": true,
+          "produced": true,
+          "reason": null
+        }
+      ]
+    }
+  ],
+  "sourceIntegrity": {
+    "checked": 642,
+    "changed": [
+      "Packages/com.infinity.render-pipeline/Runtime/Resources/InfinityDefaultVolumeProfile.asset"
+    ],
+    "expectedPackageProfileRemoval": "Packages/com.infinity.render-pipeline/Runtime/Resources/InfinityDefaultVolumeProfile.asset"
+  },
+  "limits": [
+    "Hardware Async unavailable on this Metal host",
+    "Resource-pool whole lifecycle remains partial: real cross-queue and native Submit failure recovery unverified",
+    "D3D12/Vulkan/real HDR display not run",
+    "Cloud output finite but neutral in this camera; visible-cloud quality not accepted",
+    "No isolated GPU timings; no speedup claim",
+    "Existing cold Editor compilation CS0618 LightProbeProxyVolume fixture warning",
+    "SSGI spatial noise RMS failed initially at .058; support radius corrected with original .03 budget retained",
+    "Transient baseline hot-swap imports produced mixed-kernel messages; final candidate restarted and fresh rendering log checked separately"
+  ],
+  "cleanup": {
+    "editorExited": true,
+    "device": "/dev/disk7",
+    "imageDetached": true,
+    "externalTestResult": {
+      "exists": true,
+      "removedMatchingOwnedResult": true,
+      "matches": [
+        "tests-subsurface-profile-final/results.xml"
+      ]
+    },
+    "status": "Verified",
+    "taskDirectory": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/infinity-visibility-upgrade/run01",
+    "originalLibrarySymlinkUnchanged": true,
+    "sourceProtectedFilesChecked": 642,
+    "expectedSourceChanges": [
+      "Packages/com.infinity.render-pipeline/Runtime/Resources/InfinityDefaultVolumeProfile.asset"
+    ],
+    "restoredSceneSettings": {
+      "pid": 89493,
+      "play": false,
+      "pause": false,
+      "bg": false,
+      "timeScale": 1.0,
+      "scene": "Assets/Scene/Spazon/Scene_Spazon.unity",
+      "dirty": false,
+      "assetDirty": false,
+      "quality": 0,
+      "width": 1666,
+      "height": 1756,
+      "ownedObjects": 0,
+      "benchmark": false,
+      "supplement": false
+    },
+    "retainedArtifacts": [
+      "README.md",
+      "evidence.json",
+      "scene-final.jpg",
+      "scene-supplement.jpg"
+    ],
+    "taskDirectoryAbsent": true,
+    "taskParentAbsent": true,
+    "imageAndCacheRemoved": true,
+    "ownedEditorAbsent": true
+  },
+  "finalOriginalFeatures": [
+    [
+      {
+        "name": "Depth",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "GBuffer",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "Motion",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "HiZ",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "GTAO",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "RTAO",
+        "requested": false,
+        "supported": false,
+        "produced": false
+      },
+      {
+        "name": "ContactShadow",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "SSR",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "SSGI",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "DeferredShading",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "TAA",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "SuperResolution",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "ColorPyramid",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "VolumetricFog",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "VolumetricCloud",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "PostProcess",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "Display",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "DBuffer",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "TemporalColorPyramid",
+        "requested": true,
+        "supported": true,
+        "produced": true
+      },
+      {
+        "name": "HalfResDownsample",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "LocalLightList",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "ShadowMoments",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "LightCookies",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "ReflectionProbes",
+        "requested": false,
+        "supported": true,
+        "produced": false
+      },
+      {
+        "name": "SubsurfaceScattering",
+        "requested": false,
+        "supported": false,
+        "produced": false
+      }
+    ]
+  ],
+  "srNormalStatistics": {
+    "temporal-statistics-sr-first.json": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "result": [
+        {
+          "sourceValid": true,
+          "camera": "MainCamera",
+          "frame": 5382,
+          "time": 538.6688,
+          "sr": false,
+          "width": 1666,
+          "height": 1756,
+          "mean": 0.04635048457648293,
+          "maximum": 2.194564,
+          "nonfinite": 0,
+          "samples": 2925496,
+          "features": [
+            {
+              "name": "Depth",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GBuffer",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Motion",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HiZ",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GTAO",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "RTAO",
+              "requested": false,
+              "supported": false,
+              "produced": false
+            },
+            {
+              "name": "ContactShadow",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "SSR",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "SSGI",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DeferredShading",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "TAA",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "SuperResolution",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "VolumetricFog",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "VolumetricCloud",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "PostProcess",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Display",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DBuffer",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "TemporalColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HalfResDownsample",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LocalLightList",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ShadowMoments",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LightCookies",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ReflectionProbes",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            }
+          ]
+        },
+        {
+          "sourceValid": true,
+          "camera": "InfinityTemporal.SRProbe",
+          "frame": 5382,
+          "time": 538.6688,
+          "sr": true,
+          "width": 128,
+          "height": 128,
+          "mean": 0.04088593352935277,
+          "maximum": 0.386081725,
+          "nonfinite": 0,
+          "samples": 16384,
+          "features": [
+            {
+              "name": "Depth",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GBuffer",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Motion",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HiZ",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GTAO",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "RTAO",
+              "requested": false,
+              "supported": false,
+              "produced": false
+            },
+            {
+              "name": "ContactShadow",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "SSR",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "SSGI",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DeferredShading",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "TAA",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "SuperResolution",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "ColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "VolumetricFog",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "VolumetricCloud",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "PostProcess",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Display",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DBuffer",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "TemporalColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HalfResDownsample",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LocalLightList",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ShadowMoments",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LightCookies",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ReflectionProbes",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            }
+          ]
+        }
+      ]
+    },
+    "temporal-statistics-sr-second.json": {
+      "output": null,
+      "diagnostics": [],
+      "success": true,
+      "result": [
+        {
+          "sourceValid": true,
+          "camera": "MainCamera",
+          "frame": 6201,
+          "time": 620.5697,
+          "sr": false,
+          "width": 1666,
+          "height": 1756,
+          "mean": 0.0463195375297511,
+          "maximum": 2.260937,
+          "nonfinite": 0,
+          "samples": 2925496,
+          "features": [
+            {
+              "name": "Depth",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GBuffer",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Motion",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HiZ",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GTAO",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "RTAO",
+              "requested": false,
+              "supported": false,
+              "produced": false
+            },
+            {
+              "name": "ContactShadow",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "SSR",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "SSGI",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DeferredShading",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "TAA",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "SuperResolution",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "VolumetricFog",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "VolumetricCloud",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "PostProcess",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Display",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DBuffer",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "TemporalColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HalfResDownsample",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LocalLightList",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ShadowMoments",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LightCookies",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ReflectionProbes",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            }
+          ]
+        },
+        {
+          "sourceValid": true,
+          "camera": "InfinityTemporal.SRProbe",
+          "frame": 6201,
+          "time": 620.5697,
+          "sr": true,
+          "width": 128,
+          "height": 128,
+          "mean": 0.04096937636495568,
+          "maximum": 0.3852266,
+          "nonfinite": 0,
+          "samples": 16384,
+          "features": [
+            {
+              "name": "Depth",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GBuffer",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Motion",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HiZ",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "GTAO",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "RTAO",
+              "requested": false,
+              "supported": false,
+              "produced": false
+            },
+            {
+              "name": "ContactShadow",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "SSR",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "SSGI",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DeferredShading",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "TAA",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "SuperResolution",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "ColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "VolumetricFog",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "VolumetricCloud",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "PostProcess",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "Display",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "DBuffer",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "TemporalColorPyramid",
+              "requested": true,
+              "supported": true,
+              "produced": true
+            },
+            {
+              "name": "HalfResDownsample",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LocalLightList",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ShadowMoments",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "LightCookies",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            },
+            {
+              "name": "ReflectionProbes",
+              "requested": false,
+              "supported": true,
+              "produced": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "restoration": {
+    "pid": 89493,
+    "play": false,
+    "pause": false,
+    "bg": false,
+    "timeScale": 1.0,
+    "scene": "Assets/Scene/Spazon/Scene_Spazon.unity",
+    "dirty": false,
+    "assetDirty": false,
+    "quality": 0,
+    "width": 1666,
+    "height": 1756,
+    "ownedObjects": 0,
+    "benchmark": false,
+    "supplement": false
+  },
+  "finalLog": {
+    "bytes": 228587,
+    "sha256": "11074b5cf84550de2ce9422607950752303daffe64b44ee43ecc1530f4eb0862",
+    "shaderWarningCount": 0,
+    "shaderErrorCount": 0,
+    "kernelIndexErrorCount": 0,
+    "hasMissingComputeBinding": false,
+    "hasRenderingAssertion": false,
+    "preexistingCSharpLPPVWarning": true
+  }
+}

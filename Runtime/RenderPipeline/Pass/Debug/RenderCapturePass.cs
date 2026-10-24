@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             RenderCaptureSession session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, "Lighting") < 0) return;
             // Capture the final opaque lighting before ownership moves to scene-color stages.
-            RecordCaptureTransfer(session, "Lighting", InfinityShaderIDs.LightingBuffer);
+            RecordCaptureTransfer(session, "Lighting", InfinityShaderIDs.OpaqueSceneColorBuffer);
         }
 
         void RecordDeferredLightingCapture()
@@ -116,16 +116,23 @@ namespace InfinityTech.Rendering.Pipeline
             foreach (string buffer in session.request.buffers)
             {
                 if (buffer == "Lighting" || buffer == "DeferredLighting") continue;
-                if (buffer == "HiZ")
+                if (buffer == "HiZClosest" || buffer == "HiZFurthest" || buffer == "TemporalColorMips")
                 {
-                    var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGScoper.QueryTexture(InfinityShaderIDs.HiZBuffer));
+                    var key = buffer == "TemporalColorMips" ? InfinityShaderIDs.TemporalColorMipBuffer :
+                        buffer == "HiZClosest" ? InfinityShaderIDs.HiZClosestBuffer : InfinityShaderIDs.HiZFurthestBuffer;
+                    var descriptor = m_RGBuilder.GetTextureDescriptor(m_RGScoper.QueryTexture(key));
                     for (int mip = 0; mip < PyramidMipBatch.MipCount(descriptor.width, descriptor.height); mip++)
-                        RecordCaptureTransfer(session, "HiZ_Mip" + mip, InfinityShaderIDs.HiZBuffer, mip);
+                        RecordCaptureTransfer(session, buffer + "_Mip" + mip, key, mip);
                     continue;
                 }
                 int id;
                 switch (buffer)
                 {
+                    case "TemporalColorSource": case "TemporalColorDepth":
+                        if (!m_ActiveFrameState.temporalColorView.valid)
+                            throw new InvalidOperationException("Temporal color source capture requires an accepted history.");
+                        id = buffer == "TemporalColorSource" ? InfinityShaderIDs.TemporalColorSourceBuffer : InfinityShaderIDs.TemporalColorDepthBuffer;
+                        break;
                     case "LightTileMask": id = RecordLightMaskCapture(); break;
                     case "TAAInput": case "TAAHistoryColor": case "TAAHistoryDepth":
                     case "AOTrace": case "AOSpatialX": case "AOSpatialY": case "AOTemporal": id = Shader.PropertyToID("Capture_" + buffer); break;
@@ -149,13 +156,19 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SSRMeta": id = InfinityShaderIDs.SSRMetaBuffer; break;
                     case "SSRTileClass": id = Shader.PropertyToID("Capture_SSRTileClass"); break;
                     case "SSGIRayHit": id = InfinityShaderIDs.SSGIRayHitBuffer; break;
-                    case "SSGIResolved": id = InfinityShaderIDs.SSGIResolvedBuffer; break;
+                    case "SSGITraceRadiance": id = InfinityShaderIDs.SSGITraceRadianceBuffer; break;
                     case "SSGITemporal": id = InfinityShaderIDs.SSGITemporalBuffer; break;
+                    case "SSGIMeta": id = InfinityShaderIDs.SSGIMetaBuffer; break;
+                    case "SSGIHitDistance": id = InfinityShaderIDs.SSGIHitDistanceBuffer; break;
+                    case "ScatterDiffuse": id = InfinityShaderIDs.ScatterDiffuseBuffer; break;
+                    case "SubsurfaceDiffuse": id = InfinityShaderIDs.SubsurfaceBuffer; break;
                     case "ReactiveMask": id = InfinityShaderIDs.ReactiveMaskBuffer; break;
                     case "DisplayColor": id = InfinityShaderIDs.DisplayColorBuffer; break;
                     case "PostProcess": id = InfinityShaderIDs.PostProcessBuffer; break;
                     case "Motion": id = InfinityShaderIDs.MotionBuffer; break;
                     case "MotionMetadata": id = InfinityShaderIDs.MotionMetadataBuffer; break;
+                    case "SRAccumulation": id = InfinityShaderIDs.SRAccumulationBuffer; break;
+                    case "SRDepth": id = InfinityShaderIDs.SRDepthBuffer; break;
                     case "TAAAccumulation": id = InfinityShaderIDs.TAAAccumulationBuffer; break;
                     case "TAADepth": id = InfinityShaderIDs.TAADepthBuffer; break;
                     case "TAAReprojection": id = InfinityShaderIDs.TAAReprojectionBuffer; break;

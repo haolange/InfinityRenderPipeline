@@ -24,7 +24,7 @@ The pipeline currently records:
 
 - ThinGBuffer deferred shading plus a forward route, a clustered list (logarithmic depth bins + tile bitmasks) of
   local lights and reflection probes shared by every lit pass
-- Mesh Drawing Pipeline: SoA `MeshScene`, RenderGraph DrawLists, CPU and GPU-indirect backends, GPU frustum culling
+- Mesh Drawing Pipeline: SoA `MeshScene`, RenderGraph DrawLists, CPU and GPU-indirect backends, conservative two-phase GPU occlusion and Closest/Furthest HiZ, scene-shared immutable transform versions
 - Lights authored in Unreal form (point / sphere / line / tube, cone / pyramid / box spots, rect, disk, sun disk) with
   Karis representative-point specular; cookies and IES in one atlas
 - Cascade and local shadows for every shape with Hard / PCF / PCSS / VSM / EVSM filters, cached (OnEnable / OnDemand)
@@ -32,9 +32,11 @@ The pipeline currently records:
 - Baked GI: lightmaps, Shadowmask / Distance Shadowmask, light probes, LPPV, Adaptive Probe Volumes, baking sky;
   reflection probes in a prefiltered atlas
 - Hillaire atmosphere LUTs with sky IBL (SH + GGX prefilter); volumetric fog and clouds
-- GTAO, RTAO (UnifiedRayTracing), stochastic SSR and SSGI (tile classification, ray reuse, temporal and spatial
-  denoising), quality presets
-- Burley subsurface scattering, DBuffer decals, three-stage translucency (T0 / T1 refraction / T2)
+- GTAO visibility-domain temporal accumulation, RTAO (UnifiedRayTracing), stochastic SSR with full-resolution
+  ray-reuse Resolve/Temporal/Spatial, and SSGI with direct previous-color tracing and recurrent world-space filtering.
+  SSR Trace can be half resolution; SSGI uses a half-resolution working chain plus geometric reconstruction
+  (Ultra remains full resolution). Both share accepted unsharpened TAA/SR color and its mip chain
+- Half-resolution Burley diffusion of a separate diffuse component with full-resolution recomposition, DBuffer decals, three-stage translucency (T0 / T1 refraction / T2)
 - TAA, fixed-ratio super resolution, exposure (manual / histogram), bloom, ACES tonemapping and grading LUT, vignette,
   film grain, raster final output with demand-driven intermediate colors and display-transfer encoding
 - Editor: Shader Graph target (Lit / Unlit / Decal), Render Pipeline Wizard, Frame Settings, Light Explorer, Rendering

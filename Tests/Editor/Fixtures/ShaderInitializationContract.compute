@@ -24,7 +24,8 @@ float4x4 ContractPreviousVP, ContractCurrentMotionVP, ContractPreviousMotionVP;
 float4x4 ContractProjection;
 float4 ContractOrigin, ContractDirection;
 float ContractTraceDistance;
-Texture2D ContractDepthPyramid;
+Texture2D<float> ContractSurfaceDepth;
+Texture2D<float> ContractDepthPyramid;
 
 [numthreads(1, 1, 1)]
 void DepthContract(uint3 id : SV_DispatchThreadID)
@@ -67,10 +68,10 @@ void TraceContract(uint3 id : SV_DispatchThreadID)
     bool found = false;
     if (ContractInputs[id.x].x == 0)
         found = TraceScreenSpaceRay(ContractOrigin.xyz, ContractDirection.xyz, ContractTraceDistance, 2,
-            64, 0, ContractProjection, ContractDepthPyramid, float4(16, 8, 16, 8), hit);
+            64, 0, ContractProjection, ContractSurfaceDepth, float4(16, 8, 16, 8), ContractDepthPyramid, float4(8, 4, 8, 4), hit);
     else
         found = TraceScreenSpaceRayLinear(ContractOrigin.xyz, ContractDirection.xyz, ContractTraceDistance, 2,
-            64, 0, ContractProjection, ContractDepthPyramid, float4(16, 8, 16, 8), 0, hit);
+            64, 0, ContractProjection, ContractSurfaceDepth, float4(16, 8, 16, 8), ContractDepthPyramid, float4(8, 4, 8, 4), 0, hit);
     ContractResults[id.x] = float4(hit, found ? 1 : 0);
 }
 

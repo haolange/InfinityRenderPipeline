@@ -24,11 +24,11 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef accumulation, temporalDepth, sharpened, confidence, reprojection;
             public CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
         }
-        static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false)
-            => new TextureDescriptor(width, height, ETextureSizingDomain.Internal) { name = name, dimension = TextureDimension.Tex2D,
+        static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
+            => new TextureDescriptor(width, height, domain) { name = name, dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
-        static TextureDescriptor TemporalDepthDescriptor(int width, int height, string name, bool writable = false)
-            => new TextureDescriptor(width, height, ETextureSizingDomain.Internal) { name = name, dimension = TextureDimension.Tex2D,
+        static TextureDescriptor TemporalDepthDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
+            => new TextureDescriptor(width, height, domain) { name = name, dimension = TextureDimension.Tex2D,
                 colorFormat = GraphicsFormat.R32_SFloat, enableRandomWrite = writable, wrapMode = TextureWrapMode.Clamp };
 
         internal static Vector2 ProjectionJitterUV(Matrix4x4 jittered, Matrix4x4 unjittered)
@@ -80,7 +80,9 @@ namespace InfinityTech.Rendering.Pipeline
                 data.depthParameters = new Vector4(camera.nearClipPlane, camera.farClipPlane, camera.orthographic ? 1 : 0, SystemInfo.usesReversedZBuffer ? 1 : 0);
                 Vector2 currentJitter = ProjectionJitterUV(uniform.matrix_FlipYJitterProj, uniform.matrix_FlipYProj);
                 data.jitter = new Vector4(currentJitter.x, currentJitter.y, uniform.previousJitterUV.x, uniform.previousJitterUV.y);
-                data.historyValid = !uniform.historyReset && !colorCreated && !depthCreated;
+                data.historyValid = !uniform.historyReset && !colorCreated && !depthCreated
+                    && history.TextureGeneration(AntiAliasingUtilityData.HistoryColorTextureID) > 0
+                    && history.TextureGeneration(AntiAliasingUtilityData.HistoryDepthTextureID) > 0;
                 data.diagnostics = diagnostics;
                 data.input = pass.ReadTexture(input);
                 data.motion = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer));

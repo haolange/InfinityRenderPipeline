@@ -17,7 +17,7 @@ Columns:
 
 | Feature | Recorded | EditMode | Image | Perf | Platforms | Notes |
 |---|---|---|---|---|---|---|
-| Mesh Drawing Pipeline (CPU + GPU backends) | Yes | Yes | Open | Open | macOS Metal | No HZB occlusion, GPU sort or GPU LOD |
+| Mesh Drawing Pipeline (CPU + GPU backends) | Yes | 2026-10-25: 92 Mesh cases; immutable-version and two-stage GPU cases | Complete Scene_Spazon normal frames and bounded native-occluder recovery | 32+120 static/dynamic/two-camera measurements; GPU time unavailable | macOS Metal | Conservative two-stage GPU occlusion, scene-owned transform versions; no GPU sort/LOD. Hardware Async and native failure recovery remain open. |
 | ThinGBuffer + Deferred shading | Yes | Yes (pack contract) | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: bounded eight normal fixtures / ground and marker controls | Open | macOS Metal | Finite-plane horizon and marker shadow controls accepted; no atmosphere shader repair or arbitrary-scene guarantee. See closure picture report. |
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
 | Decal projection / RP replacement | Yes | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: 5 lifecycle cases | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: actual DBuffer overlays after replacement, disable/restore and second camera | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: composite Editor frame, 3×300 before/after (closure report) | macOS Metal | One-shot context recovery; no source asset migration. Finite-plane horizon band traced to disabled planetary ground in a fixed-camera control, not an atmosphere algorithm repair. |
@@ -32,8 +32,8 @@ Columns:
 | Atmosphere LUTs + sky IBL | Yes | Yes (parameters, cache) | Open | Open | macOS Metal | |
 | GTAO | Yes | Yes (numeric) | Open | Open | macOS Metal | |
 | RTAO (UnifiedRayTracing) | When URT is ready | Partial | Open | Open | Editor only | Player shader load unverified |
-| SSR (stochastic, 0.5.0) | Yes | 2026-10-23 Unity 6000.6.0f1 / macOS Metal (5 production GPU cases; quality presets) | Open | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: composite Editor frame, 3×300 before/after (closure report) | macOS Metal | Shared-core numeric regression rerun on S14 and main; no additional SSR image or isolated performance acceptance inferred. |
-| SSGI (on the stochastic SSR core, 0.5.0) | Yes | 2026-10-23 Unity 6000.6.0f1 / macOS Metal (4 production numeric + 20 temporal/spatial cases; quality presets) | 2026-10-23 Unity 6000.6.0f1 / macOS Metal (bounded red bounce, offscreen fallback, normal orbit/disocclusion, history and native dispatch controls) | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: composite Editor frame, 3×300 before/after (closure report) | macOS Metal | Original filtering retained. Small numeric residuals may last about 14 frames; sampled normal output accepted without a zero-noise/zero-ghosting claim. Whole-Editor timing does not isolate SSGI cost. See S14 report. |
+| SSR (stochastic) | Yes | 2026-10-25: production GPU regression and history rejection | Full Scene_Spazon, 1666x1756; finite full Resolve/Temporal/output | 32+120 matched cases; no isolated GPU time | macOS Metal | Optional half Trace; Resolve/Temporal/Spatial/history remain full resolution. Shared accepted unsharpened TAA/SR mip source. |
+| SSGI | Yes | 2026-10-25: production numeric/quad reconstruction and 21 response cases | Full Scene_Spazon and supplemented chain; finite half work/full output | 32+120 matched cases; no isolated GPU time | macOS Metal | No Resolve. Direct previous-color Trace, recurrent world-space Spatial, phase-aware bilateral reconstruction. General quality/reference acceptance remains bounded to tested content. |
 | Burley SSS | Yes | No | Open | Open | macOS Metal | |
 | Volumetric fog / cloud | Yes | Partial | Open | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: fog workload 3×300 composite Editor frames; cloud Open | macOS Metal | |
 | Translucent T0 / T1 / T2 | Yes | Partial | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: bounded fixture regression and ground control | Open | macOS Metal | Prior band disposition accepted; inherited S15 consumers retained. No unrelated fog-node implementation claim. |
@@ -690,3 +690,92 @@ and checked absent. An unrelated DefaultCompany test result did not match any
 task receipt and was preserved. DataDisk AppleDouble removal raced with directory
 cleanup; only already-missing sidecars were tolerated, followed by an explicit
 absence check. No Library/ShaderCache cleanup occurred.
+
+
+## Visibility / shared history / effect-chain upgrade — 2026-10-25
+
+Implemented and exercised on Unity 6000.6.0f1 / Metal / Apple M3 Max in one
+independent task-owned mirror of the complete Scene_Spazon, Quality 0,
+MainCamera 1666x1756. The source checkout stayed on main / 2485580 with the
+candidate uncommitted. See [delivery receipt](History/Visibility-20261025/README.md)
+and its compact machine-readable evidence; historical sections above describe
+older implementations and do not override this section.
+
+- RenderGraph handles RAW/WAR/WAW, physical import aliases and queue-aware reuse.
+  ResourcePool owns recording leases, individual pending submission epochs,
+  submitted completion and uncertain outcomes. CPU uploads acquire writable
+  storage or publish independent replacements; same-queue ordered reuse remains.
+- Mesh transforms use scene-owned immutable matrix/generation versions. Views
+  retain accepted/pending references; 64-slot dirty patches and GPU copy/patch
+  preserve sparse-view history without per-camera pose arrays. Native renderers
+  retain Unity's own motion history.
+- Closest/Furthest half-base R32 HiZ, early Furthest and conservative two-stage
+  GPU visibility are integrated. The native-occluder recovery control observed
+  first/deferred/recovered/final visibility 0/1/1/1 and real recovered depth.
+- SSR alone keeps full Resolve/Temporal/Spatial/history, with optional half Trace.
+  SSGI has no Resolve: half Trace/Temporal/world-space Spatial/history reconstruct
+  at full resolution. Ultra uses full work resolution; Custom keeps HalfResolution.
+  Both use accepted unsharpened TAA/SR color mips and previous-object depth metadata.
+  SSGI reconstruction respects all four rotating quad phases and odd last intervals.
+- GTAO accumulates linear visibility with normal/depth/age; artistic shaping is
+  applied after reconstruction. SSGI retains filtered recurrent history; SSR
+  retains pre-spatial history.
+- Half-resolution Burley SSS filters a separate optional diffuse attachment and
+  recomposes main minus original diffuse plus filtered diffuse. Specular/emission
+  stay unscattered. Material profile indices own diffusion parameters; Volume
+  activation no longer overrides all surfaces with profile zero.
+- AO/contact and previous-color effects precede independent shadow rasterization.
+  Graphics history copies follow that window. Early recovery, late SSS, TAA/SR
+  and post stay on Graphics where no independent raster window exists.
+
+Verification receipts include 12 resource intervals, four actual Metal delayed/
+incomplete submission cases, six submission outcomes, 45 RG passes plus one
+hardware-async skip, 92 Mesh passes, nine dual-HiZ cases, 13 shared temporal-color
+cases, four SR history cases, 18 GTAO cases, 16 stochastic SSR/SSGI cases,
+21 SSGI response cases, nine SSS GPU cases, 11 camera history cases, 22 quality
+cases, 13 Deferred GPU cases and five feature-registry cases. Counts describe
+individual selected batches, not a deduplicated whole-repository test total.
+
+Final original-settings capture at game frame 9533 completed 32 warmup submissions
+plus one frame, with zero outstanding readbacks and zero nonfinite values across
+12 buffers. SSR Resolve/Temporal/meta/output were 1666x1756; SSGI Trace/Temporal/
+meta/hit distance were 833x878 and final output was 1666x1756. Previous color was
+accepted UnsharpenedTAA. Main Agent inspected the presented image. A separate
+runtime-only supplement retained SSR/SSGI/TAA while producing GTAO, SSS, cloud,
+fog, Cookie, EVSM/contact and generated Lit/Unlit/Decal Graph draws. Eight output
+readbacks were finite. Cloud output was neutral in this camera: visible-cloud
+quality is not accepted by that result.
+
+Generated Lit/Unlit/Decal Graph assets imported and their 13 passes plus the Lit
+Forward SSS variant compiled on Metal. Final public ShaderUtil diagnostics were
+empty for 26 loaded package ComputeShaders and 28 package/generated Shaders;
+the restarted candidate rendering log had no shader errors/warnings, invalid
+kernels, unbound properties or assertions. A pre-existing cold C# compile warning
+in the LPPV validation-scene fixture remains separately recorded (CS0618).
+
+Matched baseline/candidate static, dynamic and two-camera cases each used 32
+warmup plus 120 accepted main-camera submissions, with animation frozen and the
+same fixed camera/effects. Allocations stayed constant within every sampling
+window. Static candidate transform productions/uploads stayed at 1/640 total;
+dynamic single/two-camera cases each produced 119 versions and 85,680 patch bytes
+across 119 sample intervals. Per-camera pose arrays/uploads were removed. This
+small scene has nine transform slots: dirty-page patch uploads can cost more than
+a single old per-view matrix upload, so no universal bandwidth reduction is
+claimed. Estimated pooled texture bytes rose from 522,615,920 to 558,742,496 in
+the main-view case; the extra HiZ, geometric metadata and history mip work is not
+reported as memory savings. These are format estimates, not driver residency.
+GPU timing was unavailable/zero; no acceleration claim is made.
+
+**Resource-pool whole lifecycle remains PARTIAL.** This host reports
+supportsAsyncCompute=false. Hardware cross-queue execution/overlap and real native
+Submit-failure recovery remain TODO(UNVERIFIED), even though Metal delayed,
+cross-camera, cancelled and submitted-but-incomplete tests passed. Unknown native
+submission outcomes stay quarantined. D3D12, Vulkan, real HDR display and unrun RT
+backends remain TODO(UNVERIFIED); the existing independent Player RTAO loading gap
+is unchanged. Arbitrary-scene quality and a high-sample reference sweep are not
+implied by these bounded normal frames and numeric controls.
+
+Restoration and final cleanup evidence is maintained in the delivery receipt.
+The 642 protected source files matched the initial hashes except the explicitly
+removed SSGI ResolveSamples/ResolveRadius entries in the package default Profile.
+No source scene/material/LUT was saved or overwritten for validation.

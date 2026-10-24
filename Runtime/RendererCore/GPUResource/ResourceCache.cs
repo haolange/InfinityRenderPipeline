@@ -231,6 +231,20 @@ namespace InfinityTech.Rendering.GPUResource
         public static implicit operator RTHandle(in FTextureRef textureRef) => textureRef.texture;
     }
 
+    // A pooled allocation may still have readers on both queues. A new command user
+    // waits only for the opposite queue; CPU users may acquire it after both complete.
+    internal struct ResourceReuseFence
+    {
+        internal bool hasGraphics, hasCompute;
+        internal GraphicsFence graphics, compute, graphicsCompletion, computeCompletion;
+        internal bool passed => (!hasGraphics || graphicsCompletion.passed) && (!hasCompute || computeCompletion.passed);
+        internal void Wait(CommandBuffer commands, bool asyncCompute)
+        {
+            if (asyncCompute && hasGraphics) commands.WaitOnAsyncGraphicsFence(graphics);
+            if (!asyncCompute && hasCompute) commands.WaitOnAsyncGraphicsFence(compute);
+        }
+    }
+
     public abstract class FGPUResourceCache<TResource, TDescriptor>
         where TResource : class
         where TDescriptor : struct, IEquatable<TDescriptor>
@@ -240,11 +254,14 @@ namespace InfinityTech.Rendering.GPUResource
             public TDescriptor descriptor;
             public TResource resource;
             public long lastUse, bytes;
+            internal ResourceReuseFence reuseFence;
+            internal ResourceUsage usage;
         }
         struct RetiredEntry { public Entry entry; public GraphicsFence fence; }
         protected readonly Dictionary<int, List<Entry>> m_ResourcePool = new Dictionary<int, List<Entry>>(64);
         readonly List<RetiredEntry> m_Retired = new List<RetiredEntry>();
         long m_Epoch;
+        internal Action<TResource> resourceDestroyed;
         public long estimatedIdleBytes { get; private set; }
         public long estimatedRetiredBytes { get; private set; }
         public long allocationCount { get; private set; }
@@ -262,25 +279,47 @@ namespace InfinityTech.Rendering.GPUResource
             estimatedPeakBytes = Math.Max(estimatedPeakBytes, estimatedAllocatedBytes);
         }
         public bool Pull(in int hashCode, in TDescriptor descriptor, out TResource resource)
+            => Pull(hashCode, descriptor, false, false, 0, out resource, out _);
+
+        internal bool Pull(in int hashCode, in TDescriptor descriptor, bool commandUse, bool asyncCompute, int recordingEpoch,
+            out TResource resource, out ResourceReuseFence reuseFence)
         {
             if (m_ResourcePool.TryGetValue(hashCode, out var list))
                 for (int i = list.Count - 1; i >= 0; --i)
                 {
                     Entry entry = list[i];
                     if (!entry.descriptor.Equals(descriptor)) continue;
+                    reuseFence = default;
+                    if (entry.usage != null)
+                    {
+                        if (commandUse)
+                        {
+                            if (!entry.usage.CanAcquireCommands(asyncCompute, recordingEpoch, out reuseFence)) continue;
+                        }
+                        else if (!entry.usage.CanWriteCpu) continue;
+                    }
+                    else
+                    {
+                        if (!commandUse && !entry.reuseFence.passed) continue;
+                        reuseFence = entry.reuseFence;
+                    }
                     resource = entry.resource; list.RemoveAt(i);
                     if (list.Count == 0) m_ResourcePool.Remove(hashCode);
                     estimatedIdleBytes -= entry.bytes; reuseCount++;
                     return true;
                 }
             resource = null;
+            reuseFence = default;
             return false;
         }
         public void Push(in int hash, in TDescriptor descriptor, TResource resource)
+            => Push(hash, descriptor, resource, default);
+
+        internal void Push(in int hash, in TDescriptor descriptor, TResource resource, ResourceReuseFence reuseFence, ResourceUsage usage = null)
         {
             if (!m_ResourcePool.TryGetValue(hash, out var list)) m_ResourcePool.Add(hash, list = new List<Entry>());
             long bytes = EstimateBytes(descriptor);
-            list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch });
+            list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch, reuseFence = reuseFence, usage = usage });
             estimatedIdleBytes += bytes;
         }
         public void AfterSubmit(long watermark, GraphicsFence fence)
@@ -290,7 +329,10 @@ namespace InfinityTech.Rendering.GPUResource
             {
                 if (!m_Retired[i].fence.passed) continue;
                 Entry entry = m_Retired[i].entry;
-                ReleaseInternalResource(entry.resource);
+                // A retirement fence is not authority to discard recording references
+                // or another unresolved submission tracked by the physical owner.
+                if (entry.usage != null && !entry.usage.CanWriteCpu) continue;
+                Destroy(entry.resource);
                 estimatedRetiredBytes -= entry.bytes; estimatedAllocatedBytes -= entry.bytes;
                 m_Retired.RemoveAt(i);
             }
@@ -302,6 +344,7 @@ namespace InfinityTech.Rendering.GPUResource
                     {
                         Entry candidate = pair.Value[i];
                         if (m_Epoch - candidate.lastUse <= 2 || candidate.lastUse >= oldest) continue;
+                        if (candidate.usage != null && !candidate.usage.CanAcquireCommands(false, int.MinValue, out _)) continue;
                         bucket = pair.Key; index = i; oldest = candidate.lastUse;
                     }
                 if (index < 0) break;
@@ -311,12 +354,40 @@ namespace InfinityTech.Rendering.GPUResource
                 m_Retired.Add(new RetiredEntry { entry = entry, fence = fence });
             }
         }
+        void Destroy(TResource resource)
+        {
+            ReleaseInternalResource(resource);
+            resourceDestroyed?.Invoke(resource);
+        }
+        internal bool DisposeCompleted()
+        {
+            var empty = new List<int>();
+            foreach (var pair in m_ResourcePool)
+            {
+                var entries = pair.Value;
+                for (int i = entries.Count - 1; i >= 0; --i)
+                {
+                    Entry entry = entries[i];
+                    if (entry.usage != null ? !entry.usage.CanWriteCpu : !entry.reuseFence.passed) continue;
+                    Destroy(entry.resource); entries.RemoveAt(i);
+                    estimatedAllocatedBytes -= entry.bytes; estimatedIdleBytes -= entry.bytes;
+                }
+                if (entries.Count == 0) empty.Add(pair.Key);
+            }
+            foreach (int key in empty) m_ResourcePool.Remove(key);
+            for (int i = m_Retired.Count - 1; i >= 0; --i)
+            {
+                var retired = m_Retired[i];
+                if (!retired.fence.passed || retired.entry.usage != null && !retired.entry.usage.CanWriteCpu) continue;
+                Destroy(retired.entry.resource); m_Retired.RemoveAt(i);
+                estimatedAllocatedBytes -= retired.entry.bytes; estimatedRetiredBytes -= retired.entry.bytes;
+            }
+            return m_ResourcePool.Count == 0 && m_Retired.Count == 0;
+        }
         public void Dispose()
         {
-            foreach (var pair in m_ResourcePool) foreach (var entry in pair.Value) ReleaseInternalResource(entry.resource);
-            foreach (var entry in m_Retired) ReleaseInternalResource(entry.entry.resource);
-            m_ResourcePool.Clear(); m_Retired.Clear();
-            estimatedAllocatedBytes = estimatedIdleBytes = estimatedRetiredBytes = 0;
+            if (!DisposeCompleted())
+                throw new InvalidOperationException("Resource cache destruction requires completed GPU uses and no recording references. Dispose its owning ResourcePool to defer destruction.");
         }
     }
     public sealed class BufferCache : FGPUResourceCache<ComputeBuffer, BufferDescriptor>

@@ -27,6 +27,19 @@ namespace InfinityTech.Rendering.Pipeline
             ResolveKernelName, TemporalKernelName, SpatialKernelName, DebugKernelName
         };
 
+        static ComputeShader s_KernelShader;
+        static int[] s_Kernels;
+        internal static int[] ResolveKernels(ComputeShader shader)
+        {
+            if (s_KernelShader != shader || s_Kernels == null)
+            {
+                var kernels = new int[RequiredKernels.Length];
+                for (int i = 0; i < kernels.Length; ++i) kernels[i] = shader.FindKernel(RequiredKernels[i]);
+                s_KernelShader = shader; s_Kernels = kernels;
+            }
+            return s_Kernels;
+        }
+
         // Tile classes; also the order of the argument triplets and of the tile list segments.
         internal const int ClassHiZ = 0;
         internal const int ClassLinear = 1;
@@ -69,11 +82,10 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly int OwenScrambledSobolID = Shader.PropertyToID("_ScrambledOwen_Noise");
 
         internal static readonly int SRV_DepthTextureID = Shader.PropertyToID("SRV_DepthTexture");
-        internal static readonly int SRV_HiZTextureID = Shader.PropertyToID("SRV_HiZTexture");
+        internal static readonly int SRV_HiZClosestTextureID = Shader.PropertyToID("SRV_HiZClosestTexture");
         internal static readonly int SRV_GBufferAID = Shader.PropertyToID("SRV_GBufferA");
         internal static readonly int SRV_GBufferBID = Shader.PropertyToID("SRV_GBufferB");
         internal static readonly int SRV_GBufferCID = Shader.PropertyToID("SRV_GBufferC");
-        internal static readonly int SRV_LightingPyramidID = Shader.PropertyToID("SRV_LightingPyramid");
         internal static readonly int SRV_MotionTextureID = Shader.PropertyToID("SRV_MotionTexture");
         internal static readonly int SRV_HistoryRadianceID = Shader.PropertyToID("SRV_HistoryRadiance");
         internal static readonly int SRV_HistoryMetaID = Shader.PropertyToID("SRV_HistoryMeta");
@@ -126,6 +138,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 traceResolution;
             public int2 tileCount;
             public int traceScale;
+            public int[] kernels;
             public int frameIndex;
             public float historyValid;
             public int debugMode;
@@ -149,7 +162,8 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef gBufferA;
             public RGTextureRef gBufferB;
             public RGTextureRef gBufferC;
-            public RGTextureRef lightingPyramid;
+            public FTemporalColorView temporalColor;
+            public RGTextureRef motionMetadata;
             public RGTextureRef motionTexture;
             public RGTextureRef historyRadiance;
             public RGTextureRef historyMeta;
@@ -162,6 +176,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureRef temporal;
             public RGTextureRef meta;
             public RGTextureRef output;
+            public RGTextureRef filtered;
             public RGTextureRef debug;
             public bool runSpatial;
             public bool runDebug;
@@ -179,6 +194,8 @@ namespace InfinityTech.Rendering.Pipeline
             int height = m_ActiveFrameState.dimensions.internalSize.y;
             int2 resolution = new int2(width, height);
             int2 traceResolution = ScreenSpaceTraceUtility.TraceSize(resolution, settings.halfResolution);
+            int workWidth = width, workHeight = height;
+            const int divisor = 1;
             int2 tileCount = ScreenSpaceTraceUtility.TileCount(traceResolution);
             int maxTiles = tileCount.x * tileCount.y;
             EDebugView debugView = m_ActiveFrameState.debugView;
@@ -189,24 +206,20 @@ namespace InfinityTech.Rendering.Pipeline
                 // Hit UV and depth are geometric data: half precision can move them into another depth texel.
                 SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSRPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, settings.halfResolution ? 2 : 1));
             RGTextureRef resolved = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRResolvedBuffer,
-                SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.ResolvedName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear));
+                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.ResolvedName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
             RGTextureRef hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDistanceBuffer,
-                SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.HitDistanceName, GraphicsFormat.R16_SFloat, FilterMode.Point));
+                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitDistance", GraphicsFormat.R32_SFloat, FilterMode.Point, divisor));
             RGTextureRef temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer,
-                SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear));
+                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
             RGTextureRef meta = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMetaBuffer,
-                SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.MetaName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point));
-            RGTextureRef output;
-            if (runSpatial)
-            {
-                output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRBuffer,
-                    SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.OutputName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear));
-            }
-            else
-            {
-                m_RGScoper.RegisterTexture(InfinityShaderIDs.SSRBuffer, temporal);
-                output = temporal;
-            }
+                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.MetaName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor));
+            RGTextureRef filtered = runSpatial
+                ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRFilteredBuffer,
+                    SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRFiltered", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor))
+                : temporal;
+            if (!runSpatial) m_RGScoper.RegisterTexture(InfinityShaderIDs.SSRFilteredBuffer, filtered);
+            RGTextureRef output = filtered;
+            m_RGScoper.RegisterTexture(InfinityShaderIDs.SSRBuffer, output);
             RGTextureRef debug = default;
             if (runDebug)
             {
@@ -214,14 +227,16 @@ namespace InfinityTech.Rendering.Pipeline
                     SSRPassUtilityData.CreateDescriptor(width, height, SSRPassUtilityData.DebugName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point));
             }
 
-            TextureDescriptor historyRadianceDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat);
-            TextureDescriptor historyMetaDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R16G16B16A16_SFloat);
+            TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
+            TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
             RGTextureRef historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
             RGTextureRef historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadiance);
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMeta);
-            bool historyValid = !(m_CameraUniform.historyReset || historyRadianceCreated || historyMetaCreated);
+            bool historyValid = m_ActiveFrameState.acceptedSSR && !(m_CameraUniform.historyReset || historyRadianceCreated || historyMetaCreated)
+                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRRadianceBuffer) > 0
+                && historyCache.TextureGeneration(InfinityShaderIDs.HistorySSRMetaBuffer) > 0;
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
 
@@ -248,17 +263,19 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.matrix_MotionViewProj = m_CameraUniform.matrix_ViewFlipYProj;
                 passData.matrix_LastMotionViewProj = m_CameraUniform.matrix_LastViewFlipYProj;
                 passData.ssrShader = shaders.ssrShader;
+                passData.kernels = SSRPassUtilityData.ResolveKernels(shaders.ssrShader);
                 passData.utilityShader = shaders.utilityShader;
                 passData.rankingTile = textures.blueNoiseRankingTile;
                 passData.scramblingTile = textures.blueNoiseScramblingTile;
                 passData.owenScrambledSobol = textures.blueNoiseOwenScrambledSobol;
 
                 passData.depthTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer));
-                passData.hiZTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.HiZBuffer));
+                passData.hiZTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.HiZClosestBuffer));
                 passData.gBufferA = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA));
                 passData.gBufferB = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferC = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
-                passData.lightingPyramid = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueLightingPyramidBuffer));
+                passData.temporalColor = ReadTemporalColorView(passRef, m_ActiveFrameState.temporalColorView);
+                passData.motionMetadata = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionMetadataBuffer));
                 passData.motionTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer));
                 passData.historyRadiance = passRef.ReadTexture(historyRadiance);
                 passData.historyMeta = passRef.ReadTexture(historyMeta);
@@ -279,11 +296,13 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.temporal = passRef.WriteTexture(temporal);
                 passData.meta = passRef.WriteTexture(meta);
                 passData.runSpatial = runSpatial;
-                passData.output = runSpatial ? passRef.WriteTexture(output) : passData.temporal;
+                passData.filtered = runSpatial ? passRef.WriteTexture(filtered) : passData.temporal;
+                passData.output = passData.filtered;
                 passData.runDebug = runDebug;
                 passData.debug = runDebug ? passRef.WriteTexture(debug) : default;
 
                 passRef.EnablePassCulling(false);
+                passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     ComputeShader shader = passData.ssrShader;
@@ -327,7 +346,7 @@ namespace InfinityTech.Rendering.Pipeline
                     // Classify
                     cmdEncoder.BeginSample("SSR_Classify");
                     ComputeUtility.ClearIndirectDispatchArgs(cmdEncoder, passData.utilityShader, passData.tileArgs, SSRPassUtilityData.ClassCount);
-                    int classify = shader.FindKernel(SSRPassUtilityData.ClassifyKernelName);
+                    int classify = passData.kernels[0];
                     BindSSRSurface(cmdEncoder, shader, classify, passData);
                     cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_TileArgsID, passData.tileArgs);
                     cmdEncoder.SetComputeBufferParam(shader, classify, SSRPassUtilityData.UAV_TileListID, passData.tileList);
@@ -337,13 +356,13 @@ namespace InfinityTech.Rendering.Pipeline
 
                     // Trace: one indirect dispatch per tile class, one group per tile.
                     cmdEncoder.BeginSample("SSR_Trace");
-                    int clearSkipped = shader.FindKernel(SSRPassUtilityData.ClearSkippedKernelName);
+                    int clearSkipped = passData.kernels[1];
                     cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_TileListOffsetID, SSRPassUtilityData.ClassSkip * maxTiles);
                     cmdEncoder.SetComputeBufferParam(shader, clearSkipped, SSRPassUtilityData.SRV_TileListID, passData.tileList);
                     cmdEncoder.SetComputeTextureParam(shader, clearSkipped, SSRPassUtilityData.UAV_RayHitID, passData.rayHit);
                     cmdEncoder.DispatchComputeIndirect(shader, clearSkipped, passData.tileArgs, (uint)(SSRPassUtilityData.ClassSkip * ComputeUtility.IndirectDispatchArgsStride));
-                    RecordSSRTrace(cmdEncoder, shader, SSRPassUtilityData.TraceHiZKernelName, SSRPassUtilityData.ClassHiZ, maxTiles, passData);
-                    RecordSSRTrace(cmdEncoder, shader, SSRPassUtilityData.TraceLinearKernelName, SSRPassUtilityData.ClassLinear, maxTiles, passData);
+                    RecordSSRTrace(cmdEncoder, shader, passData.kernels[2], SSRPassUtilityData.ClassHiZ, maxTiles, passData);
+                    RecordSSRTrace(cmdEncoder, shader, passData.kernels[3], SSRPassUtilityData.ClassLinear, maxTiles, passData);
                     cmdEncoder.EndSample("SSR_Trace");
 
                     int groupsX = (resolution.x + ScreenSpaceTraceUtility.ResolveGroupSize - 1) / ScreenSpaceTraceUtility.ResolveGroupSize;
@@ -351,10 +370,12 @@ namespace InfinityTech.Rendering.Pipeline
 
                     // Resolve
                     cmdEncoder.BeginSample("SSR_Resolve");
-                    int resolve = shader.FindKernel(SSRPassUtilityData.ResolveKernelName);
+                    int resolve = passData.kernels[4];
                     BindSSRSurface(cmdEncoder, shader, resolve, passData);
                     cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.SRV_RayHitID, passData.rayHit);
-                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.SRV_LightingPyramidID, passData.lightingPyramid);
+                    BindTemporalColorView(cmdEncoder, shader, resolve, passData.temporalColor);
+                    cmdEncoder.SetComputeTextureParam(shader, resolve, Shader.PropertyToID("SRV_HitMotionMetadata"), passData.motionMetadata);
+                    cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
                     cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_ResolvedID, passData.resolved);
                     cmdEncoder.SetComputeTextureParam(shader, resolve, SSRPassUtilityData.UAV_HitDistanceID, passData.hitDistance);
                     cmdEncoder.DispatchCompute(shader, resolve, groupsX, groupsY, 1);
@@ -362,8 +383,9 @@ namespace InfinityTech.Rendering.Pipeline
 
                     // Temporal
                     cmdEncoder.BeginSample("SSR_Temporal");
-                    int temporalKernel = shader.FindKernel(SSRPassUtilityData.TemporalKernelName);
+                    int temporalKernel = passData.kernels[5];
                     BindSSRSurface(cmdEncoder, shader, temporalKernel, passData);
+                    cmdEncoder.SetComputeTextureParam(shader,temporalKernel,Shader.PropertyToID("SRV_HitMotionMetadata"),passData.motionMetadata);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_ResolvedID, passData.resolved);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_HitDistanceID, passData.hitDistance);
                     cmdEncoder.SetComputeTextureParam(shader, temporalKernel, SSRPassUtilityData.SRV_MotionTextureID, passData.motionTexture);
@@ -378,23 +400,26 @@ namespace InfinityTech.Rendering.Pipeline
                     if (passData.runSpatial)
                     {
                         cmdEncoder.BeginSample("SSR_Spatial");
-                        int spatial = shader.FindKernel(SSRPassUtilityData.SpatialKernelName);
+                        int spatial = passData.kernels[6];
                         BindSSRSurface(cmdEncoder, shader, spatial, passData);
                         cmdEncoder.SetComputeTextureParam(shader, spatial, SSRPassUtilityData.SRV_TemporalID, passData.temporal);
-                        cmdEncoder.SetComputeTextureParam(shader, spatial, SSRPassUtilityData.UAV_OutputID, passData.output);
+                        cmdEncoder.SetComputeTextureParam(shader, spatial, SSRPassUtilityData.UAV_OutputID, passData.filtered);
                         cmdEncoder.DispatchCompute(shader, spatial, groupsX, groupsY, 1);
                         cmdEncoder.EndSample("SSR_Spatial");
                     }
 
+
+
+
                     if (passData.runDebug)
                     {
-                        int debugKernel = shader.FindKernel(SSRPassUtilityData.DebugKernelName);
+                        int debugKernel = passData.kernels[7];
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_TileClassID, passData.tileClass);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_RayHitID, passData.rayHit);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_ResolvedID, passData.resolved);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.SRV_MetaID, passData.meta);
                         cmdEncoder.SetComputeTextureParam(shader, debugKernel, SSRPassUtilityData.UAV_DebugID, passData.debug);
-                        cmdEncoder.DispatchCompute(shader, debugKernel, groupsX, groupsY, 1);
+                        cmdEncoder.DispatchCompute(shader, debugKernel, (resolution.x+7)/8, (resolution.y+7)/8, 1);
                     }
                 });
             }
@@ -411,13 +436,12 @@ namespace InfinityTech.Rendering.Pipeline
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_GBufferCID, passData.gBufferC);
         }
 
-        static void RecordSSRTrace(in RGComputeEncoder cmdEncoder, ComputeShader shader, string kernelName, int tileClass, int maxTiles, in SSRPassData passData)
+        static void RecordSSRTrace(in RGComputeEncoder cmdEncoder, ComputeShader shader, int kernel, int tileClass, int maxTiles, in SSRPassData passData)
         {
-            int kernel = shader.FindKernel(kernelName);
             BindSSRSurface(cmdEncoder, shader, kernel, passData);
             cmdEncoder.SetComputeIntParam(shader, SSRPassUtilityData.SSR_TileListOffsetID, tileClass * maxTiles);
             cmdEncoder.SetComputeBufferParam(shader, kernel, SSRPassUtilityData.SRV_TileListID, passData.tileList);
-            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_HiZTextureID, passData.hiZTexture);
+            cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.SRV_HiZClosestTextureID, passData.hiZTexture);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.RankingTileID, passData.rankingTile);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.ScramblingTileID, passData.scramblingTile);
             cmdEncoder.SetComputeTextureParam(shader, kernel, SSRPassUtilityData.OwenScrambledSobolID, passData.owenScrambledSobol);

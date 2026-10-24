@@ -144,8 +144,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 foreach (FSSGISettings p in QualityPresets.SSGI)
                 {
                     Assert.That(p.hiZSteps, Is.InRange(ssgi.NumSteps.min, ssgi.NumSteps.max));
-                    Assert.That(p.resolveSamples, Is.InRange(ssgi.ResolveSamples.min, ssgi.ResolveSamples.max));
-                    Assert.That(p.resolveRadius, Is.InRange(ssgi.ResolveRadius.min, ssgi.ResolveRadius.max));
                     Assert.That(p.temporalWeight, Is.InRange(ssgi.TemporalWeight.min, ssgi.TemporalWeight.max));
                     Assert.That(p.temporalClampScale, Is.InRange(ssgi.TemporalScale.min, ssgi.TemporalScale.max));
                     Assert.That(p.spatialPasses, Is.InRange(ssgi.SpatialPasses.min, ssgi.SpatialPasses.max));
@@ -154,8 +152,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 FSSGISettings medium = QualityPresets.SSGI[(int)EQualityLevel.Medium];
                 Assert.AreEqual(medium.halfResolution, ssgi.HalfResolution.value, "Medium equals the Volume defaults.");
                 Assert.AreEqual(medium.hiZSteps, ssgi.NumSteps.value);
-                Assert.AreEqual(medium.resolveSamples, ssgi.ResolveSamples.value);
-                Assert.AreEqual(medium.resolveRadius, ssgi.ResolveRadius.value);
                 Assert.AreEqual(medium.temporalWeight, ssgi.TemporalWeight.value);
                 Assert.AreEqual(medium.temporalClampScale, ssgi.TemporalScale.value);
                 Assert.AreEqual(medium.spatialPasses, ssgi.SpatialPasses.value);

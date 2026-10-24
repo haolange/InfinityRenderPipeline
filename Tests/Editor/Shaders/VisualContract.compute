@@ -7,7 +7,8 @@
 #include "../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 #include "../../../Shaders/ShaderLibrary/ShadowSampling.hlsl"
 #include "../../../Shaders/ShaderLibrary/IndirectComposition.hlsl"
-Texture2D DepthPyramid;
+Texture2D<float> SurfaceDepth;
+Texture2D<float> DepthPyramid;
 Texture2D<float> ShadowRamp;
 float4x4 Projection;
 float4 Origin, Direction;
@@ -17,7 +18,7 @@ RWStructuredBuffer<float4> Results;
 void TraceContract(uint3 id : SV_DispatchThreadID)
 {
     float3 hit;
-    bool valid = TraceScreenSpaceRay(Origin.xyz, Direction.xyz, RayDistance, 0.01, 64, 0, Projection, DepthPyramid, float4(0,0,0,0), hit);
+    bool valid = TraceScreenSpaceRay(Origin.xyz, Direction.xyz, RayDistance, 0.01, 64, 0, Projection, SurfaceDepth, float4(0,0,0,0), DepthPyramid, float4(0,0,0,0), hit);
     Results[0] = float4(hit, valid ? 1 : 0);
 }
 [numthreads(1, 1, 1)]

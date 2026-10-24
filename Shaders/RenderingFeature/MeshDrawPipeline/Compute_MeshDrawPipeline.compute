@@ -9,7 +9,13 @@
 // - CandidateTable / Cull domain: instance indices (MeshInstanceId.Index / InstanceHighWater)
 // - ShadingIndices (shader InstanceIndexBuffer): transform indices (TransformId.Index)
 
+#pragma kernel InitializeTransformVersion
+#pragma kernel CopyTransformVersion
+#pragma kernel PatchTransformVersion
 #pragma kernel CullFrustum
+#pragma kernel CullFirstNoHistory
+#pragma kernel CullFirstWithHistory
+#pragma kernel CullOcclusionRecovery
 #pragma kernel ClearCounts
 #pragma kernel Compact
 #pragma kernel BuildIndirectArgs
@@ -63,45 +69,34 @@ bool FrustumCullAABB(float3 center, float3 extent)
     return culled;
 }
 
+bool MeshFrustumVisible(uint instanceIndex)
+{
+    uint flags = _InstanceFlags[instanceIndex];
+    bool visible = false;
+    bool matches = (flags & 4u) != 0u && (flags & _ViewExcludeFlags) == 0u
+        && (_InstanceLayerMask[instanceIndex] & _ViewLayerMask) != 0u;
+    if (matches && _FilterRenderingLayers != 0u)
+        matches = (_InstanceRenderingLayer[instanceIndex] & _ViewRenderingLayerMask) != 0u;
+    if (matches)
+    {
+        uint2 sceneMask = _InstanceSceneCullingMask[instanceIndex];
+        matches = any(sceneMask & uint2(_ViewSceneCullingMaskLow, _ViewSceneCullingMaskHigh));
+    }
+    if (matches)
+    {
+        float3 center = _InstanceBoundsCenter[instanceIndex].xyz;
+        float3 extent = _InstanceBoundsExtent[instanceIndex].xyz;
+        visible = !FrustumCullAABB(center, extent);
+    }
+    return visible;
+}
+
 [numthreads(64, 1, 1)]
 void CullFrustum(uint3 id : SV_DispatchThreadID)
 {
-    uint instanceIndex = id.x;
-    if (instanceIndex >= _InstanceCount)
-    {
-        return;
-    }
-
-    uint flags = _InstanceFlags[instanceIndex];
-    if ((flags & 4u) == 0u || (flags & _ViewExcludeFlags) != 0u)
-    {
-        _Visibility[instanceIndex] = 0u;
-        return;
-    }
-
-    if ((_InstanceLayerMask[instanceIndex] & _ViewLayerMask) == 0u)
-    {
-        _Visibility[instanceIndex] = 0u;
-        return;
-    }
-
-    if (_FilterRenderingLayers != 0u && (_InstanceRenderingLayer[instanceIndex] & _ViewRenderingLayerMask) == 0u)
-    {
-        _Visibility[instanceIndex] = 0u;
-        return;
-    }
-
-    uint2 sceneMask = _InstanceSceneCullingMask[instanceIndex];
-    if (!any(sceneMask & uint2(_ViewSceneCullingMaskLow, _ViewSceneCullingMaskHigh)))
-    {
-        _Visibility[instanceIndex] = 0u;
-        return;
-    }
-
-    float3 center = _InstanceBoundsCenter[instanceIndex].xyz;
-    float3 extent = _InstanceBoundsExtent[instanceIndex].xyz;
-    _Visibility[instanceIndex] = FrustumCullAABB(center, extent) ? 0u : 1u;
+    if (id.x < _InstanceCount) _Visibility[id.x] = MeshFrustumVisible(id.x) ? 1u : 0u;
 }
+#include "MeshOcclusion.hlsl"
 
 [numthreads(64, 1, 1)]
 void ClearCounts(uint3 id : SV_DispatchThreadID)
@@ -180,4 +175,51 @@ void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
     _IndirectArgs[argsBase + 2u] = startIndex;
     _IndirectArgs[argsBase + 3u] = baseVertex;
     _IndirectArgs[argsBase + 4u] = 0u;
+}
+
+// Immutable scene transform versions. Only dirty 64-slot pages cross the CPU/GPU boundary.
+struct FMeshTransformPatch
+{
+    float4x4 objectToWorld;
+    uint generation;
+    uint index;
+    uint2 reserved;
+};
+StructuredBuffer<float4x4> _TransformSourceMatrices;
+StructuredBuffer<uint> _TransformSourceGenerations;
+StructuredBuffer<FMeshTransformPatch> _TransformChanges;
+RWStructuredBuffer<float4x4> _TransformVersionMatrices;
+RWStructuredBuffer<uint> _TransformVersionGenerations;
+uint _TransformVersionCount, _TransformSourceCount, _TransformPatchCount;
+
+[numthreads(64, 1, 1)]
+void InitializeTransformVersion(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _TransformVersionCount) return;
+    _TransformVersionMatrices[id.x] = (float4x4)0;
+    _TransformVersionGenerations[id.x] = 0;
+}
+
+[numthreads(64, 1, 1)]
+void CopyTransformVersion(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _TransformVersionCount) return;
+    float4x4 transformMatrix = (float4x4)0;
+    uint generation = 0;
+    if (id.x < _TransformSourceCount)
+    {
+        transformMatrix = _TransformSourceMatrices[id.x];
+        generation = _TransformSourceGenerations[id.x];
+    }
+    _TransformVersionMatrices[id.x] = transformMatrix;
+    _TransformVersionGenerations[id.x] = generation;
+}
+
+[numthreads(64, 1, 1)]
+void PatchTransformVersion(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _TransformPatchCount) return;
+    FMeshTransformPatch patch = _TransformChanges[id.x];
+    _TransformVersionMatrices[patch.index] = patch.objectToWorld;
+    _TransformVersionGenerations[patch.index] = patch.generation;
 }

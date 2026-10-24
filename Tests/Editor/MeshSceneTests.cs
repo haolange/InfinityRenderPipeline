@@ -11,6 +11,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 {
     public class MeshSceneTests
     {
+        ComputeShader m_PreviousShader;
+        [SetUp]
+        public void PreserveLiveBackend() => m_PreviousShader = MeshDrawGPUBackend.shader;
+        [TearDown]
+        public void RestoreLiveBackend() => MeshDrawGPUBackend.SetShader(m_PreviousShader);
+
         [Test]
         public void ThreeSubmeshObject_SharesOneTransform()
         {

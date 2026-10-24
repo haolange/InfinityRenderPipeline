@@ -8,27 +8,6 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ScreenSpaceHistoryUtility
     {
-        internal const int TemporalResetRampFrames = 8;
-
-        internal static float RampTemporalWeight(float configuredWeight, ref int validFrames, bool resetHistory)
-        {
-            if (resetHistory)
-            {
-                validFrames = 0;
-            }
-
-            float ramp = TemporalResetRampFrames <= 1
-                ? 1.0f
-                : Mathf.Clamp01(validFrames / (float)TemporalResetRampFrames);
-            float weight = configuredWeight * ramp;
-            if (validFrames < TemporalResetRampFrames)
-            {
-                ++validFrames;
-            }
-
-            return weight;
-        }
-
         internal static TextureDescriptor CreateFilterDescriptor(int width, int height, string name, GraphicsFormat format, bool randomWrite)
         {
             TextureDescriptor descriptor = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
@@ -42,10 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
             return descriptor;
         }
 
-        internal static TextureDescriptor CreateHistoryDescriptor(int width, int height, string name, GraphicsFormat format)
-        {
-            return CreateFilterDescriptor(width, height, name, format, false);
-        }
+
     }
 
     public partial class InfinityRenderPipeline
@@ -68,16 +44,16 @@ namespace InfinityTech.Rendering.Pipeline
                 SSRPassUtilityData.HistoryRadianceName, SSRPassUtilityData.HistoryMetaName);
         }
 
-        // SSGI keeps the same history shape as SSR.
+        // Diffuse history is recurrent: accept the world-space filtered working result.
         void CopyHistorySSGI(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
             CopyHistoryRadianceMeta(historyCache, CustomSamplerId.CopyHistorySSGI,
-                InfinityShaderIDs.SSGITemporalBuffer, InfinityShaderIDs.SSGIMetaBuffer,
+                InfinityShaderIDs.SSGIFilteredBuffer, InfinityShaderIDs.SSGIMetaBuffer,
                 InfinityShaderIDs.HistorySSGIRadianceBuffer, InfinityShaderIDs.HistorySSGIMetaBuffer,
                 SSGIPassUtilityData.HistoryRadianceName, SSGIPassUtilityData.HistoryMetaName);
         }
 
-        // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA16F meta (point).
+        // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA32F geometric meta (point).
         void CopyHistoryRadianceMeta(HistoryCache historyCache, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId,
             int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
@@ -87,11 +63,10 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            int width = m_ActiveFrameState.dimensions.internalSize.x;
-            int height = m_ActiveFrameState.dimensions.internalSize.y;
-            TextureDescriptor radianceDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, radianceName, GraphicsFormat.R16G16B16A16_SFloat);
-            TextureDescriptor metaDsc = ScreenSpaceHistoryUtility.CreateHistoryDescriptor(width, height, metaName, GraphicsFormat.R16G16B16A16_SFloat);
-            metaDsc.filterMode = FilterMode.Point;
+            TextureDescriptor radianceDsc = m_RGBuilder.GetTextureDescriptor(radianceSource);
+            radianceDsc.name = radianceName;
+            TextureDescriptor metaDsc = m_RGBuilder.GetTextureDescriptor(metaSource);
+            metaDsc.name = metaName;
 
             RGTextureRef radianceHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(radianceHistoryId, radianceDsc));
             RGTextureRef metaHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(metaHistoryId, metaDsc));

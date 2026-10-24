@@ -11,6 +11,7 @@ namespace InfinityTech.Rendering
         High = 2
     }
 
+    // GPU-RECORD: FDiffusionProfileRecord Shaders/RenderingFeature/BurleySubsurface/Compute_BurleySubsurface.compute
     [StructLayout(LayoutKind.Sequential)]
     public struct FDiffusionProfileRecord
     {

@@ -138,7 +138,7 @@ still fails. Retain the original failed check; these missing historical images a
    `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight` (their values are dropped). Kept names:
    `MaxDistance`, `Thickness`, `MaxRoughness`, `fade`, `NumSteps` (now the Hi-Z budget), `BrdfBias`, `TemporalScale`
    (now the variance-clip width), `TemporalWeight`. New: `quality`, `HalfResolution`, `MirrorRoughness`,
-   `LinearRoughness`, `LinearSteps`, `ResolveSamples`, `ResolveRadius`, `SpatialPasses`.
+   `LinearRoughness`, `LinearSteps`, `SpatialPasses`. The removed ray-reuse controls `ResolveSamples` / `ResolveRadius` have no replacement or load-time migration: SSGI Trace samples accepted previous color directly. Preserve all other serialized parameters when explicitly resaving an existing Profile.
 4. Scene with a glossy floor and a rough wall, SSR enabled:
    - Debug View **SSR Tile Class**: floor tiles blue (Hi-Z), rough tiles orange (linear), sky and forward materials gray.
    - **SSR Ray Hit**: green where reflected objects are on screen, red elsewhere; with Half Resolution the pattern is
@@ -433,7 +433,7 @@ still fails. Retain the original failed check; these missing historical images a
    `BilateralSample`, `BilateralColorWeight`, `BilateralDepthWeight`, `BilateralNormalWeight` (their values are
    dropped). Kept names: `MaxDistance`, `Thickness`, `IntensityScale`, `NumSteps` (now the Hi-Z budget, range 4–64),
    `TemporalWeight`, `TemporalScale` (now the variance-clip width). New: `quality`, `HalfResolution`,
-   `ResolveSamples`, `ResolveRadius`, `SpatialPasses`.
+   `SpatialPasses`. The removed ray-reuse controls `ResolveSamples` / `ResolveRadius` have no replacement or load-time migration: SSGI Trace samples accepted previous color directly. Preserve all other serialized parameters when explicitly resaving an existing Profile.
 3. A room with a bright red wall and a white floor, SSGI enabled: the floor near the wall picks up red bounce light;
    Debug View **SSGI** shows it. Looking away from the wall (wall off screen) the bounce fades back to the baked / probe
    ambient instead of turning black.
@@ -445,8 +445,8 @@ still fails. Retain the original failed check; these missing historical images a
    a noisy reference is not a noise-free truth. Raw SSGI Debug View and pre-TAA `SceneColor` are separate intermediate
    signals and cannot establish a final-display failure by themselves. `nativeDisplays` records attachment descriptors,
    not native framebuffer pixels. Drain all readbacks and restore camera/Volume state before changing fixtures.
-5. Frame Debugger: `SSGI_Classify`, `SSGI_Trace` (two indirect dispatches), `SSGI_Resolve`, `SSGI_Temporal`,
-   `SSGI_Spatial`, then `CopyHistorySSGI` copies two textures. Quality Low → Ultra trades noise for cost.
+5. Frame Debugger: `SSGI_Classify`, `SSGI_Trace` (skip clear and cosine trace), `SSGI_Temporal`,
+   `SSGI_Spatial`, then `SSGIUpsample` reconstructs the half-resolution working signal at full resolution. `CopyHistorySSGI` accepts the filtered working radiance and geometric metadata. Validate all four quad phases and odd last-texel intervals with a nonconstant signal. SSR retains full-resolution Resolve/Temporal/Spatial with optional half-resolution Trace. Quality Low → Ultra trades noise for cost.
 
 ## S15a — Shader Graph target
 
@@ -841,3 +841,15 @@ After drain, remove owned transient content and task data, verify asset hashes
 and original camera/settings/scene state, and report the precise loaded-variant
 scope. Separate Metal from D3D12/Vulkan/HDR/APV/unused Graph limits. Keep old
 attempt failures and infrastructure errors distinct from final passing receipts.
+
+### Resource-pool recording and submission intervals
+
+Run `ResourcePoolLifecycleTests`, `GpuSceneSubmissionTests`, the RenderGraph lifecycle/queue tests and Mesh consumers on the same candidate. Imports must protect physical allocations before Execute. Test buffer/texture return without an explicit fence, two independent camera recordings, cancellation of each recording, and disposal before cancellation.
+
+The GPU fixture queues the first camera without Submit, updates dirty GPU Scene tables (including growth after a partially queued failure), then queues a second camera. Probe the returned old descriptor through the CPU acquisition path and verify both camera results by readback. Record whether the completion fence is actually incomplete immediately after Submit; CPU writes must remain prohibited until completion. A separate fixture disposes the pool while submitted work is incomplete and checks that physical destruction happens only after completion.
+
+Also update dirty tables after the first camera is recorded but before Execute; both cameras must retain their own values. Return and grow a Mesh indirect payload while an old buffer is still imported; the old physical buffer must survive until the recording is cancelled or its submission completes. Run `FrameSubmissionTests` to distinguish final-fence queue failure, native Submit failure, and a post-Submit observer exception. A completion fence that failed to queue must never acknowledge resource use.
+
+Confirm that same-queue command reuse still aliases compatible storage. Opposite-queue reuse requires a genuinely queued fence. A GPU wait never permits immediate CPU SetData. Completing batch B must not acknowledge unsubmitted batch A; camera failure within one frame must not silently create a new submission batch. Unknown native Submit failure stays quarantined unless its own submission/cancellation is proven; a later frame is insufficient. Known submitted work awaiting an async join may be acknowledged only after recovery joins it and the recovering submission succeeds.
+
+Metal topology/state tests do not prove hardware async execution. Keep the whole lifecycle gate open until actual cross-queue and native failure recovery are covered on supporting APIs; report observed submitted-but-incomplete and disposal results separately.

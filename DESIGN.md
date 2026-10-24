@@ -42,7 +42,8 @@ transform that already has an owner ("TransformId already owned"). There is no m
 | `MeshScene.cs`, `MeshSceneRecords.cs` | Authoritative SoA tables, generation free lists, transform ownership map, refcounted sections/materials, dirty-page bitmaps, revisions |
 | `MeshSceneUpdate.cs` | Transaction with full undo log; `Dispose` without `Commit` rolls back |
 | `GpuScene.cs` | GPU mirror of `MeshScene`: uploads dirty 64-slot page runs of transforms, rendering layers, baked lighting, bounds, instance→transform index and flags |
-| `MeshWorld.cs` | Per-scene facade owning `MeshScene`, `GpuScene`, `MeshVisibilityShare`, `PassRegistry`, `MeshDrawPipeline`, `MeshGpuVisibilityCache` and per-view previous transforms |
+| `MeshTransformVersionCache.cs` | Immutable scene transform/generation versions, dirty-page upload, GPU copy/patch production and reference retirement; camera histories retain version references only |
+| `MeshWorld.cs` | Per-scene facade owning `MeshScene`, `GpuScene`, `MeshVisibilityShare`, `PassRegistry`, `MeshDrawPipeline`, `MeshGpuVisibilityCache` and view-local references to scene-owned transform versions |
 | `PassRegistry.cs`, `MeshPassTypes.cs`, `MeshPassId.cs` | The nine `MeshPassId` definitions (filter program, eligibility, sort fields) |
 | `PassBinStore.cs` | Per-pass bins: filter (eligibility, queue, liveness, motion), structural sort (GBuffer/Forward), grouping by `MeshDrawCommandKey` into `MeshPassCommand` spans |
 | `MeshDrawCommandKey.cs` | Structured command identity (full `Equals`; hash is lookup acceleration only) |
@@ -93,7 +94,8 @@ A DrawList is not an `ERGResourceType`. Each `RGDrawListRef` carries a graph gen
 | Phase | API | What happens |
 |-------|-----|----------------|
 | Logical cleanup | `RGDrawListContext.ReleaseAll` | Releases NativeArray builds and visibility references and retires payloads into retired queues. No `ComputeBuffer.Release`. |
-| Physical retirement | After `ScriptableRenderContext.Submit()` | `FlushRetiredPayloads` / `FlushRetiredBuffers` return payloads to the pool or dispose them. |
+| Pool return | After native `ScriptableRenderContext.Submit()` | `FlushRetiredPayloads` / `FlushRetiredBuffers` return allocations while preserving recording and GPU-use state; payload objects retain no physical buffers. |
+| Physical destruction | After all recording references and GPU uses complete | ResourcePool completion/eviction checks release physical storage. Submit alone does not prove completion. |
 
 Before recording, the payload budget is sized once (`EnsureCapacity`); during recording only `RequireCapacity` checks
 run. Buffers bound to a live command buffer are never grown or recreated.
@@ -184,25 +186,34 @@ passes leave it disabled. `MeshComponent.renderingLayer` is flags, not an int la
 
 ## 15. Full rendering pipeline (locked order)
 
-`InfinityRenderPipeline.RecordRG` records in these phases. Do not reorder without a new stage and a captured frame.
+`InfinityRenderPipeline.RecordRG` records the following dependency order. Async eligibility is resolved against actual device capabilities; overlap and speedup are separate verification gates.
 
 ```text
-Phase 0  CombineLUT + AtmosphericLUT          (zero RG-resource inputs; async-eligible)
-Phase 1  Depth → DBuffer → GBuffer → Motion
-Phase 2  HiZ + HalfResDownsample + LightTileMask (async-eligible)
-Phase 3  CascadeShadow + LocalShadow
-Phase 4  reserved (VolFog moved to Phase 7)
-Phase 5  GTAO → CopyHistoryOcclusion → ContactShadow
-Phase 6  Deferred → Forward → SSS → AtmosphericSkyAndFog
-         → OpaqueLightingPyramid → SSR/SSGI (+ history) → ScreenSpaceComposite
-         → OpaqueSceneColor
-Phase 7  TranslucentDepth → VolCloud (+ history) → VolFog (+ history)
-         → FogComposite → FoggedSceneColor
-         → T0 → ColorPyramid → T1 → T2
-Phase 8  TAA or SuperResolution (+ history) → Exposure / Bloom / CombineLUT
-         → raster post-combine (grading, vignette, grain)
-         → direct final output + hardware-sRGB UI, OR
-           linear intermediate → DebugView → Gizmo/WireOverlay → UI → final output
+Camera
+|-- Scene uploads / immutable transform versions / accepted image histories
+|-- CombineLUT / AtmosphericLUT / TemporalColorPyramid         [async eligible]
+|-- FirstMeshCulling -> Depth -> EarlyFurthestHiZ              [Graphics]
+|   `-- DeferredMeshRecovery -> DepthRecovery
+|-- DBuffer -> GBuffer -> ObjectMotion / CameraMotion         [Graphics]
+|-- HiZClosest+Furthest / HalfResGeometry / LightTileMask      [async eligible]
+|-- AO (RTAO or GTAO) -> ContactShadow                        [near lighting deadline]
+|-- SSR                                                     [async eligible]
+|   |-- Classify -> Trace (half or full)
+|   `-- Resolve -> Temporal -> optional Spatial              [full resolution]
+|-- SSGI                                                    [async eligible]
+|   |-- Classify -> cosine Trace + previous-color sampling
+|   `-- Temporal -> world-space Spatial -> reconstruction    [half work grid; Ultra full]
+|-- CascadeShadow / LocalShadow -> ShadowMoments              [independent raster window]
+|-- Deferred -> Forward -> ScreenSpaceComposite              [Graphics]
+|-- CopyHistorySSR (pre-spatial) / CopyHistorySSGI (filtered)
+|-- Burley diffuse diffusion (half) -> recomposition (full)   [Graphics]
+|-- AtmosphericSkyAndFog
+|-- TranslucentDepth -> VolCloud / VolFog (+ histories)
+|-- FogComposite -> T0 -> ColorPyramid -> T1 -> T2             [Graphics]
+|-- TAA or SR (unsharpened pending history + sharpened display)
+`-- Exposure / Bloom / raster final combine / UI / output
+    |-- direct camera target + hardware-sRGB UI
+    `-- required linear intermediate -> debug/overlays/UI -> encoding
 ```
 
 Contracts that stay locked:
@@ -236,7 +247,7 @@ Gizmo / WireOverlay record on linear `PostProcessBuffer` after post/DebugView an
 
 `EDebugView` writes a linear quantity into `PostProcessBuffer` in one compute pass immediately before Gizmo/WireOverlay. It is not a second encoding owner. The active view comes from `InfinityDebugDisplaySettings` (Rendering Debugger), not from a serialized RP Asset field. `TAAConfidenceBuffer` exists only when `debugView != None` or an explicit normal-frame capture requests confidence for this frame. Optional AO/SSR/SSGI views that were not recorded this frame use a dedicated Missing kernel (magenta), never an invalid RT bind.
 
-SceneView uses the full pipeline. Volume selection on SceneView uses the unique active Game camera's additional-data mask/trigger when one exists; otherwise `~0` and the SceneView transform. Preview cameras use the default profile only. A new camera state or a skipped frame (`lastSeenFrame` gap > 1) sets `historyReset` and disables jitter that frame. SceneView states recycle after 120 unseen frames so docking the tab does not rebuild history every time. Game recycle stays 8. Preview temporal gating remains a documented independent defect.
+SceneView uses the full pipeline. Volume selection on SceneView uses the unique active Game camera's additional-data mask/trigger when one exists; otherwise `~0` and the SceneView transform. Preview cameras use the default profile only. A new camera state or a skipped frame (`lastSeenFrame` gap > 1) sets `historyReset` and disables jitter that frame. Live SceneView history is not recycled by a global frame gap; accepted camera submissions advance it. Game recycle stays 8. Preview temporal gating remains a documented independent defect.
 
 ## 18. User-facing integration
 
@@ -290,6 +301,12 @@ Lighting capture is recorded after the final opaque lighting/atmosphere producer
 The graph owns an unnamed command buffer separate from enclosing frame/camera scopes. Execute propagates the original exception and stack; failed pass commands are abandoned without clearing enclosing scopes. Async temporary command buffers return in `finally`. Unreturned transient graph allocations move to a retirement queue during logical clear and become reusable only after the enclosing frame Submit.
 
 Attachment Load is a read of prior contents. Loaded depth that later effects or capture consume must be stored. Forward explicitly reads GGX/SH and the light-list buffers (z-bins and tile masks, or the one-word empty mask when no local light is visible); it binds through the raster capability surface. Atmosphere and light-list producers do not prebind outputs globally. A missing tile-mask kernel fails at record when local lights are visible. The LightContext upload is a Transfer producer. Imported GraphicsBuffer resources share `RGBufferRef` dependency tracking with ComputeBuffer resources; native target/count/stride stay explicit and an imported GraphicsBuffer is never cloned as a ComputeBuffer descriptor. LightContext retires replaced buffers only after frame Submit.
+
+Queue requests resolve against device Async Compute and graphics-fence capability at graph compilation. Diagnostics report the effective queue. RAW, WAR and WAW include all live prior users on the other queue. Repeated imports of one physical texture/buffer share a graph handle; texture aliases retain each shader binding, while conflicting logical texture views fail at record time.
+
+Logical last use returns a transient allocation to the pool with its last-use fences from both queues. Command users wait only for the other queue before any clear, binding or dispatch; CPU users acquire the allocation only after separate CPU-queryable completion fences pass. This permits physical reuse between unrelated logical resources without relying on descriptor equality as a dependency. Abandoned allocations carry the frame completion fence when returned after Submit.
+
+Scene transforms are the exception to image-history ownership: `GpuScene.transformVersions` is the sole owner of current and historical immutable matrix/generation buffers. A dedicated transform revision ignores material-only edits and identical matrix writes. Dirty 64-slot pages upload once, then one compute node copies unchanged elements and patches changes. Each camera retains accepted/pending references rather than arrays or per-camera GPU tables. Shader reads validate the scene, snapshot range and slot generation; a new/reused slot yields invalid previous clip data. Only successful camera submission advances the view reference. Sparse views may pin old versions; physical release follows frame submission.
 
 Pass queue observers publish capture ownership and atmosphere production only after Unity accepts the pass command buffer. Abandoned recording never latches queued ownership. A graph orders its first async work after earlier graphics submissions and joins its last accepted async fence on exit, including after a later recording failure.
 
@@ -438,3 +455,27 @@ contracts are required in addition to import-time diagnostics.
 - Guard degenerate vector normalization before reciprocal length evaluation. Bind required resources and validate physical inputs at setup rather than substituting fallback textures.
 - For compute passes changed during diagnostic repairs, resolve kernels by name and freeze kernel/thread-group dispatch metadata into pass data at recording. Deferred shading uses an 8x8 workgroup; clustered light lookup independently retains 16x16 screen tiles.
 - Warning acceptance covers public ShaderUtil diagnostics after actual production dispatch/draw, a fresh rendering log window, and the current Example feature chain. A fixture, reimport or FindKernel alone cannot establish full-scene acceptance.
+
+### Temporal resolve outputs
+
+Super Resolution now produces display color separately from its unsharpened RGBA16F pending color and R32 display-grid surface depth. The resolve dispatch owns all three outputs, and HistoryCache accepts the pending pair only after the camera/frame transaction succeeds. The previous transfer from sharpened display into history is deleted. SR reset and offscreen rejection guard the history texture reads themselves.
+
+### Recording references and CPU uploads
+
+ResourcePool owns usage state per physical allocation, independently of logical RG handles. Importing an owned allocation retains a recording reference immediately; graph clear releases it only after abandoning unqueued commands or registering queue attempts. Returning an allocation, including without a fence, preserves this state. Queue attempts remain pending until the submission owner acknowledges successful submission; ambiguous failures quarantine their uses across CPU frame transitions. Completion acknowledges only its specific submission batch. A successful drain can recover batches known to have reached native Submit; it cannot cancel an older context that might still be submitted later. Unknown Submit failures retain their allocations. Immediate CPU uploads additionally require a CPU-queryable completion signal.
+
+GpuScene attributes and bounds use copy-on-write when dirty tables are still recorded, queued or incomplete. Replacement groups allocate and upload before publication, preserve the old group on failure, and return old allocations without discarding usage state. DrawLists freeze the physical scene tables and candidate table they consume. SSS profile and candidate uploads acquire independently writable pooled allocations; unchanged records do not upload. Pool teardown polls actual completion before physical destruction; it does not equate teardown or an update tick with GPU completion. Unresolved submissions retain their allocations until acknowledged rather than releasing them speculatively.
+
+Mesh indirect payload buffers have the same physical owner. Resizing or returning a payload returns its four allocations through ResourcePool; only empty CPU payload objects remain in the backend object pool. GPU command uploads wait on required opposite-queue reuse fences. Immediate CPU uploads continue to require completion rather than those waits.
+
+Frame submission records three separate outcomes: the final fence command batch was queued, native Submit returned, and the frame transaction was accepted. A post-Submit observer exception rejects frame history without pretending native work was cancelled. A failed final-fence queue cannot acknowledge physical completion; known submitted work requires an explicit recovery join and a successfully queued/submitted later fence. Unknown native submission outcomes remain quarantined.
+
+### Screen-space working grids and diffuse scattering
+
+SSR alone retains full-resolution Resolve/Temporal/Spatial and effect history while optionally tracing half resolution. SSGI has no Resolve kernel or ray-reuse controls: cosine tracing reads the shared accepted previous-color mips directly. Its temporal, recurrent world-space spatial and geometric history stay on the selected working grid, with geometric reconstruction at full resolution. Low/Medium/High use half resolution, Ultra full, and Custom keeps its explicit HalfResolution choice. Metadata is RGBA32F; radiance is HDR RGBA16F. A view accepts its previous quad phase only with successful camera history submission.
+
+SSGI spatial filtering uses sixteen rotated tangent-plane taps with a world-space radius derived from hit distance and pixel footprint, bounded to one through eight working pixels. Projection uses current jittered matrices; plane distance and normal agreement reject unrelated neighbors. Premultiplied radiance and coverage are filtered together. Reconstruction interpolates the rotating representatives' actual pixel positions, including the shorter last interval at odd extents. SSR history is retained before spatial filtering; SSGI retains the filtered working result.
+
+SSS allocates a diffuse-only component only for supported, active rendering. Deferred and opaque Forward variants produce direct plus environment diffuse; screen-space indirect replacement updates that component consistently. Burley diffusion integrates compatible half-grid quads and rejects mismatched profiles, shading models, depth and normals. Diffusion parameters come from each material's profile index; Volume activation never overrides every material with profile zero. Full-resolution recomposition modifies opaque color by filtered diffuse minus original diffuse, retaining specular/emission and unscattered surfaces. Subpixel diffusion preserves the original diffuse. Existing material routing still requires opaque Deferred SSS; the Forward MRT variant follows the same lighting-output contract without changing that routing restriction.
+
+Previous-color effects do not consume current-frame lighting. They are scheduled before shadow rasterization; graphics history copies follow the independent raster window. AO/contact are earlier async jobs because Deferred needs them first. Early HiZ/recovery and late SSS/temporal/post remain on Graphics where there is no independent raster window. This is an execution policy, not a hardware performance result.

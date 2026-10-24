@@ -1,5 +1,6 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 #pragma kernel DeferredShadingCS
+#pragma multi_compile_local _ INFINITY_SSS_OUTPUT
 #pragma multi_compile_local _ DEFERRED_AO
 #pragma multi_compile_local _ DEFERRED_CONTACT_SHADOW
 
@@ -31,6 +32,9 @@ Texture2D<float> SRV_OcclusionTexture;
 Texture2D<float4> SRV_BakedDiffuse, SRV_BakedOcclusion;
 RWTexture2D<float4> UAV_IndirectDiffuse, UAV_IndirectSpecular;
 RWTexture2D<float4> UAV_LightingTexture;
+#if defined(INFINITY_SSS_OUTPUT)
+RWTexture2D<float4> UAV_ScatterDiffuse;
+#endif
 
 #include "../../ShaderLibrary/SurfaceLighting.hlsl"
 
@@ -43,6 +47,9 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     float2 screenUV = (id.xy + 0.5) * DeferredShading_Resolution.zw;
     uint2 pixelCoord = id.xy;
 
+#if defined(INFINITY_SSS_OUTPUT)
+    UAV_ScatterDiffuse[pixelCoord] = 0;
+#endif
     float rawDepth = SRV_DepthTexture[pixelCoord];
     if (abs(rawDepth - DeferredShading_FarDepth) <= 1e-5)
     {
@@ -89,11 +96,14 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 #endif
     float4 bakedMask = 1 - SRV_BakedOcclusion[pixelCoord];
     float3 lighting = 0;
+    float3 directDiffuse = 0;
 
     for (int d = 0; d < g_DirectionalLightCount; ++d)
     {
         if ((g_LightRecordBuffer[d].lightLayer & gbufferData.RenderingLayer) == 0) continue;
-        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, d == g_SunRecordIndex ? contactShadow : 1.0, viewDepth, bakedMask);
+        float3 contribution;
+        lighting += EvaluateDirectional(g_LightRecordBuffer[d], worldPos, normal, viewDir, microfaceCtx, d == g_SunRecordIndex ? contactShadow : 1.0, viewDepth, bakedMask, contribution);
+        directDiffuse += contribution;
     }
 
     FLightLoop lightLoop;
@@ -104,7 +114,9 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     {
         FLightRecord light = g_LightRecordBuffer[recordIndex];
         if ((light.lightLayer & gbufferData.RenderingLayer) == 0) continue;
-        lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth, contactMask);
+        float3 contribution;
+        lighting += EvaluateLocal(light, worldPos, normal, viewDir, microfaceCtx, bakedMask, viewDepth, contactMask, contribution);
+        directDiffuse += contribution;
     }
 
     float4 baked = SRV_BakedDiffuse[pixelCoord];
@@ -117,6 +129,9 @@ void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
     UAV_IndirectDiffuse[pixelCoord] = float4(diffuse, 1);
     UAV_IndirectSpecular[pixelCoord] = float4(specularIBL, 1);
     lighting += diffuse + specularIBL;
+#if defined(INFINITY_SSS_OUTPUT)
+    UAV_ScatterDiffuse[pixelCoord] = float4(directDiffuse + diffuse, 1);
+#endif
 
     float3 emissive = UAV_LightingTexture[pixelCoord].rgb;
     UAV_LightingTexture[pixelCoord] = float4(max(0, lighting) + emissive, 1);

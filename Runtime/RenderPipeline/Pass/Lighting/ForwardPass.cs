@@ -10,6 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal static class ForwardPassUtilityData
     {
+        internal static readonly GlobalKeyword SubsurfaceKeyword = GlobalKeyword.Create("INFINITY_SSS_OUTPUT");
         internal static readonly GlobalKeyword ContactShadowKeyword = GlobalKeyword.Create("INFINITY_FORWARD_CONTACT_SHADOW");
         internal static readonly GlobalKeyword OcclusionKeyword = GlobalKeyword.Create("INFINITY_FORWARD_AO");
         internal static string TextureName = "LightingTexture";
@@ -19,6 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ForwardPassData
         {
+            public bool hasSubsurface;
             public RGDrawListRef draws;
             public RGRendererListRef rendererList;
             public RGTextureRef atmosphereGGX;
@@ -36,6 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             public readonly void BindLighting<TCommands>(in TCommands commands) where TCommands : struct, IRasterCommands
             {
+                commands.SetKeyword(ForwardPassUtilityData.SubsurfaceKeyword, hasSubsurface);
                 commands.SetKeyword(ForwardPassUtilityData.OcclusionKeyword, hasOcclusion);
                 if (hasOcclusion) commands.SetGlobalTexture(Shader.PropertyToID("SRV_ForwardOcclusion"), occlusion);
                 commands.SetKeyword(GBufferPassUtilityData.DirectionalLightmapKeyword, directionalLightmap);
@@ -81,10 +84,12 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
+                if (m_ActiveFrameState.subsurfaceEnabled) passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.ScatterDiffuseBuffer), 3, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref ForwardPassData passData = ref passRef.GetPassData<ForwardPassData>();
                 {
+                    passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
                     passData.shadowmask = GBufferPassUtilityData.HasShadowmask();
                     FShadowInputs shadows = QueryShadowInputs(renderContext);

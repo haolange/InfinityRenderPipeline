@@ -14,6 +14,12 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 {
     public class RGDrawListLifetimeTests
     {
+        ComputeShader m_PreviousShader;
+        [SetUp]
+        public void PreserveLiveBackend() => m_PreviousShader = MeshDrawGPUBackend.shader;
+        [TearDown]
+        public void RestoreLiveBackend() => MeshDrawGPUBackend.SetShader(m_PreviousShader);
+
         [Test]
         public void Payload_RetireStaysOutOfPoolUntilFlush()
         {

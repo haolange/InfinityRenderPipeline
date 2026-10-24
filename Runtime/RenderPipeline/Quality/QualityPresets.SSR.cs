@@ -38,7 +38,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             new FSSRSettings { halfResolution = true, mirrorRoughness = 0.05f, linearRoughness = 0.2f, hiZSteps = 8, linearSteps = 8, resolveSamples = 2, resolveRadius = 1.5f, brdfBias = 0.7f, temporalWeight = 0.95f, temporalClampScale = 1.0f, spatialPasses = 1 },   // Low
             new FSSRSettings { halfResolution = true, mirrorRoughness = 0.05f, linearRoughness = 0.3f, hiZSteps = 8, linearSteps = 16, resolveSamples = 4, resolveRadius = 2.0f, brdfBias = 0.7f, temporalWeight = 0.93f, temporalClampScale = 1.25f, spatialPasses = 1 }, // Medium
-            new FSSRSettings { halfResolution = false, mirrorRoughness = 0.05f, linearRoughness = 0.4f, hiZSteps = 12, linearSteps = 16, resolveSamples = 4, resolveRadius = 2.0f, brdfBias = 0.7f, temporalWeight = 0.93f, temporalClampScale = 1.25f, spatialPasses = 1 }, // High
+            new FSSRSettings { halfResolution = true, mirrorRoughness = 0.05f, linearRoughness = 0.4f, hiZSteps = 12, linearSteps = 16, resolveSamples = 4, resolveRadius = 2.0f, brdfBias = 0.7f, temporalWeight = 0.93f, temporalClampScale = 1.25f, spatialPasses = 1 }, // High
             new FSSRSettings { halfResolution = false, mirrorRoughness = 0.05f, linearRoughness = 0.5f, hiZSteps = 16, linearSteps = 24, resolveSamples = 8, resolveRadius = 3.0f, brdfBias = 0.8f, temporalWeight = 0.9f, temporalClampScale = 1.5f, spatialPasses = 0 },   // Ultra
         };
     }

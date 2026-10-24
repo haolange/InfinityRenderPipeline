@@ -26,6 +26,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly List<FBufferRef> m_FrameRentedBuffers = new List<FBufferRef>(8);
         private readonly List<FBufferRef> m_RetiredBuffers = new List<FBufferRef>(8);
 
+        internal MeshGpuSceneSnapshot CaptureScene() => new MeshGpuSceneSnapshot(m_Residency);
+
         public PassBinStore PassBins => m_PassBins;
         internal MeshCandidateTableStore CandidateTables => m_CandidateTables;
 
@@ -37,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PropertyBlock = new MaterialPropertyBlock();
             m_PlatformFeatureKey = MeshDrawGPUBackend.SupportsIndirect ? 1u : 0u;
             m_PassBins = new PassBinStore(scene, registry, m_PlatformFeatureKey);
-            m_CandidateTables = new MeshCandidateTableStore(scene, m_PassBins);
+            m_CandidateTables = new MeshCandidateTableStore(scene, m_PassBins, resourcePool);
         }
 
         public MeshDrawExtract Extract(MeshPassId passId, in MeshViewCullingResult culling)
@@ -96,6 +98,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
+        internal ResourcePool resourcePool => m_ResourcePool;
+
         // Allocation happens while the graph compiles; the explicit Upload producer fills the buffer.
         internal FBufferRef AllocateCpuDirect(in PassView drawList)
         {
@@ -109,8 +113,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (buffer.buffer != null && drawList.instanceCount > 0)
                 commands.SetBufferData(buffer.buffer, drawList.instanceIndices, 0, 0, drawList.instanceCount);
         }
-        internal ComputeBuffer CandidateBuffer(MeshPassId passId) => m_CandidateTables.GetCandidateBuffer(passId);
-        internal FBufferRef InstanceTransformIndices => m_Residency.InstanceTransformIndexBuffer;
 
         internal bool PrepareGpu(
             CommandBuffer cmdBuffer,
@@ -118,6 +120,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             MeshWorld world,
+            in MeshGpuSceneSnapshot residency,
             in MeshView view,
             MeshPassId passId)
         {
@@ -127,23 +130,24 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return false;
             }
 
-            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, m_Residency, payload, staging, world, view, passId, m_CandidateTables);
+            return MeshDrawGPUBackend.PrepareIndirect(cmdBuffer, drawList, residency, payload, staging, world, view, passId);
         }
 
         internal void SubmitGpu(
             CommandBuffer cmdBuffer,
             in PassView drawList,
             int shaderPassIndex,
+            in MeshGpuSceneSnapshot residency,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
             EMeshViewKind viewKind,
-            string lightModeTag = null, ComputeBuffer previousTransforms = null)
+            string lightModeTag = null, MeshMotionBinding previousTransforms = default)
         {
             MeshDrawGPUBackend.DrawIndirect(
                 cmdBuffer,
                 drawList,
                 shaderPassIndex,
-                m_Residency,
+                residency,
                 m_PropertyBlock,
                 payload,
                 staging,
@@ -198,11 +202,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassBins.Dispose();
         }
 
-        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in PassView drawList, int shaderPassIndex, FBufferRef indexBufferRef, EMeshViewKind viewKind, string lightModeTag = null, ComputeBuffer previousTransforms = null)
+        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in PassView drawList, int shaderPassIndex, in MeshGpuSceneSnapshot residency, FBufferRef indexBufferRef, EMeshViewKind viewKind, string lightModeTag = null, MeshMotionBinding previousTransforms = default)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
                 || indexBufferRef.buffer == null
-                || m_Residency.TransformBuffer.buffer == null)
+                || residency.TransformBuffer.buffer == null)
             {
                 return;
             }
@@ -231,10 +235,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                     // Current poses come from the scene; previous poses come from this view's accepted history.
                     m_PropertyBlock.SetInt(InfinityShaderIDs.InstanceIndexOffset, command.countOffset.y);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.InstanceIndexBuffer, indexBufferRef.buffer);
-                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.TransformBuffer, m_Residency.TransformBuffer.buffer);
-                    if (previousTransforms != null) m_PropertyBlock.SetBuffer(InfinityShaderIDs.PreviousTransformBuffer, previousTransforms);
-                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.RenderingLayerBuffer, m_Residency.RenderingLayerBuffer.buffer);
-                    MeshBakedLighting.Bind(cmdBuffer, m_PropertyBlock, command.bakedTextureSet, m_Residency.BakedLightingBuffer.buffer);
+                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.TransformBuffer, residency.TransformBuffer.buffer);
+                    (previousTransforms.isValid ? previousTransforms : new MeshMotionBinding(residency.version, null)).Bind(m_PropertyBlock);
+                    m_PropertyBlock.SetBuffer(InfinityShaderIDs.RenderingLayerBuffer, residency.RenderingLayerBuffer.buffer);
+                    MeshBakedLighting.Bind(cmdBuffer, m_PropertyBlock, command.bakedTextureSet, residency.BakedLightingBuffer.buffer);
                     cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, passIndex, command.countOffset.x, m_PropertyBlock);
                     MeshBakedLighting.ClearKeywords(cmdBuffer);
                 }

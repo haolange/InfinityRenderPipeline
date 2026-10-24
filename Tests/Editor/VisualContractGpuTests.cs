@@ -28,6 +28,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             var shader = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(ShaderPath));
             var depth = new Texture2D(64, 64, TextureFormat.RFloat, true, true);
+            var closest = new Texture2D(32, 32, TextureFormat.RFloat, true, true);
             Vector4 oldZ = Shader.GetGlobalVector("_ZBufferParams"), oldProjection = Shader.GetGlobalVector("_ProjectionParams");
             try
             {
@@ -53,6 +54,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     values = next; size = nextSize;
                 }
                 depth.Apply(false, false);
+                for (int mip = 0; mip < closest.mipmapCount; ++mip) closest.SetPixelData(depth.GetPixelData<float>(mip + 1), mip);
+                closest.Apply(false, false);
                 float tangent = Mathf.Tan(30 * Mathf.Deg2Rad);
                 Vector3 origin = new Vector3(-0.5f * tangent * 2, 0, -2);
                 Vector3 target = new Vector3(0.5f * tangent * 5, 0, -5);
@@ -60,7 +63,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
                 shader.SetVector("Origin", origin); shader.SetVector("Direction", (target - origin).normalized);
                 shader.SetFloat("RayDistance", (target - origin).magnitude + 1);
-                shader.SetTexture(shader.FindKernel("TraceContract"), "DepthPyramid", depth);
+                shader.SetTexture(shader.FindKernel("TraceContract"), "DepthPyramid", closest);
+                shader.SetTexture(shader.FindKernel("TraceContract"), "SurfaceDepth", depth);
                 Shader.SetGlobalVector("_ZBufferParams", SystemInfo.usesReversedZBuffer ? new Vector4(999, 1, 9.99f, 0.01f) : new Vector4(-999, 1000, -9.99f, 10));
                 Shader.SetGlobalVector("_ProjectionParams", new Vector4(1, 0.1f, 100, 0.01f));
                 Vector4 hit = Run(shader, "TraceContract", 1)[0];
@@ -73,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 else Assert.AreEqual(Vector4.zero, hit);
             }
-            finally { Shader.SetGlobalVector("_ZBufferParams", oldZ); Shader.SetGlobalVector("_ProjectionParams", oldProjection); UnityEngine.Object.DestroyImmediate(shader); UnityEngine.Object.DestroyImmediate(depth); }
+            finally { Shader.SetGlobalVector("_ZBufferParams", oldZ); Shader.SetGlobalVector("_ProjectionParams", oldProjection); UnityEngine.Object.DestroyImmediate(shader); UnityEngine.Object.DestroyImmediate(depth); UnityEngine.Object.DestroyImmediate(closest); }
         }
         [TestCase(0, 0f)]
         [TestCase(0, 0.5f)]
