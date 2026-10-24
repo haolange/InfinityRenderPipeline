@@ -49,17 +49,21 @@ FLightLoop BeginProbeLoop(uint2 pixelCoord, float viewDepth)
     FLightLoop loop = (FLightLoop)0;
     loop.word = 1;
     loop.lastWord = 0;
-    if (g_ReflectionProbeCount <= 0) return loop;
-    uint packed = SRV_ProbeZBins[LightZBin(viewDepth)];
-    loop.minIndex = packed & 0xFFFFu;
-    loop.maxIndex = packed >> 16;
-    if (loop.minIndex > loop.maxIndex) return loop;
-    uint2 tile = min(pixelCoord / LIGHT_TILE_SIZE, (uint2)(ceil(g_ProbeTileParams.xy / LIGHT_TILE_SIZE)) - 1u);
-    uint wordCount = (uint)g_ProbeTileParams.w;
-    loop.maskBase = (tile.y * (uint)g_ProbeTileParams.z + tile.x) * wordCount;
-    loop.word = loop.minIndex >> 5;
-    loop.lastWord = loop.maxIndex >> 5;
-    loop.mask = LoadProbeLoopWord(loop);
+    if (g_ReflectionProbeCount > 0)
+    {
+        uint packed = SRV_ProbeZBins[LightZBin(viewDepth)];
+        loop.minIndex = packed & 0xFFFFu;
+        loop.maxIndex = packed >> 16;
+        if (loop.minIndex <= loop.maxIndex)
+        {
+            uint2 tile = min(pixelCoord / LIGHT_TILE_SIZE, (uint2)(ceil(g_ProbeTileParams.xy / LIGHT_TILE_SIZE)) - 1u);
+            uint wordCount = (uint)g_ProbeTileParams.w;
+            loop.maskBase = (tile.y * (uint)g_ProbeTileParams.z + tile.x) * wordCount;
+            loop.word = loop.minIndex >> 5;
+            loop.lastWord = loop.maxIndex >> 5;
+            loop.mask = LoadProbeLoopWord(loop);
+        }
+    }
     return loop;
 }
 
@@ -95,24 +99,33 @@ float3 ProbeBoxDirection(FReflectionProbeRecord probe, float3 directionWS)
 float ProbeInfluenceWeight(FReflectionProbeRecord probe, float3 boxPosition)
 {
     float blend = max(probe.extents.w, 1e-4);
+    float weight = 0;
     if (probe.parameters.w != 0)
     {
-        return saturate((probe.extents.x - length(boxPosition)) / blend);
+        weight = saturate((probe.extents.x - length(boxPosition)) / blend);
     }
-    float3 distanceToFace = probe.extents.xyz - abs(boxPosition);
-    return saturate(min(distanceToFace.x, min(distanceToFace.y, distanceToFace.z)) / blend);
+    else
+    {
+        float3 distanceToFace = probe.extents.xyz - abs(boxPosition);
+        weight = saturate(min(distanceToFace.x, min(distanceToFace.y, distanceToFace.z)) / blend);
+    }
+    return weight;
 }
 
 // Box projection (parallax correction): the reflected ray from the shaded point hits the projection box; the probe
 // is sampled along the direction from its capture position to that hit.
 float3 ProbeSampleDirection(FReflectionProbeRecord probe, float3 boxPosition, float3 boxDirection)
 {
-    if (probe.capture.w == 0) return boxDirection;
-    float3 extents = probe.parameters.w != 0 ? probe.projection.xxx : probe.projection.xyz;
-    float3 rcpDirection = rcp(boxDirection + (boxDirection >= 0 ? 1e-6 : -1e-6));
-    float3 tMax = max((extents - boxPosition) * rcpDirection, (-extents - boxPosition) * rcpDirection);
-    float t = min(tMax.x, min(tMax.y, tMax.z));
-    return boxPosition + boxDirection * max(t, 0) - probe.capture.xyz;
+    float3 direction = boxDirection;
+    if (probe.capture.w != 0)
+    {
+        float3 extents = probe.parameters.w != 0 ? probe.projection.xxx : probe.projection.xyz;
+        float3 rcpDirection = rcp(boxDirection + (boxDirection >= 0 ? 1e-6 : -1e-6));
+        float3 tMax = max((extents - boxPosition) * rcpDirection, (-extents - boxPosition) * rcpDirection);
+        float t = min(tMax.x, min(tMax.y, tMax.z));
+        direction = boxPosition + boxDirection * max(t, 0) - probe.capture.xyz;
+    }
+    return direction;
 }
 
 float3 SampleReflectionProbe(FReflectionProbeRecord probe, float3 directionBox, float roughness)

@@ -74,7 +74,7 @@ float GTAO(int numRay, int numStep, float radius, float power, float halfProjSca
 		occlusion += (sliceLength + wallDarkeningCorrection) * IntegrateArc_CosWeight(h, n);
 	}
 
-	occlusion = saturate(pow(occlusion / (float)numRay, power));
+	occlusion = saturate(pow(saturate(occlusion / (float)numRay), power));
     return occlusion;
 }
 

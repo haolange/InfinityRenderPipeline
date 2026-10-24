@@ -64,17 +64,12 @@ namespace InfinityTech.Rendering.Pipeline
         RasterOutputCopy,
         RasterUpscaleDepthForEditorOverlays,
         RasterFinalOutput,
-        UploadMeshDrawData,
-        ComputeMeshDrawCompact,
         Depth,
         GBuffer,
         ObjectMotion,
         CascadeShadow,
         LocalShadow,
         Forward,
-        ComputeMeshDrawCull,
-        ComputeMeshDrawCullCascade,
-        ComputeMeshDrawCullLocal,
         Max,
     }
 

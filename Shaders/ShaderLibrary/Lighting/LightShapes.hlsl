@@ -28,16 +28,17 @@ struct FLightShapeSample
 // Frostbite illuminance of a sphere or disk subtending sin^2(sigma), with the horizon clip (returns E / L).
 float IlluminanceSphereOrDisk(float cosTheta, float sinSigmaSqr)
 {
-    float sinTheta = sqrt(saturate(1.0 - cosTheta * cosTheta));
-    if (cosTheta * cosTheta > sinSigmaSqr)
+    float illuminance = LIGHT_SHAPE_PI * sinSigmaSqr * saturate(cosTheta);
+    if (cosTheta * cosTheta <= sinSigmaSqr)
     {
-        return LIGHT_SHAPE_PI * sinSigmaSqr * saturate(cosTheta);
+        float sinTheta = sqrt(saturate(1.0 - cosTheta * cosTheta));
+        float x = sqrt(max(1.0 / sinSigmaSqr - 1.0, 1e-6));
+        float y = -x * (cosTheta / max(sinTheta, 1e-6));
+        float sinThetaSqrtY = sinTheta * sqrt(saturate(1.0 - y * y));
+        illuminance = (cosTheta * acos(clamp(y, -1.0, 1.0)) - x * sinThetaSqrtY) * sinSigmaSqr + atan(sinThetaSqrtY / x);
+        illuminance = max(illuminance, 0.0);
     }
-    float x = sqrt(max(1.0 / sinSigmaSqr - 1.0, 1e-6));
-    float y = -x * (cosTheta / max(sinTheta, 1e-6));
-    float sinThetaSqrtY = sinTheta * sqrt(saturate(1.0 - y * y));
-    float illuminance = (cosTheta * acos(clamp(y, -1.0, 1.0)) - x * sinThetaSqrtY) * sinSigmaSqr + atan(sinThetaSqrtY / x);
-    return max(illuminance, 0.0);
+    return illuminance;
 }
 
 // Energy conservation for a lobe widened by a source of the given angular half-size (tangent): (alpha / alpha')^power.
@@ -105,21 +106,25 @@ float RectIlluminance(float3 center, float3 right, float3 up, float2 halfSize, f
 float LocalLightWindow(FLightRecord light, float3 positionWS)
 {
     float3 fromLight = positionWS - light.positionRange.xyz;
+    float window = 0;
     if (LightHasFlag(light, LIGHT_FLAG_SPOT_BOX))
     {
-        return RangeWindow(dot(fromLight, light.forward.xyz), light.positionRange.w) * SpotWindow(light, positionWS);
+        window = RangeWindow(dot(fromLight, light.forward.xyz), light.positionRange.w) * SpotWindow(light, positionWS);
     }
-    float window = RangeWindow(length(fromLight), light.positionRange.w) * SpotWindow(light, positionWS);
-    if (IsPlanarLight(light))
+    else
     {
-        float facing = dot(normalize(fromLight), light.forward.xyz);
-        if (facing <= 0) return 0;
-        // Barn doors narrow the emission cone as they get longer relative to the emitter.
-        if (light.area.w > 0)
+        window = RangeWindow(length(fromLight), light.positionRange.w) * SpotWindow(light, positionWS);
+        if (IsPlanarLight(light))
         {
-            float extent = max(max(light.area.x, light.area.y), 2.0 * light.shape.x);
-            float cutoff = light.area.z * saturate(light.area.w / max(extent, 1e-4));
-            window *= smoothstep(cutoff - 0.05, cutoff + 0.05, facing);
+            float facing = dot(normalize(fromLight), light.forward.xyz);
+            if (facing <= 0) window = 0;
+            // Barn doors narrow the emission cone as they get longer relative to the emitter.
+            else if (light.area.w > 0)
+            {
+                float extent = max(max(light.area.x, light.area.y), 2.0 * light.shape.x);
+                float cutoff = light.area.z * saturate(light.area.w / max(extent, 1e-4));
+                window *= smoothstep(cutoff - 0.05, cutoff + 0.05, facing);
+            }
         }
     }
     return window;
@@ -127,7 +132,7 @@ float LocalLightWindow(FLightRecord light, float3 positionWS)
 
 FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS, float3 N, float3 V, float roughness)
 {
-    FLightShapeSample s;
+    FLightShapeSample s = (FLightShapeSample)0;
     float3 R = reflect(-V, N);
     float alpha = max(roughness * roughness, 1e-3);
     float3 center = light.positionRange.xyz - positionWS;
@@ -148,10 +153,8 @@ FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS,
         s.specularL = L;
         s.specularNoL = saturate(dot(N, L));
         s.specularFalloff = 1;
-        return s;
     }
-
-    if (IsPlanarLight(light))
+    else if (IsPlanarLight(light))
     {
         bool rect = IsRectLight(light);
         float2 halfSize = 0.5 * light.area.xy;
@@ -174,10 +177,8 @@ FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS,
         // Intensity toward the representative point carries the emitter cosine; distance is at least the source size.
         s.specularFalloff = saturate(dot(light.forward.xyz, -s.specularL)) / max(repDistSqr, area / LIGHT_SHAPE_PI);
         s.specularEnergy = ShapeEnergy(alpha, sqrt(area / LIGHT_SHAPE_PI) / centerDist, 2.0);
-        return s;
     }
-
-    if (sourceLength > 0)
+    else if (sourceLength > 0)
     {
         // Line or tube along the light's right axis. Diffuse: Karis line irradiance; specular: closest segment point,
         // then a sphere of the tube radius around it.
@@ -194,10 +195,8 @@ FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS,
         s.specularNoL = saturate(dot(N, s.specularL));
         s.specularFalloff = 2.0 / denominator;
         s.specularEnergy = ShapeEnergy(alpha, (radius + softRadius) / centerDist, 2.0) * ShapeEnergy(alpha, 0.5 * sourceLength / centerDist, 1.0);
-        return s;
     }
-
-    if (radius > 0)
+    else if (radius > 0)
     {
         float sinSigmaSqr = min(radius * radius / centerDistSqr, 0.9999);
         s.diffuseIrradiance = IlluminanceSphereOrDisk(dot(N, Lc), sinSigmaSqr) / (LIGHT_SHAPE_PI * radius * radius);
@@ -206,15 +205,16 @@ FLightShapeSample EvaluateLocalLightShape(FLightRecord light, float3 positionWS,
         s.specularNoL = saturate(dot(N, s.specularL));
         s.specularFalloff = 1.0 / max(centerDistSqr, radius * radius);
         s.specularEnergy = ShapeEnergy(alpha, (radius + softRadius) / centerDist, 2.0);
-        return s;
     }
-
-    // Punctual.
-    s.diffuseIrradiance = saturate(dot(N, Lc)) / centerDistSqr;
-    s.specularL = Lc;
-    s.specularNoL = saturate(dot(N, Lc));
-    s.specularFalloff = 1.0 / centerDistSqr;
-    s.specularEnergy = softRadius > 0 ? ShapeEnergy(alpha, softRadius / centerDist, 2.0) : 1.0;
+    else
+    {
+        // Punctual.
+        s.diffuseIrradiance = saturate(dot(N, Lc)) / centerDistSqr;
+        s.specularL = Lc;
+        s.specularNoL = saturate(dot(N, Lc));
+        s.specularFalloff = 1.0 / centerDistSqr;
+        s.specularEnergy = softRadius > 0 ? ShapeEnergy(alpha, softRadius / centerDist, 2.0) : 1.0;
+    }
     return s;
 }
 
@@ -224,16 +224,16 @@ float3 SunDiskSpecularL(FLightRecord light, float3 R, float roughness, out float
     float3 L = DirectionalLightL(light);
     float tanHalf = light.shape.w;
     energy = 1;
-    if (tanHalf <= 0 && light.misc.y <= 0)
+    float3 specularL = L;
+    if (tanHalf > 0 || light.misc.y > 0)
     {
-        return L;
+        float cosHalf = rsqrt(1.0 + tanHalf * tanHalf);
+        float sinHalf = tanHalf * cosHalf;
+        float DoR = dot(L, R);
+        float3 S = R - DoR * L;
+        specularL = DoR < cosHalf ? normalize(cosHalf * L + normalize(S + 1e-6) * sinHalf) : R;
+        energy = ShapeEnergy(max(roughness * roughness, 1e-3), tanHalf + light.misc.y, 2.0);
     }
-    float cosHalf = rsqrt(1.0 + tanHalf * tanHalf);
-    float sinHalf = tanHalf * cosHalf;
-    float DoR = dot(L, R);
-    float3 S = R - DoR * L;
-    float3 specularL = DoR < cosHalf ? normalize(cosHalf * L + normalize(S + 1e-6) * sinHalf) : R;
-    energy = ShapeEnergy(max(roughness * roughness, 1e-3), tanHalf + light.misc.y, 2.0);
     return specularL;
 }
 #endif

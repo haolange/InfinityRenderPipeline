@@ -1,5 +1,5 @@
 #pragma kernel MainCS
-#pragma enable_d3d11_debug_symbols
+#pragma enable_debug_symbols
 
 #define USE_VOLUME_LUT      1
 

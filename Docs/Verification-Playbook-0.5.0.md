@@ -771,3 +771,73 @@ Inspect normal frames and graph resource dependencies; report incomplete debugge
 exports separately. Use 32 warmup plus 120 timing samples per representative path,
 and report GPU timing only when actually available. Stop/drain all producers,
 restore the owned Editor and remove task-generated data at completion.
+
+
+### Mesh profiling domain and hierarchy checks
+
+Run MeshDrawProfilingTests, RGDrawListLifetimeTests, CompactContractTests and
+PipelineSeamTests. Verify normal/SceneView/Preview draws use RenderLoop.* and
+cascade/local shadow draws use Shadows.*. All views share exactly three cached
+preparation samplers: ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData.
+Timings lists each once; shared sampler identity must not merge per-view nodes.
+In a task-owned Editor with actual native and Mesh draws, inspect
+CPU Direct, GPU Indirect and Auto frames. Raster scopes contain native SRPBatcher
+and DrawMeshDirect/Indirect as siblings, with no RendererList wrapper and no
+compute/upload preparation inside Raster. Preserve shadow Slice/Face and Unity
+(RP ...) labels. Inspect shared and culled DrawLists for one/zero preparation.
+Do not infer GPU speedups from a naming change. Restore the owned scene/settings
+and delete the task intermediate directory after capture and producer drain.
+
+### Metal Shader initialization diagnostics
+
+Use a task-owned Editor and a fresh log mark. Reimport the affected SSGI, SSR,
+TAA, color-pyramid, atmosphere and deferred compute shaders, then execute their
+production kernels; import/FindKernel can report no diagnostics before actual
+Metal compilation. Read public ShaderUtil compute diagnostics after dispatch.
+Run ShaderInitializationGpuTests, StochasticSSGINumericTests,
+StochasticSSRNumericTests, TemporalResolveGpuTests, TextureCapacityTests,
+LightShapeGpuTests, ShadowSamplingGpuTests, CubemapArraySamplingGpuTests and
+SSGITemporalResponseGpuTests. Include TAA Main/MainDebug and the consumed local
+keyword variants. Verify normal-frame color/depth are finite with active SSR/SSGI,
+sky, deferred light and color-pyramid producers. Check the new log separately
+from superseded test/import failures. A CPU-double oracle permits documented
+Metal transcendental precision bounds; it never substitutes for GPU execution.
+Do not delete the original project's Library/ShaderCache or operate other Editors.
+
+
+### Current Example warning acceptance
+
+For full-chain warning repairs, record the actual Editor/project identity,
+source-scene dirty state, camera/quality, effective Volumes and source-asset
+hashes before testing. An explicitly authorized existing Editor stays open and
+retains its original Play/pause state. Never replace its current chain with a
+small fixture and call that Example acceptance.
+
+Inventory public GetComputeShaderMessages and GetShaderMessages after real
+production dispatch/draw, including loaded hand shaders and used Shader Graphs.
+Preserve existing Console history; compare a fresh log byte range. Check
+requested/supported/produced for every current camera feature, graph consumers,
+normal color/depth and temporal resource finite values. A background repaint
+can submit rendering while Time.frameCount stays unchanged; newly created
+runtime cameras also require a real PlayerLoop. Verify frame progression.
+
+Run ShadowSamplingGpuTests, LightCookieProductionGpuTests,
+DeferredLightLoopGpuTests, CloudShellGpuTests, ShadowMomentProductionGpuTests,
+GBufferContractTests, ShaderInitializationGpuTests and BakedGITests. Cover
+odd-sized Deferred AO/contact combinations, 2D/cube cookie channels, VSM/EVSM
+and degenerate receiver planes. An unsupported readable integer Texture2D is a
+fixture failure, not production evidence; use the actual integer RenderTexture
+layout for contact masks.
+
+Optional paths can use runtime-only additive content while the original full
+scene stays loaded. Verify they really produce; a below-ground cloud camera
+only covers rejection. A separate owned high-altitude camera covers nonempty
+integration without moving the original. The normal capture interface accepts
+2D resources only: inspect accepted 3D fog history read-only via HistoryCache,
+using AsyncGPUReadback.GetData per layer and the logical extent within capacity.
+Do not broaden capture APIs to hide a mismatched request.
+
+After drain, remove owned transient content and task data, verify asset hashes
+and original camera/settings/scene state, and report the precise loaded-variant
+scope. Separate Metal from D3D12/Vulkan/HDR/APV/unused Graph limits. Keep old
+attempt failures and infrastructure errors distinct from final passing receipts.

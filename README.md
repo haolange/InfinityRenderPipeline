@@ -63,6 +63,8 @@ resolution, VFX Graph outputs.
 
 Invariant: one logical instance owns one exclusive transform record (`MatrixDuplicateRatio == 1`).
 
+Mesh Drawing Pipeline draw markers use `RenderLoop.*` for ordinary views and `Shadows.*` for shadow views. Preparation shares `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData` across views. Native SRPBatcher and Mesh Direct/Indirect draws are siblings; preparation remains explicit outside Raster. See [design](DESIGN.md#explicit-meshdraw-preparation).
+
 ### Example
 
 [ExampleProject](https://github.com/haolange/InfinityExample)

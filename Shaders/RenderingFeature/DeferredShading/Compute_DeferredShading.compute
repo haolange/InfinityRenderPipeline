@@ -34,7 +34,7 @@ RWTexture2D<float4> UAV_LightingTexture;
 
 #include "../../ShaderLibrary/SurfaceLighting.hlsl"
 
-[numthreads(16, 16, 1)]
+[numthreads(8, 8, 1)]
 void DeferredShadingCS(uint3 id : SV_DispatchThreadID)
 {
     if (any(id.xy >= (uint2)DeferredShading_Resolution.xy))

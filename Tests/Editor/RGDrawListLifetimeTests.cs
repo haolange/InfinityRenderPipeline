@@ -174,8 +174,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     MeshView view = TestView();
                     graph.CreateDrawList(view, MeshPassId.Depth);
                     graph.CreateDrawList(view, MeshPassId.GBuffer);
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCull"));
-                    Assert.AreEqual(0, CountSamplerPasses(graph, "ComputeMeshDrawCullCascade"));
+                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshCulling"));
                 }
                 finally
                 {
@@ -208,7 +207,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     graph.SetMeshWorld(world);
                     MeshView view = TestView();
                     graph.CreateDrawList(view, MeshPassId.Depth);
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCull"));
+                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshCulling"));
 
                     MethodInfo compile = typeof(RGBuilder).GetMethod("CompilePass", BindingFlags.Instance | BindingFlags.NonPublic);
                     compile.Invoke(graph, null);
@@ -229,7 +228,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
-        public void EnsureMeshGpuCull_UsesShadowSamplerAndDedupsCreate()
+        public void EnsureMeshGpuCull_SharesSamplerAcrossViewsWithoutMergingNodes()
         {
             if (!TryBindMeshDrawShader())
             {
@@ -254,13 +253,16 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                         ~0,
                         (uint)ERenderingLayer.Everything,
                         0);
+                    MeshView local = MeshView.FromLocalShadow(
+                        0xBEEFul, main.CopyPlanes(), main.viewPosition, ~0,
+                        (uint)ERenderingLayer.Everything, 0);
                     graph.EnsureMeshGpuCull(main);
                     graph.EnsureMeshGpuCull(cascade);
+                    graph.EnsureMeshGpuCull(local);
                     graph.CreateDrawList(main, MeshPassId.Depth);
                     graph.CreateDrawList(cascade, MeshPassId.Shadow);
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCull"));
-                    Assert.AreEqual(1, CountSamplerPasses(graph, "ComputeMeshDrawCullCascade"));
-                    Assert.AreEqual(0, CountSamplerPasses(graph, "ComputeMeshDrawCullLocal"));
+                    graph.CreateDrawList(local, MeshPassId.Shadow);
+                    Assert.AreEqual(3, CountSamplerPasses(graph, "ComputeMeshCulling"));
                 }
                 finally
                 {
@@ -273,6 +275,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         struct DrawPreparationData { public RGDrawListRef draws; }
+        [TestCase(EMeshBackendPolicy.Auto,true)]
         [TestCase(EMeshBackendPolicy.CpuDirect,true)]
         [TestCase(EMeshBackendPolicy.GpuIndirect,true)]
         [TestCase(EMeshBackendPolicy.GpuIndirect,false)]
@@ -300,13 +303,13 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                         }
                     }
                     typeof(RGBuilder).GetMethod("CompilePass",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(graph,null);
-                    Assert.AreEqual(live?1:0,CountSamplerPasses(graph,"UploadMeshDrawData"));
-                    Assert.AreEqual(live&&backend==EMeshBackendPolicy.GpuIndirect?1:0,CountSamplerPasses(graph,"ComputeMeshDrawCompact"));
+                    Assert.AreEqual(live?1:0,CountSamplerPasses(graph,"UploadMeshData"));
+                    Assert.AreEqual(live&&MeshDrawGPUBackend.SelectPolicy(backend)==EMeshBackendPolicy.GpuIndirect?1:0,CountSamplerPasses(graph,"ComputeMeshCompaction"));
                     if(live)
                     {
                         string compiled=graph.DescribeCompiledGraph();
-                        Assert.Less(compiled.IndexOf("UploadMeshDrawData"),compiled.IndexOf("RasterGBuffer"));
-                        if(backend==EMeshBackendPolicy.GpuIndirect)Assert.Less(compiled.IndexOf("ComputeMeshDrawCompact"),compiled.IndexOf("RasterGBuffer"));
+                        Assert.Less(compiled.IndexOf("UploadMeshData"),compiled.IndexOf("RasterGBuffer"));
+                        if(MeshDrawGPUBackend.SelectPolicy(backend)==EMeshBackendPolicy.GpuIndirect)Assert.Less(compiled.IndexOf("ComputeMeshCompaction"),compiled.IndexOf("RasterGBuffer"));
                     }
                 }
                 finally{graph.Dispose();world.Dispose();pool.Dispose();MeshDrawGPUBackend.SetShader(null);}

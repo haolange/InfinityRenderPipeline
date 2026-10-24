@@ -5,7 +5,7 @@ int CaseCount;
 [numthreads(1, 1, 1)]
 void Composite(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= CaseCount) return;
+    if (id.x >= (uint)CaseCount) return;
     float3 albedo = float3(0.18, 0.4, 0.7);
     float3 normal = float3(0, 1, 0);
     float roughness = 0.8, materialG = 0.15;

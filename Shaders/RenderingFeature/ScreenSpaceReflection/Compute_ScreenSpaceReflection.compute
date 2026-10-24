@@ -111,34 +111,37 @@ bool IsReflectiveSurface(uint2 pixel, out float rawDepth, out float roughness)
 {
     rawDepth = SRV_DepthTexture[pixel];
     roughness = 1;
-    if (ScreenSpaceIsFarDepth(rawDepth))
+    bool valid = false;
+    if (!ScreenSpaceIsFarDepth(rawDepth))
     {
-        return false;
+        uint shadingModel, flags;
+        UnpackGBufferCChannelR(SRV_GBufferC[pixel].r, shadingModel, flags);
+        if ((flags & GBUFFER_FLAG_VALID_SURFACE) != 0 && (flags & GBUFFER_FLAG_FORWARD) == 0)
+        {
+            roughness = SRV_GBufferA[pixel].b;
+            valid = roughness <= SSR_MaxRoughness;
+        }
     }
-    uint shadingModel, flags;
-    UnpackGBufferCChannelR(SRV_GBufferC[pixel].r, shadingModel, flags);
-    if ((flags & GBUFFER_FLAG_VALID_SURFACE) == 0 || (flags & GBUFFER_FLAG_FORWARD) != 0)
-    {
-        return false;
-    }
-    roughness = SRV_GBufferA[pixel].b;
-    return roughness <= SSR_MaxRoughness;
+    return valid;
 }
 
 bool LoadSurface(uint2 pixel, out FSSRSurface surface)
 {
     surface = (FSSRSurface)0;
-    if (!IsReflectiveSurface(pixel, surface.rawDepth, surface.roughness))
+    float rawDepth = 0, roughness = 1;
+    bool valid = IsReflectiveSurface(pixel, rawDepth, roughness);
+    surface.rawDepth = rawDepth;
+    surface.roughness = roughness;
+    if (valid)
     {
-        return false;
+        surface.normalWS = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
+        float2 uv = (pixel + 0.5) * SSR_Resolution.zw;
+        float3 ndc = GetNDCPos(uv, rawDepth);
+        surface.positionVS = GetViewSpacePos(ndc, Matrix_InvProj);
+        surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewProj);
+        surface.viewRayWS = SSR_CameraPosition.w != 0 ? SSR_CameraForward.xyz : normalize(surface.positionWS - SSR_CameraPosition.xyz);
     }
-    surface.normalWS = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
-    float2 uv = (pixel + 0.5) * SSR_Resolution.zw;
-    float3 ndc = GetNDCPos(uv, surface.rawDepth);
-    surface.positionVS = GetViewSpacePos(ndc, Matrix_InvProj);
-    surface.positionWS = GetWorldSpacePos(ndc, Matrix_InvViewProj);
-    surface.viewRayWS = SSR_CameraPosition.w != 0 ? SSR_CameraForward.xyz : normalize(surface.positionWS - SSR_CameraPosition.xyz);
-    return true;
+    return valid;
 }
 
 uint2 TraceToFullPixel(uint2 tracePixel)

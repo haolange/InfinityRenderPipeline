@@ -18,15 +18,20 @@ float ShadowLinearDepth(float z, float4 depthParams)
 // The moment depth: device depth for orthographic maps (already linear), linear distance times 1 / far otherwise.
 float ShadowMomentDepth(float z, float4 depthParams, float invFar)
 {
+    float depth = 0;
     if (depthParams.w != 0)
     {
 #if UNITY_REVERSED_Z
-        return saturate(1.0 - z);
+        depth = saturate(1.0 - z);
 #else
-        return saturate(z);
+        depth = saturate(z);
 #endif
     }
-    return saturate(ShadowLinearDepth(z, depthParams) * invFar);
+    else
+    {
+        depth = saturate(ShadowLinearDepth(z, depthParams) * invFar);
+    }
+    return depth;
 }
 
 float2 ShadowMomentWarp(float depth, float exponent)
@@ -37,12 +42,13 @@ float2 ShadowMomentWarp(float depth, float exponent)
 
 float4 ShadowMomentsFromDepth(float depth, int mode, float exponent)
 {
+    float4 moments = float4(depth, depth * depth, 0, 0);
     if (mode == SHADOW_MOMENT_EVSM)
     {
         float2 warped = ShadowMomentWarp(depth, exponent);
-        return float4(warped.x, warped.x * warped.x, warped.y, warped.y * warped.y);
+        moments = float4(warped.x, warped.x * warped.x, warped.y, warped.y * warped.y);
     }
-    return float4(depth, depth * depth, 0, 0);
+    return moments;
 }
 
 // One-sided Chebyshev upper bound of P(stored >= receiver).

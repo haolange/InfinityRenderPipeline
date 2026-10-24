@@ -175,19 +175,6 @@ namespace InfinityTech.Rendering.RenderGraph
             EnsureMeshGpuCull(view, RGDrawListRef.Invalid);
         }
 
-        static CustomSamplerId SamplerForMeshGpuCull(EMeshViewKind kind)
-        {
-            switch (kind)
-            {
-                case EMeshViewKind.CascadeShadow:
-                    return CustomSamplerId.ComputeMeshDrawCullCascade;
-                case EMeshViewKind.LocalShadow:
-                    return CustomSamplerId.ComputeMeshDrawCullLocal;
-                default:
-                    return CustomSamplerId.ComputeMeshDrawCull;
-            }
-        }
-
         void EnsureMeshGpuCull(in MeshView view, in RGDrawListRef draws)
         {
             if (MeshDrawGPUBackend.SelectPolicy(m_MeshWorld.SelectPolicy()) != EMeshBackendPolicy.GpuIndirect)
@@ -236,7 +223,7 @@ namespace InfinityTech.Rendering.RenderGraph
             var frustumPlanes = new Vector4[6];
             view.CopyFrustumPlanes(frustumPlanes);
 
-            using (RGComputePassRef passRef = AddComputePass<MeshGpuCullPassData>(ProfilingSampler.Get(SamplerForMeshGpuCull(view.kind))))
+            using (RGComputePassRef passRef = AddComputePass<MeshGpuCullPassData>(MeshDrawProfiling.culling))
             {
                 ref MeshGpuCullPassData passData = ref passRef.GetPassData<MeshGpuCullPassData>();
                 passData.world = m_MeshWorld;
@@ -1177,7 +1164,7 @@ namespace InfinityTech.Rendering.RenderGraph
                         var metadata = gpu ? ImportMeshBuffer(record.gpuPayload.commandMeta, "MeshDrawMetadata")
                             : record.cpuIndexBuffer.buffer != null ? ImportBuffer(record.cpuIndexBuffer) : default;
                         if (!metadata.IsValid()) { prepared.Add(draws.index, Array.Empty<RGBufferRef>()); continue; }
-                        using (var upload = AddTransferPass<MeshDrawPreparePassData>(ProfilingSampler.Get(CustomSamplerId.UploadMeshDrawData)))
+                        using (var upload = AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
                         {
                             upload.WriteBuffer(metadata);
                             ref var data = ref upload.GetPassData<MeshDrawPreparePassData>(); data.lists = m_DrawListRecords; data.index = draws.index;
@@ -1191,7 +1178,7 @@ namespace InfinityTech.Rendering.RenderGraph
                             var args = ImportMeshBuffer(record.gpuPayload.argsBuffer, "MeshDrawIndirectArgs", ComputeBufferType.IndirectArguments);
                             var candidates = ImportMeshBuffer(record.pipeline.CandidateBuffer(record.passId), "MeshDrawCandidates");
                             var transforms = ImportBuffer(record.pipeline.InstanceTransformIndices);
-                            using (var compact = AddComputePass<MeshDrawPreparePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeMeshDrawCompact)))
+                            using (var compact = AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
                             {
                                 compact.ReadBuffer(metadata); compact.ReadBuffer(candidates); compact.ReadBuffer(transforms);
                                 compact.ReadBuffer(record.gpuVisibilityBuffer);

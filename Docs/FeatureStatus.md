@@ -401,3 +401,292 @@ Shutdown tooling note: after Mono/UDS cleanup the Unity Pipeline HTTP server
 logged one ObjectDisposedException while replying to its own quit request.
 The CLI independently confirmed graceful process exit. This happened during
 server disposal after rendering stopped; it is not a render/capture failure.
+
+### Mesh profiling domains and hierarchy — 2026-10-24
+
+Baseline: clean `main / 590f470`. This change only adjusts Mesh profiler names,
+their internal view context and consumers. Shader contracts, algorithms, graph
+dependencies, queues and resource lifetimes are unchanged. No branch, commit,
+push, Player build or system shutdown was performed.
+
+- `MeshDrawProfiling` owns seven cached Compute/Upload samplers and four Draw
+  names. `EMeshViewKind` selects RenderLoop versus Shadows; Timings uses the same
+  sampler instances. RendererList submits directly without an extra wrapper.
+- Static gate: 0 errors / 0 warnings; all 12 static-check regression/negative
+  tests passed. Unity 6000.6.0f1 script compilation: 0 errors / 0 warnings.
+- EditMode: 23 passed, 0 failed, 0 skipped. MeshDrawProfilingTests 7
+  (`389f1380-9b61-45ff-b21b-1bda437c8d52`), RGDrawListLifetimeTests 11
+  (`70cd9bba-ef20-4720-8793-408939e1ca64`), CompactContractTests 3
+  (`4962cc6a-7f3f-4aa9-b325-6de02b90dd74`), PipelineSeamTests 2
+  (`10f3f408-f7f4-4b60-8c3c-152782c8c284`). Coverage includes Auto, CPU/GPU,
+  shared/culled DrawLists, view-domain names, cached identity and submit seams.
+- Original Example was occupied by another session. All CLI operations targeted
+  a task-owned minimal host under `intermediate/mesh-marker/run01/host`, PID
+  13241 / port 7801, using the working package and a disposable MarkerScene.
+  Native and Mesh cubes, ground, directional cascades and a local spot shadow
+  provided real geometry. No original scene, camera or Editor was operated.
+- Metal / Apple M3 Max: Auto, CPU Direct and GPU Indirect each completed one
+  640x360 normal color/depth capture after eight warmup frames. All six readbacks
+  were finite, with zero outstanding requests. A normal-frame color preview
+  visibly showed both colored cubes, ground and shadows. CPU compiled graph had
+  zero Mesh culling/compaction nodes; GPU/Auto kept preparation before Raster.
+- GPU Frame Debugger export completed: 62/62 event payloads ready. Depth,
+  GBuffer and ObjectMotion contain RenderLoop.DrawMeshIndirect beside the native
+  RenderLoop.DrawSRPBatcher. Four CascadeSlice regions and LocalShadowSlice0
+  contain Shadows.DrawMeshIndirect beside Shadows.DrawSRPBatcher. Each owned
+  indirect event reports one draw call; Unity reports zero vertex/instance
+  counts for these indirect events, so those counters are not an instance proof.
+  ClearCounts / CompactIndices / BuildIndirectArgs remain under the view-domain
+  compaction node, outside Raster. No RendererList wrapper remains.
+- CPU Frame Debugger topology: 32 events with the corresponding Direct names,
+  native siblings and preserved shadow regions. The first Mesh depth event had
+  a ready payload (24 vertices, one instance, one draw). Full payload export
+  timed out twice on native SRPBatcher event 1; later payloads remain unverified,
+  rather than being accepted from their placeholder zero counters. Normal CPU
+  rendering and graph tests passed independently. Export restoration reported
+  no cleanup error; no further retries or exporter changes were made.
+
+The controlled host used Gamma color space; this is a marker/hierarchy smoke
+test, not acceptance of the original Scene_Spazon image or Linear/HDR output.
+D3D12 and Vulkan remain TODO(UNVERIFIED). No GPU performance benefit is claimed.
+Cold shader import emitted existing HLSL uninitialized-value warnings, with no
+shader errors. The marked rendering log had no invalid kernels or assertions;
+its two exceptions were the explicitly reported CPU debugger payload timeouts.
+Initial host/test setup errors were corrected before the accepted runs above;
+the static negative tests were rerun with task-directory write permission.
+
+Cleanup: backend override cleared, time scale restored, Play and pause off;
+capture Completed with zero outstanding readbacks and debugger export inactive.
+Owned Editor PID 13241 exited gracefully. The exact `intermediate/mesh-marker/`
+directory and sibling OS sidecar were deleted and absence verified, reclaiming
+320,207,846 payload bytes / 1,275,068,416 allocated bytes (including the disposable
+host Library). Original user scenes/settings were never modified. Unity emitted
+thread-finalization / readonly-database shutdown messages after stopping; CLI
+independently confirmed process exit. Only source, tests and this receipt remain.
+
+### Mesh preparation sampler unification — 2026-10-24 follow-up
+
+This follow-up supersedes the seven preparation samplers in the preceding receipt.
+There are exactly three cached preparation samplers: `ComputeMeshCulling`,
+`ComputeMeshCompaction` and `UploadMeshData`. Main/cascade/local views share
+sampler identity while retaining separate graph nodes and parent scopes. Only
+Draw names retain RenderLoop / Shadows domains. Obsolete view parameters and
+domain-specific preparation samplers are removed; current rules and consumers
+are updated. Existing earlier working-tree changes are preserved.
+
+- Static gate: 0 errors / 0 warnings; 12 static regression/negative tests passed.
+  Unity 6000.6.0f1 recompile reported up-to-date, 0 errors / 0 warnings.
+- EditMode: 23 passed, 0 failed, 0 skipped. Profiling 7
+  (`8742c443-aef1-404a-af82-e0efa9d6f234`), lifecycle 11
+  (`7f1d4734-e4b5-4b95-a772-e8a3c70c3ecb`), compact 3
+  (`6213a1a7-b5c9-4467-b6f2-a2355f7bb684`), seam 2
+  (`66c5717a-42dd-4fdb-99cc-b56e5339e7d1`). The main/cascade/local culling test
+  verifies three distinct nodes with the same name; shared/dead DrawList and
+  CPU/GPU/Auto preparation tests remain passing.
+- Metal / M3 Max: one normal GPU Indirect Scene_Spazon MainCamera frame at
+  640x360 after eight warmup frames completed, with finite color/depth readbacks
+  and zero outstanding requests. Main Agent inspected its normal color preview.
+  The actual compiled graph contains five ComputeMeshCulling, seven
+  ComputeMeshCompaction and seven UploadMeshData nodes; no RenderLoop/Shadows
+  preparation prefixes remain. No new rendering exceptions, shader errors,
+  invalid kernels or assertions occurred after the pre-Play log mark.
+- No new Frame Debugger payload export or performance benchmark was performed;
+  the preceding export limitation remains explicit. D3D12/Vulkan remain
+  TODO(UNVERIFIED). No performance improvement is claimed from renaming.
+
+Validation used a task-owned Editor PID 51500 on the idle original project.
+The first CLI-launched process exited before readiness; the managed retry
+provided all accepted results. An unsupported combined test filter matched zero
+tests and was superseded by the four passing class runs. Capture setup requests
+missing fixture/ROI were rejected before starting and corrected explicitly.
+
+Cleanup verified: Play off, time scale restored, clean Scene_Spazon still active,
+MainCamera back to 1666x1756, normal capture Completed with zero outstanding
+readbacks. Owned Editor PID 51500 exited gracefully. The task directory
+`intermediate/mesh-sampler-unify/` and its sibling OS sidecar are absent;
+3,716,994 payload bytes / 23,068,672 allocated bytes were reclaimed. No source
+scene/settings save, branch, commit, push or shutdown was performed.
+
+### Metal Shader defined outputs — 2026-10-24
+
+The reported SSGI LoadSurface, TAA depth conversion, SSR reprojection, texture UV
+and sphere/disk illuminance diagnostics were reproduced on Metal. The original
+six compute shaders additionally reported the same diagnostic on directly
+coupled trace, atmosphere, light, shadow and probe helpers (47 flagged symbols,
+including out parameters). Actual consumption later exposed ContactShadowFromMask
+and the sky's GGX prefilter; these are included in the repair.
+
+Helpers now initialize meaningful results/out values before guarded work and
+converge to one return. Ray traversal retains its original order and formulas,
+using found state and break for termination. Rejected surfaces preserve raw
+depth; their geometry stays zero. Shared SSGI surface loading lives in one HLSL
+include used by production and focused GPU tests. The two-dispatch TAA oracle
+remains test-only. No warning suppression, compiler-backend switch, feature
+disable, resource fallback, queue change or serialized schema change was added.
+
+Verification:
+
+- Static gate: 0 errors / 0 warnings; 12 static regression/negative tests passed.
+  Unity 6000.6.0f1 script recompile: up-to-date, 0 errors / 0 warnings.
+- DXC: 41 kernel/variant combinations passed across the six affected compute
+  shaders, CubeFilter, the new contract fixture and the temporal reference.
+  This is an offline syntax/binding gate, not D3D12 hardware acceptance.
+- Metal / Apple M3 Max: 86 unique EditMode tests passed, 0 failed / skipped.
+  ShaderInitializationGpuTests 14 (`8f4ceca7-4abf-40d9-801a-cdcabc7ccf89`),
+  StochasticSSGINumericTests 4 (`a163afb3-02d1-4f95-83e9-1c6e5061749e`),
+  StochasticSSRNumericTests 5 (`5e671fba-ab56-4966-a792-80f54f3cfcf6`),
+  TemporalResolveGpuTests 14 (`c96e4c8d-3991-4d22-a77b-8a5561e50aa8`),
+  TextureCapacityTests 8 (`06c80b91-d5d9-4b35-ba19-41cff408fa59`),
+  LightShapeGpuTests 3 (`c40870eb-92ea-40b6-9322-ad450ef94edd`),
+  ShadowSamplingGpuTests 16 (`4bac9227-139e-4008-8ed8-b2f22601fa6a`),
+  CubemapArraySamplingGpuTests 2 (`3e099006-cf4e-4f57-9afc-8dcb6e1ff589`),
+  SSGITemporalResponseGpuTests 20 (`5d05b323-dc87-4fbd-802e-1255480cabee`).
+- New contracts cover perspective/orthographic and both depth directions,
+  each rejected projection, horizon-clipped sphere/disk illuminance, rejected
+  surface metadata, Hi-Z/linear hits and misses, zero-length rejection, and
+  contact-mask selection. The CPU-double irradiance oracle allows max(2e-6,
+  2e-4 * expected) for Metal transcendental approximations; formulas are unchanged.
+- Six bounded 320x180 normal frames completed in an owned linear-color fixture.
+  Four covered actual Deferred AO/contact keyword combinations; two repeated
+  the contact combinations after the final helper repair. All color/depth/SSR/
+  SSGI readbacks were finite and drained. Final SSR RGB max was 0.540527 and SSGI
+  RGB max 0.102478, with 4173 / 7726 nonzero RGB pixels respectively. Actual graphs
+  contained deferred, atmosphere composite, opaque/color pyramids, SSR, SSGI and
+  TAA producers; Main ran normally and MainDebug ran in the temporal GPU tests.
+- After final dispatch, public ShaderUtil diagnostics reported zero uninitialized
+  warnings and zero errors on all six targets plus CubeFilter. The final marked
+  rendering log had zero new uninitialized warnings, shader errors, exceptions,
+  invalid kernels or assertions. Existing Deferred X4714/register-pressure and
+  signed-divide/modulus advisories were also present in the original baseline;
+  GTAO retains its unrelated truncation/pow diagnostics. These are not accepted
+  as a generic warning-free pipeline. No GPU performance benefit is claimed.
+
+Main Agent inspected the normal color preview: geometry, reflections and lit
+ground were visible. The fixture also shows the already-listed horizon dark band;
+this task neither repairs that independent image issue nor establishes a matched
+Scene_Spazon image baseline. D3D12/Vulkan remain TODO(UNVERIFIED); no Player built.
+
+The original project Editor was occupied, so only disposable hosts were operated.
+The first host required uGUI/TMP for existing tools; package Search indexing then
+stalled the host main thread (confirmed by a bounded sample). A fresh host with
+package indexing disabled provided accepted results. Early host startup failures,
+fixture type/pragma import failures, oracle tolerance failures and non-idle test
+requests are superseded by the final runs, rather than counted as acceptance.
+The user confirmed concurrent default-resource serialization changes belong to
+another session; those assets were not reverted or included in this repair.
+
+Cleanup verified: all six capture sessions were Completed with zero outstanding
+requests; every submitted buffer readback was terminal and retired. The owned
+host's command channel was lost during its final reload/restore, so clean
+in-Editor restoration was not claimed. Graceful quit was unreachable; CLI closed
+only owned PID 60527 with its explicit project path and --force. No owned Unity
+producer remained. The exact `intermediate/metal-init/` tree and OS sidecar are
+absent, reclaiming 349,086,031 payload bytes / 1,557,659,648 allocated bytes.
+The Test Framework's forced DefaultCompany/host/TestResults.xml mirror was
+identified as this task's final 14-case run and removed. Original user scenes
+were never loaded; disposable host assets/settings were deleted with the host.
+No branch, commit, push, Player build or system shutdown was performed.
+
+
+## InfinityExample full-chain Metal warning closure — 2026-10-24
+
+This supersedes the earlier six-target/320x180 fixture-only warning verdict for
+current Example acceptance. Naming, routing, serialized settings and the user's
+existing uncommitted resources are preserved. Main Agent used the explicitly
+authorized open Editor, PID 53421: Unity 6000.6.0f1 / Metal / Apple M3 Max,
+Scene_Spazon, MainCamera 1666x1756, Quality 0,
+Assets/Profile/RenderPipelineAsset.asset.
+
+The initial eight loaded compute assets exposed 34 diagnostic entries. The
+broader raster inventory exposed another 11 entries. Repairs:
+
+| Diagnostic | Repair |
+| --- | --- |
+| Cookie SelectChannels; VSM/EVSM moment outputs | Initialized result, guarded assignment, one return; channel/warp formulas preserved. |
+| Cloud scene limit, sphere roots, shell intervals and LightMarch | Explicit result/control flow; stable quadratic roots, interval ordering, ground rejection and Beer/powder integration retained. |
+| Volumetric shadow receiver divide-by-zero | Defined reciprocal length for a degenerate tangent; zero-normal/degenerate projected planes keep zero gradient. |
+| GTAO truncation and negative pow domain | Explicit motion `.xy` and AO `.r`; saturate the physical AO base before pow, without abs. |
+| Cascade signed modulus/division | Unsigned slice bit operations retain the 2x2 atlas layout. |
+| Deferred X4714 | 8x8 shading workgroup; named kernel and queried group dimensions frozen at recording; clustered tiles remain 16x16. |
+| Deprecated LUT pragma; signed fixture comparison | Current debug-symbol pragma and explicit unsigned case bound. |
+| Probe outputs; Terrain matrix macro redefinitions | Initialized probe-local outputs and one return retain APV/LPPV/SH precedence; ShaderVariables is the sole previous-matrix macro owner. |
+
+Validation completed:
+
+- Static gate: 0 errors / 0 warnings; 12 static regression/negative tests passed.
+  Unity script compilation: 0 errors / 0 warnings. DXC was not rerun in this
+  round; Metal production compilation/execution is the platform evidence.
+- 85 unique EditMode tests passed, zero failed/skipped in their final runs:
+  ShadowSamplingGpuTests 17, LightCookieProductionGpuTests 6,
+  DeferredLightLoopGpuTests 13, CloudShellGpuTests 3,
+  ShadowMomentProductionGpuTests 13, GBufferContractTests 11,
+  ShaderInitializationGpuTests 14, BakedGITests 8.
+  Test receipts respectively: `7892c360-865b-4b82-972c-1b72e5a9af55`,
+  `5ae11caf-7a48-41d3-b5d9-a7b881b62111`,
+  `85361a50-b5da-40c6-b872-4fbcbd67ef3b`,
+  `79491c60-ea66-4aa5-be99-ffeb99553be1`,
+  `676133c7-f89f-4a79-a012-1c4da4bb470f`,
+  `398a08e7-e69f-4b8b-a05e-5a11bd2fa47f`,
+  `c2bd5cdb-0236-4b2c-8895-214abf4f8b1e`,
+  `cfa0c855-e758-4b49-bcab-ea4a2cc426d0`.
+- Original full Scene_Spazon before/after normal frames used the original
+  resolution, camera and quality. Depth, GBuffer, motion, HiZ, SSR, SSGI,
+  Deferred, TAA, both color pyramids, post-processing and display all reported
+  requested/supported/produced. DisplayColor, depth, SSR and SSGI readbacks
+  completed with zero nonfinite values; actual geometry/materials, illumination,
+  shadows and output were visible in Main Agent's preview inspection.
+- A runtime-only additive supplement enabled GTAO, contact shadows, cloud/fog,
+  2D/cube cookies and local VSM/EVSM lights while the original full chain stayed
+  active. All those feature states reported produced. The accepted fog history
+  was read through HistoryCache: logical 209x220x64, capacity 216x224x64;
+  all effective texels were finite (11,770,880 nonzero components).
+- MainCamera is below the cloud model's ground. A separate temporary 1666x1756
+  camera at altitude 1000 exercised nonempty cloud integration in the loaded
+  original world: 3179 cloud pixels, transmittance minimum 0.000262737,
+  RGB maximum 88.125; cloud/display/depth readbacks were finite. The original
+  camera transform was not moved.
+- After production execution, public ShaderUtil reported zero warnings/errors
+  across 27 distinct loaded compute assets and 26 loaded package/Example raster
+  shaders. No Shader Graph was used in the current scene/inventory, so this is
+  not an all-Graph/all-variant acceptance claim. The final live log window
+  (PlayerLoop frame 5091 through 7441) contained zero new shader warnings/errors,
+  uninitialized/divide-by-zero messages, invalid kernels, assertions or exceptions.
+- The before/after display component mean absolute difference was 0.001939.
+  These are visual/finite-value regression frames, not a bit-exact oracle:
+  temporal phases and initial game times (0.02 versus 0 seconds) differ. The
+  production numeric tests provide the branch/numeric contracts. No GPU timing
+  or performance gain is claimed.
+
+Superseded attempts are not passes: two initial Deferred fixture cases could
+not create a readable UInt Texture2D on Metal; the final fixture uses the
+production UInt RenderTexture layout and all four AO/contact combinations pass.
+An invalid fog capture semantic and an additive-camera scene selector were
+rejected before capture. The first cloud request timed out because background
+Game View repaints did not advance the PlayerLoop; after the authorized Editor
+was focused, actual frame progression and nonempty production cloud execution
+were verified. Unity's unrelated Curl certificate error is infrastructure noise,
+not counted as shader acceptance or hidden by a warning filter.
+
+Platform limits: Metal current-chain acceptance only. D3D12/Vulkan and real HDR
+displays remain TODO(UNVERIFIED). RTAO is disabled on the original RP Asset;
+its existing Player-loading gap remains independent. APV/LPPV data-driven image
+acceptance and unused Shader Graph variants are not established by this run.
+No Player build, branch, commit, push or shutdown was performed.
+
+Restoration verified: stopped/unpaused, timeScale 1, Frame Debugger off, sole
+Scene_Spazon clean, original MainCamera position/rotation and 1666x1756,
+Quality 0 and original RP Asset. User Editor stays open. All 642 baseline
+source asset/ProjectSettings/resource hashes match; no source asset was saved.
+Four successful single-frame capture groups used 292,549,600 raw bytes; total
+intermediate data was under 283 MiB. Task data and owned forced test-result
+copies are removed only after producer/readback drain; final cleanup is recorded
+below after checking their absence.
+
+Cleanup complete: tests inactive; capture finished with zero outstanding requests;
+all owned transient objects absent. The project task directory
+`intermediate/example-warning-closure` and the byte-identical framework copy
+`~/Library/Application Support/Infinity/MeshBatch/TestResults.xml` were removed
+and checked absent. An unrelated DefaultCompany test result did not match any
+task receipt and was preserved. DataDisk AppleDouble removal raced with directory
+cleanup; only already-missing sidecars were tolerated, followed by an explicit
+absence check. No Library/ShaderCache cleanup occurred.

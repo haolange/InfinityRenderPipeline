@@ -185,6 +185,7 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 - Compute files: `Compute_<Feature>.compute`.
 - LightMode tags must match `InfinityPassIDs` (`RasterDepthPass`, `RasterGBufferPass`, …).
 - GBuffer encode/decode symmetry (YCoCg checkerboard from `SV_POSITION.xy` and BestFit) is owned by `GBufferPack.hlsl`.
+- Metal helper outputs must have defined control flow. For value/out helpers that produce cross-compiler initialization diagnostics, initialize meaningful results before guarded work and return once; keep resource access behind its original validity gate. Preserve raw depth on rejected surfaces. Ray-loop exits use explicit found state and break, without changing traversal order. Do not suppress diagnostics or substitute caller-side defaults for a complete callee contract. Kernel bounds exits and group-barrier participation retain their existing semantics.
 
 ## Comments and hygiene
 
@@ -294,4 +295,11 @@ to come from the existing ProfilingSampler. No old-name aliases are supported.
 - Owned screen texture bindings carry per-texture logical/physical metadata. Normalized sampling and mip bounds use `TextureView.hlsl`; integer loads remain logical pixel coordinates. Material texture sampling is unchanged. Generate binding registries explicitly with `python3 -B Tools/TextureViews.py --write`; the offline gate checks their consistency. No asset-load code generation is allowed.
 - History reads preserve the accepted texture and its previous logical/physical view until a pending writer commits. A capacity-only change does not invalidate history; failed resized writers cannot replace accepted history.
 - Structural graph culling precedes DrawList resolution and preparation. One live DrawList gets one Upload producer and, for GPU Indirect, one explicit Compute producer with declared visibility/metadata/index/args dependencies. Raster consumers only draw. Each batch has disjoint global index and args ranges; payload capacity is acquired before recording and never grows during execution.
-- Mesh Drawing Pipeline uses MeshDraw in markers. Neutral Depth/CascadeShadow/etc. groups may contain multiple execution types. RasterMeshDrawDirect / RasterMeshDrawIndirect identify owned submits; RasterRendererList wraps Unity's native labels without replacing them.
+- Mesh Drawing Pipeline markers use RenderLoop.DrawMeshDirect/Indirect for ordinary views and Shadows.DrawMeshDirect/Indirect for shadow views, selected from EMeshViewKind. Mesh preparation uses one cached sampler per operation: ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData, without view-domain prefixes or Cascade/Local variants. Shared samplers never merge graph nodes; parent scopes identify views. MeshDrawProfiling is their single cached naming owner and participates in Timings. Other SRP pass names retain their Raster/Compute/Copy/Upload conventions. Neutral functional groups may contain multiple execution types; preparation stays outside Raster. RendererList submission adds no wrapper around Unity markers; shadow Slice/Face context and native (RP ...) labels remain intact.
+
+### Shader diagnostic closure
+
+- For a reported Metal output warning, initialize result/output state explicitly and keep a single return where cross-compiler control flow requires it. Preserve valid branch formulas and rejection semantics; do not suppress diagnostics or disable consumers.
+- Guard degenerate vector normalization before reciprocal length evaluation. Bind required resources and validate physical inputs at setup rather than substituting fallback textures.
+- For compute passes changed during diagnostic repairs, resolve kernels by name and freeze kernel/thread-group dispatch metadata into pass data at recording. Deferred shading uses an 8x8 workgroup; clustered light lookup independently retains 16x16 screen tiles.
+- Warning acceptance covers public ShaderUtil diagnostics after actual production dispatch/draw, a fresh rendering log window, and the current Example feature chain. A fixture, reimport or FindKernel alone cannot establish full-scene acceptance.

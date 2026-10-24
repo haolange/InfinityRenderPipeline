@@ -61,11 +61,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.Greater(specularEnergy, 0, "Specular control must exercise a nonzero term.");
         }
 
-        static Color[][] Dispatch(int localCount, bool weightCases)
+        [TestCase(false, false)] [TestCase(true, false)]
+        [TestCase(false, true)] [TestCase(true, true)]
+        public void ActualDeferredKernel_OddExtentWritesEveryPixel(bool ao, bool contact)
+        {
+            var values = Dispatch(1, false, 19, ao, contact)[0];
+            Assert.AreEqual(19 * 19, values.Length);
+            foreach (Color pixel in values)
+            {
+                Assert.Greater(pixel.r, 0, "Every odd-extent pixel must receive local lighting.");
+                for (int channel = 0; channel < 4; ++channel)
+                    Assert.IsFalse(float.IsNaN(pixel[channel]) || float.IsInfinity(pixel[channel]));
+            }
+        }
+
+        static Color[][] Dispatch(int localCount, bool weightCases, int size = 16, bool ao = false, bool contact = false)
         {
             if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 Assert.Ignore("A compute device with GPU readback is required.");
-            const int size = 16, directionalCount = 3;
+            const int directionalCount = 3;
             var owned = new List<UnityEngine.Object>();
             var buffers = new List<ComputeBuffer>();
             RenderTexture previous = RenderTexture.active;
@@ -76,6 +90,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var shader = UnityEngine.Object.Instantiate(source);
                 owned.Add(shader);
                 shader.shaderKeywords = Array.Empty<string>();
+                if (ao) shader.EnableKeyword("DEFERRED_AO");
+                if (contact) shader.EnableKeyword("DEFERRED_CONTACT_SHADOW");
                 int kernel = shader.FindKernel("DeferredShadingCS");
                 Texture2D Texture(Color color)
                 {
@@ -100,6 +116,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 var black = Texture(Color.clear);
                 var layer = Texture(new Color(64f / 255, 0, 0, 1f / 255));
+                var white = Texture(Color.white);
                 var baked = Texture(new Color(0, 0, 0, 1));
                 var normal = Texture(new Color(.5f, .5f, 0, weightCases ? .5f : 0));
                 var albedo = Texture(new Color(.5f, 128f / 255, weightCases ? .12f : .65f, 0));
@@ -123,8 +140,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     records[i].radiance = i < directionalCount ? Vector4.zero : Vector4.one * (30f / Math.Max(1, localCount));
                 }
                 int words = Math.Max(1, (localCount + 31) / 32);
-                var masks = new uint[words];
-                for (int i = 0; i < localCount; i++) masks[i / 32] |= 1u << (i & 31);
+                int tileCount = (size + 15) / 16;
+                var masks = new uint[words * tileCount * tileCount];
+                for (int tile = 0; tile < tileCount * tileCount; ++tile)
+                    for (int i = 0; i < localCount; i++) masks[tile * words + i / 32] |= 1u << (i & 31);
                 uint packed = localCount == 0 ? 0x0000ffffu : (uint)(localCount - 1) << 16;
                 var lightBuffer = Buffer(records, Marshal.SizeOf<FLightRecord>());
                 shader.SetBuffer(kernel, "g_LightRecordBuffer", lightBuffer);
@@ -157,7 +176,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 shader.SetBuffer(kernel, "_AtmosphereSkySH", Buffer(new Vector4[9], 16));
                 shader.SetInt("g_LocalLightCount", localCount); shader.SetInt("g_DirectionalLightCount", directionalCount);
-                shader.SetVector("g_LightTileParams", new Vector4(size, size, 1, words));
+                shader.SetVector("g_LightTileParams", new Vector4(size, size, tileCount, words));
                 shader.SetVector("g_LightZBinParams", new Vector4(1, 0, 0, 0));
                 shader.SetVector("DeferredShading_Resolution", new Vector4(size, size, 1f / size, 1f / size));
                 shader.SetFloat("DeferredShading_FarDepth", 1);
@@ -167,6 +186,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetFloat("_AtmosphereIBLMaxMip", 0);
                 shader.SetTexture(kernel, "SRV_GBufferTextureA", albedo); shader.SetTexture(kernel, "SRV_GBufferTextureB", normal);
                 shader.SetTexture(kernel, "SRV_GBufferTextureC", layer); shader.SetTexture(kernel, "SRV_DepthTexture", black);
+                if (ao) shader.SetTexture(kernel, "SRV_OcclusionTexture", white);
+                if (contact)
+                {
+                    shader.SetTexture(kernel, "SRV_ContactShadowSun", white);
+                    var mask = new RenderTexture(new RenderTextureDescriptor(size, size) { graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R32_UInt, depthBufferBits = 0, enableRandomWrite = true });
+                    owned.Add(mask); Assert.IsTrue(mask.Create());
+                    RenderTexture.active = mask; GL.Clear(false, true, Color.clear); RenderTexture.active = previous;
+                    shader.SetTexture(kernel, "SRV_ContactShadowMask", mask);
+                }
                 shader.SetTexture(kernel, "SRV_BakedDiffuse", baked); shader.SetTexture(kernel, "SRV_BakedOcclusion", black);
                 shader.SetTexture(kernel, "SRV_CascadeShadowMap", black); shader.SetTexture(kernel, "SRV_LocalShadowMap", black);
                 shader.SetTexture(kernel, "_AtmosphereGGXPrefilter", environment);
@@ -180,7 +208,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     lightBuffer.SetData(records);
                     // Deferred reads the initial lighting target as emissive; every invocation starts from the same zero input.
                     RenderTexture.active = output; GL.Clear(false, true, Color.clear); RenderTexture.active = previous;
-                    shader.Dispatch(kernel, 1, 1, 1);
+                    shader.GetKernelThreadGroupSizes(kernel, out uint threadsX, out uint threadsY, out _);
+                    shader.Dispatch(kernel, Mathf.CeilToInt(size / (float)threadsX), Mathf.CeilToInt(size / (float)threadsY), 1);
                     var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
                     Assert.IsFalse(readback.hasError);
                     results[w] = readback.GetData<Color>().ToArray();

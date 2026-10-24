@@ -547,6 +547,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             MaterialPropertyBlock propertyBlock,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
+            EMeshViewKind viewKind,
             string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             if (cmdBuffer == null || !drawList.isValid || payload == null || staging == null || !staging.isValid)
@@ -559,7 +560,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            cmdBuffer.BeginSample("RasterMeshDrawIndirect");
+            string marker = MeshDrawProfiling.Draw(viewKind, true);
+            cmdBuffer.BeginSample(marker);
             try
             {
                 for (int i = 0; i < s_BatchPlan.Count; ++i)
@@ -570,7 +572,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             finally
             {
-                cmdBuffer.EndSample("RasterMeshDrawIndirect");
+                cmdBuffer.EndSample(marker);
             }
         }
 
@@ -697,16 +699,16 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return false;
             }
 
-            cmdBuffer.BeginSample("ComputeMeshDrawClearCounts");
+            cmdBuffer.BeginSample("ClearCounts");
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelClearCounts, ID_VisibleCounts, payload.visibleCounts);
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelClearCounts, ID_IndirectArgs, payload.argsBuffer);
             int clearGroups = (batchCommandCount + 63) / 64;
             cmdBuffer.DispatchCompute(s_Shader, s_KernelClearCounts, math.max(1, clearGroups), 1, 1);
-            cmdBuffer.EndSample("ComputeMeshDrawClearCounts");
+            cmdBuffer.EndSample("ClearCounts");
 
             if (batchCandidates > 0)
             {
-                cmdBuffer.BeginSample("ComputeMeshDrawCompactIndices");
+                cmdBuffer.BeginSample("CompactIndices");
                 cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCompact, ID_CandidateTable, candidateTable);
                 cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCompact, ID_Visibility, visibility);
                 cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelCompact, ID_InstanceToTransform, residency.InstanceTransformIndexBuffer.buffer);
@@ -716,16 +718,16 @@ namespace InfinityTech.Rendering.MeshPipeline
                 int groups = (batchCandidates + 63) / 64;
                 cmdBuffer.DispatchCompute(s_Shader, s_KernelCompact, math.max(1, groups), 1, 1);
                 MeshPipelineDiagnostics.CompactDispatchesPerFrame++;
-                cmdBuffer.EndSample("ComputeMeshDrawCompactIndices");
+                cmdBuffer.EndSample("CompactIndices");
             }
 
-            cmdBuffer.BeginSample("ComputeMeshDrawBuildArgs");
+            cmdBuffer.BeginSample("BuildIndirectArgs");
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelBuildArgs, ID_CommandMeta, payload.commandMeta);
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelBuildArgs, ID_VisibleCounts, payload.visibleCounts);
             cmdBuffer.SetComputeBufferParam(s_Shader, s_KernelBuildArgs, ID_IndirectArgs, payload.argsBuffer);
             int argsGroups = (batchCommandCount + 63) / 64;
             cmdBuffer.DispatchCompute(s_Shader, s_KernelBuildArgs, math.max(1, argsGroups), 1, 1);
-            cmdBuffer.EndSample("ComputeMeshDrawBuildArgs");
+            cmdBuffer.EndSample("BuildIndirectArgs");
             return true;
         }
 

@@ -136,6 +136,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             int shaderPassIndex,
             MeshDrawGpuPayload payload,
             MeshDrawGpuStaging staging,
+            EMeshViewKind viewKind,
             string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             MeshDrawGPUBackend.DrawIndirect(
@@ -146,6 +147,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_PropertyBlock,
                 payload,
                 staging,
+                viewKind,
                 lightModeTag, previousTransforms);
         }
 
@@ -196,7 +198,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PassBins.Dispose();
         }
 
-        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in PassView drawList, int shaderPassIndex, FBufferRef indexBufferRef, string lightModeTag = null, ComputeBuffer previousTransforms = null)
+        internal void SubmitCpuDirect(CommandBuffer cmdBuffer, in PassView drawList, int shaderPassIndex, FBufferRef indexBufferRef, EMeshViewKind viewKind, string lightModeTag = null, ComputeBuffer previousTransforms = null)
         {
             if (cmdBuffer == null || !drawList.isValid || drawList.commandCount == 0
                 || indexBufferRef.buffer == null
@@ -205,7 +207,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            cmdBuffer.BeginSample("RasterMeshDrawDirect");
+            string marker = MeshDrawProfiling.Draw(viewKind, false);
+            cmdBuffer.BeginSample(marker);
             try
             {
                 for (int i = 0; i < drawList.commandCount; ++i)
@@ -238,7 +241,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             finally
             {
-                cmdBuffer.EndSample("RasterMeshDrawDirect");
+                cmdBuffer.EndSample(marker);
             }
         }
     }

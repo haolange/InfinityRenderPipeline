@@ -7,6 +7,36 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class ShadowSamplingGpuTests
     {
+        [Test]
+        public void ReceiverGradient_DegenerateAndSlopedPlanesRemainFinite()
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute and async readback required.");
+            var shader = Object.Instantiate(AssetDatabase.LoadAssetAtPath<ComputeShader>(
+                "Packages/com.infinity.render-pipeline/Tests/Editor/Shaders/ShadowSamplingContract.compute"));
+            using var output = new ComputeBuffer(4, 16);
+            try
+            {
+                int kernel = shader.FindKernel("ReceiverGradient");
+                shader.SetBuffer(kernel, "Results", output);
+                shader.Dispatch(kernel, 4, 1, 1);
+                var readback = AsyncGPUReadback.Request(output); readback.WaitForCompletion();
+                Assert.IsFalse(readback.hasError);
+                var values = readback.GetData<Vector4>();
+                for (int i = 0; i < 4; ++i)
+                {
+                    Assert.IsFalse(float.IsNaN(values[i].x) || float.IsInfinity(values[i].x));
+                    Assert.IsFalse(float.IsNaN(values[i].y) || float.IsInfinity(values[i].y));
+                }
+                Assert.AreEqual(Vector4.zero, new Vector4(values[0].x, values[0].y, 0, 0));
+                Assert.AreEqual(0, values[1].x); Assert.AreEqual(0, values[1].y);
+                Assert.AreEqual(0, values[3].x); Assert.AreEqual(0, values[3].y);
+                Assert.That(values[2].x, Is.EqualTo(-.8f).Within(1e-5));
+                Assert.That(values[2].y, Is.EqualTo(SystemInfo.graphicsUVStartsAtTop ? 1.2f : -1.2f).Within(1e-5));
+            }
+            finally { Object.DestroyImmediate(shader); }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void PCSS_SlopedPlaneUsesActualSampledTexelCenters(bool blocker) => Run(blocker, false, false);

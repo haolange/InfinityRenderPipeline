@@ -22,11 +22,16 @@ RWTexture2DArray<float4> UAV_CubeArray;
 
 float3 SampleSource(bool fromCube, float3 direction, float lod)
 {
+    float3 radiance = 0;
     if (fromCube)
     {
-        return SRV_CubeSource.SampleLevel(Global_trilinear_clamp_sampler, direction, lod).rgb;
+        radiance = SRV_CubeSource.SampleLevel(Global_trilinear_clamp_sampler, direction, lod).rgb;
     }
-    return SampleCubemapArraySeamless(SRV_CubeArraySource, 0, direction, 0);
+    else
+    {
+        radiance = SampleCubemapArraySeamless(SRV_CubeArraySource, 0, direction, 0);
+    }
+    return radiance;
 }
 
 float D_GGXForFilter(float NoH, float alpha)
@@ -38,38 +43,43 @@ float D_GGXForFilter(float NoH, float alpha)
 
 float3 PrefilterGGX(bool fromCube, float3 n, float roughness)
 {
+    float3 radiance = 0;
     if (roughness < 1e-4)
     {
-        return SampleSource(fromCube, n, 0);
+        radiance = SampleSource(fromCube, n, 0);
     }
-    float3 up = abs(n.z) < 0.999 ? float3(0, 0, 1) : float3(1, 0, 0);
-    float3 tangent = normalize(cross(up, n));
-    float3 bitangent = cross(n, tangent);
-    uint sampleCount = (uint)max(CubeFilter_Source.w, 1);
-    float sourceSize = max(CubeFilter_Source.x, 1);
-    float maxLod = max(CubeFilter_Source.y - 1, 0);
-    float texelSolidAngle = 4.0 * 3.14159265 / (6.0 * sourceSize * sourceSize);
-    float alpha = roughness * roughness;
-
-    float3 color = 0;
-    float weight = 0;
-    [loop]
-    for (uint i = 0; i < sampleCount; ++i)
+    else
     {
-        float2 e = Hammersley(i, sampleCount);
-        float3 hLocal = ImportanceSampleGGX(e, roughness).xyz;
-        float3 h = normalize(tangent * hLocal.x + bitangent * hLocal.y + n * hLocal.z);
-        float3 l = normalize(2.0 * dot(n, h) * h - n);
-        float noL = saturate(dot(n, l));
-        if (noL <= 0.0) continue;
-        // V = N: pdf(l) = D(NoH) / 4.
-        float pdf = D_GGXForFilter(saturate(dot(n, h)), alpha) * 0.25;
-        float sampleSolidAngle = 1.0 / (sampleCount * max(pdf, 1e-6));
-        float lod = clamp(0.5 * log2(sampleSolidAngle / texelSolidAngle) + 1.0, 0.0, maxLod);
-        color += SampleSource(fromCube, l, lod) * noL;
-        weight += noL;
+        float3 up = abs(n.z) < 0.999 ? float3(0, 0, 1) : float3(1, 0, 0);
+        float3 tangent = normalize(cross(up, n));
+        float3 bitangent = cross(n, tangent);
+        uint sampleCount = (uint)max(CubeFilter_Source.w, 1);
+        float sourceSize = max(CubeFilter_Source.x, 1);
+        float maxLod = max(CubeFilter_Source.y - 1, 0);
+        float texelSolidAngle = 4.0 * 3.14159265 / (6.0 * sourceSize * sourceSize);
+        float alpha = roughness * roughness;
+
+        float3 color = 0;
+        float weight = 0;
+        [loop]
+        for (uint i = 0; i < sampleCount; ++i)
+        {
+            float2 e = Hammersley(i, sampleCount);
+            float3 hLocal = ImportanceSampleGGX(e, roughness).xyz;
+            float3 h = normalize(tangent * hLocal.x + bitangent * hLocal.y + n * hLocal.z);
+            float3 l = normalize(2.0 * dot(n, h) * h - n);
+            float noL = saturate(dot(n, l));
+            if (noL <= 0.0) continue;
+            // V = N: pdf(l) = D(NoH) / 4.
+            float pdf = D_GGXForFilter(saturate(dot(n, h)), alpha) * 0.25;
+            float sampleSolidAngle = 1.0 / (sampleCount * max(pdf, 1e-6));
+            float lod = clamp(0.5 * log2(sampleSolidAngle / texelSolidAngle) + 1.0, 0.0, maxLod);
+            color += SampleSource(fromCube, l, lod) * noL;
+            weight += noL;
+        }
+        radiance = color / max(weight, 1e-6);
     }
-    return color / max(weight, 1e-6);
+    return radiance;
 }
 
 void Filter(bool fromCube, uint3 id)

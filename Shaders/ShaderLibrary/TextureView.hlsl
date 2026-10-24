@@ -3,10 +3,14 @@
 #include "TextureViews.generated.hlsl"
 float2 InfinityTextureUV(float2 uv, float4 view, float mip)
 {
-    if (view.x <= 0 || all(view.xy == view.zw)) return uv;
-    float2 logical = max(1, floor(view.xy / exp2(mip)));
-    float2 physical = max(1, floor(view.zw / exp2(mip)));
-    return clamp(uv * logical, .5, logical - .5) / physical;
+    float2 result = uv;
+    if (view.x > 0 && any(view.xy != view.zw))
+    {
+        float2 logical = max(1, floor(view.xy / exp2(mip)));
+        float2 physical = max(1, floor(view.zw / exp2(mip)));
+        result = clamp(uv * logical, .5, logical - .5) / physical;
+    }
+    return result;
 }
 float3 InfinityTextureUV(float3 uv, float4 view, float mip)
 { return float3(InfinityTextureUV(uv.xy, view, mip), uv.z); }

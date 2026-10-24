@@ -27,7 +27,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DeferredShadingPassData
         {
-            public int tileSize;
+            public int kernel;
+            public int2 groupCount;
             public FLightLoopInputs lightLoop;
             public int2 resolution;
             public Matrix4x4 matrix_InvProj;
@@ -63,7 +64,11 @@ namespace InfinityTech.Rendering.Pipeline
 
             int width = m_ActiveFrameState.dimensions.internalSize.x;
             int height = m_ActiveFrameState.dimensions.internalSize.y;
-            int tileSize = 16;
+            int kernel = shaders.deferredShadingShader.FindKernel("DeferredShadingCS");
+            shaders.deferredShadingShader.GetKernelThreadGroupSizes(kernel, out uint threadsX, out uint threadsY, out uint threadsZ);
+            if (threadsX == 0 || threadsY == 0 || threadsZ != 1)
+                throw new System.InvalidOperationException("InfinityRP: DeferredShadingCS requires a nonempty 2D thread group.");
+            int2 groupCount = new int2(Mathf.CeilToInt(width / (float)threadsX), Mathf.CeilToInt(height / (float)threadsY));
 
             RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
             RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
@@ -100,7 +105,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bakedOcclusion = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.BakedOcclusionBuffer));
                 passData.indirectDiffuse = passRef.WriteTexture(indirectDiffuse);
                 passData.indirectSpecular = passRef.WriteTexture(indirectSpecular);
-                passData.tileSize = tileSize;
+                passData.kernel = kernel;
+                passData.groupCount = groupCount;
                 passData.resolution = new int2(width, height);
                 passData.matrix_InvProj = m_CameraUniform.matrix_InvFlipYJitterProj;
                 passData.matrix_InvViewProj = m_CameraUniform.matrix_InvViewFlipYJitterProj;
@@ -137,40 +143,40 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
                 {
                     ComputeShader shader = passData.deferredShadingShader;
-                    cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("SRV_BakedDiffuse"), passData.bakedDiffuse);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("SRV_BakedOcclusion"), passData.bakedOcclusion);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("UAV_IndirectDiffuse"), passData.indirectDiffuse);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, Shader.PropertyToID("UAV_IndirectSpecular"), passData.indirectSpecular);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("SRV_BakedDiffuse"), passData.bakedDiffuse);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("SRV_BakedOcclusion"), passData.bakedOcclusion);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("UAV_IndirectDiffuse"), passData.indirectDiffuse);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, Shader.PropertyToID("UAV_IndirectSpecular"), passData.indirectSpecular);
                     cmdEncoder.SetComputeVectorParam(shader, DeferredShadingPassUtilityData.DeferredShading_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeFloatParam(shader, DeferredShadingPassUtilityData.DeferredShading_FarDepthID, GraphicsUtility.SampledFarDepth);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvProj"), passData.matrix_InvProj);
                     cmdEncoder.SetComputeMatrixParam(shader, Shader.PropertyToID("Matrix_InvViewProj"), passData.matrix_InvViewProj);
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("_WorldSpaceCameraPos"), passData.worldSpaceCameraPos);
-                    passData.lightLoop.Bind(cmdEncoder, shader, 0);
-                    cmdEncoder.SetComputeBufferParam(shader, 0, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
-                    passData.shadows.Bind(cmdEncoder, shader, 0);
+                    passData.lightLoop.Bind(cmdEncoder, shader, passData.kernel);
+                    cmdEncoder.SetComputeBufferParam(shader, passData.kernel, LightShaderIDs.LightRecordBuffer, passData.lightRecordBuffer);
+                    passData.shadows.Bind(cmdEncoder, shader, passData.kernel);
 
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.SRV_GBufferTextureAID, passData.gBufferA);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.SRV_GBufferTextureBID, passData.gBufferB);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.SRV_GBufferTextureCID, passData.gBufferC);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.SRV_DepthTextureID, passData.depthTexture);
                     shader.SetKeyword(new LocalKeyword(shader, DeferredShadingPassUtilityData.AOKeyword), passData.hasAO != 0);
                     if (passData.hasAO != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.SRV_OcclusionTextureID, passData.occlusionTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.SRV_OcclusionTextureID, passData.occlusionTexture);
                     }
                     shader.SetKeyword(new LocalKeyword(shader, DeferredShadingPassUtilityData.ContactShadowKeyword), passData.hasContactShadow != 0);
                     if (passData.hasContactShadow != 0)
                     {
-                        cmdEncoder.SetComputeTextureParam(shader, 0, ContactShadowPassUtilityData.SRV_ContactShadowSunID, passData.contactShadowTexture);
-                        cmdEncoder.SetComputeTextureParam(shader, 0, ContactShadowPassUtilityData.SRV_ContactShadowMaskID, passData.contactShadowMask);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ContactShadowPassUtilityData.SRV_ContactShadowSunID, passData.contactShadowTexture);
+                        cmdEncoder.SetComputeTextureParam(shader, passData.kernel, ContactShadowPassUtilityData.SRV_ContactShadowMaskID, passData.contactShadowMask);
                     }
-                    cmdEncoder.SetComputeTextureParam(shader, 0, DeferredShadingPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);
-                    cmdEncoder.SetComputeTextureParam(shader, 0, InfinityShaderIDs.AtmosphereGGXPrefilter, passData.atmosphereGGXPrefilter);
-                    cmdEncoder.SetComputeBufferParam(shader, 0, InfinityShaderIDs.AtmosphereSkySH, passData.atmosphereSkySH);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, DeferredShadingPassUtilityData.UAV_LightingTextureID, passData.lightingTexture);
+                    cmdEncoder.SetComputeTextureParam(shader, passData.kernel, InfinityShaderIDs.AtmosphereGGXPrefilter, passData.atmosphereGGXPrefilter);
+                    cmdEncoder.SetComputeBufferParam(shader, passData.kernel, InfinityShaderIDs.AtmosphereSkySH, passData.atmosphereSkySH);
                     cmdEncoder.SetComputeFloatParam(shader, InfinityShaderIDs.AtmosphereIBLMaxMip, passData.atmosphereIBLMaxMip);
 
-                    cmdEncoder.DispatchCompute(shader, 0, Mathf.CeilToInt(passData.resolution.x / (float)passData.tileSize), Mathf.CeilToInt(passData.resolution.y / (float)passData.tileSize), 1);
+                    cmdEncoder.DispatchCompute(shader, passData.kernel, passData.groupCount.x, passData.groupCount.y, 1);
                 });
             }
 

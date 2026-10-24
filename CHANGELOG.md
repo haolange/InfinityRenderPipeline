@@ -5,6 +5,10 @@
 Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md). Historical upgrade records are archived under Docs/History.
 
 ### Changed
+- Closed the current InfinityExample Metal warnings in Cookie channel selection, VSM/EVSM moments, cloud intersections/integration, probe lighting, receiver gradients, GTAO channel/pow domains and terrain matrix macros. Updated the LUT debug pragma and explicit cascade atlas indexing.
+- Deferred shading uses 8x8 workgroups with record-time kernel/thread-group metadata; light-cluster tiles stay 16x16. Added odd-extent AO/contact combinations, production Cookie channel and degenerate receiver-gradient GPU coverage. No GPU performance claim accompanies this diagnostic change.
+- Metal shader helpers use explicitly defined result/output paths for screen-space surfaces, reprojection, depth, texture views, lighting, shadows and atmosphere, removing cross-compiler uninitialized-output diagnostics without changing rendering formulas.
+- Mesh draw profiling uses RenderLoop.* / Shadows.*; preparation shares ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData across views; RendererList wrapper scopes are removed, with native batching and shadow region labels preserved.
 - Screen framebuffer textures separate logical view extents from retained physical capacity; shared graph/resource pools evict aged idle allocations above retention watermarks.
 - TAA accumulates and sharpens in one tiled dispatch, writing unsharpened pending history directly.
 - MeshDraw upload and compaction are explicit graph producers; raster scopes contain draws only, and batches use disjoint output ranges.

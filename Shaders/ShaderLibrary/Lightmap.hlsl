@@ -83,37 +83,46 @@ half3 SampleLightmap(float2 lightmapUV, half3 normalWS)
 // Adaptive Probe Volumes, when the project uses them and this camera has data. Returns false otherwise.
 bool SampleAdaptiveProbeVolume(float3 positionWS, float3 normalWS, float3 viewDir, float2 positionSS, uint renderingLayer, out float3 diffuse, out float4 occlusion)
 {
+    bool sampled = false;
     diffuse = 0;
     occlusion = 1;
 #if defined(PROBE_VOLUMES_L1) || defined(PROBE_VOLUMES_L2)
     if (_EnableProbeVolumes != 0)
     {
         EvaluateAdaptiveProbeVolume(positionWS, normalWS, viewDir, positionSS, renderingLayer, diffuse, occlusion);
-        return true;
+        sampled = true;
     }
 #endif
-    return false;
+    return sampled;
 }
 
 // Probe lighting of a renderer without a lightmap: Adaptive Probe Volumes when enabled, else the renderer's Light Probe
 // Proxy Volume, else its interpolated light probe SH. Returns false when no probe data exists (the sky SH applies).
 bool SampleRendererProbes(float3 positionWS, float3 normalWS, float3 viewDir, float2 positionSS, uint renderingLayer, out float3 diffuse, out float4 occlusion)
 {
-    if (SampleAdaptiveProbeVolume(positionWS, normalWS, viewDir, positionSS, renderingLayer, diffuse, occlusion))
+    float3 probeDiffuse = 0;
+    float4 probeOcclusion = 1;
+    bool sampled = SampleAdaptiveProbeVolume(positionWS, normalWS, viewDir, positionSS, renderingLayer, probeDiffuse, probeOcclusion);
+    if (!sampled)
     {
-        return true;
+        if (unity_ProbeVolumeParams.x == 1.0)
+        {
+            probeDiffuse = max(0, SampleProbeVolumeSH4(TEXTURE3D_ARGS(unity_ProbeVolumeSH, samplerunity_ProbeVolumeSH), positionWS, normalWS,
+                unity_ProbeVolumeWorldToObject, unity_ProbeVolumeParams.y, unity_ProbeVolumeParams.z, unity_ProbeVolumeMin.xyz, unity_ProbeVolumeSizeInv.xyz));
+            probeOcclusion = SampleProbeOcclusion(TEXTURE3D_ARGS(unity_ProbeVolumeSH, samplerunity_ProbeVolumeSH), positionWS,
+                unity_ProbeVolumeWorldToObject, unity_ProbeVolumeParams.y, unity_ProbeVolumeParams.z, unity_ProbeVolumeMin.xyz, unity_ProbeVolumeSizeInv.xyz);
+            sampled = true;
+        }
+        else if (_InfinityHasProbes != 0)
+        {
+            probeDiffuse = SampleSH(normalWS);
+            probeOcclusion = unity_ProbesOcclusion;
+            sampled = true;
+        }
     }
-    if (unity_ProbeVolumeParams.x == 1.0)
-    {
-        diffuse = max(0, SampleProbeVolumeSH4(TEXTURE3D_ARGS(unity_ProbeVolumeSH, samplerunity_ProbeVolumeSH), positionWS, normalWS,
-            unity_ProbeVolumeWorldToObject, unity_ProbeVolumeParams.y, unity_ProbeVolumeParams.z, unity_ProbeVolumeMin.xyz, unity_ProbeVolumeSizeInv.xyz));
-        occlusion = SampleProbeOcclusion(TEXTURE3D_ARGS(unity_ProbeVolumeSH, samplerunity_ProbeVolumeSH), positionWS,
-            unity_ProbeVolumeWorldToObject, unity_ProbeVolumeParams.y, unity_ProbeVolumeParams.z, unity_ProbeVolumeMin.xyz, unity_ProbeVolumeSizeInv.xyz);
-        return true;
-    }
-    diffuse = _InfinityHasProbes != 0 ? SampleSH(normalWS) : 0;
-    occlusion = _InfinityHasProbes != 0 ? unity_ProbesOcclusion : 1;
-    return _InfinityHasProbes != 0;
+    diffuse = probeDiffuse;
+    occlusion = probeOcclusion;
+    return sampled;
 }
 
 // RGB is scene-linear baked/probe diffuse; alpha = 1 when a baked source exists (0 lets the sky SH apply).

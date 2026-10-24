@@ -93,22 +93,21 @@ float AltitudeFromQ(float q)
 bool RaySphereRoots(float b, float c, out float tNear, out float tFar)
 {
     float discriminant = b * b - c;
-    if (discriminant < 0.0)
+    tNear = -1.0;
+    tFar = -1.0;
+    bool intersects = discriminant >= 0.0;
+    if (intersects)
     {
-        tNear = -1.0;
-        tFar = -1.0;
-        return false;
+        float root = sqrt(discriminant);
+        // Evaluate the root whose two terms share a sign, then recover the other from t0 * t1 = c.
+        // Taking -b + sqrt() unconditionally cancels whenever |c| << b*b.
+        float wellConditioned = (b >= 0.0) ? (-b - root) : (-b + root);
+        float other = abs(wellConditioned) > 1e-9 ? (c * rcp(wellConditioned)) : wellConditioned;
+
+        tNear = min(wellConditioned, other);
+        tFar = max(wellConditioned, other);
     }
-
-    float root = sqrt(discriminant);
-    // Evaluate the root whose two terms share a sign, then recover the other from t0 * t1 = c.
-    // Taking -b + sqrt() unconditionally cancels whenever |c| << b*b.
-    float wellConditioned = (b >= 0.0) ? (-b - root) : (-b + root);
-    float other = abs(wellConditioned) > 1e-9 ? (c * rcp(wellConditioned)) : wellConditioned;
-
-    tNear = min(wellConditioned, other);
-    tFar = max(wellConditioned, other);
-    return true;
+    return intersects;
 }
 
 float RayZenithB(float h, float cosZenith)
@@ -119,26 +118,18 @@ float RayZenithB(float h, float cosZenith)
 // Distance from a point inside the atmosphere to the top boundary.
 float RayAtmosphereExit(float h, float cosZenith)
 {
-    float tNear, tFar;
-    if (!RaySphereRoots(RayZenithB(h, cosZenith), SphereQuadraticC(h, Atmo_AtmosphereHeight), tNear, tFar))
-    {
-        return 0.0;
-    }
-
-    return max(tFar, 0.0);
+    float tNear = -1, tFar = -1;
+    bool intersects = RaySphereRoots(RayZenithB(h, cosZenith), SphereQuadraticC(h, Atmo_AtmosphereHeight), tNear, tFar);
+    return intersects ? max(tFar, 0.0) : 0.0;
 }
 
 // Distance to the planet surface, or -1 when the ray misses it. The near root is the visible one;
 // the far root is the exit point on the other side of the planet.
 float RayGroundHit(float h, float cosZenith)
 {
-    float tNear, tFar;
-    if (!RaySphereRoots(RayZenithB(h, cosZenith), SphereQuadraticC(h, 0.0), tNear, tFar))
-    {
-        return -1.0;
-    }
-
-    return tNear > 0.0 ? tNear : -1.0;
+    float tNear = -1, tFar = -1;
+    bool intersects = RaySphereRoots(RayZenithB(h, cosZenith), SphereQuadraticC(h, 0.0), tNear, tFar);
+    return intersects && tNear > 0.0 ? tNear : -1.0;
 }
 
 // Altitude at distance t along a ray that starts at altitude h0 with b = RayZenithB(h0, cosZenith).
@@ -595,17 +586,17 @@ void SunBuffer(uint3 id : SV_DispatchThreadID)
 float3 SunDiskRadiance(float cosViewSun)
 {
     float cosRadius = cos(Atmo_SunAngle);
-    if (cosViewSun < cosRadius)
+    float3 radiance = 0;
+    if (cosViewSun >= cosRadius)
     {
-        return 0;
+        float solidAngle = Two_Pi * (1.0 - cosRadius);
+        // One pixel of softness at the limb, expressed in cosine space.
+        float edge = max((1.0 - cosRadius) * 0.1, 1e-7);
+        float limb = smoothstep(cosRadius, cosRadius + edge, cosViewSun);
+
+        radiance = SRV_SunBuffer[0].rgb * rcp(max(solidAngle, 1e-6)) * limb;
     }
-
-    float solidAngle = Two_Pi * (1.0 - cosRadius);
-    // One pixel of softness at the limb, expressed in cosine space.
-    float edge = max((1.0 - cosRadius) * 0.1, 1e-7);
-    float limb = smoothstep(cosRadius, cosRadius + edge, cosViewSun);
-
-    return SRV_SunBuffer[0].rgb * rcp(max(solidAngle, 1e-6)) * limb;
+    return radiance;
 }
 
 [numthreads(8, 8, 1)]

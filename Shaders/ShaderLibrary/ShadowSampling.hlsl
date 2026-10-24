@@ -43,18 +43,27 @@ Texture2D<float4> SRV_LocalShadowMoments;
 // receiver depth, rather than comparing sloped neighboring texels to the center.
 float2 ShadowReceiverGradient(float4x4 worldToShadow, float3 position, float3 normal, float2 atlasScale)
 {
-    if (dot(normal, normal) < 0.5) return 0;
-    float3 tangent = normalize(cross(normal, abs(normal.z) < 0.9 ? float3(0, 0, 1) : float3(0, 1, 0)));
-    float3 bitangent = cross(normal, tangent);
-    float4 a = mul(worldToShadow, float4(position, 1));
-    float4 b = mul(worldToShadow, float4(tangent, 0));
-    float4 c = mul(worldToShadow, float4(bitangent, 0));
-    float3 plane = cross(b.xyz * a.w - a.xyz * b.w, c.xyz * a.w - a.xyz * c.w);
-    if (abs(plane.z) < 1e-8) return 0;
-    float2 gradient = -plane.xy / plane.z * 2 / atlasScale;
+    float2 gradient = 0;
+    if (dot(normal, normal) >= 0.5)
+    {
+        float3 tangent = cross(normal, abs(normal.z) < 0.9 ? float3(0, 0, 1) : float3(0, 1, 0));
+        float tangentLengthSquared = dot(tangent, tangent);
+        // A missing surface normal (volumetric receivers) has no receiver plane.
+        // Keep normalization defined even when the compiler flattens this branch.
+        tangent *= rsqrt(tangentLengthSquared > 0 ? tangentLengthSquared : 1);
+        float3 bitangent = cross(normal, tangent);
+        float4 a = mul(worldToShadow, float4(position, 1));
+        float4 b = mul(worldToShadow, float4(tangent, 0));
+        float4 c = mul(worldToShadow, float4(bitangent, 0));
+        float3 plane = cross(b.xyz * a.w - a.xyz * b.w, c.xyz * a.w - a.xyz * c.w);
+        if (abs(plane.z) >= 1e-8)
+        {
+            gradient = -plane.xy / plane.z * 2 / atlasScale;
 #if UNITY_UV_STARTS_AT_TOP
-    gradient.y = -gradient.y;
+            gradient.y = -gradient.y;
 #endif
+        }
+    }
     return gradient;
 }
 
@@ -179,40 +188,43 @@ float SampleShadowPCSS(Texture2D<float> shadowMap, float2 uv, float compareZ, fl
             blockerCount += 1;
         }
     }
-    if (blockerCount == 0)
+    float shadow = 1.0;
+    if (blockerCount != 0)
     {
-        return 1.0;
-    }
-    blockerDepth /= blockerCount;
+        blockerDepth /= blockerCount;
 
-    // Penumbra width on the receiver, converted to shadow-map texels.
-    float penumbraWorld = directional
+        // Penumbra width on the receiver, converted to shadow-map texels.
+        float penumbraWorld = directional
         ? 2.0 * lightSize * max(receiverDepth - blockerDepth, 0)
         : 2.0 * lightSize * max(receiverDepth - blockerDepth, 0) / max(blockerDepth, 1e-4);
-    float filterTexels = clamp(0.5 * penumbraWorld / texelWorld, minTexels, maxTexels);
-    float lit = 0;
-    [loop]
-    for (uint j = 0; j < filterSamples; ++j)
-    {
-        float2 tapUV = clamp(uv + VogelDiskSample(j, filterSamples, rotation) * filterTexels * texelSize, minUV, maxUV);
-        tapUV = (floor(tapUV / texelSize) + 0.5) * texelSize;
-        lit += ShadowLit(compareZ + dot(gradient, tapUV - uv), shadowMap.SampleLevel(Global_point_clamp_sampler, tapUV, 0));
+        float filterTexels = clamp(0.5 * penumbraWorld / texelWorld, minTexels, maxTexels);
+        float lit = 0;
+        [loop]
+        for (uint j = 0; j < filterSamples; ++j)
+        {
+            float2 tapUV = clamp(uv + VogelDiskSample(j, filterSamples, rotation) * filterTexels * texelSize, minUV, maxUV);
+            tapUV = (floor(tapUV / texelSize) + 0.5) * texelSize;
+            lit += ShadowLit(compareZ + dot(gradient, tapUV - uv), shadowMap.SampleLevel(Global_point_clamp_sampler, tapUV, 0));
+        }
+        shadow = lit / filterSamples;
     }
-    return lit / filterSamples;
+    return shadow;
 }
 
 // Size of the light for PCSS: world radius for local lights, tan(angular radius) for the sun.
 float ShadowLightSize(FLightRecord light)
 {
+    float size = 0;
     if (IsDirectionalLight(light))
     {
-        return light.shape.w + light.misc.y;
+        size = light.shape.w + light.misc.y;
     }
-    if (IsRectLight(light))
+    else if (IsRectLight(light))
     {
-        return sqrt(light.area.x * light.area.y / 3.14159265);
+        size = sqrt(light.area.x * light.area.y / 3.14159265);
     }
-    return light.shape.x + light.shape.y;
+    else size = light.shape.x + light.shape.y;
+    return size;
 }
 
 // Bilinear moments inside the slice; the moment atlas has half the texel density of the depth atlas.
@@ -226,81 +238,87 @@ float SampleShadowMoments(Texture2D<float4> momentMap, int mode, float2 uv, floa
 
 float FilterShadow(Texture2D<float> shadowMap, Texture2D<float4> momentMap, FLightRecord light, float2 uv, float compareZ, float2 texelSize, float4 clipRect, float2 gradient, float4 depthParams, float invFar, float lightSize)
 {
+    float shadow = 1;
     if (light.shadowFilter == SHADOW_FILTER_VSM || light.shadowFilter == SHADOW_FILTER_EVSM)
     {
         int mode = light.shadowFilter == SHADOW_FILTER_EVSM ? SHADOW_MOMENT_EVSM : SHADOW_MOMENT_VSM;
-        return SampleShadowMoments(momentMap, mode, uv, compareZ, texelSize, clipRect, depthParams, invFar);
+        shadow = SampleShadowMoments(momentMap, mode, uv, compareZ, texelSize, clipRect, depthParams, invFar);
     }
-    if (light.shadowFilter == SHADOW_FILTER_HARD)
+    else if (light.shadowFilter == SHADOW_FILTER_HARD)
     {
-        return SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
+        shadow = SampleShadowHard(shadowMap, uv, compareZ, texelSize, clipRect, gradient);
     }
-    if (light.shadowFilter == SHADOW_FILTER_PCSS && lightSize > 0)
+    else if (light.shadowFilter == SHADOW_FILTER_PCSS && lightSize > 0)
     {
-        return SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, lightSize, IsDirectionalLight(light));
+        shadow = SampleShadowPCSS(shadowMap, uv, compareZ, texelSize, clipRect, gradient, depthParams, lightSize, IsDirectionalLight(light));
     }
-    return SampleShadowTent(shadowMap, uv, compareZ, texelSize, clipRect, _ShadowFilterParams.x, gradient);
+    else
+    {
+        shadow = SampleShadowTent(shadowMap, uv, compareZ, texelSize, clipRect, _ShadowFilterParams.x, gradient);
+    }
+    return shadow;
 }
 
 float SampleCascadeSlice(Texture2D<float> cascadeShadowMap, FLightRecord light, int cascadeIdx, float3 worldPos, float3 normal)
 {
     float4 shadowCoord = mul(_CascadeMatrices[cascadeIdx], float4(worldPos, 1.0));
-    if (shadowCoord.w <= 0.0)
+    float shadow = 1;
+    if (shadowCoord.w > 0.0)
     {
-        return 1.0;
-    }
-    shadowCoord.xyz /= shadowCoord.w;
-    float2 localUV = shadowCoord.xy * 0.5 + 0.5;
+        shadowCoord.xyz /= shadowCoord.w;
+        float2 localUV = shadowCoord.xy * 0.5 + 0.5;
 #if UNITY_UV_STARTS_AT_TOP
-    localUV.y = 1 - localUV.y;
+        localUV.y = 1 - localUV.y;
 #endif
-    if (any(localUV < 0.0) || any(localUV > 1.0))
-    {
-        return 1.0;
+        if (all(localUV >= 0.0) && all(localUV <= 1.0))
+        {
+            uint slice = (uint)cascadeIdx;
+            uint col = slice & 1u;
+            uint row = slice >> 1;
+            float4 clipRect = float4(col * 0.5, row * 0.5, 0.5, 0.5);
+            float2 shadowUV = localUV * 0.5 + clipRect.xy;
+            float4 params = _CascadeShadowParams[cascadeIdx];
+            float4 depthParams = float4(params.y, params.z, params.x, 1);
+            shadow = FilterShadow(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
+                ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0, ShadowLightSize(light));
+        }
     }
-    int col = cascadeIdx % 2;
-    int row = cascadeIdx / 2;
-    float4 clipRect = float4(col * 0.5, row * 0.5, 0.5, 0.5);
-    float2 shadowUV = localUV * 0.5 + clipRect.xy;
-    float4 params = _CascadeShadowParams[cascadeIdx];
-    float4 depthParams = float4(params.y, params.z, params.x, 1);
-    return FilterShadow(cascadeShadowMap, SRV_CascadeShadowMoments, light, shadowUV, shadowCoord.z, _CascadeShadowMapSize.zw, clipRect,
-        ShadowReceiverGradient(_CascadeMatrices[cascadeIdx], worldPos, normal, clipRect.zw), depthParams, 1.0, ShadowLightSize(light));
+    return shadow;
 }
 
 // Picks the first cascade whose culling sphere holds the point and blends into the next one over the outer
 // blend-width fraction of the sphere radius.
 float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, FLightRecord light, float3 worldPos, float viewDepth, float3 normal = float3(0, 0, 0))
 {
-    if (_CascadeCount <= 0)
+    float shadow = 1;
+    if (_CascadeCount > 0)
     {
-        return 1.0;
-    }
-
-    int cascadeIdx = -1;
-    float radiusFraction = 0;
-    [unroll]
-    for (int i = 0; i < 4; ++i)
-    {
-        float3 delta = worldPos - _CascadeSpheres[i].xyz;
-        float distanceSqr = dot(delta, delta);
-        if (cascadeIdx < 0 && _CascadeSpheres[i].w > 0 && distanceSqr <= _CascadeSpheres[i].w)
+        int cascadeIdx = -1;
+        float radiusFraction = 0;
+        [unroll]
+        for (int i = 0; i < 4; ++i)
         {
-            cascadeIdx = i;
-            radiusFraction = sqrt(distanceSqr / _CascadeSpheres[i].w);
+            float3 delta = worldPos - _CascadeSpheres[i].xyz;
+            float distanceSqr = dot(delta, delta);
+            if (cascadeIdx < 0 && _CascadeSpheres[i].w > 0 && distanceSqr <= _CascadeSpheres[i].w)
+            {
+                cascadeIdx = i;
+                radiusFraction = sqrt(distanceSqr / _CascadeSpheres[i].w);
+            }
         }
-    }
-    if (cascadeIdx < 0 || viewDepth >= _CascadeSplitDistances.w) return 1;
-
-    float shadow = SampleCascadeSlice(cascadeShadowMap, light, cascadeIdx, worldPos, normal);
-    float blendWidth = _CascadeShadowParams[cascadeIdx].w;
-    int next = cascadeIdx + 1;
-    if (blendWidth > 0 && next < 4 && _CascadeSpheres[next].w > 0)
-    {
-        float blend = saturate((radiusFraction - (1.0 - blendWidth)) / blendWidth);
-        if (blend > 0)
+        if (cascadeIdx >= 0 && viewDepth < _CascadeSplitDistances.w)
         {
-            shadow = lerp(shadow, SampleCascadeSlice(cascadeShadowMap, light, next, worldPos, normal), blend);
+            shadow = SampleCascadeSlice(cascadeShadowMap, light, cascadeIdx, worldPos, normal);
+            float blendWidth = _CascadeShadowParams[cascadeIdx].w;
+            int next = cascadeIdx + 1;
+            if (blendWidth > 0 && next < 4 && _CascadeSpheres[next].w > 0)
+            {
+                float blend = saturate((radiusFraction - (1.0 - blendWidth)) / blendWidth);
+                if (blend > 0)
+                {
+                    shadow = lerp(shadow, SampleCascadeSlice(cascadeShadowMap, light, next, worldPos, normal), blend);
+                }
+            }
         }
     }
     return shadow;
@@ -308,38 +326,36 @@ float SampleCascadeShadow(Texture2D<float> cascadeShadowMap, FLightRecord light,
 
 float SampleLocalShadow(Texture2D<float> localShadowMap, FLightRecord light, float3 worldPos, float3 normal = float3(0, 0, 0))
 {
-    if ((light.flags & LIGHT_FLAG_SHADOW) == 0 || light.shadowMatrixIndex < 0 || light.shadowSliceCount <= 0)
+    float shadow = 1;
+    if ((light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowMatrixIndex >= 0 && light.shadowSliceCount > 0)
     {
-        return 1.0;
-    }
+        int face = 0;
+        if (light.shadowSliceCount == 6)
+        {
+            face = SelectPointShadowFace(worldPos - SRV_LocalShadowRects[light.shadowMatrixIndex].shadowOriginSize.xyz);
+        }
 
-    int face = 0;
-    if (light.shadowSliceCount == 6)
-    {
-        face = SelectPointShadowFace(worldPos - SRV_LocalShadowRects[light.shadowMatrixIndex].shadowOriginSize.xyz);
-    }
-
-    int slice = light.shadowMatrixIndex + face;
-    float4x4 shadowMatrix = SRV_LocalShadowMatrices[slice];
-    FLocalShadowSlice sliceData = SRV_LocalShadowRects[slice];
-    float4 clipRect = sliceData.atlasRect;
-    float4 shadowCoord = mul(shadowMatrix, float4(worldPos, 1.0));
-    if (shadowCoord.w <= 0.0)
-    {
-        return 1.0;
-    }
-    shadowCoord.xyz /= shadowCoord.w;
-    float2 localUV = shadowCoord.xy * 0.5 + 0.5;
+        int slice = light.shadowMatrixIndex + face;
+        float4x4 shadowMatrix = SRV_LocalShadowMatrices[slice];
+        FLocalShadowSlice sliceData = SRV_LocalShadowRects[slice];
+        float4 clipRect = sliceData.atlasRect;
+        float4 shadowCoord = mul(shadowMatrix, float4(worldPos, 1.0));
+        if (shadowCoord.w > 0.0)
+        {
+            shadowCoord.xyz /= shadowCoord.w;
+            float2 localUV = shadowCoord.xy * 0.5 + 0.5;
 #if UNITY_UV_STARTS_AT_TOP
-    localUV.y = 1 - localUV.y;
+            localUV.y = 1 - localUV.y;
 #endif
-    if (any(localUV < 0.0) || any(localUV > 1.0))
-    {
-        return 1.0;
+            if (all(localUV >= 0.0) && all(localUV <= 1.0))
+            {
+                float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
+                shadow = FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
+                    ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x, sliceData.shadowOriginSize.w);
+            }
+        }
     }
-    float2 shadowUV = localUV * clipRect.zw + clipRect.xy;
-    return FilterShadow(localShadowMap, SRV_LocalShadowMoments, light, shadowUV, shadowCoord.z, _LocalShadowMapSize.zw, clipRect,
-        ShadowReceiverGradient(shadowMatrix, worldPos, normal, clipRect.zw), sliceData.depthParams, sliceData.momentParams.x, sliceData.shadowOriginSize.w);
+    return shadow;
 }
 
 int _InfinityShadowmaskMode;
@@ -348,10 +364,12 @@ float _InfinityShadowDistance;
 float MixBakedAndRealtimeShadow(FLightRecord light, float realtime, float4 mask, float viewDepth)
 {
     float fade = saturate((viewDepth / max(_InfinityShadowDistance, 0.001) - 0.9) * 10);
-    if (!LightHasFlag(light, LIGHT_FLAG_SHADOWMASK) || light.bakedOcclusionChannel < 0 || light.bakedOcclusionChannel > 3)
-        return lerp(1, lerp(realtime, 1, fade), LightShadowStrength(light));
-    float baked = mask[light.bakedOcclusionChannel];
-    float combined = _InfinityShadowmaskMode == 0 ? min(baked, lerp(realtime, 1, fade)) : lerp(realtime, baked, fade);
+    float combined = lerp(realtime, 1, fade);
+    if (LightHasFlag(light, LIGHT_FLAG_SHADOWMASK) && light.bakedOcclusionChannel >= 0 && light.bakedOcclusionChannel <= 3)
+    {
+        float baked = mask[light.bakedOcclusionChannel];
+        combined = _InfinityShadowmaskMode == 0 ? min(baked, lerp(realtime, 1, fade)) : lerp(realtime, baked, fade);
+    }
     return lerp(1, combined, LightShadowStrength(light));
 }
 

@@ -963,16 +963,12 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void DrawRendererList(in RendererList rendererList)
         {
-            m_CommandBuffer.BeginSample("RasterRendererList");
-            try { m_CommandBuffer.DrawRendererList(rendererList); }
-            finally { m_CommandBuffer.EndSample("RasterRendererList"); }
+            m_CommandBuffer.DrawRendererList(rendererList);
         }
 
         public void DrawRendererList(in RGRendererListRef rendererList)
         {
-            m_CommandBuffer.BeginSample("RasterRendererList");
-            try { m_RendererLists?.Submit(m_CommandBuffer, rendererList); }
-            finally { m_CommandBuffer.EndSample("RasterRendererList"); }
+            m_RendererLists?.Submit(m_CommandBuffer, rendererList);
         }
 
         public void DrawProcedural(in Matrix4x4 matrix, Material material, in int shaderPass, in MeshTopology topology, in int vertexCount, in int instanceCount, MaterialPropertyBlock properties)

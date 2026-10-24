@@ -53,31 +53,46 @@ float3 LoadCubemapArrayRemapped(Texture2DArray<float4> cube, uint firstSlice, ui
 float3 LoadCubemapArrayTap(Texture2DArray<float4> cube, uint firstSlice, uint face, int2 coord, uint size, uint mip)
 {
     bool2 outside = (coord < 0) | (coord >= int(size));
-    if (!any(outside)) return cube.Load(int4(coord, firstSlice + face, mip)).rgb;
-    if (all(outside))
+    float3 radiance = 0;
+    if (!any(outside))
+    {
+        radiance = cube.Load(int4(coord, firstSlice + face, mip)).rgb;
+    }
+    else if (all(outside))
     {
         // A cube vertex belongs to three faces. A symmetric corner tap keeps the limit identical from all three.
         int2 corner = clamp(coord, 0, int(size) - 1);
         float3 a = cube.Load(int4(corner, firstSlice + face, mip)).rgb;
         float3 b = LoadCubemapArrayRemapped(cube, firstSlice, face, int2(coord.x, corner.y), size, mip);
         float3 c = LoadCubemapArrayRemapped(cube, firstSlice, face, int2(corner.x, coord.y), size, mip);
-        return (a + b + c) / 3.0;
+        radiance = (a + b + c) / 3.0;
     }
-    return LoadCubemapArrayRemapped(cube, firstSlice, face, coord, size, mip);
+    else
+    {
+        radiance = LoadCubemapArrayRemapped(cube, firstSlice, face, coord, size, mip);
+    }
+    return radiance;
 }
 
 float3 SampleCubemapArrayMip(Texture2DArray<float4> cube, uint firstSlice, uint face, float2 uv, uint size, uint mip)
 {
     float2 texel = uv * size - 0.5;
     int2 origin = int2(floor(texel));
+    float3 radiance = 0;
     if (all(origin >= 0) && all(origin + 1 < int(size)))
-        return cube.SampleLevel(Global_bilinear_clamp_sampler, float3(uv, firstSlice + face), mip).rgb;
-    float2 blend = frac(texel);
-    float3 a = LoadCubemapArrayTap(cube, firstSlice, face, origin, size, mip);
-    float3 b = LoadCubemapArrayTap(cube, firstSlice, face, origin + int2(1, 0), size, mip);
-    float3 c = LoadCubemapArrayTap(cube, firstSlice, face, origin + int2(0, 1), size, mip);
-    float3 d = LoadCubemapArrayTap(cube, firstSlice, face, origin + int2(1, 1), size, mip);
-    return lerp(lerp(a, b, blend.x), lerp(c, d, blend.x), blend.y);
+    {
+        radiance = cube.SampleLevel(Global_bilinear_clamp_sampler, float3(uv, firstSlice + face), mip).rgb;
+    }
+    else
+    {
+        float2 blend = frac(texel);
+        float3 a = LoadCubemapArrayTap(cube, firstSlice, face, origin, size, mip);
+        float3 b = LoadCubemapArrayTap(cube, firstSlice, face, origin + int2(1, 0), size, mip);
+        float3 c = LoadCubemapArrayTap(cube, firstSlice, face, origin + int2(0, 1), size, mip);
+        float3 d = LoadCubemapArrayTap(cube, firstSlice, face, origin + int2(1, 1), size, mip);
+        radiance = lerp(lerp(a, b, blend.x), lerp(c, d, blend.x), blend.y);
+    }
+    return radiance;
 }
 
 float3 SampleCubemapArraySeamless(Texture2DArray<float4> cube, uint firstSlice, float3 direction, float lod)
@@ -91,10 +106,14 @@ float3 SampleCubemapArraySeamless(Texture2DArray<float4> cube, uint firstSlice, 
     uint low = (uint)floor(mip);
     float3 a = SampleCubemapArrayMip(cube, firstSlice, face, uv, max(width >> low, 1u), low);
     float blend = frac(mip);
-    if (blend == 0.0) return a;
-    uint high = low + 1;
-    float3 b = SampleCubemapArrayMip(cube, firstSlice, face, uv, max(width >> high, 1u), high);
-    return lerp(a, b, blend);
+    float3 radiance = a;
+    if (blend != 0.0)
+    {
+        uint high = low + 1;
+        float3 b = SampleCubemapArrayMip(cube, firstSlice, face, uv, max(width >> high, 1u), high);
+        radiance = lerp(a, b, blend);
+    }
+    return radiance;
 }
 
 float2 AtmosphereRayToSkyViewUv(float3 rayDir)

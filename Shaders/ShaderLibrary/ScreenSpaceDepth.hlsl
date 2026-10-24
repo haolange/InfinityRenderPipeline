@@ -14,10 +14,17 @@ bool ScreenSpaceIsFarDepth(float depth)
 float ScreenSpaceLinearEyeDepth(float rawDepth)
 {
     float near = ScreenSpaceDepthParams.x, far = ScreenSpaceDepthParams.y;
+    float eyeDepth = 0;
     if (ScreenSpaceDepthParams.z != 0)
-        return lerp(near, far, ScreenSpaceDepthParams.w != 0 ? 1 - rawDepth : rawDepth);
-    float denominator = ScreenSpaceDepthParams.w != 0 ? near + rawDepth * (far - near) : far - rawDepth * (far - near);
-    return near * far / max(denominator, 1e-8);
+    {
+        eyeDepth = lerp(near, far, ScreenSpaceDepthParams.w != 0 ? 1 - rawDepth : rawDepth);
+    }
+    else
+    {
+        float denominator = ScreenSpaceDepthParams.w != 0 ? near + rawDepth * (far - near) : far - rawDepth * (far - near);
+        eyeDepth = near * far / max(denominator, 1e-8);
+    }
+    return eyeDepth;
 }
 float ScreenSpaceDepthWeight(float center, float neighbor, float sigma)
 {

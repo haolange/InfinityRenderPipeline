@@ -401,13 +401,40 @@ a test fixture as an independent numeric reference.
 ## Explicit MeshDraw preparation
 
 Structural culling identifies live consumers before DrawLists resolve. Compilation
-then inserts UploadMeshDrawData and optional ComputeMeshDrawCompact producers
+then inserts UploadMeshData and optional ComputeMeshCompaction producers
 before the first consumer, with explicit visibility, metadata, transformed-index,
 count and indirect-argument dependencies. Other consumers reuse their outputs.
 CPU Direct records no Compact producer. Raster execution contains no implicit
 upload/dispatch prelude. GPU batch metadata, indices and args use global disjoint
 ranges, so preparing a later batch cannot overwrite an earlier one.
 Neutral functional scopes contain prepare and Raster passes as peers. Samplers
-remain the naming authority; internal markers distinguish RasterMeshDrawDirect,
-RasterMeshDrawIndirect and RasterRendererList. Unity's native batching labels
-and shadow slice context remain intact.
+remain the naming authority. MeshDrawProfiling owns one cached sampler per
+preparation operation: ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData.
+Main, cascade and local views share these samplers but retain distinct graph nodes
+and parent scopes. Only DrawMeshDirect/Indirect use RenderLoop.* / Shadows.* names,
+selected from EMeshViewKind rather than strings or global state. Compaction
+contains ClearCounts, CompactIndices and BuildIndirectArgs markers.
+The Timings panel records the same cached pass samplers. RendererList submission
+adds no wrapper: native SRPBatcher and owned Mesh draws are siblings, within the
+existing Slice/Face scope for shadows. Unity's native batching and (RP ...) labels
+remain intact. Shader LightModes are independent of profiler names.
+
+## Defined Shader helper outputs
+
+Shared value/out helpers compiled for Metal initialize their result before
+conditional work and converge to one return where multi-exit lowering produces
+initialization diagnostics. A rejected surface keeps its actual raw depth and
+zero geometry; reprojection rejection keeps invalid UV and the input depth.
+Resource reads stay inside the same validity conditions, and ray traversal uses
+an explicit hit state with loop termination rather than function returns inside
+the loop. This changes neither formulas nor pass/resource ownership. Kernel
+bounds exits and TAA group barriers keep their existing behavior. Warning
+suppression is not an acceptance path; actual production dispatch and numeric
+contracts are required in addition to import-time diagnostics.
+
+### Shader diagnostic closure
+
+- For a reported Metal output warning, initialize result/output state explicitly and keep a single return where cross-compiler control flow requires it. Preserve valid branch formulas and rejection semantics; do not suppress diagnostics or disable consumers.
+- Guard degenerate vector normalization before reciprocal length evaluation. Bind required resources and validate physical inputs at setup rather than substituting fallback textures.
+- For compute passes changed during diagnostic repairs, resolve kernels by name and freeze kernel/thread-group dispatch metadata into pass data at recording. Deferred shading uses an 8x8 workgroup; clustered light lookup independently retains 16x16 screen tiles.
+- Warning acceptance covers public ShaderUtil diagnostics after actual production dispatch/draw, a fresh rendering log window, and the current Example feature chain. A fixture, reimport or FindKernel alone cannot establish full-scene acceptance.

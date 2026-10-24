@@ -11,7 +11,7 @@ int CaseCount;
 [numthreads(1, 1, 1)]
 void Compare(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= CaseCount) return;
+    if (id.x >= (uint)CaseCount) return;
     float4 s = Samples[id.x];
     FReflectionProbeRecord probe = (FReflectionProbeRecord)0;
     probe.worldToBox0 = float4(1, 0, 0, 0);

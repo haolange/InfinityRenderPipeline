@@ -68,8 +68,13 @@ int LightContactShadowBit(FLightRecord light) { return (int)light.misc.z; }
 float ContactShadowFromMask(FLightRecord light, uint contactMask)
 {
     int bit = LightContactShadowBit(light);
-    if (bit < 0 || ((contactMask >> (uint)bit) & 1u) == 0u) return 1.0;
-    return 1.0 - (contactMask >> 24) / 255.0;
+    float shadow = 1.0;
+    if (bit >= 0)
+    {
+        if (((contactMask >> (uint)bit) & 1u) != 0u)
+            shadow = 1.0 - (contactMask >> 24) / 255.0;
+    }
+    return shadow;
 }
 
 // Realtime radiance; zero when the direct contribution is baked into the lightmaps.
@@ -107,26 +112,30 @@ float SpotWindow(FLightRecord light, float3 positionWS)
 {
     float3 fromLight = positionWS - light.positionRange.xyz;
     float3 forward = light.forward.xyz;
+    float window = 1;
     if (LightHasFlag(light, LIGHT_FLAG_SPOT_CONE))
     {
         float cosAngle = dot(normalize(fromLight), forward);
-        float window = saturate((cosAngle - light.forward.w) * light.right.w);
-        return window * window;
+        float angular = saturate((cosAngle - light.forward.w) * light.right.w);
+        window = angular * angular;
     }
-    float z = dot(fromLight, forward);
-    if (LightHasFlag(light, LIGHT_FLAG_SPOT_PYRAMID))
+    else
     {
-        float x = dot(fromLight, light.right.xyz);
-        float y = dot(fromLight, LightUp(light));
-        return z > 0 && abs(x) <= z * light.area.x && abs(y) <= z * light.area.y ? 1 : 0;
+        float z = dot(fromLight, forward);
+        if (LightHasFlag(light, LIGHT_FLAG_SPOT_PYRAMID))
+        {
+            float x = dot(fromLight, light.right.xyz);
+            float y = dot(fromLight, LightUp(light));
+            window = z > 0 && abs(x) <= z * light.area.x && abs(y) <= z * light.area.y ? 1 : 0;
+        }
+        else if (LightHasFlag(light, LIGHT_FLAG_SPOT_BOX))
+        {
+            float x = dot(fromLight, light.right.xyz);
+            float y = dot(fromLight, LightUp(light));
+            window = z > 0 && abs(x) <= 0.5 * light.area.x && abs(y) <= 0.5 * light.area.y ? 1 : 0;
+        }
     }
-    if (LightHasFlag(light, LIGHT_FLAG_SPOT_BOX))
-    {
-        float x = dot(fromLight, light.right.xyz);
-        float y = dot(fromLight, LightUp(light));
-        return z > 0 && abs(x) <= 0.5 * light.area.x && abs(y) <= 0.5 * light.area.y ? 1 : 0;
-    }
-    return 1;
+    return window;
 }
 
 // Distance and angular attenuation of a local light at positionWS (shape-independent part).

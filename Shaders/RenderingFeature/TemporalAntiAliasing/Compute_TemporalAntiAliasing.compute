@@ -47,10 +47,14 @@ bool TaaDepthMatches(float expected, float actual)
 {
     bool expectedFar = ScreenSpaceIsFarDepth(expected);
     bool actualFar = ScreenSpaceIsFarDepth(actual);
-    if (expectedFar || actualFar) return expectedFar && actualFar;
-    float a = ScreenSpaceLinearEyeDepth(expected);
-    float b = ScreenSpaceLinearEyeDepth(actual);
-    return abs(a - b) <= max(0.002, 0.005 * a);
+    bool matches = expectedFar && actualFar;
+    if (!expectedFar && !actualFar)
+    {
+        float a = ScreenSpaceLinearEyeDepth(expected);
+        float b = ScreenSpaceLinearEyeDepth(actual);
+        matches = abs(a - b) <= max(0.002, 0.005 * a);
+    }
+    return matches;
 }
 float4 TaaCubicWeights(float f)
 {
@@ -62,52 +66,62 @@ float4 TaaCubicWeights(float f)
 // These two lookups must not share the jitter offset.
 float TaaDepthCoverage(float2 depthUV, float expectedDepth)
 {
-    if (any(depthUV < 0) || any(depthUV >= 1)) return 0;
-    float2 texel = depthUV * TAA_Resolution.xy - 0.5;
-    int2 base = (int2)floor(texel);
-    float2 phase = frac(texel);
     float coverage = 0;
-    [unroll] for (int y = 0; y < 2; y++)
-    [unroll] for (int x = 0; x < 2; x++)
+    if (all(depthUV >= 0) && all(depthUV < 1))
     {
-        int2 pixel = base + int2(x, y);
-        if (any(pixel < 0) || any(pixel >= int2(TAA_Resolution.xy))) continue;
-        float weight = (x == 0 ? 1 - phase.x : phase.x) * (y == 0 ? 1 - phase.y : phase.y);
-        if (TaaDepthMatches(expectedDepth, SRV_HistoryDepthTexture.Load(int3(pixel, 0)))) coverage += weight;
+        float2 texel = depthUV * TAA_Resolution.xy - 0.5;
+        int2 base = (int2)floor(texel);
+        float2 phase = frac(texel);
+        [unroll] for (int y = 0; y < 2; y++)
+        [unroll] for (int x = 0; x < 2; x++)
+        {
+            int2 pixel = base + int2(x, y);
+            if (any(pixel < 0) || any(pixel >= int2(TAA_Resolution.xy))) continue;
+            float weight = (x == 0 ? 1 - phase.x : phase.x) * (y == 0 ? 1 - phase.y : phase.y);
+            if (TaaDepthMatches(expectedDepth, SRV_HistoryDepthTexture.Load(int3(pixel, 0)))) coverage += weight;
+        }
     }
     return saturate(coverage);
 }
 bool TaaReadHistory(float2 colorUV, float2 depthUV, float expectedDepth, out float4 history, out float coverage)
 {
     history = 0; coverage = 0;
-    if (any(colorUV < 0) || any(colorUV >= 1)) return false;
-    coverage = TaaDepthCoverage(depthUV, expectedDepth);
-    // A matching footprint is a geometric witness, not a temporal blend probability.
-    // Multiplying sample age by bilinear phase repeatedly resets static silhouette pixels.
-    if (coverage <= 0) return false;
-    float2 texel = colorUV * TAA_Resolution.xy - 0.5;
-    int2 base = (int2)floor(texel);
-    float2 phase = frac(texel);
-    float4 wx = TaaCubicWeights(phase.x), wy = TaaCubicWeights(phase.y);
-    float3 low = 1e20, high = -1e20;
-    float sum = 0;
-    [unroll] for (int y = 0; y < 4; y++)
-    [unroll] for (int x = 0; x < 4; x++)
+    bool valid = false;
+    if (all(colorUV >= 0) && all(colorUV < 1))
     {
-        float weight = wx[x] * wy[y];
-        if (abs(weight) < 1e-8) continue;
-        int2 pixel = base + int2(x - 1, y - 1);
-        if (any(pixel < 0) || any(pixel >= int2(TAA_Resolution.xy))) continue;
-        float4 value = SRV_HistoryColorTexture.Load(int3(pixel, 0));
-        if (!all(isfinite(value)) || value.a < 1) continue;
-        low = min(low, value.rgb); high = max(high, value.rgb);
-        history += value * weight; sum += weight;
+        coverage = TaaDepthCoverage(depthUV, expectedDepth);
+        // A matching footprint is a geometric witness, not a temporal blend probability.
+        // Multiplying sample age by bilinear phase repeatedly resets static silhouette pixels.
+        if (coverage > 0)
+        {
+            float2 texel = colorUV * TAA_Resolution.xy - 0.5;
+            int2 base = (int2)floor(texel);
+            float2 phase = frac(texel);
+            float4 wx = TaaCubicWeights(phase.x), wy = TaaCubicWeights(phase.y);
+            float3 low = 1e20, high = -1e20;
+            float sum = 0;
+            [unroll] for (int y = 0; y < 4; y++)
+            [unroll] for (int x = 0; x < 4; x++)
+            {
+                float weight = wx[x] * wy[y];
+                if (abs(weight) < 1e-8) continue;
+                int2 pixel = base + int2(x - 1, y - 1);
+                if (any(pixel < 0) || any(pixel >= int2(TAA_Resolution.xy))) continue;
+                float4 value = SRV_HistoryColorTexture.Load(int3(pixel, 0));
+                if (!all(isfinite(value)) || value.a < 1) continue;
+                low = min(low, value.rgb); high = max(high, value.rgb);
+                history += value * weight; sum += weight;
+            }
+            if (sum > 0.05)
+            {
+                history /= sum;
+                history.rgb = RGB2YCoCg(TaaCompress(clamp(history.rgb, low, high)));
+                history.a = clamp(history.a, 1, 32);
+                valid = true;
+            }
+        }
     }
-    if (sum <= 0.05) return false;
-    history /= sum;
-    history.rgb = RGB2YCoCg(TaaCompress(clamp(history.rgb, low, high)));
-    history.a = clamp(history.a, 1, 32);
-    return true;
+    return valid;
 }
 float4 ResolveTemporalPixel(int2 pixel, out float depth, out float4 diagnostics, out float4 reprojection)
 {

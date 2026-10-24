@@ -63,14 +63,14 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     if (any(id.xy >= (uint2)Resolution.xy)) return;
     float2 ScreenUV = (id.xy + 0.5) * Resolution.zw;
     float2 sourceUV = HalfResSourceUV(ScreenUV);
-    float2 Velocity = InfinitySampleLevel(SRV_MotionTexture,Global_point_clamp_sampler,sourceUV,0);
+    float2 Velocity = InfinitySampleLevel(SRV_MotionTexture,Global_point_clamp_sampler,sourceUV,0).xy;
 
     float SampleColors[9];
 
     [unroll]
     for(uint i = 0; i < 9; i++)
     {
-        SampleColors[i] = InfinitySampleLevel(SRV_OcclusionTexture,Global_point_clamp_sampler,ScreenUV + (SampleOffset[i] * Resolution.zw),0);
+        SampleColors[i] = InfinitySampleLevel(SRV_OcclusionTexture,Global_point_clamp_sampler,ScreenUV + (SampleOffset[i] * Resolution.zw),0).r;
     }
 
 
@@ -95,7 +95,7 @@ void OcclusionTemporal(uint3 id : SV_DispatchThreadID)
     float currentDepth = SRV_DepthTexture.Load(int3(id.xy, 0)).r;
     float2 HistoryUV; float expectedHistoryDepth;
     ReprojectSurface(sourceUV, currentDepth, Velocity, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, HistoryUV, expectedHistoryDepth);
-    float PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, HistoryUV, 0);
+    float PrevColor = SRV_HistoryTexture.SampleLevel(Global_point_clamp_sampler, HistoryUV, 0).r;
     MinColor = min(MinColor, CurrColor);
     MaxColor = max(MaxColor, CurrColor);
     PrevColor = clamp(PrevColor, MinColor, MaxColor);

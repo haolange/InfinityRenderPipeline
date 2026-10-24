@@ -32,42 +32,42 @@ float3 EvaluateDirectional(FLightRecord light, float3 worldPos, float3 normal, f
     float specularEnergy;
     float3 specularL = SunDiskSpecularL(light, reflect(-viewDir, normal), microfaceCtx.RoughnessClamp, specularEnergy);
     float specularNoL = saturate(dot(normal, specularL));
-    if (NoL <= 0 && specularNoL <= 0)
+    float3 radiance = 0;
+    if (NoL > 0 || specularNoL > 0)
     {
-        return 0;
+        float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, worldPos, viewDepth, normal) : 1.0;
+        shadow = MixBakedAndRealtimeShadow(light, shadow, bakedMask, viewDepth);
+        if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
+        float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * NoL * LightDiffuseWeight(light);
+        float3 specular = SpecularBRDF(normal, viewDir, specularL, microfaceCtx) * specularNoL * specularEnergy * LightSpecularWeight(light);
+        radiance = (diffuse + specular) * LightRadiance(light) * LightCookieColor(light, worldPos) * shadow;
     }
-
-    float shadow = _CascadeCount > 0 && (light.flags & LIGHT_FLAG_SHADOW) != 0 && light.shadowSliceCount > 0 ? SampleCascadeShadow(SRV_CascadeShadowMap, light, worldPos, viewDepth, normal) : 1.0;
-    shadow = MixBakedAndRealtimeShadow(light, shadow, bakedMask, viewDepth);
-    if ((light.flags & LIGHT_FLAG_CONTACT) != 0) shadow *= contactShadow;
-    float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * NoL * LightDiffuseWeight(light);
-    float3 specular = SpecularBRDF(normal, viewDir, specularL, microfaceCtx) * specularNoL * specularEnergy * LightSpecularWeight(light);
-    return (diffuse + specular) * LightRadiance(light) * LightCookieColor(light, worldPos) * shadow;
+    return radiance;
 }
 
 float3 EvaluateLocal(FLightRecord light, float3 worldPos, float3 normal, float3 viewDir, MicrofaceContext microfaceCtx, float4 bakedMask, float viewDepth, uint contactMask)
 {
     float window = LocalLightWindow(light, worldPos);
-    if (window <= 0)
+    float3 radiance = 0;
+    if (window > 0)
     {
-        return 0;
+        FLightShapeSample shape = EvaluateLocalLightShape(light, worldPos, normal, viewDir, microfaceCtx.RoughnessClamp);
+        float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * shape.diffuseIrradiance * LightDiffuseWeight(light);
+        float3 specular = SpecularBRDF(normal, viewDir, shape.specularL, microfaceCtx) * shape.specularNoL * shape.specularFalloff
+            * shape.specularEnergy * LightSpecularWeight(light);
+        if (LightHasCookie(light))
+        {
+            float3 cookie = LightCookieColor(light, worldPos);
+            float3 planarDiffuse, planarSpecular;
+            LightPlanarCookie(light, shape.emitterUV, microfaceCtx.RoughnessClamp, planarDiffuse, planarSpecular);
+            diffuse *= cookie * planarDiffuse;
+            specular *= cookie * planarSpecular;
+        }
+        float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
+        shadow *= ContactShadowFromMask(light, contactMask);
+        radiance = (diffuse + specular) * LightRadiance(light) * window * shadow;
     }
-
-    FLightShapeSample shape = EvaluateLocalLightShape(light, worldPos, normal, viewDir, microfaceCtx.RoughnessClamp);
-    float3 diffuse = Diffuse_Lambert(microfaceCtx.AlbedoColor) * shape.diffuseIrradiance * LightDiffuseWeight(light);
-    float3 specular = SpecularBRDF(normal, viewDir, shape.specularL, microfaceCtx) * shape.specularNoL * shape.specularFalloff
-        * shape.specularEnergy * LightSpecularWeight(light);
-    if (LightHasCookie(light))
-    {
-        float3 cookie = LightCookieColor(light, worldPos);
-        float3 planarDiffuse, planarSpecular;
-        LightPlanarCookie(light, shape.emitterUV, microfaceCtx.RoughnessClamp, planarDiffuse, planarSpecular);
-        diffuse *= cookie * planarDiffuse;
-        specular *= cookie * planarSpecular;
-    }
-    float shadow = MixBakedAndRealtimeShadow(light, SampleLocalShadow(SRV_LocalShadowMap, light, worldPos, normal), bakedMask, viewDepth);
-    shadow *= ContactShadowFromMask(light, contactMask);
-    return (diffuse + specular) * LightRadiance(light) * window * shadow;
+    return radiance;
 }
 
 // Forward / translucent evaluation of every light that reaches positionSS (SV_Position.xy) at viewDepth.

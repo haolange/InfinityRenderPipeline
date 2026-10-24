@@ -1,3 +1,4 @@
+using InfinityTech.Rendering.MeshPipeline;
 using UnityEngine.Rendering;
 
 namespace InfinityTech.Rendering.Pipeline
@@ -84,14 +85,19 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     ProfilingSampler.Get((CustomSamplerId)i).enableRecording = value;
                 }
+                foreach (var sampler in MeshDrawProfiling.passes) sampler.enableRecording = value;
             }
         }
 
         // "GPU 0.123 ms / CPU 0.045 ms" for one pass; "-" while recording is off or the pass did not run.
         public string Describe(CustomSamplerId id)
         {
+            return Describe(ProfilingSampler.Get(id));
+        }
+
+        internal string Describe(ProfilingSampler sampler)
+        {
             if (!m_RecordPassTimings) return "-";
-            ProfilingSampler sampler = ProfilingSampler.Get(id);
             float gpu = sampler.gpuElapsedTime;
             float cpu = sampler.cpuElapsedTime;
             if (gpu <= 0 && cpu <= 0) return "-";
@@ -106,6 +112,7 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 gpu += ProfilingSampler.Get((CustomSamplerId)i).gpuElapsedTime;
             }
+            foreach (var sampler in MeshDrawProfiling.passes) gpu += sampler.gpuElapsedTime;
             return $"GPU {gpu:F3} ms";
         }
 

@@ -34,8 +34,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 "../Packages/com.infinity.render-pipeline/Runtime/RendererCore/PrimitivePipeline/MeshPipeline/MeshDrawPipeline.cs"));
             Assert.IsTrue(File.Exists(path), path);
             string text = File.ReadAllText(path);
-            Assert.IsTrue(text.Contains("BeginSample(\"RasterMeshDrawDirect\")"));
-            Assert.IsFalse(text.Contains("RasterMeshDrawDirectPipeline"));
+            Assert.IsTrue(text.Contains("MeshDrawProfiling.Draw(viewKind, false)"));
+            Assert.IsTrue(text.Contains("BeginSample(marker)"));
         }
 
         [Test]

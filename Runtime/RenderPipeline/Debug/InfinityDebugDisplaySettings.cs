@@ -1,3 +1,4 @@
+using InfinityTech.Rendering.MeshPipeline;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -160,6 +161,8 @@ namespace InfinityTech.Rendering.Pipeline
                 CustomSamplerId captured = (CustomSamplerId)i;
                 passList.children.Add(new DebugUI.Value { displayName = captured.ToString(), getter = () => state.timings.Describe(captured) });
             }
+            foreach (var sampler in MeshDrawProfiling.passes)
+                passList.children.Add(new DebugUI.Value { displayName = sampler.name, getter = () => state.timings.Describe(sampler) });
             timingPanel.children.Add(passList);
 
             DebugUI.Panel mesh = DebugManager.instance.GetPanel("Infinity Mesh", true);

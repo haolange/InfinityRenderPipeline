@@ -16,15 +16,17 @@ StructuredBuffer<FLightRecord> g_LightRecordBuffer;
 int SelectPointShadowFace(float3 L)
 {
     float3 a = abs(L);
+    int face = 0;
     if (a.x >= a.y && a.x >= a.z)
     {
-        return L.x >= 0.0 ? 0 : 1;
+        face = L.x >= 0.0 ? 0 : 1;
     }
-    if (a.y >= a.z)
+    else if (a.y >= a.z)
     {
-        return L.y >= 0.0 ? 2 : 3;
+        face = L.y >= 0.0 ? 2 : 3;
     }
-    return L.z >= 0.0 ? 4 : 5;
+    else face = L.z >= 0.0 ? 4 : 5;
+    return face;
 }
 
 #endif

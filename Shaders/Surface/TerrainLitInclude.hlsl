@@ -1,9 +1,6 @@
 #ifndef _TerrainLitInclude
 #define _TerrainLitInclude
 
-#define UNITY_PREV_MATRIX_M unity_MatrixPreviousM;
-#define UNITY_PREV_MATRIX_I_M unity_MatrixPreviousMI;
-
 #include "../ShaderLibrary/Common.hlsl"
 #include "../ShaderLibrary/Lighting.hlsl"
 #include "../ShaderLibrary/GBufferPack.hlsl"

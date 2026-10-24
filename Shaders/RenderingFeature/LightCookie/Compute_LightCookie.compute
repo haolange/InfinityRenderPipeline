@@ -22,9 +22,10 @@ RWTexture2D<float4> UAV_CookieAtlasSource;
 
 float4 SelectChannels(float4 value)
 {
-    if (Cookie_Channels == 1) return float4(value.aaa, 1);
-    if (Cookie_Channels == 2) return float4(value.rrr, 1);
-    return float4(value.rgb, 1);
+    float4 result = float4(value.rgb, 1);
+    if (Cookie_Channels == 1) result.rgb = value.aaa;
+    else if (Cookie_Channels == 2) result.rgb = value.rrr;
+    return result;
 }
 
 float3 CookieOctahedralDecode(float2 uv)

@@ -113,28 +113,34 @@ float CloudPhase(float cosTheta)
 float LightMarch(float3 startPos, float3 lightDir, float lightDistance)
 {
     float2 ground = CloudSphereIntersection(startPos - CloudPlanetCenter(VolCloud_PlanetRadius), lightDir, VolCloud_PlanetRadius);
-    if (ground.x >= 0 && ground.y > 0 && ground.x < lightDistance)
-        return 0;
-    float4 segments = CloudRaySegments(startPos, lightDir, VolCloud_PlanetRadius,
-        GetCloudLayerBottom(), VolCloud_CloudLayerThickness, lightDistance);
-    float rayLen = (segments.y - segments.x) + (segments.w - segments.z);
-    if (rayLen <= 0) return 1;
-    float stepSize = rayLen / max(VolCloud_NumLightSteps, 1);
-    float totalDensity = 0;
-    [loop]
-    for (int i = 0; i < VolCloud_NumLightSteps; ++i)
+    float transmittance = 0;
+    if (!(ground.x >= 0 && ground.y > 0 && ground.x < lightDistance))
     {
-        float3 samplePos = startPos + lightDir * CloudRayDistance(segments, (i + 0.5) * stepSize);
-        float h = GetNormalizedHeight(samplePos);
-        if (h >= 0 && h <= 1)
+        transmittance = 1;
+        float4 segments = CloudRaySegments(startPos, lightDir, VolCloud_PlanetRadius,
+            GetCloudLayerBottom(), VolCloud_CloudLayerThickness, lightDistance);
+        float rayLen = (segments.y - segments.x) + (segments.w - segments.z);
+        if (rayLen > 0)
         {
-            float density = SampleCloudDensity(samplePos, h, false);
-            totalDensity += density * stepSize;
+            float stepSize = rayLen / max(VolCloud_NumLightSteps, 1);
+            float totalDensity = 0;
+            [loop]
+            for (int i = 0; i < VolCloud_NumLightSteps; ++i)
+            {
+                float3 samplePos = startPos + lightDir * CloudRayDistance(segments, (i + 0.5) * stepSize);
+                float h = GetNormalizedHeight(samplePos);
+                if (h >= 0 && h <= 1)
+                {
+                    float density = SampleCloudDensity(samplePos, h, false);
+                    totalDensity += density * stepSize;
+                }
+            }
+            float beer = exp(-totalDensity * 0.04);
+            float powder = 1.0 - exp(-totalDensity * 0.08);
+            transmittance = beer * lerp(1.0, powder, 0.5);
         }
     }
-    float beer = exp(-totalDensity * 0.04);
-    float powder = 1.0 - exp(-totalDensity * 0.08);
-    return beer * lerp(1.0, powder, 0.5);
+    return transmittance;
 }
 
 float3 EvaluateCloudLight(FLightRecord light, float3 samplePos, float3 rayDir, float density, float normalizedHeight)

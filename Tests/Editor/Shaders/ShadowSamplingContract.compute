@@ -52,3 +52,13 @@ void CachedPoint(uint3 id : SV_DispatchThreadID)
     light.positionRange = float4(20, 30, 40, 100);
     Results[id.x] = SampleLocalShadow(TestDepth, light, TestWorldPositions[id.x].xyz);
 }
+
+#pragma kernel ReceiverGradient
+[numthreads(1, 1, 1)]
+void ReceiverGradient(uint3 id : SV_DispatchThreadID)
+{
+    float3 normal = id.x == 0 ? float3(0, 0, 0) : id.x == 1 ? float3(0, 0, 2) : normalize(float3(.2, .3, 1));
+    float4x4 projection = float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+    if (id.x == 3) projection = 0;
+    Results[id.x] = float4(ShadowReceiverGradient(projection, 0, normal, float2(.5, .5)), 0, 1);
+}

@@ -23,12 +23,13 @@ uint2 UnpackTraceTile(uint packed)
 
 uint2 TraceToFullPixel(uint2 tracePixel, uint traceScale, uint frameIndex, uint2 fullSize)
 {
-    if (traceScale <= 1)
+    uint2 pixel = tracePixel;
+    if (traceScale > 1)
     {
-        return tracePixel;
+        static const uint2 kQuadOrder[4] = { uint2(0, 0), uint2(1, 1), uint2(1, 0), uint2(0, 1) };
+        pixel = min(tracePixel * 2 + kQuadOrder[frameIndex & 3], fullSize - 1);
     }
-    static const uint2 kQuadOrder[4] = { uint2(0, 0), uint2(1, 1), uint2(1, 0), uint2(0, 1) };
-    return min(tracePixel * 2 + kQuadOrder[frameIndex & 3], fullSize - 1);
+    return pixel;
 }
 
 uint2 FullToTracePixel(uint2 pixel, uint traceScale, uint2 traceSize)
@@ -49,13 +50,14 @@ float4 EncodeRayMiss(float3 directionWS, float pdf)
 // Offset of reuse sample i of count (sample 0 is the pixel's own ray) on a Vogel disk of the given radius.
 int2 RayReuseOffset(uint i, uint count, float radius, float rotation)
 {
-    if (i == 0)
+    int2 offset = 0;
+    if (i > 0)
     {
-        return 0;
+        float r = sqrt((i + 0.5) / count) * radius;
+        float theta = i * 2.39996323 + rotation;
+        offset = (int2)round(float2(cos(theta), sin(theta)) * r);
     }
-    float r = sqrt((i + 0.5) / count) * radius;
-    float theta = i * 2.39996323 + rotation;
-    return (int2)round(float2(cos(theta), sin(theta)) * r);
+    return offset;
 }
 
 // Pyramid mip whose texels cover the cone of a reused ray: solid angle 1 / (count * pdf) at hitDistance, seen at the
