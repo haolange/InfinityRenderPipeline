@@ -18,7 +18,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         PQ_Rec2020 = 0,
         HLG_Rec2020 = 1,
-        scRGB_Linear = 2
+        scRGB_Linear = 2,
+        Rec2020_Linear = 3
     }
 
     public enum EOutputEncodePolicy
@@ -29,7 +30,8 @@ namespace InfinityTech.Rendering.Pipeline
         ShaderPQRec2020 = 2,
         ShaderHLGRec2020 = 3,
         ShaderScRGBLinear = 4,
-        LinearTarget = 5
+        LinearTarget = 5,
+        ShaderRec2020Linear = 6
     }
 
     public struct OutputTransformDecision
@@ -44,6 +46,7 @@ namespace InfinityTech.Rendering.Pipeline
         public int outputGamut;
         public int outputDevice;
         public bool hdrAvailable;
+        public float paperWhiteNits;
         public bool displayTransferAuthority;
     }
 
@@ -91,13 +94,16 @@ namespace InfinityTech.Rendering.Pipeline
             switch (encoding)
             {
                 case EHDREncoding.scRGB_Linear:
-                    return IsSignedFloat(backbufferFormat) || displayGamut == ColorGamut.sRGB;
+                    return IsSignedFloat(backbufferFormat) && ColorGamutUtility.GetColorPrimaries(displayGamut) == ColorPrimaries.Rec709
+                        && ColorGamutUtility.GetTransferFunction(displayGamut) == TransferFunction.Linear;
+                case EHDREncoding.Rec2020_Linear:
+                    return IsSignedFloat(backbufferFormat) && displayGamut == ColorGamut.Rec2020;
                 case EHDREncoding.PQ_Rec2020:
                     return IsHdrTransferFormat(backbufferFormat) && !GraphicsFormatUtility.IsSRGBFormat(backbufferFormat)
-                        && (displayGamut == ColorGamut.HDR10 || displayGamut == ColorGamut.Rec2020 || displayGamut == ColorGamut.DisplayP3);
+                        && (displayGamut == ColorGamut.HDR10 || displayGamut == ColorGamut.DolbyHDR);
                 case EHDREncoding.HLG_Rec2020:
-                    return IsHdrTransferFormat(backbufferFormat) && !GraphicsFormatUtility.IsSRGBFormat(backbufferFormat)
-                        && (displayGamut == ColorGamut.Rec2020 || displayGamut == ColorGamut.HDR10 || displayGamut == ColorGamut.DisplayP3);
+                    // Unity exposes no native HLG ColorGamut. An HLG shader cannot target a linear or PQ swapchain.
+                    return false;
                 default:
                     return false;
             }
@@ -142,6 +148,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 switch (encoding)
                 {
+                    case EHDREncoding.Rec2020_Linear:
+                        return EOutputEncodePolicy.ShaderRec2020Linear;
                     case EHDREncoding.PQ_Rec2020:
                         return EOutputEncodePolicy.ShaderPQRec2020;
                     case EHDREncoding.HLG_Rec2020:
@@ -170,6 +178,7 @@ namespace InfinityTech.Rendering.Pipeline
                 case EOutputEncodePolicy.ShaderPQRec2020:
                 case EOutputEncodePolicy.ShaderHLGRec2020:
                 case EOutputEncodePolicy.ShaderScRGBLinear:
+                case EOutputEncodePolicy.ShaderRec2020Linear:
                     return GraphicsFormat.R16G16B16A16_SFloat;
                 default:
                     throw new InvalidOperationException($"InfinityRP: unsupported encode policy {policy}.");
@@ -178,7 +187,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         public static int ResolveOutputGamut(EOutputMode mode, EHDREncoding encoding)
         {
-            if (mode == EOutputMode.HDR && (encoding == EHDREncoding.PQ_Rec2020 || encoding == EHDREncoding.HLG_Rec2020))
+            if (mode == EOutputMode.HDR && (encoding == EHDREncoding.PQ_Rec2020 || encoding == EHDREncoding.HLG_Rec2020 || encoding == EHDREncoding.Rec2020_Linear))
             {
                 return OutputGamutRec2020;
             }
@@ -200,6 +209,7 @@ namespace InfinityTech.Rendering.Pipeline
             decision.mode = mode;
             decision.hdrEncoding = encoding;
             decision.hdrAvailable = hdrAvailable;
+            decision.paperWhiteNits = 100;
             decision.backbufferFormat = backbufferFormat;
             decision.colorSpace = colorSpace;
             decision.displayGamut = displayGamut;
@@ -224,49 +234,29 @@ namespace InfinityTech.Rendering.Pipeline
             return decision;
         }
 
-        static bool s_HdrProbed;
-        static bool s_HdrAvailable;
-        static ColorGamut s_HdrGamut = ColorGamut.sRGB;
-
-        public static bool TryReadHdrOutput(out bool available, out ColorGamut gamut)
+        internal struct FHDROutputState
         {
-            if (s_HdrProbed)
-            {
-                available = s_HdrAvailable;
-                gamut = s_HdrGamut;
-                return true;
-            }
+            internal bool available, active, changeRequested;
+            internal GraphicsFormat format;
+            internal ColorGamut gamut;
+            internal float paperWhiteNits;
+        }
 
-            available = false;
-            gamut = ColorGamut.sRGB;
-            try
-            {
-                HDROutputSettings hdr = HDROutputSettings.main;
-                if (hdr == null)
-                {
-                    s_HdrProbed = true;
-                    s_HdrAvailable = false;
-                    s_HdrGamut = ColorGamut.sRGB;
-                    return true;
-                }
-
-                available = hdr.available;
-                gamut = hdr.displayColorGamut;
-                s_HdrProbed = true;
-                s_HdrAvailable = available;
-                s_HdrGamut = gamut;
-                return true;
-            }
-            catch (InvalidOperationException)
-            {
-                // Unity logs+throws when Player Settings HDR is off. Probe once and cache unavailable.
-                available = false;
-                gamut = ColorGamut.sRGB;
-                s_HdrProbed = true;
-                s_HdrAvailable = false;
-                s_HdrGamut = ColorGamut.sRGB;
-                return false;
-            }
+        internal static FHDROutputState ReadHdrOutput()
+        {
+            var state = new FHDROutputState { gamut = ColorGamut.sRGB };
+#if UNITY_EDITOR
+            if (!PlayerSettings.allowHDRDisplaySupport) return state;
+#endif
+            HDROutputSettings hdr = HDROutputSettings.main;
+            if (hdr == null || !hdr.available) return state;
+            state.available = true;
+            state.active = hdr.active;
+            state.changeRequested = hdr.HDRModeChangeRequested;
+            state.format = hdr.graphicsFormat;
+            state.gamut = hdr.displayColorGamut;
+            state.paperWhiteNits = hdr.paperWhiteNits;
+            return state;
         }
 
         public static OutputTransformDecision ResolveFromHardware(EOutputMode mode, EHDREncoding encoding, Camera camera)
@@ -295,10 +285,14 @@ namespace InfinityTech.Rendering.Pipeline
             // SDR never queries HDROutputSettings. Accessing .main when Player Settings HDR is off
             // logs InvalidOperationException every frame even if the caller catches it.
             bool hdrAvailable = false;
+            float paperWhite = 100;
             ColorGamut gamut = ColorGamut.sRGB;
             if (mode == EOutputMode.HDR && !textureTarget)
             {
-                TryReadHdrOutput(out hdrAvailable, out gamut);
+                var hdr = ReadHdrOutput();
+                hdrAvailable = hdr.available; gamut = hdr.gamut; paperWhite = hdr.paperWhiteNits;
+                if (!hdr.active || hdr.changeRequested)
+                    throw new InvalidOperationException($"InfinityRP: HDR output is not ready (available={hdr.available}, active={hdr.active}, changing={hdr.changeRequested}, format={hdr.format}, gamut={hdr.gamut}).");
             }
 
             GraphicsFormat backbufferFormat = ResolveBackbufferFormat(camera, textureTarget ? EOutputMode.SDR : mode, hdrAvailable, hasLastKnownFormat, lastKnownFormat);
@@ -310,7 +304,9 @@ namespace InfinityTech.Rendering.Pipeline
                 targetDecision.displayFormat = ResolveDisplayFormat(targetDecision.policy);
                 return targetDecision;
             }
-            return Resolve(mode, encoding, hdrAvailable, backbufferFormat, QualitySettings.activeColorSpace, gamut);
+            var decision = Resolve(mode, encoding, hdrAvailable, backbufferFormat, QualitySettings.activeColorSpace, gamut);
+            decision.paperWhiteNits = paperWhite;
+            return decision;
         }
 
         public static GraphicsFormat ResolveBackbufferFormat(
@@ -412,7 +408,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
 #if UNITY_EDITOR
-        static MethodInfo s_GetMainPlayModeView;
+        static Func<EditorWindow> s_GetMainPlayModeView;
         static FieldInfo s_PlayModeTargetTexture;
         static bool s_PlayModeViewResolved;
 
@@ -469,7 +465,8 @@ namespace InfinityTech.Rendering.Pipeline
                 Type playModeViewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.PlayModeView");
                 if (playModeViewType != null)
                 {
-                    s_GetMainPlayModeView = playModeViewType.GetMethod("GetMainPlayModeView", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    var method = playModeViewType.GetMethod("GetMainPlayModeView", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (method != null) s_GetMainPlayModeView = (Func<EditorWindow>)method.CreateDelegate(typeof(Func<EditorWindow>));
                     s_PlayModeTargetTexture = playModeViewType.GetField("m_TargetTexture", BindingFlags.Instance | BindingFlags.NonPublic);
                 }
             }
@@ -479,7 +476,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return false;
             }
 
-            object view = s_GetMainPlayModeView.Invoke(null, null);
+            object view = s_GetMainPlayModeView();
             if (view == null)
             {
                 return false;

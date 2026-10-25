@@ -117,7 +117,23 @@ namespace InfinityTech.Rendering.RenderGraph
         public string debugLabel;
         RGResourceFactory m_Resources;
         Stack<int> m_CullingStack = new Stack<int>();
+        internal T[] GetRecordingArray<T>(int count)
+        {
+            T[] array = m_ObjectPool.GetTempArray<T>(count);
+            Array.Clear(array, 0, count);
+            return array;
+        }
+
+        internal T[] SnapshotRecordingArray<T>(T[] source)
+        {
+            var destination = GetRecordingArray<T>(source.Length);
+            Array.Copy(source, destination, source.Length);
+            return destination;
+        }
+
         List<IRGPass> m_PassList = new List<IRGPass>(64);
+        readonly List<IRGPass> m_PreparedPasses = new List<IRGPass>(64);
+        readonly Dictionary<int, RGBufferRef[]> m_PreparedDrawLists = new Dictionary<int, RGBufferRef[]>();
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
@@ -247,7 +263,7 @@ namespace InfinityTech.Rendering.RenderGraph
             RGBufferRef instanceSceneCullingMask = ImportBuffer(residency.InstanceSceneCullingMaskBuffer);
             RGBufferRef instanceRenderingLayer = ImportBuffer(residency.InstanceRenderingLayerBuffer);
 
-            var frustumPlanes = new Vector4[6];
+            var frustumPlanes = m_ObjectPool.GetTempArray<Vector4>(6);
             view.CopyFrustumPlanes(frustumPlanes);
 
             using (RGComputePassRef passRef = AddComputePass<MeshGpuCullPassData>(MeshDrawProfiling.culling))
@@ -1163,9 +1179,10 @@ namespace InfinityTech.Rendering.RenderGraph
 
         void InsertDrawListPreparation()
         {
-            var original = m_PassList.ToArray();
-            var ordered = new List<IRGPass>(original.Length);
-            var prepared = new Dictionary<int, RGBufferRef[]>();
+            var original = m_ObjectPool.GetTempArray<IRGPass>(m_PassList.Count);
+            m_PassList.CopyTo(original);
+            var ordered = m_PreparedPasses; ordered.Clear();
+            var prepared = m_PreparedDrawLists; prepared.Clear();
             var transformVersions = m_ScheduledMeshVersions;
             for (int passIndex = 0; passIndex < original.Length; ++passIndex)
             {
@@ -1225,9 +1242,13 @@ namespace InfinityTech.Rendering.RenderGraph
                                 compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands, RGObjectPool pool) => data.lists.Compact(data.index, commands.m_CommandBuffer));
                             }
                             ordered.Add(m_PassList[m_PassList.Count - 1]);
-                            outputs = new[] { indices, args };
+                            outputs = m_ObjectPool.GetTempArray<RGBufferRef>(2);
+                            outputs[0] = indices; outputs[1] = args;
                         }
-                        else outputs = new[] { metadata };
+                        else
+                        {
+                            outputs = m_ObjectPool.GetTempArray<RGBufferRef>(1); outputs[0] = metadata;
+                        }
                         prepared.Add(draws.index, outputs);
                     }
                     foreach (var output in outputs) consumer.AddResourceRead(output.handle);
@@ -1237,6 +1258,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 ordered.Add(m_PassList[m_PassList.Count - 1]);
             }
             m_PassList.Clear(); m_PassList.AddRange(ordered);
+            ordered.Clear(); prepared.Clear();
             for (int i = 0; i < m_PassList.Count; ++i) m_PassList[i].index = i;
         }
 

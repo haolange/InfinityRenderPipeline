@@ -7,3 +7,12 @@ void CaptureTexture(uint3 id : SV_DispatchThreadID)
 {
     if (all(id.xy < (uint2)CaptureSize.xy)) UAV_Capture[id.xy] = SRV_Capture.Load(int3(id.xy, 0));
 }
+
+#pragma kernel CaptureSurfaceMetadata
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ScreenSpaceSurfaceMetadata.hlsl"
+Texture2D<uint2> SRV_CaptureMetadata;
+[numthreads(8,8,1)]
+void CaptureSurfaceMetadata(uint3 id : SV_DispatchThreadID)
+{
+    if (all(id.xy < (uint2)CaptureSize.xy)) UAV_Capture[id.xy] = DecodeSurfaceMetadata(SRV_CaptureMetadata.Load(int3(id.xy, 0)));
+}

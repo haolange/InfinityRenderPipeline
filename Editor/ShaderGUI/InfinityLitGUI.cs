@@ -131,24 +131,7 @@ namespace InfinityTech.Rendering.Editor
 
         internal static void DirtyMeshComponents(Material material)
         {
-            MeshComponent[] meshes = Object.FindObjectsByType<MeshComponent>();
-            for (int i = 0; i < meshes.Length; ++i)
-            {
-                MeshComponent mesh = meshes[i];
-                if (mesh == null || mesh.materials == null)
-                {
-                    continue;
-                }
-
-                for (int m = 0; m < mesh.materials.Length; ++m)
-                {
-                    if (mesh.materials[m] == material)
-                    {
-                        mesh.MarkDirty();
-                        break;
-                    }
-                }
-            }
+            MeshComponent.NotifyMaterialRoutingChanged(material);
         }
     }
 }

@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             pending.OnQueued(); m_A.Prepare(pending);
             m_Gpu.transformVersions.RollbackUnsubmitted(); m_A.Rollback();
             Assert.IsFalse(pending.queued); Assert.IsTrue(first.queued);
-            Assert.AreEqual(1, pending.changes.Length); Assert.AreSame(first, m_A.accepted);
+            Assert.AreEqual(1, pending.changeCount); Assert.AreSame(first, m_A.accepted);
         }
         [Test]
         public void RepeatedMatrixAndRollback_DoNotAdvanceTransformRevision()

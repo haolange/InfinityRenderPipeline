@@ -167,6 +167,15 @@ namespace InfinityTech.Rendering.Pipeline
 
             DebugUI.Panel mesh = DebugManager.instance.GetPanel("Infinity Mesh", true);
             mesh.children.Add(new DebugUI.Value { displayName = "Matrix Duplicate Ratio", getter = () => (object)state.mesh.matrixDuplicateRatio });
+            mesh.children.Add(new DebugUI.BoolField { displayName = "Override Mesh Backend", getter = () => state.mesh.backendOverride.HasValue,
+                setter = value => state.mesh.backendOverride = value ? EMeshBackendPolicy.Auto : (EMeshBackendPolicy?)null });
+            mesh.children.Add(new DebugUI.EnumField { displayName = "Mesh Backend", autoEnum = typeof(EMeshBackendPolicy),
+                getter = () => (int)(state.mesh.backendOverride ?? EMeshBackendPolicy.Auto), setter = value => state.mesh.backendOverride = (EMeshBackendPolicy)value,
+                getIndex = () => (int)(state.mesh.backendOverride ?? EMeshBackendPolicy.Auto), setIndex = value => state.mesh.backendOverride = (EMeshBackendPolicy)value,
+                isHiddenCallback = () => !state.mesh.backendOverride.HasValue });
+            mesh.children.Add(new DebugUI.Value { displayName = "Requested Backend", getter = () => state.mesh.requestedBackend.ToString() });
+            mesh.children.Add(new DebugUI.Value { displayName = "Actual Backend", getter = () => state.mesh.actualBackend.ToString() });
+            mesh.children.Add(new DebugUI.Value { displayName = "Backend Reason", getter = () => state.mesh.backendReason });
 
         }
 

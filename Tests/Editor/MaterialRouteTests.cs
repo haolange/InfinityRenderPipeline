@@ -21,6 +21,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Throws<InvalidOperationException>(() => { var backend = env.Backend; });
         }
 
+        [Test]
+        public void ExplicitComponentMaterialNotificationRefreshesSharedQueueVersion()
+        {
+            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int previousQueue, out uint previousVersion);
+            m_Material.renderQueue = previousQueue + 1;
+            InfinityTech.Component.MeshComponent.NotifyMaterialRoutingChanged(m_Material);
+            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int queue, out uint version);
+            Assert.AreEqual(previousQueue + 1, queue);
+            Assert.AreEqual(previousVersion + 1, version);
+            InfinityTech.Component.MeshComponent.NotifyMaterialRoutingChanged(m_Material);
+            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out _, out uint repeatedVersion);
+            Assert.AreEqual(version, repeatedVersion);
+        }
+
         Material m_Material;
 
         [SetUp]

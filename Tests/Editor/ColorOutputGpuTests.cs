@@ -17,6 +17,34 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         const string k_Root = "Packages/com.infinity.render-pipeline/";
 
+        [UnityTest]
+        public IEnumerator NativeLinearRec2020_ConvertsPrimariesAndPreservesPaperWhite()
+        {
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(k_Root + "Shaders/Utility/DrawFullScreen.shader");
+            using var owner = new PresentGpuFixture(shader, 4, 1);
+            owner.input.SetPixels(new[] { Color.red, Color.green, Color.blue, Color.white }); owner.input.Apply();
+            Assert.IsTrue(owner.target.Create());
+            owner.material.SetTexture("_MainTex", owner.input);
+            owner.material.SetVector("_MainTex_InfinityView", Vector4.zero);
+            owner.material.SetVector("_ScaleBais", new Vector4(1, 1, 0, 0));
+            owner.material.SetVector("_InfinityOutputTransfer", new Vector4((int)EOutputEncodePolicy.ShaderRec2020Linear, 1, 160, 0));
+            using (var commands = new CommandBuffer())
+            {
+                commands.SetRenderTarget(owner.target); commands.SetViewport(new Rect(0, 0, 4, 1));
+                commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, owner.material, 0, owner.pass);
+                owner.RecordReadback(commands); owner.Submit(commands);
+            }
+            double deadline = EditorApplication.timeSinceStartup + 30;
+            while (owner.pending && EditorApplication.timeSinceStartup < deadline) yield return null;
+            Assert.IsFalse(owner.pending); Assert.IsNull(owner.error);
+            var expected = new[] { new Vector3(.627404f, .069097f, .0163916f), new Vector3(.329282f, .91954f, .0880132f),
+                new Vector3(.0433136f, .0113612f, .895595f), Vector3.one };
+            float referenceWhite = SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal ? 100 : 80;
+            for (int pixel = 0; pixel < 4; ++pixel)
+                for (int channel = 0; channel < 3; ++channel)
+                    Assert.That(owner.values[pixel * 4 + channel], Is.EqualTo(expected[pixel][channel] * 160 / referenceWhite).Within(.00003f));
+        }
+
         [TestCase(0f)]
         [TestCase(0.02f)]
         [TestCase(0.18f)]
@@ -280,7 +308,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.IsTrue(target.Create());
                 material.SetTexture("_MainTex", input); material.SetVector("_MainTex_InfinityView",Vector4.zero);
                 material.SetVector("_ScaleBais", new Vector4(1, 1, 0, 0));
-                for (int policy = 0; policy <= 4; policy++)
+                foreach (int policy in new[] { 0, 1, 2, 3, 4, 6 })
                 {
                     using (var commands = new CommandBuffer())
                     {
@@ -314,7 +342,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                             double value = inside ? pixels[y * width + x].r : 0;
                             double expected = policy == 0 ? (value <= 0.0031308 ? 12.92 * value : 1.055 * Math.Pow(value, 1.0 / 2.4) - 0.055) :
                                 policy == 2 ? Pq(value * 100) : policy == 3 ? (value <= 1.0 / 12 ? Math.Sqrt(3 * value) :
-                                    0.17883277 * Math.Log(12 * value - 0.28466892) + 0.55991073) : value;
+                                    0.17883277 * Math.Log(12 * value - 0.28466892) + 0.55991073) :
+                                (policy == 4 || policy == 6) ? value * 100 / (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal ? 100 : 80) : value;
                             for (int c = 0; c < 3; c++)
                                 if (Math.Abs(values[index + c] - (inside ? expected : -7)) > 0.0002)
                                     Assert.Fail($"Policy {policy}, pixel ({x},{y}), channel {c}: {values[index + c]}, expected {(inside ? expected : -7)}.");

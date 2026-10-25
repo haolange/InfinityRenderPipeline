@@ -174,6 +174,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Assert.AreEqual(OutputTransformUtility.OutputGamutRec2020, decision.outputGamut);
         }
 
+        [TestCase(EHDREncoding.Rec2020_Linear, ColorGamut.Rec2020, true)]
+        [TestCase(EHDREncoding.PQ_Rec2020, ColorGamut.Rec2020, false)]
+        [TestCase(EHDREncoding.scRGB_Linear, ColorGamut.Rec2020, false)]
+        [TestCase(EHDREncoding.Rec2020_Linear, ColorGamut.HDR10, false)]
+        [TestCase(EHDREncoding.scRGB_Linear, ColorGamut.Rec709, true)]
+        [TestCase(EHDREncoding.HLG_Rec2020, ColorGamut.Rec2020, false)]
+        public void NativeHdr_TransferMatchesActualGamut(EHDREncoding encoding, ColorGamut gamut, bool supported)
+        {
+            Assert.AreEqual(supported, OutputTransformUtility.EncodingMatchesBackbuffer(EOutputMode.HDR,
+                encoding, GraphicsFormat.R16G16B16A16_SFloat, gamut));
+            if (supported)
+            {
+                var decision = OutputTransformUtility.Resolve(EOutputMode.HDR, encoding, true,
+                    GraphicsFormat.R16G16B16A16_SFloat, ColorSpace.Linear, gamut);
+                Assert.AreEqual(encoding == EHDREncoding.Rec2020_Linear ? EOutputEncodePolicy.ShaderRec2020Linear
+                    : EOutputEncodePolicy.ShaderScRGBLinear, decision.policy);
+            }
+        }
+
         [Test]
         public void CombineLutKey_FieldEquals_IncludesOutputMode()
         {

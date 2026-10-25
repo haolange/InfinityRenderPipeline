@@ -31,15 +31,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             RequireGpu();
             using (var run = new Run(width, height, halfResolution, sky: false))
             {
-                uint[] args = run.Classify();
-                int tiles = run.TileCount.x * run.TileCount.y;
-                Assert.AreEqual(tiles, (int)args[0], "Every tile holds the plane and traces.");
-                Assert.AreEqual(0, (int)args[3], "Skip tiles");
-                for (int i = 0; i < 2; ++i)
-                {
-                    Assert.AreEqual(1, (int)args[i * 3 + 1]);
-                    Assert.AreEqual(1, (int)args[i * 3 + 2]);
-                }
+                uint[] args = run.Bin();
+                int rayCount = ((width + (halfResolution ? 1 : 0)) / (halfResolution ? 2 : 1)) * ((height + (halfResolution ? 1 : 0)) / (halfResolution ? 2 : 1));
+                Assert.AreEqual(rayCount, (int)args[3]);
+                Assert.AreEqual((rayCount + 63) / 64, (int)args[0]);
+                Assert.AreEqual(1, (int)args[1]); Assert.AreEqual(1, (int)args[2]);
 
                 float[] rays = run.Trace();
                 for (int i = 0; i < rays.Length; i += 4)
@@ -58,17 +54,24 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void Sky_SkipsEveryTile()
+        public void Sky_BinsZeroRays()
         {
             RequireGpu();
             using (var run = new Run(24, 16, false, sky: true))
             {
-                uint[] args = run.Classify();
-                Assert.AreEqual(run.TileCount.x * run.TileCount.y, (int)args[3]);
+                uint[] args = run.Bin();
+                Assert.AreEqual(0, (int)args[3]);
                 Assert.AreEqual(0, (int)args[0]);
                 foreach (float value in run.Trace())
                     Assert.AreEqual(0.0f, value, "Skipped tiles clear their ray records.");
             }
+        }
+
+        [TestCase(0)] [TestCase(1)] [TestCase(2)] [TestCase(3)]
+        public void SparseOddTiles_ContainEachValidLogicalPixelExactlyOnce(int phase)
+        {
+            RequireGpu();
+            using (var run = new Run(35, 39, true, false)) run.CheckSparseList(phase);
         }
 
         [Test]
@@ -132,7 +135,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Vector2Int m_Trace;
             readonly GraphicsBuffer m_Args, m_TileList;
             readonly RenderTexture m_RayHit, m_TraceRadiance, m_HitDistance;
-            readonly Texture2D m_Depth, m_HiZ, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_HistoryMeta, m_MotionMetadata;
+            readonly Texture2D m_Depth, m_HiZ, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
+            readonly RenderTexture m_HistoryMeta;
 
             public Vector2Int TileCount { get; }
 
@@ -161,11 +165,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Lighting = Solid(width, height, new Color(0.8f, 0.4f, 0.2f, 1), true);
                 m_Motion = Solid(width, height, Color.clear, false);
                 m_HistoryRadiance = Solid(width, height, new Color(5, 5, 5, 1), false);
-                m_HistoryMeta = Solid(width, height, new Color(0, 0, depth, 8), false);
+                m_HistoryMeta = SurfaceMetadataTestUtility.Pack(Solid(width, height, new Color(0, 0, depth, 8), false));
+                m_Objects.Add(m_HistoryMeta);
                 m_MotionMetadata = Solid(width,height,new Color(depth,depth,1,0),false);
 
-                m_Args = Buffer(GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured, 6);
-                m_TileList = Buffer(GraphicsBuffer.Target.Structured, Mathf.Max(1, 2 * TileCount.x * TileCount.y));
+                m_Args = Buffer(GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured, 4);
+                m_TileList = Buffer(GraphicsBuffer.Target.Structured, Mathf.Max(1, m_Trace.x * m_Trace.y));
                 m_RayHit = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
                 m_TraceRadiance = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
                 m_HitDistance = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32_SFloat);
@@ -195,17 +200,42 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s.SetMatrix("Matrix_LastMotionViewProj", projection);
             }
 
-            public uint[] Classify()
+            public uint[] Bin()
             {
-                m_Args.SetData(new uint[] { 0, 1, 1, 0, 1, 1 });
-                int kernel = m_Shader.FindKernel(SSGIPassUtilityData.ClassifyKernelName);
+                int initialize = m_Shader.FindKernel("SSGIInitialize");
+                m_Shader.SetBuffer(initialize, "UAV_TileArgs", m_Args); m_Shader.Dispatch(initialize, 1, 1, 1);
+                int kernel = m_Shader.FindKernel("SSGIBinDebug");
                 BindSurface(kernel);
                 m_Shader.SetBuffer(kernel, "UAV_TileArgs", m_Args);
                 m_Shader.SetBuffer(kernel, "UAV_TileList", m_TileList);
+                m_Shader.SetTexture(kernel, "UAV_TraceRadiance", m_TraceRadiance);
+                m_Shader.SetTexture(kernel, "UAV_HitDistance", m_HitDistance);
+                m_Shader.SetTexture(kernel, "UAV_RayHit", m_RayHit);
                 m_Shader.Dispatch(kernel, TileCount.x, TileCount.y, 1);
-                var args = new uint[6];
-                m_Args.GetData(args);
+                int build = m_Shader.FindKernel("SSGIBuildIndirectArgs");
+                m_Shader.SetBuffer(build, "UAV_TileArgs", m_Args); m_Shader.Dispatch(build, 1, 1, 1);
+                var args = new uint[4]; m_Args.GetData(args);
                 return args;
+            }
+
+            public void CheckSparseList(int phase)
+            {
+                m_Shader.SetInt("SSGI_FrameIndex", phase);
+                var pixels = m_GBufferC.GetPixels();
+                for (int y = 0; y < m_Height; ++y) for (int x = 0; x < m_Width; ++x)
+                    pixels[y * m_Width + x] = (x + y * 3) % 5 == 0 ? new Color((4 << 4) / 255f,0,0,0) : Color.clear;
+                m_GBufferC.SetPixels(pixels); m_GBufferC.Apply();
+                var args = Bin(); var indices = new uint[m_Trace.x * m_Trace.y]; m_TileList.GetData(indices);
+                var expected = new HashSet<uint>();
+                int[] px = { 0, 1, 1, 0 }, py = { 0, 1, 0, 1 };
+                for (int y = 0; y < m_Trace.y; ++y) for (int x = 0; x < m_Trace.x; ++x)
+                {
+                    int fullX = Math.Min(x * 2 + px[phase], m_Width - 1), fullY = Math.Min(y * 2 + py[phase], m_Height - 1);
+                    if ((fullX + fullY * 3) % 5 == 0) expected.Add((uint)(y * m_Trace.x + x));
+                }
+                Assert.AreEqual(expected.Count, args[3]);
+                for (int i = 0; i < args[3]; ++i) Assert.IsTrue(expected.Remove(indices[i]), "Missing/duplicate logical pixel " + indices[i]);
+                Assert.IsEmpty(expected);
             }
 
             public float[] Trace()
@@ -213,25 +243,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 int maxTiles = TileCount.x * TileCount.y;
                 using (var cmd = new CommandBuffer())
                 {
-                    int clear = m_Shader.FindKernel(SSGIPassUtilityData.ClearSkippedKernelName);
-                    cmd.SetComputeIntParam(m_Shader, "SSGI_TileListOffset", SSGIPassUtilityData.ClassSkip * maxTiles);
-                    cmd.SetComputeBufferParam(m_Shader, clear, "SRV_TileList", m_TileList);
-                    cmd.SetComputeTextureParam(m_Shader, clear, "UAV_RayHit", m_RayHit);
-                    cmd.SetComputeTextureParam(m_Shader, clear, "UAV_TraceRadiance", m_TraceRadiance);
-                    cmd.SetComputeTextureParam(m_Shader, clear, "UAV_HitDistance", m_HitDistance);
-                    cmd.DispatchCompute(m_Shader, clear, m_Args, (uint)(SSGIPassUtilityData.ClassSkip * ComputeUtility.IndirectDispatchArgsStride));
-
-                    int trace = m_Shader.FindKernel(SSGIPassUtilityData.TraceKernelName);
+                    int trace = m_Shader.FindKernel("SSGITraceDebug");
+                    cmd.SetComputeBufferParam(m_Shader, trace, "UAV_TileArgs", m_Args);
                     BindSurface(trace);
                     m_Shader.SetTexture(trace,"SRV_TemporalColor",m_Lighting);
                     m_Shader.SetTexture(trace,"SRV_TemporalColorMips",m_Lighting);
                     m_Shader.SetTexture(trace,"SRV_TemporalDepth",m_Depth);
-                    m_Shader.SetTexture(trace,"SRV_HitMotionMetadata",m_HistoryMeta);
+                    m_Shader.SetTexture(trace,"SRV_HitMotionMetadata",m_MotionMetadata);
                     m_Shader.SetTexture(trace,"SRV_MotionTexture",m_Motion);
                     m_Shader.SetInt("TemporalColorValid",0);
                     m_Shader.SetInt("TemporalColorMipCount",m_Lighting.mipmapCount);
                     m_Shader.SetVector("TemporalColorResolution",new Vector4(m_Width,m_Height,1f/m_Width,1f/m_Height));
-                    cmd.SetComputeIntParam(m_Shader, "SSGI_TileListOffset", SSGIPassUtilityData.ClassTrace * maxTiles);
                     cmd.SetComputeBufferParam(m_Shader, trace, "SRV_TileList", m_TileList);
                     cmd.SetComputeTextureParam(m_Shader, trace, "SRV_HiZClosestTexture", m_HiZ);
                     cmd.SetComputeTextureParam(m_Shader, trace, "_Ranking_Tile", LoadTexture("RankingTile256SPP"));
@@ -240,7 +262,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     cmd.SetComputeTextureParam(m_Shader, trace, "UAV_RayHit", m_RayHit);
                     cmd.SetComputeTextureParam(m_Shader, trace, "UAV_TraceRadiance", m_TraceRadiance);
                     cmd.SetComputeTextureParam(m_Shader, trace, "UAV_HitDistance", m_HitDistance);
-                    cmd.DispatchCompute(m_Shader, trace, m_Args, (uint)(SSGIPassUtilityData.ClassTrace * ComputeUtility.IndirectDispatchArgsStride));
+                    cmd.DispatchCompute(m_Shader, trace, m_Args, 0);
                     Graphics.ExecuteCommandBuffer(cmd);
                 }
                 return Read(m_RayHit, 4);
@@ -251,8 +273,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public float[] Temporal()
             {
                 RenderTexture temporal = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
-                RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
-                int kernel = m_Shader.FindKernel(SSGIPassUtilityData.TemporalKernelName);
+                RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32_UInt);
+                int kernel = m_Shader.FindKernel("SSGITemporal");
                 m_Shader.SetTexture(kernel,"SRV_HitMotionMetadata",m_MotionMetadata);
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_TraceRadiance", m_TraceRadiance);
@@ -264,13 +286,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 DispatchFull(kernel);
                 foreach (float value in Read(temporal, 4))
                     Assert.AreEqual(0.0f, value, 1e-6f, "History is invalid this frame, so the current sample is taken as is.");
-                return Read(meta, 4);
+                return SurfaceMetadataTestUtility.Read(meta);
             }
 
             public float[] Spatial(Color input)
             {
                 RenderTexture output = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
-                int kernel = m_Shader.FindKernel(SSGIPassUtilityData.SpatialKernelName);
+                int kernel = m_Shader.FindKernel("SSGISpatial");
                 BindSurface(kernel);
                 m_Shader.SetTexture(kernel, "SRV_Temporal", Solid(m_Trace.x, m_Trace.y, input, false));
                 m_Shader.SetTexture(kernel, "UAV_Output", output);
@@ -281,18 +303,20 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public float[] Upsample(bool reject)
             {
-                int kernel = m_Shader.FindKernel(SSGIPassUtilityData.UpsampleKernelName);
+                int kernel = m_Shader.FindKernel("SSGIUpsample");
                 BindSurface(kernel);
                 var output = Target(m_Width,m_Height,GraphicsFormat.R32G32B32A32_SFloat);
                 m_Shader.SetTexture(kernel,"SRV_Filtered",Solid(m_Trace.x,m_Trace.y,new Color(.25f,.125f,.0625f,.6f),false));
-                m_Shader.SetTexture(kernel,"SRV_Meta",reject?Solid(m_Trace.x,m_Trace.y,new Color(1,1,.5f,8),false):m_HistoryMeta);
+                var metadata = reject ? SurfaceMetadataTestUtility.Pack(Solid(m_Trace.x,m_Trace.y,new Color(1,1,.5f,8),false)) : m_HistoryMeta;
+                if (reject) m_Objects.Add(metadata);
+                m_Shader.SetTexture(kernel,"SRV_Meta",metadata);
                 m_Shader.SetTexture(kernel,"UAV_Output",output);
                 DispatchFull(kernel); return Read(output,4);
             }
 
             public float[] UpsampleRamp(int phase)
             {
-                int kernel=m_Shader.FindKernel(SSGIPassUtilityData.UpsampleKernelName);
+                int kernel=m_Shader.FindKernel("SSGIUpsample");
                 m_Shader.SetInt("SSGI_FrameIndex",phase);
                 BindSurface(kernel);
                 var texture=Solid(m_Trace.x,m_Trace.y,Color.clear,false);

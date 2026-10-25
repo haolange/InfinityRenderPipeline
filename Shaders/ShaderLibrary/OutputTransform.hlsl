@@ -1,5 +1,8 @@
 #ifndef INFINITY_OUTPUT_TRANSFORM_INCLUDED
 #define INFINITY_OUTPUT_TRANSFORM_INCLUDED
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/ACES.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/HDROutput.hlsl"
 
 float3 InfinityLinearToSRGB(float3 color)
 {
@@ -42,23 +45,13 @@ float3 InfinityLinearToHLG(float3 lin)
     return float3(InfinityLinearToHLGChannel(lin.r), InfinityLinearToHLGChannel(lin.g), InfinityLinearToHLGChannel(lin.b));
 }
 
-float3 InfinityRec709ToRec2020(float3 rec709)
-{
-    const float3x3 Rec709_2_Rec2020 =
-    {
-        0.6274040, 0.3292820, 0.0433136,
-        0.0690970, 0.9195400, 0.0113612,
-        0.0163914, 0.0880133, 0.8955950
-    };
-    return mul(Rec709_2_Rec2020, rec709);
-}
-
 float3 InfinityEncodeOutput(float3 color, int policy, int rec2020, float paperWhiteNits)
 {
-    if (rec2020 != 0) color = InfinityRec709ToRec2020(color);
+    if (rec2020 != 0) color = RotateRec709ToRec2020(color);
     if (policy == 0) return InfinityLinearToSRGB(color);
     if (policy == 2) return InfinityLinearToST2084(color * paperWhiteNits);
     if (policy == 3) return InfinityLinearToHLG(color);
+    if (policy == 4 || policy == 6) return color * (paperWhiteNits / SDR_REF_WHITE);
     return color;
 }
 #endif

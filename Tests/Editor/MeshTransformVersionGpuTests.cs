@@ -123,7 +123,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.AreEqual(uploaded, gpu.transformVersions.uploadedBytes);
                     Assert.AreEqual(1, gpu.transformVersions.productionCount);
                     Move(scene, id, 2); Move(scene, last, 130); gpu.Update(); var second = gpu.transformVersions.current;
-                    Assert.AreEqual(65, second.changes.Length, "Only the two changed pages should be uploaded.");
+                    Assert.AreEqual(65, second.changeCount, "Only the two changed pages should be uploaded.");
                     yield return Produce(gpu, pool, build);
                     Assert.AreEqual(0, ReadMatrix(first, (int)id.Index).c3.x);
                     Assert.AreEqual(2, ReadMatrix(second, (int)id.Index).c3.x);

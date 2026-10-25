@@ -1,0 +1,23 @@
+#pragma kernel Pack
+#pragma kernel Decode
+#include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/ScreenSpaceSurfaceMetadata.hlsl"
+Texture2D<float4> Source;
+RWTexture2D<uint2> Packed;
+[numthreads(8,8,1)]
+void Pack(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height; Packed.GetDimensions(width, height);
+    if (id.x >= width || id.y >= height) return;
+    float4 value = Source[id.xy];
+    Packed[id.xy] = EncodeSurfaceMetadata(OctahedronToUnitVector(value.xy), value.z, (uint)value.w, value.w >= 1);
+}
+
+Texture2D<uint2> PackedSource;
+RWTexture2D<float4> Decoded;
+[numthreads(8,8,1)]
+void Decode(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height; Decoded.GetDimensions(width,height);
+    if (id.x >= width || id.y >= height) return;
+    Decoded[id.xy] = DecodeSurfaceMetadata(PackedSource[id.xy]);
+}

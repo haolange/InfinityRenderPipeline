@@ -31,6 +31,23 @@ namespace InfinityTech.Rendering.MeshPipeline
         static readonly GlobalKeyword s_Shadowmask = GlobalKeyword.Create("INFINITY_MESH_SHADOWMASK");
         internal static readonly int BufferID = Shader.PropertyToID("meshBakedLightingBuffer");
 
+        static LightmapData[] s_Lightmaps;
+        internal static LightmapData[] Lightmaps
+        {
+            get { if (s_Lightmaps == null) s_Lightmaps = LightmapSettings.lightmaps; return s_Lightmaps; }
+        }
+        internal static void InvalidateLightmaps() { s_Lightmaps = null; ++s_ProbeVersion; }
+        static MeshBakedLighting()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneUnloaded += OnSceneUnloaded;
+#if UNITY_EDITOR
+            UnityEditor.Lightmapping.lightingDataUpdated += InvalidateLightmaps;
+#endif
+        }
+        static void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode) => InvalidateLightmaps();
+        static void OnSceneUnloaded(UnityEngine.SceneManagement.Scene scene) => InvalidateLightmaps();
+
         // Light probe data version: bumps when Unity reports new probe data (bake, scene load, additive scenes), so
         // cached probe samples of static meshes are refreshed exactly then.
         static int s_ProbeVersion;
@@ -94,18 +111,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         // As Capture, with a probe sample interpolated earlier this frame (InterpolateProbes) instead of a single call.
         internal static FMeshBakedLighting Capture(Renderer source, Vector3 position, bool hasProbeSample, SphericalHarmonicsL2 probe, Vector4 probeOcclusion)
         {
-            FMeshBakedLighting data = default;
-            data.occlusion = new float4(1);
-            int index = source != null ? source.lightmapIndex : -1;
-            if (index >= 0 && index < 65534)
-            {
-                var maps = LightmapSettings.lightmaps;
-                if (index >= maps.Length || maps[index].lightmapColor == null)
-                    throw new InvalidOperationException("A Mesh lighting source references a missing Unity lightmap: " + index);
-                data.metadata.x = index + 1;
-                Vector4 st = source.lightmapScaleOffset;
-                data.scaleOffset = new float4(st.x, st.y, st.z, st.w);
-            }
+            FMeshBakedLighting data = CaptureLayout(source);
             if (data.TextureSet == 0 && LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 &&
                 (source == null || source.lightProbeUsage != LightProbeUsage.Off))
             {
@@ -117,6 +123,28 @@ namespace InfinityTech.Rendering.MeshPipeline
                     probe = s_Probes[0];
                     probeOcclusion = s_Occlusion[0];
                 }
+                data = WithProbeSample(data, probe, probeOcclusion);
+            }
+            return data;
+        }
+        internal static FMeshBakedLighting CaptureLayout(Renderer source)
+        {
+            FMeshBakedLighting data = default;
+            data.occlusion = new float4(1);
+            int index = source != null ? source.lightmapIndex : -1;
+            if (index >= 0 && index < 65534)
+            {
+                var maps = Lightmaps;
+                if (index >= maps.Length || maps[index].lightmapColor == null)
+                    throw new InvalidOperationException("A Mesh lighting source references a missing Unity lightmap: " + index);
+                data.metadata.x = index + 1;
+                Vector4 st = source.lightmapScaleOffset;
+                data.scaleOffset = new float4(st.x, st.y, st.z, st.w);
+            }
+            return data;
+        }
+        internal static FMeshBakedLighting WithProbeSample(FMeshBakedLighting data, SphericalHarmonicsL2 probe, Vector4 probeOcclusion)
+        {
                 SphericalHarmonicsL2 sh = probe;
                 data.metadata.y = 1;
                 data.shAr = PackA(sh, 0); data.shAg = PackA(sh, 1); data.shAb = PackA(sh, 2);
@@ -124,7 +152,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 data.shC = new float4(sh[0, 8], sh[1, 8], sh[2, 8], 1);
                 Vector4 occlusion = probeOcclusion;
                 data.occlusion = new float4(occlusion.x, occlusion.y, occlusion.z, occlusion.w);
-            }
             return data;
         }
         static float4 PackA(SphericalHarmonicsL2 sh, int c) => new float4(sh[c, 3], sh[c, 1], sh[c, 2], sh[c, 0] - sh[c, 6]);
@@ -134,7 +161,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             properties.SetBuffer(BufferID, data);
             bool mapped = textureSet > 0;
-            var maps = LightmapSettings.lightmaps;
+            var maps = Lightmaps;
             if (mapped && (textureSet > maps.Length || maps[textureSet - 1].lightmapColor == null))
                 throw new InvalidOperationException("A live Mesh draw lost its baked texture set.");
             LightmapData map = mapped ? maps[textureSet - 1] : null;

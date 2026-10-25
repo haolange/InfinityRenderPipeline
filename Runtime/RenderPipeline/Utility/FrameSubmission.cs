@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         public void Queue(CommandBuffer commands) => m_Context.ExecuteCommandBuffer(commands);
         public void Submit()
         {
-            m_Context.Submit();
+            using (new PipelineFrameMeasurement.NativeSubmitScope(true)) m_Context.Submit();
             NativeSubmitted = true;
             RenderFaultValidation.AfterSubmit();
         }

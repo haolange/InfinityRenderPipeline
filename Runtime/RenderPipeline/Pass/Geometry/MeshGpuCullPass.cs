@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.Pipeline
                         continue;
                     }
 
-                    var cascadePlanes = new Plane[slice.splitData.cullingPlaneCount];
+                    var cascadePlanes = m_RGBuilder.GetRecordingArray<Plane>(slice.splitData.cullingPlaneCount);
                     for (int plane = 0; plane < cascadePlanes.Length; plane++)
                     {
                         cascadePlanes[plane] = slice.splitData.GetCullingPlane(plane);
@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
                 Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
                 uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
-                var shadowPlanes = new Plane[local.splitData.cullingPlaneCount];
+                var shadowPlanes = m_RGBuilder.GetRecordingArray<Plane>(local.splitData.cullingPlaneCount);
                 for (int plane = 0; plane < shadowPlanes.Length; plane++)
                 {
                     shadowPlanes[plane] = local.splitData.GetCullingPlane(plane);

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;

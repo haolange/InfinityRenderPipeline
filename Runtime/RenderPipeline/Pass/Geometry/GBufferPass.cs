@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using UnityEngine.Experimental.Rendering;
@@ -18,7 +18,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal static readonly GlobalKeyword ShadowmaskKeyword = GlobalKeyword.Create("SHADOWS_SHADOWMASK");
         internal static bool HasShadowmask()
         {
-            foreach (var map in LightmapSettings.lightmaps) if (map.shadowMask != null) return true;
+            foreach (var map in MeshBakedLighting.Lightmaps) if (map.shadowMask != null) return true;
             return false;
         }
         internal static readonly GlobalKeyword DBufferKeyword = GlobalKeyword.Create("_DBUFFER");

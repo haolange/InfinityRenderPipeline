@@ -118,12 +118,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>
         /// Quantize plane floats (~1e-3) then FNV-1a mix so tiny FP noise does not split shares.
         /// </summary>
-        public static ulong HashFrustum(Plane[] planes)
+        public static ulong HashFrustum(ReadOnlySpan<Plane> planes)
         {
             unchecked
             {
                 ulong hash = 14695981039346656037ul;
-                if (planes == null)
+                if (planes.IsEmpty)
                 {
                     return hash;
                 }
@@ -143,7 +143,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public static ulong HashFrustum(ref ScriptableCullingParameters cullingParameters)
         {
-            var planes = new Plane[cullingParameters.cullingPlaneCount];
+            Span<Plane> planes = stackalloc Plane[cullingParameters.cullingPlaneCount];
             for (int i = 0; i < planes.Length; ++i)
             {
                 planes[i] = cullingParameters.GetCullingPlane(i);
@@ -215,10 +215,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return MeshVisibilityHandle.Invalid;
             }
 
+            Span<Plane> planes = stackalloc Plane[MeshView.MaxPlanes];
+            for (int i = 0; i < view.planeCount; ++i) planes[i] = view.GetPlane(i);
             return Acquire(
                 scene,
                 view.viewKey,
-                view.CopyPlanes(),
+                planes.Slice(0, view.planeCount),
                 view.PolicyId,
                 view.enableVisibility,
                 view.subviewIndex,
@@ -229,7 +231,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 view.sceneCullingMask);
         }
 
-        public MeshVisibilityHandle Acquire(MeshScene scene, ulong viewKey, Plane[] planes, int policyId, bool enable, int subviewIndex = 0)
+        public MeshVisibilityHandle Acquire(MeshScene scene, ulong viewKey, ReadOnlySpan<Plane> planes, int policyId, bool enable, int subviewIndex = 0)
         {
             return Acquire(
                 scene, viewKey, planes, policyId, enable, subviewIndex,
@@ -241,7 +243,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshVisibilityHandle Acquire(
             MeshScene scene,
             ulong viewKey,
-            Plane[] planes,
+            ReadOnlySpan<Plane> planes,
             int policyId,
             bool enable,
             int subviewIndex,

@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            m_ShadowCasterSplits.Sort(CompareShadowCasterSplits);
+            m_ShadowCasterSplits.Sort(s_CompareShadowCasterSplits);
 
             int visibleLightCount = cullingResults.visibleLights.Length;
             NativeArray<ShadowSplitData> splitBuffer = new NativeArray<ShadowSplitData>(recordCount, Allocator.Temp);
@@ -116,6 +116,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_ShadowCasterSplits.Clear();
         }
 
+        static readonly System.Comparison<ShadowCasterSplitRecord> s_CompareShadowCasterSplits = CompareShadowCasterSplits;
         static int CompareShadowCasterSplits(ShadowCasterSplitRecord a, ShadowCasterSplitRecord b)
         {
             int cmp = a.lightIndex.CompareTo(b.lightIndex);

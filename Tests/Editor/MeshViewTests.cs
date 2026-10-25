@@ -13,6 +13,27 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     public class MeshViewTests
     {
         [Test]
+        public void CpuCameraCullingPreservesExplicitCullingMatrix()
+        {
+            var go = new GameObject("MeshViewTests.CustomCulling");
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                camera.cullingMatrix = Matrix4x4.Ortho(-3, 7, -2, 5, .2f, 90)
+                    * Matrix4x4.Translate(new Vector3(11, -4, 8));
+                var expected = GeometryUtility.CalculateFrustumPlanes(camera.cullingMatrix);
+                using var scene = new MeshScene(16);
+                var result = MeshVisibilityUtility.CullInstances(scene, camera, true);
+                try
+                {
+                    for (int i = 0; i < 6; ++i) Assert.AreEqual((FPlane)expected[i], result.frustum[i]);
+                }
+                finally { result.Release(); }
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
         public void SameCameraSameFrame_ViewKeysMatch()
         {
             var go = new GameObject("MeshViewTests.Camera");

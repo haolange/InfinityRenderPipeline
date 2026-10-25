@@ -135,7 +135,6 @@ namespace InfinityTech.Rendering.Pipeline
                 shaders = new[]
                 {
                     new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.ssgiShader), s => s.ssgiShader, SSGIPassUtilityData.RequiredKernels),
-                    new FeatureShaderRequirement(nameof(InfinityRenderPipelineRuntimeShaders.utilityShader), s => s.utilityShader, ComputeUtility.ClearIndirectArgsKernelName),
                     composite
                 },
                 customSupport = c => c.textures != null && c.textures.HasBlueNoise ? null : "RuntimeTextures is missing the blue-noise Sobol textures."
@@ -215,14 +214,14 @@ namespace InfinityTech.Rendering.Pipeline
         internal static void Resolve(FrameFeatureSet features, in FeatureSupportContext context)
         {
             int count = s_Descriptors.Length;
-            var supportReason = new string[count];
-            var evaluated = new bool[count];
+            var supportReason = features.supportReasons; Array.Clear(supportReason, 0, count);
+            var evaluated = features.supportEvaluated; Array.Clear(evaluated, 0, count);
             for (int i = 0; i < count; ++i)
             {
                 Evaluate((EFrameFeature)i, context, supportReason, evaluated);
             }
 
-            var requested = new bool[count];
+            var requested = features.requestedClosure; Array.Clear(requested, 0, count);
             for (int i = 0; i < count; ++i)
             {
                 if (features.IsRequested((EFrameFeature)i) && supportReason[i] == null)

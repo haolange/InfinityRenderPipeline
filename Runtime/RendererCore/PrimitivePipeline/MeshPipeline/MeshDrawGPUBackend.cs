@@ -297,8 +297,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             return SupportsIndirect && shader != null && kernel >= 0;
         }
 
-        internal static void DispatchCullFrustum(
-            IComputeCommands commands,
+        internal static void DispatchCullFrustum<TCommands>(
+            TCommands commands,
             in MeshView view,
             int instanceCount,
             Vector4[] frustumPlanes,
@@ -308,7 +308,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGBufferRef instanceLayerMask,
             RGBufferRef instanceSceneCullingMask,
             RGBufferRef instanceRenderingLayer,
-            RGBufferRef visibility)
+            RGBufferRef visibility) where TCommands : struct, IComputeCommands
         {
             if (!TryGetCullKernel(out ComputeShader shader, out int kernel))
                 throw new InvalidOperationException("MeshGpuCull requires CullFrustum.");
@@ -318,19 +318,18 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshPipelineDiagnostics.GpuCullDispatchesPerFrame++;
         }
 
-        internal static void BindCullBounds(IComputeCommands commands, ComputeShader shader, int kernel, int instanceCount,
-            RGBufferRef center, RGBufferRef extent)
+        internal static void BindCullBounds<TCommands>(TCommands commands, ComputeShader shader, int kernel, int instanceCount,
+            RGBufferRef center, RGBufferRef extent) where TCommands : struct, IComputeCommands
         {
             commands.SetComputeIntParam(shader, ID_InstanceCount, instanceCount);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsCenter, center);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, extent);
         }
-        internal static void BindCullInputs(IComputeCommands commands, ComputeShader shader, int kernel,
+        internal static void BindCullInputs<TCommands>(TCommands commands, ComputeShader shader, int kernel,
             in MeshView view, int instanceCount, Vector4[] frustumPlanes, RGBufferRef boundsCenter, RGBufferRef boundsExtent,
             RGBufferRef instanceFlags, RGBufferRef instanceLayerMask, RGBufferRef instanceSceneCullingMask,
-            RGBufferRef instanceRenderingLayer, RGBufferRef visibility)
+            RGBufferRef instanceRenderingLayer, RGBufferRef visibility) where TCommands : struct, IComputeCommands
         {
-            if (commands == null) throw new ArgumentNullException(nameof(commands));
             if (!visibility.IsValid()
                 || !boundsCenter.IsValid()
                 || !boundsExtent.IsValid()

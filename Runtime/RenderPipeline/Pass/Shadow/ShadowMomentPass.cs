@@ -63,9 +63,9 @@ namespace InfinityTech.Rendering.Pipeline
             if (allocator.CascadeUsesMoments)
             {
                 int mode = ShadowMomentPassUtilityData.Mode(allocator.CascadeShadowFilter);
-                var rects = new Vector4[ShadowAllocator.CascadeCount];
-                var depthParams = new Vector4[ShadowAllocator.CascadeCount];
-                var momentParams = new Vector4[ShadowAllocator.CascadeCount];
+                var rects = m_RGBuilder.GetRecordingArray<Vector4>(ShadowAllocator.CascadeCount);
+                var depthParams = m_RGBuilder.GetRecordingArray<Vector4>(ShadowAllocator.CascadeCount);
+                var momentParams = m_RGBuilder.GetRecordingArray<Vector4>(ShadowAllocator.CascadeCount);
                 int count = 0;
                 for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
                 {
@@ -85,9 +85,9 @@ namespace InfinityTech.Rendering.Pipeline
             if (allocator.LocalMomentSliceCount > 0)
             {
                 int capacity = allocator.LocalMomentSliceCount;
-                var rects = new Vector4[capacity];
-                var depthParams = new Vector4[capacity];
-                var momentParams = new Vector4[capacity];
+                var rects = m_RGBuilder.GetRecordingArray<Vector4>(capacity);
+                var depthParams = m_RGBuilder.GetRecordingArray<Vector4>(capacity);
+                var momentParams = m_RGBuilder.GetRecordingArray<Vector4>(capacity);
                 int count = 0;
                 for (int i = 0; i < allocator.LocalSliceCount && count < capacity; ++i)
                 {

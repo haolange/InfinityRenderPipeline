@@ -73,6 +73,9 @@ namespace InfinityTech.Rendering.RenderGraph
 
         private readonly int m_ContextId;
         private readonly List<RGDrawListRecord> m_Records = new List<RGDrawListRecord>(16);
+        private readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
+
+        List<int> RentConsumerList() => m_ConsumerLists.Count > 0 ? m_ConsumerLists.Pop() : new List<int>(4);
         // Start at 1 so default(RGDrawListRef) {index=0, generation=0} never matches a live graph.
         private int m_GraphGeneration = 1;
 
@@ -139,7 +142,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 visibilityShare = null,
                 meshWorld = meshWorld,
                 ownsCulling = owns,
-                consumerPassIndices = new List<int>(4),
+                consumerPassIndices = RentConsumerList(),
                 state = ERGDrawListCompileState.Declared,
                 selectedBackend = EMeshBackendPolicy.CpuDirect,
                 extract = default,
@@ -182,7 +185,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 visibilityShare = visibilityShare,
                 meshWorld = meshWorld,
                 ownsCulling = false,
-                consumerPassIndices = new List<int>(4),
+                consumerPassIndices = RentConsumerList(),
                 state = ERGDrawListCompileState.Declared,
                 selectedBackend = EMeshBackendPolicy.CpuDirect,
                 extract = default,
@@ -380,9 +383,9 @@ namespace InfinityTech.Rendering.RenderGraph
             switch (view.kind)
             {
                 case EMeshViewKind.CascadeShadow:
-                    return $"CascadeSlice{view.subviewIndex}";
+                    return MeshDrawProfiling.Slice(view.kind, view.subviewIndex);
                 case EMeshViewKind.LocalShadow:
-                    return $"LocalShadowSlice{view.subviewIndex}";
+                    return MeshDrawProfiling.Slice(view.kind, view.subviewIndex);
                 default:
                     return null;
             }
@@ -441,6 +444,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 MeshPipelineDiagnostics.GpuOverflowCount++;
             }
             record.selectedBackend = EMeshBackendPolicy.CpuDirect;
+            record.pipeline?.CandidateTables.ReturnStaging(record.gpuStaging);
             record.gpuStaging = null;
             if (record.gpuPayload != null)
             {
@@ -513,7 +517,8 @@ namespace InfinityTech.Rendering.RenderGraph
                     record.gpuPayload = null;
                 }
 
-                record.gpuStaging = null;
+                record.pipeline?.CandidateTables.ReturnStaging(record.gpuStaging);
+            record.gpuStaging = null;
                 record.residency.version?.Release(); record.residency = default;
 
                 if (record.visibilityHandle.IsValid && record.visibilityShare != null)
@@ -537,6 +542,11 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_Records[i] = record;
             }
 
+            foreach (var record in m_Records)
+            {
+                record.consumerPassIndices.Clear();
+                m_ConsumerLists.Push(record.consumerPassIndices);
+            }
             m_Records.Clear();
             // Invalidate any RGDrawListRef captured from this graph lifetime.
             unchecked { ++m_GraphGeneration; }

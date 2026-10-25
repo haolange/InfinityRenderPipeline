@@ -468,7 +468,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 var texture = rt.rt;
                 rdgTexture.descriptor = new TextureDescriptor(texture.width, texture.height, texture.volumeDepth)
                 {
-                    name = texture.name, colorFormat = texture.graphicsFormat, depthBufferBits = (EDepthBits)texture.depth,
+                    name = rt.name, colorFormat = texture.graphicsFormat, depthBufferBits = (EDepthBits)texture.depth,
                     dimension = texture.dimension, filterMode = texture.filterMode, wrapMode = texture.wrapMode,
                     useMipMap = texture.useMipMap, autoGenerateMips = texture.autoGenerateMips,
                     enableRandomWrite = texture.enableRandomWrite, msaaSamples = (EMSAASamples)texture.antiAliasing

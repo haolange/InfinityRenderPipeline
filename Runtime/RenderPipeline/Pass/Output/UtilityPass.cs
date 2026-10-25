@@ -145,8 +145,9 @@ namespace InfinityTech.Rendering.Pipeline
             bool wire = false, gizmos = false;
 #if UNITY_EDITOR
             gizmos = Handles.ShouldRenderGizmos();
-            foreach (SceneView view in SceneView.sceneViews)
+            for (int viewIndex = 0; viewIndex < SceneView.sceneViews.Count; ++viewIndex)
             {
+                var view = (SceneView)SceneView.sceneViews[viewIndex];
                 if (view.camera != camera) continue;
                 wire = view.cameraMode.drawMode == DrawCameraMode.TexturedWire || view.cameraMode.drawMode == DrawCameraMode.Wireframe;
                 break;
@@ -205,7 +206,7 @@ namespace InfinityTech.Rendering.Pipeline
                 srcTexture = source, sourceWidth = descriptor.width, sourceHeight = descriptor.height,
                 viewport = finalTarget ? dimensions.outputViewport : new Rect(0, 0, dimensions.displaySize.x, dimensions.displaySize.y),
                 scaleBias = finalTarget && camera.targetTexture == null ? new Vector4(1, -1, 0, 1) : new Vector4(1, 1, 0, 0),
-                outputTransfer = finalTarget ? new Vector4((int)decision.policy, decision.outputGamut == OutputTransformUtility.OutputGamutRec2020 ? 1 : 0, 100, 0)
+                outputTransfer = finalTarget ? new Vector4((int)decision.policy, decision.outputGamut == OutputTransformUtility.OutputGamutRec2020 ? 1 : 0, decision.paperWhiteNits, 0)
                     : new Vector4((int)EOutputEncodePolicy.LinearTarget, 0, 100, 0),
                 shaderPass = GraphicsUtility.BlitMaterial.FindPass(shaderPass)
             };

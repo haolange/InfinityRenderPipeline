@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -7,6 +7,7 @@ namespace InfinityTech.Rendering.GPUResource
 {
     public class ResourcePool
     {
+        internal Action<RTHandle, TextureDescriptor> textureAcquired;
         public BufferCache buffers { get; }
         public TextureCache textures { get; }
         readonly Dictionary<ComputeBuffer, ResourceUsage> m_BufferUses = new Dictionary<ComputeBuffer, ResourceUsage>();
@@ -148,6 +149,7 @@ namespace InfinityTech.Rendering.GPUResource
             }
             m_TextureUses[texture].returned = false;
 
+            textureAcquired?.Invoke(texture, descriptor);
             return new FTextureRef(handle, descriptor, texture);
         }
 

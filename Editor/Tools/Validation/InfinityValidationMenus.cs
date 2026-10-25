@@ -376,11 +376,11 @@ namespace InfinityTech.Rendering.Editor.Validation
             {
                 MeshComponent mesh = meshes[i];
                 builder.Append("  mesh=").Append(mesh.name);
-                builder.Append(" asset=").Append(mesh.meshAsset != null ? mesh.meshAsset.name : "null");
-                builder.Append(" materials=").Append(mesh.materials != null ? mesh.materials.Length : 0);
-                if (mesh.materials != null && mesh.materials.Length > 0 && mesh.materials[0] != null)
+                builder.Append(" asset=").Append(mesh.MeshAsset != null ? mesh.MeshAsset.name : "null");
+                builder.Append(" materials=").Append(mesh.Materials.Length);
+                if (mesh.Materials.Length > 0 && mesh.Materials[0] != null)
                 {
-                    Material material = mesh.materials[0];
+                    Material material = mesh.Materials[0];
                     builder.Append(" shader=").Append(material.shader != null ? material.shader.name : "null");
                     builder.Append(" depthPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "RasterDepthPass"));
                     builder.Append(" gbufferPass=").Append(MeshPassShaderUtility.FindPassIndex(material, "RasterGBufferPass"));

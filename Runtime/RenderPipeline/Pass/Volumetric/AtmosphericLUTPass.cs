@@ -172,6 +172,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
+        static readonly string[] s_AtmosphereKernels = { "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT",
+                "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite",
+                "AtmosphereSHProject", "AtmosphereSHReduce" };
+
         void ComputeAtmosphericLUT(RenderContext renderContext, Camera camera)
         {
             if (pipelineAsset.atmosphericalProfile == null)
@@ -179,10 +183,7 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: AtmosphericalProfile is required. Atmosphere lives only on the profile.");
             }
 
-            if (!GraphicsUtility.HasRequiredKernels(shaders.atmosphericLUTShader,
-                "TransmittanceLUT", "MultiScatteringLUT", "SkyViewLUT", "AerialPerspectiveLUT",
-                "AtmosphereCubemap", "SunBuffer", "AtmosphereComposite",
-                "AtmosphereSHProject", "AtmosphereSHReduce")
+            if (!GraphicsUtility.HasRequiredKernels(shaders.atmosphericLUTShader, s_AtmosphereKernels)
                 || !GraphicsUtility.HasRequiredKernels(shaders.cubeFilterShader, CubeFilterUtilityData.KernelArrayToArray))
             {
                 throw new InvalidOperationException("InfinityRP: Atmosphere is designed on but atmosphericLUTShader is missing a required kernel.");

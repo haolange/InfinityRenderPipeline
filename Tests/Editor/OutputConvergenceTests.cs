@@ -16,6 +16,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(EOutputEncodePolicy.ShaderPQRec2020, true)]
         [TestCase(EOutputEncodePolicy.ShaderHLGRec2020, true)]
         [TestCase(EOutputEncodePolicy.ShaderScRGBLinear, true)]
+        [TestCase(EOutputEncodePolicy.ShaderRec2020Linear, true)]
         public void UiOutput_PreservesLinearBlendContract(EOutputEncodePolicy policy, bool intermediate)
         {
             Assert.AreEqual(intermediate, new FOutputPlan(true, policy, false, false, false, false).linearIntermediate);
@@ -46,6 +47,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(EOutputEncodePolicy.ShaderPQRec2020)]
         [TestCase(EOutputEncodePolicy.ShaderHLGRec2020)]
         [TestCase(EOutputEncodePolicy.ShaderScRGBLinear)]
+        [TestCase(EOutputEncodePolicy.ShaderRec2020Linear)]
         public void DirectPostCombine_MatchesLinearIntermediateThenEncode(EOutputEncodePolicy policy)
         {
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(Root + "Shaders/Utility/DrawFullScreen.shader");

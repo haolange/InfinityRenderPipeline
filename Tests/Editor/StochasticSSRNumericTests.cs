@@ -105,7 +105,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly Vector2Int m_Trace;
             readonly GraphicsBuffer m_Args, m_TileList;
             readonly RenderTexture m_TileClass, m_RayHit, m_Resolved, m_HitDistance;
-            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_HistoryMeta, m_MotionMetadata;
+            readonly Texture2D m_Depth, m_HiZ, m_GBufferA, m_GBufferB, m_GBufferC, m_Lighting, m_Motion, m_HistoryRadiance, m_MotionMetadata;
+            readonly RenderTexture m_HistoryMeta;
 
             public Vector2Int TileCount { get; }
 
@@ -134,7 +135,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Lighting = Solid(width, height, new Color(0.8f, 0.4f, 0.2f, 1), true);
                 m_Motion = Solid(width, height, Color.clear, false);
                 m_HistoryRadiance = Solid(width, height, new Color(5, 5, 5, 1), false);
-                m_HistoryMeta = Solid(width, height, new Color(0, 0, planeDepth, 8), false);
+                m_HistoryMeta = SurfaceMetadataTestUtility.Pack(Solid(width, height, new Color(0, 0, planeDepth, 8), false));
+                m_Objects.Add(m_HistoryMeta);
                 m_MotionMetadata = Solid(width,height,new Color(planeDepth,planeDepth,1,0),false);
 
                 m_Args = Buffer(GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured, 9);
@@ -230,7 +232,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetTexture(kernel, "SRV_TemporalColor", m_Lighting);
                 m_Shader.SetTexture(kernel, "SRV_TemporalColorMips", m_Lighting);
                 m_Shader.SetTexture(kernel, "SRV_TemporalDepth", m_Depth);
-                m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_HistoryMeta);
+                m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_MotionMetadata);
                 m_Shader.SetTexture(kernel, "SRV_MotionTexture", m_Motion);
                 m_Shader.SetInt("TemporalColorValid", 0);
                 m_Shader.SetInt("TemporalColorMipCount", m_Lighting.mipmapCount);
@@ -246,7 +248,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             public float[] Temporal()
             {
                 RenderTexture temporal = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
-                RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32B32A32_SFloat);
+                RenderTexture meta = Target(m_Width, m_Height, GraphicsFormat.R32G32_UInt);
                 int kernel = m_Shader.FindKernel(SSRPassUtilityData.TemporalKernelName);
                 m_Shader.SetTexture(kernel,"SRV_HitMotionMetadata",m_MotionMetadata);
                 BindSurface(kernel);
@@ -260,7 +262,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 DispatchFull(kernel);
                 foreach (float value in Read(temporal, 4))
                     Assert.AreEqual(0.0f, value, 1e-6f, "History is invalid this frame, so the current sample is taken as is.");
-                return Read(meta, 4);
+                return SurfaceMetadataTestUtility.Read(meta);
             }
 
             public float[] Spatial(Color input)

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
@@ -21,13 +21,14 @@ namespace InfinityTech.Component
     [CanEditMultipleObjects]
 #endif
     [AddComponentMenu("InfinityRenderer/Mesh Component")]
-    public class MeshComponent : EntityComponent
+    public partial class MeshComponent : EntityComponent
     {
         private struct MeshComponentSnapshot
         {
             public bool valid;
             public bool visible;
             public ulong sceneCullingMask;
+            public int unityLayer;
             public EStateType movebility;
             public ulong meshAssetId;
             public int subMeshCount;
@@ -36,6 +37,7 @@ namespace InfinityTech.Component
             public int[] materialRenderQueues;
             public int[] materialSurfaceRoutes;
             public int[] materialTranslucentStages;
+            public uint[] materialVersions;
             public ERenderingLayer renderingLayer;
             public int renderPriority;
             public ECastShadowMethod castShadow;
@@ -45,13 +47,13 @@ namespace InfinityTech.Component
         }
 
         [Header("State")]
-        public EStateType movebility = EStateType.Static;
+        [SerializeField] private EStateType movebility = EStateType.Static;
 
         [Header("Mesh")]
-        public Mesh meshAsset;
+        [SerializeField] private Mesh meshAsset;
 
         [Header("Material")]
-        public Material[] materials;
+        [SerializeField] private Material[] materials;
 #if UNITY_EDITOR
         private Material[] m_LastMaterials;
 #endif
@@ -63,24 +65,37 @@ namespace InfinityTech.Component
         private bool m_HasProbeSample;
         private Vector3 m_ProbePosition;
         private int m_ProbeVersion;
+        private FMeshBakedLighting m_CurrentBakedLighting;
         private UnityEngine.Rendering.SphericalHarmonicsL2 m_ProbeSH;
         private Vector4 m_ProbeOcclusion;
+        private bool m_UsesProbes;
+        private Transform m_ProbeAnchor;
+        internal Vector3 probeWorldPosition;
 
-        private Renderer BakedLightingSource => m_BakedLightingSource != null ? m_BakedLightingSource : GetComponent<Renderer>();
+        private Renderer m_CachedRenderer;
+        private Renderer BakedLightingSource => m_BakedLightingSource != null ? m_BakedLightingSource : m_CachedRenderer;
 
-        private FMeshBakedLighting ReadBakedLighting()
+        private FMeshBakedLighting ReadBakedLighting() => m_CurrentBakedLighting;
+
+        internal void RefreshLightingConfiguration(bool probesAvailable)
         {
             Renderer source = BakedLightingSource;
-            bool current = m_HasProbeSample && m_ProbeVersion == MeshBakedLighting.ProbeVersion
-                && MeshBakedLighting.UsesProbes(source, transform.position, out Vector3 probePosition) && probePosition == m_ProbePosition;
-            return MeshBakedLighting.Capture(source, transform.position, current, m_ProbeSH, m_ProbeOcclusion);
+            var layout = MeshBakedLighting.CaptureLayout(source);
+            m_UsesProbes = layout.TextureSet == 0 && probesAvailable && (source == null || source.lightProbeUsage != UnityEngine.Rendering.LightProbeUsage.Off);
+            m_ProbeAnchor = source != null ? source.probeAnchor : null;
+            if (m_UsesProbes && m_HasProbeSample && m_ProbeVersion == MeshBakedLighting.ProbeVersion)
+                layout = MeshBakedLighting.WithProbeSample(layout, m_ProbeSH, m_ProbeOcclusion);
+            if (!m_CurrentBakedLighting.Equals(layout)) MarkTransformDirty();
+            m_CurrentBakedLighting = layout;
         }
 
         // Batch step 1: the probe position this mesh needs a sample for, or false when its sample is current or it
         // uses no probes.
         internal bool NeedsProbeSample(out Vector3 probePosition)
         {
-            if (!MeshBakedLighting.UsesProbes(BakedLightingSource, transform.position, out probePosition)) return false;
+            Renderer source = BakedLightingSource;
+            probePosition = m_ProbeAnchor != null ? m_ProbeAnchor.position : source != null ? source.bounds.center : probeWorldPosition;
+            if (!m_UsesProbes) return false;
             return !m_HasProbeSample || m_ProbeVersion != MeshBakedLighting.ProbeVersion || probePosition != m_ProbePosition;
         }
 
@@ -90,18 +105,19 @@ namespace InfinityTech.Component
             m_HasProbeSample = true;
             m_ProbePosition = probePosition;
             m_ProbeVersion = MeshBakedLighting.ProbeVersion;
-            m_ProbeSH = sh;
-            m_ProbeOcclusion = occlusion;
+            m_ProbeSH = sh; m_ProbeOcclusion = occlusion;
+            m_CurrentBakedLighting = MeshBakedLighting.WithProbeSample(m_CurrentBakedLighting, sh, occlusion);
+            MarkTransformDirty();
         }
-        public ECastShadowMethod castShadow = ECastShadowMethod.Off;
-        public bool receiveShadow = true;
-        public bool affectIndirectLighting = true;
+        [SerializeField] private ECastShadowMethod castShadow = ECastShadowMethod.Off;
+        [SerializeField] private bool receiveShadow = true;
+        [SerializeField] private bool affectIndirectLighting = true;
 
         [Header("Rendering")]
-        public bool visible = true;
-        public ERenderingLayer renderingLayer = ERenderingLayer.LightLayerDefault;
-        public int renderPriority = 0;
-        public EMotionType motionVector = EMotionType.Object;
+        [SerializeField] private bool visible = true;
+        [SerializeField] private ERenderingLayer renderingLayer = ERenderingLayer.LightLayerDefault;
+        [SerializeField] private int renderPriority = 0;
+        [SerializeField] private EMotionType motionVector = EMotionType.Object;
 
 
         private bool m_PreviousForceRenderingOff;
@@ -130,6 +146,9 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             uint epoch = ++m_RegistrationEpoch;
+            RefreshGeometryReference();
+            m_CachedRenderer = GetComponent<Renderer>();
+            s_Registered.Add(this);
             MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
             if (meshRenderer != null)
             {
@@ -139,25 +158,13 @@ namespace InfinityTech.Component
             }
 
             UpdateBounds();
-            FGraphics.AddTask((RenderContext renderContext) =>
-            {
-                // A later disable/re-enable can precede this deferred task, including a mobility change.
-                if (!this || !isActiveAndEnabled || epoch != m_RegistrationEpoch) { return; }
-                // Join the existing world list before the frame's probe batch. Registration is drained
-                // afterwards, so its first visible metadata contains the same batched sample as updates.
-                AddWorldMesh(renderContext, movebility);
-                MarkDirty();
-            });
+            FGraphics.RegisterMesh(this, epoch);
         }
 
         protected override void OnTransformChange()
         {
             UpdateBounds();
-            FGraphics.AddTask((RenderContext renderContext) =>
-            {
-                if (!this) { return; }
-                UpdateTransformInMeshScene(renderContext);
-            });
+            MarkTransformDirty();
         }
 
         protected virtual void OnStateTypeChange(in EStateType LastGeometryState)
@@ -174,17 +181,14 @@ namespace InfinityTech.Component
 
         protected override void EventTick()
         {
-            if (!NeedsSync())
-            {
-                return;
-            }
 
-            MarkDirty();
         }
 
         protected override void UnRegister()
         {
             ++m_RegistrationEpoch;
+            s_Registered.Remove(this);
+            ReleaseGeometryReference();
             MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
             if (meshRenderer != null)
             {
@@ -192,7 +196,7 @@ namespace InfinityTech.Component
             }
 
             MeshInstanceId instanceId = m_InstanceId;
-            EStateType mobility = movebility;
+            EStateType mobility = dynamicIndex >= 0 ? EStateType.Dynamic : EStateType.Static;
             MeshComponent self = this;
 
             // Clear local handles immediately so UnRegister is idempotent across OnDisable/OnDestroy.
@@ -202,17 +206,7 @@ namespace InfinityTech.Component
             m_Snapshot = default;
             m_DirtyEnqueued = false;
 
-            FGraphics.AddTask((RenderContext renderContext) =>
-            {
-                RemoveInstanceById(renderContext, instanceId);
-                RemoveWorldMesh(renderContext, mobility, self);
-            });
-        }
-
-        internal void RefreshInstanceMetadata()
-        {
-            if (m_InstanceId.IsValid && (m_Snapshot.sceneCullingMask != SceneCullingMask
-                || !ReadBakedLighting().Equals(m_LastBakedLighting))) MarkDirty();
+            FGraphics.UnregisterMesh(self, instanceId, mobility);
         }
 
         public void MarkDirty()
@@ -229,6 +223,7 @@ namespace InfinityTech.Component
         public void SyncFromSnapshot(RenderContext renderContext)
         {
             m_DirtyEnqueued = false;
+            RefreshGeometryReference();
 
             if (!isActiveAndEnabled)
             {
@@ -237,6 +232,7 @@ namespace InfinityTech.Component
                     UnRegisterFromMeshScene(renderContext);
                 }
 
+                ReleaseGeometryReference();
                 m_Snapshot = default;
                 return;
             }
@@ -297,13 +293,14 @@ namespace InfinityTech.Component
         void OnDrawGizmosSelected()
         {
             DrawBound();
-            EventUpdate();
         }
 
         void OnValidate()
         {
-            // Recompute geometry fingerprint so in-place mesh edits (vertex/submesh) dirties sync.
-            m_GeometryRevision = ComputeGeometryRevision(meshAsset);
+            if (!isActiveAndEnabled || !gameObject.scene.IsValid()) return;
+            // Inspector edits are an explicit resource notification.
+            NotifyGeometryChanged();
+            MarkTransformDirty();
             MarkDirty();
         }
 #endif
@@ -368,12 +365,12 @@ namespace InfinityTech.Component
 
         private EStateType? TryGetWorldListMembership(RenderContext renderContext)
         {
-            if (renderContext.GetWorldDynamicPrimitive().Contains(this))
+            if (dynamicIndex >= 0)
             {
                 return EStateType.Dynamic;
             }
 
-            if (renderContext.GetWorldStaticMesh().Contains(this))
+            if (staticIndex >= 0)
             {
                 return EStateType.Static;
             }
@@ -385,7 +382,11 @@ namespace InfinityTech.Component
         {
             if (!meshAsset) { return; }
 
-            m_BoundBox = Geometry.CaculateWorldBound(meshAsset.bounds, m_LocalToWorldMatrix);
+            cachedTransform = transform;
+            probeWorldPosition = cachedTransform.position;
+            RefreshGeometryReference();
+            localBounds = m_Geometry.bounds;
+            m_BoundBox = Geometry.CaculateWorldBound(localBounds, m_LocalToWorldMatrix);
             m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
         }
 
@@ -466,10 +467,10 @@ namespace InfinityTech.Component
 
                 m_LastBakedLighting = ReadBakedLighting();
                 update.SetInstanceBakedLighting(m_InstanceId, m_LastBakedLighting);
-                int subMeshCount = meshAsset.subMeshCount;
+                int subMeshCount = m_Geometry.subMeshes;
                 m_DrawIds = new MeshDrawId[subMeshCount];
-                ulong meshUnityId = UnityEntityId.ToUInt64(meshAsset);
-                m_GeometryRevision = ComputeGeometryRevision(meshAsset);
+                ulong meshUnityId = m_Geometry.identity;
+
 
                 for (int i = 0; i < subMeshCount; ++i)
                 {
@@ -483,7 +484,7 @@ namespace InfinityTech.Component
                     }
 
                     EPassEligibility eligibility = BuildPassEligibility(material);
-                    int renderQueue = material.renderQueue;
+                    MaterialRouteUtility.ReadMeshRoute(material, out _, out _, out int renderQueue, out _);
                     int priority = renderPriority + renderQueue;
                     uint staticFlags = movebility == EStateType.Static ? 1u : 0u;
                     m_DrawIds[i] = update.CreateDraw(
@@ -503,24 +504,6 @@ namespace InfinityTech.Component
             }
 
             CaptureSnapshot();
-        }
-
-        public void UpdateTransformInMeshScene(RenderContext renderContext)
-        {
-            if (!m_InstanceId.IsValid || !m_TransformId.IsValid)
-            {
-                return;
-            }
-
-            MeshScene scene = renderContext.GetMeshScene();
-            using (MeshSceneUpdate update = scene.BeginUpdate())
-            {
-                update.SetTransform(m_TransformId, m_LocalToWorldMatrix);
-                m_LastBakedLighting = ReadBakedLighting();
-                update.SetInstanceBakedLighting(m_InstanceId, m_LastBakedLighting);
-                update.SetBounds(m_InstanceId, m_BoundBox);
-                update.Commit();
-            }
         }
 
         public void UnRegisterFromMeshScene(RenderContext renderContext)
@@ -557,6 +540,7 @@ namespace InfinityTech.Component
             {
                 update.SetInstanceFlags(m_InstanceId, flags);
                 update.SetInstanceSceneCullingMask(m_InstanceId, SceneCullingMask);
+                update.SetInstanceLayerMask(m_InstanceId, 1 << gameObject.layer);
                 update.SetInstanceRendering(m_InstanceId, renderingLayerMask, motionVector, castShadow);
 
                 if (m_DrawIds != null)
@@ -574,7 +558,7 @@ namespace InfinityTech.Component
                         EPassEligibility eligibility = BuildPassEligibility(material);
                         if (material != null)
                         {
-                            renderQueue = material.renderQueue;
+                            MaterialRouteUtility.ReadMeshRoute(material, out _, out _, out renderQueue, out _);
                             // Updates draw.renderQueue and MaterialData revision (same id, new queue).
                             update.SetMaterial(drawId, UnityEntityId.ToUInt64(material), renderQueue);
                         }
@@ -595,7 +579,7 @@ namespace InfinityTech.Component
             if (receiveShadow) flags |= EMeshInstanceFlags.ReceiveShadow;
             if (castShadow != ECastShadowMethod.Off) flags |= EMeshInstanceFlags.CastShadow;
             if (affectIndirectLighting) flags |= EMeshInstanceFlags.AffectIndirect;
-            Renderer bakedSource = m_BakedLightingSource != null ? m_BakedLightingSource : GetComponent<Renderer>();
+            Renderer bakedSource = BakedLightingSource;
             if (movebility == EStateType.Static && bakedSource != null && bakedSource.lightmapIndex >= 0 && bakedSource.lightmapIndex < 65534)
                 flags |= EMeshInstanceFlags.ShadowmaskStatic;
             return flags;
@@ -643,30 +627,14 @@ namespace InfinityTech.Component
                 return;
             }
 
-            MaterialRouteUtility.Read(material, out surfaceRoute, out translucentStage);
-        }
-
-        private bool NeedsSync()
-        {
-            if (meshAsset == null || materials == null)
-            {
-                return m_InstanceId.IsValid || m_Snapshot.valid;
-            }
-
-            if (!m_InstanceId.IsValid || !m_Snapshot.valid)
-            {
-                return true;
-            }
-
-            return HasStructuralDiff() || HasLightweightDiff() || NeedsProbeSample(out _)
-                || !ReadBakedLighting().Equals(m_LastBakedLighting);
+            MaterialRouteUtility.ReadMeshRoute(material, out surfaceRoute, out translucentStage, out _, out _);
         }
 
         private bool HasStructuralDiff()
         {
-            ulong meshId = UnityEntityId.ToUInt64(meshAsset);
-            int subMeshCount = meshAsset != null ? meshAsset.subMeshCount : 0;
-            uint geometryRevision = ComputeGeometryRevision(meshAsset);
+            ulong meshId = m_Geometry != null ? m_Geometry.identity : 0;
+            int subMeshCount = m_Geometry != null ? m_Geometry.subMeshes : 0;
+            uint geometryRevision = m_GeometryRevision;
             if (!m_Snapshot.valid
                 || m_Snapshot.movebility != movebility
                 || m_Snapshot.meshAssetId != meshId
@@ -699,6 +667,7 @@ namespace InfinityTech.Component
         {
             if (!m_Snapshot.valid
                 || m_Snapshot.visible != visible
+                || m_Snapshot.unityLayer != gameObject.layer
                 || m_Snapshot.sceneCullingMask != SceneCullingMask
                 || m_Snapshot.renderingLayer != renderingLayer
                 || m_Snapshot.renderPriority != renderPriority
@@ -722,9 +691,10 @@ namespace InfinityTech.Component
             for (int i = 0; i < materialCount; ++i)
             {
                 Material material = materials[i];
-                int renderQueue = material != null ? material.renderQueue : 0;
+                int renderQueue = 0; uint version = 0;
+                if (material != null) MaterialRouteUtility.ReadMeshRoute(material, out _, out _, out renderQueue, out version);
                 ReadMaterialRoute(material, out int surfaceRoute, out int translucentStage);
-                if (m_Snapshot.materialRenderQueues[i] != renderQueue
+                if (m_Snapshot.materialVersions[i] != version || m_Snapshot.materialRenderQueues[i] != renderQueue
                     || m_Snapshot.materialSurfaceRoutes[i] != surfaceRoute
                     || m_Snapshot.materialTranslucentStages[i] != translucentStage)
                 {
@@ -738,16 +708,22 @@ namespace InfinityTech.Component
         private void CaptureSnapshot()
         {
             int materialCount = materials != null ? materials.Length : 0;
-            ulong[] materialIds = new ulong[materialCount];
-            int[] materialQueues = new int[materialCount];
-            int[] materialRoutes = new int[materialCount];
-            int[] materialStages = new int[materialCount];
+            ulong[] materialIds = m_Snapshot.materialInstanceIds;
+            if (materialIds == null || materialIds.Length != materialCount) materialIds = new ulong[materialCount];
+            int[] materialQueues = m_Snapshot.materialRenderQueues;
+            if (materialQueues == null || materialQueues.Length != materialCount) materialQueues = new int[materialCount];
+            int[] materialRoutes = m_Snapshot.materialSurfaceRoutes;
+            if (materialRoutes == null || materialRoutes.Length != materialCount) materialRoutes = new int[materialCount];
+            int[] materialStages = m_Snapshot.materialTranslucentStages;
+            if (materialStages == null || materialStages.Length != materialCount) materialStages = new int[materialCount];
+            uint[] versions = m_Snapshot.materialVersions;
+            if (versions == null || versions.Length != materialCount) versions = new uint[materialCount];
             for (int i = 0; i < materialCount; ++i)
             {
                 if (materials[i] != null)
                 {
                     materialIds[i] = UnityEntityId.ToUInt64(materials[i]);
-                    materialQueues[i] = materials[i].renderQueue;
+                    MaterialRouteUtility.ReadMeshRoute(materials[i], out _, out _, out materialQueues[i], out versions[i]);
                     ReadMaterialRoute(materials[i], out materialRoutes[i], out materialStages[i]);
                 }
                 else
@@ -759,20 +735,22 @@ namespace InfinityTech.Component
                 }
             }
 
-            m_GeometryRevision = ComputeGeometryRevision(meshAsset);
+
             m_Snapshot = new MeshComponentSnapshot
             {
                 valid = m_InstanceId.IsValid,
                 visible = visible,
                 sceneCullingMask = SceneCullingMask,
+                unityLayer = gameObject.layer,
                 movebility = movebility,
-                meshAssetId = UnityEntityId.ToUInt64(meshAsset),
-                subMeshCount = meshAsset != null ? meshAsset.subMeshCount : 0,
+                meshAssetId = m_Geometry != null ? m_Geometry.identity : 0,
+                subMeshCount = m_Geometry != null ? m_Geometry.subMeshes : 0,
                 geometryRevision = m_GeometryRevision,
                 materialInstanceIds = materialIds,
                 materialRenderQueues = materialQueues,
                 materialSurfaceRoutes = materialRoutes,
                 materialTranslucentStages = materialStages,
+                materialVersions = versions,
                 renderingLayer = renderingLayer,
                 renderPriority = renderPriority,
                 castShadow = castShadow,
@@ -780,21 +758,6 @@ namespace InfinityTech.Component
                 affectIndirect = affectIndirectLighting,
                 motionVector = motionVector
             };
-        }
-
-        private static uint ComputeGeometryRevision(Mesh mesh)
-        {
-            if (mesh == null)
-            {
-                return 0;
-            }
-
-            unchecked
-            {
-                int hash = mesh.subMeshCount;
-                hash = (hash * 397) ^ mesh.vertexCount;
-                return (uint)hash;
-            }
         }
 
         public void SetCustomPrimitiveData(int offset, float data)

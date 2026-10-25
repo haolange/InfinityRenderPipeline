@@ -48,6 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int sourceMip, width, height;
         }
         static readonly ProfilingSampler s_CaptureLightMaskSampler = new ProfilingSampler("ComputeCaptureLightMask");
+        static readonly ProfilingSampler s_CaptureMetadataSampler = new ProfilingSampler("ComputeCaptureSurfaceMetadata");
         static readonly ProfilingSampler s_CaptureDepthSampler = new ProfilingSampler("ComputeCaptureDepth");
         static readonly ProfilingSampler s_CaptureTransferSampler = new ProfilingSampler("CopyCaptureNormalFrame");
 
@@ -156,7 +157,7 @@ namespace InfinityTech.Rendering.Pipeline
                     case "SSRMeta": id = InfinityShaderIDs.SSRMetaBuffer; break;
                     case "SSRTileClass": id = Shader.PropertyToID("Capture_SSRTileClass"); break;
                     case "SSGIRayHit": id = InfinityShaderIDs.SSGIRayHitBuffer; break;
-                    case "SSGITraceRadiance": id = InfinityShaderIDs.SSGITraceRadianceBuffer; break;
+                    case "SSGITraceRadiance": id = Shader.PropertyToID("Capture_SSGITraceRadiance"); break;
                     case "SSGITemporal": id = InfinityShaderIDs.SSGITemporalBuffer; break;
                     case "SSGIMeta": id = InfinityShaderIDs.SSGIMetaBuffer; break;
                     case "SSGIHitDistance": id = InfinityShaderIDs.SSGIHitDistanceBuffer; break;
@@ -196,7 +197,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public RGTextureRef source, destination;
             public ComputeShader shader;
-            public int width, height;
+            public int width, height, kernel;
         }
 
         RGTextureRef ConvertCaptureDepth(RGTextureRef source, TextureDescriptor descriptor)
@@ -228,6 +229,32 @@ namespace InfinityTech.Rendering.Pipeline
             return destination;
         }
 
+        RGTextureRef ConvertCaptureMetadata(RGTextureRef source, TextureDescriptor descriptor)
+        {
+            var shader = Resources.Load<ComputeShader>("Compute_CaptureTexture");
+            if (shader == null || !shader.HasKernel("CaptureSurfaceMetadata"))
+                throw new InvalidOperationException("Surface diagnostics require CaptureSurfaceMetadata.");
+            descriptor.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
+            descriptor.enableRandomWrite = true; descriptor.name = "CaptureSurfaceValues";
+            var destination = m_RGBuilder.CreateTexture(descriptor);
+            using (var pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureMetadataSampler))
+            {
+                ref var data = ref pass.GetPassData<CaptureDepthPassData>();
+                data.source = pass.ReadTexture(source); data.destination = pass.WriteTexture(destination);
+                data.shader = shader; data.width = descriptor.width; data.height = descriptor.height;
+                data.kernel = shader.FindKernel("CaptureSurfaceMetadata");
+                pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
+                {
+                    int kernel = data.kernel;
+                    commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureSize"), new Vector4(data.width, data.height, 0, 0));
+                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("SRV_CaptureMetadata"), data.source);
+                    commands.SetComputeTextureParam(data.shader, kernel, Shader.PropertyToID("UAV_Capture"), data.destination);
+                    commands.DispatchCompute(data.shader, kernel, (data.width + 7) / 8, (data.height + 7) / 8, 1);
+                });
+            }
+            return destination;
+        }
+
         void RecordCaptureTransfer(RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
         {
             RGTextureRef source = m_RGScoper.QueryTexture(shaderId);
@@ -245,6 +272,11 @@ namespace InfinityTech.Rendering.Pipeline
             if (descriptor.depthBufferBits != EDepthBits.None)
             {
                 source = ConvertCaptureDepth(source, descriptor);
+                descriptor = m_RGBuilder.GetTextureDescriptor(source);
+            }
+            if (descriptor.colorFormat == GraphicsFormat.R32G32_UInt)
+            {
+                source = ConvertCaptureMetadata(source, descriptor);
                 descriptor = m_RGBuilder.GetTextureDescriptor(source);
             }
             RenderCaptureSession.Staging staging = session.Reserve(semantic, producer, descriptor, m_CameraUniform.historyReset);

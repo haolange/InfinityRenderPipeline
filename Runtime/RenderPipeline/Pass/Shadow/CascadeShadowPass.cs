@@ -72,11 +72,11 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.CascadeShadowMap, shadowMapDsc);
 
             int lightIndex = allocator.CascadeVisibleLightIndex;
-            Matrix4x4[] shadowMatrices = new Matrix4x4[cascadeCount];
-            Vector4[] tileRects = new Vector4[cascadeCount];
+            Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);
+            Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
             Vector4 cascadeSplitDistances = allocator.CascadeSplitDistances;
-            RGDrawListRef[] cascadeDraws = new RGDrawListRef[cascadeCount];
-            RGRendererListRef[] cascadeRendererLists = new RGRendererListRef[cascadeCount];
+            RGDrawListRef[] cascadeDraws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(cascadeCount);
+            RGRendererListRef[] cascadeRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(cascadeCount);
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
             {
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
                         continue;
                     }
 
-                    var cascadePlanes = new Plane[slice.splitData.cullingPlaneCount];
+                    var cascadePlanes = m_RGBuilder.GetRecordingArray<Plane>(slice.splitData.cullingPlaneCount);
                     for (int plane = 0; plane < cascadePlanes.Length; plane++)
                         cascadePlanes[plane] = slice.splitData.GetCullingPlane(plane);
                     MeshView cascadeView = MeshView.FromCascadeShadow(
@@ -135,8 +135,8 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.cascadeCount = cascadeCount;
                     passData.allocatedCount = allocator.CascadeAllocatedCount;
-                    passData.spheres = (Vector4[])allocator.CascadeSpheres.Clone();
-                    passData.valid = new bool[cascadeCount];
+                    passData.spheres = m_RGBuilder.SnapshotRecordingArray(allocator.CascadeSpheres);
+                    passData.valid = m_RGBuilder.GetRecordingArray<bool>(cascadeCount);
                     for (int i = 0; i < cascadeCount; i++) passData.valid[i] = allocator.CascadeSlices[i].valid;
                     passData.shadowMapResolution = shadowMapResolution;
                     passData.shadowDistance = shadowDistance;
@@ -145,12 +145,12 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.shadowMatrices = shadowMatrices;
                     passData.tileRects = tileRects;
                     passData.cascadeSplitDistances = cascadeSplitDistances;
-                    passData.casterBias = new Vector4[cascadeCount];
+                    passData.casterBias = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
                     for (int i = 0; i < cascadeCount; i++) passData.casterBias[i] = allocator.CascadeSlices[i].casterBias;
                     if (lightIndex >= 0) passData.casterLight = -cullingResults.visibleLights[lightIndex].light.transform.forward;
 
-                    passData.draws = new RGDrawListRef[cascadeCount];
-                    passData.rendererLists = new RGRendererListRef[cascadeCount];
+                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(cascadeCount);
+                    passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(cascadeCount);
                     for (int cascade = 0; cascade < cascadeCount; ++cascade)
                     {
                         passData.draws[cascade] = cascadeDraws[cascade].IsValid
@@ -175,7 +175,7 @@ namespace InfinityTech.Rendering.Pipeline
                     for (int cascade = 0; cascade < passData.cascadeCount; ++cascade)
                     {
                         if (!passData.valid[cascade]) continue;
-                        string cascadeMarker = $"CascadeSlice{cascade}";
+                        string cascadeMarker = MeshDrawProfiling.Slice(EMeshViewKind.CascadeShadow, cascade);
                         cmdEncoder.BeginSample(cascadeMarker);
                         Vector4 rect = passData.tileRects[cascade];
                         cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));

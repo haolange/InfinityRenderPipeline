@@ -96,16 +96,16 @@ namespace InfinityTech.Rendering.Pipeline
             int tileResolution = math.max(1, shadowMapResolution / 4);
 
 
-            Matrix4x4[] shadowMatrices = new Matrix4x4[matrixCount];
-            Vector4[] tileRects = new Vector4[matrixCount];
-            Vector4[] casterBias = new Vector4[matrixCount];
-            Vector4[] casterLight = new Vector4[matrixCount];
-            RGDrawListRef[] sliceDraws = new RGDrawListRef[matrixCount];
-            RGRendererListRef[] sliceRendererLists = new RGRendererListRef[matrixCount];
+            Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(matrixCount);
+            Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
+            Vector4[] casterBias = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
+            Vector4[] casterLight = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
+            RGDrawListRef[] sliceDraws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(matrixCount);
+            RGRendererListRef[] sliceRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(matrixCount);
             // Cache slot per slice (-1 = rendered into the frame atlas) and whether the slot re-renders this frame.
-            int[] cacheSlots = new int[matrixCount];
-            bool[] cacheRender = new bool[matrixCount];
-            FShadowCacheKey[] cacheKeys = new FShadowCacheKey[matrixCount];
+            int[] cacheSlots = m_RGBuilder.GetRecordingArray<int>(matrixCount);
+            bool[] cacheRender = m_RGBuilder.GetRecordingArray<bool>(matrixCount);
+            FShadowCacheKey[] cacheKeys = m_RGBuilder.GetRecordingArray<FShadowCacheKey>(matrixCount);
             for (int i = 0; i < matrixCount; ++i)
             {
                 shadowMatrices[i] = Matrix4x4.identity;
@@ -168,7 +168,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                Plane[] shadowPlanes = new Plane[local.splitData.cullingPlaneCount];
+                Plane[] shadowPlanes = m_RGBuilder.GetRecordingArray<Plane>(local.splitData.cullingPlaneCount);
                 for (int plane = 0; plane < shadowPlanes.Length; plane++) shadowPlanes[plane] = local.splitData.GetCullingPlane(plane);
                 MeshView localView = MeshView.FromLocalShadow(
                     lightInstanceId,
@@ -205,8 +205,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;
                     passData.casterLight = casterLight;
-                    passData.draws = new RGDrawListRef[matrixCount];
-                    passData.rendererLists = new RGRendererListRef[matrixCount];
+                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(matrixCount);
+                    passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(matrixCount);
                     for (int slice = 0; slice < matrixCount; ++slice)
                     {
                         // Current cached tiles have no draws; they are copied in from the cache afterwards.
@@ -233,7 +233,7 @@ namespace InfinityTech.Rendering.Pipeline
                         bool hasDraws = passData.draws[slice].IsValid;
                         bool hasRendererList = passData.rendererLists[slice].IsValid;
                         if (!hasDraws && !hasRendererList) continue;
-                        string faceMarker = $"LocalShadowSlice{slice}";
+                        string faceMarker = MeshDrawProfiling.Slice(EMeshViewKind.LocalShadow, slice);
                         cmdEncoder.BeginSample(faceMarker);
                         Vector4 rect = passData.tileRects[slice];
                         DrawShadowSlice(cmdEncoder, rect, passData.casterBias[slice], passData.casterLight[slice], passData.shadowMatrices[slice],
@@ -289,9 +289,9 @@ namespace InfinityTech.Rendering.Pipeline
 
             int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterCopyShadowDepthTile");
             if (shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required CopyShadowDepthTile shader pass is missing.");
-            var frameRects = new Vector4[saveCount + loadCount];
-            var cacheRects = new Vector4[saveCount + loadCount];
-            var keys = new FShadowCacheKey[saveCount];
+            var frameRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
+            var cacheRects = m_RGBuilder.GetRecordingArray<Vector4>(saveCount + loadCount);
+            var keys = m_RGBuilder.GetRecordingArray<FShadowCacheKey>(saveCount);
             int save = 0, load = saveCount;
             for (int slice = 0; slice < sliceCount; ++slice)
             {
@@ -320,8 +320,8 @@ namespace InfinityTech.Rendering.Pipeline
                 data.source = pass.ReadTexture(source);
                 data.shaderPass = shaderPass;
                 data.count = count;
-                data.sourceRects = new Vector4[count];
-                data.destinationRects = new Vector4[count];
+                data.sourceRects = m_RGBuilder.GetRecordingArray<Vector4>(count);
+                data.destinationRects = m_RGBuilder.GetRecordingArray<Vector4>(count);
                 System.Array.Copy(sourceRects, first, data.sourceRects, 0, count);
                 System.Array.Copy(destinationRects, first, data.destinationRects, 0, count);
                 if (observer != null) pass.SetQueueObserver(observer);

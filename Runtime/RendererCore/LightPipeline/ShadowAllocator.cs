@@ -169,18 +169,25 @@ namespace InfinityTech.Rendering.LightPipeline
         internal static int SelectWithinBudget(float[] scores, int[] recordIndices, int[] faceCounts, int maxLocalLights, int tileBudget,
             int[] acceptedRecords, out int tilesUsed, out int dropped)
         {
-            int count = scores.Length;
-            var order = new int[count];
-            for (int i = 0; i < count; ++i)
+            return SelectWithinBudget(scores, recordIndices, faceCounts, maxLocalLights, tileBudget, acceptedRecords, scores.Length, out tilesUsed, out dropped);
+        }
+        readonly struct ShadowBudgetComparer : System.Collections.Generic.IComparer<int>
+        {
+            readonly float[] m_Scores; readonly int[] m_Records;
+            internal ShadowBudgetComparer(float[] scores, int[] records) { m_Scores = scores; m_Records = records; }
+            public int Compare(int a, int b)
             {
-                order[i] = i;
+                int cmp = m_Scores[b].CompareTo(m_Scores[a]);
+                return cmp != 0 ? cmp : m_Records[a].CompareTo(m_Records[b]);
             }
-
-            Array.Sort(order, (a, b) =>
-            {
-                int cmp = scores[b].CompareTo(scores[a]);
-                return cmp != 0 ? cmp : recordIndices[a].CompareTo(recordIndices[b]);
-            });
+        }
+        static int SelectWithinBudget(float[] scores, int[] recordIndices, int[] faceCounts, int maxLocalLights, int tileBudget,
+            int[] acceptedRecords, int count, out int tilesUsed, out int dropped)
+        {
+            using var order = new NativeArray<int>(count, Allocator.Temp);
+            var writableOrder = order;
+            for (int i = 0; i < count; ++i) writableOrder[i] = i;
+            order.Sort(new ShadowBudgetComparer(scores, recordIndices));
 
             tilesUsed = 0;
             dropped = 0;
@@ -201,6 +208,16 @@ namespace InfinityTech.Rendering.LightPipeline
             return accepted;
         }
 
+        LocalShadowCache.SamplingState[][] m_CachedSampling = Array.Empty<LocalShadowCache.SamplingState[]>();
+        int[] m_FaceCounts = Array.Empty<int>(), m_CandidateRecords = Array.Empty<int>(), m_AcceptedRecords = Array.Empty<int>();
+        float[] m_CandidateScores = Array.Empty<float>();
+        static T[] BudgetStorage<T>(ref T[] values, int count)
+        {
+            if (values.Length < count) Array.Resize(ref values, math.ceilpow2(math.max(1, count)));
+            return values;
+        }
+        static readonly Plane[] s_CullingPlanes = new Plane[6];
+
         void AllocateLocal(
             NativeList<FLightRecord> records,
             in CullingResults cullingResults,
@@ -212,7 +229,8 @@ namespace InfinityTech.Rendering.LightPipeline
             int tileBudget,
             int maxLocalLights, LocalShadowCache shadowCache)
         {
-            var cached = new LocalShadowCache.SamplingState[records.Length][];
+            var cached = BudgetStorage(ref m_CachedSampling, records.Length);
+            Array.Clear(cached, 0, cached.Length);
             if (shadowCache != null)
                 for (int i = 0; i < records.Length; ++i)
                 {
@@ -259,9 +277,9 @@ namespace InfinityTech.Rendering.LightPipeline
                 write++;
             }
 
-            var faceCounts = new int[write];
-            var candidateScores = new float[write];
-            var candidateRecords = new int[write];
+            var faceCounts = BudgetStorage(ref m_FaceCounts, write);
+            var candidateScores = BudgetStorage(ref m_CandidateScores, write);
+            var candidateRecords = BudgetStorage(ref m_CandidateRecords, write);
             for (int c = 0; c < write; ++c)
             {
                 candidateScores[c] = scores[c];
@@ -269,8 +287,8 @@ namespace InfinityTech.Rendering.LightPipeline
                 faceCounts[c] = cached[recordIndices[c]]?.Length ?? FLightRecordPack.LocalShadowSliceCount(records[recordIndices[c]]);
             }
 
-            var acceptedRecords = new int[math.min(maxLocalLights, write)];
-            int accepted = SelectWithinBudget(candidateScores, candidateRecords, faceCounts, maxLocalLights, tileBudget, acceptedRecords, out int tilesUsed, out int dropped);
+            var acceptedRecords = BudgetStorage(ref m_AcceptedRecords, math.min(maxLocalLights, write));
+            int accepted = SelectWithinBudget(candidateScores, candidateRecords, faceCounts, maxLocalLights, tileBudget, acceptedRecords, write, out int tilesUsed, out int dropped);
             MeshPipelineDiagnostics.LocalShadowBudgetDropped += dropped;
 
             EnsureLocalCapacity(math.max(1, tilesUsed));
@@ -456,7 +474,8 @@ namespace InfinityTech.Rendering.LightPipeline
         static ShadowSplitData CullingSplit(Matrix4x4 cullingMatrix, float near)
         {
             var split = new ShadowSplitData();
-            Plane[] planes = GeometryUtility.CalculateFrustumPlanes(cullingMatrix);
+            Plane[] planes = s_CullingPlanes;
+            GeometryUtility.CalculateFrustumPlanes(cullingMatrix, planes);
             split.cullingPlaneCount = planes.Length;
             for (int i = 0; i < planes.Length; ++i)
             {

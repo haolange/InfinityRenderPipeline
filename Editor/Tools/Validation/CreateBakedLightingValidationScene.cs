@@ -39,9 +39,8 @@ namespace InfinityTech.Rendering.Editor.Validation
             fixture.Primitive(PrimitiveType.Cube, "Emissive Panel", new Vector3(0, 4.95f, -2), new Vector3(2, 0.05f, 1), emissive, true);
 
             fixture.Primitive(PrimitiveType.Sphere, "Dynamic Sphere (probes)", new Vector3(1.5f, 1, -1), Vector3.one * 1.2f, dynamic);
-            GameObject capsule = fixture.Primitive(PrimitiveType.Capsule, "Dynamic Capsule (LPPV)", new Vector3(-2.5f, 1.5f, -2.5f), new Vector3(1, 1.5f, 1), dynamic);
-            capsule.AddComponent<LightProbeProxyVolume>();
-            capsule.GetComponent<Renderer>().lightProbeUsage = LightProbeUsage.UseProxyVolume;
+            GameObject capsule = fixture.Primitive(PrimitiveType.Capsule, "Dynamic Capsule (probes)", new Vector3(-2.5f, 1.5f, -2.5f), new Vector3(1, 1.5f, 1), dynamic);
+            capsule.GetComponent<Renderer>().lightProbeUsage = LightProbeUsage.BlendProbes;
 
             Light sun = fixture.Light("Sun (Mixed)", Vector3.zero, new Vector3(30, 180, 0), EInfinityLightType.Directional, new Color(1, 0.95f, 0.85f), 3);
             sun.lightmapBakeType = LightmapBakeType.Mixed;

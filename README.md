@@ -72,3 +72,13 @@ Mesh Drawing Pipeline draw markers use `RenderLoop.*` for ordinary views and `Sh
 [ExampleProject](https://github.com/haolange/InfinityExample)
 
 ![image](https://user-images.githubusercontent.com/12471727/130435193-ab3519fe-cc88-4287-ade9-024fea5b642f.png)
+
+### Runtime Mesh updates
+
+Configure `MeshComponent` through `MeshAsset`, `Mobility`, typed instance properties and `SetMaterials`; `Materials` is read-only. Dynamic world transforms update automatically, including parent motion. Call `NotifyInstanceChanged()` after static pose changes, `NotifyGeometryChanged()` after modifying Mesh geometry in place, and `MeshComponent.NotifyMaterialRoutingChanged(material)` after direct queue/pass edits. Route/stage edits use `MaterialRouteUtility.ApplyPassState(material)`. Call `MeshComponent.NotifyBakedLightingChanged()` after runtime LightmapSettings edits. Ordinary color/texture uniforms retain Unity Material behavior. These APIs retain existing serialized asset identities and never migrate assets on load.
+
+Select the Mesh backend with the RP Asset's `meshBackendPolicy` (Auto by default). Rendering Debugger provides a temporary override and clear action. CPU Direct and GPU Indirect share scene data and motion history. See [Feature status](Docs/FeatureStatus.md) for actual platform/GC/HDR verification limits.
+
+### Native HDR output
+
+Enable HDR display support in Unity Player Settings and activate the display through Unity's HDR output API before selecting HDR output on the RP Asset. Match the encoding to the active swapchain: this Mac's XDR output reports a floating-point, linear Rec.2020 target and uses `Rec2020_Linear`; PQ and scRGB describe different contracts. The pipeline validates the active mode, format and gamut, owns output conversion and temporarily disables Unity's automatic HDR tonemapping. Existing serialized encoding numbers retain their values. See the [convergence receipt](Docs/History/MainThread-20261025/Report.md) for the native Metal evidence and remaining platform limits.

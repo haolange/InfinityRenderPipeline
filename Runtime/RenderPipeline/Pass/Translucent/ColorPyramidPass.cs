@@ -19,6 +19,18 @@ namespace InfinityTech.Rendering.Pipeline
         internal static int ColorPyramid_SrcScaleID = Shader.PropertyToID("_SrcScale");
         internal const int KernelMain = 0;
 
+        static readonly System.Collections.Generic.Dictionary<int, string> s_MipLabels = new System.Collections.Generic.Dictionary<int, string>();
+        static string MipLabel(int first, int last)
+        {
+            int key = first * 32 + last;
+            if (!s_MipLabels.TryGetValue(key, out string label))
+            {
+                label = $"ColorPyramid_Mip{first}-{last}";
+                s_MipLabels.Add(key, label);
+            }
+            return label;
+        }
+
         internal static void DispatchMipBatches(in RGComputeEncoder cmdEncoder, ComputeShader shader, RGTextureRef sourceTexture, RGTextureRef pyramidTexture, int2 resolution, int mipCount)
         {
             int kernel = KernelMain;
@@ -37,7 +49,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int groupsX = math.max(1, Mathf.CeilToInt(outWidth / 8.0f));
                 int groupsY = math.max(1, Mathf.CeilToInt(outHeight / 8.0f));
                 int lastMip = startMip + writeCount - 1;
-                string mipMarker = $"ColorPyramid_Mip{startMip}-{lastMip}";
+                string mipMarker = MipLabel(startMip, lastMip);
 
                 cmdEncoder.BeginSample(mipMarker);
                 cmdEncoder.SetComputeIntParam(shader, ColorPyramid_MipWriteCountID, writeCount);

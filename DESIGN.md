@@ -120,13 +120,13 @@ run. Buffers bound to a live command buffer are never grown or recreated.
 
 ## 8. GPU backend
 
-`EMeshBackendPolicy`: `Auto`, `CpuDirect`, `GpuIndirect`, `GpuIndirectFullPass` (no consumer). `Auto` resolves to
+`EMeshBackendPolicy`: `Auto`, `CpuDirect`, `GpuIndirect`. `Auto` resolves to
 `GpuIndirect` when instancing, compute, the compute shader and its four kernels are available, otherwise `CpuDirect`.
 Payloads are rented per DrawList from a pool; there is no process-global indirect buffer. No same-frame visible-count
 readback; overflow falls back to `CpuDirect` and increments `GpuOverflowCount`. The compute shader resolves from
 GlobalSettings (`InfinityRenderPipelineRuntimeShaders.meshDrawPipelineCS`).
 
-Out of scope: HZB occlusion, GPU sort of draw keys, GPU LOD, meshlets.
+Out of scope: GPU sort of draw keys, GPU LOD, meshlets.
 
 ## 9. Public API sketch
 
@@ -148,8 +148,7 @@ cmdEncoder.Draw(data.draws);
 
 ## 10. Non-goals
 
-HZB occlusion, GPU radix sort of draw keys, GPU LOD, meshlets, replacing RendererLists for Unity `MeshRenderer`s,
-in-place mesh topology rewrite without a section revision (re-register the `MeshComponent` after such edits).
+GPU radix sort of draw keys, GPU LOD, meshlets and replacing RendererLists for Unity `MeshRenderer`s. In-place mesh edits advance the shared geometry revision through an explicit `NotifyGeometryChanged` call.
 
 ## 11. Diagnostics
 
@@ -182,7 +181,7 @@ in-place mesh topology rewrite without a section revision (re-register the `Mesh
 
 `ERenderingLayer : byte` with `[Flags]` (`Nothing` … `Everything = 0xFF`) is the shared Mesh/Light mask.
 `MeshFilterProgram` tests rendering layers only when `filterRenderingLayers` is enabled (shadow passes); camera
-passes leave it disabled. `MeshComponent.renderingLayer` is flags, not an int layer index.
+passes leave it disabled. `MeshComponent.RenderingLayer` is flags, not an int layer index.
 
 ## 15. Full rendering pipeline (locked order)
 
@@ -201,10 +200,12 @@ Camera
 |   |-- Classify -> Trace (half or full)
 |   `-- Resolve -> Temporal -> optional Spatial              [full resolution]
 |-- SSGI                                                    [async eligible]
-|   |-- Classify -> cosine Trace + previous-color sampling
+|   |-- LDS tile binning -> compact cosine Trace + previous-color sampling
 |   `-- Temporal -> world-space Spatial -> reconstruction    [half work grid; Ultra full]
 |-- CascadeShadow / LocalShadow -> ShadowMoments              [independent raster window]
-|-- Deferred -> Forward -> ScreenSpaceComposite              [Graphics]
+|-- Deferred -> Forward                                      [Graphics]
+|-- SSR / SSGI (same producers here when no Async queue)
+|-- ScreenSpaceComposite                                     [Graphics]
 |-- CopyHistorySSR (pre-spatial) / CopyHistorySSGI (filtered)
 |-- Burley diffuse diffusion (half) -> recomposition (full)   [Graphics]
 |-- AtmosphericSkyAndFog
@@ -472,10 +473,24 @@ Frame submission records three separate outcomes: the final fence command batch 
 
 ### Screen-space working grids and diffuse scattering
 
-SSR alone retains full-resolution Resolve/Temporal/Spatial and effect history while optionally tracing half resolution. SSGI has no Resolve kernel or ray-reuse controls: cosine tracing reads the shared accepted previous-color mips directly. Its temporal, recurrent world-space spatial and geometric history stay on the selected working grid, with geometric reconstruction at full resolution. Low/Medium/High use half resolution, Ultra full, and Custom keeps its explicit HalfResolution choice. Metadata is RGBA32F; radiance is HDR RGBA16F. A view accepts its previous quad phase only with successful camera history submission.
+SSR alone retains full-resolution Resolve/Temporal/Spatial and effect history while optionally tracing half resolution. SSGI has no Resolve kernel or ray-reuse controls: cosine tracing reads the shared accepted previous-color mips directly. Its temporal, recurrent world-space spatial and geometric history stay on the selected working grid, with geometric reconstruction at full resolution. Low/Medium/High use half resolution, Ultra full, and Custom keeps its explicit HalfResolution choice. Metadata is RG32UInt (exact float32 depth bits, 12+12-bit oct normal, 7-bit age and validity); radiance is HDR RGBA16F. A view accepts its previous quad phase only with successful camera history submission.
 
 SSGI spatial filtering uses sixteen rotated tangent-plane taps with a world-space radius derived from hit distance and pixel footprint, bounded to one through eight working pixels. Projection uses current jittered matrices; plane distance and normal agreement reject unrelated neighbors. Premultiplied radiance and coverage are filtered together. Reconstruction interpolates the rotating representatives' actual pixel positions, including the shorter last interval at odd extents. SSR history is retained before spatial filtering; SSGI retains the filtered working result.
 
 SSS allocates a diffuse-only component only for supported, active rendering. Deferred and opaque Forward variants produce direct plus environment diffuse; screen-space indirect replacement updates that component consistently. Burley diffusion integrates compatible half-grid quads and rejects mismatched profiles, shading models, depth and normals. Diffusion parameters come from each material's profile index; Volume activation never overrides every material with profile zero. Full-resolution recomposition modifies opaque color by filtered diffuse minus original diffuse, retaining specular/emission and unscattered surfaces. Subpixel diffusion preserves the original diffuse. Existing material routing still requires opaque Deferred SSS; the Forward MRT variant follows the same lighting-output contract without changing that routing restriction.
 
-Previous-color effects do not consume current-frame lighting. They are scheduled before shadow rasterization; graphics history copies follow the independent raster window. AO/contact are earlier async jobs because Deferred needs them first. Early HiZ/recovery and late SSS/temporal/post remain on Graphics where there is no independent raster window. This is an execution policy, not a hardware performance result.
+Previous-color effects do not consume current-frame lighting. On Async-capable devices they precede shadow rasterization, with graphics history copies after that independent window. Without an Async queue they follow Deferred/Forward immediately before composition to shorten live ranges. AO/contact are earlier jobs because Deferred needs them first. Early HiZ/recovery and late SSS/temporal/post remain on Graphics where there is no independent raster window. This is an execution policy, not a hardware performance result.
+
+## Explicit component updates and bounded hot-path storage
+
+`MeshComponent` caches its Transform/Renderer and shared Mesh/material metadata. Serialized field names and GUIDs remain stable; typed setters and `SetMaterials` are the runtime API, and no mutable material array escapes. Geometry and route revisions advance only on explicit notifications. Dynamic transforms use a persistent TransformAccessArray and a Burst world-matrix/bounds job; static transforms require notification. Probe requests derive from pose/configuration/probe-version changes. Changes are coalesced and applied through one MeshScene transaction before residency and camera recording.
+
+The scene owns reusable transaction undo/dirty snapshots. `MeshSceneUpdate` is a generation-checked value lease; copied stale leases cannot close a new transaction. Each instance links only its own draws, so removal/undo capture no longer scans all draw slots. Graph compile arrays, consumer lists, frusta, candidate staging and transform patch arrays are reused only after their actual owners finish. Zero-GC measurement covers fixed-size normal library render/proxy calls after warmup, including continuous movement; diagnostic observers, initialization and growth are reported separately.
+
+Asset `meshBackendPolicy` defaults to Auto; the Debugger can temporarily override it and clear the override. Explicit task/capture policy is camera-bounded. There is one backend selection path and one public DrawList API.
+
+SSGI binning initializes zero contribution and distance for every logical working pixel, compacts the valid lanes with LDS prefix into one ray interval per nonempty tile, then builds a 64-wide one-dimensional indirect dispatch in the same graph node. Trace/Spatial alias one work texture and Temporal has independent storage. Explicit Trace captures snapshot before Spatial overwrites it. Normal frames allocate neither RayHit nor a skipped-ray list. SSR retains its full-resolution Resolve/Temporal/Spatial contract. Without hardware Async Compute, screen-space traces are recorded after Deferred/Forward and immediately before composition to shorten live ranges; Async-capable devices keep the shadow-overlap window.
+
+HDR capability is live state, including pending transition, actual format, gamut and paper white. Native linear Rec.2020 is encoded with CoreRP primaries conversion and the platform HDR reference white; it is not PQ or P3. Output owns auto tonemapping while active and restores it. Physical memory diagnostics count pool, image history and other persistent textures by physical identity; estimates are format-based and do not claim driver residency.
+
+Unity lightmap arrays are captured once per lighting revision. Scene load/unload, Editor lighting updates and explicit `MeshComponent.NotifyBakedLightingChanged()` invalidate that snapshot; runtime lightmap replacement must notify after the edit. RTAO environment synchronization occurs only when the existing Asset, Volume and capability gates request it, so inactive RTAO does not rebuild geometry during unrelated object movement.

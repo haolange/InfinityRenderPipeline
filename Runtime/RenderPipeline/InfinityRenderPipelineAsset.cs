@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering;
 using InfinityTech.Rendering.Feature;
+using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline
 {
@@ -23,6 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
         public bool enableSRPBatch = true;
         public bool enableDynamicBatch = true;
         public bool enableInstanceBatch = true;
+        public EMeshBackendPolicy meshBackendPolicy = EMeshBackendPolicy.Auto;
 
         [SerializeField, Range(0.5f, 1.0f)]
         float m_RenderScale = 1.0f;

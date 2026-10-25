@@ -47,6 +47,9 @@ namespace InfinityTech.Rendering.Pipeline
             public string unsupportedReason;
         }
 
+        internal readonly string[] supportReasons = new string[FeatureCount];
+        internal readonly bool[] supportEvaluated = new bool[FeatureCount], requestedClosure = new bool[FeatureCount];
+
         readonly FeatureState[] m_States = new FeatureState[FeatureCount];
 
         public static int Count => FeatureCount;

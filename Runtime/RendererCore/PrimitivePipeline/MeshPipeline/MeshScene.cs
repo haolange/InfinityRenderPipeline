@@ -26,6 +26,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         private NativeList<int> m_TransformFreeList;
 
         private NativeArray<MeshDraw> m_Draws;
+        private NativeArray<int> m_DrawNext;
+        internal int NextInstanceDraw(int index) => m_DrawNext[index];
+        internal readonly Dictionary<MeshSectionId, int> UndoSectionRefs = new Dictionary<MeshSectionId, int>(8);
+        internal readonly Dictionary<MaterialDataId, int> UndoMaterialRefs = new Dictionary<MaterialDataId, int>(8);
+        internal readonly Dictionary<MeshSectionId, MeshSectionRecord> UndoSections = new Dictionary<MeshSectionId, MeshSectionRecord>(8);
+        internal readonly Dictionary<MaterialDataId, MaterialDataRecord> UndoMaterials = new Dictionary<MaterialDataId, MaterialDataRecord>(8);
         private NativeArray<uint> m_DrawGenerations;
         private NativeList<int> m_DrawFreeList;
 
@@ -58,7 +64,9 @@ namespace InfinityTech.Rendering.MeshPipeline
         private DirtyPageBitmap m_TransformDirtyPages;
         private DirtyPageBitmap m_BoundsDirtyPages;
 
-        private MeshSceneUpdate m_ActiveUpdate;
+        private ulong m_UpdateGeneration;
+        internal readonly List<MeshSceneUndoEntry> TransactionUndo = new List<MeshSceneUndoEntry>(32);
+        internal bool IsUpdateActive(ulong generation) => m_InTransaction && generation == m_UpdateGeneration;
         private bool m_InTransaction;
         internal bool isUpdating => m_InTransaction;
         private readonly List<MeshSectionId> m_PendingSectionReclaims = new List<MeshSectionId>(8);
@@ -133,6 +141,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_TransformFreeList = new NativeList<int>(m_TransformCapacity, Allocator.Persistent);
 
             m_Draws = new NativeArray<MeshDraw>(m_DrawCapacity, Allocator.Persistent);
+            m_DrawNext = new NativeArray<int>(m_DrawCapacity, Allocator.Persistent);
             m_DrawGenerations = new NativeArray<uint>(m_DrawCapacity, Allocator.Persistent);
             m_DrawFreeList = new NativeList<int>(m_DrawCapacity, Allocator.Persistent);
 
@@ -159,25 +168,30 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new ObjectDisposedException(nameof(MeshScene));
             }
 
-            if (m_ActiveUpdate != null)
+            if (m_InTransaction)
             {
                 throw new InvalidOperationException("MeshScene update transaction already active.");
             }
 
             m_InTransaction = true;
-            m_TransactionStateSnapshot = SnapshotState();
-            m_ActiveUpdate = new MeshSceneUpdate(this);
-            return m_ActiveUpdate;
+            m_UpdateGeneration++;
+            TransactionUndo.Clear();
+            m_TransactionStateSnapshot.StructuralRevision = StructuralRevision;
+            m_TransactionStateSnapshot.ContentRevision = ContentRevision;
+            m_TransactionStateSnapshot.VisibilityRevision = VisibilityRevision;
+            m_TransactionStateSnapshot.TransformRevision = TransformRevision;
+            m_TransformDirtyPages.CopyWords(ref m_TransactionStateSnapshot.TransformDirtyPages);
+            m_BoundsDirtyPages.CopyWords(ref m_TransactionStateSnapshot.BoundsDirtyPages);
+            return new MeshSceneUpdate(this, m_UpdateGeneration);
         }
 
-        internal void EndUpdate(MeshSceneUpdate update, bool committed)
+        internal void EndUpdate(ulong generation, bool committed)
         {
-            if (m_ActiveUpdate != update)
+            if (!IsUpdateActive(generation))
             {
                 return;
             }
 
-            m_ActiveUpdate = null;
             m_InTransaction = false;
             if (!committed)
             {
@@ -599,8 +613,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         /// <summary>
-        /// Allocate a draw slot (free-list first). drawStart/drawCount are diagnostic only;
-        /// Filter matches draws by draw.instance.
+        /// Allocate a draw slot and link it to its owning instance. Bins still filter by draw.instance.
         /// </summary>
         internal MeshDrawId AllocDrawForInstance(MeshInstanceId instanceId, in MeshDraw drawRecord)
         {
@@ -613,11 +626,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             int drawIndex = AllocIndexedSlot(ref m_DrawFreeList, ref m_DrawHighWater, ref m_DrawCount, m_DrawGenerations);
 
             MeshInstanceRecord instance = m_Instances[(int)instanceId.Index];
-            if (instance.drawStart < 0)
-            {
-                instance.drawStart = drawIndex;
-            }
-
+            m_DrawNext[drawIndex] = instance.drawStart;
+            instance.drawStart = drawIndex;
             instance.drawCount += 1;
 
             MeshDraw stored = drawRecord;
@@ -639,27 +649,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            MeshDraw draw = m_Draws[(int)id.Index];
-            if (IsInstanceAlive(draw.instance))
-            {
-                MeshInstanceRecord instance = m_Instances[(int)draw.instance.Index];
-                instance.drawCount = math.max(0, instance.drawCount - 1);
-                if (instance.drawCount == 0)
-                {
-                    instance.drawStart = -1;
-                }
-
-                m_Instances[(int)draw.instance.Index] = instance;
-            }
-
             FreeDrawSlot((int)id.Index);
             StructuralRevision++;
         }
 
-        internal void RestoreDraw(MeshDrawId id, in MeshDraw record)
+        internal void RestoreDraw(MeshDrawId id, in MeshDraw record, int next)
         {
             int index = (int)id.Index;
             EnsureDrawCapacity(index + 1);
+            m_DrawNext[index] = next;
             if (IsDrawAlive(id))
             {
                 m_Draws[index] = record;
@@ -949,18 +947,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
             MeshInstanceRecord instance = m_Instances[(int)instanceId.Index];
 
-            for (int i = 0; i < m_DrawHighWater; ++i)
-            {
-                if (!IsDrawSlotLive(i))
-                {
-                    continue;
-                }
-
-                if (m_Draws[i].instance.Equals(instanceId))
-                {
-                    FreeDrawSlot(i);
-                }
-            }
+            while (m_Instances[(int)instanceId.Index].drawStart >= 0)
+                FreeDrawSlot(m_Instances[(int)instanceId.Index].drawStart);
 
             // Clear owner before FreeTransform so unconditional transform release stays safe.
             ClearTransformOwnerForInstance((int)instanceId.Index);
@@ -1198,6 +1186,21 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
 
             MeshDraw draw = m_Draws[index];
+            if (IsInstanceAlive(draw.instance))
+            {
+                int instanceIndex = (int)draw.instance.Index;
+                var instance = m_Instances[instanceIndex];
+                if (instance.drawStart == index) instance.drawStart = m_DrawNext[index];
+                else
+                {
+                    int previous = instance.drawStart;
+                    while (previous >= 0 && m_DrawNext[previous] != index) previous = m_DrawNext[previous];
+                    if (previous < 0) throw new InvalidOperationException("A live Draw lost its instance ownership link.");
+                    m_DrawNext[previous] = m_DrawNext[index];
+                }
+                instance.drawCount--; m_Instances[instanceIndex] = instance;
+            }
+            m_DrawNext[index] = -1;
             ReleaseSectionRef(draw.section);
             ReleaseMaterialRef(draw.material);
 
@@ -1280,6 +1283,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (needed <= m_DrawCapacity) return;
             int newCapacity = GrowCapacity(m_DrawCapacity, needed);
             ResizeArray(ref m_Draws, newCapacity);
+            ResizeArray(ref m_DrawNext, newCapacity);
             ResizeArray(ref m_DrawGenerations, newCapacity);
             m_DrawCapacity = newCapacity;
         }
@@ -1332,8 +1336,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
-            m_ActiveUpdate?.Rollback();
-            m_ActiveUpdate = null;
+            if (m_InTransaction) new MeshSceneUpdate(this, m_UpdateGeneration, false).Rollback();
             m_InTransaction = false;
             DiscardPendingReclaims();
 
@@ -1347,6 +1350,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (m_TransformFreeList.IsCreated) m_TransformFreeList.Dispose();
 
             if (m_Draws.IsCreated) m_Draws.Dispose();
+            if (m_DrawNext.IsCreated) m_DrawNext.Dispose();
             if (m_DrawGenerations.IsCreated) m_DrawGenerations.Dispose();
             if (m_DrawFreeList.IsCreated) m_DrawFreeList.Dispose();
 

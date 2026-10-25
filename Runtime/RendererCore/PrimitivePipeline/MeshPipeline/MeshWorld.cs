@@ -23,6 +23,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         private Camera m_ActiveCamera;
         private EMeshBackendPolicy? m_BackendOverride;
         private bool m_Disposed;
+        internal EMeshBackendPolicy assetBackendPolicy;
 
         public MeshScene Scene => m_Scene;
         public GpuScene Residency => m_Residency;
@@ -78,17 +79,15 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public EMeshBackendPolicy SelectPolicy()
         {
-            if (m_BackendOverride.HasValue)
-            {
-                return m_BackendOverride.Value;
-            }
-
-            if (m_ActiveCamera != null)
-            {
-                return RenderCaptureService.BackendFor(m_ActiveCamera);
-            }
-
-            return EMeshBackendPolicy.Auto;
+            var debug = InfinityDebugDisplaySettings.current.mesh;
+            EMeshBackendPolicy policy = m_BackendOverride ??
+                (m_ActiveCamera != null && RenderCaptureService.HasBackendOverride(m_ActiveCamera)
+                    ? RenderCaptureService.BackendFor(m_ActiveCamera) : debug.backendOverride ?? assetBackendPolicy);
+            debug.requestedBackend = policy;
+            debug.actualBackend = MeshDrawGPUBackend.SelectPolicy(policy);
+            debug.backendReason = policy == EMeshBackendPolicy.CpuDirect ? "Requested CPU Direct"
+                : MeshDrawGPUBackend.SupportsIndirect ? "Indirect drawing supported" : "Indirect drawing unsupported; CPU Direct";
+            return policy;
         }
 
         public MeshPassContext BindPass(in MeshView view, MeshPassId passId)

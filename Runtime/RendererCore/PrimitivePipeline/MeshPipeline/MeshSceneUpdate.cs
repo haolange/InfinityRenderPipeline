@@ -30,6 +30,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public EMeshSceneUndoOp op;
         public uint index;
         public uint generation;
+        public int drawNext;
         public TransformRecord transformRecord;
         public MeshInstanceRecord instanceRecord;
         public MeshDraw drawRecord;
@@ -41,22 +42,20 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// <summary>
     /// Structural transaction against MeshScene. Dispose without Commit rolls back via undo log.
     /// </summary>
-    public sealed class MeshSceneUpdate : IDisposable
+    public readonly struct MeshSceneUpdate : IDisposable
     {
         private readonly MeshScene m_Scene;
-        private readonly List<MeshSceneUndoEntry> m_UndoLog = new List<MeshSceneUndoEntry>(32);
-        private readonly MeshSceneRevisionSnapshot m_RevisionSnapshot;
-        private bool m_Committed;
-        private bool m_Disposed;
+        private readonly ulong m_Generation;
+        private List<MeshSceneUndoEntry> m_UndoLog => m_Scene.TransactionUndo;
 
-        internal MeshSceneUpdate(MeshScene scene)
+        internal MeshSceneUpdate(MeshScene scene, ulong generation, bool begin = true)
         {
             m_Scene = scene;
-            m_RevisionSnapshot = scene.SnapshotRevisions();
-            Push(new MeshSceneUndoEntry
+            m_Generation = generation;
+            if (begin) Push(new MeshSceneUndoEntry
             {
                 op = EMeshSceneUndoOp.RestoreRevisions,
-                revisions = m_RevisionSnapshot
+                revisions = scene.SnapshotRevisions()
             });
         }
 
@@ -155,6 +154,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return;
             }
 
+            if (previous.worldBounds.Equals(worldBounds)) return;
+
             Push(new MeshSceneUndoEntry
             {
                 op = EMeshSceneUndoOp.RestoreInstanceRecord,
@@ -188,6 +189,16 @@ namespace InfinityTech.Rendering.MeshPipeline
             });
 
             m_Scene.SetInstanceFlags(id, flags);
+        }
+
+        internal void SetInstanceLayerMask(MeshInstanceId id, int layerMask)
+        {
+            ThrowIfClosed();
+            if (!m_Scene.TryGetInstance(id, out MeshInstanceRecord previous)) throw new ArgumentException("Layer changes require a live instance.", nameof(id));
+            if (previous.layerMask == layerMask) return;
+            Push(new MeshSceneUndoEntry { op = EMeshSceneUndoOp.RestoreInstanceRecord, index = id.Index, generation = id.Generation, instanceRecord = previous });
+            previous.layerMask = layerMask;
+            m_Scene.WriteInstanceRecord(id, previous);
         }
 
         public void SetInstanceSceneCullingMask(MeshInstanceId id, ulong sceneCullingMask)
@@ -440,77 +451,40 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void Commit()
         {
             ThrowIfClosed();
-            m_Committed = true;
             m_UndoLog.Clear();
-            m_Scene.EndUpdate(this, true);
-            m_Disposed = true;
+            m_Scene.EndUpdate(m_Generation, true);
         }
 
         public void Rollback()
         {
-            if (m_Disposed || m_Committed)
-            {
-                return;
-            }
-
-            for (int i = m_UndoLog.Count - 1; i >= 0; --i)
-            {
-                ApplyUndo(m_UndoLog[i]);
-            }
-
+            if (m_Scene == null || !m_Scene.IsUpdateActive(m_Generation)) return;
+            for (int i = m_UndoLog.Count - 1; i >= 0; --i) ApplyUndo(m_UndoLog[i]);
             m_UndoLog.Clear();
-            // ApplyUndo restores slots/refCounts; state snapshot corrects highWater/counts/free-list Length/dirty.
             m_Scene.RestoreTransactionState();
-            m_Scene.EndUpdate(this, false);
-            m_Disposed = true;
+            m_Scene.EndUpdate(m_Generation, false);
         }
 
-        public void Dispose()
-        {
-            if (m_Disposed)
-            {
-                return;
-            }
-
-            if (!m_Committed)
-            {
-                Rollback();
-            }
-            else
-            {
-                m_Disposed = true;
-            }
-        }
+        public void Dispose() => Rollback();
 
         private void PushRemoveInstanceUndo(MeshInstanceId instanceId, in MeshInstanceRecord instance)
         {
             var draws = m_Scene.GetDraws();
             var drawGenerations = m_Scene.GetDrawGenerations();
-            int highWater = m_Scene.DrawHighWater;
 
-            var sectionRefFromInstance = new Dictionary<MeshSectionId, int>(8);
-            var materialRefFromInstance = new Dictionary<MaterialDataId, int>(8);
-            var sectionSnapshots = new Dictionary<MeshSectionId, MeshSectionRecord>(8);
-            var materialSnapshots = new Dictionary<MaterialDataId, MaterialDataRecord>(8);
+            var sectionRefFromInstance = m_Scene.UndoSectionRefs; sectionRefFromInstance.Clear();
+            var materialRefFromInstance = m_Scene.UndoMaterialRefs; materialRefFromInstance.Clear();
+            var sectionSnapshots = m_Scene.UndoSections; sectionSnapshots.Clear();
+            var materialSnapshots = m_Scene.UndoMaterials; materialSnapshots.Clear();
 
-            for (int i = 0; i < highWater; ++i)
+            for (int i = instance.drawStart; i >= 0; i = m_Scene.NextInstanceDraw(i))
             {
-                if (!m_Scene.IsDrawSlotLive(i))
-                {
-                    continue;
-                }
-
                 MeshDraw draw = draws[i];
-                if (!draw.instance.Equals(instanceId))
-                {
-                    continue;
-                }
-
                 Push(new MeshSceneUndoEntry
                 {
                     op = EMeshSceneUndoOp.RestoreDraw,
                     index = (uint)i,
                     generation = drawGenerations[i],
+                    drawNext = m_Scene.NextInstanceDraw(i),
                     drawRecord = draw
                 });
 
@@ -625,7 +599,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_Scene.FreeDraw(new MeshDrawId(entry.index, entry.generation));
                     break;
                 case EMeshSceneUndoOp.RestoreDraw:
-                    m_Scene.RestoreDraw(new MeshDrawId(entry.index, entry.generation), entry.drawRecord);
+                    m_Scene.RestoreDraw(new MeshDrawId(entry.index, entry.generation), entry.drawRecord, entry.drawNext);
                     break;
                 case EMeshSceneUndoOp.RestoreDrawRecord:
                     m_Scene.WriteDrawRecord(new MeshDrawId(entry.index, entry.generation), entry.drawRecord);
@@ -661,7 +635,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private void ThrowIfClosed()
         {
-            if (m_Disposed || m_Committed)
+            if (m_Scene == null || !m_Scene.IsUpdateActive(m_Generation))
             {
                 throw new ObjectDisposedException(nameof(MeshSceneUpdate));
             }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEditor;
 using InfinityTech.Rendering;
@@ -18,6 +18,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
         SerializedProperty m_RenderScale;
         SerializedProperty m_SRPBatch;
         SerializedProperty m_GPUInstance;
+        SerializedProperty m_MeshBackendPolicy;
         SerializedProperty m_DynamicBatch;
         SerializedProperty m_QualityVolumeProfile;
         SerializedProperty m_AtmosphericalProfile;
@@ -61,6 +62,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
             m_RenderScale = serializedObject.FindProperty("m_RenderScale");
             m_SRPBatch = serializedObject.FindProperty("enableSRPBatch");
             m_GPUInstance = serializedObject.FindProperty("enableInstanceBatch");
+            m_MeshBackendPolicy = serializedObject.FindProperty("meshBackendPolicy");
             m_DynamicBatch = serializedObject.FindProperty("enableDynamicBatch");
             m_QualityVolumeProfile = serializedObject.FindProperty("m_QualityVolumeProfile");
             m_AtmosphericalProfile = serializedObject.FindProperty("atmosphericalProfile");
@@ -161,6 +163,7 @@ namespace InfinityTech.Rendering.Pipeline.Editor
                 EditorGUILayout.PropertyField(m_SuperResolution, new GUIContent("Super Resolution"));
                 EditorGUILayout.PropertyField(m_RenderScale, new GUIContent("Render Scale"));
                 EditorGUILayout.PropertyField(m_SRPBatch, new GUIContent("SRP Batcher"));
+                EditorGUILayout.PropertyField(m_MeshBackendPolicy);
                 EditorGUILayout.PropertyField(m_GPUInstance, new GUIContent("GPU Instancing"));
                 EditorGUILayout.PropertyField(m_DynamicBatch, new GUIContent("Dynamic Batcher"));
                 EditorGUILayout.PropertyField(m_UpdateProxy, new GUIContent("Refresh Renderer Proxy"));

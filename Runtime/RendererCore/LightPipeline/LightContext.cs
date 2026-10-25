@@ -368,6 +368,11 @@ namespace InfinityTech.Rendering.LightPipeline
         // Builds this camera's reflection probe list from Unity's visible probes (already sorted by importance, then size),
         // assigns atlas slots (queuing filter passes) and bins the probes like local lights: logarithmic z-bins over the
         // list order and conservative tile rectangles of each influence volume's bounding sphere.
+        NativeArray<VisibleReflectionProbe> m_ProbeSortInput;
+        Comparison<int> m_ProbeComparison;
+        int CompareProbes(int a, int b) => ReflectionProbePriority.Compare(m_ProbeSortInput[a].importance, ReflectionProbePriority.Volume(m_ProbeSortInput[a].bounds),
+            m_ProbeSortInput[b].importance, ReflectionProbePriority.Volume(m_ProbeSortInput[b].bounds));
+
         internal void ResolveReflectionProbes(ReflectionProbeAtlas atlas, in CullingResults cullingResults, int frame)
         {
             m_Probes.Clear();
@@ -377,8 +382,10 @@ namespace InfinityTech.Rendering.LightPipeline
             // List order is the blending priority: higher importance first, then the smaller volume.
             m_ProbeOrder.Clear();
             for (int i = 0; i < visible.Length; ++i) m_ProbeOrder.Add(i);
-            m_ProbeOrder.Sort((a, b) => ReflectionProbePriority.Compare(visible[a].importance, ReflectionProbePriority.Volume(visible[a].bounds),
-                visible[b].importance, ReflectionProbePriority.Volume(visible[b].bounds)));
+            m_ProbeSortInput = visible;
+            if (m_ProbeComparison == null) m_ProbeComparison = CompareProbes;
+            m_ProbeOrder.Sort(m_ProbeComparison);
+            m_ProbeSortInput = default;
             for (int order = 0; atlas != null && atlas.Enabled && order < m_ProbeOrder.Count && m_Probes.Count < LightBinning.MaxLocalLights; ++order)
             {
                 VisibleReflectionProbe probe = visible[m_ProbeOrder[order]];

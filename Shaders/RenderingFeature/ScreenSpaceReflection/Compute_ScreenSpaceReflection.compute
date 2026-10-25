@@ -13,7 +13,7 @@
 // Trace resolution is full or half; tiles, quad rotation, ray records and ray reuse are shared with SSGI
 // (RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl).
 // Resolved / Temporal / SSRTexture (RGBA16F): rgb = radiance premultiplied by confidence, a = confidence.
-// Meta (RGBA32F): octahedral world normal, raw depth, history age in frames (0 = no history).
+// Meta (RG32UInt): exact depth, oct12x2 world normal, age7 and valid1.
 
 #pragma kernel SSRClassify
 #pragma kernel SSRClearSkipped
@@ -29,6 +29,7 @@
 #include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
 #include "../../ShaderLibrary/TemporalColorSource.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceSurfaceMetadata.hlsl"
 #include "../../ShaderLibrary/BSDF.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl"
@@ -76,12 +77,12 @@ Texture2D SRV_GBufferC;
 Texture2D<float4> SRV_HitMotionMetadata;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryRadiance;
-Texture2D SRV_HistoryMeta;
+Texture2D<uint2> SRV_HistoryMeta;
 Texture2D<float4> SRV_RayHit;
 Texture2D<float4> SRV_Resolved;
 Texture2D<float> SRV_HitDistance;
 Texture2D<float4> SRV_Temporal;
-Texture2D<float4> SRV_Meta;
+Texture2D<uint2> SRV_Meta;
 Texture2D<uint> SRV_TileClass;
 StructuredBuffer<uint> SRV_TileList;
 
@@ -92,7 +93,7 @@ RWTexture2D<float4> UAV_RayHit;
 RWTexture2D<float4> UAV_Resolved;
 RWTexture2D<float> UAV_HitDistance;
 RWTexture2D<float4> UAV_Temporal;
-RWTexture2D<float4> UAV_Meta;
+RWTexture2D<uint2> UAV_Meta;
 RWTexture2D<float4> UAV_Output;
 RWTexture2D<float4> UAV_Debug;
 
@@ -411,7 +412,7 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     if (!LoadSurface(pixel, surface))
     {
         UAV_Temporal[pixel] = 0;
-        UAV_Meta[pixel] = float4(0, 0, surface.rawDepth, 0);
+        UAV_Meta[pixel] = uint2(asuint(surface.rawDepth), 0);
         return;
     }
 
@@ -444,10 +445,10 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     bool validMotionSurface = motionSurface.z > 0 && isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
     // Use the previous object surface depth, rather than projecting its current pose.
     expectedDepth = validMotionSurface ? motionSurface.x : expectedDepth;
-    float historyValid = (validMotionSurface ? SSR_HistoryValid : 0) * HistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth, 2);
+    float historyValid = (validMotionSurface ? SSR_HistoryValid : 0) * SurfaceHistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth);
     if (historyValid > 0)
     {
-        float4 historyMeta = InfinitySampleLevel(SRV_HistoryMeta,Global_point_clamp_sampler,surfaceUV,0);
+        float4 historyMeta = LoadSurfaceMetadata(SRV_HistoryMeta,SRV_HistoryMeta_InfinityView,surfaceUV);
         float normalAgreement = dot(surface.normalWS, OctahedronToUnitVector(historyMeta.xy));
         historyValid = normalAgreement > 0.9 && historyMeta.w >= 1 ? 1 : 0;
         historyAge = historyValid > 0 ? historyMeta.w : 0;
@@ -474,7 +475,7 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
 
     float currentWeight = TemporalCurrentWeight(historyAge, SSR_TemporalWeight);
     UAV_Temporal[pixel] = max(0, lerp(history, current, currentWeight));
-    UAV_Meta[pixel] = float4(UnitVectorToOctahedron(surface.normalWS), surface.rawDepth, NextHistoryAge(historyAge));
+    UAV_Meta[pixel] = EncodeSurfaceMetadata(surface.normalWS, surface.rawDepth, (uint)NextHistoryAge(historyAge), true);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -558,7 +559,7 @@ void SSRDebug(uint3 id : SV_DispatchThreadID)
     }
     else if (SSR_DebugMode == DEBUGVIEW_SSRHISTORYAGE)
     {
-        color = saturate(SRV_Meta[tracePixel].w / 16.0).xxx;
+        color = saturate(DecodeSurfaceMetadata(SRV_Meta[tracePixel]).w / 16.0).xxx;
     }
     UAV_Debug[pixel] = float4(color, 1);
 }

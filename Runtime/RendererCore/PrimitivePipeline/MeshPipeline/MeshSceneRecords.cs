@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public int refCount;
         public uint revision;
         /// <summary>
-        /// Geometry fingerprint (e.g. hash of subMeshCount/vertexCount). Stored separately;
+        /// Explicit shared geometry resource revision. Stored separately;
         /// changes bump <see cref="revision"/> so template cache keys observe geometry edits.
         /// </summary>
         public uint geometryRevision;
@@ -191,6 +191,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             int bit = page & 63;
             EnsureWords(word + 1);
             m_Words[word] |= 1ul << bit;
+        }
+
+        public void CopyWords(ref ulong[] destination)
+        {
+            int count = m_Words.IsCreated ? m_Words.Length : 0;
+            if (destination == null || destination.Length != count)
+                destination = count == 0 ? Array.Empty<ulong>() : new ulong[count];
+            for (int i = 0; i < count; ++i) destination[i] = m_Words[i];
         }
 
         public ulong[] CopyWords()

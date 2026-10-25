@@ -19,9 +19,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             return tasks;
         }
 
-        static void FlushOwnFrame(int start, RenderContext context, MeshComponent component)
+        static void FlushOwnMeshTasks(int start, RenderContext context)
+        {
+            var tasks = FGraphics.MeshTasks.GetRange(start, FGraphics.MeshTasks.Count - start).ToArray();
+            FGraphics.MeshTasks.RemoveRange(start, tasks.Length);
+            foreach (var task in tasks) FGraphics.ProcessMeshTask(task, context);
+        }
+
+        static void FlushOwnFrame(int start, int meshStart, RenderContext context, MeshComponent component)
         {
             foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
+            FlushOwnMeshTasks(meshStart, context);
             // Registration now joins the world first; the real pipeline batches probes before dirty sync.
             // Drive those phases without draining another Editor object's queued work.
             context.InterpolateMeshProbes();
@@ -44,6 +52,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var context = new RenderContext();
             MeshComponent component = null;
             int start = FGraphics.GraphicsTasks.Count;
+            int meshStart = FGraphics.MeshTasks.Count;
+            var meshPrefix = FGraphics.MeshTasks.ToArray();
             var prefix = FGraphics.GraphicsTasks.ToArray();
             try
             {
@@ -53,25 +63,25 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 material = new Material(Shader.Find("InfinityPipeline/InfinityLit-Instanced")) { enableInstancing = true };
                 go.GetComponent<Renderer>().sharedMaterial = material;
                 component = go.AddComponent<MeshComponent>();
-                component.meshAsset = mesh;
-                component.materials = new[] { material };
-                component.movebility = mobilityChange == 1 ? EStateType.Static : EStateType.Dynamic;
-                component.castShadow = ECastShadowMethod.Dynamic;
+                component.MeshAsset = mesh;
+                component.SetMaterials(new[] { material });
+                component.Mobility = mobilityChange == 1 ? EStateType.Static : EStateType.Dynamic;
+                component.CastShadow = ECastShadowMethod.Dynamic;
                 go.SetActive(true);
                 if (initiallyRegistered)
-                    FlushOwnFrame(start, context, component);
+                    FlushOwnFrame(start, meshStart, context, component);
                 if (deactivateObject) go.SetActive(false);
                 else component.enabled = false;
-                if (mobilityChange != 0) component.movebility = mobilityChange == 1 ? EStateType.Dynamic : EStateType.Static;
+                if (mobilityChange != 0) component.Mobility = mobilityChange == 1 ? EStateType.Dynamic : EStateType.Static;
                 if (reenable) go.SetActive(true);
-                FlushOwnFrame(start, context, component);
+                FlushOwnFrame(start, meshStart, context, component);
                 var scene = context.GetMeshScene();
                 Assert.AreEqual(reenable ? 1 : 0, scene.LogicalInstanceCount,
                     "An enable queued before disable cannot resurrect an inactive renderer.");
                 Assert.AreEqual(reenable ? 1 : 0, scene.TransformCount);
                 Assert.AreEqual(reenable ? 1 : 0, scene.DrawCount);
-                Assert.AreEqual(reenable && component.movebility == EStateType.Dynamic ? 1 : 0, context.GetWorldDynamicPrimitive().Count);
-                Assert.AreEqual(reenable && component.movebility == EStateType.Static ? 1 : 0, context.GetWorldStaticMesh().Count);
+                Assert.AreEqual(reenable && component.Mobility == EStateType.Dynamic ? 1 : 0, context.GetWorldDynamicPrimitive().Count);
+                Assert.AreEqual(reenable && component.Mobility == EStateType.Static ? 1 : 0, context.GetWorldStaticMesh().Count);
                 CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
                 Assert.AreEqual(!reenable, !go.GetComponent<Renderer>().forceRenderingOff);
             }
@@ -81,6 +91,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     UnityEngine.Object.DestroyImmediate(go);
                     foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
+                    FlushOwnMeshTasks(meshStart, context);
                     CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
                 }
                 finally
@@ -91,14 +102,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     var dirty = (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
                         "s_DirtyMeshList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
                     var remainingTasks = FGraphics.GraphicsTasks.ToArray();
+                    var remainingMeshTasks = FGraphics.MeshTasks.ToArray();
                     var remainingDirty = dirty.Where(value => !ReferenceEquals(value, component)).ToArray();
                     try { context.Dispose(); }
                     finally
                     {
                         FGraphics.GraphicsTasks.InsertRange(0, remainingTasks);
+                        FGraphics.MeshTasks.InsertRange(0, remainingMeshTasks);
                         dirty.InsertRange(0, remainingDirty);
                     }
                     CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks.Take(start));
+                    CollectionAssert.AreEqual(meshPrefix, FGraphics.MeshTasks.Take(meshStart));
                 }
             }
         }

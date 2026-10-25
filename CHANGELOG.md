@@ -5,6 +5,12 @@
 Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md). Historical upgrade records are archived under Docs/History.
 
 ### Changed
+- Inactive RTAO no longer initializes or rebuilds URT geometry while Mesh transforms move; the existing request/capability gates remain authoritative.
+- Baked-lighting validation uses BlendProbes instead of creating the deprecated LPPV component.
+- Mesh component updates use explicit geometry/routing/instance notifications, persistent Burst transform/bounds batches, change-driven probe requests and one reusable generation-checked transaction. Instance draw links remove quadratic destruction scans; normal-frame compile and patch staging reuse bounded storage.
+- Added Asset Mesh backend policy and temporary Debugger override without changing Auto capability selection.
+- SSR/SSGI surface history stores exact depth and packed normals/age in RG32UInt; Metal diagnostics decode only on requested readback. SSGI uses LDS tile binning, one-dimensional compact-ray tracing, diagnostic-only RayHit and shared Trace/Spatial work storage. Non-Async devices record these effects near composition.
+- HDR reads current native state and supports the actual linear Rec.2020 float swapchain separately from PQ/scRGB. Output owns and restores automatic tonemapping.
 - SSR keeps full-resolution Resolve/Temporal/Spatial and optional half-resolution Trace. SSGI removes ray-reuse Resolve: cosine tracing samples accepted previous-color mips directly, then uses working-resolution temporal/world-space spatial filtering and bilateral reconstruction. Obsolete SSGI ResolveSamples/ResolveRadius controls and their default-profile entries are removed; loading never rewrites user profiles.
 - Burley SSS now filters a separately produced diffuse component at half resolution and recomposes it into opaque scene color, preserving specular/emissive light. Deferred, opaque Forward and Shader Graph outputs share the optional diffuse contract; indirect replacement updates that component too.
 - SSGI reconstruction uses the actual rotating quad sample positions and shortened odd-edge intervals. SSS diffusion parameters follow each material's profile index instead of a Volume-active override of profile zero.

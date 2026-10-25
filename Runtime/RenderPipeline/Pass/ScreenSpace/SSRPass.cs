@@ -212,7 +212,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
             RGTextureRef meta = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMetaBuffer,
-                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.MetaName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor));
+                SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.MetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor));
             RGTextureRef filtered = runSpatial
                 ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRFilteredBuffer,
                     SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRFiltered", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor))
@@ -228,7 +228,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
-            TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor);
+            TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
             RGTextureRef historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
             RGTextureRef historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));

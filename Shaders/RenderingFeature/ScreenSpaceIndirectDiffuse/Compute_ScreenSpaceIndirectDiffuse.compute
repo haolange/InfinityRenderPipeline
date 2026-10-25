@@ -1,38 +1,28 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
-// Screen-space indirect diffuse on the stochastic SSR core (Compute_ScreenSpaceReflection): the same trace tiles,
-// half-resolution quad rotation and Hi-Z walk, followed by diffuse temporal and world-space filtering.
-//
-//   SSGIClassify      one group per 8x8 trace tile: trace when a deferred surface is in the tile, else skip
-//   SSGIClearSkipped  indirect over skip tiles: clears their ray records
-//   SSGITrace         indirect over trace tiles: one cosine-distributed ray per trace pixel, Hi-Z walk
-//   SSGITemporal      working resolution: surface reprojection, variance clip, per-pixel history age
-//   SSGISpatial       working resolution: recurrent world-space tangent filter
-//
-// TraceRadiance / Temporal / SSGITexture (RGBA16F): rgb = irradiance / pi (the Lambert-convolved radiance, multiplied by
-// albedo in the composite) premultiplied by confidence, a = confidence. A miss carries weight but no confidence, so
-// that part of the pixel keeps its baked, probe or sky indirect diffuse.
-// Meta (RGBA32F): octahedral world normal, raw depth, history age in frames (0 = no history).
-
-#pragma kernel SSGIClassify
-#pragma kernel SSGIClearSkipped
+// LDS binning compacts valid work pixels; Trace uses logical-pixel RNG independent of list order.
+// Temporal and recurrent world-space Spatial stay on the work grid; Upsample reconstructs full resolution.
+#pragma kernel SSGIInitialize
+#pragma kernel SSGIBin
+#pragma kernel SSGIBuildIndirectArgs
 #pragma kernel SSGITrace
 #pragma kernel SSGITemporal
 #pragma kernel SSGISpatial
 #pragma kernel SSGIUpsample
+#pragma kernel SSGIBinDebug SSGI_DIAGNOSTICS
+#pragma kernel SSGITraceDebug SSGI_DIAGNOSTICS
 
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceDepth.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceReprojection.hlsl"
 #include "../../ShaderLibrary/TemporalColorSource.hlsl"
 #include "../../ShaderLibrary/GBufferPack.hlsl"
+#include "../../ShaderLibrary/ScreenSpaceSurfaceMetadata.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
 #include "../../ShaderLibrary/RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceDenoise/TemporalAccumulation.hlsl"
 #include "../../ShaderLibrary/ScreenSpaceDenoise/AtrousFilter.hlsl"
 
 #define SSGI_TILE_SIZE SCREEN_SPACE_TRACE_TILE_SIZE
-#define SSGI_CLASS_TRACE 0
-#define SSGI_CLASS_SKIP 1
 #define SSGI_EDGE_FADE 0.05
 
 float4 SSGI_Resolution;
@@ -40,8 +30,6 @@ float4 SSGI_TraceResolution;
 uint SSGI_TraceScale;
 uint SSGI_FrameIndex;
 uint SSGI_PreviousFrameIndex;
-uint SSGI_MaxTiles;
-uint SSGI_TileListOffset;
 float SSGI_MaxDistance;
 float SSGI_Thickness;
 float SSGI_Intensity;
@@ -62,11 +50,11 @@ Texture2D SRV_GBufferC;
 Texture2D<float4> SRV_HitMotionMetadata;
 Texture2D SRV_MotionTexture;
 Texture2D SRV_HistoryRadiance;
-Texture2D SRV_HistoryMeta;
+Texture2D<uint2> SRV_HistoryMeta;
 Texture2D<float4> SRV_TraceRadiance;
 Texture2D<float4> SRV_Temporal;
 Texture2D<float4> SRV_Filtered;
-Texture2D<float4> SRV_Meta;
+Texture2D<uint2> SRV_Meta;
 Texture2D<float> SRV_HitDistance;
 StructuredBuffer<uint> SRV_TileList;
 
@@ -76,7 +64,7 @@ RWTexture2D<float4> UAV_RayHit;
 RWTexture2D<float4> UAV_TraceRadiance;
 RWTexture2D<float> UAV_HitDistance;
 RWTexture2D<float4> UAV_Temporal;
-RWTexture2D<float4> UAV_Meta;
+RWTexture2D<uint2> UAV_Meta;
 RWTexture2D<float4> UAV_Output;
 
 #include "../../ShaderLibrary/ScreenSpaceIndirectSurface.hlsl"
@@ -92,74 +80,63 @@ uint2 FullToTracePixel(uint2 pixel)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Classification
+// Tile-local inclusive prefix. Every lane participates, including padded lanes.
+groupshared uint gs_Prefix[64];
+groupshared uint gs_RayBase;
 
-groupshared uint gs_SurfaceCount;
-
-[numthreads(SSGI_TILE_SIZE, SSGI_TILE_SIZE, 1)]
-void SSGIClassify(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
+[numthreads(1, 1, 1)]
+void SSGIInitialize(uint3 id : SV_DispatchThreadID)
 {
-    if (groupIndex == 0)
+    UAV_TileArgs[0] = 0; UAV_TileArgs[1] = 1; UAV_TileArgs[2] = 1; UAV_TileArgs[3] = 0;
+}
+
+void BinWork(uint3 groupId : SV_GroupID, uint3 lane : SV_GroupThreadID, uint index : SV_GroupIndex)
+{
+    uint2 pixel = groupId.xy * 8 + lane.xy;
+    bool inside = all(pixel < (uint2)SSGI_TraceResolution.xy);
+    float depth = 0;
+    bool valid = false;
+    if (inside) valid = IsIndirectSurface(TraceToFullPixel(pixel), depth);
+    gs_Prefix[index] = valid ? 1 : 0;
+    if (inside)
     {
-        gs_SurfaceCount = 0;
+        UAV_TraceRadiance[pixel] = 0;
+        UAV_HitDistance[pixel] = 0;
+#ifdef SSGI_DIAGNOSTICS
+        UAV_RayHit[pixel] = 0;
+#endif
     }
     GroupMemoryBarrierWithGroupSync();
-
-    uint2 tracePixel = groupId.xy * SSGI_TILE_SIZE + groupThreadId.xy;
-    float rawDepth;
-    if (all(tracePixel < (uint2)SSGI_TraceResolution.xy) && IsIndirectSurface(TraceToFullPixel(tracePixel), rawDepth))
+    [unroll] for (uint offset = 1; offset < 64; offset <<= 1)
     {
-        InterlockedAdd(gs_SurfaceCount, 1u);
+        uint previous = index >= offset ? gs_Prefix[index - offset] : 0;
+        GroupMemoryBarrierWithGroupSync();
+        gs_Prefix[index] += previous;
+        GroupMemoryBarrierWithGroupSync();
+    }
+    if (index == 0)
+    {
+        gs_RayBase = 0;
+        if (gs_Prefix[63] > 0) InterlockedAdd(UAV_TileArgs[3], gs_Prefix[63], gs_RayBase);
     }
     GroupMemoryBarrierWithGroupSync();
-
-    if (groupIndex == 0)
-    {
-        uint tileClass = gs_SurfaceCount > 0 ? SSGI_CLASS_TRACE : SSGI_CLASS_SKIP;
-        uint slot;
-        InterlockedAdd(UAV_TileArgs[tileClass * 3], 1u, slot);
-        UAV_TileList[tileClass * SSGI_MaxTiles + slot] = PackTraceTile(groupId.xy);
-    }
+    if (valid) UAV_TileList[gs_RayBase + gs_Prefix[index] - 1] = pixel.y * (uint)SSGI_TraceResolution.x + pixel.x;
 }
 
-uint2 TileTracePixel(uint3 groupId, uint3 groupThreadId)
+[numthreads(1, 1, 1)]
+void SSGIBuildIndirectArgs(uint3 id : SV_DispatchThreadID)
 {
-    return UnpackTraceTile(SRV_TileList[SSGI_TileListOffset + groupId.x]) * SSGI_TILE_SIZE + groupThreadId.xy;
+    UAV_TileArgs[0] = (UAV_TileArgs[3] + 63) / 64;
 }
 
-[numthreads(SSGI_TILE_SIZE, SSGI_TILE_SIZE, 1)]
-void SSGIClearSkipped(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+void TraceCompactedRay(uint index)
 {
-    uint2 tracePixel = TileTracePixel(groupId, groupThreadId);
-    if (all(tracePixel < (uint2)SSGI_TraceResolution.xy))
-    {
-        UAV_RayHit[tracePixel] = 0;
-        UAV_TraceRadiance[tracePixel] = 0;
-        UAV_HitDistance[tracePixel] = 0;
-    }
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Trace
-
-[numthreads(SSGI_TILE_SIZE, SSGI_TILE_SIZE, 1)]
-void SSGITrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
-{
-    uint2 tracePixel = TileTracePixel(groupId, groupThreadId);
-    if (any(tracePixel >= (uint2)SSGI_TraceResolution.xy))
-    {
-        return;
-    }
-
+    if (index >= UAV_TileArgs[3]) return;
+    uint flat = SRV_TileList[index];
+    uint2 tracePixel = uint2(flat % (uint)SSGI_TraceResolution.x, flat / (uint)SSGI_TraceResolution.x);
     FSSGISurface surface;
-    if (!LoadSurface(TraceToFullPixel(tracePixel), surface))
-    {
-        UAV_RayHit[tracePixel] = 0;
-        UAV_TraceRadiance[tracePixel] = 0;
-        UAV_HitDistance[tracePixel] = 0;
-        return;
-    }
-
+    bool valid = LoadSurface(TraceToFullPixel(tracePixel), surface);
+    if (!valid) return;
     // Cosine-distributed direction around the normal: pdf = NoL / pi.
     float2 E = float2(GetBNDSequenceSample(tracePixel, SSGI_FrameIndex, 0), GetBNDSequenceSample(tracePixel, SSGI_FrameIndex, 1));
     float4 sampleL = CosineSampleHemisphere(E);
@@ -170,7 +147,9 @@ void SSGITrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadI
     float jitter = GetBNDSequenceSample(tracePixel, SSGI_FrameIndex, 2);
     float3 hit;
     bool found = TraceScreenSpaceRay(surface.positionVS, directionVS, SSGI_MaxDistance, SSGI_Thickness, SSGI_HiZSteps, jitter, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, hit);
+#ifdef SSGI_DIAGNOSTICS
     UAV_RayHit[tracePixel] = found ? EncodeRayHit(hit, pdf) : EncodeRayMiss(L, pdf);
+#endif
     float4 radiance = 0;
     float hitDistance = 0;
     if (found)
@@ -195,6 +174,16 @@ void SSGITrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadI
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Temporal
+[numthreads(64, 1, 1)]
+void SSGITrace(uint3 id : SV_DispatchThreadID) { TraceCompactedRay(id.x); }
+[numthreads(64, 1, 1)]
+void SSGITraceDebug(uint3 id : SV_DispatchThreadID) { TraceCompactedRay(id.x); }
+[numthreads(8, 8, 1)]
+void SSGIBin(uint3 groupId : SV_GroupID, uint3 lane : SV_GroupThreadID, uint index : SV_GroupIndex)
+{ BinWork(groupId, lane, index); }
+[numthreads(8, 8, 1)]
+void SSGIBinDebug(uint3 groupId : SV_GroupID, uint3 lane : SV_GroupThreadID, uint index : SV_GroupIndex)
+{ BinWork(groupId, lane, index); }
 
 [numthreads(8, 8, 1)]
 void SSGITemporal(uint3 id : SV_DispatchThreadID)
@@ -208,7 +197,7 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
     if (!LoadSurface(TraceToFullPixel(pixel), surface))
     {
         UAV_Temporal[pixel] = 0;
-        UAV_Meta[pixel] = float4(0, 0, surface.rawDepth, 0);
+        UAV_Meta[pixel] = uint2(asuint(surface.rawDepth), 0);
         return;
     }
 
@@ -248,10 +237,10 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
     bool validMotionSurface = motionSurface.z > 0 && isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
     // Use the previous object surface depth, rather than projecting its current pose.
     expectedDepth = validMotionSurface ? motionSurface.x : expectedDepth;
-    float historyValid = (validMotionSurface ? SSGI_HistoryValid : 0) * HistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth, 2);
+    float historyValid = (validMotionSurface ? SSGI_HistoryValid : 0) * SurfaceHistoryDepthConfidence(SRV_HistoryMeta, SRV_HistoryMeta_InfinityView, surfaceUV, expectedDepth);
     if (historyValid > 0)
     {
-        float4 historyMeta = InfinitySampleLevel(SRV_HistoryMeta,Global_point_clamp_sampler,surfaceUV,0);
+        float4 historyMeta = LoadSurfaceMetadata(SRV_HistoryMeta,SRV_HistoryMeta_InfinityView,surfaceUV);
         historyValid = dot(surface.normalWS, OctahedronToUnitVector(historyMeta.xy)) > 0.9 && historyMeta.w >= 1 ? 1 : 0;
         historyAge = historyValid > 0 ? historyMeta.w : 0;
     }
@@ -262,7 +251,7 @@ void SSGITemporal(uint3 id : SV_DispatchThreadID)
 
     float currentWeight = TemporalCurrentWeight(historyAge, SSGI_TemporalWeight);
     UAV_Temporal[pixel] = max(0, lerp(history, current, currentWeight));
-    UAV_Meta[pixel] = float4(UnitVectorToOctahedron(surface.normalWS), surface.rawDepth, NextHistoryAge(historyAge));
+    UAV_Meta[pixel] = EncodeSurfaceMetadata(surface.normalWS, surface.rawDepth, (uint)NextHistoryAge(historyAge), true);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -336,7 +325,7 @@ void SSGIUpsample(uint3 id : SV_DispatchThreadID)
     [unroll] for (int x=0;x<=1;++x)
     {
         uint2 tap = (uint2)clamp(origin+int2(x,y),0,int2(SSGI_TraceResolution.xy)-1);
-        float4 meta = SRV_Meta[tap];
+        float4 meta = DecodeSurfaceMetadata(SRV_Meta[tap]);
         float agreement = dot(surface.normalWS,OctahedronToUnitVector(meta.xy));
         float relativeDepth = abs(ScreenSpaceLinearEyeDepth(meta.z)-ScreenSpaceLinearEyeDepth(surface.rawDepth))/max(ScreenSpaceLinearEyeDepth(surface.rawDepth),1e-4);
         if (meta.w < 1 || agreement < 0.9 || relativeDepth > 0.02) continue;

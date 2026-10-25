@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -15,6 +16,16 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal sealed class MeshCandidateTableStore : IDisposable
     {
+        readonly Stack<MeshDrawGpuStaging> m_Staging = new Stack<MeshDrawGpuStaging>();
+        internal void ReturnStaging(MeshDrawGpuStaging staging)
+        {
+            if (staging == null) return;
+            staging.candidateTable = null;
+            staging.commandMeta = null; staging.candidateOffsets = null; staging.candidateCounts = null;
+            staging.drawCommands = null; staging.isValid = false;
+            m_Staging.Push(staging);
+        }
+
         internal struct PassTable
         {
             public ComputeBuffer candidateTable;
@@ -120,19 +131,17 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return null;
             }
 
-            return new MeshDrawGpuStaging
-            {
-                candidateTable = table.candidateTable,
-                commandCount = table.commandCount,
-                candidateCount = table.candidateCount,
-                boundsInstanceCount = math.max(1, boundsInstanceCount),
-                commandMeta = table.commandMeta,
-                candidateOffsets = table.candidateOffsets,
-                candidateCounts = table.candidateCounts,
-                drawCommands = table.commands,
-                frustumPlanes = new Vector4[6],
-                isValid = true
-            };
+            var staging = m_Staging.Count > 0 ? m_Staging.Pop() : new MeshDrawGpuStaging { frustumPlanes = new Vector4[6] };
+            staging.candidateTable = table.candidateTable;
+            staging.commandCount = table.commandCount;
+            staging.candidateCount = table.candidateCount;
+            staging.boundsInstanceCount = math.max(1, boundsInstanceCount);
+            staging.commandMeta = table.commandMeta;
+            staging.candidateOffsets = table.candidateOffsets;
+            staging.candidateCounts = table.candidateCounts;
+            staging.drawCommands = table.commands;
+            staging.isValid = true;
+            return staging;
         }
 
         public void Dispose()

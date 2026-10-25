@@ -134,9 +134,9 @@ namespace InfinityTech.Rendering.Pipeline
                 ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
                 : 0.0f;
 
-            ShaderTagId[] tags = samplerId == CustomSamplerId.RasterTranslucentT2
-                ? new[] { lightMode, new ShaderTagId("SRPDefaultUnlit"), new ShaderTagId() }
-                : new[] { lightMode };
+            ShaderTagId[] tags = m_RGBuilder.GetRecordingArray<ShaderTagId>(samplerId == CustomSamplerId.RasterTranslucentT2 ? 3 : 1);
+            tags[0] = lightMode;
+            if (tags.Length == 3) tags[1] = new ShaderTagId("SRPDefaultUnlit");
             RendererListDesc rendererListDesc = new RendererListDesc(tags, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

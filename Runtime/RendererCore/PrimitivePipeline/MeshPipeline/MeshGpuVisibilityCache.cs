@@ -138,9 +138,10 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Slots[key] = slot;
         }
 
+        readonly List<MeshGpuVisibilityKey> m_ResetKeys = new List<MeshGpuVisibilityKey>();
         public void BeginCamera()
         {
-            List<MeshGpuVisibilityKey> keys = new List<MeshGpuVisibilityKey>(m_Slots.Keys);
+            var keys = m_ResetKeys; keys.Clear(); keys.AddRange(m_Slots.Keys);
             for (int i = 0; i < keys.Count; ++i)
             {
                 Slot slot = m_Slots[keys[i]];

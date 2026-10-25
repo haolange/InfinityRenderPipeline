@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -6,6 +7,32 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public static class MaterialRouteUtility
     {
+        sealed class MeshRoute
+        {
+            internal int route, stage, queue;
+            internal uint passMask;
+            internal uint version = 1;
+        }
+        static readonly string[] s_MeshPasses = { "RasterDepthPass", "RasterGBufferPass", "RasterForwardPass", "RasterShadowPass", "RasterMotionPass", "RasterTranslucentDepthPass", "RasterTranslucentT0Pass", "RasterTranslucentT1Pass", "RasterTranslucentT2Pass" };
+        static uint PassMask(Material material)
+        {
+            uint mask = 0;
+            for (int i = 0; i < s_MeshPasses.Length; ++i) if (material.GetShaderPassEnabled(s_MeshPasses[i])) mask |= 1u << i;
+            return mask;
+        }
+        static readonly ConditionalWeakTable<Material, MeshRoute>.CreateValueCallback s_CreateMeshRoute = CaptureMeshRoute;
+        static readonly ConditionalWeakTable<Material, MeshRoute> s_MeshRoutes = new ConditionalWeakTable<Material, MeshRoute>();
+        static MeshRoute CaptureMeshRoute(Material material)
+        {
+            Read(material, out int route, out int stage);
+            return new MeshRoute { route = route, stage = stage, queue = material.renderQueue, passMask = PassMask(material) };
+        }
+        internal static void ReadMeshRoute(Material material, out int route, out int stage, out int queue, out uint version)
+        {
+            var state = s_MeshRoutes.GetValue(material, s_CreateMeshRoute);
+            route = state.route; stage = state.stage; queue = state.queue; version = state.version;
+        }
+
         static readonly int ID_SurfaceRoute = Shader.PropertyToID("_SurfaceRoute");
         static readonly int ID_TranslucentStage = Shader.PropertyToID("_TranslucentStage");
         static readonly int ID_Subsurface = Shader.PropertyToID("_Subsurface");
@@ -58,6 +85,19 @@ namespace InfinityTech.Rendering.Pipeline
                 material.renderQueue = (int)RenderQueue.Transparent;
             else if (opaque && material.renderQueue >= (int)RenderQueue.Transparent)
                 material.renderQueue = (int)RenderQueue.Geometry;
+            NotifyRoutingChanged(material);
+        }
+
+        public static void NotifyRoutingChanged(Material material)
+        {
+            if (material == null) throw new ArgumentNullException(nameof(material));
+            var state = s_MeshRoutes.GetValue(material, s_CreateMeshRoute);
+            Read(material, out int route, out int stage);
+            int queue = material.renderQueue; uint mask = PassMask(material);
+            if (state.route == route && state.stage == stage && state.queue == queue && state.passMask == mask) return;
+            state.route = route; state.stage = stage; state.queue = queue; state.passMask = mask;
+            unchecked { ++state.version; }
+            InfinityTech.Component.MeshComponent.InvalidateMaterialRouting(material);
         }
 
         static void SetPass(Material material, string name, bool enabled)

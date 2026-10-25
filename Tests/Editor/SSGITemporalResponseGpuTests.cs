@@ -298,10 +298,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         return new Color(alpha * .5f, alpha * .25f, alpha * .125f, alpha);
                     });
                     Texture previousColor = Texture((x, y) => signal == Signal.Step || signal == Signal.NoisyStep ? new Color(.05f, .025f, .0125f, .1f) : new Color(.25f, .125f, .0625f, .5f));
-                    Texture previousMeta = Texture((x, y) => new Color(signal == Signal.RejectNormal ? 1 : slope ? .4f / 1.4f : 0,
-                        signal == Signal.RejectNormal ? 1 : 0, signal == Signal.RejectDepth || signal == Signal.MovingSurfaceDepth ? other.z / other.w : Depth(x, y), 64));
+                    Texture previousMeta = Track(SurfaceMetadataTestUtility.Pack(Texture((x, y) => new Color(signal == Signal.RejectNormal ? 1 : slope ? .4f / 1.4f : 0,
+                        signal == Signal.RejectNormal ? 1 : 0, signal == Signal.RejectDepth || signal == Signal.MovingSurfaceDepth ? other.z / other.w : Depth(x, y), 64))));
                     var colors = new[] { Target(), Target() };
-                    var metas = new[] { Target(), Target() };
+                    var metas = new[] { Target(true), Target(true) };
                     Bind("SRV_HitMotionMetadata",Texture((x,y)=>new Color(signal==Signal.MovingSurfaceDepth?other.z/other.w:Depth(x,y),Depth(x,y),1,0)));
                     m_Commands.SetComputeVectorParam(shader, "SSGI_Resolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
                     m_Commands.SetComputeVectorParam(shader, "SSGI_TraceResolution", new Vector4(Width, Height, 1f / Width, 1f / Height));
@@ -337,7 +337,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         {
                             int snapshot = frame;
                             m_Commands.RequestAsyncReadback(colors[target], 0, request => Complete(request, true, snapshot)); pending++;
-                            if (!Spatial(signal)) { m_Commands.RequestAsyncReadback(metas[target], 0, request => Complete(request, false, snapshot)); pending++; }
+                            if (!Spatial(signal)) { var decoded = Track(SurfaceMetadataTestUtility.DecodeTarget(m_Commands, metas[target])); m_Commands.RequestAsyncReadback(decoded, 0, request => Complete(request, false, snapshot)); pending++; }
                         }
                     }
                     m_Color = colors[(m_Frames - 1) % 2]; m_Meta = metas[(m_Frames - 1) % 2];
@@ -374,9 +374,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
 
             T Track<T>(T value) where T : Object { value.hideFlags = HideFlags.HideAndDontSave; m_Objects.Add(value); return value; }
-            RenderTexture Target()
+            RenderTexture Target(bool metadata = false)
             {
-                var texture = Track(new RenderTexture(Width, Height, 0, UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat)
+                var texture = Track(new RenderTexture(Width, Height, 0, metadata ? UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32_UInt : UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat)
                     { enableRandomWrite = true, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp });
                 Assert.IsTrue(texture.Create()); return texture;
             }

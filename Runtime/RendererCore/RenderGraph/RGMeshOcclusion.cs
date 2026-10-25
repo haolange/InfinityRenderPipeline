@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.RenderGraph
         MeshGpuCullPassData CullInputs(in MeshView view, RGComputePassRef pass)
         {
             var residency = m_MeshWorld.Residency;
-            var data = new MeshGpuCullPassData { view = view, instanceCount = residency.Scene.InstanceHighWater, frustumPlanes = new Vector4[6] };
+            var data = new MeshGpuCullPassData { view = view, instanceCount = residency.Scene.InstanceHighWater, frustumPlanes = m_ObjectPool.GetTempArray<Vector4>(6) };
             view.CopyFrustumPlanes(data.frustumPlanes);
             data.boundsCenter = pass.ReadBuffer(ImportBuffer(residency.BoundsCenterBuffer));
             data.boundsExtent = pass.ReadBuffer(ImportBuffer(residency.BoundsExtentBuffer));
@@ -72,6 +72,8 @@ namespace InfinityTech.Rendering.RenderGraph
             data.instanceRenderingLayer = pass.ReadBuffer(ImportBuffer(residency.InstanceRenderingLayerBuffer));
             return data;
         }
+        static readonly RGComputePassExecuteAction<MeshOcclusionData> s_ExecuteMeshOcclusion = ExecuteMeshOcclusion;
+
         internal MeshOcclusionLists RecordMeshOcclusionFirst(MeshView view, ComputeShader shader, MeshMotionBinding motion,
             RGTextureRef previousFurthest, Matrix4x4 previousProjection, int2 extent, ulong historyVersion)
         {
@@ -101,7 +103,7 @@ namespace InfinityTech.Rendering.RenderGraph
                     data.previousTransforms = pass.ReadBuffer(ImportBuffer(motion.previous.matrices)); data.previousGenerations = pass.ReadBuffer(ImportBuffer(motion.previous.generations));
                     data.instanceTransforms = pass.ReadBuffer(ImportBuffer(m_MeshWorld.Residency.InstanceTransformIndexBuffer));
                 }
-                pass.SetExecuteFunc<MeshOcclusionData>(ExecuteMeshOcclusion);
+                pass.SetExecuteFunc(s_ExecuteMeshOcclusion);
             }
             return new MeshOcclusionLists(first, view, recovered, deferred, history);
         }
@@ -125,7 +127,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 data.recovered = pass.WriteBuffer(recovered); data.furthest = pass.ReadTexture(furthest);
                 data.projection = projection; data.extent = extent;
                 var descriptor = GetTextureDescriptor(furthest); data.mipCount = PyramidMipBatch.MipCount(descriptor.width, descriptor.height);
-                pass.SetExecuteFunc<MeshOcclusionData>(ExecuteMeshOcclusion);
+                pass.SetExecuteFunc(s_ExecuteMeshOcclusion);
             }
         }
         static void ExecuteMeshOcclusion(in MeshOcclusionData data, in RGComputeEncoder commands, RGObjectPool objects)

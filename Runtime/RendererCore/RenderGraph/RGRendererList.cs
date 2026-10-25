@@ -64,6 +64,9 @@ namespace InfinityTech.Rendering.RenderGraph
         private readonly List<RGRendererListRecord> m_Records = new List<RGRendererListRecord>(16);
         private int m_GraphGeneration = 1;
 
+        readonly Stack<List<int>> m_Consumers = new Stack<List<int>>();
+        List<int> RentConsumers() => m_Consumers.Count > 0 ? m_Consumers.Pop() : new List<int>(4);
+
         public RGRendererListContext()
         {
             m_ContextId = Interlocked.Increment(ref s_NextContextId);
@@ -90,7 +93,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 kind = ERGRendererListKind.Renderers,
                 desc = desc,
-                consumerPassIndices = new List<int>(4),
+                consumerPassIndices = RentConsumers(),
                 state = ERGRendererListCompileState.Declared,
                 created = RendererList.nullRendererList
             });
@@ -104,7 +107,7 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 kind = ERGRendererListKind.Shadow,
                 shadowSettings = settings,
-                consumerPassIndices = new List<int>(4),
+                consumerPassIndices = RentConsumers(),
                 state = ERGRendererListCompileState.Declared,
                 created = RendererList.nullRendererList
             });
@@ -169,16 +172,20 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public void CreateLive(ScriptableRenderContext context)
         {
-            CreateLiveWith(record =>
+            for (int i = 0; i < m_Records.Count; ++i)
             {
+                var record = m_Records[i];
+                if (record.state != ERGRendererListCompileState.Live) continue;
+                CreateCallCount++;
                 if (record.kind == ERGRendererListKind.Shadow)
                 {
-                    ShadowDrawingSettings settings = record.shadowSettings;
-                    return context.CreateShadowRendererList(ref settings);
+                    var settings = record.shadowSettings;
+                    record.created = context.CreateShadowRendererList(ref settings);
                 }
-
-                return context.CreateRendererList(record.desc);
-            });
+                else record.created = context.CreateRendererList(record.desc);
+                record.state = ERGRendererListCompileState.Created;
+                m_Records[i] = record;
+            }
         }
 
         public void CreateLiveWith(RGRendererListCreateFn create)
@@ -237,6 +244,7 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGRendererListRecord record = m_Records[i];
+                record.consumerPassIndices.Clear(); m_Consumers.Push(record.consumerPassIndices);
                 record.created = RendererList.nullRendererList;
                 record.state = ERGRendererListCompileState.Released;
                 m_Records[i] = record;

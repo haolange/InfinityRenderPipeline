@@ -3,6 +3,9 @@
 This is the only document that states how far each feature is verified. Other documents describe design and use;
 they link here instead of claiming "completed".
 
+Latest bounded acceptance: [2026-10-25 main-thread / memory / SSGI / native HDR receipt](History/MainThread-20261025/Report.md).
+Earlier dated sections below retain their original verification boundaries; the latest section supersedes them only for the cases it actually exercised.
+
 Columns:
 
 - **Recorded**: the pass records in the RenderGraph when the feature is enabled.
@@ -17,7 +20,7 @@ Columns:
 
 | Feature | Recorded | EditMode | Image | Perf | Platforms | Notes |
 |---|---|---|---|---|---|---|
-| Mesh Drawing Pipeline (CPU + GPU backends) | Yes | 2026-10-25: 92 Mesh cases; immutable-version and two-stage GPU cases | Complete Scene_Spazon normal frames and bounded native-occluder recovery | 32+120 static/dynamic/two-camera measurements; GPU time unavailable | macOS Metal | Conservative two-stage GPU occlusion, scene-owned transform versions; no GPU sort/LOD. Hardware Async and native failure recovery remain open. |
+| Mesh Drawing Pipeline (CPU + GPU backends) | Yes | 2026-10-25: 96 Mesh cases, value leases, explicit updates and custom culling matrices | Complete Scene_Spazon; Asset CPU / Debugger GPU / cleared override verified | 32+120 CPU Proxy/Render measurements at 1k/10k and 50k stress; GPU time unavailable | macOS Metal | Batched dynamic transforms, explicit static/resource updates, shared versions. Bounded normal library allocation results below. Hardware Async and native failure recovery remain open. |
 | ThinGBuffer + Deferred shading | Yes | Yes (pack contract) | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: bounded eight normal fixtures / ground and marker controls | Open | macOS Metal | Finite-plane horizon and marker shadow controls accepted; no atmosphere shader repair or arbitrary-scene guarantee. See closure picture report. |
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
 | Decal projection / RP replacement | Yes | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: 5 lifecycle cases | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: actual DBuffer overlays after replacement, disable/restore and second camera | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: composite Editor frame, 3×300 before/after (closure report) | macOS Metal | One-shot context recovery; no source asset migration. Finite-plane horizon band traced to disabled planetary ground in a fixed-camera control, not an atmosphere algorithm repair. |
@@ -32,8 +35,8 @@ Columns:
 | Atmosphere LUTs + sky IBL | Yes | Yes (parameters, cache) | Open | Open | macOS Metal | |
 | GTAO | Yes | Yes (numeric) | Open | Open | macOS Metal | |
 | RTAO (UnifiedRayTracing) | When URT is ready | Partial | Open | Open | Editor only | Player shader load unverified |
-| SSR (stochastic) | Yes | 2026-10-25: production GPU regression and history rejection | Full Scene_Spazon, 1666x1756; finite full Resolve/Temporal/output | 32+120 matched cases; no isolated GPU time | macOS Metal | Optional half Trace; Resolve/Temporal/Spatial/history remain full resolution. Shared accepted unsharpened TAA/SR mip source. |
-| SSGI | Yes | 2026-10-25: production numeric/quad reconstruction and 21 response cases | Full Scene_Spazon and supplemented chain; finite half work/full output | 32+120 matched cases; no isolated GPU time | macOS Metal | No Resolve. Direct previous-color Trace, recurrent world-space Spatial, phase-aware bilateral reconstruction. General quality/reference acceptance remains bounded to tested content. |
+| SSR (stochastic) | Yes | 2026-10-25: 8 selected SSR cases and shared packed metadata numeric contract | Full Scene_Spazon, 1666x1756; finite full Resolve/Temporal/output | 32+120 matched CPU scopes; no isolated GPU time | macOS Metal | Optional half Trace; Resolve/Temporal/Spatial/history stay full resolution. RG32UInt metadata, accepted unsharpened TAA/SR mip source. |
+| SSGI | Yes | 2026-10-25: 39 selected SSGI cases, LDS binning and temporal/reconstruction contracts | Complete Scene_Spazon and supplemented chain; finite half work/full output | Stable pool reduced; no isolated GPU time | macOS Metal | No Resolve or Skip clear. Compact rays, diagnostic-only RayHit, shared Trace/Spatial storage, recurrent world-space Spatial and bilateral reconstruction. General quality acceptance stays bounded to tested content. |
 | Burley SSS | Yes | No | Open | Open | macOS Metal | |
 | Volumetric fog / cloud | Yes | Partial | Open | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: fog workload 3×300 composite Editor frames; cloud Open | macOS Metal | |
 | Translucent T0 / T1 / T2 | Yes | Partial | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: bounded fixture regression and ground control | Open | macOS Metal | Prior band disposition accepted; inherited S15 consumers retained. No unrelated fog-node implementation claim. |
@@ -46,7 +49,7 @@ Columns:
 | TAA (+ separate sharpen pass) | Yes | Yes | Open | Open | macOS Metal | One-dispatch TAA + sharpen is not implemented |
 | Fixed-ratio super resolution | Game cameras | Partial | Open | Open | macOS Metal | |
 | Exposure, Bloom, CombineLUT (ACES), Vignette, Film Grain | Yes | Yes | Open | Open | macOS Metal | |
-| Present (transfer encoding) | Yes | Yes (GPU gray card) | Accepted 2026-09-13 | Open | macOS Metal | SDR sRGB; HDR output unverified |
+| Present (transfer encoding) | Yes | 2026-10-25: Output cases plus native-linear primaries/paper-white GPU test | SDR and actual internal-XDR linear Rec.2020 HDR, native RGBA16Float attachment, UI/exposure and mode restoration | Open | macOS Metal Editor | HDR available/active/format/gamut validated; no absolute photometry, other HDR swapchains or Player acceptance. |
 | SceneView sizing / UI overlay gate | Yes | Yes | Accepted 2026-09-13 | — | macOS Metal | |
 | DebugView | Yes | Partial | Open | — | macOS Metal | |
 | Rendering Debugger panels, debug views 19–29, Scene view Draw Modes, pass timings (0.5.0) | Yes | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: catalog and mode contracts | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: 20 bounded native debug/Draw Mode views | — | macOS Metal | Current viewport and camera identity/restoration verified. Timings UI visibility does not provide valid GPU timing. See S15 report. |
@@ -779,3 +782,48 @@ Restoration and final cleanup evidence is maintained in the delivery receipt.
 The 642 protected source files matched the initial hashes except the explicitly
 removed SSGI ResolveSamples/ResolveRadius entries in the package default Profile.
 No source scene/material/LUT was saved or overwritten for validation.
+
+## Main-thread / GC / memory / SSGI binning / native HDR — 2026-10-25
+
+The [delivery receipt](History/MainThread-20261025/Report.md) and
+[structured evidence](History/MainThread-20261025/Evidence.json) record the latest
+full Scene_Spazon comparison on a single owned Metal Editor. The source scene,
+1666x1756 main camera, Quality 0 and enabled SSR/SSGI/TAA/Deferred/post chain were
+preserved. Generated Lit/Unlit/Decal Graphs actually drew; runtime-only supplements
+produced SSS, fog/cloud, Cookie/EVSM and DBuffer data. Main cloud RGB was empty;
+a cloud-layer camera separately produced nonempty finite RGB, and finite fog
+history contained nonzero scattering. These controls do not accept all content.
+
+- Final selected batches: 458 passed executions, zero failed, one hardware Async
+  skip; 443 distinct passing names and one distinct skipped name. The latest
+  Mesh batch has 96 cases. Final import/render diagnostics were empty for 27
+  loaded package ComputeShaders and 15 Shaders/Graphs. Static gate and 12 negative
+  checks passed. No Library/ShaderCache deletion was used.
+- Calibrated native GC.Alloc counters replaced an invalid Mono byte counter.
+  Fixed-size, prewarmed normal library Proxy scopes recorded zero allocations
+  in stationary and moving 1k/10k/50k windows. Complete Render still recorded four
+  Unity-native Submit GUILayout allocations per frame; these are reported rather
+  than subtracted from the total. One earlier nonzero CPU window was repeated
+  successfully and remains documented. Active RTAO, setup/growth and diagnostics
+  are outside this zero-GC acceptance.
+- At 10k, Proxy p50 fell from approximately 64 ms stationary / 190–194 ms fully
+  moving to 0.10 ms / 21–22 ms. Fully moving 50k still costs about 105 ms Proxy CPU.
+  These are CPU measurements; no GPU speedup is claimed. Static scenes upload
+  zero transform/attribute bytes; existing safe attribute version uploads remain
+  measurable during motion and are not claimed as a bandwidth optimization.
+- Pool texture estimates are 497.421 MiB versus 532.858 MiB at this round's
+  `a4f016c` baseline and 498.405 MiB at matched `2485580`. Pool+history+other created
+  texture estimates fell 63.985 MiB against `2485580`; this is not an ownership
+  transfer or driver-residency measurement. Full physical ledgers are retained.
+- Native internal-XDR HDR was available and active with no transition pending:
+  linear Rec.2020, R16G16B16A16_SFloat, 160-nit paper white. The actual Metal color
+  attachment was RGBA16Float. UI steps, primaries/reference-white GPU controls,
+  exposure and SDR restoration passed. Absolute photometric accuracy, other HDR
+  encodings/displays, Player, D3D12 and Vulkan remain unverified.
+
+**Resource-pool whole lifecycle remains PARTIAL.** This host has no exposed Async
+Compute queue. Metal delayed/cancelled/incomplete/cross-camera tests pass, but
+actual hardware cross-queue execution and native driver Submit-failure recovery
+remain unverified. The independent Player RTAO loading gap and unexecuted RT
+backends are unchanged. Cleanup/restoration proof belongs to the receipt; it does
+not broaden these platform results.

@@ -1,3 +1,4 @@
+using System;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -38,13 +39,14 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return default;
             }
 
-            Plane[] planes = GeometryUtility.CalculateFrustumPlanes(camera);
+            var planes = new Plane[6];
+            GeometryUtility.CalculateFrustumPlanes(camera.cullingMatrix, planes);
             return CullInstances(scene, planes, enable, sceneCullingMask: MeshView.SceneCullingMaskFor(camera));
         }
 
         public static MeshViewCullingResult CullInstances(
             MeshScene scene,
-            Plane[] planes,
+            ReadOnlySpan<Plane> planes,
             bool enable,
             int viewLayerMask = ~0,
             uint viewRenderingLayerMask = (uint)ERenderingLayer.Everything,
@@ -52,7 +54,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             uint excludeInstanceFlags = 0,
             ulong sceneCullingMask = ulong.MaxValue)
         {
-            if (!enable || scene == null || planes == null || planes.Length < 6)
+            if (!enable || scene == null || planes.IsEmpty || planes.Length < 6)
             {
                 MeshPipelineDiagnostics.CulledPassSkippedBuilds++;
                 return default;
@@ -103,7 +105,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 return default;
             }
 
-            var planes = new Plane[6];
+            Span<Plane> planes = stackalloc Plane[6];
             for (int i = 0; i < 6; ++i)
             {
                 planes[i] = cullingParameters.GetCullingPlane(i);

@@ -324,6 +324,7 @@ namespace InfinityTech.Rendering.Pipeline
         protected override void Render(ScriptableRenderContext scriptableRenderContext, List<Camera> cameras)
         {
             // Begin FrameContext
+            using (new PipelineFrameMeasurement.Scope(false))
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.FrameRendering)))
             {
                 m_ResourcePool.BeginFrame();
@@ -447,6 +448,7 @@ namespace InfinityTech.Rendering.Pipeline
                                         CullingOptions.NeedsReflectionProbes | CullingOptions.DisablePerObjectCulling;
                                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
+                                    m_MeshWorld.assetBackendPolicy = pipelineAsset.meshBackendPolicy;
                                     m_MeshWorld.BeginCamera(camera);
                                     mainView = MeshView.FromCamera(camera, ref cullingParameters);
                                     frameState.meshViewKey = mainView.viewKey;
@@ -541,6 +543,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 combineLutParameterDescriptor.MappingPolynomial.w = 1;
                             }
 
+                            UpdateHdrTonemapping();
                             OutputTransformDecision outputDecision = OutputTransformUtility.ResolveFromHardware(
                                 pipelineAsset.outputMode,
                                 pipelineAsset.hdrEncoding,
@@ -599,8 +602,11 @@ namespace InfinityTech.Rendering.Pipeline
                                     TraceOcclusion(renderContext, camera, historyCache);
                                     ComputeGroundTruthOcclusion(renderContext, camera, historyCache);
                                     ComputeContactShadow(renderContext, camera);
-                                    ComputeScreenSpaceReflection(renderContext, camera, historyCache);
-                                    ComputeScreenSpaceIndirect(renderContext, camera, historyCache);
+                                    if (SystemInfo.supportsAsyncCompute)
+                                    {
+                                        ComputeScreenSpaceReflection(renderContext, camera, historyCache);
+                                        ComputeScreenSpaceIndirect(renderContext, camera, historyCache);
+                                    }
 
                                     // PHASE 3: shadow raster (longest ROP window).
                                     // Unity 6 CreateShadowRendererList is empty until CullShadowCasters runs.
@@ -614,6 +620,11 @@ namespace InfinityTech.Rendering.Pipeline
                                     ComputeDeferredShading(renderContext, camera);
                                     RecordDeferredLightingCapture();
                                     RasterForward(renderContext, camera, mainView, cullingResults);
+                                    if (!SystemInfo.supportsAsyncCompute)
+                                    {
+                                        ComputeScreenSpaceReflection(renderContext, camera, historyCache);
+                                        ComputeScreenSpaceIndirect(renderContext, camera, historyCache);
+                                    }
                                     ComputeScreenSpaceComposite(renderContext, camera);
                                     ResolveOpaqueSceneColor();
                                     // History copies stay after the shadow window; an early graphics copy
@@ -954,10 +965,12 @@ namespace InfinityTech.Rendering.Pipeline
                 enlighten = false,
                 overridesLODBias = true,
                 overridesMaximumLODLevel = true,
-                rendersUIOverlay = true
+                rendersUIOverlay = true,
+                supportsHDR = true
             };
             m_InstalledSupportedFeatures = installedFeatures;
             s_GlobalStateOwner = this;
+            InheritHdrTonemappingOwnership(m_PreviousGlobalStateOwner);
             SupportedRenderingFeatures.active = installedFeatures;
             Shader.globalRenderPipeline = "InfinityRenderPipeline";
 
@@ -1011,12 +1024,12 @@ namespace InfinityTech.Rendering.Pipeline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void InvokeProxyUpdate()
         {
+            using (new PipelineFrameMeasurement.Scope(true))
             using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ProxyUpdate)))
             {
                 FGraphics.ProcessTasks(renderContext);
                 FGraphics.ClearTasks();
                 renderContext.InitializeWorldDecals();
-                renderContext.InterpolateMeshProbes();
 
                 #if UNITY_EDITOR
                     InvokeProxyUpdateEditor();
@@ -1024,12 +1037,14 @@ namespace InfinityTech.Rendering.Pipeline
                     InvokeProxyUpdateRuntime();
                 #endif
 
-                // EventUpdate emits transform tasks after registration was drained.
-                // Apply those poses before residency upload and per-view history snapshots.
+                renderContext.InterpolateMeshProbes();
+                renderContext.ApplyMeshTransforms();
+
+                // Apply registration tasks before residency upload and per-view history snapshots.
                 FGraphics.ProcessTasks(renderContext);
                 FGraphics.ClearTasks();
 
-                // After proxy EventUpdate (Dynamic may MarkDirty); drain applies SyncFromSnapshot same frame.
+                // Publish explicit instance/resource edits in the same frame.
                 renderContext.DrainDirtyMeshes();
             }
         }
@@ -1075,6 +1090,11 @@ namespace InfinityTech.Rendering.Pipeline
                 catch (Exception error) { failures.Add(error); }
             }
             bool ownsSharedResources = s_GlobalStateOwner == this;
+            if (ownsSharedResources)
+            {
+                PipelineFrameMeasurement.Dispose();
+                Release(RestoreHdrTonemapping);
+            }
             if (ownsSharedResources) Release(() => RenderCaptureService.current?.Cancel("PipelineDisposed"));
             Release(() => m_RGBuilder?.ClearRecordedGraph());
             if (m_CameraStates != null)
@@ -1202,8 +1222,6 @@ namespace InfinityTech.Rendering.Pipeline
             if (VolumeComponentActive(stack.GetComponent<SubsurfaceScattering>())) features.Request(EFrameFeature.SubsurfaceScattering);
 
             var rtao = stack.GetComponent<RayTracingAmbientOcclusion>();
-            InfinityRayTracingEnvironment rayEnv = InfinityRayTracingEnvironment.EnsureOwned();
-            rayEnv.SyncGeometry(renderContext.GetMeshScene());
             string rtaoReason = null;
             if (!pipelineAsset.enableRayTrace)
                 rtaoReason = "Ray tracing is disabled on the RP Asset.";
@@ -1213,8 +1231,12 @@ namespace InfinityTech.Rendering.Pipeline
                 rtaoReason = "RTAO Volume is inactive.";
             else if (!InfinityRayTracingEnvironment.CanRecord(pipelineAsset, shaders))
                 rtaoReason = string.IsNullOrEmpty(InfinityRayTracingEnvironment.lastBlockReason) ? "UnifiedRayTracing is not ready." : InfinityRayTracingEnvironment.lastBlockReason;
-            else if (rayEnv.InstanceCount == 0)
-                rtaoReason = "URT accel has no mesh instances.";
+            else
+            {
+                var rayEnv = InfinityRayTracingEnvironment.current;
+                rayEnv.SyncGeometry(renderContext.GetMeshScene());
+                if (rayEnv.InstanceCount == 0) rtaoReason = "URT accel has no mesh instances.";
+            }
             InfinityRayTracingEnvironment.ReportBlockReason(rtaoReason ?? string.Empty);
 
             // RTAO owns AO when it can record; otherwise GTAO does (if requested).

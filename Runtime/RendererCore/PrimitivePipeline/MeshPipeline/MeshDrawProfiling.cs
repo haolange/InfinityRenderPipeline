@@ -16,6 +16,19 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal static ProfilingSampler compaction => s_Compaction;
         internal static ProfilingSampler upload => s_Upload;
 
+        static readonly Dictionary<int, string> s_CascadeSlices = new Dictionary<int, string>();
+        static readonly Dictionary<int, string> s_LocalSlices = new Dictionary<int, string>();
+        internal static string Slice(EMeshViewKind kind, int index)
+        {
+            var labels = kind == EMeshViewKind.CascadeShadow ? s_CascadeSlices : s_LocalSlices;
+            if (!labels.TryGetValue(index, out string label))
+            {
+                label = (kind == EMeshViewKind.CascadeShadow ? "CascadeSlice" : "LocalShadowSlice") + index;
+                labels.Add(index, label);
+            }
+            return label;
+        }
+
         static bool IsShadow(EMeshViewKind kind)
             => kind == EMeshViewKind.CascadeShadow || kind == EMeshViewKind.LocalShadow;
 

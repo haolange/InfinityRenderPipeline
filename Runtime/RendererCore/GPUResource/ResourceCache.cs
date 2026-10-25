@@ -267,6 +267,7 @@ namespace InfinityTech.Rendering.GPUResource
         public long allocationCount { get; private set; }
         public long reuseCount { get; private set; }
         public long evictionCount { get; private set; }
+        readonly Stack<List<Entry>> m_EmptyBuckets = new Stack<List<Entry>>();
         public long estimatedAllocatedBytes { get; private set; }
         public long estimatedPeakBytes { get; private set; }
         public long estimatedActiveBytes => estimatedAllocatedBytes - estimatedIdleBytes - estimatedRetiredBytes;
@@ -304,7 +305,7 @@ namespace InfinityTech.Rendering.GPUResource
                         reuseFence = entry.reuseFence;
                     }
                     resource = entry.resource; list.RemoveAt(i);
-                    if (list.Count == 0) m_ResourcePool.Remove(hashCode);
+                    if (list.Count == 0) { m_ResourcePool.Remove(hashCode); m_EmptyBuckets.Push(list); }
                     estimatedIdleBytes -= entry.bytes; reuseCount++;
                     return true;
                 }
@@ -317,7 +318,7 @@ namespace InfinityTech.Rendering.GPUResource
 
         internal void Push(in int hash, in TDescriptor descriptor, TResource resource, ResourceReuseFence reuseFence, ResourceUsage usage = null)
         {
-            if (!m_ResourcePool.TryGetValue(hash, out var list)) m_ResourcePool.Add(hash, list = new List<Entry>());
+            if (!m_ResourcePool.TryGetValue(hash, out var list)) m_ResourcePool.Add(hash, list = m_EmptyBuckets.Count > 0 ? m_EmptyBuckets.Pop() : new List<Entry>());
             long bytes = EstimateBytes(descriptor);
             list.Add(new Entry { descriptor = descriptor, resource = resource, bytes = bytes, lastUse = m_Epoch, reuseFence = reuseFence, usage = usage });
             estimatedIdleBytes += bytes;
