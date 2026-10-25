@@ -25,7 +25,7 @@ MeshInstanceRecord ──TransformId──► TransformRecord   (1:1, exclusive)
 
 PassBin (per MeshPassId)  = filtered, structurally sorted MeshDraws
 MeshPassCommand           = MeshDrawCommandKey + member span inside the bin
-MeshDrawCommand           = mesh, section, material, count/offset, bakedTextureSet (per view, per list)
+MeshDrawCommand           = mesh, section, material, count/offset (per view, per list)
 ```
 
 Typed IDs (`MeshInstanceId`, `TransformId`, `MeshDrawId`, `MeshSectionId`, `MaterialDataId`) carry
@@ -41,7 +41,7 @@ transform that already has an owner ("TransformId already owned"). There is no m
 |------|------|
 | `MeshScene.cs`, `MeshSceneRecords.cs` | Authoritative SoA tables, generation free lists, transform ownership map, refcounted sections/materials, dirty-page bitmaps, revisions |
 | `MeshSceneUpdate.cs` | Transaction with full undo log; `Dispose` without `Commit` rolls back |
-| `GpuScene.cs` | GPU mirror of `MeshScene`: uploads dirty 64-slot page runs of transforms, rendering layers, baked lighting, bounds, instance→transform index and flags |
+| `GpuScene.cs` | GPU mirror of `MeshScene`: uploads dirty 64-slot page runs of transforms, rendering layers, bounds, instance→transform index and flags |
 | `MeshTransformVersionCache.cs` | Immutable scene transform/generation versions, dirty-page upload, GPU copy/patch production and reference retirement; camera histories retain version references only |
 | `MeshWorld.cs` | Per-scene facade owning `MeshScene`, `GpuScene`, `MeshVisibilityShare`, `PassRegistry`, `MeshDrawPipeline`, `MeshGpuVisibilityCache` and view-local references to scene-owned transform versions |
 | `PassRegistry.cs`, `MeshPassTypes.cs`, `MeshPassId.cs` | The nine `MeshPassId` definitions (filter program, eligibility, sort fields) |
@@ -54,7 +54,6 @@ transform that already has an owner ("TransformId already owned"). There is no m
 | `MeshCandidateTableStore.cs` | Per-pass GPU command table and candidate table (`uint2` instance slot, local command) |
 | `MeshDrawPipeline.cs` | CPU Extract / Resolve and graph-owned prepare/submit delegation; frame-buffer retirement |
 | `MeshDrawGPUBackend.cs` | Kernel resolution, backend policy, per-DrawList payload pool, ClearCounts/Compact/BuildIndirectArgs, `DrawMeshInstancedIndirect` |
-| `MeshBakedLighting.cs` | Per-instance lightmap index/scale-offset and probe SH capture; per-draw lightmap keywords |
 | `MeshPipelineDiagnostics.cs` | Counters (see §11) |
 | `Runtime/RendererCore/RenderGraph/RGDrawList.cs` | Per-graph DrawList registry: declare, prepare, resolve, submit, release |
 | `Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute` | `CullFrustum`, `ClearCounts`, `Compact`, `BuildIndirectArgs` |
@@ -105,8 +104,7 @@ run. Buffers bound to a live command buffer are never grown or recreated.
 - Every `MeshSceneUpdate` mutation pushes undo; `Dispose` without `Commit` rolls back atomically, restoring revisions
   and dirty pages. Section/material slots whose refcount reaches zero inside a transaction are reclaimed on commit and
   discarded on rollback.
-- `MeshDrawCommandKey` uses full structured `Equals`; `GetHashCode` is lookup acceleration only. `bakedTextureSet`
-  is part of the key, so different lightmap texture sets never share a command.
+- `MeshDrawCommandKey` uses full structured `Equals`; `GetHashCode` is lookup acceleration only. Lightmap texture identity is not a custom command property.
 - `MeshSortKey.PackSortKey` (four saturating 16-bit segments → 64-bit key) exists and is tested, but bins are sorted
   only by `CompareStructural`; pass `defaultSort` plans are not applied yet.
 
@@ -483,7 +481,7 @@ Previous-color effects do not consume current-frame lighting. On Async-capable d
 
 ## Explicit component updates and bounded hot-path storage
 
-`MeshComponent` caches its Transform/Renderer and shared Mesh/material metadata. Serialized field names and GUIDs remain stable; typed setters and `SetMaterials` are the runtime API, and no mutable material array escapes. Geometry and route revisions advance only on explicit notifications. Dynamic transforms use a persistent TransformAccessArray and a Burst world-matrix/bounds job; static transforms require notification. Probe requests derive from pose/configuration/probe-version changes. Changes are coalesced and applied through one MeshScene transaction before residency and camera recording.
+`MeshComponent` caches its Transform and shared Mesh/material metadata. Unchanged serialized fields and GUIDs remain stable; the Renderer baked-source field is removed explicitly. Typed setters and `SetMaterials` are the runtime API, and no mutable material array escapes. Geometry and route revisions advance only on explicit notifications. Dynamic transforms use a persistent TransformAccessArray and a Burst world-matrix/bounds job; static transforms require notification. Changes are coalesced and applied through one MeshScene transaction before residency and camera recording.
 
 The scene owns reusable transaction undo/dirty snapshots. `MeshSceneUpdate` is a generation-checked value lease; copied stale leases cannot close a new transaction. Each instance links only its own draws, so removal/undo capture no longer scans all draw slots. Graph compile arrays, consumer lists, frusta, candidate staging and transform patch arrays are reused only after their actual owners finish. Zero-GC measurement covers fixed-size normal library render/proxy calls after warmup, including continuous movement; diagnostic observers, initialization and growth are reported separately.
 
@@ -493,4 +491,14 @@ SSGI binning initializes zero contribution and distance for every logical workin
 
 HDR capability is live state, including pending transition, actual format, gamut and paper white. Native linear Rec.2020 is encoded with CoreRP primaries conversion and the platform HDR reference white; it is not PQ or P3. Output owns auto tonemapping while active and restores it. Physical memory diagnostics count pool, image history and other persistent textures by physical identity; estimates are format-based and do not claim driver residency.
 
-Unity lightmap arrays are captured once per lighting revision. Scene load/unload, Editor lighting updates and explicit `MeshComponent.NotifyBakedLightingChanged()` invalidate that snapshot; runtime lightmap replacement must notify after the edit. RTAO environment synchronization occurs only when the existing Asset, Volume and capability gates request it, so inactive RTAO does not rebuild geometry during unrelated object movement.
+Native lightmap arrays and per-renderer bindings remain Unity-owned. No custom Mesh lightmap snapshot is retained. RTAO environment synchronization occurs only when the existing Asset, Volume and capability gates request it, so inactive RTAO does not rebuild geometry during unrelated object movement.
+
+## Unity content and custom drawing boundary
+
+Ordinary Unity renderers are submitted from native culling results and renderer lists. Lightmap/legacy Probe/LPPV/motion data arrive through Unity per-object configuration. Visible Light.bakingOutput selects Shadowmask support independently of any custom instance or texture snapshot. Shader Graph and native Terrain retain these contracts.
+
+Custom Mesh instances carry transforms, bounds, layers, flags and draw descriptions. They have no Renderer source, lightmap mapping, interpolated SH/occlusion record or lighting attribute buffer. The instanced material samples APV in world space when available, otherwise using the pipeline's atmosphere/IBL input. CPU/GPU submission, shared transform versions and graph lifetimes remain the same owners.
+
+Ray tracing alone adapts native scene geometry to public URT explicit instances. Reused root/component lists observe active renderer state and transforms even without a custom-scene edit; custom draw generation and native renderer identity separate equal Mesh resources. A task-owned transient root provides a public Scene handle to Unity's DontDestroyOnLoad scene while playing. Queued builds are shared across cameras; only successful frame submission accepts them. Failed submissions retain the build request.
+
+The Editor owns explicit asset edits through Undo/SerializedObject/Prefab interfaces. Scene saving does not rebuild custom Terrain sectors. APV uses one initialized integration owner and rejects overlapping initialization rather than letting a stale pipeline clean another owner's resources. Refer to [the interface audit](Docs/UnityIntegrationAudit.md) for file coverage and retained diagnostic exceptions.

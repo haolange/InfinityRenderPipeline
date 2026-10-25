@@ -506,6 +506,7 @@ namespace InfinityTech.Rendering.RenderGraph
     {
         bool m_Disposed;
         IRGPass m_RayTracingPass;
+        internal void SetQueueObserver(IRGPassQueueObserver observer) => m_RayTracingPass.queueObserver = observer;
         RGResourceFactory m_ResourceFactory;
 
         internal RGRayTracingPassRef(IRGPass rayTracingPass, RGResourceFactory resourceFactory)

@@ -16,11 +16,6 @@ namespace InfinityTech.Rendering.Pipeline
         internal static string LightingTextureName = "LightingTexture";
         internal static readonly GlobalKeyword DirectionalLightmapKeyword = GlobalKeyword.Create("DIRLIGHTMAP_COMBINED");
         internal static readonly GlobalKeyword ShadowmaskKeyword = GlobalKeyword.Create("SHADOWS_SHADOWMASK");
-        internal static bool HasShadowmask()
-        {
-            foreach (var map in MeshBakedLighting.Lightmaps) if (map.shadowMask != null) return true;
-            return false;
-        }
         internal static readonly GlobalKeyword DBufferKeyword = GlobalKeyword.Create("_DBUFFER");
     }
 
@@ -123,7 +118,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.bindDBuffer = bindDBuffer;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
-                    passData.shadowmask = GBufferPassUtilityData.HasShadowmask();
+                    passData.shadowmask = renderContext.lightContext.HasShadowmask;
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
                     passData.draws = passRef.UseDrawList(gbufferDraws);
                     passData.rendererList = passRef.UseRendererList(gbufferRendererList);

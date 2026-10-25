@@ -730,6 +730,7 @@ namespace InfinityTech.Rendering.Pipeline
                     if (!nativeSubmitted) m_ResourcePool.SubmissionUncertain(true);
                     else if (!fenceCommandsQueued || !m_RGBuilder.CanRetireSubmittedResources) m_ResourcePool.SubmissionNeedsJoin();
                     frameValid &= m_RGBuilder.CanRetireSubmittedResources;
+                    InfinityRayTracingEnvironment.current?.CompleteFrame(frameValid);
                     CompleteFrameTransaction(m_AtmosphereSharedCache, m_CameraStates, frameValid, Time.frameCount);
                     if (frameValid) { m_LocalShadowCache.CommitFrame(); m_LightCookieAtlas.CommitFrame(); m_ReflectionProbeAtlas.CommitFrame(); }
                     else { m_LocalShadowCache.RollbackPending(); m_LightCookieAtlas.RollbackPending(); m_ReflectionProbeAtlas.RollbackPending(); }
@@ -1037,7 +1038,6 @@ namespace InfinityTech.Rendering.Pipeline
                     InvokeProxyUpdateRuntime();
                 #endif
 
-                renderContext.InterpolateMeshProbes();
                 renderContext.ApplyMeshTransforms();
 
                 // Apply registration tasks before residency upload and per-view history snapshots.

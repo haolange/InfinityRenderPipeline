@@ -59,56 +59,6 @@ namespace InfinityTech.Component
 #endif
 
         [Header("Lighting")]
-        [SerializeField] private Renderer m_BakedLightingSource;
-        private FMeshBakedLighting m_LastBakedLighting;
-        // Probe sample interpolated by RenderContext's per-frame batch, valid for m_ProbePosition at m_ProbeVersion.
-        private bool m_HasProbeSample;
-        private Vector3 m_ProbePosition;
-        private int m_ProbeVersion;
-        private FMeshBakedLighting m_CurrentBakedLighting;
-        private UnityEngine.Rendering.SphericalHarmonicsL2 m_ProbeSH;
-        private Vector4 m_ProbeOcclusion;
-        private bool m_UsesProbes;
-        private Transform m_ProbeAnchor;
-        internal Vector3 probeWorldPosition;
-
-        private Renderer m_CachedRenderer;
-        private Renderer BakedLightingSource => m_BakedLightingSource != null ? m_BakedLightingSource : m_CachedRenderer;
-
-        private FMeshBakedLighting ReadBakedLighting() => m_CurrentBakedLighting;
-
-        internal void RefreshLightingConfiguration(bool probesAvailable)
-        {
-            Renderer source = BakedLightingSource;
-            var layout = MeshBakedLighting.CaptureLayout(source);
-            m_UsesProbes = layout.TextureSet == 0 && probesAvailable && (source == null || source.lightProbeUsage != UnityEngine.Rendering.LightProbeUsage.Off);
-            m_ProbeAnchor = source != null ? source.probeAnchor : null;
-            if (m_UsesProbes && m_HasProbeSample && m_ProbeVersion == MeshBakedLighting.ProbeVersion)
-                layout = MeshBakedLighting.WithProbeSample(layout, m_ProbeSH, m_ProbeOcclusion);
-            if (!m_CurrentBakedLighting.Equals(layout)) MarkTransformDirty();
-            m_CurrentBakedLighting = layout;
-        }
-
-        // Batch step 1: the probe position this mesh needs a sample for, or false when its sample is current or it
-        // uses no probes.
-        internal bool NeedsProbeSample(out Vector3 probePosition)
-        {
-            Renderer source = BakedLightingSource;
-            probePosition = m_ProbeAnchor != null ? m_ProbeAnchor.position : source != null ? source.bounds.center : probeWorldPosition;
-            if (!m_UsesProbes) return false;
-            return !m_HasProbeSample || m_ProbeVersion != MeshBakedLighting.ProbeVersion || probePosition != m_ProbePosition;
-        }
-
-        // Batch step 2: the interpolated sample.
-        internal void SetProbeSample(Vector3 probePosition, UnityEngine.Rendering.SphericalHarmonicsL2 sh, Vector4 occlusion)
-        {
-            m_HasProbeSample = true;
-            m_ProbePosition = probePosition;
-            m_ProbeVersion = MeshBakedLighting.ProbeVersion;
-            m_ProbeSH = sh; m_ProbeOcclusion = occlusion;
-            m_CurrentBakedLighting = MeshBakedLighting.WithProbeSample(m_CurrentBakedLighting, sh, occlusion);
-            MarkTransformDirty();
-        }
         [SerializeField] private ECastShadowMethod castShadow = ECastShadowMethod.Off;
         [SerializeField] private bool receiveShadow = true;
         [SerializeField] private bool affectIndirectLighting = true;
@@ -120,7 +70,6 @@ namespace InfinityTech.Component
         [SerializeField] private EMotionType motionVector = EMotionType.Object;
 
 
-        private bool m_PreviousForceRenderingOff;
         private MeshInstanceId m_InstanceId;
         private TransformId m_TransformId;
         private MeshDrawId[] m_DrawIds;
@@ -147,15 +96,7 @@ namespace InfinityTech.Component
         {
             uint epoch = ++m_RegistrationEpoch;
             RefreshGeometryReference();
-            m_CachedRenderer = GetComponent<Renderer>();
             s_Registered.Add(this);
-            MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-            if (meshRenderer != null)
-            {
-                // MeshComponent owns MeshDraw; MeshRenderer owns RendererList — exclusive.
-                m_PreviousForceRenderingOff = meshRenderer.forceRenderingOff;
-                meshRenderer.forceRenderingOff = true;
-            }
 
             UpdateBounds();
             FGraphics.RegisterMesh(this, epoch);
@@ -189,12 +130,6 @@ namespace InfinityTech.Component
             ++m_RegistrationEpoch;
             s_Registered.Remove(this);
             ReleaseGeometryReference();
-            MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-            if (meshRenderer != null)
-            {
-                meshRenderer.forceRenderingOff = m_PreviousForceRenderingOff;
-            }
-
             MeshInstanceId instanceId = m_InstanceId;
             EStateType mobility = dynamicIndex >= 0 ? EStateType.Dynamic : EStateType.Static;
             MeshComponent self = this;
@@ -261,13 +196,6 @@ namespace InfinityTech.Component
                 return;
             }
 
-            FMeshBakedLighting baked = ReadBakedLighting();
-            if (!baked.Equals(m_LastBakedLighting))
-            {
-                using (var update = renderContext.GetMeshScene().BeginUpdate())
-                { update.SetInstanceBakedLighting(m_InstanceId, baked); update.Commit(); }
-                m_LastBakedLighting = baked;
-            }
             if (!HasLightweightDiff())
             {
                 return;
@@ -383,7 +311,6 @@ namespace InfinityTech.Component
             if (!meshAsset) { return; }
 
             cachedTransform = transform;
-            probeWorldPosition = cachedTransform.position;
             RefreshGeometryReference();
             localBounds = m_Geometry.bounds;
             m_BoundBox = Geometry.CaculateWorldBound(localBounds, m_LocalToWorldMatrix);
@@ -465,8 +392,6 @@ namespace InfinityTech.Component
                     EGeometrySourceKind.IndexedMesh,
                     sceneCullingMask: SceneCullingMask);
 
-                m_LastBakedLighting = ReadBakedLighting();
-                update.SetInstanceBakedLighting(m_InstanceId, m_LastBakedLighting);
                 int subMeshCount = m_Geometry.subMeshes;
                 m_DrawIds = new MeshDrawId[subMeshCount];
                 ulong meshUnityId = m_Geometry.identity;
@@ -579,9 +504,6 @@ namespace InfinityTech.Component
             if (receiveShadow) flags |= EMeshInstanceFlags.ReceiveShadow;
             if (castShadow != ECastShadowMethod.Off) flags |= EMeshInstanceFlags.CastShadow;
             if (affectIndirectLighting) flags |= EMeshInstanceFlags.AffectIndirect;
-            Renderer bakedSource = BakedLightingSource;
-            if (movebility == EStateType.Static && bakedSource != null && bakedSource.lightmapIndex >= 0 && bakedSource.lightmapIndex < 65534)
-                flags |= EMeshInstanceFlags.ShadowmaskStatic;
             return flags;
         }
 

@@ -2,12 +2,16 @@
 
 ## [0.5.0] - Unreleased
 
+- Separate native Unity renderer lighting/state from custom Mesh content. Custom Mesh removes Lightmap and CPU per-instance Probe attributes and retains shader world-space APV. Native Shadowmask decisions use visible Light baking output. This supersedes the earlier destroyed-lightmap-cache repair; no custom cache remains.
+- Keep URT native/custom instances distinct and refresh native input independently of MeshScene revisions; queued builds are shared across cameras and accepted only after successful frame submission. Pair entity registration with one unregister, give APV one explicit owner, and make Terrain sector rebuilding an explicit Editor operation.
+- Target development refresh/capture tools by explicit project/process. Refresh invokes public AssetDatabase through Unity CLI, with no cross-session UI fallback; temporary native capture compiler caches are cleaned on exit.
+
 Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md). Historical upgrade records are archived under Docs/History.
 
 ### Changed
 - Inactive RTAO no longer initializes or rebuilds URT geometry while Mesh transforms move; the existing request/capability gates remain authoritative.
 - Baked-lighting validation uses BlendProbes instead of creating the deprecated LPPV component.
-- Mesh component updates use explicit geometry/routing/instance notifications, persistent Burst transform/bounds batches, change-driven probe requests and one reusable generation-checked transaction. Instance draw links remove quadratic destruction scans; normal-frame compile and patch staging reuse bounded storage.
+- Mesh component updates use explicit geometry/routing/instance notifications, persistent Burst transform/bounds batches, one reusable generation-checked transaction. Instance draw links remove quadratic destruction scans; normal-frame compile and patch staging reuse bounded storage.
 - Added Asset Mesh backend policy and temporary Debugger override without changing Auto capability selection.
 - SSR/SSGI surface history stores exact depth and packed normals/age in RG32UInt; Metal diagnostics decode only on requested readback. SSGI uses LDS tile binning, one-dimensional compact-ray tracing, diagnostic-only RayHit and shared Trace/Spatial work storage. Non-Async devices record these effects near composition.
 - HDR reads current native state and supports the actual linear Rec.2020 float swapchain separately from PQ/scRGB. Output owns and restores automatic tonemapping.
@@ -56,14 +60,13 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
   live in a persistent atlas (RP Asset Cached Shadow Atlas Width), are re-rendered only when stale and are copied into
   the frame atlas; slot state commits only with a submitted frame.
 - Shadowmask mode: realtime shadows of Mixed Shadowmask lights draw dynamic casters only (static lightmapped casters
-  come from the shadowmask), for RendererList objects and MeshScene instances alike. Distance Shadowmask is unchanged.
+  come from the shadowmask), for native RendererList objects. Custom Mesh has no baked static casters and remains realtime. Distance Shadowmask is unchanged.
 - Rendering Debugger → Debug View: Cascade / Local / Cached Shadow Atlas and Shadow Moments; Infinity Lighting panel
   counts cached shadow tiles and re-renders.
 - Baked GI: Adaptive Probe Volumes (RP Asset Light Probe System, CoreRP streaming / scenarios, ProbeVolumesOptions in
   the default Volume profile) and Light Probe Proxy Volumes feed unlightmapped surfaces in Deferred and Forward, for
-  RendererList objects and MeshScene instances; terrain receives lightmaps, Shadowmask and probes; InfinityLit-
+  native RendererList objects; custom Mesh samples APV in world space without per-object SH. Terrain receives lightmaps, Shadowmask and probes; InfinityLit-
   Instanced and TerrainLit get ShadowCaster and Meta passes. Unused APV variants are stripped from builds.
-  MeshScene instances interpolate light probes in one batch per frame (static meshes only after a probe bake).
   Window/Infinity/Lighting/Use Atmosphere As Baking Sky makes the lightmapper's environment the pipeline's atmosphere.
 - Light cookies and IES profiles: one mip-mapped atlas with buddy-allocated blocks, compute uploads (2D copy, cube
   to octahedral, mips), cookies on spot / pyramid / box / point / directional (tiled) lights and emitter textures on
@@ -117,6 +120,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
   with a separable Gaussian blur and light-bleeding reduction (`Compute_ShadowMoment.compute`, `ShadowMoments.hlsl`).
 
 ### Fixed
+- Lightmap snapshots reject destroyed Unity texture wrappers and invalidate on Editor scene/open-close and Play transitions, restoring native color/direction/Shadowmask bindings without fetching a new array on stable frames. Runtime LightmapSettings edits retain the explicit notification contract.
 - Close the approved remaining macOS Metal Editor acceptance: 625/625 Infinity-only tests, eight normal regressions
   with unchanged baselines, three independent fresh-RP first/stable probe checks and seven valid composite timing
   workloads. Retain historical transient causes as unknown and external SDK skips outside Infinity acceptance.

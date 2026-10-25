@@ -1,0 +1,38 @@
+# Unity integration ownership audit
+
+Reference: local Unity 6000.6.0f1, HDRP/CoreRP/Shader Graph 17.6.0. The reference packages are inspected, not modified or imported as runtime dependencies. Infinity's RenderGraph, ResourcePool, Mesh Drawing Pipeline and custom terrain algorithms remain Infinity-owned.
+
+The [file inventory](UnityBoundaryInventory.csv) includes every tracked or nonignored candidate file, including metadata, hidden package configuration, imported assets, tools and historical documents. Each row identifies the owner, applicable boundary, inspection/disposition, evidence reference and inspected-byte hash. Removed paths are explicit. Assets are checked through their producer/import contracts; historical material is reference-only. The generated inventory records itself as derived to avoid a recursive hash. Regenerate explicitly with `python3 Tools/StaticCheck/boundary_inventory.py --write` after reviewing the candidate; regeneration alone is not source inspection. File coverage is not a claim that every algorithm was rewritten or every platform executed.
+
+## Decisions and consumer closure
+
+| Area | Ownership and disposition | Reference / acceptance |
+|---|---|---|
+| Native geometry | Keep Unity camera culling, RendererList and ShadowRendererList. Request native per-object lighting and motion data. | HDRP HDRenderPipeline/Prepass and HDUtils.GetRendererConfiguration; renderer-list and native-motion tests. |
+| Custom Mesh | Keep SoA scene, CPU/GPU backends, culling, compaction, shared transform versions and explicit updates. Remove Renderer takeover, Lightmap mapping/command split, CPU Probe samples and lighting attribute buffers. World-space APV stays in the shader. | Mesh component/command table/residency tests and normal full-scene draws. |
+| Lightmap/Probe/Shadowmask | Native Renderer data stays Unity-owned. Visible Light.bakingOutput determines Shadowmask requirements. No custom Mesh lightmap cache, notification or fallback texture. Native Lightmap/LPPV/Probe shader consumers remain. | HDRP LightLoop.IsBakedShadowMaskLight; NativeLightingContractTests and actual bake/reopen checks. |
+| Lights/reflection probes | Keep CullingResults.visibleLights/visibleReflectionProbes as inputs. AdditionalData owns only Infinity extensions. Keep GPU packing, clustered masks and atlas algorithms. | Light shape/record, cookie/probe/cache transaction tests. |
+| Shadows | Keep native CullShadowCasters/CreateShadowRendererList alongside self-owned Mesh caster lists. Custom Mesh is never excluded as a baked static caster. | Native Mixed shadows, custom caster/visibility tests, shadow atlas readback. |
+| URT | Public URT requires explicit instance descriptions. Keep an isolated adapter; distinguish renderer identity/custom draw generation from Mesh asset identity. Reused loaded-scene root lists observe native transforms, enable state and membership independently of MeshScene. One owned transient object gives a public handle to the persistent scene. | RayTracingInputContractTests; actual available backend separately recorded. Internal CoreRP AccelStructAdapter is not consumed. |
+| Acceleration production | Recording reads build requirements without accepting them. Queued builds are shared across cameras; frame submission accepts or rejects production. | Queue/submission regression; native failure/platform boundaries remain explicit. |
+| Camera/history/output | Keep per-camera image histories and custom transform histories; Unity supplies native previous-object data. Camera target, viewport, display/HDR and UI use public SRP APIs. | Native motion, output/temporal/capture tests and real Game view. |
+| RenderGraph/resource pool | Keep Infinity ownership and scheduling. Unity supplies buffers, RTHandles, command submission and fences. Preserve recording/pending/completed/cancelled lifetimes. No second native content registry is added. | Renderer-list, queue/resource/history suites; real cross-queue availability is a separate gate. |
+| Volume/GlobalSettings | Keep CoreRP containers, per-camera VolumeStack and explicit authoring. No loading-time resource repair or profile migration. | Default volume, feature/settings and quality-lifecycle suites. |
+| APV | Bind CoreRP-owned globals before graph recording. One initialized integration owns cleanup; overlapping initialization is rejected before touching another owner. Custom material samples world position, not an uploaded per-object Probe record. | Core ProbeReferenceVolume.Initialize/Cleanup/Binding; actual APV coverage in FeatureStatus. |
+| Components | Pair enable/disable/destroy registration exactly once. Custom components do not mutate native renderer state. | Lifecycle and Mesh registration tests. |
+| Editor/authoring | Keep SerializedObject, Undo and Prefab hooks. Terrain sector regeneration becomes an explicit action, not a scene-save callback. Baking-sky/IES/material conversion/wizard writes remain explicit authoring operations. | Inspector/save/Undo fixtures and file integrity checks. |
+| Shader/Shader Graph | Preserve native Unity buffers, instancing, Lightmap/LPPV/Probe and Meta contracts. Remove only custom per-instance lightmap/probe bindings. Keep the existing bounded Shader Graph asmref integration. | Static HLSL/layout/string checks, shader variants and graph generation/import. |
+| Tools/native diagnostics | Keep CLI loopback authentication, owned capture/readback retirement and explicit build entry points. Read-only Metal attachment probe uses Unity's native-plugin interface. Reflection into Frame Debugger/GameView/docking stays isolated in diagnostics, never production decisions. | Tool cancellation/restoration and normal-frame receipts. |
+| Editor process targeting | Refresh scripts call public AssetDatabase.Refresh through an explicit-project Unity CLI connection. Window capture requires the selected project/Player PID; Scene capture never falls back to another Unity process. Temporary Swift module caches are task-owned and removed on exit. | macOS refresh execution; shell syntax; Windows execution remains a platform gate. |
+| Containers/algorithms | Keep self-owned native collections, sorting, geometry, effects and placeholder feature modules; Unity Collections/Jobs/Burst are dependencies, not a reason to replace algorithms. | Existing unit/GPU suites. This audit does not claim to repair every unrelated algorithm defect. |
+| Assets/docs/assemblies | Preserve user resource edits, GUIDs and importer ownership. Update current contracts; historical receipts remain historical. Only explicitly authorized source assets may be migrated. | Static meta/link/assembly gates and source-byte protection. |
+
+## Interface removals
+
+Custom `BakedLightingSourceRenderer`, `NotifyBakedLightingChanged`, `FMeshBakedLighting`, per-instance baked-lighting setters/getters, texture-set command fields, lighting buffers and custom lightmap keywords are removed with their consumers. No compatibility alias replaces them. Custom Mesh has no CPU Legacy Probe API or new ProbeAnchor field. Native renderer Lightmap edits use Unity's own binding lifecycle.
+
+The earlier local destroyed-lightmap-wrapper repair is superseded by deleting the custom cache and its global consumers. That receipt remains a factual record of the prior bounded repair, not the architecture after this change.
+
+## Verification record
+
+Execution results, scene migration integrity, normal frames, actual bake and platform limits are recorded in [FeatureStatus](FeatureStatus.md). The task uses one independent full Example mirror and its own APFS Library; no other session's Editor is controlled. No Player build, branch, commit, push or shutdown is authorized by this audit.

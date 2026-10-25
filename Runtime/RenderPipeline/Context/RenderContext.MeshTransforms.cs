@@ -84,13 +84,13 @@ namespace InfinityTech.Rendering.Pipeline
                 if (m_DynamicChanged[i] != 0)
                 {
                     var mesh = m_DynamicMeshList[i];
-                    mesh.MarkTransformDirty(m_DynamicMatrices[i].c3.xyz);
+                    mesh.MarkTransformDirty();
                 }
         }
 
         internal void ApplyMeshTransforms()
         {
-            using var measurement = new PipelineFrameMeasurement.Section(2);
+            using var measurement = new PipelineFrameMeasurement.Section(1);
             if (s_TransformUpdates.Count == 0) return;
             using (var update = m_MeshScene.BeginUpdate())
             {

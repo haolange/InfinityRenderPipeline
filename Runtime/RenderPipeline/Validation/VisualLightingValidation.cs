@@ -145,7 +145,7 @@ namespace InfinityTech.Rendering.Pipeline
                 Array.Copy(m_PreviousMaps, m_Maps, m_PreviousMaps.Length);
                 for (int i = 0; i < 2; i++) m_Maps[m_PreviousMaps.Length + i] = new LightmapData
                 { lightmapColor = Texture("FixtureColor" + i, m_Colors[i]), lightmapDir = Texture("FixtureDirection" + i, new Color(0.5f, 0.5f, 0, 0.75f)), shadowMask = Texture("FixtureMask" + i, m_Mask) };
-                LightmapSettings.lightmaps = m_Maps; InfinityTech.Component.MeshComponent.NotifyBakedLightingChanged();
+                LightmapSettings.lightmaps = m_Maps;
                 m_ProbeAnchor = Object("FixtureProbeAnchor").transform;
                 Mesh quad = Quad();
                 Material[] materials = new Material[4];
@@ -180,6 +180,7 @@ namespace InfinityTech.Rendering.Pipeline
                     renderer.shadowCastingMode = ShadowCastingMode.Off;
                     if (owner == 1)
                     {
+                        renderer.forceRenderingOff = true;
                         MeshComponent mesh = go.AddComponent<MeshComponent>(); mesh.MeshAsset = quad;
                         if (firstScenario >= 25) mesh.Mobility = EStateType.Dynamic;
                         mesh.SetMaterials(new[] { renderer.sharedMaterial }); mesh.CastShadow = ECastShadowMethod.Off;
@@ -196,6 +197,7 @@ namespace InfinityTech.Rendering.Pipeline
                     casterRenderer.shadowCastingMode = ShadowCastingMode.On;
                     if (owner == 1)
                     {
+                        casterRenderer.forceRenderingOff = true;
                         MeshComponent mesh = caster.AddComponent<MeshComponent>(); mesh.MeshAsset = quad;
                         mesh.SetMaterials(new[] { casterRenderer.sharedMaterial }); mesh.CastShadow = ECastShadowMethod.Dynamic;
                     }
@@ -325,6 +327,7 @@ namespace InfinityTech.Rendering.Pipeline
                         if (i / 2 == 2) expected *= new Color(0.5f, 0.75f, 1.25f, 1);
                         if (scenario == 1) { expected.r /= 0.75f; expected.g /= 0.75f; expected.b /= 0.75f; }
                     }
+                    if (i % 2 != 0) { expected = Color.clear; expectedMask = Color.white; }
                     expectation.receivers.Add(new ReceiverEvidence { name = receiver.name, owner = i % 2 == 0 ? "Native" : "Mesh", route = scenario >= 27 ? "T" + (i / 2) : i / 2 == 1 ? "Forward" : "Deferred",
                         map = map, viewport = m_Camera.WorldToViewportPoint(receiver.transform.position), expectedDiffuse = expected, expectedMask = expectedMask });
                 }
@@ -376,7 +379,7 @@ namespace InfinityTech.Rendering.Pipeline
         void Cleanup()
         {
             RenderPipelineManager.endCameraRendering -= TrackOtherViews;
-            LightmapSettings.lightmaps = m_PreviousMaps; InfinityTech.Component.MeshComponent.NotifyBakedLightingChanged();
+            LightmapSettings.lightmaps = m_PreviousMaps;
             LightmapSettings.lightmapsMode = m_PreviousLightmapMode; QualitySettings.shadowmaskMode = m_PreviousShadowmaskMode;
             foreach (Light light in m_Lights) if (light != null) light.enabled = true;
             foreach (Camera camera in m_Cameras) if (camera != null) camera.enabled = true;

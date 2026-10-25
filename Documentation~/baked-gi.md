@@ -2,15 +2,15 @@
 
 ## Sources and priority
 
-Each pixel takes its baked diffuse lighting from the first available source:
+Each native Unity Renderer pixel takes its baked diffuse lighting from the first available source:
 
 1. **Lightmap** (static renderers with Contribute GI, including terrain).
 2. **Adaptive Probe Volumes** when the RP Asset's **Light Probe System** is Adaptive Probe Volumes.
 3. **Light Probe Proxy Volume** (renderer Light Probes = Use Proxy Volume).
-4. **Light probes** (interpolated per renderer; MeshComponent instances re-interpolate in one batch when they move).
+4. **Light probes** (Unity per-renderer interpolation).
 5. **Sky** ambient (the atmosphere's SH).
 
-Shadowmask and probe occlusion come from the same source.
+Shadowmask and probe occlusion come from the same native source. Infinity Mesh instances do not consume lightmaps, LPPV or CPU-interpolated per-instance probes. Their shader may sample APV directly in world space, with atmosphere/IBL used when no APV data is available. Adding a MeshComponent does not disable a MeshRenderer; native and custom content must be authored independently.
 
 ## Mixed lighting
 

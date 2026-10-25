@@ -217,8 +217,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                         passCommand.key.meshUnityId,
                         passCommand.key.sectionIndex,
                         passCommand.key.materialUnityId,
-                        new int2(emitted, baseOffset),
-                        passCommand.key.bakedTextureSet));
+                        new int2(emitted, baseOffset)));
                     metas.Add(indexCount);
                     metas.Add(startIndex);
                     metas.Add(baseVertex);

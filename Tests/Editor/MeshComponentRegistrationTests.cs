@@ -30,9 +30,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
             FlushOwnMeshTasks(meshStart, context);
-            // Registration now joins the world first; the real pipeline batches probes before dirty sync.
+            // Registration joins the world before dirty synchronization.
             // Drive those phases without draining another Editor object's queued work.
-            context.InterpolateMeshProbes();
             var dirty = (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
                 "s_DirtyMeshList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
             if (dirty.RemoveAll(value => ReferenceEquals(value, component)) > 0)
@@ -83,7 +82,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(reenable && component.Mobility == EStateType.Dynamic ? 1 : 0, context.GetWorldDynamicPrimitive().Count);
                 Assert.AreEqual(reenable && component.Mobility == EStateType.Static ? 1 : 0, context.GetWorldStaticMesh().Count);
                 CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
-                Assert.AreEqual(!reenable, !go.GetComponent<Renderer>().forceRenderingOff);
+                Assert.IsFalse(go.GetComponent<Renderer>().forceRenderingOff, "Custom registration must not mutate native rendering state.");
             }
             finally
             {

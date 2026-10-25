@@ -9,11 +9,24 @@ OUT_PATH="${2:-$PROJECT_PATH/Logs/unity_capture.png}"
 PROJECT_NAME="$(basename "${PROJECT_PATH%/}")"
 PLAYER_PID="${3:-}"
 
-# EditorInstance.json may be stale and kill -0 may be denied by the sandbox.
-# CoreGraphics is the authority for the actual currently visible capture window.
-WINDOW_ARGUMENTS=("$PROJECT_NAME")
-if [[ -n "$PLAYER_PID" ]]; then WINDOW_ARGUMENTS+=("$PLAYER_PID"); fi
-UNITY_WINDOW_ID="$(/usr/bin/swift -module-cache-path "${TMPDIR:-/tmp}/InfinityRP-SwiftModuleCache" "$SCRIPT_DIR/UnityWindowId.swift" "${WINDOW_ARGUMENTS[@]}")"
+# CoreGraphics validates visibility; the project PID prevents selection of another session.
+WINDOW_PID="$PLAYER_PID"
+if [[ -z "$WINDOW_PID" ]]; then
+  WINDOW_PID="$(python3 - "$PROJECT_PATH/Library/EditorInstance.json" <<'PYTHON'
+import json, sys
+with open(sys.argv[1]) as source:
+    pid = json.load(source)["process_id"]
+if not isinstance(pid, int) or pid <= 0:
+    raise SystemExit("Invalid Editor PID.")
+print(pid)
+PYTHON
+)"
+fi
+WINDOW_ARGUMENTS=("$PROJECT_NAME" "$WINDOW_PID")
+mkdir -p "$PROJECT_PATH/intermediate"
+MODULE_CACHE="$(mktemp -d "$PROJECT_PATH/intermediate/window-capture.XXXXXX")"
+trap 'rm -rf -- "$MODULE_CACHE"' EXIT
+UNITY_WINDOW_ID="$(/usr/bin/swift -module-cache-path "$MODULE_CACHE" "$SCRIPT_DIR/UnityWindowId.swift" "${WINDOW_ARGUMENTS[@]}")"
 if [[ ! "$UNITY_WINDOW_ID" =~ ^[1-9][0-9]*$ ]]; then
   echo "Invalid CoreGraphics window ID: $UNITY_WINDOW_ID" >&2
   exit 1

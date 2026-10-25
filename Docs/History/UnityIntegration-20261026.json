@@ -1,0 +1,1194 @@
+{
+  "date": "2026-10-26",
+  "base": "4156fcad28ad13a7e41fda2ac37f6b81ce11c733",
+  "environment": {
+    "unity": "6000.6.0f1",
+    "api": "Metal",
+    "gpu": "Apple M3 Max",
+    "mirrorPid": 9896
+  },
+  "tests": {
+    "tests-candidate": {
+      "runGuid": "260303e3-1f43-49b4-8872-3b775f285dbb",
+      "discovered": 822,
+      "passed": 816,
+      "failed": 5,
+      "skipped": 1,
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "result": "Failed(Child)"
+    },
+    "tests-registration": {
+      "runGuid": "97f268df-946c-4535-967b-8aa300673e3f",
+      "discovered": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "result": "Passed"
+    },
+    "tests-ray-input": {
+      "runGuid": "ca509d8a-8f29-467a-9247-bcf5090fb68f",
+      "discovered": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "result": "Passed"
+    },
+    "tests-quality": {
+      "runGuid": "b51dfab2-bd5d-4732-9d49-b09fd4f5acca",
+      "discovered": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "result": "Passed"
+    },
+    "tests-terrain-clean": {
+      "runGuid": "f6006336-3c42-4eb3-8447-749ccf192a20",
+      "discovered": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "result": "Passed"
+    },
+    "tests-baked-contract": {
+      "runGuid": "0ba99a15-8d42-454a-b457-c2a8c8cb1a85",
+      "discovered": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "frameworkComplete": true,
+      "callbacksComplete": true,
+      "result": "Passed"
+    }
+  },
+  "frames": {
+    "baseline-frozen": {
+      "status": "Completed",
+      "error": "",
+      "captured": 1,
+      "outstanding": 0,
+      "frame": {
+        "frame": 10,
+        "width": 1666,
+        "height": 937,
+        "captureIndex": 9,
+        "internalWidth": 1666,
+        "internalHeight": 937,
+        "presentViewport": {
+          "serializedVersion": "2",
+          "x": 0.0,
+          "y": 0.0,
+          "width": 1666.0,
+          "height": 937.0
+        },
+        "outputPolicy": "HardwareSRGB",
+        "outputTargetFormat": "B8G8R8A8_SRGB",
+        "presentTarget": "BuiltinRenderTextureType.CameraTarget",
+        "targetTexture": "null",
+        "activeTexture": "null",
+        "sourceWidth": 1666,
+        "sourceHeight": 937,
+        "targetWidth": 0,
+        "targetHeight": 0,
+        "presentScaleBias": {
+          "x": 1.0,
+          "y": -1.0,
+          "z": 0.0,
+          "w": 1.0
+        },
+        "presentExecuted": true,
+        "postProcessingEnabled": true,
+        "sceneLightingEnabled": true,
+        "cameraType": "Game",
+        "motionPhase": "",
+        "gameTime": 0.1167578656462585,
+        "realtime": 0.2706537548187953,
+        "currentJitterUV": {
+          "x": 0.00011254501441726461,
+          "y": -0.00013340449368115515
+        },
+        "previousJitterUV": {
+          "x": 0.0,
+          "y": 0.00013340447912923992
+        },
+        "entity": "758217:11008",
+        "historyReset": false,
+        "temporalColorValid": true,
+        "temporalColorSource": "UnsharpenedTAA",
+        "temporalColorGrid": {
+          "x": 1666.0,
+          "y": 937.0,
+          "z": 0.0006002400768920779,
+          "w": 0.0010672358330339193
+        },
+        "position": {
+          "x": 8.0,
+          "y": -1.25,
+          "z": 0.6000000238418579
+        },
+        "rotation": {
+          "x": -0.08945874869823456,
+          "y": -0.7585893869400024,
+          "z": -0.10661278665065765,
+          "w": 0.6365320682525635
+        },
+        "view": {
+          "e00": -0.17364835739135742,
+          "e01": 0.0,
+          "e02": 0.9848078489303589,
+          "e03": 0.7983021140098572,
+          "e10": 0.27144983410835266,
+          "e11": 0.9612616896629333,
+          "e12": 0.04786393791437149,
+          "e13": -0.9987399578094482,
+          "e20": 0.9466580152511597,
+          "e21": -0.2756373882293701,
+          "e22": 0.1669214963912964,
+          "e23": -8.017963409423828,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": 0.0,
+          "e33": 1.0
+        },
+        "projection": {
+          "e00": 0.9998666048049927,
+          "e01": 0.0,
+          "e02": 0.0,
+          "e03": 0.0,
+          "e10": 0.0,
+          "e11": 1.7777776718139648,
+          "e12": 0.0,
+          "e13": 0.0,
+          "e20": 0.0,
+          "e21": 0.0,
+          "e22": -1.0015637874603271,
+          "e23": -0.20015637576580048,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": -1.0,
+          "e33": 0.0
+        },
+        "jitteredViewProjection": {
+          "e00": -0.173838272690773,
+          "e01": 6.204322562552989e-05,
+          "e02": 0.9846389293670654,
+          "e03": 0.8000003695487976,
+          "e10": 0.4828300178050995,
+          "e11": 1.7088360786437988,
+          "e12": 0.08513597398996353,
+          "e13": -1.7776768207550049,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        },
+        "inverseJitteredViewProjection": {
+          "e00": -0.17367146909236908,
+          "e01": 0.15269052982330322,
+          "e02": 79.93750762939453,
+          "e03": -0.884075403213501,
+          "e10": 3.1743411454954185e-08,
+          "e11": 0.5407097339630127,
+          "e12": -12.490232467651367,
+          "e13": 0.26601558923721313,
+          "e20": 0.9849389791488647,
+          "e21": 0.02692348323762417,
+          "e22": 5.995311737060547,
+          "e23": -0.16244830191135406,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": 9.9921875,
+          "e33": 0.00781282875686884
+        },
+        "previousJitteredViewProjection": {
+          "e00": -0.173625186085701,
+          "e01": 0.0,
+          "e02": 0.9846764802932739,
+          "e03": 0.7981956005096436,
+          "e10": 0.48232486844062805,
+          "e11": 1.708983063697815,
+          "e12": 0.08504690229892731,
+          "e13": -1.7733982801437378,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        },
+        "motionViewProjection": {
+          "e00": -0.173625186085701,
+          "e01": 0.0,
+          "e02": 0.9846764802932739,
+          "e03": 0.7981956005096436,
+          "e10": 0.48257744312286377,
+          "e11": 1.708909511566162,
+          "e12": 0.08509144186973572,
+          "e13": -1.7755376100540161,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        },
+        "previousMotionViewProjection": {
+          "e00": -0.173625186085701,
+          "e01": 0.0,
+          "e02": 0.9846764802932739,
+          "e03": 0.7981956005096436,
+          "e10": 0.48257744312286377,
+          "e11": 1.708909511566162,
+          "e12": 0.08509144186973572,
+          "e13": -1.7755376100540161,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        }
+      },
+      "buffers": [
+        {
+          "semantic": "Lighting",
+          "producer": "ComputeAtmosphericSkyAndFog",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 1.0311603546142578e-05,
+            "maximum": 4.69140625,
+            "mean": 0.2658781345923734,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "DisplayColor",
+          "producer": "RasterUIOverlay",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.26064633683200716,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "BakedDiffuse",
+          "producer": "RasterGBuffer",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.28144382076441904,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "BakedOcclusion",
+          "producer": "RasterGBuffer",
+          "format": "R8G8B8A8_UNorm",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.933537346133096,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "CascadeShadow",
+          "producer": "RasterCascadeShadow",
+          "format": "R32_SFloat",
+          "width": 4096,
+          "height": 4096,
+          "statistics": {
+            "samples": 16777216,
+            "nonFinite": 0,
+            "roiSamples": 16777216,
+            "minimum": 0.0,
+            "maximum": 0.8005038499832153,
+            "mean": 0.002204590176483112,
+            "hasFiniteRoiSamples": true
+          }
+        }
+      ]
+    },
+    "candidate-frozen": {
+      "status": "Completed",
+      "error": "",
+      "captured": 1,
+      "outstanding": 0,
+      "frame": {
+        "frame": 10,
+        "width": 1666,
+        "height": 937,
+        "captureIndex": 9,
+        "internalWidth": 1666,
+        "internalHeight": 937,
+        "presentViewport": {
+          "serializedVersion": "2",
+          "x": 0.0,
+          "y": 0.0,
+          "width": 1666.0,
+          "height": 937.0
+        },
+        "outputPolicy": "HardwareSRGB",
+        "outputTargetFormat": "B8G8R8A8_SRGB",
+        "presentTarget": "BuiltinRenderTextureType.CameraTarget",
+        "targetTexture": "null",
+        "activeTexture": "null",
+        "sourceWidth": 1666,
+        "sourceHeight": 937,
+        "targetWidth": 0,
+        "targetHeight": 0,
+        "presentScaleBias": {
+          "x": 1.0,
+          "y": -1.0,
+          "z": 0.0,
+          "w": 1.0
+        },
+        "presentExecuted": true,
+        "postProcessingEnabled": true,
+        "sceneLightingEnabled": true,
+        "cameraType": "Game",
+        "motionPhase": "",
+        "gameTime": 0.1038328231292517,
+        "realtime": 0.20017046546945494,
+        "currentJitterUV": {
+          "x": 0.00011254501441726461,
+          "y": -0.00013340449368115515
+        },
+        "previousJitterUV": {
+          "x": 0.0,
+          "y": 0.00013340447912923992
+        },
+        "entity": "951238:13056",
+        "historyReset": false,
+        "temporalColorValid": true,
+        "temporalColorSource": "UnsharpenedTAA",
+        "temporalColorGrid": {
+          "x": 1666.0,
+          "y": 937.0,
+          "z": 0.0006002400768920779,
+          "w": 0.0010672358330339193
+        },
+        "position": {
+          "x": 8.0,
+          "y": -1.25,
+          "z": 0.6000000238418579
+        },
+        "rotation": {
+          "x": -0.08945874869823456,
+          "y": -0.7585893869400024,
+          "z": -0.10661278665065765,
+          "w": 0.6365320682525635
+        },
+        "view": {
+          "e00": -0.17364835739135742,
+          "e01": 0.0,
+          "e02": 0.9848078489303589,
+          "e03": 0.7983021140098572,
+          "e10": 0.27144983410835266,
+          "e11": 0.9612616896629333,
+          "e12": 0.04786393791437149,
+          "e13": -0.9987399578094482,
+          "e20": 0.9466580152511597,
+          "e21": -0.2756373882293701,
+          "e22": 0.1669214963912964,
+          "e23": -8.017963409423828,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": 0.0,
+          "e33": 1.0
+        },
+        "projection": {
+          "e00": 0.9998666048049927,
+          "e01": 0.0,
+          "e02": 0.0,
+          "e03": 0.0,
+          "e10": 0.0,
+          "e11": 1.7777776718139648,
+          "e12": 0.0,
+          "e13": 0.0,
+          "e20": 0.0,
+          "e21": 0.0,
+          "e22": -1.0015637874603271,
+          "e23": -0.20015637576580048,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": -1.0,
+          "e33": 0.0
+        },
+        "jitteredViewProjection": {
+          "e00": -0.173838272690773,
+          "e01": 6.204322562552989e-05,
+          "e02": 0.9846389293670654,
+          "e03": 0.8000003695487976,
+          "e10": 0.4828300178050995,
+          "e11": 1.7088360786437988,
+          "e12": 0.08513597398996353,
+          "e13": -1.7776768207550049,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        },
+        "inverseJitteredViewProjection": {
+          "e00": -0.17367146909236908,
+          "e01": 0.15269052982330322,
+          "e02": 79.93750762939453,
+          "e03": -0.884075403213501,
+          "e10": 3.1743411454954185e-08,
+          "e11": 0.5407097339630127,
+          "e12": -12.490232467651367,
+          "e13": 0.26601558923721313,
+          "e20": 0.9849389791488647,
+          "e21": 0.02692348323762417,
+          "e22": 5.995311737060547,
+          "e23": -0.16244830191135406,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": 9.9921875,
+          "e33": 0.00781282875686884
+        },
+        "previousJitteredViewProjection": {
+          "e00": -0.173625186085701,
+          "e01": 0.0,
+          "e02": 0.9846764802932739,
+          "e03": 0.7981956005096436,
+          "e10": 0.48232486844062805,
+          "e11": 1.708983063697815,
+          "e12": 0.08504690229892731,
+          "e13": -1.7733982801437378,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        },
+        "motionViewProjection": {
+          "e00": -0.173625186085701,
+          "e01": 0.0,
+          "e02": 0.9846764802932739,
+          "e03": 0.7981956005096436,
+          "e10": 0.48257744312286377,
+          "e11": 1.708909511566162,
+          "e12": 0.08509144186973572,
+          "e13": -1.7755376100540161,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        },
+        "previousMotionViewProjection": {
+          "e00": -0.173625186085701,
+          "e01": 0.0,
+          "e02": 0.9846764802932739,
+          "e03": 0.7981956005096436,
+          "e10": 0.48257744312286377,
+          "e11": 1.708909511566162,
+          "e12": 0.08509144186973572,
+          "e13": -1.7755376100540161,
+          "e20": 0.0007401859620586038,
+          "e21": -0.00021551914687734097,
+          "e22": 0.00013051487621851265,
+          "e23": 0.09380899369716644,
+          "e30": -0.9466580152511597,
+          "e31": 0.2756373882293701,
+          "e32": -0.1669214963912964,
+          "e33": 8.017963409423828
+        }
+      },
+      "buffers": [
+        {
+          "semantic": "Lighting",
+          "producer": "ComputeAtmosphericSkyAndFog",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 1.0132789611816406e-05,
+            "maximum": 4.69140625,
+            "mean": 0.2668291108614307,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "DisplayColor",
+          "producer": "RasterUIOverlay",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.2615671138883739,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "BakedDiffuse",
+          "producer": "RasterGBuffer",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.2773326212064578,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "BakedOcclusion",
+          "producer": "RasterGBuffer",
+          "format": "R8G8B8A8_UNorm",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.9299452074131421,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "CascadeShadow",
+          "producer": "RasterCascadeShadow",
+          "format": "R32_SFloat",
+          "width": 4096,
+          "height": 4096,
+          "statistics": {
+            "samples": 16777216,
+            "nonFinite": 0,
+            "roiSamples": 16777216,
+            "minimum": 0.0,
+            "maximum": 0.8005038499832153,
+            "mean": 0.002204590176483112,
+            "hasFiniteRoiSamples": true
+          }
+        }
+      ]
+    },
+    "apv-graphs-rt": {
+      "status": "Completed",
+      "error": "",
+      "captured": 1,
+      "outstanding": 0,
+      "frame": {
+        "frame": 10,
+        "width": 1666,
+        "height": 937,
+        "captureIndex": 9,
+        "internalWidth": 1666,
+        "internalHeight": 937,
+        "presentViewport": {
+          "serializedVersion": "2",
+          "x": 0.0,
+          "y": 0.0,
+          "width": 1666.0,
+          "height": 937.0
+        },
+        "outputPolicy": "HardwareSRGB",
+        "outputTargetFormat": "B8G8R8A8_SRGB",
+        "presentTarget": "BuiltinRenderTextureType.CameraTarget",
+        "targetTexture": "null",
+        "activeTexture": "null",
+        "sourceWidth": 1666,
+        "sourceHeight": 937,
+        "targetWidth": 0,
+        "targetHeight": 0,
+        "presentScaleBias": {
+          "x": 1.0,
+          "y": -1.0,
+          "z": 0.0,
+          "w": 1.0
+        },
+        "presentExecuted": true,
+        "postProcessingEnabled": true,
+        "sceneLightingEnabled": true,
+        "cameraType": "Game",
+        "motionPhase": "",
+        "gameTime": 0.470265660430839,
+        "realtime": 9.998663251367816,
+        "currentJitterUV": {
+          "x": 0.00011254501441726461,
+          "y": -0.00013340449368115515
+        },
+        "previousJitterUV": {
+          "x": 0.0,
+          "y": 0.00013340447912923992
+        },
+        "entity": "953482:8448",
+        "historyReset": false,
+        "temporalColorValid": false,
+        "temporalColorSource": "",
+        "temporalColorGrid": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0,
+          "w": 0.0
+        },
+        "position": {
+          "x": 5.0,
+          "y": 3.0,
+          "z": -5.0
+        },
+        "rotation": {
+          "x": 0.1841111183166504,
+          "y": -0.3750077486038208,
+          "z": 0.07626131922006607,
+          "w": 0.9053488373756409
+        },
+        "view": {
+          "e00": 0.7071068286895752,
+          "e01": 1.4901161193847656e-08,
+          "e02": 0.7071067690849304,
+          "e03": -2.384185791015625e-07,
+          "e10": -0.276172399520874,
+          "e11": 0.9205746054649353,
+          "e12": 0.276172399520874,
+          "e13": 2.384185791015625e-07,
+          "e20": 0.6509445309638977,
+          "e21": 0.39056676626205444,
+          "e22": -0.6509445905685425,
+          "e23": -7.681145668029785,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": 0.0,
+          "e33": 1.0
+        },
+        "projection": {
+          "e00": 0.9741486310958862,
+          "e01": 0.0,
+          "e02": 0.0,
+          "e03": 0.0,
+          "e10": 0.0,
+          "e11": 1.7320507764816284,
+          "e12": 0.0,
+          "e13": 0.0,
+          "e20": 0.0,
+          "e21": 0.0,
+          "e22": -1.0006000995635986,
+          "e23": -0.6001800298690796,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": -1.0,
+          "e33": 0.0
+        },
+        "jitteredViewProjection": {
+          "e00": 0.6886806488037109,
+          "e01": -8.789816638454795e-05,
+          "e02": 0.688973605632782,
+          "e03": 0.001728717004880309,
+          "e10": -0.4781709313392639,
+          "e11": 1.5945861339569092,
+          "e12": 0.4781709313392639,
+          "e13": -0.0020489857997745275,
+          "e20": 0.0001953157625393942,
+          "e21": 0.00011718947644112632,
+          "e22": -0.00019531577709130943,
+          "e23": 0.29778528213500977,
+          "e30": -0.6509445309638977,
+          "e31": -0.39056676626205444,
+          "e32": 0.6509445905685425,
+          "e33": 7.681145668029785
+        },
+        "inverseJitteredViewProjection": {
+          "e00": 0.7258715629577637,
+          "e01": -0.15944823622703552,
+          "e02": 16.661670684814453,
+          "e03": -0.6461511254310608,
+          "e10": 0.0,
+          "e11": 0.5314940214157104,
+          "e12": 9.997001647949219,
+          "e13": -0.38742539286613464,
+          "e20": 0.7258715629577637,
+          "e21": 0.15944823622703552,
+          "e22": -16.661670684814453,
+          "e23": 0.6458244323730469,
+          "e30": 0.0,
+          "e31": 0.0,
+          "e32": 3.332333564758301,
+          "e33": 0.0009998659370467067
+        },
+        "previousJitteredViewProjection": {
+          "e00": 0.6888271570205688,
+          "e01": 1.4515945778725836e-08,
+          "e02": 0.6888270974159241,
+          "e03": -2.3225513245961338e-07,
+          "e10": -0.4785183072090149,
+          "e11": 1.5943777561187744,
+          "e12": 0.4785183072090149,
+          "e13": 0.002049811417236924,
+          "e20": 0.0001953157625393942,
+          "e21": 0.00011718947644112632,
+          "e22": -0.00019531577709130943,
+          "e23": 0.29778528213500977,
+          "e30": -0.6509445309638977,
+          "e31": -0.39056676626205444,
+          "e32": 0.6509445905685425,
+          "e33": 7.681145668029785
+        },
+        "motionViewProjection": {
+          "e00": 0.6888271570205688,
+          "e01": 1.4515945778725836e-08,
+          "e02": 0.6888270974159241,
+          "e03": -2.3225513245961338e-07,
+          "e10": -0.4783446192741394,
+          "e11": 1.5944819450378418,
+          "e12": 0.4783446192741394,
+          "e13": 4.129530850605079e-07,
+          "e20": 0.0001953157625393942,
+          "e21": 0.00011718947644112632,
+          "e22": -0.00019531577709130943,
+          "e23": 0.29778528213500977,
+          "e30": -0.6509445309638977,
+          "e31": -0.39056676626205444,
+          "e32": 0.6509445905685425,
+          "e33": 7.681145668029785
+        },
+        "previousMotionViewProjection": {
+          "e00": 0.6888271570205688,
+          "e01": 1.4515945778725836e-08,
+          "e02": 0.6888270974159241,
+          "e03": -2.3225513245961338e-07,
+          "e10": -0.4783446192741394,
+          "e11": 1.5944819450378418,
+          "e12": 0.4783446192741394,
+          "e13": 4.129530850605079e-07,
+          "e20": 0.0001953157625393942,
+          "e21": 0.00011718947644112632,
+          "e22": -0.00019531577709130943,
+          "e23": 0.29778528213500977,
+          "e30": -0.6509445309638977,
+          "e31": -0.39056676626205444,
+          "e32": 0.6509445905685425,
+          "e33": 7.681145668029785
+        }
+      },
+      "buffers": [
+        {
+          "semantic": "Lighting",
+          "producer": "ComputeAtmosphericSkyAndFog",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 7.092952728271484e-06,
+            "maximum": 1.0,
+            "mean": 0.27742756224857623,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "DisplayColor",
+          "producer": "RasterUIOverlay",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.27496044257835206,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "BakedDiffuse",
+          "producer": "RasterGBuffer",
+          "format": "R16G16B16A16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.02026656547473399,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "BakedOcclusion",
+          "producer": "RasterGBuffer",
+          "format": "R8G8B8A8_UNorm",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 6244168,
+            "nonFinite": 0,
+            "roiSamples": 6244168,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.0449427507835487,
+            "hasFiniteRoiSamples": true
+          }
+        },
+        {
+          "semantic": "Occlusion",
+          "producer": "ComputeRayTracedOcclusion",
+          "format": "R16_SFloat",
+          "width": 1666,
+          "height": 937,
+          "statistics": {
+            "samples": 1561042,
+            "nonFinite": 0,
+            "roiSamples": 1561042,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "mean": 0.979213243461739,
+            "hasFiniteRoiSamples": true
+          }
+        }
+      ]
+    }
+  },
+  "gc": {
+    "gc-candidate": {
+      "warmup": 32,
+      "samples": 120,
+      "allocationCounts": {
+        "frame": [
+          0
+        ],
+        "proxy": [
+          0
+        ],
+        "nativeSubmit": [
+          0
+        ]
+      }
+    },
+    "gc-dynamic": {
+      "warmup": 32,
+      "samples": 120,
+      "allocationCounts": {
+        "frame": [
+          4
+        ],
+        "proxy": [
+          0
+        ],
+        "nativeSubmit": [
+          4
+        ]
+      }
+    }
+  },
+  "migration": {
+    "source": "/Volumes/DataDisk/Projects/Unity/InfinityExample/Assets/Scene/Spazon/Scene_Spazon.unity",
+    "beforeSha256": "09027b2d1ad93cae8d97a6ce3bc8f907b2214d24da6210bb08fe908033cd9a1e",
+    "afterSha256": "c66f1916ba538afdd2047b9fdc389271048c11116908961d2ec077f811229e57",
+    "removedNullFields": 8,
+    "objectsCompared": 554,
+    "propertiesCompared": 18716,
+    "propertyDeltas": 0,
+    "reopenPropertyDeltas": 0,
+    "secondSaveByteIdentical": true
+  },
+  "comparison": [
+    {
+      "name": "BakedDiffuse",
+      "format": "R16G16B16A16_SFloat",
+      "finite": true,
+      "mae": 0.004111199639737606,
+      "maxdiff": 1.0,
+      "changedPercent": 1.4396153338603317
+    },
+    {
+      "name": "BakedOcclusion",
+      "format": "R8G8B8A8_UNorm",
+      "finite": true,
+      "mae": 0.0035921388771384954,
+      "maxdiff": 1.0,
+      "changedPercent": 0.3599038334650829
+    },
+    {
+      "name": "CascadeShadow",
+      "format": "R32_SFloat",
+      "finite": true,
+      "mae": 0.0,
+      "maxdiff": 0.0,
+      "changedPercent": 0.0
+    },
+    {
+      "name": "DisplayColor",
+      "format": "R16G16B16A16_SFloat",
+      "finite": true,
+      "mae": 0.0009605502127669752,
+      "maxdiff": 0.753572940826416,
+      "changedPercent": 38.329542062289164
+    },
+    {
+      "name": "Lighting",
+      "format": "R16G16B16A16_SFloat",
+      "finite": true,
+      "mae": 0.000969343411270529,
+      "maxdiff": 1.83587646484375,
+      "changedPercent": 36.55966655605678
+    }
+  ],
+  "sourceResources": {
+    "Runtime/Resources/InfinityDefaultVolumeProfile.asset": {
+      "sha256": "7449b45aba696e7e22282540b54a4907e28ac72c355dbf4d707146edb3c37f10",
+      "unchanged": true
+    },
+    "Runtime/Resources/Materials/M_Blit.mat": {
+      "sha256": "ae3fc57563107001bd3bc3f203458d0c86116c19d6bc26bd3527cf9b8b39b84c",
+      "unchanged": true
+    },
+    "Runtime/Resources/Materials/M_DefaultLit.mat": {
+      "sha256": "ef9a691354099ccfa39126736aad083df4480344adcb3762614b1a1a91f68011",
+      "unchanged": true
+    },
+    "Runtime/Resources/Materials/M_DefaultUnlit.mat": {
+      "sha256": "b4ff68efa01a955947d02872500e6c6776ad54dd135bf9da054f59a4bae24529",
+      "unchanged": true
+    },
+    "Runtime/Resources/Materials/M_ShadowScatter.mat": {
+      "sha256": "152f6b8a2462fbd4f5bfdbd07ca8b51918275b23b2839b9caec788f2aae191c3",
+      "unchanged": true
+    },
+    "Runtime/Resources/Materials/M_SystemLUT.mat": {
+      "sha256": "8b2e12d080e0bc3d20d99b1b4189fc4767d8504d304a7292fbcc85920ca41d99",
+      "unchanged": true
+    },
+    "Runtime/Resources/Textures/Prefilter/T_PrefilterDiffuse.asset": {
+      "sha256": "7afa6edaafef2d9e3062f7477db0f5dea2d86a700375c9818a2e131c55f55996",
+      "unchanged": true
+    },
+    "Runtime/Resources/Textures/System_LUT/LUT_Cloth-GF.asset": {
+      "sha256": "bccd097aedf93466963ff5400ba9f5ffbcdb64012a184fb6afbbdc9f6df87597",
+      "unchanged": true
+    },
+    "Runtime/Resources/Textures/System_LUT/LUT_Diffuse-GF.asset": {
+      "sha256": "c2cac074e7439bd97d670b7bd8c84ab558d69fe7f6f7ac6e13b1294975970818",
+      "unchanged": true
+    },
+    "Runtime/Resources/Textures/System_LUT/LUT_PBR-GF.asset": {
+      "sha256": "726136a116dcfc94c2a7682390ebea673d5957b5d9ed85a9b87bba4784520ae1",
+      "unchanged": true
+    },
+    "Runtime/Resources/Textures/System_LUT/LUT_Proxy-Shadow.asset": {
+      "sha256": "f1414849b2721f03fc2f89d329189203277a83e69f1cbfce9d4d957679f7cd55",
+      "unchanged": true
+    },
+    "Runtime/Resources/Textures/System_LUT/LUT_Skin-Scatter.asset": {
+      "sha256": "cca25a79cd0de39a8342b3fa54e268a438004365326f03a63c2af3b6ccc09e3a",
+      "unchanged": true
+    },
+    "Runtime/Resources/Textures/System_LUT/LUT_Skin-Shadow.asset": {
+      "sha256": "44d05540d4adb05bb38253c08236b800b528d1e0259493a59e20a161992dc788",
+      "unchanged": true
+    }
+  },
+  "limits": [
+    "D3D12 and Vulkan not executed",
+    "Hardware DispatchRays not executed",
+    "No actual independent async queue on host",
+    "Native Submit fault recovery not injected",
+    "Player not built; existing RTAO shader loading gap retained",
+    "Native frame-tree supplement timed out; not accepted as complete tree",
+    "Windows refresh/capture tools not executed"
+  ],
+  "graphDraws": {
+    "status": "Completed",
+    "errors": [
+      "",
+      "",
+      ""
+    ],
+    "events": [
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/Depth/RasterDepth/(RP 0:0) RenderLoop.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "RasterDepthPass",
+        "drawCallCount": 1
+      },
+      {
+        "type": "Mesh",
+        "name": "BakeCamera/RasterDBuffer/(RP 1:0) RenderLoop.Draw",
+        "shader": "Infinity Validation/Decal",
+        "pass": "RasterDBufferPass",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/GBuffer/RasterGBuffer/(RP 2:0) RenderLoop.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "RasterGBufferPass",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/ObjectMotion/RasterObjectMotion/(RP 3:0) RenderLoop.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "RasterMotionPass",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/CascadeShadow/RasterCascadeShadow/(RP 5:0) CascadeSlice0/Shadows.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "ShadowCaster",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/CascadeShadow/RasterCascadeShadow/(RP 5:0) CascadeSlice1/Shadows.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "ShadowCaster",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/CascadeShadow/RasterCascadeShadow/(RP 5:0) CascadeSlice2/Shadows.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "ShadowCaster",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/CascadeShadow/RasterCascadeShadow/(RP 5:0) CascadeSlice3/Shadows.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "ShadowCaster",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/Forward/RasterForward/(RP 7:0) RenderLoop.DrawSRPBatcher",
+        "shader": "Infinity Validation/Lit",
+        "pass": "RasterForwardPass",
+        "drawCallCount": 1
+      },
+      {
+        "type": "SRPBatch",
+        "name": "BakeCamera/RasterTranslucentT2/(RP 11:0) RenderLoop.DrawSRPBatcher",
+        "shader": "Infinity Validation/Unlit",
+        "pass": "RasterTranslucentT2Pass",
+        "drawCallCount": 1
+      }
+    ]
+  },
+  "nativeDrawProbe": "skinnedOn,skinnedOff,terrainOn,terrainOff\n0.048829913139343262,0,0.49332682291666669,0",
+  "apv": {
+    "initialized": true,
+    "dataLoaded": true,
+    "enableGlobal": 1,
+    "customHasRenderer": false,
+    "customBakedDiffuse5x5MeanRGB": [
+      0.0931128,
+      0.0931128,
+      0.0931128
+    ],
+    "bandsRuntime": "L1",
+    "shaderWarmup": [
+      "none",
+      "L1",
+      "L2"
+    ]
+  },
+  "rtao": {
+    "backend": "Compute",
+    "blockReason": "",
+    "finiteOcclusion": true
+  },
+  "shaderDiagnostics": {
+    "loadedCompute": 25,
+    "loadedSurface": 25,
+    "messages": 0
+  },
+  "cleanup": {
+    "complete": true,
+    "editorPidExited": 9896,
+    "cliPortClosed": 7800,
+    "testsInactive": true,
+    "captureOutstanding": 0,
+    "frameDebuggerEnabled": false,
+    "sceneRestored": "Scene_Spazon",
+    "playMode": false,
+    "sceneDirty": false,
+    "nativeLightmapSets": 11,
+    "legacyProbes": 279,
+    "taskPath": "/Volumes/DataDisk/Projects/Unity/InfinityExample/intermediate/unity-boundary-20261026",
+    "cachePath": "/Users/gushihao/Library/Caches/InfinityRP-Validation/unity-boundary-20261026",
+    "taskAbsent": true,
+    "cacheAbsent": true,
+    "retained": [
+      "audit",
+      "inventory",
+      "compact receipt",
+      "matched JPEG preview"
+    ],
+    "note": "Owned mirror, independent Library, generated bake/graphs, raw captures, task log, rollback backup and helpers removed. Other sessions and source Library preserved."
+  }
+}

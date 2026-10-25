@@ -224,8 +224,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 key.meshUnityId,
                 key.sectionIndex,
                 key.materialUnityId,
-                new int2(visibleCount, visibleBegin),
-                key.bakedTextureSet));
+                new int2(visibleCount, visibleBegin)));
         }
     }
 }

@@ -778,9 +778,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
 
                 int argsOffset = (commandBegin + i) * 5 * sizeof(uint);
-                MeshBakedLighting.Bind(cmdBuffer, propertyBlock, command.bakedTextureSet, residency.BakedLightingBuffer.buffer);
                 cmdBuffer.DrawMeshInstancedIndirect(mesh, command.sectionIndex, material, passIndex, payload.argsBuffer, argsOffset, propertyBlock);
-                MeshBakedLighting.ClearKeywords(cmdBuffer);
             }
         }
 

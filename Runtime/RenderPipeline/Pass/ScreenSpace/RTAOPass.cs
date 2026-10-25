@@ -81,7 +81,8 @@ namespace InfinityTech.Rendering.Pipeline
                 FRTAOSettings resolved = settings.Resolve();
                 passData.numRays = resolved.numRays;
                 passData.radius = resolved.radius;
-                passData.buildAccel = env.ConsumeBuild();
+                passData.buildAccel = env.NeedsBuild;
+                if (passData.buildAccel) passRef.SetQueueObserver(env);
                 passData.invView = m_CameraUniform.matrix_InvViewFlipYJitterProj;
                 passData.shader = env.Shader;
                 passData.accel = env.Accel;

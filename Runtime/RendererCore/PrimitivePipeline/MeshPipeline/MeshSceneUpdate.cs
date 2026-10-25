@@ -218,17 +218,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Scene.WriteInstanceRecord(id, previous);
         }
 
-        public void SetInstanceBakedLighting(MeshInstanceId id, in FMeshBakedLighting data)
-        {
-            ThrowIfClosed();
-            if (!m_Scene.TryGetInstance(id, out MeshInstanceRecord previous))
-                throw new System.ArgumentException("Baked lighting requires a live instance.");
-            if (previous.bakedLighting.Equals(data)) return;
-            Push(new MeshSceneUndoEntry { op = EMeshSceneUndoOp.RestoreInstanceRecord,
-                index = id.Index, generation = id.Generation, instanceRecord = previous });
-            m_Scene.SetInstanceBakedLighting(id, data);
-        }
-
         public void SetInstanceRendering(
             MeshInstanceId id,
             uint renderingLayerMask,

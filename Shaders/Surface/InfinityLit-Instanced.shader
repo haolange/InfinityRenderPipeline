@@ -168,11 +168,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			#pragma target 4.5
 			#pragma vertex vert
 			#pragma fragment frag
-            #pragma multi_compile _ INFINITY_MESH_LIGHTMAP
-            #pragma multi_compile _ INFINITY_MESH_DIRECTIONAL
-            #pragma multi_compile _ INFINITY_MESH_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
-            #include "../ShaderLibrary/MeshBakedLighting.hlsl"
 			//#pragma enable_debug_symbols
 
 			#pragma multi_compile _ _DBUFFER
@@ -213,7 +209,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				uint InstanceId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
-				float2 uv1 : TEXCOORD1;
 				float3 normalOS : NORMAL;
 				float4 vertexOS : POSITION;
 				float4 tangentOS : TANGENT;
@@ -224,7 +219,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				nointerpolation uint PrimitiveId : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
-                float2 uv1 : TEXCOORD1;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
                 float3 bitangentWS : TEXCOORD4;
@@ -240,7 +234,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
-                Out.uv1 = In.uv1;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
 				Out.vertexCS = mul(Matrix_ViewJitterProj, Out.vertexWS);
 				Out.normalWS = MeshNormalToWorld(meshBatch.matrix_LocalToWorld, In.normalOS);
@@ -284,7 +277,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
 				LightingBuffer = float4(_EmissionColor.rgb, 0);
                 float4 mask;
-                SampleMeshBakedLighting(In.PrimitiveId, In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, renderingLayerBuffer[In.PrimitiveId], BakedDiffuse, mask);
+                float3 probeDiffuse;
+                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, renderingLayerBuffer[In.PrimitiveId], probeDiffuse, mask);
+                BakedDiffuse = float4(probeDiffuse, hasAPV ? 1 : 0);
                 BakedOcclusion = 1 - mask;
 			}
 			ENDHLSL
@@ -309,15 +304,12 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
             Texture2D<float> SRV_ForwardOcclusion;
 #endif
             #include "../ShaderLibrary/SurfaceLighting.hlsl"
-            #pragma multi_compile _ INFINITY_MESH_LIGHTMAP
-            #pragma multi_compile _ INFINITY_MESH_DIRECTIONAL
-            #pragma multi_compile _ INFINITY_MESH_SHADOWMASK
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
-            #include "../ShaderLibrary/MeshBakedLighting.hlsl"
 			//#pragma enable_debug_symbols
 
 			#include "../ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/GPUScene.hlsl"
+			#include "../ShaderLibrary/Lightmap.hlsl"
 			#include "../ShaderLibrary/Lighting.hlsl"
 			#include "../ShaderLibrary/GBufferPack.hlsl"
 			#include "../ShaderLibrary/ShadingModel.hlsl"
@@ -352,7 +344,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				uint InstanceId : SV_InstanceID;
 				float2 uv0 : TEXCOORD0;
-				float2 uv1 : TEXCOORD1;
 				float3 normalOS : NORMAL;
 				float4 vertexOS : POSITION;
 				float4 tangentOS : TANGENT;
@@ -363,7 +354,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				nointerpolation uint PrimitiveId : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
-                float2 uv1 : TEXCOORD1;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
                 float3 bitangentWS : TEXCOORD4;
@@ -379,7 +369,6 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
 
 				Out.uv0 = In.uv0;
-                Out.uv1 = In.uv1;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
 				Out.vertexCS = mul(Matrix_ViewJitterProj, Out.vertexWS);
 				Out.normalWS = MeshNormalToWorld(meshBatch.matrix_LocalToWorld, In.normalOS);
@@ -410,7 +399,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				MicrofaceContext microfaceContext = InitMicrofaceContext(surfaceSpecular, surfaceRoughness, surfaceReflctance, surfaceAlbedo);
 
                 float4 baked, mask;
-                SampleMeshBakedLighting(In.PrimitiveId, In.uv1, positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, renderingLayerBuffer[In.PrimitiveId], baked, mask);
+                float3 probeDiffuse;
+                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, renderingLayerBuffer[In.PrimitiveId], probeDiffuse, mask);
+                baked = float4(probeDiffuse, hasAPV ? 1 : 0);
                 float viewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
                 float3 diffuse = microfaceContext.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
                 float3 reflectionWS = reflect(-cameraDirWS, pnormalWS);

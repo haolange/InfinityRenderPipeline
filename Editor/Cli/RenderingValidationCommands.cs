@@ -122,7 +122,7 @@ namespace InfinityTech.Rendering.Editor
             {
                 var instance = instances[i];
                 data.Add(new { slot = i, transform = instance.transform.Index, bounds = instance.worldBounds.ToString(),
-                    layer = instance.layerMask, flags = instance.flags.ToString(), baked = instance.bakedLighting.TextureSet, draws = instance.drawCount });
+                    layer = instance.layerMask, flags = instance.flags.ToString(), draws = instance.drawCount });
             }
             return new { count = scene.LogicalInstanceCount, draws = scene.DrawCount, instances = data };
         }

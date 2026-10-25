@@ -93,6 +93,18 @@ namespace InfinityTech.Rendering.LightPipeline
         int m_RectCapacity;
         int m_LocalMatrixCapacity;
         int m_RecordStride;
+        bool m_HasShadowmask;
+        internal bool HasShadowmask => m_HasShadowmask;
+
+        internal static bool IsBakedShadowmaskLight(Light light)
+        {
+            if (light == null) return false;
+            LightBakingOutput baking = light.bakingOutput;
+            return baking.lightmapBakeType == LightmapBakeType.Mixed
+                && baking.mixedLightingMode == MixedLightingMode.Shadowmask
+                && baking.occlusionMaskChannel >= 0 && baking.occlusionMaskChannel < 4;
+        }
+
         int m_DirectionalCount;
         int m_LocalCount;
         int m_UnsupportedShapeCount;
@@ -265,6 +277,7 @@ namespace InfinityTech.Rendering.LightPipeline
             int2 screenSize, MeshPipeline.MeshWorld meshWorld, LocalShadowCache shadowCache = null)
         {
             Clear();
+            m_HasShadowmask = false;
             m_ScreenSize = math.max(screenSize, new int2(1, 1));
 
             NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
@@ -315,6 +328,7 @@ namespace InfinityTech.Rendering.LightPipeline
                     continue;
                 }
 
+                m_HasShadowmask |= IsBakedShadowmaskLight(light);
                 if (record.IsDirectional)
                 {
                     if (sun != null && light == sun)

@@ -201,7 +201,6 @@ namespace InfinityTech.Rendering.RenderGraph
             var residency = record.residency;
             if (residency.TransformBuffer.buffer != null) ImportBuffer(residency.TransformBuffer);
             if (residency.RenderingLayerBuffer.buffer != null) ImportBuffer(residency.RenderingLayerBuffer);
-            if (residency.BakedLightingBuffer.buffer != null) ImportBuffer(residency.BakedLightingBuffer);
             if (residency.InstanceTransformIndexBuffer.buffer != null) ImportBuffer(residency.InstanceTransformIndexBuffer);
             if (residency.version != null) ImportBuffer(residency.version.generations);
             var previous = record.pass.previousTransforms.previous;
@@ -1199,7 +1198,6 @@ namespace InfinityTech.Rendering.RenderGraph
                     for (int i = versionPassBegin; i < m_PassList.Count; ++i) ordered.Add(m_PassList[i]);
                     consumer.AddResourceRead(ImportBuffer(residency.TransformBuffer).handle);
                     consumer.AddResourceRead(ImportBuffer(residency.RenderingLayerBuffer).handle);
-                    consumer.AddResourceRead(ImportBuffer(residency.BakedLightingBuffer).handle);
                     consumer.AddResourceRead(ImportBuffer(residency.version.generations).handle);
                     var previous = record.pass.previousTransforms.previous;
                     if (previous == null) continue;

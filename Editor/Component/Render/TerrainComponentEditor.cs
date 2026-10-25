@@ -11,28 +11,17 @@ namespace InfinityTech.Component.Editor
         [System.NonSerialized] SerializedProperty lOD0ScreenSize;
         [System.NonSerialized] SerializedProperty lOD0Distribution;
         [System.NonSerialized] SerializedProperty lODXDistribution;
-        [System.NonSerialized] SerializedObject serializedTerrain;
-
-        TerrainComponent m_Terrain { get { return target as TerrainComponent; } }
 
         void OnEnable()
         {
-            UnityEditor.SceneManagement.EditorSceneManager.sceneSaving += OnSave;
-
-            serializedTerrain = new SerializedObject(m_Terrain);
-            lOD0ScreenSize = serializedTerrain.FindProperty("lod0ScreenSize");
-            lOD0Distribution = serializedTerrain.FindProperty("lod0Distribution");
-            lODXDistribution = serializedTerrain.FindProperty("lodXDistribution");
-        }
-
-        void OnValidate()
-        {
-
+            lOD0ScreenSize = serializedObject.FindProperty("lod0ScreenSize");
+            lOD0Distribution = serializedObject.FindProperty("lod0Distribution");
+            lODXDistribution = serializedObject.FindProperty("lodXDistribution");
         }
 
         public override void OnInspectorGUI()
         {
-            serializedTerrain.Update();
+            serializedObject.Update();
 
             if (InfinityInspectorGUI.BeginFoldout("InfinityRP.Terrain.Foldout.General", "General"))
             {
@@ -44,21 +33,18 @@ namespace InfinityTech.Component.Editor
             }
             InfinityInspectorGUI.EndFoldout();
 
-            serializedTerrain.ApplyModifiedProperties();
+            serializedObject.ApplyModifiedProperties();
+            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+            if (GUILayout.Button("Rebuild Sector From Unity Terrain"))
+                foreach (Object item in targets)
+                {
+                    var terrain = (TerrainComponent)item;
+                    Undo.RecordObject(terrain, "Rebuild Infinity Terrain Sector");
+                    terrain.Serialize();
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(terrain);
+                    EditorUtility.SetDirty(terrain);
+                }
         }
 
-        void OnDisable()
-        {
-            UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= OnSave;
-        }
-
-        void OnSave(UnityEngine.SceneManagement.Scene InScene, string InPath)
-        {
-            if (m_Terrain.gameObject.activeSelf == false) { return; }
-            if (m_Terrain.enabled == false) { return; }
-
-            m_Terrain.Serialize();
-        }
     }
 }
-

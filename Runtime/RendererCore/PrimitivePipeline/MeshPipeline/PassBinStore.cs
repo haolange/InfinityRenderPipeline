@@ -311,12 +311,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 materialRoute = (uint)((route << 2) | stage);
             }
 
-            int bakedTextureSet = 0;
-            if (draw.instance.IsValid && m_Scene.TryGetInstance(draw.instance, out MeshInstanceRecord instance))
-            {
-                bakedTextureSet = instance.bakedLighting.TextureSet;
-            }
-
             return new MeshDrawCommandKey
             {
                 shaderUnityId = shaderUnityId,
@@ -328,8 +322,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 materialRevision = materialRevision,
                 sectionRevision = sectionRevision,
                 platformFeatureKey = m_PlatformFeatureKey,
-                staticFlags = draw.staticFlags,
-                bakedTextureSet = bakedTextureSet
+                staticFlags = draw.staticFlags
             };
         }
     }

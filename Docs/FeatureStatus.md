@@ -3,8 +3,82 @@
 This is the only document that states how far each feature is verified. Other documents describe design and use;
 they link here instead of claiming "completed".
 
-Latest bounded acceptance: [2026-10-25 main-thread / memory / SSGI / native HDR receipt](History/MainThread-20261025/Report.md).
+Latest bounded acceptance: [2026-10-26 Unity integration boundary receipt](History/UnityIntegration-20261026.md).
 Earlier dated sections below retain their original verification boundaries; the latest section supersedes them only for the cases it actually exercised.
+
+### Unity integration ownership — 2026-10-26
+
+Native Renderer content retains Unity culling/renderer-list/per-object ownership. Custom Mesh keeps Infinity scene,
+CPU/GPU and history ownership, with no Lightmap or CPU per-object Probe data; world-space APV stays enabled.
+The custom lighting cache and Renderer takeover are deleted with their consumers. Shadowmask uses visible native
+Light.bakingOutput. URT native/custom instance identities and build acceptance, component registration, APV cleanup,
+explicit terrain authoring and project-specific development tools are closed through their consumers.
+
+Static: 0 errors / 0 warnings, 14 negative checks pass. The full 822-case run initially had five failures; all five
+are resolved by traceable affected-class reruns. Including two new Terrain contracts, 823 unique cases pass and
+one real cross-queue GPU case remains skipped. This is not a second full 824-case run. Final loaded production
+ShaderUtil diagnostics: 25 Compute and 25 surface Shaders, zero messages; generated Lit/Unlit/Decal graphs draw.
+
+Full Scene_Spazon matched 1666×937 Game frames retain the enabled chain, finite GPU results and byte-equivalent
+four-cascade depth. Actual native Bake/reopen, APV bake/load and independent custom Mesh APV output pass.
+RTAO actually dispatches on URT Compute. Native SkinnedMeshRenderer/Terrain on/off normal-camera readbacks prove
+draw output. Complete supplement Graph/APV Frame Debugger export passes; a separate native payload timeout is
+not counted as complete-tree acceptance. Frozen normal-frame GC counts are zero; original dynamic frames have
+zero proxy/library-controlled allocations, with four allocations measured entirely inside native Submit.
+
+The authorized source scene migration removes eight null obsolete fields, preserving 18,716 retained properties
+and identities; save/reopen/second-save/no-op checks pass. Thirteen unrelated resource files retain their bytes.
+Metal is verified within this scope. D3D12/Vulkan, true cross-queue and native Submit fault injection retain their
+existing unverified boundaries; hardware RT and Player results are not inferred. See the linked receipt for details.
+
+Cleanup: owned Editor PID 9896 exited; tests/captures/readbacks drained, Frame Debugger/Play/pause off and clean
+Scene_Spazon restored. Exact task mirror `intermediate/unity-boundary-20261026` and its independent APFS Library
+cache were removed and absence checked. Generated bake/graphs, raw captures, task helpers/log and temporary
+source rollback bytes are gone. Only the concise receipt/preview and audit/inventory remain; source Library and
+other sessions are preserved. This acceptance preceded the subsequent user-authorized commit and publication;
+the delivery scope is this package, with the unrelated resource edits and Example repository changes preserved.
+
+### Lighting-cache reload regression — 2026-10-26 (historical, superseded above)
+
+The current Scene_Spazon Editor exposed stale LightmapData wrappers: all 11 cached
+sets held destroyed textures while Unity's 11 live sets retained valid color,
+direction and Shadowmask textures. The cached shadowmask-presence decision could
+therefore disable the baked part of Mixed/Shadowmask lighting. All eight custom
+Mesh SH samples matched fresh native interpolation at their cached positions;
+this observation does not establish a separate Probe interpolation defect.
+
+The bounded fix checks destroyed wrappers on cache access and invalidates on
+Editor scene/open-close and Play transitions, retaining stable-frame reuse and
+the explicit runtime lightmap-edit notification API. Only the cache implementation
+and its targeted tests change. Unity Roslyn compilation of Runtime and Tests
+passes without diagnostics; static checks and 12 negative checks pass. After the
+user-authorized Editor restart cleared the Bee/Mono file-descriptor failure,
+the actual candidate DLL loaded and all eight targeted tests passed (run
+`4583eccc-d8f0-4aa8-a434-5a6616e826c7`), including destroyed color/direction/mask,
+legal empty tables/slots, the Shadowmask consumer and calibrated zero-allocation
+stable reads. All three destroyed-reference cases were also re-executed directly
+against Scene_Spazon's actual 11-set table, and the compiled stable-read assertion
+passed for 512 accesses to that same live table. The earlier old-DLL two-test run
+is not used for acceptance.
+
+Scene_Spazon MainCamera frame 80 rendered at 1666x937 on Metal with actual present.
+BakedDiffuse, BakedOcclusion, Lighting, DisplayColor and CascadeShadow readbacks
+were finite; all four cascades were valid and depth ranged from 0 to 0.800506.
+The normal image was inspected; a [linear-to-sRGB readback preview](History/LightmapCache-20261026.jpg)
+is retained. After restoring Edit mode and original poses, all 11 cached map sets
+matched Unity's live color/direction/mask references, Shadowmask detection was true,
+279 probes remained loaded and all eight Mesh SH samples still matched native
+interpolation exactly. Scene dirty/Play/pause were false and background rendering
+returned to false. Existing 13 scene-independent serialized resource edits stayed
+byte-identical; no rebake, asset save or shadow-bias change was made.
+
+Unity Test Framework's bootstrap scene creation emitted native "attempt to write
+a readonly database" diagnostics. They are retained in the user's Editor log and
+are separate from the eight passing assertions and successful normal-frame GPU
+readbacks; no database/cache repair or diagnostic suppression is part of this fix.
+The Editor remains open. Task tests/capture/restore callbacks were drained and
+the task-owned intermediate directory was removed; only this status and preview
+are retained. Other graphics APIs were not revalidated for this bounded repair.
 
 Columns:
 
@@ -46,7 +120,7 @@ Columns:
 
 | Feature | Recorded | EditMode | Image | Perf | Platforms | Notes |
 |---|---|---|---|---|---|---|
-| TAA (+ separate sharpen pass) | Yes | Yes | Open | Open | macOS Metal | One-dispatch TAA + sharpen is not implemented |
+| Fused TAA and display sharpening | Yes | Yes; see 2026-10-24 capacity/TAA receipt | Full Scene_Spazon, 2026-10-26 | No isolated GPU time | macOS Metal | Single tiled dispatch; unsharpened pending history, sharpened display only. |
 | Fixed-ratio super resolution | Game cameras | Partial | Open | Open | macOS Metal | |
 | Exposure, Bloom, CombineLUT (ACES), Vignette, Film Grain | Yes | Yes | Open | Open | macOS Metal | |
 | Present (transfer encoding) | Yes | 2026-10-25: Output cases plus native-linear primaries/paper-white GPU test | SDR and actual internal-XDR linear Rec.2020 HDR, native RGBA16Float attachment, UI/exposure and mode restoration | Open | macOS Metal Editor | HDR available/active/format/gamut validated; no absolute photometry, other HDR swapchains or Player acceptance. |

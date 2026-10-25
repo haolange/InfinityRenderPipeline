@@ -41,10 +41,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         CastShadow = 1 << 0,
         ReceiveShadow = 1 << 1,
         Visible = 1 << 2,
-        AffectIndirect = 1 << 3,
-        // Static and lightmapped: its shadows from Mixed Shadowmask lights are baked into the shadowmask, so those
-        // lights' realtime shadow views exclude it (Shadowmask mode; Distance Shadowmask keeps every caster).
-        ShadowmaskStatic = 1 << 4
+        AffectIndirect = 1 << 3
     }
 
     [Flags]

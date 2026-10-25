@@ -238,9 +238,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.TransformBuffer, residency.TransformBuffer.buffer);
                     (previousTransforms.isValid ? previousTransforms : new MeshMotionBinding(residency.version, null)).Bind(m_PropertyBlock);
                     m_PropertyBlock.SetBuffer(InfinityShaderIDs.RenderingLayerBuffer, residency.RenderingLayerBuffer.buffer);
-                    MeshBakedLighting.Bind(cmdBuffer, m_PropertyBlock, command.bakedTextureSet, residency.BakedLightingBuffer.buffer);
                     cmdBuffer.DrawMeshInstancedProcedural(mesh, command.sectionIndex, material, passIndex, command.countOffset.x, m_PropertyBlock);
-                    MeshBakedLighting.ClearKeywords(cmdBuffer);
                 }
             }
             finally

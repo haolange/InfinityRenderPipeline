@@ -33,9 +33,6 @@ mkdir -p "$(dirname "$OUT_PATH")"
 RESULT="$(osascript <<APPLESCRIPT
 tell application "System Events"
     set unityProcs to every process whose unix id is $UNITY_PID
-    if (count of unityProcs) is 0 then
-        set unityProcs to every process whose name is "Unity"
-    end if
     if (count of unityProcs) is 0 then error "Unity process not found"
     set unityProc to item 1 of unityProcs
     set frontmost of unityProc to true

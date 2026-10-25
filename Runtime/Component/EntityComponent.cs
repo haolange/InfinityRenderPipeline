@@ -27,11 +27,14 @@ namespace InfinityTech.Component
 
     public class EntityComponent : MonoBehaviour
     {
+        private bool m_Registered;
         private RenderTransfrom m_CurrTransform;
         private RenderTransfrom m_LastTransform;
 
         void OnEnable()
         {
+            if (m_Registered) return;
+            m_Registered = true;
             OnRegister();
             EventPlay();
         }
@@ -47,11 +50,18 @@ namespace InfinityTech.Component
 
         void OnDisable()
         {
-            UnRegister();
+            UnregisterOnce();
         }
 
         void OnDestroy()
         {
+            UnregisterOnce();
+        }
+
+        void UnregisterOnce()
+        {
+            if (!m_Registered) return;
+            m_Registered = false;
             UnRegister();
         }
 

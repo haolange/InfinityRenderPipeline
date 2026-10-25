@@ -239,12 +239,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeArray<MeshInstanceRecord> GetInstances() => m_Instances;
         public NativeArray<uint> GetInstanceGenerations() => m_InstanceGenerations;
         public NativeArray<TransformRecord> GetTransforms() => m_Transforms;
-        public FMeshBakedLighting GetTransformBakedLighting(int transformIndex)
-        {
-            int owner = m_TransformOwners[transformIndex];
-            return owner >= 0 && IsInstanceSlotLive(owner) ? m_Instances[owner].bakedLighting : default;
-        }
-
         public uint GetTransformRenderingLayer(int transformIndex)
         {
             if (transformIndex < 0 || transformIndex >= m_TransformHighWater) return 0;
@@ -563,16 +557,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Instances[(int)id.Index] = record;
             MarkBoundsDirty((int)id.Index);
             VisibilityRevision++;
-        }
-
-        internal void SetInstanceBakedLighting(MeshInstanceId id, in FMeshBakedLighting data)
-        {
-            if (!IsInstanceAlive(id)) throw new System.ArgumentException("Baked lighting requires a live instance.");
-            MeshInstanceRecord record = m_Instances[(int)id.Index];
-            record.bakedLighting = data;
-            m_Instances[(int)id.Index] = record;
-            MarkTransformDirty((int)record.transform.Index);
-            ContentRevision++;
         }
 
         internal void SetInstanceRendering(

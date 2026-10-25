@@ -39,6 +39,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void Initializ()
         {
+            if (m_Sections.IsCreated) return;
             m_Sections = new NativeArray<TerrainSection>(sections.Length, Allocator.Persistent);
         }
 
@@ -102,7 +103,7 @@ namespace InfinityTech.Rendering.TerrainPipeline
 
         public void Dispose()
         {
-            m_Sections.Dispose();
+            if (m_Sections.IsCreated) m_Sections.Dispose();
         }
 
 #if UNITY_EDITOR

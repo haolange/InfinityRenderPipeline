@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (s_SubmitAllocations.Valid) s_SubmitAllocations.Dispose();
             s_FrameAllocations = default; s_ProxyAllocations = default; s_SubmitAllocations = default;
         }
-        internal static long transformTicks, probeTicks, applyTicks;
+        internal static long transformTicks, applyTicks;
         internal readonly struct NativeSubmitScope : IDisposable
         {
             readonly bool m_Enabled;
@@ -59,7 +59,6 @@ namespace InfinityTech.Rendering.Pipeline
                 if (m_Start == 0) return;
                 long ticks = Stopwatch.GetTimestamp() - m_Start;
                 if (m_Kind == 0) transformTicks = ticks;
-                else if (m_Kind == 1) probeTicks = ticks;
                 else applyTicks = ticks;
             }
         }

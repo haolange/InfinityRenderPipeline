@@ -225,60 +225,6 @@ namespace InfinityTech.Rendering.Pipeline
             AddDynamicTransform(meshComponent);
         }
 
-        readonly List<MeshComponent> m_ProbeBatch = new List<MeshComponent>();
-        readonly HashSet<MeshComponent> m_ProbeRequests = new HashSet<MeshComponent>();
-
-        // One light-probe interpolation for every mesh whose probe position moved or whose probe data changed this
-        // frame, instead of one call per mesh (static meshes are sampled again only after a probe bake).
-        internal void InterpolateMeshProbes()
-        {
-            using var measurement = new PipelineFrameMeasurement.Section(1);
-            List<Vector3> positions = MeshBakedLighting.BatchPositions;
-            positions.Clear();
-            m_ProbeBatch.Clear();
-            m_ProbeRequests.Clear();
-            bool versionChanged = m_LastProbeVersion != MeshBakedLighting.ProbeVersion;
-            var probes = LightmapSettings.lightProbes;
-            bool probesAvailable = probes != null && probes.count > 0;
-            if (versionChanged)
-            {
-                foreach (var mesh in m_StaticMeshList) mesh.RefreshLightingConfiguration(probesAvailable);
-                foreach (var mesh in m_DynamicMeshList) mesh.RefreshLightingConfiguration(probesAvailable);
-            }
-            else foreach (var mesh in s_DirtyMeshList) if (mesh) mesh.RefreshLightingConfiguration(probesAvailable);
-            if (versionChanged)
-            {
-                CollectProbeRequests(m_StaticMeshList, positions);
-                CollectProbeRequests(m_DynamicMeshList, positions);
-            }
-            else
-            {
-                CollectProbeRequests(s_TransformUpdates, positions);
-                CollectProbeRequests(s_DirtyMeshList, positions);
-            }
-            m_LastProbeVersion = MeshBakedLighting.ProbeVersion;
-            if (positions.Count == 0) return;
-            MeshBakedLighting.InterpolateProbes(positions, MeshBakedLighting.BatchProbes, MeshBakedLighting.BatchOcclusion);
-            for (int i = 0; i < m_ProbeBatch.Count; ++i)
-            {
-                m_ProbeBatch[i].SetProbeSample(positions[i], MeshBakedLighting.BatchProbes[i], MeshBakedLighting.BatchOcclusion[i]);
-            }
-        }
-
-        int m_LastProbeVersion = -1;
-        void CollectProbeRequests(List<MeshComponent> meshes, List<Vector3> positions)
-        {
-            for (int i = 0; i < meshes.Count; ++i)
-            {
-                MeshComponent mesh = meshes[i];
-                if (mesh != null && m_ProbeRequests.Add(mesh) && mesh.NeedsProbeSample(out Vector3 position))
-                {
-                    m_ProbeBatch.Add(mesh);
-                    positions.Add(position);
-                }
-            }
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InvokeWorldDynamicMeshUpdate()
         {

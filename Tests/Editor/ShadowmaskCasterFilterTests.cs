@@ -6,11 +6,11 @@ using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
-    // Shadowmask-mode Mixed lights draw dynamic casters only: MeshScene views exclude ShadowmaskStatic instances.
+    // Explicit exclusion flags remain part of custom visibility identity.
     public class ShadowmaskCasterFilterTests
     {
         [Test]
-        public void ExcludedFlags_CullStaticLightmappedInstancesOnly()
+        public void ExcludedFlags_CullOnlyInstancesWithRequestedFlags()
         {
             var scene = new MeshScene(16);
             try
@@ -24,14 +24,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     dynamicInstance = update.CreateInstance(a, bounds, ~0, 1u,
                         EMeshInstanceFlags.Visible | EMeshInstanceFlags.CastShadow, EMotionType.Object, ECastShadowMethod.Dynamic);
                     staticInstance = update.CreateInstance(b, bounds, ~0, 1u,
-                        EMeshInstanceFlags.Visible | EMeshInstanceFlags.CastShadow | EMeshInstanceFlags.ShadowmaskStatic, EMotionType.Object, ECastShadowMethod.Dynamic);
+                        EMeshInstanceFlags.Visible | EMeshInstanceFlags.CastShadow | EMeshInstanceFlags.AffectIndirect, EMotionType.Object, ECastShadowMethod.Dynamic);
                     update.Commit();
                 }
 
                 Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Matrix4x4.Ortho(-10, 10, -10, 10, -10, 10));
                 MeshViewCullingResult all = MeshVisibilityUtility.CullInstances(scene, planes, true);
                 MeshViewCullingResult dynamicOnly = MeshVisibilityUtility.CullInstances(scene, planes, true,
-                    excludeInstanceFlags: (uint)EMeshInstanceFlags.ShadowmaskStatic);
+                    excludeInstanceFlags: (uint)EMeshInstanceFlags.AffectIndirect);
                 try
                 {
                     Assert.AreEqual(1, all.instanceVisibility[(int)dynamicInstance.Index]);
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             var view = new MeshView { viewKey = 7, kind = EMeshViewKind.LocalShadow, layerMask = ~0, renderingLayerMask = 1 };
             var filtered = view;
-            filtered.excludeInstanceFlags = (uint)EMeshInstanceFlags.ShadowmaskStatic;
+            filtered.excludeInstanceFlags = (uint)EMeshInstanceFlags.AffectIndirect;
             Assert.AreNotEqual(new MeshGpuVisibilityKey(view), new MeshGpuVisibilityKey(filtered));
         }
     }

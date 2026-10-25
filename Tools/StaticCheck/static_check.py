@@ -242,6 +242,22 @@ def check_texture_views(repo, out):
             out.append(('ERROR', 'textureviews', 'stale generated binding registry: ' + os.path.relpath(path, repo)))
 
 
+def check_unity_boundary(repo, out):
+    mesh_root = os.path.join(repo, 'Runtime/Component/Render')
+    for p in all_files(mesh_root, {'.cs'}):
+        if not os.path.basename(p).startswith('MeshComponent'):
+            continue
+        text = read(p)
+        if re.search(r'GetComponent\s*<\s*(?:Mesh)?Renderer\s*>|forceRenderingOff|LightmapSettings|LightProbes|BakedLightingSource', text):
+            out.append(('ERROR', 'unityboundary', os.path.relpath(p, repo) + ': custom Mesh must not own native renderer lighting/state'))
+    surface = os.path.join(repo, 'Shaders/Surface/InfinityLit-Instanced.shader')
+    if os.path.exists(surface) and re.search(r'INFINITY_MESH_(?:LIGHTMAP|DIRECTIONAL|SHADOWMASK)|meshBakedLightingBuffer|meshProbeLightingBuffer', read(surface)):
+        out.append(('ERROR', 'unityboundary', 'custom Mesh contains per-instance baked/probe bindings'))
+    for name in ('MeshBakedLighting.cs', 'MeshProbeLighting.cs'):
+        if os.path.exists(os.path.join(repo, 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline', name)):
+            out.append(('ERROR', 'unityboundary', 'removed custom lighting owner remains: ' + name))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -249,7 +265,7 @@ def main():
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views)):
+                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

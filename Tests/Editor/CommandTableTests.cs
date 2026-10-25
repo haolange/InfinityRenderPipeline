@@ -10,23 +10,20 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     public class CommandTableTests
     {
         [Test]
-        public void BakedTextureSet_SplitsCommands()
+        public void PerInstanceDataDoesNotSplitIdenticalCommands()
         {
             using (var scene = new MeshScene(16))
             using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
             {
                 MeshSceneUpdate update = scene.BeginUpdate();
-                MeshInstanceId a = Create(update, 1);
-                MeshInstanceId b = Create(update, 2);
-                MeshInstanceId c = Create(update, 2);
+                MeshInstanceId a = Create(update);
+                MeshInstanceId b = Create(update);
+                MeshInstanceId c = Create(update);
                 update.Commit();
 
                 NativeArray<MeshPassCommand> commands = bins.GetCommands(MeshPassId.GBuffer);
-                Assert.AreEqual(2, commands.Length);
-                Assert.AreEqual(1, commands[0].key.bakedTextureSet);
-                Assert.AreEqual(1, commands[0].memberCount);
-                Assert.AreEqual(2, commands[1].key.bakedTextureSet);
-                Assert.AreEqual(2, commands[1].memberCount);
+                Assert.AreEqual(1, commands.Length);
+                Assert.AreEqual(3, commands[0].memberCount);
             }
         }
 
@@ -52,9 +49,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
             {
                 MeshSceneUpdate update = scene.BeginUpdate();
-                Create(update, 1);
+                Create(update);
                 update.CreateDraw(
-                    CreateInstance(update, 0),
+                    CreateInstance(update),
                     11, 0, 21, EPassEligibility.Shadow, 2000, 0);
                 update.Commit();
 
@@ -87,14 +84,14 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
             {
                 MeshSceneUpdate update = scene.BeginUpdate();
-                Create(update, 1);
+                Create(update);
                 update.Commit();
                 int before = bins.GetBuildSerial(MeshPassId.GBuffer);
                 Assert.AreEqual(before, bins.GetBuildSerial(MeshPassId.GBuffer), "No edit, no rebuild.");
 
                 using (MeshSceneUpdate change = scene.BeginUpdate())
                 {
-                    Create(change, 1);
+                    Create(change);
                     change.Commit();
                 }
 
@@ -110,7 +107,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             using (var bins = new PassBinStore(scene, new PassRegistry(), 0))
             {
                 MeshSceneUpdate update = scene.BeginUpdate();
-                Create(update, 0);
+                Create(update);
                 update.Commit();
                 Assert.AreEqual(20ul, bins.GetCommands(MeshPassId.GBuffer)[0].key.materialUnityId);
 
@@ -124,14 +121,14 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             }
         }
 
-        static MeshInstanceId Create(MeshSceneUpdate update, int textureSet)
+        static MeshInstanceId Create(MeshSceneUpdate update)
         {
-            MeshInstanceId instance = CreateInstance(update, textureSet);
+            MeshInstanceId instance = CreateInstance(update);
             update.CreateDraw(instance, 10, 0, 20, EPassEligibility.GBuffer, 2000, 0);
             return instance;
         }
 
-        static MeshInstanceId CreateInstance(MeshSceneUpdate update, int textureSet)
+        static MeshInstanceId CreateInstance(MeshSceneUpdate update)
         {
             TransformId transform = update.CreateTransform(float4x4.identity);
             MeshInstanceId instance = update.CreateInstance(
@@ -142,14 +139,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 flags: EMeshInstanceFlags.Visible,
                 motionType: EMotionType.Object,
                 castShadow: ECastShadowMethod.Off);
-            if (textureSet != 0)
-            {
-                update.SetInstanceBakedLighting(instance, new FMeshBakedLighting
-                {
-                    metadata = new float4(textureSet, 0, 0, 0)
-                });
-            }
-
             return instance;
         }
 
@@ -174,8 +163,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
         static bool TryFindCollision(out MeshDrawCommandKey keyA, out MeshDrawCommandKey keyB)
         {
-            keyA = Key(6, 78, 25, 815, 42, 56, 50, 0, 0);
-            keyB = Key(3, 21, 20, 582, 5, 38, 25, 0, 0);
+            keyA = Key(6, 78, 25, 815, 42, 56, 50, 0);
+            keyB = Key(3, 21, 20, 582, 5, 38, 25, 0);
             if (!keyA.Equals(keyB) && keyA.GetHashCode() == keyB.GetHashCode())
             {
                 return true;
@@ -187,7 +176,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             {
                 var key = Key(
                     rnd.Next(8), (ulong)rnd.Next(1024), rnd.Next(64), (ulong)rnd.Next(1024),
-                    (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64), rnd.Next(8));
+                    (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64), (uint)rnd.Next(64));
                 int hash = key.GetHashCode();
                 if (seen.TryGetValue(hash, out MeshDrawCommandKey prior) && !prior.Equals(key))
                 {
@@ -204,7 +193,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
         static MeshDrawCommandKey Key(
             int shaderPass, ulong mesh, int section, ulong material,
-            uint matRev, uint secRev, uint platform, uint flags, int baked)
+            uint matRev, uint secRev, uint platform, uint flags)
         {
             return new MeshDrawCommandKey
             {
@@ -215,8 +204,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 materialRevision = matRev,
                 sectionRevision = secRev,
                 platformFeatureKey = platform,
-                staticFlags = flags,
-                bakedTextureSet = baked
+                staticFlags = flags
             };
         }
     }

@@ -63,42 +63,17 @@ namespace InfinityTech.Component
             {
                 renderContext.AddWorldTerrain(this);
             });
-            //RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
         }
-
-        /*void OnBeginCameraRendering(ScriptableRenderContext renderContext, Camera camera)
-        {
-            List<TerrainComponent> terrains = renderWorld.GetWorldTerrains();
-            float4x4 matrix_Proj = TerrainUtility.GetProjectionMatrix(camera.fieldOfView + 30, camera.pixelWidth, camera.pixelHeight, camera.nearClipPlane, camera.farClipPlane);
-
-            for(int i = 0; i < terrains.Count; ++i)
-            {
-                TerrainComponent terrain = terrains[i];
-                terrain.UpdateLODData(camera.transform.position, matrix_Proj);
-
-                #if UNITY_EDITOR
-                    if (Handles.ShouldRenderGizmos())
-                    {
-                        terrain.DrawBounds(true);
-                    }
-                #endif
-            }
-        }*/
 
         protected override void UnRegister()
         {
-            if (terrainSector != null)
-            {
-                terrainSector.Dispose();
-                terrainSector = null;
-            }
+            terrainSector?.Dispose();
 
             TerrainComponent self = this;
             FGraphics.AddTask((RenderContext renderContext) =>
             {
                 renderContext.RemoveWorldTerrain(self);
             });
-            //RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         }
 
         public void ProcessLOD(in float3 viewOringin, in float4x4 matrix_Proj)
@@ -109,26 +84,24 @@ namespace InfinityTech.Component
 #if UNITY_EDITOR
         public void Serialize()
         {
-            terrain = GetComponent<UnityEngine.Terrain>();
-            terrainData = GetComponent<TerrainCollider>().terrainData;
-
-            TerrainTexture HeightTexture = new TerrainTexture(sectorSize);
-            HeightTexture.TerrainDataToHeightmap(terrainData);
-
-            /*if (terrainSector != null)
+            Terrain source = GetComponent<Terrain>();
+            TerrainData data = source != null ? source.terrainData : null;
+            if (data == null) throw new System.InvalidOperationException("Sector authoring requires a Unity Terrain with TerrainData.");
+            int quads = data.heightmapResolution - 1;
+            if (quads < 64) throw new System.InvalidOperationException("Infinity terrain sectors require a heightmap resolution of at least 65.");
+            var height = new TerrainTexture(quads);
+            try
             {
-                if (terrainSector.nativeCreated == true)
-                {
-                    terrainSector.ReleaseNativeCollection();
-                }
-            }*/
-
-            terrainSector = new TerrainSector(sectorSize, numSection, sectionSize, transform.position, terrainData.bounds);
-            terrainSector.BuildBounds(sectorSize, sectionSize, terrainScaleY, transform.position, HeightTexture.heightMap);
-            //terrainSector.BuildLODData(lod0ScreenSize, lod0Distribution, lodXDistribution);
-            //terrainSector.BuildNativeCollection();
-
-            HeightTexture.Release();
+                height.TerrainDataToHeightmap(data);
+                int count = quads / 64;
+                var replacement = new TerrainSector(quads, count, quads / count, transform.position, data.bounds);
+                replacement.BuildBounds(quads, quads / count, data.size.y, transform.position, height.heightMap);
+                terrainSector?.Dispose();
+                terrain = source;
+                terrainData = data;
+                terrainSector = replacement;
+            }
+            finally { height.Release(); }
         }
 
         public void DrawBounds(in bool useLODColor = false)

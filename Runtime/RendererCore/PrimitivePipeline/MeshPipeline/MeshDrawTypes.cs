@@ -41,19 +41,17 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     public struct MeshDrawCommand
     {
-        public int bakedTextureSet;
         public ulong meshUnityId;
         public int sectionIndex;
         public ulong materialUnityId;
         public int2 countOffset;
 
-        public MeshDrawCommand(ulong meshUnityId, int sectionIndex, ulong materialUnityId, int2 countOffset, int bakedTextureSet = 0)
+        public MeshDrawCommand(ulong meshUnityId, int sectionIndex, ulong materialUnityId, int2 countOffset)
         {
             this.meshUnityId = meshUnityId;
             this.sectionIndex = sectionIndex;
             this.materialUnityId = materialUnityId;
             this.countOffset = countOffset;
-            this.bakedTextureSet = bakedTextureSet;
         }
     }
 }

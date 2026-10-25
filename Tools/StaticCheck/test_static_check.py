@@ -24,6 +24,19 @@ class StaticCheckTests(unittest.TestCase):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text)
 
+    def test_custom_mesh_native_ownership_is_rejected(self):
+        self.write('Runtime/Component/Render/MeshComponent.cs', 'var source = GetComponent<Renderer>();')
+        out = []
+        static_check.check_unity_boundary(str(self.repo), out)
+        self.assertEqual(1, len(out))
+        self.assertEqual('unityboundary', out[0][1])
+
+    def test_custom_apv_has_no_instance_lighting_binding(self):
+        self.write('Shaders/Surface/InfinityLit-Instanced.shader', 'SampleAdaptiveProbeVolume(positionWS);')
+        out = []
+        static_check.check_unity_boundary(str(self.repo), out)
+        self.assertEqual([], out)
+
     def test_hidden_sidecar_meta_is_not_an_asset(self):
         self.write('._Deleted.cs.meta', 'AppleDouble metadata')
         out = []

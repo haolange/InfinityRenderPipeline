@@ -177,8 +177,7 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowLight.cullingMask,
                     shadowRenderingLayerMask,
                     local.face,
-                    ShadowCasterBounds.ExcludedFlags(shadowLight),
-                    MeshView.SceneCullingMaskFor(camera));
+                    sceneCullingMask: MeshView.SceneCullingMaskFor(camera));
                 sliceDraws[slice] = m_RGBuilder.CreateDrawList(localView, MeshPassId.Shadow);
 
                 if (!cullingResults.GetShadowCasterBounds(lightIdx, out _)) continue;

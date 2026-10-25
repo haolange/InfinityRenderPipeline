@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
                 {
                     passData.hasSubsurface = m_ActiveFrameState.subsurfaceEnabled;
                     passData.directionalLightmap = LightmapSettings.lightmapsMode == LightmapsMode.CombinedDirectional;
-                    passData.shadowmask = GBufferPassUtilityData.HasShadowmask();
+                    passData.shadowmask = renderContext.lightContext.HasShadowmask;
                     FShadowInputs shadows = QueryShadowInputs(renderContext);
                     shadows.Read(passRef);
                     passData.shadows = shadows;

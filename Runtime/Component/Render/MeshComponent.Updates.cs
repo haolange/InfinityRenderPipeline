@@ -18,7 +18,6 @@ namespace InfinityTech.Component
         internal Bounds localBounds;
         internal Transform cachedTransform;
         private FAABB m_PendingBounds;
-        private FMeshBakedLighting m_PendingLighting;
 
         internal void CompleteRegistration(RenderContext context, uint epoch)
         {
@@ -36,7 +35,6 @@ namespace InfinityTech.Component
         public EStateType Mobility { get => movebility; set { if (movebility == value) return; movebility = value; MarkDirty(); } }
         public Mesh MeshAsset { get => meshAsset; set { if (meshAsset == value) return; meshAsset = value; RefreshGeometryReference(); MarkTransformDirty(); MarkDirty(); } }
         public ReadOnlySpan<Material> Materials => materials;
-        public Renderer BakedLightingSourceRenderer { get => m_BakedLightingSource; set { if (m_BakedLightingSource == value) return; m_BakedLightingSource = value; NotifyInstanceChanged(); } }
         public ECastShadowMethod CastShadow { get => castShadow; set { if (castShadow == value) return; castShadow = value; MarkDirty(); } }
         public bool ReceiveShadow { get => receiveShadow; set { if (receiveShadow == value) return; receiveShadow = value; MarkDirty(); } }
         public bool AffectIndirectLighting { get => affectIndirectLighting; set { if (affectIndirectLighting == value) return; affectIndirectLighting = value; MarkDirty(); } }
@@ -65,12 +63,6 @@ namespace InfinityTech.Component
 
         public static void NotifyGeometryChanged(Mesh mesh) => RefreshSharedGeometry(mesh);
 
-        public static void NotifyBakedLightingChanged()
-        {
-            MeshBakedLighting.InvalidateLightmaps();
-            foreach (var component in s_Registered) component.NotifyInstanceChanged();
-        }
-
         public static void NotifyMaterialRoutingChanged(Material material) => MaterialRouteUtility.NotifyRoutingChanged(material);
 
         internal static void InvalidateMaterialRouting(Material material)
@@ -80,23 +72,16 @@ namespace InfinityTech.Component
                     if (component.materials[i] == material) { component.MarkDirty(); break; }
         }
 
-        // Explicit notification for static transforms, renderer lightmaps, layers and instance settings.
+        // Explicit notification for static transforms, layers and instance settings.
         public void NotifyInstanceChanged()
         {
-            m_CachedRenderer = GetComponent<Renderer>();
             MarkTransformDirty();
             MarkDirty();
         }
 
         internal void MarkTransformDirty()
         {
-            if (!transformPending) MarkTransformDirty(transform.position);
-        }
-
-        internal void MarkTransformDirty(Vector3 position)
-        {
             if (transformPending) return;
-            probeWorldPosition = position;
             transformPending = true;
             RenderContext.EnqueueMeshTransform(this);
         }
@@ -107,17 +92,14 @@ namespace InfinityTech.Component
             if (!isActiveAndEnabled || !m_InstanceId.IsValid) return;
             m_BoundBox = m_PendingBounds;
             m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
-            m_LastBakedLighting = m_PendingLighting;
         }
 
         internal void ApplyTransform(in MeshSceneUpdate update, in float4x4 matrix, in FAABB bounds)
         {
             if (!m_InstanceId.IsValid || !m_TransformId.IsValid) return;
             m_PendingBounds = bounds;
-            m_PendingLighting = ReadBakedLighting();
             update.SetTransform(m_TransformId, matrix);
             update.SetBounds(m_InstanceId, bounds);
-            update.SetInstanceBakedLighting(m_InstanceId, m_PendingLighting);
         }
     }
 }

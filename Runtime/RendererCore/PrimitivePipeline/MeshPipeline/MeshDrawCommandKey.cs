@@ -3,7 +3,7 @@ using System;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
-    /// Command identity: shader/route/pass/mesh/section/material/revisions/flags plus bakedTextureSet.
+    /// Command identity: shader/route/pass/mesh/section/material/revisions/flags.
     /// Field-level Equals is authoritative; GetHashCode is lookup acceleration only.
     /// </summary>
     public struct MeshDrawCommandKey : IEquatable<MeshDrawCommandKey>
@@ -18,7 +18,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public uint sectionRevision;
         public uint platformFeatureKey;
         public uint staticFlags;
-        public int bakedTextureSet;
 
         public bool Equals(MeshDrawCommandKey other)
         {
@@ -31,8 +30,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 && materialRevision == other.materialRevision
                 && sectionRevision == other.sectionRevision
                 && platformFeatureKey == other.platformFeatureKey
-                && staticFlags == other.staticFlags
-                && bakedTextureSet == other.bakedTextureSet;
+                && staticFlags == other.staticFlags;
         }
 
         public override bool Equals(object obj)
@@ -54,7 +52,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = (hash * 397) ^ (int)staticFlags;
                 hash = (hash * 397) ^ shaderUnityId.GetHashCode();
                 hash = (hash * 397) ^ (int)materialRoute;
-                hash = (hash * 397) ^ bakedTextureSet;
                 return hash;
             }
         }

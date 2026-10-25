@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.UnifiedRayTracing;
+using UnityEngine.SceneManagement;
+using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Core;
 using InfinityTech.Rendering.MeshPipeline;
 #if UNITY_EDITOR
@@ -18,7 +20,7 @@ namespace InfinityTech.Rendering.Pipeline
         Compute = 2
     }
 
-    public sealed class InfinityRayTracingEnvironment : IDisposable
+    public sealed class InfinityRayTracingEnvironment : IDisposable, IRGPassQueueObserver
     {
         const string VisibilityShaderPath = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/RayTracing/VisibilityRTAO.urtshader";
 
@@ -32,10 +34,29 @@ namespace InfinityTech.Rendering.Pipeline
         IRayTracingShader m_Shader;
         GraphicsBuffer m_BuildScratch;
         GraphicsBuffer m_TraceScratch;
+        internal readonly struct GeometryInstance : IEquatable<GeometryInstance>
+        {
+            internal readonly ulong owner;
+            internal readonly bool native;
+            internal readonly Mesh mesh;
+            internal readonly int section;
+            internal readonly Matrix4x4 matrix;
+            internal GeometryInstance(ulong owner, bool native, Mesh mesh, int section, Matrix4x4 matrix)
+            { this.owner = owner; this.native = native; this.mesh = mesh; this.section = section; this.matrix = matrix; }
+            public bool Equals(GeometryInstance other) => owner == other.owner && native == other.native
+                && mesh == other.mesh && section == other.section && matrix.Equals(other.matrix);
+        }
+        readonly List<GeometryInstance> m_Geometry = new List<GeometryInstance>();
+        readonly List<GeometryInstance> m_CollectedGeometry = new List<GeometryInstance>();
+        readonly List<GameObject> m_Roots = new List<GameObject>();
+        readonly List<MeshRenderer> m_Renderers = new List<MeshRenderer>();
+        GameObject m_PersistentSceneAnchor;
+        internal IReadOnlyList<GeometryInstance> Geometry => m_CollectedGeometry;
+        internal bool NeedsBuild => m_NeedsBuild && !m_BuildQueued;
         int m_SyncedStructural = -1;
         int m_SyncedContent = -1;
         int m_InstanceCount;
-        bool m_NeedsBuild;
+        bool m_NeedsBuild, m_BuildQueued;
         bool m_Disposed;
 
         internal RayTracingBackend Backend => IsReady ? m_Context.BackendType
@@ -165,93 +186,97 @@ namespace InfinityTech.Rendering.Pipeline
             lastBlockReason = string.Empty;
         }
 
-        public void SyncGeometry(MeshScene scene)
+        // URT accepts explicit instances rather than a raster CullingResults. Its input adapter is isolated here.
+        // Reused root/component lists observe native scene changes without a second raster registry or per-frame arrays.
+        internal bool CollectGeometry(MeshScene scene)
         {
-            if (!IsReady)
-            {
-                return;
-            }
-
-            int structural = scene != null ? scene.StructuralRevision : -1;
-            int content = scene != null ? scene.ContentRevision : -1;
-            if (structural == m_SyncedStructural && content == m_SyncedContent && m_InstanceCount > 0)
-            {
-                return;
-            }
-
-            m_Accel.ClearInstances();
-            m_InstanceCount = 0;
-            var seenMeshes = new HashSet<ulong>();
-
+            m_CollectedGeometry.Clear();
             if (scene != null)
             {
                 var draws = scene.GetDraws();
                 var instances = scene.GetInstances();
                 var transforms = scene.GetTransforms();
                 var sections = scene.GetSections();
-                var sectionGens = scene.GetSectionGenerations();
+                var generations = scene.GetSectionGenerations();
+                var drawGenerations = scene.GetDrawGenerations();
                 for (int i = 0; i < scene.DrawHighWater; ++i)
                 {
-                    if (!scene.IsDrawSlotLive(i))
-                    {
-                        continue;
-                    }
-
-                    MeshDraw draw = draws[i];
-                    if (!scene.TryGetInstance(draw.instance, out MeshInstanceRecord instance))
-                    {
-                        continue;
-                    }
-
-                    int sectionIndex = (int)draw.section.Index;
-                    if (sectionIndex < 0 || sectionIndex >= sections.Length || sectionGens[sectionIndex] != draw.section.Generation)
-                    {
-                        continue;
-                    }
-
-                    Mesh mesh = ResolveMesh(sections[sectionIndex].meshUnityId);
-                    if (mesh == null)
-                    {
-                        continue;
-                    }
-
-                    seenMeshes.Add(UnityEntityId.ToUInt64(mesh));
-                    int transformIndex = (int)instance.transform.Index;
-                    Matrix4x4 matrix = transformIndex >= 0 && transformIndex < transforms.Length
-                        ? transforms[transformIndex].current
-                        : Matrix4x4.identity;
-                    AddMesh(mesh, draw.sectionIndex, matrix);
+                    if (!scene.IsDrawSlotLive(i)) continue;
+                    var draw = draws[i];
+                    if (!scene.TryGetInstance(draw.instance, out var instance)
+                        || (instance.flags & EMeshInstanceFlags.Visible) == 0) continue;
+                    int section = (int)draw.section.Index;
+                    if (section < 0 || section >= sections.Length || generations[section] != draw.section.Generation) continue;
+                    Mesh mesh = ResolveMesh(sections[section].meshUnityId);
+                    if (mesh == null || draw.sectionIndex < 0 || draw.sectionIndex >= mesh.subMeshCount) continue;
+                    int transform = (int)instance.transform.Index;
+                    m_CollectedGeometry.Add(new GeometryInstance(((ulong)drawGenerations[i] << 32) | (uint)i,
+                        false, mesh, draw.sectionIndex, transforms[transform].current));
                 }
             }
-
-            MeshRenderer[] renderers = UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Exclude);
-            for (int i = 0; i < renderers.Length; ++i)
+            for (int i = 0; i < SceneManager.sceneCount; ++i) CollectNativeScene(SceneManager.GetSceneAt(i));
+            if (Application.isPlaying)
             {
-                MeshRenderer renderer = renderers[i];
-                MeshFilter filter = renderer.GetComponent<MeshFilter>();
-                Mesh mesh = filter != null ? filter.sharedMesh : null;
-                if (mesh == null || seenMeshes.Contains(UnityEntityId.ToUInt64(mesh)))
+                // Unity excludes its persistent scene from SceneManager.sceneCount; keep one owned handle into it.
+                if (m_PersistentSceneAnchor == null)
                 {
-                    continue;
+                    m_PersistentSceneAnchor = new GameObject("Infinity RT Scene Scope") { hideFlags = HideFlags.HideAndDontSave };
+                    UnityEngine.Object.DontDestroyOnLoad(m_PersistentSceneAnchor);
                 }
+                CollectNativeScene(m_PersistentSceneAnchor.scene);
+            }
+            bool changed = m_Geometry.Count != m_CollectedGeometry.Count;
+            if (!changed)
+                for (int i = 0; i < m_Geometry.Count; ++i)
+                    if (!m_Geometry[i].Equals(m_CollectedGeometry[i])) { changed = true; break; }
+            return changed;
+        }
 
-                for (int sub = 0; sub < mesh.subMeshCount; ++sub)
+        void CollectNativeScene(Scene scene)
+        {
+            if (!scene.IsValid() || !scene.isLoaded) return;
+            m_Roots.Clear();
+            if (m_Roots.Capacity < scene.rootCount) m_Roots.Capacity = scene.rootCount;
+            scene.GetRootGameObjects(m_Roots);
+            foreach (var root in m_Roots)
+            {
+                root.GetComponentsInChildren(false, m_Renderers);
+                foreach (var renderer in m_Renderers)
                 {
-                    AddMesh(mesh, sub, renderer.localToWorldMatrix);
+                    if (!renderer.gameObject.activeInHierarchy || !renderer.enabled || renderer.forceRenderingOff || !renderer.TryGetComponent(out MeshFilter filter)) continue;
+                    Mesh mesh = filter.sharedMesh;
+                    if (mesh == null) continue;
+                    ulong owner = UnityEntityId.ToUInt64(renderer);
+                    for (int section = 0; section < mesh.subMeshCount; ++section)
+                        m_CollectedGeometry.Add(new GeometryInstance(owner, true, mesh, section, renderer.localToWorldMatrix));
                 }
             }
+        }
 
-            m_SyncedStructural = structural;
-            m_SyncedContent = content;
+        public void SyncGeometry(MeshScene scene)
+        {
+            if (!IsReady) return;
+            bool changed = CollectGeometry(scene);
+            int structural = scene != null ? scene.StructuralRevision : -1;
+            int content = scene != null ? scene.ContentRevision : -1;
+            if (!changed && structural == m_SyncedStructural && content == m_SyncedContent) return;
+            m_Accel.ClearInstances();
+            m_BuildQueued = false;
+            m_InstanceCount = 0;
+            foreach (var instance in m_CollectedGeometry) AddMesh(instance.mesh, instance.section, instance.matrix);
+            m_Geometry.Clear(); m_Geometry.AddRange(m_CollectedGeometry);
+            m_SyncedStructural = structural; m_SyncedContent = content;
             m_NeedsBuild = m_InstanceCount > 0;
-            if (m_InstanceCount == 0)
-            {
-                lastBlockReason = "URT accel has no mesh instances.";
-            }
-            else if (string.IsNullOrEmpty(lastBlockReason) || lastBlockReason.StartsWith("URT accel"))
-            {
-                lastBlockReason = string.Empty;
-            }
+            if (m_InstanceCount == 0) lastBlockReason = "URT accel has no mesh instances.";
+            else if (lastBlockReason.StartsWith("URT accel")) lastBlockReason = string.Empty;
+        }
+
+        void IRGPassQueueObserver.OnQueued() => m_BuildQueued = true;
+        void IRGPassQueueObserver.OnQueueFailed() { m_NeedsBuild = true; m_BuildQueued = false; }
+        internal void CompleteFrame(bool accepted)
+        {
+            if (m_BuildQueued) m_NeedsBuild = !accepted;
+            m_BuildQueued = false;
         }
 
         public GraphicsBuffer PrepareBuildScratch()
@@ -268,17 +293,6 @@ namespace InfinityTech.Rendering.Pipeline
             return m_TraceScratch;
         }
 
-        public bool ConsumeBuild()
-        {
-            if (!m_NeedsBuild)
-            {
-                return false;
-            }
-
-            m_NeedsBuild = false;
-            return true;
-        }
-
         public void Dispose()
         {
             if (m_Disposed)
@@ -287,6 +301,12 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             m_Disposed = true;
+            if (m_PersistentSceneAnchor != null)
+            {
+                if (Application.isPlaying) UnityEngine.Object.Destroy(m_PersistentSceneAnchor);
+                else UnityEngine.Object.DestroyImmediate(m_PersistentSceneAnchor);
+                m_PersistentSceneAnchor = null;
+            }
             DisposeContextOnly();
             if (current == this)
             {

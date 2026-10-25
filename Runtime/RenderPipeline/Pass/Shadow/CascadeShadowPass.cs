@@ -113,8 +113,7 @@ namespace InfinityTech.Rendering.Pipeline
                         shadowLight.cullingMask,
                         shadowRenderingLayerMask,
                         cascade,
-                        ShadowCasterBounds.ExcludedFlags(shadowLight),
-                        MeshView.SceneCullingMaskFor(camera));
+                        sceneCullingMask: MeshView.SceneCullingMaskFor(camera));
                     cascadeDraws[cascade] = m_RGBuilder.CreateDrawList(cascadeView, MeshPassId.Shadow);
 
                     if (!hasNativeCasters) continue;

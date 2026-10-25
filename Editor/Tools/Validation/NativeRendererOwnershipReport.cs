@@ -2,13 +2,12 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using InfinityTech.Component;
 
 namespace InfinityTech.Rendering.Editor.Validation
 {
-    public static class ListRenderersWithoutMeshComponent
+    public static class NativeRendererOwnershipReport
     {
-        [MenuItem("Window/Infinity/Mesh/List Renderers Without MeshComponent")]
+        [MenuItem("Window/Infinity/Mesh/List Native Renderer Ownership")]
         static void ListLoaded()
         {
             var report = new StringBuilder();
@@ -30,11 +29,6 @@ namespace InfinityTech.Rendering.Editor.Validation
                             continue;
                         }
 
-                        if (renderer.GetComponent<MeshComponent>() != null)
-                        {
-                            continue;
-                        }
-
                         count++;
                         report.Append(scene.path)
                             .Append(" / ")
@@ -46,7 +40,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 }
             }
 
-            Debug.Log($"[InfinityRP] Renderers without MeshComponent: {count}\n{report}");
+            Debug.Log($"[InfinityRP] Native RendererList candidates: {count}\n{report}");
         }
 
         static string GetPath(Transform transform)

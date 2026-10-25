@@ -45,7 +45,6 @@ namespace InfinityTech.Rendering.Pipeline
                         shadowLight.cullingMask,
                         shadowRenderingLayerMask,
                         cascade,
-                        excludeInstanceFlags: ShadowCasterBounds.ExcludedFlags(shadowLight),
                         sceneCullingMask: mainView.sceneCullingMask));
                 }
             }
@@ -76,7 +75,6 @@ namespace InfinityTech.Rendering.Pipeline
                     shadowLight.cullingMask,
                     shadowRenderingLayerMask,
                     local.face,
-                    excludeInstanceFlags: ShadowCasterBounds.ExcludedFlags(shadowLight),
                     sceneCullingMask: mainView.sceneCullingMask));
             }
         }

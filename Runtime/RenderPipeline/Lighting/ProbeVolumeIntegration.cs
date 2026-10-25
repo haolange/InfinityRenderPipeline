@@ -26,6 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         static readonly GlobalKeyword s_ProbeVolumesL2 = GlobalKeyword.Create("PROBE_VOLUMES_L2");
         static readonly int s_EnableProbeVolumes = Shader.PropertyToID("_EnableProbeVolumes");
 
+        static ProbeVolumeIntegration s_ResourceOwner;
         readonly bool m_Enabled;
         readonly ProbeVolumeSHBands m_Bands;
 
@@ -37,6 +38,8 @@ namespace InfinityTech.Rendering.Pipeline
             m_Bands = asset != null ? asset.probeVolumeSHBands : ProbeVolumeSHBands.SphericalHarmonicsL1;
             if (m_Enabled)
             {
+                if (ProbeReferenceVolume.instance.isInitialized)
+                    throw new InvalidOperationException("APV already has a pipeline owner; dispose it before initializing another integration.");
                 ProbeReferenceVolume.instance.Initialize(new ProbeVolumeSystemParameters
                 {
                     memoryBudget = asset.probeVolumeMemoryBudget,
@@ -47,6 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
                     supportScenarios = asset.supportProbeVolumeScenarios,
                     supportScenarioBlending = asset.supportProbeVolumeScenarioBlending,
                 });
+                s_ResourceOwner = this;
             }
         }
 
@@ -79,9 +83,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         public void Dispose()
         {
-            if (m_Enabled)
+            if (ReferenceEquals(s_ResourceOwner, this))
             {
                 ProbeReferenceVolume.instance.Cleanup();
+                s_ResourceOwner = null;
             }
         }
     }
