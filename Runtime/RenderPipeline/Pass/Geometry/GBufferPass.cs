@@ -105,7 +105,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGBuffer)))
             {
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetColorAttachment(gbufferTextureA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(gbufferTextureB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(gbufferTextureC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                passRef.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in GBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetKeyword(GBufferPassUtilityData.DBufferKeyword, passData.bindDBuffer);
                     cmdEncoder.SetGlobalInt(Shader.PropertyToID("_InfinityHasProbes"), passData.hasProbes);

@@ -64,9 +64,9 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.shader = shaders.lightCookieShader;
                     passData.uploads = uploads;
                     passData.atlas = passRef.WriteTexture(atlas);
-                    passRef.EnablePassCulling(false);
+                    passRef.MarkSideEffect();
                     passRef.SetQueueObserver(new CookieProduction { atlas = m_LightCookieAtlas, keys = keys });
-                    passRef.SetExecuteFunc((in LightCookiePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                    passRef.SetExecuteFunc((in LightCookiePassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
                         ComputeShader shader = passData.shader;
                         int copy2D = shader.FindKernel(LightCookiePassUtilityData.KernelCopy2D);

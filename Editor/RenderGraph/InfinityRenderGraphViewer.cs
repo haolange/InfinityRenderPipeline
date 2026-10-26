@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Editor
 
             List<int> passes = VisiblePasses(graph);
             List<int> resources = VisibleResources(graph);
-            EditorGUILayout.LabelField($"Frame {graph.frame}: {graph.passes.Count} passes ({graph.CountCulled()} culled, {graph.CountAsync()} async), {graph.resources.Count} resources", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField($"Frame {graph.frame}: {graph.passes.Count} passes ({graph.CountCulled()} culled, {graph.CountAsync()} async, {graph.segmentCount} segments), {graph.resources.Count} resources, peak {graph.peakAliasBytes / 1024} KiB", EditorStyles.miniLabel);
 
             float detailHeight = Mathf.Min(180f, position.height * 0.35f);
             Rect gridArea = GUILayoutUtility.GetRect(position.width, position.height - detailHeight - 60f);
@@ -169,7 +169,7 @@ namespace InfinityTech.Rendering.Editor
                 var header = new Rect(kNameWidth + c * kCellSize, 0, kCellSize - 1, kHeaderHeight - 2);
                 EditorGUI.DrawRect(header, pass.culled ? kCulled : pass.asyncCompute ? kAsync : kGraphics);
                 if (passIndex == m_SelectedPass) EditorGUI.DrawRect(new Rect(header.x, header.yMax - 3, header.width, 3), Color.white);
-                string tip = $"{passIndex}: {pass.name} ({pass.type}{(pass.asyncCompute ? ", async" : "")}{(pass.culled ? ", culled" : "")})";
+                string tip = $"{passIndex}: {pass.name} ({pass.type}{(pass.asyncCompute ? ", async" : "")}{(pass.culled ? ", culled" : "")}, segment {pass.segment}{(pass.mergeGroup >= 0 ? ", merge " + pass.mergeGroup + "." + pass.subpass : "")})";
                 if (GUI.Button(header, new GUIContent(string.Empty, tip), GUIStyle.none))
                 {
                     m_SelectedPass = passIndex;
@@ -228,7 +228,9 @@ namespace InfinityTech.Rendering.Editor
                 EditorGUILayout.LabelField($"{m_SelectedPass}: {pass.name}", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField("Type", pass.type.ToString());
                 EditorGUILayout.LabelField("Queue", pass.asyncCompute ? "Async compute" : "Graphics");
-                EditorGUILayout.LabelField("Culled", pass.culled ? "Yes" : pass.allowCulling ? "No (cullable)" : "No (never culled)");
+                EditorGUILayout.LabelField("Segment", pass.segment.ToString());
+                if (pass.mergeGroup >= 0) EditorGUILayout.LabelField("Native pass", pass.mergeGroup + " subpass " + pass.subpass);
+                EditorGUILayout.LabelField("Culled", pass.culled ? "Yes (" + (string.IsNullOrEmpty(pass.cullReason) ? "unused output" : pass.cullReason) + ")" : pass.allowCulling ? "No (cullable)" : "No (side effect)");
                 if (pass.waitsForPass >= 0) EditorGUILayout.LabelField("Waits for", PassName(graph, pass.waitsForPass));
                 if (pass.signalsToPass >= 0) EditorGUILayout.LabelField("Signals", PassName(graph, pass.signalsToPass));
                 DrawResourceList(graph, "Reads", pass.reads);
@@ -241,7 +243,8 @@ namespace InfinityTech.Rendering.Editor
                 RGResourceSnapshot resource = graph.resources[m_SelectedResource];
                 EditorGUILayout.LabelField(resource.name, EditorStyles.boldLabel);
                 EditorGUILayout.LabelField("Kind", resource.type + (resource.imported ? " (imported)" : " (pooled)"));
-                EditorGUILayout.LabelField("Size", resource.description);
+                EditorGUILayout.LabelField("Size", resource.description + (resource.estimatedBytes > 0 ? " (~" + resource.estimatedBytes / 1024 + " KiB)" : ""));
+                if (resource.aliasSlot >= 0) EditorGUILayout.LabelField("Physical slot", "group " + resource.aliasGroup + " slot " + resource.aliasSlot + (resource.memoryless ? " memoryless" : ""));
                 EditorGUILayout.LabelField("Used", resource.firstUse < 0 ? "Never (all users culled)" : PassName(graph, resource.firstUse) + " → " + PassName(graph, resource.lastUse));
                 if (resource.createPass >= 0) EditorGUILayout.LabelField("Allocated by", PassName(graph, resource.createPass));
                 if (resource.releasePass >= 0) EditorGUILayout.LabelField("Released after", PassName(graph, resource.releasePass));

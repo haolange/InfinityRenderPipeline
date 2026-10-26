@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
             {
                 //Setup Phase
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 // Write marks the depth-stencil resource (stencil 5). Shader ZWrite Off keeps depth values.
@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in ObjectMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.Draw(passData.draws);
                     cmdEncoder.DrawRendererList(passData.rendererList);
@@ -91,7 +91,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion)))
             {
                 //Setup Phase
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
@@ -102,7 +102,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in CameraMotionPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CameraMotionPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalTexture(InfinityShaderIDs.MainTexture, passData.depthTexture);
                     cmdEncoder.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, 2);

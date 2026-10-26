@@ -103,6 +103,8 @@ namespace InfinityTech.Rendering.GPUResource
         public bool enableMSAA;
         public bool bindTextureMS;
         public EMSAASamples msaaSamples;
+        // Pool identity includes this so a memoryless allocation is never reused as an ordinary texture.
+        public RenderTextureMemoryless memoryless;
         public bool clearBuffer;
         public Color clearColor;
 
@@ -164,7 +166,8 @@ namespace InfinityTech.Rendering.GPUResource
                 && autoGenerateMips == target.autoGenerateMips
                 && isShadowMap == target.isShadowMap
                 && msaaSamples == target.msaaSamples
-                && bindTextureMS == target.bindTextureMS;
+                && bindTextureMS == target.bindTextureMS
+                && memoryless == target.memoryless;
         }
 
         public override bool Equals(object target)
@@ -195,6 +198,7 @@ namespace InfinityTech.Rendering.GPUResource
             hashCode = hashCode * 23 + (isShadowMap ? 1 : 0);
             hashCode = hashCode * 23 + (int)msaaSamples;
             hashCode = hashCode * 23 + (bindTextureMS ? 1 : 0);
+            hashCode = hashCode * 23 + (int)memoryless;
             return hashCode;
         }
     }

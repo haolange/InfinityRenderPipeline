@@ -334,8 +334,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.exposureEV = passRef.WriteTexture(exposureWrite);
                 passData.histogram = passRef.WriteBuffer(histogram);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in ExposurePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in ExposurePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.postProcessingShader;
                     cmdEncoder.SetComputeVectorParam(shader, PostProcessingPassUtilityData.PP_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
@@ -389,8 +389,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.bloomTexture = passRef.WriteTexture(bloomTexture);
                 passData.exposureEV = passRef.ReadTexture(exposureEV);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in BloomPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in BloomPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomThresholdID, passData.bloomThreshold);
                     cmdEncoder.SetComputeFloatParam(passData.postProcessingShader, PostProcessingPassUtilityData.PP_BloomScatterID, passData.bloomScatter);
@@ -449,7 +449,7 @@ namespace InfinityTech.Rendering.Pipeline
             var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterPostCombine;
             using (var pass = m_RGBuilder.AddRasterPass<PostCombinePassData>(ProfilingSampler.Get(sampler)))
             {
-                pass.EnablePassCulling(false);
+                pass.MarkSideEffect();
                 if (finalTarget) pass.EnableNativeRenderPass(false);
                 pass.SetColorAttachment(target, 0, finalTarget && !FOutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 ref var data = ref pass.GetPassData<PostCombinePassData>();
@@ -469,7 +469,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.combineLUT = pass.ReadTexture(lut);
                 data.exposureEV = pass.ReadTexture(exposure);
                 if (data.output.displayProbe != null) pass.SetQueueObserver(data.output.displayProbe);
-                pass.SetExecuteFunc((in PostCombinePassData data, in RGRasterEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in PostCombinePassData data, in RGRasterEncoder commands) =>
                 {
                     BindFinalOutput(data.output, commands);
                     commands.SetKeyword(s_PostBloomKeyword, data.hasBloom);

@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.Pipeline
             RendererList overlay = renderContext.scriptableRenderContext.CreateUIOverlayRendererList(camera);
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay)))
             {
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableNativeRenderPass(false);
                 passRef.SetColorAttachment(displayColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 
@@ -33,7 +33,7 @@ namespace InfinityTech.Rendering.Pipeline
                 var size = m_ActiveFrameState.dimensions.displaySize;
                 passData.viewport = finalTarget ? m_ActiveFrameState.dimensions.outputViewport : new Rect(0, 0, size.x, size.y);
                 passData.screenParams = new Vector4(size.x, size.y, 1f + 1f / size.x, 1f + 1f / size.y);
-                passRef.SetExecuteFunc((in UIOverlayPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in UIOverlayPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetViewport(passData.viewport);
                     cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);

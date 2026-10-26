@@ -64,13 +64,13 @@ namespace InfinityTech.Rendering.Pipeline
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetDepthStencilAttachment(translucentDepthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref TranslucentDepthPassData passData = ref passRef.GetPassData<TranslucentDepthPassData>();
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 
-                passRef.SetExecuteFunc((in TranslucentDepthPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in TranslucentDepthPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
@@ -150,7 +150,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetColorAttachment(sceneColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 if (writeReactive)
                     passRef.SetColorAttachment(reactiveMask, 1, initializeReactive ? RenderBufferLoadAction.Clear : RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -184,7 +184,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.translucentDepth = passRef.ReadTexture(translucentDepth);
                 }
 
-                passRef.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in TranslucentColorPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetKeyword(TranslucentPassUtilityData.ReactiveKeyword, passData.writeReactive);
                     cmdEncoder.SetKeyword(TranslucentPassUtilityData.VolumetricFogKeyword, passData.bindFog);

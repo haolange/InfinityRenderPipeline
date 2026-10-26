@@ -151,8 +151,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.atmosphereSkySH = passRef.ReadBuffer(atmosphereSkySH);
                 passData.atmosphereIBLMaxMip = AtmosphericLUTPassUtilityData.GGXMipCount(atmosphereParameter.cubemapSize) - 1;
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in DeferredShadingPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.deferredShadingShader;
                     shader.SetKeyword(new LocalKeyword(shader, "INFINITY_SSS_OUTPUT"), passData.hasSubsurface);

@@ -302,9 +302,9 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.shPartial = passRef.WriteBuffer(shPartial);
                 }
 
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in AtmosphericLUTPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in AtmosphericLUTPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     BindAtmosphereParameters(passData, cmdEncoder);
                     ComputeShader shader = passData.atmosphericLUTShader;

@@ -87,24 +87,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 RGTextureRef unused = graph.CreateTexture(Descriptor("ViewerUnused", 4));
                 using (RGComputePassRef pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerProducer")))
                 {
-                    pass.EnablePassCulling(false);
+                    pass.MarkSideEffect();
                     pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(texture);
-                    pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands, RGObjectPool pool) => { executed = true; });
+                    pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands) => { executed = true; });
                 }
                 using (RGComputePassRef pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerCulled")))
                 {
-                    pass.EnablePassCulling(true);
                     pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(unused);
-                    pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands, RGObjectPool pool) => { executed = true; });
+                    pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands) => { executed = true; });
                 }
                 using (RGTransferPassRef pass = graph.AddTransferPass<ViewerPassData>(new ProfilingSampler("ViewerConsumer")))
                 {
-                    pass.EnablePassCulling(false);
+                    pass.MarkSideEffect();
                     pass.GetPassData<ViewerPassData>().texture = pass.ReadTexture(texture);
-                    pass.SetExecuteFunc((in ViewerPassData data, in RGTransferEncoder commands, RGObjectPool pool) => { executed = true; StopBeforeSubmit(); });
+                    pass.SetExecuteFunc((in ViewerPassData data, in RGTransferEncoder commands) => { executed = true; StopBeforeSubmit(); });
                 }
 
-                var stopped = Assert.Throws<InvalidOperationException>(() => graph.Execute(default, resources, frameCommands));
+                var stopped = Assert.Throws<InvalidOperationException>(() => graph.Execute(default, frameCommands));
                 Assert.AreEqual(StopMessage, stopped.Message);
                 Assert.IsFalse(executed, "The compiled-snapshot contract must stop before every pass executes.");
                 Assert.IsNotNull(captured, "The snapshot is published after compilation, before any pass executes.");

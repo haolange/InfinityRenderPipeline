@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             Assert.IsFalse(draw.Contains("SetBufferData("));
             Assert.IsFalse(draw.Contains("EnsureCapacity("));
             Assert.IsTrue(draw.Contains("MeshDrawProfiling.Draw(viewKind, true)"));
-            string builder=File.ReadAllText(Path.GetFullPath("Packages/com.infinity.render-pipeline/Runtime/RendererCore/RenderGraph/RGBuilder.cs"));
+            string builder=File.ReadAllText(Path.GetFullPath("Packages/com.infinity.render-pipeline/Runtime/RendererCore/RenderGraph/RGMeshCompile.cs"));
             Assert.IsTrue(builder.Contains("InsertDrawListPreparation"));
             Assert.IsTrue(builder.Contains("MeshDrawProfiling.upload"));
             Assert.IsTrue(builder.Contains("MeshDrawProfiling.compaction"));

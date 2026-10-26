@@ -92,8 +92,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferC = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
                 passData.occlusionTexture = passRef.WriteTexture(occlusion);
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in RTAOPassData passData, in RGRaytracingEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in RTAOPassData passData, in RGRaytracingEncoder cmdEncoder) =>
                 {
                     if (passData.buildAccel)
                     {

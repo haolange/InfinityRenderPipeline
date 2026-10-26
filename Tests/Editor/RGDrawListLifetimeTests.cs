@@ -304,8 +304,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                         using(var pass=graph.AddRasterPass<DrawPreparationData>(ProfilingSampler.Get(i==0?CustomSamplerId.RasterGBuffer:CustomSamplerId.RasterDepth)))
                         {
                             pass.SetColorAttachment(target,0,RenderBufferLoadAction.DontCare,RenderBufferStoreAction.Store);
-                            pass.EnablePassCulling(!live);ref var data=ref pass.GetPassData<DrawPreparationData>();data.draws=pass.UseDrawList(draws);
-                            pass.SetExecuteFunc((in DrawPreparationData data,in RGRasterEncoder commands,RGObjectPool objects)=>commands.Draw(data.draws));
+                            if (live) pass.MarkSideEffect();ref var data=ref pass.GetPassData<DrawPreparationData>();data.draws=pass.UseDrawList(draws);
+                            pass.SetExecuteFunc((in DrawPreparationData data,in RGRasterEncoder commands)=>commands.Draw(data.draws));
                         }
                     }
                     typeof(RGBuilder).GetMethod("CompilePass",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(graph,null);

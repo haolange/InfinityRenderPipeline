@@ -280,8 +280,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyRadiance = passRef.ReadTexture(historyRadiance);
                 passData.historyMeta = passRef.ReadTexture(historyMeta);
 
-                passData.tileArgs = passRef.CreateTemporaryBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * 3, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "SSRTileArgs" });
-                passData.tileList = passRef.CreateTemporaryBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * maxTiles, sizeof(uint), ComputeBufferType.Structured) { name = "SSRTileList" });
+                passData.tileArgs = passRef.CreatePassLocalBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * 3, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "SSRTileArgs" });
+                passData.tileList = passRef.CreatePassLocalBuffer(new BufferDescriptor(SSRPassUtilityData.ClassCount * maxTiles, sizeof(uint), ComputeBufferType.Structured) { name = "SSRTileList" });
                 TextureDescriptor tileClassDescriptor = SSRPassUtilityData.CreateDescriptor(tileCount.x, tileCount.y, "SSRTileClass", GraphicsFormat.R32_UInt, FilterMode.Point, 8 * (settings.halfResolution ? 2 : 1));
                 RenderCaptureSession capture = RenderCaptureService.current;
                 bool captureTileClass = capture != null && capture.CaptureThisFrame && capture.request.Matches(camera)
@@ -289,7 +289,7 @@ namespace InfinityTech.Rendering.Pipeline
                 // A captured classification must outlive this pass for the graph-owned Transfer readback.
                 passData.tileClass = captureTileClass
                     ? passRef.WriteTexture(m_RGScoper.CreateAndRegisterTexture(Shader.PropertyToID("Capture_SSRTileClass"), tileClassDescriptor))
-                    : passRef.CreateTemporaryTexture(tileClassDescriptor);
+                    : passRef.CreatePassLocalTexture(tileClassDescriptor);
                 passData.rayHit = passRef.WriteTexture(rayHit);
                 passData.resolved = passRef.WriteTexture(resolved);
                 passData.hitDistance = passRef.WriteTexture(hitDistance);
@@ -301,9 +301,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.runDebug = runDebug;
                 passData.debug = runDebug ? passRef.WriteTexture(debug) : default;
 
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssrShader;
                     FSSRSettings settings = passData.settings;

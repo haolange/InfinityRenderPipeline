@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.RenderGraph
         MeshGpuCullPassData CullInputs(in MeshView view, RGComputePassRef pass)
         {
             var residency = m_MeshWorld.Residency;
-            var data = new MeshGpuCullPassData { view = view, instanceCount = residency.Scene.InstanceHighWater, frustumPlanes = m_ObjectPool.GetTempArray<Vector4>(6) };
+            var data = new MeshGpuCullPassData { view = view, instanceCount = residency.Scene.InstanceHighWater, frustumPlanes = GetRecordingArray<Vector4>(6) };
             view.CopyFrustumPlanes(data.frustumPlanes);
             data.boundsCenter = pass.ReadBuffer(ImportBuffer(residency.BoundsCenterBuffer));
             data.boundsExtent = pass.ReadBuffer(ImportBuffer(residency.BoundsExtentBuffer));
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 pass.SetExecuteFunc(s_ExecuteMeshOcclusion);
             }
         }
-        static void ExecuteMeshOcclusion(in MeshOcclusionData data, in RGComputeEncoder commands, RGObjectPool objects)
+        static void ExecuteMeshOcclusion(in MeshOcclusionData data, in RGComputeEncoder commands)
         {
             var input = data.inputs; var shader = data.shader; int kernel = data.kernel;
             if (data.recovery)

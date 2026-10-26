@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             using (var pass = graph.AddComputePass<Data>(new ProfilingSampler(copy ? "HazardCopy" : "HazardWrite")))
             {
                 pass.EnableAsyncCompute(async);
-                pass.EnablePassCulling(false);
+                pass.MarkSideEffect();
                 ref Data data = ref pass.GetPassData<Data>();
                 data.shader = shader;
                 data.kernel = shader.FindKernel(copy ? "Copy" : "Write");
@@ -37,7 +37,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 data.physical = physical;
                 data.input = copy ? pass.ReadBuffer(input) : default;
                 data.output = pass.WriteBuffer(output);
-                pass.SetExecuteFunc((in Data d, in RGComputeEncoder commands, RGObjectPool objects) =>
+                pass.SetExecuteFunc((in Data d, in RGComputeEncoder commands) =>
                 {
                     d.physical?.Add(d.output);
                     commands.SetComputeIntParam(d.shader, "Count", Count);
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     using (var state = new RenderContext { scriptableRenderContext = context })
-                    using (var commands = new CommandBuffer()) graph.Execute(state, pool, commands);
+                    using (var commands = new CommandBuffer()) graph.Execute(state, commands);
                     using (var completionCommands = new CommandBuffer())
                     {
                         var tail = new ResourceReuseFence { hasGraphics = true };

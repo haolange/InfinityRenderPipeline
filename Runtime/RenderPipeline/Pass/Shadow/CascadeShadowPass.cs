@@ -127,7 +127,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow)))
             {
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref CascadeShadowPassData passData = ref passRef.GetPassData<CascadeShadowPassData>();
@@ -161,7 +161,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                passRef.SetExecuteFunc((in CascadeShadowPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CascadeShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     int halfRes = passData.shadowMapResolution;
                     cmdEncoder.SetGlobalInt(CascadeShadowPassUtilityData.CascadeCountID, passData.allocatedCount);

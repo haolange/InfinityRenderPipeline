@@ -103,8 +103,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.pendingColor = passRef.WriteTexture(pendingColor);
                 passData.pendingDepth = passRef.WriteTexture(pendingDepth);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in SuperResolutionPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in SuperResolutionPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
                     cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, Shader.PropertyToID("SR_InputResolution"), new Vector4(passData.inputResolution.x, passData.inputResolution.y, 1f / passData.inputResolution.x, 1f / passData.inputResolution.y));

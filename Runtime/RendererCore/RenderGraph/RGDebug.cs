@@ -17,6 +17,10 @@ namespace InfinityTech.Rendering.RenderGraph
         public int waitsForPass;
         public int signalsToPass;
         public bool graphicsFence;
+        public int segment;
+        public int mergeGroup;
+        public int subpass;
+        public string cullReason;
         public int[] reads;
         public int[] writes;
         public int[] creates;
@@ -36,14 +40,19 @@ namespace InfinityTech.Rendering.RenderGraph
         // Pass that allocates it from the pool and pass after which it returns there (-1: imported or never live).
         public int createPass;
         public int releasePass;
+        public int aliasSlot;
+        public int aliasGroup;
+        public long estimatedBytes;
+        public bool memoryless;
     }
 
-    // A compiled graph: passes in record order and every resource of the frame (buffers, then textures, then
-    // acceleration structures).
+    // A compiled graph: passes in record order, then buffers and textures.
     internal sealed class RGGraphSnapshot
     {
         public string label;
         public int frame;
+        public int segmentCount;
+        public long peakAliasBytes;
         public readonly List<RGPassSnapshot> passes = new List<RGPassSnapshot>();
         public readonly List<RGResourceSnapshot> resources = new List<RGResourceSnapshot>();
 
@@ -69,7 +78,10 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 RGPassSnapshot pass = passes[i];
                 text.Append(i).Append(' ').Append(pass.name).Append(" [").Append(pass.type).Append(pass.asyncCompute ? ", async" : "")
-                    .Append(pass.culled ? ", culled" : "").Append(']');
+                    .Append(pass.culled ? ", culled" : "").Append(" segment ").Append(pass.segment);
+                if (pass.mergeGroup >= 0) text.Append(" merge ").Append(pass.mergeGroup).Append('.').Append(pass.subpass);
+                text.Append(']');
+                if (pass.culled && !string.IsNullOrEmpty(pass.cullReason)) text.Append(" (").Append(pass.cullReason).Append(')');
                 if (pass.waitsForPass >= 0) text.Append(" waits ").Append(pass.waitsForPass);
                 text.AppendLine();
                 AppendResources(text, "  reads", pass.reads);

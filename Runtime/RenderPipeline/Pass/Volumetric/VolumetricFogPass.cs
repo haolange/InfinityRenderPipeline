@@ -168,8 +168,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
                 }
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.volumetricFogShader;
                     cmdEncoder.SetComputeVectorParam(shader, VolumetricFogPassUtilityData.VolFog_ScreenSizeID, new Vector4(passData.screenSize.x, passData.screenSize.y, 1.0f / passData.screenSize.x, 1.0f / passData.screenSize.y));
@@ -252,7 +252,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref CopyHistoryVolumetricFogPassData passData = ref passRef.GetPassData<CopyHistoryVolumetricFogPassData>();
                 passData.source = source;
                 passData.history = history;
-                passRef.SetExecuteFunc((in CopyHistoryVolumetricFogPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CopyHistoryVolumetricFogPassData passData, in RGTransferEncoder cmdEncoder) =>
                 {
                     cmdEncoder.CopyTexture(passData.source, passData.history);
                 });

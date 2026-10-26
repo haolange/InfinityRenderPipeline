@@ -666,7 +666,7 @@ namespace InfinityTech.Rendering.Pipeline
                                 {
                                     // ReleaseAllDrawLists releases per-Declare visibility refs (exception-safe).
                                     m_RGBuilder.debugLabel = RGDebugSession.captureEnabled ? camera.name : null;
-                                    m_RGBuilder.Execute(renderContext, m_ResourcePool, cmdBuffer);
+                                    m_RGBuilder.Execute(renderContext, cmdBuffer);
                                     frameState.executeSucceeded = true;
                                     RenderCaptureService.current?.CameraExecuted(camera, frameState.executeSucceeded);
                                     RenderFaultValidation.CameraResult(camera, true);
@@ -794,15 +794,15 @@ namespace InfinityTech.Rendering.Pipeline
         {
             m_RGBuilder.FlushRetiredResources(reuseFence);
             renderContext.lightContext.FlushRetiredBuffers();
-            m_AtmosphereSharedCache.FlushRetired();
-            m_LocalShadowCache.FlushRetired();
-            m_LightCookieAtlas.FlushRetired();
-            m_ReflectionProbeAtlas.FlushRetired();
+            m_AtmosphereSharedCache.FlushRetired(reuseFence);
+            m_LocalShadowCache.FlushRetired(reuseFence);
+            m_LightCookieAtlas.FlushRetired(reuseFence);
+            m_ReflectionProbeAtlas.FlushRetired(reuseFence);
             foreach (CameraFrameState state in m_CameraStates.Values)
             {
-                state.historyCache.FlushRetired();
-                state.atmosphereViewCache.FlushRetired();
-                state.combineLutCache.FlushRetired();
+                state.historyCache.FlushRetired(reuseFence);
+                state.atmosphereViewCache.FlushRetired(reuseFence);
+                state.combineLutCache.FlushRetired(reuseFence);
             }
             m_MeshWorld?.FlushRetired(reuseFence);
         }

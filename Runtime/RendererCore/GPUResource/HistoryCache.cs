@@ -33,6 +33,13 @@ namespace InfinityTech.Rendering.GPUResource
         readonly Dictionary<int, BufferSlot> m_Buffers;
         readonly List<RTHandle> m_RetiredTextures;
         readonly List<ComputeBuffer> m_RetiredBuffers;
+        readonly List<PendingDestroy> m_PendingDestroys = new List<PendingDestroy>();
+        struct PendingDestroy
+        {
+            public RTHandle texture;
+            public ComputeBuffer buffer;
+            public ResourceReuseFence fence;
+        }
 
         internal bool RetiredResourcesAreAlive
         {
@@ -42,6 +49,12 @@ namespace InfinityTech.Rendering.GPUResource
                     if (texture == null || texture.rt == null || !texture.rt.IsCreated()) return false;
                 foreach (ComputeBuffer buffer in m_RetiredBuffers)
                     if (buffer == null || !buffer.IsValid()) return false;
+                for (int i = 0; i < m_PendingDestroys.Count; ++i)
+                {
+                    PendingDestroy pending = m_PendingDestroys[i];
+                    if (pending.texture != null && (pending.texture.rt == null || !pending.texture.rt.IsCreated())) return false;
+                    if (pending.buffer != null && !pending.buffer.IsValid()) return false;
+                }
                 return true;
             }
         }
@@ -155,6 +168,7 @@ namespace InfinityTech.Rendering.GPUResource
 
         public void BeginFrame()
         {
+            ReleaseCompletedDestroys();
             foreach (TextureSlot slot in m_Textures.Values)
             {
                 slot.producedThisFrame = false;
@@ -278,27 +292,58 @@ namespace InfinityTech.Rendering.GPUResource
             }
         }
 
-        public void FlushRetired()
+        public void FlushRetired() => FlushRetired(default);
+
+        // A fence parks the physical destroy until the GPU has finished the frame that retired it.
+        // Without a fence (tests, devices that cannot create one) the resources are released now.
+        public void FlushRetired(ResourceReuseFence fence)
         {
+            ReleaseCompletedDestroys();
+            bool wait = fence.hasGraphics || fence.hasCompute;
+            if (!wait)
+            {
+                ReleaseRetiredNow();
+                return;
+            }
+
             for (int i = 0; i < m_RetiredTextures.Count; ++i)
             {
-                RTHandle texture = m_RetiredTextures[i];
-                if (texture != null)
-                {
-                    RTHandles.Release(texture);
-                }
+                if (m_RetiredTextures[i] != null)
+                    m_PendingDestroys.Add(new PendingDestroy { texture = m_RetiredTextures[i], fence = fence });
             }
-            m_RetiredTextures.Clear();
-
             for (int i = 0; i < m_RetiredBuffers.Count; ++i)
             {
-                ComputeBuffer buffer = m_RetiredBuffers[i];
-                if (buffer != null)
-                {
-                    buffer.Release();
-                }
+                if (m_RetiredBuffers[i] != null)
+                    m_PendingDestroys.Add(new PendingDestroy { buffer = m_RetiredBuffers[i], fence = fence });
             }
+            m_RetiredTextures.Clear();
             m_RetiredBuffers.Clear();
+        }
+
+        void ReleaseRetiredNow()
+        {
+            for (int i = 0; i < m_RetiredTextures.Count; ++i)
+                if (m_RetiredTextures[i] != null) RTHandles.Release(m_RetiredTextures[i]);
+            m_RetiredTextures.Clear();
+            for (int i = 0; i < m_RetiredBuffers.Count; ++i)
+                if (m_RetiredBuffers[i] != null) m_RetiredBuffers[i].Release();
+            m_RetiredBuffers.Clear();
+        }
+
+        void ReleaseCompletedDestroys()
+        {
+            for (int i = m_PendingDestroys.Count - 1; i >= 0; --i)
+            {
+                if (!m_PendingDestroys[i].fence.passed) continue;
+                DestroyPending(m_PendingDestroys[i]);
+                m_PendingDestroys.RemoveAt(i);
+            }
+        }
+
+        static void DestroyPending(PendingDestroy pending)
+        {
+            if (pending.texture != null) RTHandles.Release(pending.texture);
+            if (pending.buffer != null) pending.buffer.Release();
         }
 
         public void Release()
@@ -326,7 +371,13 @@ namespace InfinityTech.Rendering.GPUResource
 
         public void ForceFlushForTeardown()
         {
-            FlushRetired();
+            ReleaseCompletedDestroys();
+            ReleaseRetiredNow();
+            // Teardown has no later frame to poll. Completed fences are already released; anything still
+            // in flight is orphaned and destroyed when its fence passes.
+            if (m_PendingDestroys.Count == 0) return;
+            PendingDestroyQueue.Adopt(m_PendingDestroys);
+            m_PendingDestroys.Clear();
         }
 
         TextureSlot GetOrCreateTextureSlot(in int id)
@@ -391,7 +442,7 @@ namespace InfinityTech.Rendering.GPUResource
                 descriptor.bindTextureMS,
                 false,
                 false,
-                RenderTextureMemoryless.None,
+                descriptor.memoryless,
                 VRTextureUsage.None,
                 descriptor.name);
         }
@@ -409,6 +460,41 @@ namespace InfinityTech.Rendering.GPUResource
             if (buffer != null)
             {
                 m_RetiredBuffers.Add(buffer);
+            }
+        }
+
+        static class PendingDestroyQueue
+        {
+            static readonly List<PendingDestroy> s_Orphaned = new List<PendingDestroy>();
+            static bool s_Polling;
+
+            public static void Adopt(List<PendingDestroy> pending)
+            {
+                s_Orphaned.AddRange(pending);
+                if (s_Polling || s_Orphaned.Count == 0) return;
+                s_Polling = true;
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.update += Poll;
+#else
+                Application.onBeforeRender += Poll;
+#endif
+            }
+
+            static void Poll()
+            {
+                for (int i = s_Orphaned.Count - 1; i >= 0; --i)
+                {
+                    if (!s_Orphaned[i].fence.passed) continue;
+                    DestroyPending(s_Orphaned[i]);
+                    s_Orphaned.RemoveAt(i);
+                }
+                if (s_Orphaned.Count != 0) return;
+                s_Polling = false;
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.update -= Poll;
+#else
+                Application.onBeforeRender -= Poll;
+#endif
             }
         }
     }

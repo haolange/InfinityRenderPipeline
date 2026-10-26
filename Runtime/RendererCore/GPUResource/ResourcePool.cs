@@ -142,7 +142,7 @@ namespace InfinityTech.Rendering.GPUResource
             if (!textures.Pull(handle, physical, commandUse, asyncCompute, m_RecordingEpoch, out texture, out reuseFence))
             {
                 texture = RTHandles.Alloc(descriptor.physicalWidth, descriptor.physicalHeight, descriptor.slices, (DepthBits)descriptor.depthBufferBits, descriptor.colorFormat, descriptor.filterMode, descriptor.wrapMode, descriptor.dimension, descriptor.enableRandomWrite,
-                                          descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, RenderTextureMemoryless.None, VRTextureUsage.None, descriptor.name);
+                                          descriptor.useMipMap, descriptor.autoGenerateMips, descriptor.isShadowMap, descriptor.anisoLevel, descriptor.mipMapBias, (MSAASamples)descriptor.msaaSamples, descriptor.bindTextureMS, false, false, descriptor.memoryless, VRTextureUsage.None, descriptor.name);
                 textures.RecordAllocation(physical);
                 var usage = new ResourceUsage { textureIdentity = texture.rt };
                 m_TextureUses.Add(texture, usage); m_TexturePhysicalUses.Add(texture.rt, usage);

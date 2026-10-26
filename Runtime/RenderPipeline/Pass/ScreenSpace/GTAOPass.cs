@@ -250,9 +250,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.spatialXSnapshot = PrepareStageSnapshot(passRef, "AOSpatialX", spatialTempTexture);
                 passData.spatialYSnapshot = PrepareStageSnapshot(passRef, "AOSpatialY", occlusionHalfTexture);
                 passData.temporalSnapshot = PrepareStageSnapshot(passRef, "AOTemporal", spatialTempTexture);
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in GTAOPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssaoShader;
                     cmdEncoder.SetComputeVectorParam(shader, Shader.PropertyToID("ScreenSpaceDepthParams"), passData.depthParameters);

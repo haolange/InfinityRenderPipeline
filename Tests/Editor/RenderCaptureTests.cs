@@ -208,16 +208,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     {
                         using (RGTransferPassRef pass = graph.AddTransferPass<AbandonedCaptureData>(new ProfilingSampler("AbandonedReadback")))
                         {
-                            pass.EnablePassCulling(false);
+                            pass.MarkSideEffect();
                             pass.SetQueueObserver(staging);
                             pass.GetPassData<AbandonedCaptureData>() = new AbandonedCaptureData { staging = staging, failure = error };
-                            pass.SetExecuteFunc((in AbandonedCaptureData data, in RGTransferEncoder encoder, RGObjectPool objects) =>
+                            pass.SetExecuteFunc((in AbandonedCaptureData data, in RGTransferEncoder encoder) =>
                             {
                                 encoder.RequestAsyncReadback(data.staging.texture, data.staging.Complete);
                                 throw data.failure;
                             });
                         }
-                        Assert.AreSame(error, Assert.Throws<InvalidOperationException>(() => graph.Execute(default, pool, commands)));
+                        Assert.AreSame(error, Assert.Throws<InvalidOperationException>(() => graph.Execute(default, commands)));
                         Assert.IsFalse(staging.lifetime.recorded);
                         session.Cancel();
                         Assert.IsTrue(session.Finished);

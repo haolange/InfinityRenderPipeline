@@ -101,8 +101,8 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.volumetricCloudTexture = passRef.ReadTexture(volumetricCloudTexture);
                 }
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in FogCompositePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in FogCompositePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.fogCompositeShader;
                     cmdEncoder.SetComputeVectorParam(shader, FogCompositePassUtilityData.FogComposite_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));

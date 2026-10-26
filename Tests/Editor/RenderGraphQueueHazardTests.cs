@@ -18,10 +18,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler(name)))
             {
                 pass.EnableAsyncCompute(async);
-                pass.EnablePassCulling(!live);
+                if (live) pass.MarkSideEffect();
                 if (write) pass.WriteBuffer(resource); else pass.ReadBuffer(resource);
                 if (!live) pass.WriteBuffer(graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint))));
-                pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands, RGObjectPool objects) => { });
+                pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
             }
         }
 
@@ -64,10 +64,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Add(graph, "ReadB", b, true, false);
                 using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("WriteBoth")))
                 {
-                    pass.EnablePassCulling(false);
+                    pass.MarkSideEffect();
                     pass.WriteBuffer(b);
                     pass.WriteBuffer(a); // Resource enumeration must not replace a later fence with an earlier one.
-                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands, RGObjectPool objects) => { });
+                    pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
                 Assert.AreEqual("1", Compile(graph)[2].Split('|')[5]);
             }
@@ -173,18 +173,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 var descriptor = new TextureDescriptor(8, 8);
-                var a = factory.ImportTexture(first, descriptor, Shader.PropertyToID("_FirstAlias"));
-                var b = factory.ImportTexture(second, descriptor, Shader.PropertyToID("_SecondAlias"));
+                var a = factory.ImportTexture(first, descriptor);
+                var b = factory.ImportTexture(second, descriptor);
                 Assert.AreEqual(a.handle.index, b.handle.index);
-                var resource = (RGTexture)typeof(RGResourceFactory).GetMethod("GetTextureResource", BindingFlags.NonPublic | BindingFlags.Instance)
-                    .Invoke(factory, new object[] { a.handle });
-                CollectionAssert.Contains(resource.additionalShaderProperties, Shader.PropertyToID("_SecondAlias"));
+                Assert.AreEqual(a.handle.generation, b.handle.generation);
                 descriptor.width = 7;
-                Assert.Throws<InvalidOperationException>(() => factory.ImportTexture(second, descriptor, 0));
+                Assert.Throws<InvalidOperationException>(() => factory.ImportTexture(second, descriptor));
                 Assert.Throws<InvalidOperationException>(() => factory.ImportBackbuffer(new RenderTargetIdentifier(texture), descriptor));
                 factory.Clear();
                 descriptor.width = 8;
-                Assert.DoesNotThrow(() => factory.ImportTexture(first, descriptor, 0));
+                Assert.DoesNotThrow(() => factory.ImportTexture(first, descriptor));
             }
             finally
             {

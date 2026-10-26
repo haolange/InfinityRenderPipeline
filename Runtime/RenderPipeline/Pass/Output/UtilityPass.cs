@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref var data = ref pass.GetPassData<DisplayDepthPassData>();
                 data.source = pass.ReadTexture(source);
                 data.shaderPass = shaderPass;
-                pass.SetExecuteFunc((in DisplayDepthPassData data, in RGRasterEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in DisplayDepthPassData data, in RGRasterEncoder commands) =>
                 {
                     commands.SetGlobalTexture(Shader.PropertyToID("_InfinitySourceDepth"), data.source);
                     commands.DrawMesh(GraphicsUtility.FullScreenMesh, Matrix4x4.identity, GraphicsUtility.BlitMaterial, 0, data.shaderPass);
@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.screenParams = new Vector4(size.x, size.y, 1f + 1f / size.x, 1f + 1f / size.y);
                 }
 
-                passRef.SetExecuteFunc((in WireOverlayPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in WireOverlayPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);
                     cmdEncoder.DrawRendererList(passData.rendererList);
@@ -119,7 +119,7 @@ namespace InfinityTech.Rendering.Pipeline
                         passData.screenParams = new Vector4(size.x, size.y, 1f + 1f / size.x, 1f + 1f / size.y);
                     }
 
-                    passRef.SetExecuteFunc((in GizmosPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                    passRef.SetExecuteFunc((in GizmosPassData passData, in RGRasterEncoder cmdEncoder) =>
                     {
                         cmdEncoder.SetGlobalVector(Shader.PropertyToID("_ScreenParams"), passData.screenParams);
                         cmdEncoder.DrawRendererList(passData.rendererList);
@@ -242,14 +242,14 @@ namespace InfinityTech.Rendering.Pipeline
             var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterOutputCopy;
             using (var pass = m_RGBuilder.AddRasterPass<FinalOutputPassData>(ProfilingSampler.Get(sampler)))
             {
-                pass.EnablePassCulling(false);
+                pass.MarkSideEffect();
                 if (finalTarget) pass.EnableNativeRenderPass(false);
                 pass.SetColorAttachment(target, 0, finalTarget && !FOutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 ref var data = ref pass.GetPassData<FinalOutputPassData>();
                 data = PrepareFinalOutput(camera, decision, source, finalTarget, "RasterFinalOutput");
                 data.srcTexture = pass.ReadTexture(source);
                 if (data.displayProbe != null) pass.SetQueueObserver(data.displayProbe);
-                pass.SetExecuteFunc((in FinalOutputPassData data, in RGRasterEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in FinalOutputPassData data, in RGRasterEncoder commands) =>
                 {
                     BindFinalOutput(data, commands);
                     commands.SetGlobalTexture(InfinityShaderIDs.MainTexture, data.srcTexture);

@@ -97,7 +97,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.source = pass.ReadBuffer(QueryLightLoop(renderContext).tileMasks);
                 data.destination = pass.WriteTexture(destination);
                 data.shader = shader; data.width = width; data.height = height;
-                pass.SetExecuteFunc((in CaptureLightMaskPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in CaptureLightMaskPassData data, in RGComputeEncoder commands) =>
                 {
                     int kernel = data.shader.FindKernel("CaptureBufferUIntBytes");
                     commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureBufferSize"), new Vector4(data.width, data.height, 0, 0));
@@ -217,7 +217,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
                 data.shader = shader; data.width = descriptor.width; data.height = descriptor.height;
-                pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands) =>
                 {
                     int kernel = data.shader.FindKernel("CaptureDepth");
                     commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureSize"), new Vector4(data.width, data.height, 0, 0));
@@ -243,7 +243,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.source = pass.ReadTexture(source); data.destination = pass.WriteTexture(destination);
                 data.shader = shader; data.width = descriptor.width; data.height = descriptor.height;
                 data.kernel = shader.FindKernel("CaptureSurfaceMetadata");
-                pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in CaptureDepthPassData data, in RGComputeEncoder commands) =>
                 {
                     int kernel = data.kernel;
                     commands.SetComputeVectorParam(data.shader, Shader.PropertyToID("CaptureSize"), new Vector4(data.width, data.height, 0, 0));
@@ -288,7 +288,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureRef destination = m_RGBuilder.ImportTexture(staging.handle);
             using (RGTransferPassRef pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
             {
-                pass.EnablePassCulling(false);
+                pass.MarkSideEffect();
                 ref CaptureTransferPassData data = ref pass.GetPassData<CaptureTransferPassData>();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);
@@ -296,7 +296,7 @@ namespace InfinityTech.Rendering.Pipeline
                 pass.SetQueueObserver(staging);
                 data.graph = m_RGBuilder;
                 data.sourceMip = sourceMip; data.width = descriptor.width; data.height = descriptor.height;
-                pass.SetExecuteFunc((in CaptureTransferPassData parameters, in RGTransferEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in CaptureTransferPassData parameters, in RGTransferEncoder commands) =>
                 {
                     parameters.staging.owner.RecordGraph(parameters.graph, Time.frameCount);
                     commands.CopyTexture(parameters.source, 0, parameters.sourceMip, 0, 0, parameters.width, parameters.height, parameters.destination, 0, 0, 0, 0);

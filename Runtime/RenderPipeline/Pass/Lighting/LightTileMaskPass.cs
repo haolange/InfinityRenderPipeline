@@ -203,9 +203,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.tileRects = passRef.ReadBuffer(m_RGScoper.QueryBuffer(rectsKey));
                 passData.tileMasks = passRef.WriteBuffer(tileMasks);
 
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in LightTileMaskPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in LightTileMaskPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.shader;
                     int kernel = shader.FindKernel(LightTileMaskPassUtilityData.KernelName);

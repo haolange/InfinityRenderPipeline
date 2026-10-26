@@ -297,7 +297,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
         }
 
-        public void FlushRetired() => m_History.FlushRetired();
+        public void FlushRetired(ResourceReuseFence fence = default) => m_History.FlushRetired(fence);
 
         public void Dispose()
         {

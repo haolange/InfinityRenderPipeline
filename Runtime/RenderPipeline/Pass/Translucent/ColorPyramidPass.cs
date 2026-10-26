@@ -130,8 +130,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passData.colorPyramidTexture = passRef.WriteTexture(colorPyramidTexture);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in ColorPyramidPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in ColorPyramidPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ColorPyramidPassUtilityData.DispatchMipBatches(cmdEncoder, passData.colorPyramidShader, passData.lightingTexture, passData.colorPyramidTexture, passData.resolution, passData.mipCount);
                 });

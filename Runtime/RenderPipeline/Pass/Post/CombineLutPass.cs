@@ -265,9 +265,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.combineLutParameterDescriptor = combineLutParameterDescriptor;
 
                 //Execute Phase
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in CombineLutPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CombineLutPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
 
                     cmdEncoder.SetComputeFloatParam(passData.combineLUTShader, CombineLutPassUtilityData.WhiteBalanceTempID, passData.combineLutParameterDescriptor.WhiteTemp);

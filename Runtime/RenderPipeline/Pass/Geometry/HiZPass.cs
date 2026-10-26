@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.depth = pass.ReadTexture(depth); data.furthest = pass.WriteTexture(furthest);
                 if (closest.IsValid()) data.closest = pass.WriteTexture(closest);
                 pass.EnableAsyncCompute(async);
-                pass.SetExecuteFunc((in HiZPassData data, in RGComputeEncoder commands, RGObjectPool objects) =>
+                pass.SetExecuteFunc((in HiZPassData data, in RGComputeEncoder commands) =>
                 {
                     for (int first = 0; first < data.mipCount; first += PyramidMipBatch.HiZMipsPerDispatch)
                     {

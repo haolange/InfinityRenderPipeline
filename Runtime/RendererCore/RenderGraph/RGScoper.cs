@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.RenderGraph
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RGTextureRef CreateAndRegisterTexture(in int handle, in TextureDescriptor descriptor)
         {
-            RGTextureRef textureRef = m_RGBuilder.CreateTexture(descriptor, handle);
+            RGTextureRef textureRef = m_RGBuilder.CreateTexture(descriptor);
             RegisterTexture(handle, textureRef);
             return textureRef;
         }

@@ -80,7 +80,7 @@ namespace InfinityTech.Rendering.Pipeline
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward)))
             {
                 //Setup Phase
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -117,7 +117,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
 
                 //Execute Phase
-                passRef.SetExecuteFunc((in ForwardPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in ForwardPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     passData.BindLighting(cmdEncoder);
                     cmdEncoder.Draw(passData.draws);

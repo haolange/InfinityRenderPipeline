@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 data.shader = shader; data.kernel = shader.FindKernel("Copy");
                 data.input = pass.ReadBuffer(graph.ImportBuffer(input));
                 data.output = pass.WriteBuffer(graph.ImportBuffer(new FBufferRef(-1, new BufferDescriptor(1, 4), output)));
-                pass.SetExecuteFunc((in CopyData d, in RGComputeEncoder commands, RGObjectPool objects) =>
+                pass.SetExecuteFunc((in CopyData d, in RGComputeEncoder commands) =>
                 {
                     commands.SetComputeIntParam(d.shader, "Count", 1);
                     commands.SetComputeBufferParam(d.shader, d.kernel, Shader.PropertyToID("Input"), d.input);
@@ -70,7 +70,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 {
                     using var state = new RenderContext { scriptableRenderContext = context };
                     using var commands = new CommandBuffer();
-                    graph.Execute(state, pool, commands);
+                    graph.Execute(state, commands);
                     pool.ReleaseBuffer(source);
                     var tail = new ResourceReuseFence { hasGraphics = true, graphics = commands.CreateAsyncGraphicsFence() };
                     var completion = commands.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
@@ -134,8 +134,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (fail)
                 using (var pass = first.AddComputePass<FailureData>(new ProfilingSampler("InjectedFailureAfterCopy")))
                 {
-                    pass.EnablePassCulling(false);
-                    pass.SetExecuteFunc((in FailureData data, in RGComputeEncoder commands, RGObjectPool objects) =>
+                    pass.MarkSideEffect();
+                    pass.SetExecuteFunc((in FailureData data, in RGComputeEncoder commands) =>
                         throw new InvalidOperationException("Expected submission fixture failure."));
                 }
             bool executed = false;
@@ -149,8 +149,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     using var state = new RenderContext { scriptableRenderContext = context };
                     using var commands = new CommandBuffer();
                     if (fail)
-                        Assert.That(() => first.Execute(state, pool, commands), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Expected submission fixture failure."));
-                    else if (!delayExecute) first.Execute(state, pool, commands);
+                        Assert.That(() => first.Execute(state, commands), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Expected submission fixture failure."));
+                    else if (!delayExecute) first.Execute(state, commands);
                     Assert.IsFalse(pool.CanWriteBuffer(original), "Execute is not Submit/completion.");
                     pool.BeginFrame(); // Simulate a CPU frame transition while the context is still unsubmitted.
                     using (var update = scene.BeginUpdate())
@@ -167,8 +167,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     probe.buffer.SetData(new uint[probe.descriptor.count]);
                     pool.ReleaseBuffer(probe);
                     Copy(second, shader, gpu.InstanceFlagsBuffer, secondResult);
-                    if (delayExecute) first.Execute(state, pool, commands);
-                    second.Execute(state, pool, commands);
+                    if (delayExecute) first.Execute(state, commands);
+                    second.Execute(state, commands);
                     Assert.IsFalse(pool.CanWriteBuffer(gpu.InstanceFlagsBuffer));
                     var tail = new ResourceReuseFence { hasGraphics = true };
                     tail.graphics = commands.CreateAsyncGraphicsFence();

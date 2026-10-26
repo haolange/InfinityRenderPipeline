@@ -155,8 +155,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyTexture = passRef.ReadTexture(historyTexture);
                 passData.volumetricCloudTexture = passRef.WriteTexture(volumetricCloudTexture);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in VolumetricCloudPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in VolumetricCloudPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.volumetricCloudShader;
                     cmdEncoder.SetComputeVectorParam(shader, VolumetricCloudPassUtilityData.VolCloud_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));
@@ -221,7 +221,7 @@ namespace InfinityTech.Rendering.Pipeline
                 ref CopyHistoryVolumetricCloudPassData passData = ref passRef.GetPassData<CopyHistoryVolumetricCloudPassData>();
                 passData.source = source;
                 passData.history = history;
-                passRef.SetExecuteFunc((in CopyHistoryVolumetricCloudPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CopyHistoryVolumetricCloudPassData passData, in RGTransferEncoder cmdEncoder) =>
                 {
                     cmdEncoder.CopyTexture(passData.source, passData.history);
                 });

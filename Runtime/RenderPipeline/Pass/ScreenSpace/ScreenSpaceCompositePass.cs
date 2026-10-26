@@ -112,8 +112,8 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 passData.sceneColorTexture = passRef.WriteTexture(compositeTexture);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in ScreenSpaceCompositePassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in ScreenSpaceCompositePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.compositeShader;
                     shader.SetKeyword(new LocalKeyword(shader, "INFINITY_SSS_OUTPUT"), passData.hasSubsurface);

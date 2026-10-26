@@ -199,7 +199,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     if (!externallyObserved) upload.KeepImportedWritesLocal();
                     patches = upload.WriteBuffer(graph.ImportBuffer(version.patches));
                     upload.GetPassData<UploadData>().version = version;
-                    upload.SetExecuteFunc((in UploadData data, in RGTransferEncoder commands, RGObjectPool objects) =>
+                    upload.SetExecuteFunc((in UploadData data, in RGTransferEncoder commands) =>
                     {
                         var v = data.version;
                         commands.SetBufferData(v.patches.buffer, v.changes, 0, 0, v.changeCount);
@@ -223,7 +223,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
                 if (patches.IsValid()) data.patches = pass.ReadBuffer(patches);
                 pass.SetQueueObserver(version);
-                pass.SetExecuteFunc((in BuildData data, in RGComputeEncoder commands, RGObjectPool objects) =>
+                pass.SetExecuteFunc((in BuildData data, in RGComputeEncoder commands) =>
                 {
                     var v = data.version;
                     var shader = data.shader;

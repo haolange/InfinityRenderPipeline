@@ -95,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.gBufferC = pass.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
                 data.subsurfaceTexture = pass.WriteTexture(filtered);
                 pass.ReadTexture(color); data.sceneColor = pass.WriteTexture(color);
-                pass.SetExecuteFunc((in SubsurfacePassData d, in RGComputeEncoder commands, RGObjectPool objects) =>
+                pass.SetExecuteFunc((in SubsurfacePassData d, in RGComputeEncoder commands) =>
                 {
                     var shader = d.subsurfaceShader;
                     commands.SetComputeVectorParam(shader, SubsurfacePassUtilityData.SSS_ResolutionID, new Vector4(d.resolution.x,d.resolution.y,1f/d.resolution.x,1f/d.resolution.y));

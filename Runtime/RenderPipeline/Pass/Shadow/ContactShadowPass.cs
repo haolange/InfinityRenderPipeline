@@ -103,9 +103,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.sunTexture = passRef.WriteTexture(sunTexture);
                 passData.maskTexture = passRef.WriteTexture(maskTexture);
 
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in ContactShadowPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in ContactShadowPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.contactShadowShader;
                     int kernel = shader.FindKernel(ContactShadowPassUtilityData.KernelName);

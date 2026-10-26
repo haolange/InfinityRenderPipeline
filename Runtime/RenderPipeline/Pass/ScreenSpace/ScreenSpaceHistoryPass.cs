@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.metaSource = metaSource;
                 passData.metaHistory = metaHistory;
 
-                passRef.SetExecuteFunc((in CopyHistoryRadianceMetaPassData passData, in RGTransferEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in CopyHistoryRadianceMetaPassData passData, in RGTransferEncoder cmdEncoder) =>
                 {
                     cmdEncoder.CopyTexture(passData.radianceSource, passData.radianceHistory);
                     cmdEncoder.CopyTexture(passData.metaSource, passData.metaHistory);

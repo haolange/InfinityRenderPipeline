@@ -190,7 +190,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
             {
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref LocalShadowPassData passData = ref passRef.GetPassData<LocalShadowPassData>();
@@ -218,7 +218,7 @@ namespace InfinityTech.Rendering.Pipeline
                     }
                 }
 
-                passRef.SetExecuteFunc((in LocalShadowPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in LocalShadowPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalInt(LocalShadowPassUtilityData.LocalShadowCountID, passData.lightCount);
                     cmdEncoder.SetGlobalVector(LocalShadowPassUtilityData.LocalShadowMapSizeID, new Vector4(
@@ -324,7 +324,7 @@ namespace InfinityTech.Rendering.Pipeline
                 System.Array.Copy(sourceRects, first, data.sourceRects, 0, count);
                 System.Array.Copy(destinationRects, first, data.destinationRects, 0, count);
                 if (observer != null) pass.SetQueueObserver(observer);
-                pass.SetExecuteFunc((in CopyCachedLocalShadowPassData data, in RGRasterEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in CopyCachedLocalShadowPassData data, in RGRasterEncoder commands) =>
                 {
                     commands.SetGlobalTexture(Shader.PropertyToID("_InfinitySourceDepth"), data.source);
                     for (int i = 0; i < data.count; ++i)

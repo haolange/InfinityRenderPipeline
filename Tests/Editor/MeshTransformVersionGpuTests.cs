@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     using (var state = new RenderContext { scriptableRenderContext = context })
-                    using (var commands = new CommandBuffer()) graph.Execute(state, pool, commands);
+                    using (var commands = new CommandBuffer()) graph.Execute(state, commands);
                     using (var completionCommands = new CommandBuffer())
                     {
                         var tail = new ResourceReuseFence { hasGraphics = true };
