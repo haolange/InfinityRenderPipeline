@@ -62,9 +62,9 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.resolution = m_ReflectionProbeAtlas.Resolution;
                     passData.mipCount = m_ReflectionProbeAtlas.MipCount;
                     passData.atlas = passRef.WriteTexture(atlas);
-                    passRef.EnablePassCulling(false);
+                    passRef.MarkSideEffect();
                     passRef.SetQueueObserver(new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas, keys = keys });
-                    passRef.SetExecuteFunc((in ReflectionProbeFilterPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                    passRef.SetExecuteFunc((in ReflectionProbeFilterPassData passData, in RGComputeEncoder cmdEncoder) =>
                     {
                         foreach (FProbeCubeUpload upload in passData.uploads)
                         {

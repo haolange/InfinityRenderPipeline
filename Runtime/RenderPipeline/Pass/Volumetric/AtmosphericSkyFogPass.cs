@@ -74,8 +74,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
                 passData.sunBuffer = passRef.ReadBuffer(sunBuffer);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in AtmosphericSkyFogPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in AtmosphericSkyFogPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     AtmosphericLUTPassData lutData = new AtmosphericLUTPassData
                     {

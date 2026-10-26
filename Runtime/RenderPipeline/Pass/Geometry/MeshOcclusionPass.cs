@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline
                     UnityEngine.Rendering.RenderBufferLoadAction.Load, UnityEngine.Rendering.RenderBufferStoreAction.Store, EDepthAccess.Write);
                 ref var data = ref pass.GetPassData<DepthPassData>(); data = default;
                 data.draws = pass.UseDrawList(draws);
-                pass.SetExecuteFunc((in DepthPassData data, in RGRasterEncoder commands, RGObjectPool objects) => commands.Draw(data.draws));
+                pass.SetExecuteFunc((in DepthPassData data, in RGRasterEncoder commands) => commands.Draw(data.draws));
             }
         }
     }

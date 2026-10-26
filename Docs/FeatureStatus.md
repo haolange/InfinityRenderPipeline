@@ -6,6 +6,12 @@ they link here instead of claiming "completed".
 Latest bounded acceptance: [2026-10-26 Unity integration boundary receipt](History/UnityIntegration-20261026.md).
 Earlier dated sections below retain their original verification boundaries; the latest section supersedes them only for the cases it actually exercised.
 
+### RenderGraph compiler — 2026-10-26
+
+The compiler culls across resource types, plans descriptor-level alias slots, batches a submission segment per queue run, and merges compatible raster passes into one native render pass. Handles carry a generation. Profiling scopes are pass ranges. History retirement waits on the frame fence. Unity has no GPU heap, so aliasing is that slot plan executed by ResourcePool. Memoryless attachments are requested only for Metal.
+
+EditMode contracts cover cross-type culling, stale handles, load-without-producer, alias slots, native-pass merge and split, segment boundaries, pass-local resources and recording-array lifetime. They have not been executed here: the public Unity package registry does not serve CoreRP 17.6, so this environment cannot reference the assemblies a Roslyn compile needs. Unity 6000.6.0f1 managed assemblies were downloaded only to attempt that gate. Metal tile overlap, memoryless allocations and a captured frame are TODO(UNVERIFIED). On the Mac Editor: refresh the Example project, open Window/Analysis/Infinity Render Graph Viewer, and run `infinity_tests_start` filtered to RenderGraph.
+
 ### Unity integration ownership — 2026-10-26
 
 Native Renderer content retains Unity culling/renderer-list/per-object ownership. Custom Mesh keeps Infinity scene,

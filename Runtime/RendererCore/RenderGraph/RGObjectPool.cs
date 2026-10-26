@@ -5,12 +5,11 @@ namespace InfinityTech.Rendering.RenderGraph
 {
     internal class RGSharedObjectPool<T> where T : new()
     {
-        Stack<T> m_Pool = new Stack<T>();
+        readonly Stack<T> m_Pool = new Stack<T>();
 
         public T Get()
         {
-            var result = m_Pool.Count == 0 ? new T() : m_Pool.Pop();
-            return result;
+            return m_Pool.Count == 0 ? new T() : m_Pool.Pop();
         }
 
         public void Release(T value)
@@ -24,48 +23,74 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public sealed class RGObjectPool
     {
-        List<(object, (Type, int))> m_AllocatedArrays = new List<(object, (Type, int))>();
-        Dictionary<(Type, int), Stack<object>> m_ArrayPool = new Dictionary<(Type, int), Stack<object>>();
+        readonly List<(object array, (Type type, int length) key)> m_ExecutionArrays = new List<(object, (Type, int))>();
+        readonly Dictionary<(Type, int), Stack<object>> m_ExecutionPool = new Dictionary<(Type, int), Stack<object>>();
+        readonly List<(object array, (Type type, int length) key)> m_RecordingArrays = new List<(object, (Type, int))>();
+        readonly Dictionary<(Type, int), Stack<object>> m_RecordingPool = new Dictionary<(Type, int), Stack<object>>();
 
         internal RGObjectPool()
-        { 
-
+        {
         }
 
+        // Arrays borrowed while a pass executes. Released at the end of that pass.
         public T[] GetTempArray<T>(int size)
         {
-            if (!m_ArrayPool.TryGetValue((typeof(T), size), out var stack))
+            return Rent<T>(size, m_ExecutionPool, m_ExecutionArrays);
+        }
+
+        // Arrays captured during recording and read by a later pass. They outlive every pass execution.
+        public T[] GetRecordingArray<T>(int size)
+        {
+            return Rent<T>(size, m_RecordingPool, m_RecordingArrays);
+        }
+
+        static T[] Rent<T>(int size, Dictionary<(Type, int), Stack<object>> pool, List<(object array, (Type type, int length) key)> outstanding)
+        {
+            var key = (typeof(T), size);
+            if (!pool.TryGetValue(key, out Stack<object> stack))
             {
                 stack = new Stack<object>();
-                m_ArrayPool.Add((typeof(T), size), stack);
+                pool.Add(key, stack);
             }
 
-            var result = stack.Count > 0 ? (T[])stack.Pop() : new T[size];
-            m_AllocatedArrays.Add((result, (typeof(T), size)));
+            T[] result = stack.Count > 0 ? (T[])stack.Pop() : new T[size];
+            outstanding.Add((result, key));
             return result;
         }
 
         internal void ReleaseAllTempAlloc()
         {
-            foreach (var arrayDesc in m_AllocatedArrays)
-            {
-                bool result = m_ArrayPool.TryGetValue(arrayDesc.Item2, out var stack);
-                stack.Push(arrayDesc.Item1);
-            }
+            ReturnAll(m_ExecutionArrays, m_ExecutionPool);
+        }
 
-            m_AllocatedArrays.Clear();
+        internal void ReleaseRecordingAlloc()
+        {
+            ReturnAll(m_RecordingArrays, m_RecordingPool);
+        }
+
+        static void ReturnAll(List<(object array, (Type type, int length) key)> outstanding, Dictionary<(Type, int), Stack<object>> pool)
+        {
+            for (int i = 0; i < outstanding.Count; ++i)
+            {
+                (object array, (Type type, int length) key) item = outstanding[i];
+                if (!pool.TryGetValue(item.key, out Stack<object> stack))
+                {
+                    stack = new Stack<object>();
+                    pool.Add(item.key, stack);
+                }
+                stack.Push(item.array);
+            }
+            outstanding.Clear();
         }
 
         internal T Get<T>() where T : new()
         {
-            var toto = RGSharedObjectPool<T>.sharedPool;
-            return toto.Get();
+            return RGSharedObjectPool<T>.sharedPool.Get();
         }
 
         internal void Release<T>(T value) where T : new()
         {
-            var toto = RGSharedObjectPool<T>.sharedPool;
-            toto.Release(value);
+            RGSharedObjectPool<T>.sharedPool.Release(value);
         }
     }
 }

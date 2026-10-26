@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.source.depth = pass.ReadTexture(source.depth); data.size = size;
                 data.mipCount = PyramidMipBatch.MipCount(baseSize.x, baseSize.y);
                 pass.WriteTexture(mips);
-                pass.SetExecuteFunc((in TemporalColorMipData data, in RGComputeEncoder commands, RGObjectPool objects) =>
+                pass.SetExecuteFunc((in TemporalColorMipData data, in RGComputeEncoder commands) =>
                 {
                     var shader = data.shader; int kernel = data.kernel;
                     commands.SetComputeIntParam(shader, TemporalColorBindings.SourceValid, data.source.valid ? 1 : 0);

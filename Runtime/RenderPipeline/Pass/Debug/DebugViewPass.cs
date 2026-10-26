@@ -344,8 +344,8 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in DebugViewPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in DebugViewPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.debugViewShader;
                     int kernel = passData.kernelIndex;

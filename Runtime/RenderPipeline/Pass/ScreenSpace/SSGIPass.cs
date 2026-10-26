@@ -208,8 +208,8 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyRadiance = passRef.ReadTexture(historyRadiance);
                 passData.historyMeta = passRef.ReadTexture(historyMeta);
 
-                passData.tileArgs = passRef.CreateTemporaryBuffer(new BufferDescriptor(4, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "SSGITileArgs" });
-                passData.tileList = passRef.CreateTemporaryBuffer(new BufferDescriptor(workWidth * workHeight, sizeof(uint), ComputeBufferType.Structured) { name = "SSGITileList" });
+                passData.tileArgs = passRef.CreatePassLocalBuffer(new BufferDescriptor(4, sizeof(uint), ComputeBufferType.IndirectArguments) { name = "SSGITileArgs" });
+                passData.tileList = passRef.CreatePassLocalBuffer(new BufferDescriptor(workWidth * workHeight, sizeof(uint), ComputeBufferType.Structured) { name = "SSGITileList" });
                 passData.captureRayHit = captureRayHit;
                 passData.rayHit = captureRayHit ? passRef.WriteTexture(rayHit) : default;
                 passData.traceRadiance = passRef.WriteTexture(traceRadiance);
@@ -221,9 +221,9 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.filtered = runSpatial ? passRef.WriteTexture(filtered) : passData.temporal;
                 passData.output = settings.halfResolution ? passRef.WriteTexture(output) : passData.filtered;
 
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.EnableAsyncCompute(true);
-                passRef.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.ssgiShader;
                     FSSGISettings settings = passData.settings;

@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             try
             {
                 var padded = new TextureDescriptor(7, 5) { allocationWidth = 31, allocationHeight = 19 };
-                var first = factory.ImportTexture(texture, padded, 0);
+                var first = factory.ImportTexture(texture, padded);
                 Assert.AreEqual(7, factory.GetTextureDescriptor(first.handle).width);
                 factory.Clear();
                 var raw = factory.ImportTexture(texture);

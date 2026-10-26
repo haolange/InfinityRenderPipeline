@@ -14,7 +14,7 @@ This document defines coding conventions and collaboration rules for `com.infini
 1. **Entity data belongs to the entity; draw descriptions only reference it.** One logical object owns one `TransformId` / bounds. Submesh, material, and pass only add `MeshDraw` / template references.
 2. **Cache stable structure; regenerate view results.** Pass bins and their command table are rebuilt only on structural change. Visibility, LOD, sort order, and compaction are per request/view.
 3. **One public Mesh Drawing API for CPU and GPU backends.** Callers use `MeshDrawRequest` / `RGDrawListRef`; backends stay internal.
-4. **RenderGraph-native lifecycle.** `CreateDrawList` records only; structural pass culling runs first; only live DrawLists schedule work; cleanup is graph-owned.
+4. **RenderGraph-native lifecycle.** `CreateDrawList` records only; structural pass culling runs first and propagates across every resource type; only live DrawLists schedule work; cleanup is graph-owned. Compiler-inserted mesh preparation moves to the earliest pass whose inputs exist. Recorded pass order is otherwise the schedule. Adjacent graphics work is one submission segment, and compatible raster passes are one native render pass. Unity has no GPU heap: overlap is a descriptor-level slot plan executed by `ResourcePool`. Resource handles carry a generation and are rejected after the graph that created them.
 5. **No legacy / deprecated compatibility layers.** When a path is replaced, delete the old ownership path. Do not keep dual authorities.
 
 ## Naming
@@ -168,7 +168,7 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 
 1. **`CommandBufferPool.Get()` is always unnamed.** A named buffer creates an implicit Frame Debugger scope that closes on every `ExecuteCommandBuffer`, orphaning any `BeginSample` / `EndSample` that spans later executes. Camera and pass grouping come only from `ProfilingScope(cmd, sampler)`.
 2. **An RG pass GPU name comes only from `pass.customSampler`.** Do not write `cmdBuffer.name = pass.name`. That duplicates the sampler and produces `RasterDepth > RasterDepth > draws`.
-3. **A `ProfilingSampler` name must not match any `cmd.BeginSample(string)` argument.** Cross-pass groups use `RGProfilingScope` (internally `sampler.Begin` / `sampler.End`). String `BeginSample` is only for in-pass temporary markers that have no same-named sampler (`BloomDownsample`, `BloomUpsample`).
+3. **A `ProfilingSampler` name must not match any `cmd.BeginSample(string)` argument.** Cross-pass groups use `RGProfilingScope`, which records a pass range. The executor calls `sampler.Begin` / `sampler.End` on the command buffer of each submission segment that range touches. It does not insert passes. String `BeginSample` is only for in-pass temporary markers that have no same-named sampler (`BloomDownsample`, `BloomUpsample`).
 4. **`ProfilingScope(sampler)` without a CommandBuffer is a deliberate CPU-only track.** Do not add a cmdBuffer to it to "make GPU markers appear".
 
 ## Temporal / jitter conventions

@@ -95,7 +95,7 @@ namespace InfinityTech.Rendering.Pipeline
                 data.inputSnapshot = PrepareStageSnapshot(pass, "TAAInput", input);
                 data.historyColorSnapshot = PrepareStageSnapshot(pass, "TAAHistoryColor", historyColor);
                 data.historyDepthSnapshot = PrepareStageSnapshot(pass, "TAAHistoryDepth", historyDepth);
-                pass.SetExecuteFunc((in AntiAliasingPassData data, in RGComputeEncoder commands, RGObjectPool pool) =>
+                pass.SetExecuteFunc((in AntiAliasingPassData data, in RGComputeEncoder commands) =>
                 {
                     data.inputSnapshot.Record(commands, data.input);
                     data.historyColorSnapshot.Record(commands, data.historyColor);

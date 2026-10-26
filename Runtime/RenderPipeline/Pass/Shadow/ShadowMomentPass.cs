@@ -133,10 +133,10 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.depth = passRef.ReadTexture(m_RGScoper.QueryTexture(depthKey));
                 passData.moments = passRef.WriteTexture(moments);
                 descriptor.name = name + "BlurTemp";
-                passData.blurTemp = passRef.CreateTemporaryTexture(descriptor);
+                passData.blurTemp = passRef.CreatePassLocalTexture(descriptor);
 
-                passRef.EnablePassCulling(false);
-                passRef.SetExecuteFunc((in ShadowMomentPassData passData, in RGComputeEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.MarkSideEffect();
+                passRef.SetExecuteFunc((in ShadowMomentPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.shader;
                     int fromDepth = shader.FindKernel(ShadowMomentPassUtilityData.KernelFromDepth);

@@ -77,7 +77,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
             {
-                passRef.EnablePassCulling(false);
+                passRef.MarkSideEffect();
                 passRef.SetColorAttachment(dBufferA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(dBufferB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(dBufferC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
@@ -89,7 +89,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.depthTexture = depthTexture;
                 }
 
-                passRef.SetExecuteFunc((in DBufferPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in DBufferPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetGlobalTexture(InfinityShaderIDs.DepthBuffer, passData.depthTexture);
                     cmdEncoder.DrawRendererList(passData.rendererList);

@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.draws = passRef.UseDrawList(depthDraws);
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 
-                passRef.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder cmdEncoder, RGObjectPool objectPool) =>
+                passRef.SetExecuteFunc((in DepthPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
                     cmdEncoder.Draw(passData.draws);
                     cmdEncoder.DrawRendererList(passData.rendererList);

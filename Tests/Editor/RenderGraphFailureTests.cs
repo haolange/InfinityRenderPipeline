@@ -116,13 +116,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 RGTextureRef texture = graph.CreateTexture(descriptor);
                 using (RGComputePassRef pass = graph.AddComputePass<FailurePassData>(new ProfilingSampler("FailureContractProducer")))
                 {
-                    pass.EnablePassCulling(false);
+                    pass.MarkSideEffect();
                     pass.SetQueueObserver(observed);
                     pass.EnableAsyncCompute(asyncCompute);
                     ref FailurePassData data = ref pass.GetPassData<FailurePassData>();
                     data.observation = observed;
                     data.texture = pass.WriteTexture(texture);
-                    pass.SetExecuteFunc((in FailurePassData parameters, in RGComputeEncoder commands, RGObjectPool pool) =>
+                    pass.SetExecuteFunc((in FailurePassData parameters, in RGComputeEncoder commands) =>
                     {
                         parameters.observation.allocated = parameters.texture;
                         InjectFailure(parameters.observation.error);
@@ -130,11 +130,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 }
                 using (RGTransferPassRef pass = graph.AddTransferPass<ConsumerPassData>(new ProfilingSampler("FailureContractConsumer")))
                 {
-                    pass.EnablePassCulling(false);
+                    pass.MarkSideEffect();
                     pass.GetPassData<ConsumerPassData>().texture = pass.ReadTexture(texture);
-                    pass.SetExecuteFunc((in ConsumerPassData data, in RGTransferEncoder commands, RGObjectPool pool) => { });
+                    pass.SetExecuteFunc((in ConsumerPassData data, in RGTransferEncoder commands) => { });
                 }
-                Exception actual = Assert.Throws<InvalidOperationException>(() => graph.Execute(default, resources, frameCommands));
+                Exception actual = Assert.Throws<InvalidOperationException>(() => graph.Execute(default, frameCommands));
                 Assert.AreSame(observed.error, actual);
                 Assert.AreEqual(0, observed.queued, "A failed recording must not publish production or capture ownership.");
                 StringAssert.Contains(nameof(InjectFailure), actual.StackTrace);
