@@ -104,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 payload.EnsureCapacity(pool, 1, 1);
                 var original = payload.argsBuffer;
                 var descriptor = new BufferDescriptor(original.count, 4, ComputeBufferType.IndirectArguments);
-                graph.ImportBuffer(new FBufferRef(-1, descriptor, original));
+                graph.ImportBuffer(new BufferHandle(-1, descriptor, original));
                 MeshDrawGPUBackend.RetirePayload(payload); payload = null;
                 MeshDrawGPUBackend.FlushRetiredPayloads();
                 next = MeshDrawGPUBackend.RentPayload();

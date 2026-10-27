@@ -3,23 +3,23 @@ using System.Collections.Generic;
 
 namespace InfinityTech.Core
 {
-    public struct ObjectRef<T> where T : class
+    public struct ObjectHandle<T> where T : class
     {
         public int Id;
 
-        public ObjectRef(int id)
+        public ObjectHandle(int id)
         {
             Id = id;
         }
 
-        public bool Equals(in ObjectRef<T> target)
+        public bool Equals(in ObjectHandle<T> target)
         {
             return (Id == target.Id);
         }
 
         public override bool Equals(object obj)
         {
-            return Equals((ObjectRef<T>)obj);
+            return Equals((ObjectHandle<T>)obj);
         }
 
         public override int GetHashCode()
@@ -28,19 +28,19 @@ namespace InfinityTech.Core
         }
     }
 
-    public class ObjectRefFactory<T> where T : class
+    public class ObjectHandleFactory<T> where T : class
     {
         public readonly Dictionary<int, T> m_SharedRefs;
 
-        public ObjectRefFactory(int initialCapacity = 256)
+        public ObjectHandleFactory(int initialCapacity = 256)
         {
             m_SharedRefs = new Dictionary<int, T>(initialCapacity);
         }
 
-        public ObjectRef<T> Add(T obj, in int id)
+        public ObjectHandle<T> Add(T obj, in int id)
         {
             m_SharedRefs[id] = obj;
-            return new ObjectRef<T>(id);
+            return new ObjectHandle<T>(id);
         }
 
         public T Get(in int id)
@@ -48,14 +48,14 @@ namespace InfinityTech.Core
             return m_SharedRefs[id];
         }
 
-        public T Get(in ObjectRef<T> objRef)
+        public T Get(in ObjectHandle<T> handle)
         {
-            return m_SharedRefs[objRef.Id];
+            return m_SharedRefs[handle.Id];
         }
 
-        public void Remove(in ObjectRef<T> objRef)
+        public void Remove(in ObjectHandle<T> handle)
         {
-            m_SharedRefs.Remove(objRef.Id);
+            m_SharedRefs.Remove(handle.Id);
         }
 
         public void Clear()

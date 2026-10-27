@@ -10,13 +10,13 @@ namespace InfinityTech.Rendering.RenderGraph
     /// Logical DrawList handle. Not an ERGResourceType; lives in an independent registry.
     /// contextId binds to a registry instance; generation binds to a single graph lifetime.
     /// </summary>
-    public readonly struct RGDrawListRef
+    public readonly struct RGDrawListHandle
     {
         internal readonly int contextId;
         internal readonly int index;
         internal readonly int generation;
 
-        internal RGDrawListRef(int contextId, int index, int generation)
+        internal RGDrawListHandle(int contextId, int index, int generation)
         {
             this.contextId = contextId;
             this.index = index;
@@ -28,7 +28,7 @@ namespace InfinityTech.Rendering.RenderGraph
         /// </summary>
         public bool IsValid => contextId > 0;
 
-        public static RGDrawListRef Invalid => new RGDrawListRef(-1, 0, 0);
+        public static RGDrawListHandle Invalid => new RGDrawListHandle(-1, 0, 0);
     }
 
     internal enum ERGDrawListCompileState : byte
@@ -59,8 +59,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public PassView resolvedList;
         public MeshDrawGpuStaging gpuStaging;
         public MeshDrawGpuPayload gpuPayload;
-        public FBufferRef cpuIndexBuffer;
-        public RGBufferRef gpuVisibilityBuffer;
+        public BufferHandle cpuIndexBuffer;
+        public RGBufferHandle gpuVisibilityBuffer;
         public bool hasSideEffect;
     }
 
@@ -76,7 +76,7 @@ namespace InfinityTech.Rendering.RenderGraph
         private readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
 
         List<int> RentConsumerList() => m_ConsumerLists.Count > 0 ? m_ConsumerLists.Pop() : new List<int>(4);
-        // Start at 1 so default(RGDrawListRef) {index=0, generation=0} never matches a live graph.
+        // Start at 1 so default(RGDrawListHandle) {index=0, generation=0} never matches a live graph.
         private int m_GraphGeneration = 1;
 
         public RGDrawListContext()
@@ -88,7 +88,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public int GraphGeneration => m_GraphGeneration;
         public int ContextId => m_ContextId;
 
-        public bool IsLiveRef(in RGDrawListRef draws)
+        public bool IsLive(in RGDrawListHandle draws)
         {
             return draws.contextId == m_ContextId
                 && draws.generation == m_GraphGeneration
@@ -102,7 +102,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 throw new System.InvalidOperationException("Motion draws require the selected view's previous-transform producer.");
         }
 
-        public RGDrawListRef Declare(
+        public RGDrawListHandle Declare(
             MeshDrawPipeline pipeline,
             in MeshPassContext pass,
             in MeshViewCullingResult culling,
@@ -151,10 +151,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 gpuPayload = null,
                 hasSideEffect = false
             });
-            return new RGDrawListRef(m_ContextId, index, m_GraphGeneration);
+            return new RGDrawListHandle(m_ContextId, index, m_GraphGeneration);
         }
 
-        public RGDrawListRef Declare(
+        public RGDrawListHandle Declare(
             MeshDrawPipeline pipeline,
             in MeshPassContext pass,
             MeshVisibilityHandle visibilityHandle,
@@ -194,7 +194,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 gpuPayload = null,
                 hasSideEffect = false
             });
-            return new RGDrawListRef(m_ContextId, index, m_GraphGeneration);
+            return new RGDrawListHandle(m_ContextId, index, m_GraphGeneration);
         }
 
         public RGDrawListRecord GetRecordCopy(int index) => m_Records[index];
@@ -228,7 +228,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Records[drawListIndex] = record;
         }
 
-        public void BindGpuVisibility(int index, in RGBufferRef visibility)
+        public void BindGpuVisibility(int index, in RGBufferHandle visibility)
         {
             if (index < 0 || index >= m_Records.Count)
             {
@@ -293,9 +293,9 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        public void EnsureResolved(in RGDrawListRef draws)
+        public void EnsureResolved(in RGDrawListHandle draws)
         {
-            if (!IsLiveRef(draws))
+            if (!IsLive(draws))
             {
                 return;
             }
@@ -357,9 +357,9 @@ namespace InfinityTech.Rendering.RenderGraph
             m_Records[index] = record;
         }
 
-        public bool NeedsGpuPrepare(in RGDrawListRef draws)
+        public bool NeedsGpuPrepare(in RGDrawListHandle draws)
         {
-            if (!IsLiveRef(draws))
+            if (!IsLive(draws))
             {
                 return false;
             }
@@ -372,9 +372,9 @@ namespace InfinityTech.Rendering.RenderGraph
                 && record.gpuStaging != null;
         }
 
-        public string SliceSampleName(in RGDrawListRef draws)
+        public string SliceSampleName(in RGDrawListHandle draws)
         {
-            if (!IsLiveRef(draws))
+            if (!IsLive(draws))
             {
                 return null;
             }
@@ -414,7 +414,7 @@ namespace InfinityTech.Rendering.RenderGraph
         internal void Compact(int index, CommandBuffer commands)
         {
             var record = m_Records[index];
-            string slice = SliceSampleName(new RGDrawListRef(m_ContextId, index, m_GraphGeneration));
+            string slice = SliceSampleName(new RGDrawListHandle(m_ContextId, index, m_GraphGeneration));
             if (slice != null) commands.BeginSample(slice);
             try
             {
@@ -464,9 +464,9 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        public void Submit(CommandBuffer cmdBuffer, in RGDrawListRef draws)
+        public void Submit(CommandBuffer cmdBuffer, in RGDrawListHandle draws)
         {
-            if (cmdBuffer == null || !IsLiveRef(draws))
+            if (cmdBuffer == null || !IsLive(draws))
             {
                 return;
             }
@@ -548,7 +548,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 m_ConsumerLists.Push(record.consumerPassIndices);
             }
             m_Records.Clear();
-            // Invalidate any RGDrawListRef captured from this graph lifetime.
+            // Invalidate any RGDrawListHandle captured from this graph lifetime.
             unchecked { ++m_GraphGeneration; }
         }
     }

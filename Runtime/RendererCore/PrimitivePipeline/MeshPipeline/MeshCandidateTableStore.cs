@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal struct PassTable
         {
             public ComputeBuffer candidateTable;
-            public FBufferRef allocation;
+            public BufferHandle allocation;
             public MeshDrawCommand[] commands;
             public uint[] commandMeta;
             public uint[] candidateOffsets;

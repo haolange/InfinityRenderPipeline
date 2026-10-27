@@ -45,19 +45,18 @@ namespace InfinityTech.Rendering.RenderGraph
         public ProfilingSampler customSampler;
         internal IRGPassQueueObserver queueObserver;
         internal bool importedWritesAreSideEffects = true;
-        internal bool sideEffect;
         internal bool insertedByCompiler;
 
         public int refCount { get; protected set; }
         public EPassType passType { get; protected set; }
         public int colorBufferMaxIndex { get; protected set; }
-        public bool enablePassCulling { get; protected set; }
+        public bool enablePassCulling { get; internal set; }
         public bool enableAsyncCompute { get; protected set; }
         public bool enableNativeRenderPass { get; protected set; }
-        public RGTextureRef depthBuffer { get; protected set; }
+        public RGTextureHandle depthBuffer { get; protected set; }
         public EDepthAccess depthBufferAccess { get; protected set; }
         public RGAttachmentAction depthBufferAction { get; protected set; }
-        public RGTextureRef[] colorBuffers { get; protected set; }
+        public RGTextureHandle[] colorBuffers { get; protected set; }
         public RGAttachmentAction[] colorBufferActions { get; protected set; }
 
         internal virtual bool hasExecuteAction => false;
@@ -66,22 +65,22 @@ namespace InfinityTech.Rendering.RenderGraph
         public List<RGResourceHandle>[] resourceWriteLists;
         public List<RGResourceHandle>[] temporalResourceList;
         public List<RGResourceHandle> sampledResources;
-        public List<RGDrawListRef> usedDrawLists;
-        public List<RGRendererListRef> usedRendererLists;
+        public List<RGDrawListHandle> usedDrawLists;
+        public List<RGRendererListHandle> usedRendererLists;
 
         public IRGPass()
         {
             int resourceTypeCount = (int)ERGResourceType.Max;
             colorBufferMaxIndex = -1;
             enableNativeRenderPass = true;
-            colorBuffers = new RGTextureRef[8];
+            colorBuffers = new RGTextureHandle[8];
             colorBufferActions = new RGAttachmentAction[8];
             resourceReadLists = new List<RGResourceHandle>[resourceTypeCount];
             resourceWriteLists = new List<RGResourceHandle>[resourceTypeCount];
             temporalResourceList = new List<RGResourceHandle>[resourceTypeCount];
             sampledResources = new List<RGResourceHandle>(4);
-            usedDrawLists = new List<RGDrawListRef>(4);
-            usedRendererLists = new List<RGRendererListRef>(4);
+            usedDrawLists = new List<RGDrawListHandle>(4);
+            usedRendererLists = new List<RGRendererListHandle>(4);
 
             for (int i = 0; i < resourceTypeCount; ++i)
             {
@@ -113,7 +112,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetColorAttachment(in RGTextureRef resource, in int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        public void SetColorAttachment(in RGTextureHandle resource, in int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
         {
             colorBufferMaxIndex = Math.Max(colorBufferMaxIndex, index);
             colorBuffers[index] = resource;
@@ -123,7 +122,7 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetDepthStencilAttachment(in RGTextureRef resource, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
+        public void SetDepthStencilAttachment(in RGTextureHandle resource, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
             depthBuffer = resource;
             depthBufferAccess = flags;
@@ -153,7 +152,6 @@ namespace InfinityTech.Rendering.RenderGraph
             customSampler = null;
             queueObserver = null;
             importedWritesAreSideEffects = true;
-            sideEffect = false;
             insertedByCompiler = false;
             for (int i = 0; i < (int)ERGResourceType.Max; ++i)
             {
@@ -164,7 +162,7 @@ namespace InfinityTech.Rendering.RenderGraph
             sampledResources.Clear();
             usedDrawLists.Clear();
             if (usedRendererLists == null)
-                usedRendererLists = new List<RGRendererListRef>(4);
+                usedRendererLists = new List<RGRendererListHandle>(4);
             else
                 usedRendererLists.Clear();
 
@@ -174,12 +172,12 @@ namespace InfinityTech.Rendering.RenderGraph
             enableNativeRenderPass = true;
 
             colorBufferMaxIndex = -1;
-            depthBuffer = new RGTextureRef();
+            depthBuffer = new RGTextureHandle();
             depthBufferAccess = EDepthAccess.Write;
             depthBufferAction = new RGAttachmentAction();
             for (int i = 0; i < 8; ++i)
             {
-                colorBuffers[i] = new RGTextureRef();
+                colorBuffers[i] = new RGTextureHandle();
                 colorBufferActions[i] = new RGAttachmentAction();
             }
         }
@@ -283,27 +281,26 @@ namespace InfinityTech.Rendering.RenderGraph
 
     static class RGPassGuard
     {
-        public static void RequireTexture(RGResourceFactory factory, in RGTextureRef textureRef, string api)
+        public static void RequireTexture(RGResourceFactory factory, in RGTextureHandle textureHandle, string api)
         {
-            if (!textureRef.IsValid())
-                throw new InvalidOperationException($"RGPass.{api} received an invalid RGTextureRef.");
-            factory.RequireLive(textureRef.handle, "RGPass." + api);
+            if (!textureHandle.IsValid())
+                throw new InvalidOperationException($"RGPass.{api} received an invalid RGTextureHandle.");
+            factory.RequireLive(textureHandle.handle, "RGPass." + api);
         }
 
-        public static void RequireBuffer(RGResourceFactory factory, in RGBufferRef bufferRef, string api)
+        public static void RequireBuffer(RGResourceFactory factory, in RGBufferHandle bufferHandle, string api)
         {
-            if (!bufferRef.IsValid())
-                throw new InvalidOperationException($"RGPass.{api} received an invalid RGBufferRef.");
-            factory.RequireLive(bufferRef.handle, "RGPass." + api);
+            if (!bufferHandle.IsValid())
+                throw new InvalidOperationException($"RGPass.{api} received an invalid RGBufferHandle.");
+            factory.RequireLive(bufferHandle.handle, "RGPass." + api);
         }
     }
 
-    // One declaration implementation for every pass kind. The public refs only keep the execute-delegate type.
+    // One declaration implementation for every pass kind. The public handles only keep the execute-delegate type.
     static class RGPassDeclaration
     {
-        public static void MarkSideEffect(IRGPass pass) => pass.sideEffect = true;
 
-        public static RGTextureRef ReadTexture(IRGPass pass, RGResourceFactory factory, in RGTextureRef input)
+        public static RGTextureHandle ReadTexture(IRGPass pass, RGResourceFactory factory, in RGTextureHandle input)
         {
             RGPassGuard.RequireTexture(factory, input, nameof(ReadTexture));
             NoteSampled(pass, input.handle);
@@ -311,7 +308,7 @@ namespace InfinityTech.Rendering.RenderGraph
             return input;
         }
 
-        public static RGTextureRef WriteTexture(IRGPass pass, RGResourceFactory factory, in RGTextureRef input)
+        public static RGTextureHandle WriteTexture(IRGPass pass, RGResourceFactory factory, in RGTextureHandle input)
         {
             RGPassGuard.RequireTexture(factory, input, nameof(WriteTexture));
             NoteSampled(pass, input.handle);
@@ -319,18 +316,18 @@ namespace InfinityTech.Rendering.RenderGraph
             return input;
         }
 
-        public static RGBufferRef ReadBuffer(IRGPass pass, RGResourceFactory factory, in RGBufferRef bufferRef)
+        public static RGBufferHandle ReadBuffer(IRGPass pass, RGResourceFactory factory, in RGBufferHandle bufferHandle)
         {
-            RGPassGuard.RequireBuffer(factory, bufferRef, nameof(ReadBuffer));
-            pass.AddResourceRead(bufferRef.handle);
-            return bufferRef;
+            RGPassGuard.RequireBuffer(factory, bufferHandle, nameof(ReadBuffer));
+            pass.AddResourceRead(bufferHandle.handle);
+            return bufferHandle;
         }
 
-        public static RGBufferRef WriteBuffer(IRGPass pass, RGResourceFactory factory, in RGBufferRef bufferRef)
+        public static RGBufferHandle WriteBuffer(IRGPass pass, RGResourceFactory factory, in RGBufferHandle bufferHandle)
         {
-            RGPassGuard.RequireBuffer(factory, bufferRef, nameof(WriteBuffer));
-            pass.AddResourceWrite(bufferRef.handle);
-            return bufferRef;
+            RGPassGuard.RequireBuffer(factory, bufferHandle, nameof(WriteBuffer));
+            pass.AddResourceWrite(bufferHandle.handle);
+            return bufferHandle;
         }
 
         static void NoteSampled(IRGPass pass, in RGResourceHandle handle)
@@ -344,28 +341,28 @@ namespace InfinityTech.Rendering.RenderGraph
             pass.sampledResources.Add(handle);
         }
 
-        public static RGTextureRef CreatePassLocalTexture(IRGPass pass, RGResourceFactory factory, in TextureDescriptor descriptor)
+        public static RGTextureHandle CreatePassLocalTexture(IRGPass pass, RGResourceFactory factory, in TextureDescriptor descriptor)
         {
-            RGTextureRef result = factory.CreateTexture(descriptor);
+            RGTextureHandle result = factory.CreateTexture(descriptor);
             pass.AddTemporalResource(result.handle);
             return result;
         }
 
-        public static RGBufferRef CreatePassLocalBuffer(IRGPass pass, RGResourceFactory factory, in BufferDescriptor descriptor)
+        public static RGBufferHandle CreatePassLocalBuffer(IRGPass pass, RGResourceFactory factory, in BufferDescriptor descriptor)
         {
-            RGBufferRef result = factory.CreateBuffer(descriptor);
+            RGBufferHandle result = factory.CreateBuffer(descriptor);
             pass.AddTemporalResource(result.handle);
             return result;
         }
     }
 
-    public struct RGTransferPassRef : IDisposable
+    public struct RGTransferPassHandle : IDisposable
     {
         bool m_Disposed;
         IRGPass m_Pass;
         RGResourceFactory m_Resources;
 
-        internal RGTransferPassRef(IRGPass pass, RGResourceFactory resources)
+        internal RGTransferPassHandle(IRGPass pass, RGResourceFactory resources)
         {
             m_Disposed = false;
             m_Pass = pass;
@@ -374,26 +371,26 @@ namespace InfinityTech.Rendering.RenderGraph
 
         internal void SetQueueObserver(IRGPassQueueObserver observer) => m_Pass.queueObserver = observer;
         internal void KeepImportedWritesLocal() => m_Pass.importedWritesAreSideEffects = false;
-        public void MarkSideEffect() => RGPassDeclaration.MarkSideEffect(m_Pass);
-        public RGTextureRef ReadTexture(in RGTextureRef input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
-        public RGTextureRef WriteTexture(in RGTextureRef input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
-        public RGBufferRef ReadBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferRef);
-        public RGBufferRef WriteBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferRef);
-        public RGTextureRef CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
-        public RGBufferRef CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
+        public void EnablePassCulling(bool value) => m_Pass.enablePassCulling = value;
+        public RGTextureHandle ReadTexture(in RGTextureHandle input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
+        public RGTextureHandle WriteTexture(in RGTextureHandle input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
+        public RGBufferHandle ReadBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGBufferHandle WriteBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
+        public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
 
         public ref T GetPassData<T>() where T : struct => ref ((RGTransferPass<T>)m_Pass).passData;
         public void SetExecuteFunc<T>(RGTransferPassExecuteAction<T> execute) where T : struct => ((RGTransferPass<T>)m_Pass).ExecuteAction = execute;
         public void Dispose() { m_Disposed = true; }
     }
 
-    public struct RGComputePassRef : IDisposable
+    public struct RGComputePassHandle : IDisposable
     {
         bool m_Disposed;
         IRGPass m_Pass;
         RGResourceFactory m_Resources;
 
-        internal RGComputePassRef(IRGPass pass, RGResourceFactory resources)
+        internal RGComputePassHandle(IRGPass pass, RGResourceFactory resources)
         {
             m_Disposed = false;
             m_Pass = pass;
@@ -402,27 +399,27 @@ namespace InfinityTech.Rendering.RenderGraph
 
         internal void SetQueueObserver(IRGPassQueueObserver observer) => m_Pass.queueObserver = observer;
         internal void KeepImportedWritesLocal() => m_Pass.importedWritesAreSideEffects = false;
-        public void MarkSideEffect() => RGPassDeclaration.MarkSideEffect(m_Pass);
+        public void EnablePassCulling(bool value) => m_Pass.enablePassCulling = value;
         public void EnableAsyncCompute(in bool value) => m_Pass.EnableAsyncCompute(value);
-        public RGTextureRef ReadTexture(in RGTextureRef input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
-        public RGTextureRef WriteTexture(in RGTextureRef input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
-        public RGBufferRef ReadBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferRef);
-        public RGBufferRef WriteBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferRef);
-        public RGTextureRef CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
-        public RGBufferRef CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
+        public RGTextureHandle ReadTexture(in RGTextureHandle input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
+        public RGTextureHandle WriteTexture(in RGTextureHandle input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
+        public RGBufferHandle ReadBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGBufferHandle WriteBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
+        public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
 
         public ref T GetPassData<T>() where T : struct => ref ((RGComputePass<T>)m_Pass).passData;
         public void SetExecuteFunc<T>(RGComputePassExecuteAction<T> execute) where T : struct => ((RGComputePass<T>)m_Pass).ExecuteAction = execute;
         public void Dispose() { m_Disposed = true; }
     }
 
-    public struct RGRayTracingPassRef : IDisposable
+    public struct RGRayTracingPassHandle : IDisposable
     {
         bool m_Disposed;
         IRGPass m_Pass;
         RGResourceFactory m_Resources;
 
-        internal RGRayTracingPassRef(IRGPass pass, RGResourceFactory resources)
+        internal RGRayTracingPassHandle(IRGPass pass, RGResourceFactory resources)
         {
             m_Disposed = false;
             m_Pass = pass;
@@ -430,20 +427,20 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         internal void SetQueueObserver(IRGPassQueueObserver observer) => m_Pass.queueObserver = observer;
-        public void MarkSideEffect() => RGPassDeclaration.MarkSideEffect(m_Pass);
-        public RGTextureRef ReadTexture(in RGTextureRef input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
-        public RGTextureRef WriteTexture(in RGTextureRef input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
-        public RGBufferRef ReadBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferRef);
-        public RGBufferRef WriteBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferRef);
-        public RGTextureRef CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
-        public RGBufferRef CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
+        public void EnablePassCulling(bool value) => m_Pass.enablePassCulling = value;
+        public RGTextureHandle ReadTexture(in RGTextureHandle input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
+        public RGTextureHandle WriteTexture(in RGTextureHandle input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
+        public RGBufferHandle ReadBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGBufferHandle WriteBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
+        public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
 
         public ref T GetPassData<T>() where T : struct => ref ((RGRayTracingPass<T>)m_Pass).passData;
         public void SetExecuteFunc<T>(RGRayTracingPassExecuteAction<T> execute) where T : struct => ((RGRayTracingPass<T>)m_Pass).ExecuteAction = execute;
         public void Dispose() { m_Disposed = true; }
     }
 
-    public struct RGRasterPassRef : IDisposable
+    public struct RGRasterPassHandle : IDisposable
     {
         bool m_Disposed;
         IRGPass m_Pass;
@@ -451,7 +448,7 @@ namespace InfinityTech.Rendering.RenderGraph
         RGDrawListContext m_DrawLists;
         RGRendererListContext m_RendererLists;
 
-        internal RGRasterPassRef(IRGPass pass, RGResourceFactory resources, RGDrawListContext drawLists, RGRendererListContext rendererLists)
+        internal RGRasterPassHandle(IRGPass pass, RGResourceFactory resources, RGDrawListContext drawLists, RGRendererListContext rendererLists)
         {
             m_Disposed = false;
             m_Pass = pass;
@@ -461,32 +458,32 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         internal void SetQueueObserver(IRGPassQueueObserver observer) => m_Pass.queueObserver = observer;
-        public void MarkSideEffect() => RGPassDeclaration.MarkSideEffect(m_Pass);
+        public void EnablePassCulling(bool value) => m_Pass.enablePassCulling = value;
         public void EnableNativeRenderPass(in bool value) => m_Pass.EnableNativeRenderPass(value);
-        public RGTextureRef ReadTexture(in RGTextureRef input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
-        public RGTextureRef WriteTexture(in RGTextureRef input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
-        public RGBufferRef ReadBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferRef);
-        public RGBufferRef WriteBuffer(in RGBufferRef bufferRef) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferRef);
-        public RGTextureRef CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
-        public RGBufferRef CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
+        public RGTextureHandle ReadTexture(in RGTextureHandle input) => RGPassDeclaration.ReadTexture(m_Pass, m_Resources, input);
+        public RGTextureHandle WriteTexture(in RGTextureHandle input) => RGPassDeclaration.WriteTexture(m_Pass, m_Resources, input);
+        public RGBufferHandle ReadBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.ReadBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGBufferHandle WriteBuffer(in RGBufferHandle bufferHandle) => RGPassDeclaration.WriteBuffer(m_Pass, m_Resources, bufferHandle);
+        public RGTextureHandle CreatePassLocalTexture(in TextureDescriptor descriptor) => RGPassDeclaration.CreatePassLocalTexture(m_Pass, m_Resources, descriptor);
+        public RGBufferHandle CreatePassLocalBuffer(in BufferDescriptor descriptor) => RGPassDeclaration.CreatePassLocalBuffer(m_Pass, m_Resources, descriptor);
 
-        public RGTextureRef SetColorAttachment(in RGTextureRef renderTarget, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
+        public RGTextureHandle SetColorAttachment(in RGTextureHandle renderTarget, int index, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction)
         {
             RGPassGuard.RequireTexture(m_Resources, renderTarget, nameof(SetColorAttachment));
             m_Pass.SetColorAttachment(renderTarget, index, loadAction, storeAction);
             return renderTarget;
         }
 
-        public RGTextureRef SetDepthStencilAttachment(in RGTextureRef input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
+        public RGTextureHandle SetDepthStencilAttachment(in RGTextureHandle input, in RenderBufferLoadAction loadAction, in RenderBufferStoreAction storeAction, in EDepthAccess flags)
         {
             RGPassGuard.RequireTexture(m_Resources, input, nameof(SetDepthStencilAttachment));
             m_Pass.SetDepthStencilAttachment(input, loadAction, storeAction, flags);
             return input;
         }
 
-        public RGDrawListRef UseDrawList(in RGDrawListRef draws)
+        public RGDrawListHandle UseDrawList(in RGDrawListHandle draws)
         {
-            if (m_DrawLists != null && m_DrawLists.IsLiveRef(draws))
+            if (m_DrawLists != null && m_DrawLists.IsLive(draws))
             {
                 m_Pass.usedDrawLists.Add(draws);
                 RGDrawListRecord record = m_DrawLists.GetRecordCopy(draws.index);
@@ -494,17 +491,17 @@ namespace InfinityTech.Rendering.RenderGraph
                     m_Pass.AddResourceRead(record.gpuVisibilityBuffer.handle);
                 return draws;
             }
-            return RGDrawListRef.Invalid;
+            return RGDrawListHandle.Invalid;
         }
 
-        public RGRendererListRef UseRendererList(in RGRendererListRef list)
+        public RGRendererListHandle UseRendererList(in RGRendererListHandle list)
         {
-            if (m_RendererLists != null && m_RendererLists.IsLiveRef(list))
+            if (m_RendererLists != null && m_RendererLists.IsLive(list))
             {
                 m_Pass.usedRendererLists.Add(list);
                 return list;
             }
-            return RGRendererListRef.Invalid;
+            return RGRendererListHandle.Invalid;
         }
 
         public ref T GetPassData<T>() where T : struct => ref ((RGRasterPass<T>)m_Pass).passData;

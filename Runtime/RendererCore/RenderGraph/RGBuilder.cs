@@ -146,14 +146,14 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         List<IRGPass> m_PassList = new List<IRGPass>(64);
-        readonly Dictionary<int, RGBufferRef[]> m_PreparedDrawLists = new Dictionary<int, RGBufferRef[]>();
+        readonly Dictionary<int, RGBufferHandle[]> m_PreparedDrawLists = new Dictionary<int, RGBufferHandle[]>();
         RGObjectPool m_ObjectPool = new RGObjectPool();
         DynamicArray<RGPassCompileInfo> m_PassCompileInfos;
         DynamicArray<RGResourceCompileInfo>[] m_ResourcesCompileInfos;
         RGDrawListContext m_DrawListRecords = new RGDrawListContext();
         RGRendererListContext m_RendererListRecords = new RGRendererListContext();
         MeshWorld m_MeshWorld;
-        readonly Dictionary<MeshGpuVisibilityKey, RGBufferRef> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferRef>(8);
+        readonly Dictionary<MeshGpuVisibilityKey, RGBufferHandle> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferHandle>(8);
 
         readonly bool m_AsyncComputeSupported;
 
@@ -182,7 +182,7 @@ namespace InfinityTech.Rendering.RenderGraph
         /// Record a Unity RendererList descriptor. Does not call ScriptableRenderContext.CreateRendererList.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRendererListRef CreateRendererList(in RendererListDesc desc)
+        public RGRendererListHandle CreateRendererList(in RendererListDesc desc)
         {
             return m_RendererListRecords.Declare(desc);
         }
@@ -191,78 +191,78 @@ namespace InfinityTech.Rendering.RenderGraph
         /// Record shadow drawing settings. CreateShadowRendererList runs after pass culling.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRendererListRef CreateShadowRendererList(in ShadowDrawingSettings settings)
+        public RGRendererListHandle CreateShadowRendererList(in ShadowDrawingSettings settings)
         {
             return m_RendererListRecords.DeclareShadow(settings);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGBufferRef ImportBuffer(in FBufferRef buffer)
+        public RGBufferHandle ImportBuffer(in BufferHandle buffer)
         {
             return m_Resources.ImportBuffer(buffer);
         }
 
-        public RGBufferRef ImportBuffer(GraphicsBuffer buffer, string name)
+        public RGBufferHandle ImportBuffer(GraphicsBuffer buffer, string name)
         {
             return m_Resources.ImportBuffer(buffer, name);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGBufferRef CreateBuffer(in BufferDescriptor descriptor)
+        public RGBufferHandle CreateBuffer(in BufferDescriptor descriptor)
         {
             return m_Resources.CreateBuffer(descriptor);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGBufferRef CreateBuffer(in RGBufferRef bufferRef)
+        public RGBufferHandle CreateBuffer(in RGBufferHandle bufferHandle)
         {
-            return m_Resources.CreateBuffer(m_Resources.GetBufferDescriptor(bufferRef.handle));
+            return m_Resources.CreateBuffer(m_Resources.GetBufferDescriptor(bufferHandle.handle));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BufferDescriptor GetBufferDescriptor(in RGBufferRef bufferRef)
+        public BufferDescriptor GetBufferDescriptor(in RGBufferHandle bufferHandle)
         {
-            return m_Resources.GetBufferDescriptor(bufferRef.handle);
+            return m_Resources.GetBufferDescriptor(bufferHandle.handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef ImportTexture(RTHandle texture)
+        public RGTextureHandle ImportTexture(RTHandle texture)
         {
             return m_Resources.ImportTexture(texture);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef ImportTexture(in FTextureRef texture)
+        public RGTextureHandle ImportTexture(in TextureHandle texture)
         {
             return m_Resources.ImportTexture(texture.texture, texture.descriptor);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef ImportBackbuffer(in RenderTargetIdentifier backBuffer, in TextureDescriptor descriptor)
+        public RGTextureHandle ImportBackbuffer(in RenderTargetIdentifier backBuffer, in TextureDescriptor descriptor)
         {
             return m_Resources.ImportBackbuffer(backBuffer, descriptor);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef CreateTexture(in RGTextureRef textureRef)
+        public RGTextureHandle CreateTexture(in RGTextureHandle textureHandle)
         {
-            return m_Resources.CreateTexture(m_Resources.GetTextureDescriptor(textureRef.handle));
+            return m_Resources.CreateTexture(m_Resources.GetTextureDescriptor(textureHandle.handle));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef CreateTexture(in TextureDescriptor descriptor)
+        public RGTextureHandle CreateTexture(in TextureDescriptor descriptor)
         {
             return m_Resources.CreateTexture(descriptor);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TextureDescriptor GetTextureDescriptor(in RGTextureRef textureRef)
+        public TextureDescriptor GetTextureDescriptor(in RGTextureHandle textureHandle)
         {
-            return m_Resources.GetTextureDescriptor(textureRef.handle);
+            return m_Resources.GetTextureDescriptor(textureHandle.handle);
         }
 
-        internal string GetTextureProducer(in RGTextureRef textureRef, out string queue) => GetProducer(textureRef.handle, out queue);
-        internal string GetBufferProducer(in RGBufferRef bufferRef, out string queue) => GetProducer(bufferRef.handle, out queue);
+        internal string GetTextureProducer(in RGTextureHandle textureHandle, out string queue) => GetProducer(textureHandle.handle, out queue);
+        internal string GetBufferProducer(in RGBufferHandle bufferHandle, out string queue) => GetProducer(bufferHandle.handle, out queue);
 
         string GetProducer(in RGResourceHandle handle, out string queue)
         {
@@ -313,6 +313,10 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             return text.ToString();
         }
+
+        internal int CompiledPassCount => m_PassCompileInfos.size;
+
+        internal RGPassCompileInfo CompiledPass(int index) => m_PassCompileInfos[index];
 
         // The compiled graph for the RenderGraph Viewer; valid between CompilePass and ClearPass.
         internal RGGraphSnapshot CaptureDebugSnapshot()
@@ -413,31 +417,31 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTransferPassRef AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
+        public RGTransferPassHandle AddTransferPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGTransferPass<T> transferPass = m_ObjectPool.Get<RGTransferPass<T>>();
             transferPass.Clear();
             transferPass.name = profilerSampler.name;
             transferPass.customSampler = profilerSampler;
             RegisterPass(transferPass);
-            return new RGTransferPassRef(transferPass, m_Resources);
+            return new RGTransferPassHandle(transferPass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGComputePassRef AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
+        public RGComputePassHandle AddComputePass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             return AddComputePass<T>(profilerSampler.name, profilerSampler);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGComputePassRef AddComputePass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
+        public RGComputePassHandle AddComputePass<T>(string passName, ProfilingSampler profilerSampler) where T : struct
         {
             RGComputePass<T> computePass = m_ObjectPool.Get<RGComputePass<T>>();
             computePass.Clear();
             computePass.name = passName;
             computePass.customSampler = profilerSampler;
             RegisterPass(computePass);
-            return new RGComputePassRef(computePass, m_Resources);
+            return new RGComputePassHandle(computePass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -455,25 +459,25 @@ namespace InfinityTech.Rendering.RenderGraph
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRayTracingPassRef AddRayTracingPass<T>(ProfilingSampler profilerSampler) where T : struct
+        public RGRayTracingPassHandle AddRayTracingPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGRayTracingPass<T> rayTracingPass = m_ObjectPool.Get<RGRayTracingPass<T>>();
             rayTracingPass.Clear();
             rayTracingPass.name = profilerSampler.name;
             rayTracingPass.customSampler = profilerSampler;
             RegisterPass(rayTracingPass);
-            return new RGRayTracingPassRef(rayTracingPass, m_Resources);
+            return new RGRayTracingPassHandle(rayTracingPass, m_Resources);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGRasterPassRef AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
+        public RGRasterPassHandle AddRasterPass<T>(ProfilingSampler profilerSampler) where T : struct
         {
             RGRasterPass<T> rasterPass = m_ObjectPool.Get<RGRasterPass<T>>();
             rasterPass.Clear();
             rasterPass.name = profilerSampler.name;
             rasterPass.customSampler = profilerSampler;
             RegisterPass(rasterPass);
-            return new RGRasterPassRef(rasterPass, m_Resources, m_DrawListRecords, m_RendererListRecords);
+            return new RGRasterPassHandle(rasterPass, m_Resources, m_DrawListRecords, m_RendererListRecords);
         }
 
         /// <summary>

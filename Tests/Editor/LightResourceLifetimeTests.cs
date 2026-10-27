@@ -41,7 +41,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var factory = new RGResourceFactory();
                 try
                 {
-                    RGBufferRef handle = factory.ImportBuffer(native, "NativeLightRecords");
+                    RGBufferHandle handle = factory.ImportBuffer(native, "NativeLightRecords");
                     factory.BeginRender();
                     Assert.AreSame(native, handle.Resolve().graphicsResource);
                     Assert.AreEqual(native.target, handle.Resolve().graphicsTarget);

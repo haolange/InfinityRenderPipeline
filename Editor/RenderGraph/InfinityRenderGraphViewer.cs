@@ -230,7 +230,7 @@ namespace InfinityTech.Rendering.Editor
                 EditorGUILayout.LabelField("Queue", pass.asyncCompute ? "Async compute" : "Graphics");
                 EditorGUILayout.LabelField("Segment", pass.segment.ToString());
                 if (pass.mergeGroup >= 0) EditorGUILayout.LabelField("Native pass", pass.mergeGroup + " subpass " + pass.subpass);
-                EditorGUILayout.LabelField("Culled", pass.culled ? "Yes (" + (string.IsNullOrEmpty(pass.cullReason) ? "unused output" : pass.cullReason) + ")" : pass.allowCulling ? "No (cullable)" : "No (side effect)");
+                EditorGUILayout.LabelField("Culled", pass.culled ? "Yes (" + (string.IsNullOrEmpty(pass.cullReason) ? "unused output" : pass.cullReason) + ")" : pass.allowCulling ? "No (cullable)" : "No (culling disabled)");
                 if (pass.waitsForPass >= 0) EditorGUILayout.LabelField("Waits for", PassName(graph, pass.waitsForPass));
                 if (pass.signalsToPass >= 0) EditorGUILayout.LabelField("Signals", PassName(graph, pass.signalsToPass));
                 DrawResourceList(graph, "Reads", pass.reads);

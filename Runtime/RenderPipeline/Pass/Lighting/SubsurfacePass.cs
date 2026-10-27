@@ -34,13 +34,13 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 projection, inverseProjection;
             public int2 resolution;
             public ComputeShader subsurfaceShader;
-            public RGBufferRef profileBuffer;
-            public RGTextureRef lightingTexture;
-            public RGTextureRef sceneColor;
-            public RGTextureRef depthTexture;
-            public RGTextureRef gBufferB;
-            public RGTextureRef gBufferC;
-            public RGTextureRef subsurfaceTexture;
+            public RGBufferHandle profileBuffer;
+            public RGTextureHandle lightingTexture;
+            public RGTextureHandle sceneColor;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle gBufferB;
+            public RGTextureHandle gBufferC;
+            public RGTextureHandle subsurfaceTexture;
         }
 
         int EnsureDiffusionProfileBuffer(DiffusionProfile[] profiles)
@@ -75,8 +75,8 @@ namespace InfinityTech.Rendering.Pipeline
             int2 size = m_ActiveFrameState.dimensions.internalSize;
             int2 halfSize = (size + 1) / 2;
             var descriptor = SSRPassUtilityData.CreateDescriptor(halfSize.x, halfSize.y, "SubsurfaceDiffuse", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Point, 2);
-            RGTextureRef filtered = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
-            RGTextureRef color = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RGTextureHandle filtered = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SubsurfaceBuffer, descriptor);
+            RGTextureHandle color = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
             using (var pass = m_RGBuilder.AddComputePass<SubsurfacePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeBurleySubsurface)))
             {
                 ref var data = ref pass.GetPassData<SubsurfacePassData>();

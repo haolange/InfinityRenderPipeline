@@ -23,7 +23,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Writes value into the first count uints of buffer.
-        internal static void ClearBuffer<T>(in T commands, ComputeShader shader, RGBufferRef buffer, int count, uint value)
+        internal static void ClearBuffer<T>(in T commands, ComputeShader shader, RGBufferHandle buffer, int count, uint value)
             where T : struct, IComputeCommands
         {
             if (count <= 0)
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         // Resets argsCount dispatch triplets to (0, 1, 1).
-        internal static void ClearIndirectDispatchArgs<T>(in T commands, ComputeShader shader, RGBufferRef argsBuffer, int argsCount)
+        internal static void ClearIndirectDispatchArgs<T>(in T commands, ComputeShader shader, RGBufferHandle argsBuffer, int argsCount)
             where T : struct, IComputeCommands
         {
             if (argsCount <= 0)

@@ -35,10 +35,10 @@ namespace InfinityTech.Rendering.Pipeline
             public IRayTracingAccelStruct accel;
             public GraphicsBuffer buildScratch;
             public GraphicsBuffer traceScratch;
-            public RGTextureRef depthTexture;
-            public RGTextureRef normalTexture;
-            public RGTextureRef gBufferC;
-            public RGTextureRef occlusionTexture;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle normalTexture;
+            public RGTextureHandle gBufferC;
+            public RGTextureHandle occlusionTexture;
         }
 
         void TraceOcclusion(RenderContext renderContext, Camera camera, HistoryCache historyCache)
@@ -72,9 +72,9 @@ namespace InfinityTech.Rendering.Pipeline
             occlusionDsc.enableRandomWrite = true;
             occlusionDsc.filterMode = FilterMode.Bilinear;
             occlusionDsc.wrapMode = TextureWrapMode.Clamp;
-            RGTextureRef occlusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
+            RGTextureHandle occlusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.OcclusionBuffer, occlusionDsc);
 
-            using (RGRayTracingPassRef passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
+            using (RGRayTracingPassHandle passRef = m_RGBuilder.AddRayTracingPass<RTAOPassData>(ProfilingSampler.Get(InfinityRayTracingEnvironment.OcclusionSampler(env.Backend))))
             {
                 ref RTAOPassData passData = ref passRef.GetPassData<RTAOPassData>();
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y);
@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.normalTexture = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB));
                 passData.gBufferC = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC));
                 passData.occlusionTexture = passRef.WriteTexture(occlusion);
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in RTAOPassData passData, in RGRaytracingEncoder cmdEncoder) =>
                 {
                     if (passData.buildAccel)

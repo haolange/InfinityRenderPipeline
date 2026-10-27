@@ -14,7 +14,7 @@ namespace InfinityTech.Rendering.Pipeline
             public Rect viewport;
         }
 
-        void RasterUIOverlay(RenderContext renderContext, Camera camera, RGTextureRef displayColor, bool finalTarget)
+        void RasterUIOverlay(RenderContext renderContext, Camera camera, RGTextureHandle displayColor, bool finalTarget)
         {
             if (camera.cameraType != CameraType.Game || camera.targetTexture != null)
             {
@@ -22,9 +22,9 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             RendererList overlay = renderContext.scriptableRenderContext.CreateUIOverlayRendererList(camera);
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<UIOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUIOverlay)))
             {
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableNativeRenderPass(false);
                 passRef.SetColorAttachment(displayColor, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
 

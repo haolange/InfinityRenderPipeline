@@ -37,11 +37,11 @@ namespace InfinityTech.Rendering.Pipeline
             public int frameIndex, kernel;
             public float sharpness;
             public ComputeShader superResolutionShader;
-            public RGTextureRef sceneColorTexture;
-            public RGTextureRef depthTexture;
-            public RGTextureRef motionTexture;
-            public RGTextureRef historyColorTexture;
-            public RGTextureRef superResolutionTexture, pendingColor, pendingDepth;
+            public RGTextureHandle sceneColorTexture;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle motionTexture;
+            public RGTextureHandle historyColorTexture;
+            public RGTextureHandle superResolutionTexture, pendingColor, pendingDepth;
         }
 
         void ComputeSuperResolution(RenderContext renderContext, Camera camera, HistoryCache historyCache, in float2 jitter)
@@ -58,7 +58,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             TextureDescriptor historyColorDescriptor = TemporalColorDescriptor(width, height,
                 SuperResolutionPassUtilityData.HistoryColorTextureName, true, ETextureSizingDomain.Display);
-            RGTextureRef historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
+            RGTextureHandle historyColorTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor, out bool historyCreated));
             m_RGScoper.RegisterTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorTexture);
             var pendingColor = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(SuperResolutionPassUtilityData.HistoryColorTextureID, historyColorDescriptor));
             var depthHistoryDescriptor = TemporalDepthDescriptor(width, height,
@@ -77,13 +77,13 @@ namespace InfinityTech.Rendering.Pipeline
                 superResDsc.depthBufferBits = EDepthBits.None;
                 superResDsc.enableRandomWrite = true;
             }
-            RGTextureRef superResolutionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);
+            RGTextureHandle superResolutionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SuperResolutionBuffer, superResDsc);
 
-            RGTextureRef lightingTexture = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
+            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle motionTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.MotionBuffer);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<SuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeSuperResolution)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<SuperResolutionPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeSuperResolution)))
             {
                 ref SuperResolutionPassData passData = ref passRef.GetPassData<SuperResolutionPassData>();
                 passData.resolution = new int2(width, height);
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.pendingColor = passRef.WriteTexture(pendingColor);
                 passData.pendingDepth = passRef.WriteTexture(pendingDepth);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in SuperResolutionPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     cmdEncoder.SetComputeVectorParam(passData.superResolutionShader, SuperResolutionPassUtilityData.SR_ResolutionID, new Vector4(passData.resolution.x, passData.resolution.y, 1.0f / passData.resolution.x, 1.0f / passData.resolution.y));

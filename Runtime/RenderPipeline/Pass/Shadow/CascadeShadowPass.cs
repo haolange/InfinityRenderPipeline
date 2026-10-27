@@ -49,8 +49,8 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 cascadeSplitDistances;
             public Vector4[] casterBias;
             public Vector4 casterLight;
-            public RGDrawListRef[] draws;
-            public RGRendererListRef[] rendererLists;
+            public RGDrawListHandle[] draws;
+            public RGRendererListHandle[] rendererLists;
         }
 
         void RasterCascadeShadow(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
@@ -69,22 +69,22 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
-            RGTextureRef shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.CascadeShadowMap, shadowMapDsc);
+            RGTextureHandle shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.CascadeShadowMap, shadowMapDsc);
 
             int lightIndex = allocator.CascadeVisibleLightIndex;
             Matrix4x4[] shadowMatrices = m_RGBuilder.GetRecordingArray<Matrix4x4>(cascadeCount);
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(cascadeCount);
             Vector4 cascadeSplitDistances = allocator.CascadeSplitDistances;
-            RGDrawListRef[] cascadeDraws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(cascadeCount);
-            RGRendererListRef[] cascadeRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(cascadeCount);
+            RGDrawListHandle[] cascadeDraws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(cascadeCount);
+            RGRendererListHandle[] cascadeRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
 
             for (int cascade = 0; cascade < cascadeCount; ++cascade)
             {
                 FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
                 shadowMatrices[cascade] = slice.shadowMatrix;
                 tileRects[cascade] = slice.atlasPixelRect;
-                cascadeDraws[cascade] = RGDrawListRef.Invalid;
-                cascadeRendererLists[cascade] = RGRendererListRef.Invalid;
+                cascadeDraws[cascade] = RGDrawListHandle.Invalid;
+                cascadeRendererLists[cascade] = RGRendererListHandle.Invalid;
             }
 
             if (lightIndex >= 0)
@@ -125,9 +125,9 @@ namespace InfinityTech.Rendering.Pipeline
                 }
             }
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<CascadeShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCascadeShadow)))
             {
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref CascadeShadowPassData passData = ref passRef.GetPassData<CascadeShadowPassData>();
@@ -148,16 +148,16 @@ namespace InfinityTech.Rendering.Pipeline
                     for (int i = 0; i < cascadeCount; i++) passData.casterBias[i] = allocator.CascadeSlices[i].casterBias;
                     if (lightIndex >= 0) passData.casterLight = -cullingResults.visibleLights[lightIndex].light.transform.forward;
 
-                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(cascadeCount);
-                    passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(cascadeCount);
+                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(cascadeCount);
+                    passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(cascadeCount);
                     for (int cascade = 0; cascade < cascadeCount; ++cascade)
                     {
                         passData.draws[cascade] = cascadeDraws[cascade].IsValid
                             ? passRef.UseDrawList(cascadeDraws[cascade])
-                            : RGDrawListRef.Invalid;
+                            : RGDrawListHandle.Invalid;
                         passData.rendererLists[cascade] = cascadeRendererLists[cascade].IsValid
                             ? passRef.UseRendererList(cascadeRendererLists[cascade])
-                            : RGRendererListRef.Invalid;
+                            : RGRendererListHandle.Invalid;
                     }
                 }
 

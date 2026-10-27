@@ -16,8 +16,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DepthPassData
         {
-            public RGDrawListRef draws;
-            public RGRendererListRef rendererList;
+            public RGDrawListHandle draws;
+            public RGRendererListHandle rendererList;
         }
 
         void RasterDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
@@ -29,8 +29,8 @@ namespace InfinityTech.Rendering.Pipeline
                 depthTextureDsc.dimension = TextureDimension.Tex2D;
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
-            RGTextureRef depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
-            RGDrawListRef depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Depth);
+            RGTextureHandle depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
+            RGDrawListHandle depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Depth);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDepthPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -40,9 +40,9 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RGRendererListRef depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<DepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDepth)))
             {
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 

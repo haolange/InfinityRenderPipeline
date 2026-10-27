@@ -71,7 +71,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         private struct Slot
         {
-            public FBufferRef buffer;
+            public BufferHandle buffer;
             public int capacity;
             public bool culled;
             public bool hasBuffer;
@@ -79,7 +79,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         private readonly ResourcePool m_ResourcePool;
         private readonly Dictionary<MeshGpuVisibilityKey, Slot> m_Slots = new Dictionary<MeshGpuVisibilityKey, Slot>(8);
-        private readonly List<FBufferRef> m_Retired = new List<FBufferRef>(8);
+        private readonly List<BufferHandle> m_Retired = new List<BufferHandle>(8);
         private bool m_Disposed;
 
         public MeshGpuVisibilityCache(ResourcePool resourcePool)
@@ -92,7 +92,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             return new MeshGpuVisibilityKey(view, requestIdentity);
         }
 
-        public FBufferRef GetBufferRef(in MeshView view, int instanceCount)
+        public BufferHandle GetBufferHandle(in MeshView view, int instanceCount)
         {
             MeshGpuVisibilityKey key = MakeKey(view);
             int needed = math.max(1, instanceCount);
@@ -118,7 +118,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public ComputeBuffer GetBuffer(in MeshView view, int instanceCount)
         {
-            return GetBufferRef(view, instanceCount).buffer;
+            return GetBufferHandle(view, instanceCount).buffer;
         }
 
         public bool NeedsCull(in MeshView view)

@@ -49,15 +49,15 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4 parameters;
             public Matrix4x4 invProj;
             public FLightLoopInputs lightLoop;
-            public RGTextureRef depthTexture;
+            public RGTextureHandle depthTexture;
             public ComputeShader debugViewShader;
-            public RGTextureRef gBufferA;
-            public RGTextureRef gBufferB;
-            public RGTextureRef gBufferC;
-            public RGTextureRef motionTexture;
-            public RGTextureRef sceneColorTexture;
-            public RGTextureRef optionalTexture;
-            public RGTextureRef postProcessTexture;
+            public RGTextureHandle gBufferA;
+            public RGTextureHandle gBufferB;
+            public RGTextureHandle gBufferC;
+            public RGTextureHandle motionTexture;
+            public RGTextureHandle sceneColorTexture;
+            public RGTextureHandle optionalTexture;
+            public RGTextureHandle postProcessTexture;
         }
 
         void ComputeDebugView(RenderContext renderContext, Camera camera)
@@ -73,12 +73,12 @@ namespace InfinityTech.Rendering.Pipeline
                 throw new InvalidOperationException("InfinityRP: DebugView is active but debugViewShader is missing required kernels (DebugViewGBuffer/Motion/SceneColor/Optional/Missing/Shadow/LightLoop/ProbeAtlas).");
             }
 
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.PostProcessBuffer, out RGTextureRef postProcessTexture))
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.PostProcessBuffer, out RGTextureHandle postProcessTexture))
             {
                 throw new InvalidOperationException("InfinityRP: DebugView requires PostProcessBuffer, which was never registered this frame.");
             }
 
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureRef depthTexture))
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture))
             {
                 throw new InvalidOperationException("InfinityRP: DebugView requires DepthBuffer, which was never registered this frame.");
             }
@@ -92,12 +92,12 @@ namespace InfinityTech.Rendering.Pipeline
             bool needLightLoop = false;
             Vector4 parameters = Vector4.zero;
             InfinityDebugDisplaySettingsLighting lightingDebug = InfinityDebugDisplaySettings.current.lighting;
-            RGTextureRef gBufferA = default;
-            RGTextureRef gBufferB = default;
-            RGTextureRef gBufferC = default;
-            RGTextureRef motionTexture = default;
-            RGTextureRef sceneColorTexture = default;
-            RGTextureRef optionalTexture = default;
+            RGTextureHandle gBufferA = default;
+            RGTextureHandle gBufferB = default;
+            RGTextureHandle gBufferC = default;
+            RGTextureHandle motionTexture = default;
+            RGTextureHandle sceneColorTexture = default;
+            RGTextureHandle optionalTexture = default;
 
             switch (view)
             {
@@ -302,7 +302,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_RGScoper.MoveTexture(InfinityShaderIDs.PostProcessBuffer, InfinityShaderIDs.PreDebugColorBuffer);
             postProcessTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.PostProcessBuffer, debugDescriptor);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<DebugViewPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeDebugView)))
             {
                 ref DebugViewPassData passData = ref passRef.GetPassData<DebugViewPassData>();
                 passData.resolution = new int2(m_ActiveFrameState.dimensions.displaySize.x, m_ActiveFrameState.dimensions.displaySize.y);
@@ -344,7 +344,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 passData.postProcessTexture = passRef.WriteTexture(postProcessTexture);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in DebugViewPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.debugViewShader;
@@ -393,7 +393,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        void RequireTexture(int id, string idName, EDebugView view, out RGTextureRef texture)
+        void RequireTexture(int id, string idName, EDebugView view, out RGTextureHandle texture)
         {
             if (!m_RGScoper.TryQueryTexture(id, out texture))
             {

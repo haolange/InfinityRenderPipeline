@@ -18,13 +18,13 @@ namespace InfinityTech.Rendering.Pipeline
 #if UNITY_EDITOR
         struct DisplayDepthPassData
         {
-            public RGTextureRef source;
+            public RGTextureHandle source;
             public int shaderPass;
         }
 
         void RasterUpscaleDepthForEditorOverlays()
         {
-            RGTextureRef source = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle source = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var dimensions = m_ActiveFrameState.dimensions;
             if (!dimensions.downscaled)
             {
@@ -36,7 +36,7 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.height = dimensions.displaySize.y;
             descriptor.name = "DisplayDepthTexture";
             descriptor.sizingDomain = ETextureSizingDomain.Display; descriptor.viewDivisor = 1;
-            RGTextureRef output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, descriptor);
+            RGTextureHandle output = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DisplayDepthBuffer, descriptor);
             int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterUpscaleDepth");
             if (shaderPass < 0) throw new System.InvalidOperationException("InfinityRP: required UpscaleDepth shader pass is missing.");
             using (var pass = m_RGBuilder.AddRasterPass<DisplayDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterUpscaleDepthForEditorOverlays)))
@@ -62,12 +62,12 @@ namespace InfinityTech.Rendering.Pipeline
         
         void RasterWireOverlay(RenderContext renderContext, Camera camera)
         {
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
-            RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
+            RGTextureHandle colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
             RendererList wireOverlayRendererList = renderContext.scriptableRenderContext.CreateWireOverlayRendererList(camera);
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterWireOverlay)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<WireOverlayPassData>(ProfilingSampler.Get(CustomSamplerId.RasterWireOverlay)))
             {
                 // Unity forbids drawing gizmos / wire overlay inside BeginRenderPass.
                 passRef.EnableNativeRenderPass(false);
@@ -100,12 +100,12 @@ namespace InfinityTech.Rendering.Pipeline
         {
             if (Handles.ShouldRenderGizmos())
             {
-                RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
-                RGTextureRef colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
+                RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DisplayDepthBuffer);
+                RGTextureHandle colorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.PostProcessBuffer);
 
                 RendererList gizmosRendererList = renderContext.scriptableRenderContext.CreateGizmoRendererList(camera, GizmoSubset.PostImageEffects);
 
-                using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGizmos)))
+                using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<GizmosPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGizmos)))
                 {
                     // Unity forbids drawing gizmos inside BeginRenderPass.
                     passRef.EnableNativeRenderPass(false);
@@ -136,7 +136,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass, sourceWidth, sourceHeight;
             public string targetIdentity;
             public RenderCaptureSession captureSession;
-            public RGTextureRef srcTexture;
+            public RGTextureHandle srcTexture;
             public NativeDisplayProbe displayProbe;
         }
 
@@ -158,7 +158,7 @@ namespace InfinityTech.Rendering.Pipeline
                 (System.Array.IndexOf(capture.request.buffers, "DisplayColor") >= 0 || System.Array.IndexOf(capture.request.buffers, "PostProcess") >= 0);
             var plan = new FOutputPlan(camera.cameraType == CameraType.Game && camera.targetTexture == null,
                 decision.policy, frameState.debugView != EDebugView.None, linearCapture, wire, gizmos);
-            RGTextureRef target = ImportCameraOutput(camera, decision);
+            RGTextureHandle target = ImportCameraOutput(camera, decision);
             RasterPostProcessing(renderContext, camera, frameState, decision, plan, target);
             if (plan.linearIntermediate)
             {
@@ -183,20 +183,23 @@ namespace InfinityTech.Rendering.Pipeline
             MarkFeatureProduced(EFrameFeature.Display);
         }
 
-        RGTextureRef ImportCameraOutput(Camera camera, in OutputTransformDecision decision)
+        RGTextureHandle ImportCameraOutput(Camera camera, in OutputTransformDecision decision)
         {
             RenderTexture texture = camera.targetTexture;
             var identifier = texture != null ? new RenderTargetIdentifier(texture) : new RenderTargetIdentifier(BuiltinRenderTextureType.CameraTarget);
+            // CameraTarget has no RenderTexture. The attachment size is this frame's display size;
+            // a 0x0 import fails attachment validation and drops the present pass.
+            int2 display = m_ActiveFrameState.dimensions.displaySize;
             var descriptor = new InfinityTech.Rendering.GPUResource.TextureDescriptor
             {
                 name = texture != null ? texture.name : "DisplayBackbuffer",
-                width = texture != null ? texture.width : 0, height = texture != null ? texture.height : 0,
+                width = texture != null ? texture.width : display.x, height = texture != null ? texture.height : display.y,
                 colorFormat = decision.backbufferFormat, dimension = TextureDimension.Tex2D, slices = 1
             };
             return m_RGBuilder.ImportBackbuffer(identifier, descriptor);
         }
 
-        FinalOutputPassData PrepareFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureRef source,
+        FinalOutputPassData PrepareFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureHandle source,
             bool finalTarget, string shaderPass)
         {
             var dimensions = m_ActiveFrameState.dimensions;
@@ -237,12 +240,12 @@ namespace InfinityTech.Rendering.Pipeline
                 commands.IssuePluginEventAndData(data.displayProbe.callback, 0, data.displayProbe.payload);
         }
 
-        void RasterFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureRef source, RGTextureRef target, bool finalTarget)
+        void RasterFinalOutput(Camera camera, in OutputTransformDecision decision, RGTextureHandle source, RGTextureHandle target, bool finalTarget)
         {
             var sampler = finalTarget ? CustomSamplerId.RasterFinalOutput : CustomSamplerId.RasterOutputCopy;
             using (var pass = m_RGBuilder.AddRasterPass<FinalOutputPassData>(ProfilingSampler.Get(sampler)))
             {
-                pass.MarkSideEffect();
+                pass.EnablePassCulling(false);
                 if (finalTarget) pass.EnableNativeRenderPass(false);
                 pass.SetColorAttachment(target, 0, finalTarget && !FOutputPlan.CoversTarget(camera.rect) ? RenderBufferLoadAction.Load : RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store);
                 ref var data = ref pass.GetPassData<FinalOutputPassData>();

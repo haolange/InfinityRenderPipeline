@@ -60,14 +60,14 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Matrix4x4 matrix_WorldToView;
             public Vector4 worldSpaceCameraPos;
-            public RGBufferRef lightRecordBuffer;
+            public RGBufferHandle lightRecordBuffer;
             public FLightLoopInputs lightLoop;
             public FShadowInputs shadows;
             public ComputeShader volumetricCloudShader;
-            public RGTextureRef depthTexture;
-            public RGTextureRef transmittanceLUT;
-            public RGTextureRef historyTexture;
-            public RGTextureRef volumetricCloudTexture;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle transmittanceLUT;
+            public RGTextureHandle historyTexture;
+            public RGTextureHandle volumetricCloudTexture;
         }
 
         static TextureDescriptor CreateVolumetricCloudDescriptor(int width, int height, string name, bool randomWrite)
@@ -107,18 +107,18 @@ namespace InfinityTech.Rendering.Pipeline
             int cloudHeight = Mathf.Max(1, height >> 1);
 
             TextureDescriptor volumetricCloudDsc = CreateVolumetricCloudDescriptor(cloudWidth, cloudHeight, VolumetricCloudPassUtilityData.TextureName, true);
-            RGTextureRef volumetricCloudTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricCloudBuffer, volumetricCloudDsc);
+            RGTextureHandle volumetricCloudTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricCloudBuffer, volumetricCloudDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricCloudDescriptor(cloudWidth, cloudHeight, VolumetricCloudPassUtilityData.HistoryTextureName, false);
-            RGTextureRef historyTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc, out bool historyCreated));
+            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc, out bool historyCreated));
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyTexture);
 
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef transmittanceLUT = m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle transmittanceLUT = m_RGScoper.QueryTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT);
             AtmosphereParameter atmosphereParameter = AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile);
             atmosphereParameter.ThrowIfInvalid();
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<VolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricCloud)))
             {
                 ref VolumetricCloudPassData passData = ref passRef.GetPassData<VolumetricCloudPassData>();
                 passData.cloudLayerBottom = cloud.cloudLayerBottom;
@@ -155,7 +155,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.historyTexture = passRef.ReadTexture(historyTexture);
                 passData.volumetricCloudTexture = passRef.WriteTexture(volumetricCloudTexture);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in VolumetricCloudPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.volumetricCloudShader;
@@ -197,13 +197,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CopyHistoryVolumetricCloudPassData
         {
-            public RGTextureRef source;
-            public RGTextureRef history;
+            public RGTextureHandle source;
+            public RGTextureHandle history;
         }
 
         void CopyHistoryVolumetricCloud(HistoryCache historyCache, Camera camera)
         {
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureRef source))
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureHandle source))
             {
                 return;
             }
@@ -211,10 +211,10 @@ namespace InfinityTech.Rendering.Pipeline
             int cloudWidth = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.x >> 1);
             int cloudHeight = Mathf.Max(1, m_ActiveFrameState.dimensions.internalSize.y >> 1);
             TextureDescriptor historyDsc = CreateVolumetricCloudDescriptor(cloudWidth, cloudHeight, VolumetricCloudPassUtilityData.HistoryTextureName, false);
-            RGTextureRef history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc));
+            RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricCloudBuffer, historyDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricCloudBuffer);
 
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricCloud)))
+            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricCloudPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricCloud)))
             {
                 passRef.ReadTexture(source);
                 passRef.WriteTexture(history);

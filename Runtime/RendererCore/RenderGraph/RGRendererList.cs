@@ -9,13 +9,13 @@ namespace InfinityTech.Rendering.RenderGraph
     /// Logical Unity RendererList handle. Not an ERGResourceType; lives in an independent registry.
     /// Record stores a descriptor; ScriptableRenderContext.Create happens after pass culling.
     /// </summary>
-    public readonly struct RGRendererListRef
+    public readonly struct RGRendererListHandle
     {
         internal readonly int contextId;
         internal readonly int index;
         internal readonly int generation;
 
-        internal RGRendererListRef(int contextId, int index, int generation)
+        internal RGRendererListHandle(int contextId, int index, int generation)
         {
             this.contextId = contextId;
             this.index = index;
@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
         public bool IsValid => contextId > 0;
 
-        public static RGRendererListRef Invalid => new RGRendererListRef(-1, 0, 0);
+        public static RGRendererListHandle Invalid => new RGRendererListHandle(-1, 0, 0);
     }
 
     internal enum ERGRendererListKind : byte
@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.RenderGraph
         public int CreateCallCount { get; private set; }
         public int LiveCount { get; private set; }
 
-        public bool IsLiveRef(in RGRendererListRef list)
+        public bool IsLive(in RGRendererListHandle list)
         {
             return list.contextId == m_ContextId
                 && list.generation == m_GraphGeneration
@@ -86,7 +86,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 && list.index < m_Records.Count;
         }
 
-        public RGRendererListRef Declare(in RendererListDesc desc)
+        public RGRendererListHandle Declare(in RendererListDesc desc)
         {
             int index = m_Records.Count;
             m_Records.Add(new RGRendererListRecord
@@ -97,10 +97,10 @@ namespace InfinityTech.Rendering.RenderGraph
                 state = ERGRendererListCompileState.Declared,
                 created = RendererList.nullRendererList
             });
-            return new RGRendererListRef(m_ContextId, index, m_GraphGeneration);
+            return new RGRendererListHandle(m_ContextId, index, m_GraphGeneration);
         }
 
-        public RGRendererListRef DeclareShadow(in ShadowDrawingSettings settings)
+        public RGRendererListHandle DeclareShadow(in ShadowDrawingSettings settings)
         {
             int index = m_Records.Count;
             m_Records.Add(new RGRendererListRecord
@@ -111,12 +111,12 @@ namespace InfinityTech.Rendering.RenderGraph
                 state = ERGRendererListCompileState.Declared,
                 created = RendererList.nullRendererList
             });
-            return new RGRendererListRef(m_ContextId, index, m_GraphGeneration);
+            return new RGRendererListHandle(m_ContextId, index, m_GraphGeneration);
         }
 
-        public ERGRendererListCompileState GetState(in RGRendererListRef list)
+        public ERGRendererListCompileState GetState(in RGRendererListHandle list)
         {
-            if (!IsLiveRef(list))
+            if (!IsLive(list))
             {
                 return ERGRendererListCompileState.Released;
             }
@@ -210,9 +210,9 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        public bool TryGetCreated(in RGRendererListRef list, out RendererList created)
+        public bool TryGetCreated(in RGRendererListHandle list, out RendererList created)
         {
-            if (!IsLiveRef(list))
+            if (!IsLive(list))
             {
                 created = RendererList.nullRendererList;
                 return false;
@@ -229,7 +229,7 @@ namespace InfinityTech.Rendering.RenderGraph
             return created.isValid;
         }
 
-        public void Submit(CommandBuffer cmdBuffer, in RGRendererListRef list)
+        public void Submit(CommandBuffer cmdBuffer, in RGRendererListHandle list)
         {
             if (cmdBuffer == null || !TryGetCreated(list, out RendererList created))
             {

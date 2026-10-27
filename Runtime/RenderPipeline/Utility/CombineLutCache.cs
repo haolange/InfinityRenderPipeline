@@ -19,7 +19,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_ProducedThisFrame = false;
         }
 
-        public void Resolve(in CombineLutParameterDescriptor key, in TextureDescriptor descriptor, out FTextureRef texture, out bool hit)
+        public void Resolve(in CombineLutParameterDescriptor key, in TextureDescriptor descriptor, out TextureHandle texture, out bool hit)
         {
             bool committedHit = m_HasKey && m_Key.Equals(key);
             bool pendingHit = m_ProducedThisFrame && m_PendingKey.Equals(key);

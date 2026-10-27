@@ -8,7 +8,7 @@ namespace InfinityTech.Rendering.Pipeline
 {
     internal struct FTemporalColorView
     {
-        internal RGTextureRef color, depth, mips;
+        internal RGTextureHandle color, depth, mips;
         internal Vector4 resolution, jitterDelta;
         internal int mipCount;
         internal bool valid;
@@ -99,7 +99,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             MarkFeatureProduced(EFrameFeature.TemporalColorPyramid);
         }
-        static FTemporalColorView ReadTemporalColorView(RGComputePassRef pass, FTemporalColorView source)
+        static FTemporalColorView ReadTemporalColorView(RGComputePassHandle pass, FTemporalColorView source)
         {
             source.color = pass.ReadTexture(source.color); source.depth = pass.ReadTexture(source.depth);
             source.mips = pass.ReadTexture(source.mips); return source;

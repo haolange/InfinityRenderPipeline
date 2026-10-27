@@ -18,18 +18,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         {
             internal ComputeShader shader;
             internal int kernel, value;
-            internal RGBufferRef input, output;
+            internal RGBufferHandle input, output;
             internal List<ComputeBuffer> physical;
         }
 
-        static void Add(RGBuilder graph, ComputeShader shader, RGBufferRef input, RGBufferRef output,
+        static void Add(RGBuilder graph, ComputeShader shader, RGBufferHandle input, RGBufferHandle output,
             bool async, int value, List<ComputeBuffer> physical = null)
         {
             bool copy = input.IsValid();
             using (var pass = graph.AddComputePass<Data>(new ProfilingSampler(copy ? "HazardCopy" : "HazardWrite")))
             {
                 pass.EnableAsyncCompute(async);
-                pass.MarkSideEffect();
+                pass.EnablePassCulling(false);
                 ref Data data = ref pass.GetPassData<Data>();
                 data.shader = shader;
                 data.kernel = shader.FindKernel(copy ? "Copy" : "Write");
@@ -74,12 +74,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var initial = new uint[Count];
             Array.Fill(initial, 1u);
             shared.SetData(initial);
-            var imported = graph.ImportBuffer(new FBufferRef(-1, descriptor, shared));
-            var result = new RGBufferRef[outputs.Length];
+            var imported = graph.ImportBuffer(new BufferHandle(-1, descriptor, shared));
+            var result = new RGBufferHandle[outputs.Length];
             for (int i = 0; i < outputs.Length; ++i)
             {
                 outputs[i] = new ComputeBuffer(Count, sizeof(uint));
-                result[i] = graph.ImportBuffer(new FBufferRef(-1, descriptor, outputs[i]));
+                result[i] = graph.ImportBuffer(new BufferHandle(-1, descriptor, outputs[i]));
             }
             Add(graph, shader, imported, result[0], async, 0);
             Add(graph, shader, default, imported, false, 7); // WAR

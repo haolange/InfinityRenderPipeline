@@ -31,7 +31,7 @@ namespace InfinityTech.Rendering.Pipeline
             return label;
         }
 
-        internal static void DispatchMipBatches(in RGComputeEncoder cmdEncoder, ComputeShader shader, RGTextureRef sourceTexture, RGTextureRef pyramidTexture, int2 resolution, int mipCount)
+        internal static void DispatchMipBatches(in RGComputeEncoder cmdEncoder, ComputeShader shader, RGTextureHandle sourceTexture, RGTextureHandle pyramidTexture, int2 resolution, int mipCount)
         {
             int kernel = KernelMain;
             int batchCount = PyramidMipBatch.ColorPyramidBatchCount(mipCount);
@@ -81,8 +81,8 @@ namespace InfinityTech.Rendering.Pipeline
             public int mipCount;
             public int2 resolution;
             public ComputeShader colorPyramidShader;
-            public RGTextureRef lightingTexture;
-            public RGTextureRef colorPyramidTexture;
+            public RGTextureHandle lightingTexture;
+            public RGTextureHandle colorPyramidTexture;
         }
 
         static TextureDescriptor CreateColorPyramidDescriptor(int width, int height, string name)
@@ -117,11 +117,11 @@ namespace InfinityTech.Rendering.Pipeline
             int mipCount = PyramidMipBatch.MipCount(width, height);
 
             TextureDescriptor colorPyramidDsc = CreateColorPyramidDescriptor(width, height, ColorPyramidPassUtilityData.TextureName);
-            RGTextureRef colorPyramidTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ColorPyramidBuffer, colorPyramidDsc);
+            RGTextureHandle colorPyramidTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ColorPyramidBuffer, colorPyramidDsc);
 
-            RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
+            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.FoggedSceneColorBuffer);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeColorPyramid)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ColorPyramidPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeColorPyramid)))
             {
                 ref ColorPyramidPassData passData = ref passRef.GetPassData<ColorPyramidPassData>();
                 passData.mipCount = mipCount;
@@ -130,7 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.lightingTexture = passRef.ReadTexture(lightingTexture);
                 passData.colorPyramidTexture = passRef.WriteTexture(colorPyramidTexture);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ColorPyramidPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ColorPyramidPassUtilityData.DispatchMipBatches(cmdEncoder, passData.colorPyramidShader, passData.lightingTexture, passData.colorPyramidTexture, passData.resolution, passData.mipCount);

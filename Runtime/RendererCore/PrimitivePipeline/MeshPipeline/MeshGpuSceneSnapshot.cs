@@ -5,7 +5,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     // A DrawList binds the resident tables selected at declaration, not mutable facade fields.
     internal readonly struct MeshGpuSceneSnapshot
     {
-        internal readonly FBufferRef TransformBuffer, RenderingLayerBuffer, InstanceTransformIndexBuffer;
+        internal readonly BufferHandle TransformBuffer, RenderingLayerBuffer, InstanceTransformIndexBuffer;
         internal readonly MeshTransformVersion version;
         internal bool isValid => TransformBuffer.buffer != null && RenderingLayerBuffer.buffer != null
             && InstanceTransformIndexBuffer.buffer != null;

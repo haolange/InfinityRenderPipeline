@@ -100,7 +100,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     internal sealed class MeshDrawGpuPayload : IDisposable
     {
         ResourcePool m_Pool;
-        FBufferRef m_Args, m_Metadata, m_Counts, m_Indices;
+        BufferHandle m_Args, m_Metadata, m_Counts, m_Indices;
         ResourceReuseFence m_ArgsWait, m_MetadataWait, m_CountsWait, m_IndicesWait;
         public ComputeBuffer argsBuffer => m_Args.buffer;
         public ComputeBuffer commandMeta => m_Metadata.buffer;
@@ -121,7 +121,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (m_Pool != null && m_Pool != pool) throw new InvalidOperationException("A live payload cannot change its resource owner.");
             if (RequireCapacity(commands, instances)) return;
             int nextCommands = math.max(commands, 64), nextInstances = math.max(instances, 256);
-            FBufferRef args = default, metadata = default, counts = default, indices = default;
+            BufferHandle args = default, metadata = default, counts = default, indices = default;
             ResourceReuseFence argsWait = default, metadataWait = default, countsWait = default, indicesWait = default;
             try
             {
@@ -302,13 +302,13 @@ namespace InfinityTech.Rendering.MeshPipeline
             in MeshView view,
             int instanceCount,
             Vector4[] frustumPlanes,
-            RGBufferRef boundsCenter,
-            RGBufferRef boundsExtent,
-            RGBufferRef instanceFlags,
-            RGBufferRef instanceLayerMask,
-            RGBufferRef instanceSceneCullingMask,
-            RGBufferRef instanceRenderingLayer,
-            RGBufferRef visibility) where TCommands : struct, IComputeCommands
+            RGBufferHandle boundsCenter,
+            RGBufferHandle boundsExtent,
+            RGBufferHandle instanceFlags,
+            RGBufferHandle instanceLayerMask,
+            RGBufferHandle instanceSceneCullingMask,
+            RGBufferHandle instanceRenderingLayer,
+            RGBufferHandle visibility) where TCommands : struct, IComputeCommands
         {
             if (!TryGetCullKernel(out ComputeShader shader, out int kernel))
                 throw new InvalidOperationException("MeshGpuCull requires CullFrustum.");
@@ -319,16 +319,16 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal static void BindCullBounds<TCommands>(TCommands commands, ComputeShader shader, int kernel, int instanceCount,
-            RGBufferRef center, RGBufferRef extent) where TCommands : struct, IComputeCommands
+            RGBufferHandle center, RGBufferHandle extent) where TCommands : struct, IComputeCommands
         {
             commands.SetComputeIntParam(shader, ID_InstanceCount, instanceCount);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsCenter, center);
             commands.SetComputeBufferParam(shader, kernel, ID_InstanceBoundsExtent, extent);
         }
         internal static void BindCullInputs<TCommands>(TCommands commands, ComputeShader shader, int kernel,
-            in MeshView view, int instanceCount, Vector4[] frustumPlanes, RGBufferRef boundsCenter, RGBufferRef boundsExtent,
-            RGBufferRef instanceFlags, RGBufferRef instanceLayerMask, RGBufferRef instanceSceneCullingMask,
-            RGBufferRef instanceRenderingLayer, RGBufferRef visibility) where TCommands : struct, IComputeCommands
+            in MeshView view, int instanceCount, Vector4[] frustumPlanes, RGBufferHandle boundsCenter, RGBufferHandle boundsExtent,
+            RGBufferHandle instanceFlags, RGBufferHandle instanceLayerMask, RGBufferHandle instanceSceneCullingMask,
+            RGBufferHandle instanceRenderingLayer, RGBufferHandle visibility) where TCommands : struct, IComputeCommands
         {
             if (!visibility.IsValid()
                 || !boundsCenter.IsValid()

@@ -13,12 +13,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         struct PassData { }
 
-        static void Add(RGBuilder graph, string name, RGBufferRef resource, bool async, bool write, bool live = true)
+        static void Add(RGBuilder graph, string name, RGBufferHandle resource, bool async, bool write, bool live = true)
         {
             using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler(name)))
             {
                 pass.EnableAsyncCompute(async);
-                if (live) pass.MarkSideEffect();
+                if (live) pass.EnablePassCulling(false);
                 if (write) pass.WriteBuffer(resource); else pass.ReadBuffer(resource);
                 if (!live) pass.WriteBuffer(graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint))));
                 pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
@@ -39,54 +39,75 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(true, true, true)]
         public void OppositeQueue_WaitsForPriorHazard(bool firstAsync, bool firstWrite, bool secondWrite)
         {
+            var physical = new ComputeBuffer(1, sizeof(uint));
             var graph = new RGBuilder("QueueHazard", null, true);
             try
             {
-                var resource = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)));
+                var descriptor = new BufferDescriptor(1, sizeof(uint)) { name = "Hazard" };
+                // A created buffer cannot be read before a graph write. WAR reads external memory.
+                var resource = firstWrite
+                    ? graph.CreateBuffer(descriptor)
+                    : graph.ImportBuffer(new BufferHandle(-1, descriptor, physical));
                 Add(graph, "First", resource, firstAsync, firstWrite);
                 Add(graph, "Second", resource, !firstAsync, secondWrite);
                 string[] rows = Compile(graph);
                 Assert.AreEqual("0", rows[1].Split('|')[5]);
                 Assert.AreEqual("True", rows[0].Split('|')[11]);
             }
-            finally { graph.Dispose(); }
+            finally
+            {
+                graph.Dispose();
+                physical.Release();
+            }
         }
 
         [Test]
         public void Writer_WaitsForLatestOppositeReader_AcrossResources()
         {
+            var physicalA = new ComputeBuffer(1, sizeof(uint));
+            var physicalB = new ComputeBuffer(1, sizeof(uint));
             var graph = new RGBuilder("LatestReader", null, true);
             try
             {
-                var a = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)));
-                var b = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)));
+                var a = graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, sizeof(uint)) { name = "A" }, physicalA));
+                var b = graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, sizeof(uint)) { name = "B" }, physicalB));
                 Add(graph, "ReadA", a, true, false);
                 Add(graph, "ReadB", b, true, false);
                 using (var pass = graph.AddComputePass<PassData>(new ProfilingSampler("WriteBoth")))
                 {
-                    pass.MarkSideEffect();
+                    pass.EnablePassCulling(false);
                     pass.WriteBuffer(b);
                     pass.WriteBuffer(a); // Resource enumeration must not replace a later fence with an earlier one.
                     pass.SetExecuteFunc((in PassData data, in RGComputeEncoder commands) => { });
                 }
                 Assert.AreEqual("1", Compile(graph)[2].Split('|')[5]);
             }
-            finally { graph.Dispose(); }
+            finally
+            {
+                graph.Dispose();
+                physicalA.Release();
+                physicalB.Release();
+            }
         }
 
         [TestCase(false)]
         [TestCase(true)]
         public void SameQueue_DoesNotIntroduceCrossQueueFence(bool async)
         {
+            var physical = new ComputeBuffer(1, sizeof(uint));
             var graph = new RGBuilder("SameQueue", null, true);
             try
             {
-                var resource = graph.CreateBuffer(new BufferDescriptor(1, sizeof(uint)));
+                var resource = graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, sizeof(uint)) { name = "Hazard" }, physical));
                 Add(graph, "Read", resource, async, false);
                 Add(graph, "Write", resource, async, true);
                 Assert.AreEqual("-1", Compile(graph)[1].Split('|')[5]);
             }
-            finally { graph.Dispose(); }
+            finally
+            {
+                graph.Dispose();
+                physical.Release();
+            }
         }
 
         [Test]
@@ -151,8 +172,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 try
                 {
                     var descriptor = new BufferDescriptor(1, sizeof(uint));
-                    var a = graph.ImportBuffer(new FBufferRef(-1, descriptor, buffer));
-                    var b = graph.ImportBuffer(new FBufferRef(-1, descriptor, buffer));
+                    var a = graph.ImportBuffer(new BufferHandle(-1, descriptor, buffer));
+                    var b = graph.ImportBuffer(new BufferHandle(-1, descriptor, buffer));
                     Assert.AreEqual(a.handle.index, b.handle.index);
                     Add(graph, "ReadAlias", a, true, false);
                     Add(graph, "OverwriteAlias", b, false, true);

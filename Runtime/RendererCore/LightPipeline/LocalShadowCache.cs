@@ -136,9 +136,9 @@ namespace InfinityTech.Rendering.LightPipeline
         }
 
         // The persistent atlas. A newly allocated texture holds no valid tile.
-        public FTextureRef GetAtlas()
+        public TextureHandle GetAtlas()
         {
-            FTextureRef atlas = m_History.GetTexture(AtlasID, AtlasDescriptor(), out bool created);
+            TextureHandle atlas = m_History.GetTexture(AtlasID, AtlasDescriptor(), out bool created);
             if (created)
             {
                 InvalidateAll();

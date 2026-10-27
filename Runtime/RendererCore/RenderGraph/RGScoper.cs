@@ -46,90 +46,90 @@ namespace InfinityTech.Rendering.RenderGraph
     public class RGScoper
     {
         RGBuilder m_RGBuilder;
-        FRGResourceMap<RGBufferRef> m_BufferMap;
-        FRGResourceMap<RGTextureRef> m_TextureMap;
+        FRGResourceMap<RGBufferHandle> m_BufferMap;
+        FRGResourceMap<RGTextureHandle> m_TextureMap;
 
         public RGScoper(RGBuilder graphBuilder)
         {
             m_RGBuilder = graphBuilder;
-            m_BufferMap = new FRGResourceMap<RGBufferRef>();
-            m_TextureMap = new FRGResourceMap<RGTextureRef>();
+            m_BufferMap = new FRGResourceMap<RGBufferHandle>();
+            m_TextureMap = new FRGResourceMap<RGTextureHandle>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryQueryBuffer(in int handle, out RGBufferRef bufferRef)
+        public bool TryQueryBuffer(in int handle, out RGBufferHandle bufferHandle)
         {
-            if (m_BufferMap.TryGet(handle, out bufferRef) && bufferRef.IsValid())
+            if (m_BufferMap.TryGet(handle, out bufferHandle) && bufferHandle.IsValid())
             {
                 return true;
             }
 
-            bufferRef = default;
+            bufferHandle = default;
             return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGBufferRef QueryBuffer(in int handle)
+        public RGBufferHandle QueryBuffer(in int handle)
         {
-            if (!TryQueryBuffer(handle, out RGBufferRef bufferRef))
+            if (!TryQueryBuffer(handle, out RGBufferHandle bufferHandle))
             {
                 throw new InvalidOperationException($"RGScoper.QueryBuffer: {RGResourceKey.NameOf(handle)} is not registered this frame. Its producer did not record, or the consumer runs before it.");
             }
 
-            return bufferRef;
+            return bufferHandle;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RegisterBuffer(int handle, in RGBufferRef bufferRef)
+        public void RegisterBuffer(int handle, in RGBufferHandle bufferHandle)
         {
-            if (m_BufferMap.TryGet(handle, out RGBufferRef existing) && existing.IsValid() && !SameBufferRef(existing, bufferRef))
+            if (m_BufferMap.TryGet(handle, out RGBufferHandle existing) && existing.IsValid() && !SameBufferRef(existing, bufferHandle))
             {
                 throw new InvalidOperationException($"RGScoper.RegisterBuffer: {RGResourceKey.NameOf(handle)} already has a different owner this frame.");
             }
 
-            m_BufferMap.Set(handle, bufferRef);
+            m_BufferMap.Set(handle, bufferHandle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGBufferRef CreateBuffer(in int handle, in BufferDescriptor descriptor)
+        public RGBufferHandle CreateBuffer(in int handle, in BufferDescriptor descriptor)
         {
-            RGBufferRef bufferRef = m_RGBuilder.CreateBuffer(descriptor);
-            RegisterBuffer(handle, bufferRef);
-            return bufferRef;
+            RGBufferHandle bufferHandle = m_RGBuilder.CreateBuffer(descriptor);
+            RegisterBuffer(handle, bufferHandle);
+            return bufferHandle;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryQueryTexture(in int handle, out RGTextureRef textureRef)
+        public bool TryQueryTexture(in int handle, out RGTextureHandle textureHandle)
         {
-            if (m_TextureMap.TryGet(handle, out textureRef) && textureRef.IsValid())
+            if (m_TextureMap.TryGet(handle, out textureHandle) && textureHandle.IsValid())
             {
                 return true;
             }
 
-            textureRef = default;
+            textureHandle = default;
             return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef QueryTexture(in int handle)
+        public RGTextureHandle QueryTexture(in int handle)
         {
-            if (!TryQueryTexture(handle, out RGTextureRef textureRef))
+            if (!TryQueryTexture(handle, out RGTextureHandle textureHandle))
             {
                 throw new InvalidOperationException($"RGScoper.QueryTexture: {RGResourceKey.NameOf(handle)} is not registered this frame. Its producer did not record, or the consumer runs before it.");
             }
 
-            return textureRef;
+            return textureHandle;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RegisterTexture(int handle, in RGTextureRef textureRef)
+        public void RegisterTexture(int handle, in RGTextureHandle textureHandle)
         {
-            if (m_TextureMap.TryGet(handle, out RGTextureRef existing) && existing.IsValid() && !SameTextureRef(existing, textureRef))
+            if (m_TextureMap.TryGet(handle, out RGTextureHandle existing) && existing.IsValid() && !SameTextureRef(existing, textureHandle))
             {
                 throw new InvalidOperationException($"RGScoper.RegisterTexture: {RGResourceKey.NameOf(handle)} already has a different owner this frame.");
             }
 
-            m_TextureMap.Set(handle, textureRef);
+            m_TextureMap.Set(handle, textureHandle);
         }
 
         public void MoveTexture(int from, int to)
@@ -139,17 +139,17 @@ namespace InfinityTech.Rendering.RenderGraph
                 return;
             }
 
-            RGTextureRef textureRef = QueryTexture(from);
-            RegisterTexture(to, textureRef);
+            RGTextureHandle textureHandle = QueryTexture(from);
+            RegisterTexture(to, textureHandle);
             m_TextureMap.Remove(from);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RGTextureRef CreateAndRegisterTexture(in int handle, in TextureDescriptor descriptor)
+        public RGTextureHandle CreateAndRegisterTexture(in int handle, in TextureDescriptor descriptor)
         {
-            RGTextureRef textureRef = m_RGBuilder.CreateTexture(descriptor);
-            RegisterTexture(handle, textureRef);
-            return textureRef;
+            RGTextureHandle textureHandle = m_RGBuilder.CreateTexture(descriptor);
+            RegisterTexture(handle, textureHandle);
+            return textureHandle;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -165,12 +165,12 @@ namespace InfinityTech.Rendering.RenderGraph
             m_TextureMap.Dispose();
         }
 
-        static bool SameTextureRef(in RGTextureRef a, in RGTextureRef b)
+        static bool SameTextureRef(in RGTextureHandle a, in RGTextureHandle b)
         {
             return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.type == b.handle.type;
         }
 
-        static bool SameBufferRef(in RGBufferRef a, in RGBufferRef b)
+        static bool SameBufferRef(in RGBufferHandle a, in RGBufferHandle b)
         {
             return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.type == b.handle.type;
         }

@@ -24,14 +24,14 @@ namespace InfinityTech.Rendering.Pipeline
     // no visible light uses VSM / EVSM; no shader samples them then.
     internal struct FShadowInputs
     {
-        public RGTextureRef cascadeMap;
-        public RGTextureRef localMap;
-        public RGTextureRef cascadeMoments;
-        public RGTextureRef localMoments;
+        public RGTextureHandle cascadeMap;
+        public RGTextureHandle localMap;
+        public RGTextureHandle cascadeMoments;
+        public RGTextureHandle localMoments;
         public bool hasCascadeMoments;
         public bool hasLocalMoments;
-        public RGBufferRef localMatrices;
-        public RGBufferRef localSlices;
+        public RGBufferHandle localMatrices;
+        public RGBufferHandle localSlices;
         public int cascadeCount;
         public int shadowmaskMode;
         public float shadowDistance;
@@ -44,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
         public Vector4 filterParams;
         public Vector4 momentParams;
 
-        public void Read(RGComputePassRef passRef)
+        public void Read(RGComputePassHandle passRef)
         {
             passRef.ReadTexture(cascadeMap);
             passRef.ReadTexture(localMap);
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
             passRef.ReadBuffer(localSlices);
         }
 
-        public void Read(RGRasterPassRef passRef)
+        public void Read(RGRasterPassHandle passRef)
         {
             passRef.ReadTexture(cascadeMap);
             passRef.ReadTexture(localMap);

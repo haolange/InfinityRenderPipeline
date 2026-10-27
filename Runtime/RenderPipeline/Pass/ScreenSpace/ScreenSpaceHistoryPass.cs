@@ -28,10 +28,10 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct CopyHistoryRadianceMetaPassData
         {
-            public RGTextureRef radianceSource;
-            public RGTextureRef radianceHistory;
-            public RGTextureRef metaSource;
-            public RGTextureRef metaHistory;
+            public RGTextureHandle radianceSource;
+            public RGTextureHandle radianceHistory;
+            public RGTextureHandle metaSource;
+            public RGTextureHandle metaHistory;
         }
 
         // SSR history is the temporal output (before the optional spatial pass, so filtering never feeds back) plus
@@ -57,8 +57,8 @@ namespace InfinityTech.Rendering.Pipeline
         void CopyHistoryRadianceMeta(HistoryCache historyCache, CustomSamplerId samplerId, int radianceSourceId, int metaSourceId,
             int radianceHistoryId, int metaHistoryId, string radianceName, string metaName)
         {
-            if (!m_RGScoper.TryQueryTexture(radianceSourceId, out RGTextureRef radianceSource) ||
-                !m_RGScoper.TryQueryTexture(metaSourceId, out RGTextureRef metaSource))
+            if (!m_RGScoper.TryQueryTexture(radianceSourceId, out RGTextureHandle radianceSource) ||
+                !m_RGScoper.TryQueryTexture(metaSourceId, out RGTextureHandle metaSource))
             {
                 return;
             }
@@ -68,12 +68,12 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor metaDsc = m_RGBuilder.GetTextureDescriptor(metaSource);
             metaDsc.name = metaName;
 
-            RGTextureRef radianceHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(radianceHistoryId, radianceDsc));
-            RGTextureRef metaHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(metaHistoryId, metaDsc));
+            RGTextureHandle radianceHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(radianceHistoryId, radianceDsc));
+            RGTextureHandle metaHistory = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(metaHistoryId, metaDsc));
             historyCache.MarkProduced(radianceHistoryId);
             historyCache.MarkProduced(metaHistoryId);
 
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryRadianceMetaPassData>(ProfilingSampler.Get(samplerId)))
+            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryRadianceMetaPassData>(ProfilingSampler.Get(samplerId)))
             {
                 passRef.ReadTexture(radianceSource);
                 passRef.WriteTexture(radianceHistory);

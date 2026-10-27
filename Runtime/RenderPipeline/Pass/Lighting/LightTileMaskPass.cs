@@ -23,15 +23,15 @@ namespace InfinityTech.Rendering.Pipeline
     // record references it then.
     internal struct FLightLoopInputs
     {
-        public RGBufferRef zBins;
-        public RGBufferRef tileMasks;
-        public RGBufferRef cookies;
-        public RGTextureRef cookieAtlas;
+        public RGBufferHandle zBins;
+        public RGBufferHandle tileMasks;
+        public RGBufferHandle cookies;
+        public RGTextureHandle cookieAtlas;
         public bool hasCookieAtlas;
-        public RGBufferRef probes;
-        public RGBufferRef probeZBins;
-        public RGBufferRef probeTileMasks;
-        public RGTextureRef probeAtlas;
+        public RGBufferHandle probes;
+        public RGBufferHandle probeZBins;
+        public RGBufferHandle probeTileMasks;
+        public RGTextureHandle probeAtlas;
         public bool hasProbeAtlas;
         public int probeCount;
         public Vector4 probeTileParams;
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void Read(RGComputePassRef passRef)
+        public void Read(RGComputePassHandle passRef)
         {
             passRef.ReadBuffer(zBins);
             passRef.ReadBuffer(tileMasks);
@@ -68,7 +68,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (hasProbeAtlas) passRef.ReadTexture(probeAtlas);
         }
 
-        public void Read(RGRasterPassRef passRef)
+        public void Read(RGRasterPassHandle passRef)
         {
             passRef.ReadBuffer(zBins);
             passRef.ReadBuffer(tileMasks);
@@ -127,8 +127,8 @@ namespace InfinityTech.Rendering.Pipeline
             public int wordCount;
             public int2 tileCount;
             public ComputeShader shader;
-            public RGBufferRef tileRects;
-            public RGBufferRef tileMasks;
+            public RGBufferHandle tileRects;
+            public RGBufferHandle tileMasks;
         }
 
         // The light loop's buffers for this camera: the GPU tile masks when local lights are visible, otherwise a
@@ -136,8 +136,8 @@ namespace InfinityTech.Rendering.Pipeline
         FLightLoopInputs QueryLightLoop(RenderContext renderContext)
         {
             LightContext context = renderContext.lightContext;
-            bool hasCookieAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureRef cookieAtlas);
-            bool hasProbeAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureRef probeAtlas);
+            bool hasCookieAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.LightCookieAtlas, out RGTextureHandle cookieAtlas);
+            bool hasProbeAtlas = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ReflectionProbeAtlas, out RGTextureHandle probeAtlas);
             bool hasProbeList = hasProbeAtlas && context.ReflectionProbeCount > 0;
             return new FLightLoopInputs
             {
@@ -185,7 +185,7 @@ namespace InfinityTech.Rendering.Pipeline
         // second index space of the clustered list.
         void RecordTileMaskPass(int rectsKey, int masksKey, string masksName, int itemCount, int wordCount, int2 tileCount, CustomSamplerId sampler)
         {
-            RGBufferRef tileMasks = m_RGScoper.CreateBuffer(masksKey, new BufferDescriptor
+            RGBufferHandle tileMasks = m_RGScoper.CreateBuffer(masksKey, new BufferDescriptor
             {
                 name = masksName,
                 count = math.max(1, tileCount.x * tileCount.y * wordCount),
@@ -193,7 +193,7 @@ namespace InfinityTech.Rendering.Pipeline
                 type = ComputeBufferType.Structured
             });
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightTileMaskPassData>(ProfilingSampler.Get(sampler)))
             {
                 ref LightTileMaskPassData passData = ref passRef.GetPassData<LightTileMaskPassData>();
                 passData.localCount = itemCount;
@@ -203,7 +203,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.tileRects = passRef.ReadBuffer(m_RGScoper.QueryBuffer(rectsKey));
                 passData.tileMasks = passRef.WriteBuffer(tileMasks);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in LightTileMaskPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {

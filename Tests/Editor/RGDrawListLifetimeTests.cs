@@ -57,7 +57,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     var context = new RGDrawListContext();
                     MeshView view = TestView();
                     MeshPassContext pass = world.BindPass(view, MeshPassId.GBuffer);
-                    RGDrawListRef draws = context.Declare(
+                    RGDrawListHandle draws = context.Declare(
                         world.Processor,
                         pass,
                         MeshVisibilityHandle.Invalid,
@@ -134,7 +134,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                     var context = new RGDrawListContext();
                     MeshView view = TestView();
                     MeshPassContext pass = world.BindPass(view, MeshPassId.GBuffer);
-                    RGDrawListRef draws = context.Declare(
+                    RGDrawListHandle draws = context.Declare(
                         world.Processor,
                         pass,
                         MeshVisibilityHandle.Invalid,
@@ -280,7 +280,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
-        struct DrawPreparationData { public RGDrawListRef draws; }
+        struct DrawPreparationData { public RGDrawListHandle draws; }
         [TestCase(EMeshBackendPolicy.Auto,true)]
         [TestCase(EMeshBackendPolicy.CpuDirect,true)]
         [TestCase(EMeshBackendPolicy.GpuIndirect,true)]
@@ -304,7 +304,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                         using(var pass=graph.AddRasterPass<DrawPreparationData>(ProfilingSampler.Get(i==0?CustomSamplerId.RasterGBuffer:CustomSamplerId.RasterDepth)))
                         {
                             pass.SetColorAttachment(target,0,RenderBufferLoadAction.DontCare,RenderBufferStoreAction.Store);
-                            if (live) pass.MarkSideEffect();ref var data=ref pass.GetPassData<DrawPreparationData>();data.draws=pass.UseDrawList(draws);
+                            if (live) pass.EnablePassCulling(false);ref var data=ref pass.GetPassData<DrawPreparationData>();data.draws=pass.UseDrawList(draws);
                             pass.SetExecuteFunc((in DrawPreparationData data,in RGRasterEncoder commands)=>commands.Draw(data.draws));
                         }
                     }

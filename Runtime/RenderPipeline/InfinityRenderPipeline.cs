@@ -224,7 +224,7 @@ namespace InfinityTech.Rendering.Pipeline
         private Dictionary<int, ProfilingSampler> m_CameraSamplers;
         private CameraUniform m_CameraUniform;
         private CameraFrameState m_ActiveFrameState;
-        private FBufferRef m_DiffusionProfileBuffer;
+        private BufferHandle m_DiffusionProfileBuffer;
         private FDiffusionProfileRecord[] m_DiffusionProfileRecords = Array.Empty<FDiffusionProfileRecord>();
         private AtmosphereSharedCache m_AtmosphereSharedCache;
         private LocalShadowCache m_LocalShadowCache;

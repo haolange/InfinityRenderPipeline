@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.Pipeline
             public FProbeCubeUpload[] uploads;
             public int resolution;
             public int mipCount;
-            public RGTextureRef atlas;
+            public RGTextureHandle atlas;
         }
 
         sealed class ReflectionProbeProduction : IRGPassQueueObserver
@@ -43,7 +43,7 @@ namespace InfinityTech.Rendering.Pipeline
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.ReflectionProbes);
 
             LightContext context = renderContext.lightContext;
-            RGTextureRef atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
+            RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_ReflectionProbeAtlas.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.ReflectionProbeAtlas, atlas);
 
             List<FProbeCubeUpload> pending = m_ReflectionProbeAtlas.Uploads;
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
                 var keys = new FProbeCubeKey[uploads.Length];
                 for (int i = 0; i < uploads.Length; ++i) keys[i] = uploads[i].key;
 
-                using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
+                using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ReflectionProbeFilterPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeReflectionProbes)))
                 {
                     ref ReflectionProbeFilterPassData passData = ref passRef.GetPassData<ReflectionProbeFilterPassData>();
                     passData.shader = shaders.cubeFilterShader;
@@ -62,7 +62,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.resolution = m_ReflectionProbeAtlas.Resolution;
                     passData.mipCount = m_ReflectionProbeAtlas.MipCount;
                     passData.atlas = passRef.WriteTexture(atlas);
-                    passRef.MarkSideEffect();
+                    passRef.EnablePassCulling(false);
                     passRef.SetQueueObserver(new ReflectionProbeProduction { atlas = m_ReflectionProbeAtlas, keys = keys });
                     passRef.SetExecuteFunc((in ReflectionProbeFilterPassData passData, in RGComputeEncoder cmdEncoder) =>
                     {

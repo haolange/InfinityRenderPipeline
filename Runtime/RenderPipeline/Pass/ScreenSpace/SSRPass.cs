@@ -157,27 +157,27 @@ namespace InfinityTech.Rendering.Pipeline
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
             public Texture2D owenScrambledSobol;
-            public RGTextureRef depthTexture;
-            public RGTextureRef hiZTexture;
-            public RGTextureRef gBufferA;
-            public RGTextureRef gBufferB;
-            public RGTextureRef gBufferC;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle hiZTexture;
+            public RGTextureHandle gBufferA;
+            public RGTextureHandle gBufferB;
+            public RGTextureHandle gBufferC;
             public FTemporalColorView temporalColor;
-            public RGTextureRef motionMetadata;
-            public RGTextureRef motionTexture;
-            public RGTextureRef historyRadiance;
-            public RGTextureRef historyMeta;
-            public RGBufferRef tileArgs;
-            public RGBufferRef tileList;
-            public RGTextureRef tileClass;
-            public RGTextureRef rayHit;
-            public RGTextureRef resolved;
-            public RGTextureRef hitDistance;
-            public RGTextureRef temporal;
-            public RGTextureRef meta;
-            public RGTextureRef output;
-            public RGTextureRef filtered;
-            public RGTextureRef debug;
+            public RGTextureHandle motionMetadata;
+            public RGTextureHandle motionTexture;
+            public RGTextureHandle historyRadiance;
+            public RGTextureHandle historyMeta;
+            public RGBufferHandle tileArgs;
+            public RGBufferHandle tileList;
+            public RGTextureHandle tileClass;
+            public RGTextureHandle rayHit;
+            public RGTextureHandle resolved;
+            public RGTextureHandle hitDistance;
+            public RGTextureHandle temporal;
+            public RGTextureHandle meta;
+            public RGTextureHandle output;
+            public RGTextureHandle filtered;
+            public RGTextureHandle debug;
             public bool runSpatial;
             public bool runDebug;
         }
@@ -202,25 +202,25 @@ namespace InfinityTech.Rendering.Pipeline
             bool runDebug = SSRPassUtilityData.IsDebugView(debugView);
             bool runSpatial = settings.spatialPasses > 0;
 
-            RGTextureRef rayHit = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRayHitBuffer,
+            RGTextureHandle rayHit = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRRayHitBuffer,
                 // Hit UV and depth are geometric data: half precision can move them into another depth texel.
                 SSRPassUtilityData.CreateDescriptor(traceResolution.x, traceResolution.y, SSRPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, settings.halfResolution ? 2 : 1));
-            RGTextureRef resolved = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRResolvedBuffer,
+            RGTextureHandle resolved = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRResolvedBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.ResolvedName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureRef hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDistanceBuffer,
+            RGTextureHandle hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRHitDistanceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRHitDistance", GraphicsFormat.R32_SFloat, FilterMode.Point, divisor));
-            RGTextureRef temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer,
+            RGTextureHandle temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRTemporalBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureRef meta = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMetaBuffer,
+            RGTextureHandle meta = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRMetaBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.MetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor));
-            RGTextureRef filtered = runSpatial
+            RGTextureHandle filtered = runSpatial
                 ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRFilteredBuffer,
                     SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSRFiltered", GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor))
                 : temporal;
             if (!runSpatial) m_RGScoper.RegisterTexture(InfinityShaderIDs.SSRFilteredBuffer, filtered);
-            RGTextureRef output = filtered;
+            RGTextureHandle output = filtered;
             m_RGScoper.RegisterTexture(InfinityShaderIDs.SSRBuffer, output);
-            RGTextureRef debug = default;
+            RGTextureHandle debug = default;
             if (runDebug)
             {
                 debug = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSRDebugBuffer,
@@ -230,8 +230,8 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSRPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
-            RGTextureRef historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
-            RGTextureRef historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
+            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
+            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSRRadianceBuffer, historyRadiance);
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSRMetaBuffer, historyMeta);
             bool historyValid = m_ActiveFrameState.acceptedSSR && !(m_CameraUniform.historyReset || historyRadianceCreated || historyMetaCreated)
@@ -240,7 +240,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<SSRPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceReflection)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<SSRPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceReflection)))
             {
                 ref SSRPassData passData = ref passRef.GetPassData<SSRPassData>();
                 passData.settings = settings;
@@ -301,7 +301,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.runDebug = runDebug;
                 passData.debug = runDebug ? passRef.WriteTexture(debug) : default;
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in SSRPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {

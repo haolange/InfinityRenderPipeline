@@ -120,9 +120,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             return m_GpuVisibility.GetBuffer(view, instanceCount);
         }
 
-        internal FBufferRef GetGpuVisibilityBufferRef(in MeshView view, int instanceCount)
+        internal BufferHandle GetGpuVisibilityBufferHandle(in MeshView view, int instanceCount)
         {
-            return m_GpuVisibility.GetBufferRef(view, instanceCount);
+            return m_GpuVisibility.GetBufferHandle(view, instanceCount);
         }
 
         internal bool NeedsGpuCull(in MeshView view)

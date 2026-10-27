@@ -226,7 +226,7 @@ namespace InfinityTech.Rendering.Pipeline
         struct CombineLutPassData
         {
             public ComputeShader combineLUTShader;
-            public RGTextureRef combineLookupTexture;
+            public RGTextureHandle combineLookupTexture;
             public CombineLutParameterDescriptor combineLutParameterDescriptor;
         }
 
@@ -246,8 +246,8 @@ namespace InfinityTech.Rendering.Pipeline
             combineLookupTextureDescriptor.filterMode = FilterMode.Trilinear;
             combineLookupTextureDescriptor.wrapMode = TextureWrapMode.Clamp;
 
-            frameState.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out FTextureRef lutHandle, out bool hit);
-            RGTextureRef combineLookupTexture = m_RGBuilder.ImportTexture(lutHandle);
+            frameState.combineLutCache.Resolve(combineLutParameterDescriptor, combineLookupTextureDescriptor, out TextureHandle lutHandle, out bool hit);
+            RGTextureHandle combineLookupTexture = m_RGBuilder.ImportTexture(lutHandle);
             m_RGScoper.RegisterTexture(InfinityShaderIDs.CombineLookupTexture, combineLookupTexture);
 
             if (hit)
@@ -256,7 +256,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add ColorGradePass
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<CombineLutPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeCombineLuts)))
             {
                 //Setup Phase
                 ref CombineLutPassData passData = ref passRef.GetPassData<CombineLutPassData>();
@@ -265,7 +265,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.combineLutParameterDescriptor = combineLutParameterDescriptor;
 
                 //Execute Phase
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in CombineLutPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {

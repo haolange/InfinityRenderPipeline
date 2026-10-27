@@ -27,12 +27,12 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt);
         void SetComputeTextureParam(ComputeShader computeShader, int kernelIndex, int nameID, RenderTargetIdentifier rt, int mipLevel);
         void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, ComputeBuffer buffer);
-        void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferRef buffer);
+        void SetComputeBufferParam(ComputeShader computeShader, int kernelIndex, int nameID, RGBufferHandle buffer);
         void SetComputeConstantBufferParam(ComputeShader computeShader, int nameID, ComputeBuffer buffer, int offset, int size);
         void DispatchCompute(ComputeShader computeShader, in int kernelIndex, in int threadGroupsX, in int threadGroupsY, in int threadGroupsZ);
         // Thread-group counts come from three uints at argsOffset (bytes) in a graph buffer created with
         // ComputeBufferType.IndirectArguments. The pass must declare the buffer with ReadBuffer.
-        void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset);
+        void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferHandle argsBuffer, in uint argsOffset);
         void CopyTexture(in RenderTargetIdentifier src, in RenderTargetIdentifier dst);
         void BeginSample(string name);
         void EndSample(string name);
@@ -67,7 +67,7 @@ namespace InfinityTech.Rendering.RenderGraph
         void SetViewport(in Rect pixelRect);
         void SetGlobalFloat(int nameID, float value);
         void SetGlobalBuffer(int nameID, ComputeBuffer value);
-        void SetGlobalBuffer(int nameID, RGBufferRef value);
+        void SetGlobalBuffer(int nameID, RGBufferHandle value);
         void SetGlobalBuffer(int nameID, GraphicsBuffer value);
         void SetGlobalInt(int nameID, int value);
         void SetGlobalVector(int nameID, Vector4 value);
@@ -87,8 +87,8 @@ namespace InfinityTech.Rendering.RenderGraph
         public void SetGlobalVectorArray(int nameID, Vector4[] values) => m_CommandBuffer.SetGlobalVectorArray(nameID, values);
         public void SetGlobalMatrixArray(int nameID, Matrix4x4[] values) => m_CommandBuffer.SetGlobalMatrixArray(nameID, values);
 
-        public void SetGlobalBuffer(int nameID, RGBufferRef value) => value.BindGlobal(m_CommandBuffer, nameID);
-        public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferRef value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
+        public void SetGlobalBuffer(int nameID, RGBufferHandle value) => value.BindGlobal(m_CommandBuffer, nameID);
+        public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferHandle value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
 
         public void SetGlobalFloat(int nameID, float value) => m_CommandBuffer.SetGlobalFloat(nameID, value);
         public void SetGlobalBuffer(int nameID, ComputeBuffer value) => m_CommandBuffer.SetGlobalBuffer(nameID, value);
@@ -195,7 +195,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.DispatchCompute(computeShader, kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
         }
 
-        public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset)
+        public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferHandle argsBuffer, in uint argsOffset)
         {
             argsBuffer.DispatchIndirect(m_CommandBuffer, computeShader, kernelIndex, argsOffset);
         }

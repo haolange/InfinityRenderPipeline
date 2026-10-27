@@ -30,11 +30,11 @@ namespace InfinityTech.Rendering.Pipeline
             public float farDepth;
             public int2 resolution;
             public ComputeShader atmosphericLUTShader;
-            public RGTextureRef lightingTexture;
-            public RGTextureRef depthTexture;
-            public RGTextureRef skyViewLUT;
-            public RGTextureRef aerialPerspectiveLUT;
-            public RGBufferRef sunBuffer;
+            public RGTextureHandle lightingTexture;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle skyViewLUT;
+            public RGTextureHandle aerialPerspectiveLUT;
+            public RGBufferHandle sunBuffer;
         }
 
         void ComputeAtmosphericSkyAndFog(RenderContext renderContext, Camera camera)
@@ -43,11 +43,11 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 throw new System.InvalidOperationException("InfinityRP: Atmosphere is designed on but AtmosphereComposite kernel is missing.");
             }
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureRef lightingTexture) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureRef depthTexture) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureRef skyViewLUT) ||
-                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureRef aerialPerspectiveLUT) ||
-                !m_RGScoper.TryQueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer, out RGBufferRef sunBuffer))
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer, out RGTextureHandle lightingTexture) ||
+                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.DepthBuffer, out RGTextureHandle depthTexture) ||
+                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT) ||
+                !m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT) ||
+                !m_RGScoper.TryQueryBuffer(InfinityShaderIDs.AtmosphereSunBuffer, out RGBufferHandle sunBuffer))
             {
                 throw new System.InvalidOperationException("InfinityRP: Atmosphere composite is missing Lighting, Depth, SkyView, Aerial, or SunBuffer.");
             }
@@ -56,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
             parameter.ThrowIfInvalid();
             LightContext.ResolveSun(renderContext.lightContext, out Vector4 sunDirection, out Vector4 sunIlluminance);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<AtmosphericSkyFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericSkyAndFog)))
             {
                 ref AtmosphericSkyFogPassData passData = ref passRef.GetPassData<AtmosphericSkyFogPassData>();
                 passData.parameter = parameter;
@@ -74,7 +74,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
                 passData.sunBuffer = passRef.ReadBuffer(sunBuffer);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in AtmosphericSkyFogPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     AtmosphericLUTPassData lutData = new AtmosphericLUTPassData

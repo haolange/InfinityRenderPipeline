@@ -18,13 +18,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct ObjectMotionPassData
         {
-            public RGDrawListRef draws;
-            public RGRendererListRef rendererList;
+            public RGDrawListHandle draws;
+            public RGRendererListHandle rendererList;
         }
 
         struct CameraMotionPassData
         {
-            public RGTextureRef depthTexture;
+            public RGTextureHandle depthTexture;
         }
 
         void RasterMotion(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
@@ -34,7 +34,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var previousTransforms = m_ActiveFrameState.meshMotionHistory.pendingBinding;
 
             TextureDescriptor motionTextureDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
@@ -44,14 +44,14 @@ namespace InfinityTech.Rendering.Pipeline
                 motionTextureDsc.colorFormat = GraphicsFormat.R16G16_SFloat;
                 motionTextureDsc.depthBufferBits = EDepthBits.None;
             }
-            RGTextureRef motionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
+            RGTextureHandle motionTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionBuffer, motionTextureDsc);
             motionTextureDsc.name = "MotionMetadata";
             motionTextureDsc.colorFormat = GraphicsFormat.R32G32B32A32_SFloat;
             motionTextureDsc.clearColor = Color.clear;
-            RGTextureRef motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
+            RGTextureHandle motionMetadata = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.MotionMetadataBuffer, motionTextureDsc);
 
             m_MeshWorld.BindPreviousTransforms(view.viewKey, previousTransforms);
-            RGDrawListRef motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Motion);
+            RGDrawListHandle motionDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Motion);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterMotionPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -61,13 +61,13 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.rendererConfiguration = PerObjectData.MotionVectors;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RGRendererListRef motionRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle motionRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             //Add ObjectMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<ObjectMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterObjectMotion)))
             {
                 //Setup Phase
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 // Write marks the depth-stencil resource (stencil 5). Shader ZWrite Off keeps depth values.
@@ -88,10 +88,10 @@ namespace InfinityTech.Rendering.Pipeline
             }
 
             //Add CameraMotionPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<CameraMotionPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCameraMotion)))
             {
                 //Setup Phase
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(motionTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(motionMetadata, 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);

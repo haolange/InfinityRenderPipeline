@@ -41,9 +41,9 @@ namespace InfinityTech.Rendering.Pipeline
             public Vector4[] rects;
             public Vector4[] depthParams;
             public Vector4[] momentParams;
-            public RGTextureRef depth;
-            public RGTextureRef moments;
-            public RGTextureRef blurTemp;
+            public RGTextureHandle depth;
+            public RGTextureHandle moments;
+            public RGTextureHandle blurTemp;
         }
 
         // Builds the VSM / EVSM moment atlases for the slices whose light needs them. Each atlas has half the resolution
@@ -120,9 +120,9 @@ namespace InfinityTech.Rendering.Pipeline
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp
             };
-            RGTextureRef moments = m_RGScoper.CreateAndRegisterTexture(momentKey, descriptor);
+            RGTextureHandle moments = m_RGScoper.CreateAndRegisterTexture(momentKey, descriptor);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ShadowMomentPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeShadowMoments)))
             {
                 ref ShadowMomentPassData passData = ref passRef.GetPassData<ShadowMomentPassData>();
                 passData.shader = shaders.shadowMomentShader;
@@ -135,7 +135,7 @@ namespace InfinityTech.Rendering.Pipeline
                 descriptor.name = name + "BlurTemp";
                 passData.blurTemp = passRef.CreatePassLocalTexture(descriptor);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ShadowMomentPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.shader;

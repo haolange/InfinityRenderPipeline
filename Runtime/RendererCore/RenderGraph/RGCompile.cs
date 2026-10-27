@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     internal struct RGGroupAttachment
     {
-        public RGTextureRef texture;
+        public RGTextureHandle texture;
         public RenderBufferLoadAction load;
         public RenderBufferStoreAction store;
         public bool depth;
@@ -147,7 +147,7 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
             {
                 ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
-                if (passInfo.pass.sideEffect) passInfo.hasSideEffect = true;
+                if (!passInfo.pass.enablePassCulling) passInfo.hasSideEffect = true;
 
                 for (int type = 0; type < (int)ERGResourceType.Max; ++type)
                 {
@@ -382,12 +382,12 @@ namespace InfinityTech.Rendering.RenderGraph
             {
                 ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
                 if (passInfo.culled) continue;
-                List<RGRendererListRef> used = passInfo.pass.usedRendererLists;
+                List<RGRendererListHandle> used = passInfo.pass.usedRendererLists;
                 if (used == null) continue;
                 for (int i = 0; i < used.Count; ++i)
                 {
-                    RGRendererListRef list = used[i];
-                    if (m_RendererListRecords.IsLiveRef(list))
+                    RGRendererListHandle list = used[i];
+                    if (m_RendererListRecords.IsLive(list))
                         m_RendererListRecords.MarkLiveConsumer(list.index, passIndex);
                 }
             }
@@ -468,7 +468,7 @@ namespace InfinityTech.Rendering.RenderGraph
             for (int i = 0; i < m_PassList.Count; ++i) m_PassList[i].index = i;
         }
 
-        bool TryAttachmentSize(in RGTextureRef texture, out int width, out int height, out int samples)
+        bool TryAttachmentSize(in RGTextureHandle texture, out int width, out int height, out int samples)
         {
             TextureDescriptor descriptor = m_Resources.GetTextureDescriptor(texture.handle);
             width = descriptor.physicalWidth;
@@ -477,12 +477,12 @@ namespace InfinityTech.Rendering.RenderGraph
             return width > 0 && height > 0;
         }
 
-        static bool SameResource(in RGTextureRef a, in RGTextureRef b)
+        static bool SameResource(in RGTextureHandle a, in RGTextureHandle b)
         {
             return a.IsValid() && b.IsValid() && a.handle.index == b.handle.index && a.handle.generation == b.handle.generation;
         }
 
-        bool Samples(IRGPass pass, in RGTextureRef texture)
+        bool Samples(IRGPass pass, in RGTextureHandle texture)
         {
             foreach (RGResourceHandle handle in pass.sampledResources)
             {
@@ -499,14 +499,17 @@ namespace InfinityTech.Rendering.RenderGraph
             return info.pass.depthBuffer.IsValid() || info.pass.colorBufferMaxIndex >= 0;
         }
 
-        int FindAttachment(RGNativePassGroup group, in RGTextureRef texture)
+        int FindAttachment(RGNativePassGroup group, in RGTextureHandle texture)
         {
             for (int i = 0; i < group.attachments.Count; ++i)
                 if (SameResource(group.attachments[i].texture, texture)) return i;
             return -1;
         }
 
-        bool TryAddAttachment(RGNativePassGroup group, in RGTextureRef texture, RenderBufferLoadAction load, RenderBufferStoreAction store, bool depth, out int attachmentIndex)
+        // BeginRenderPass asserts numAttachments <= kMaxSupportedRenderTargets. Depth counts.
+        const int kMaxNativePassAttachments = 8;
+
+        bool TryAddAttachment(RGNativePassGroup group, in RGTextureHandle texture, RenderBufferLoadAction load, RenderBufferStoreAction store, bool depth, out int attachmentIndex)
         {
             attachmentIndex = FindAttachment(group, texture);
             if (attachmentIndex >= 0)
@@ -514,6 +517,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 if (depth && group.depthAttachment != attachmentIndex) return false;
                 return true;
             }
+            if (group.attachments.Count >= kMaxNativePassAttachments) return false;
             if (!TryAttachmentSize(texture, out int width, out int height, out int samples)) return false;
             if (group.attachments.Count == 0)
             {
@@ -523,8 +527,6 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             else if (width != group.width || height != group.height || samples != group.samples)
                 return false;
-            int colors = group.depthAttachment >= 0 ? group.attachments.Count - 1 : group.attachments.Count;
-            if (!depth && colors >= 8) return false;
             if (depth && group.depthAttachment >= 0) return false;
             attachmentIndex = group.attachments.Count;
             group.attachments.Add(new RGGroupAttachment { texture = texture, load = load, store = store, depth = depth });
@@ -543,6 +545,11 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
                 if (!pass.colorBuffers[i].IsValid()) return false;
+            int additional = 0;
+            if (pass.depthBuffer.IsValid() && FindAttachment(group, pass.depthBuffer) < 0) additional++;
+            for (int i = 0; i <= pass.colorBufferMaxIndex; ++i)
+                if (FindAttachment(group, pass.colorBuffers[i]) < 0) additional++;
+            if (group.attachments.Count + additional > kMaxNativePassAttachments) return false;
             foreach (RGGroupAttachment attachment in group.attachments)
                 if (Samples(pass, attachment.texture)) return false;
             if (!AttachmentFits(group, pass.depthBuffer, true)) return false;
@@ -555,16 +562,15 @@ namespace InfinityTech.Rendering.RenderGraph
             return true;
         }
 
-        bool AttachmentFits(RGNativePassGroup group, in RGTextureRef texture, bool depth)
+        bool AttachmentFits(RGNativePassGroup group, in RGTextureHandle texture, bool depth)
         {
             if (!texture.IsValid()) return true;
             if (FindAttachment(group, texture) >= 0)
                 return !depth || group.depthAttachment == FindAttachment(group, texture);
             if (!TryAttachmentSize(texture, out int width, out int height, out int samples)) return false;
+            if (group.attachments.Count >= kMaxNativePassAttachments) return false;
             if (group.attachments.Count > 0 && (width != group.width || height != group.height || samples != group.samples))
                 return false;
-            int colors = group.depthAttachment >= 0 ? group.attachments.Count - 1 : group.attachments.Count;
-            if (!depth && colors >= 8) return false;
             if (depth && group.depthAttachment >= 0) return false;
             return true;
         }
@@ -771,29 +777,29 @@ namespace InfinityTech.Rendering.RenderGraph
         {
             if (type == (int)ERGResourceType.Buffer)
             {
-                BufferDescriptor descriptor = m_Resources.GetBufferDescriptor(new RGResourceHandle(index, ERGResourceType.Buffer));
-                return (long)descriptor.count * descriptor.stride;
+                BufferDescriptor buffer = m_Resources.GetBufferDescriptor(new RGResourceHandle(index, ERGResourceType.Buffer));
+                return (long)buffer.count * buffer.stride;
             }
-            TextureDescriptor descriptor = m_Resources.GetTextureDescriptor(new RGResourceHandle(index, ERGResourceType.Texture));
+            TextureDescriptor texture = m_Resources.GetTextureDescriptor(new RGResourceHandle(index, ERGResourceType.Texture));
             int texelBytes = 4;
-            if (descriptor.colorFormat != GraphicsFormat.None)
-                texelBytes = (int)Math.Max(1u, GraphicsFormatUtility.GetBlockSize(descriptor.colorFormat));
-            else if (descriptor.depthBufferBits != EDepthBits.None)
-                texelBytes = Math.Max(1, (int)descriptor.depthBufferBits / 8);
-            int width = Math.Max(1, descriptor.physicalWidth);
-            int height = Math.Max(1, descriptor.physicalHeight);
-            int slices = Math.Max(1, descriptor.slices);
+            if (texture.colorFormat != GraphicsFormat.None)
+                texelBytes = (int)Math.Max(1u, GraphicsFormatUtility.GetBlockSize(texture.colorFormat));
+            else if (texture.depthBufferBits != EDepthBits.None)
+                texelBytes = Math.Max(1, (int)texture.depthBufferBits / 8);
+            int width = Math.Max(1, texture.physicalWidth);
+            int height = Math.Max(1, texture.physicalHeight);
+            int slices = Math.Max(1, texture.slices);
             long bytes = 0;
             int guard = 0;
             do
             {
                 bytes += (long)width * height * slices * texelBytes;
-                if (!descriptor.useMipMap || (width == 1 && height == 1) || ++guard == 16) break;
+                if (!texture.useMipMap || (width == 1 && height == 1) || ++guard == 16) break;
                 width = Math.Max(1, width >> 1);
                 height = Math.Max(1, height >> 1);
             }
             while (true);
-            return bytes * Math.Max(1, (int)descriptor.msaaSamples);
+            return bytes * Math.Max(1, (int)texture.msaaSamples);
         }
 
         void BuildSegments()
@@ -940,7 +946,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
         }
 
-        RenderBufferStoreAction EffectiveStore(in RGTextureRef texture, RenderBufferStoreAction declared, int passIndex)
+        RenderBufferStoreAction EffectiveStore(in RGTextureHandle texture, RenderBufferStoreAction declared, int passIndex)
         {
             if (declared != RenderBufferStoreAction.Store || !texture.IsValid() || m_Resources.IsResourceImported(texture.handle))
                 return declared;
@@ -975,7 +981,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 {
                     ref RGPassCompileInfo info = ref m_PassCompileInfos[passIndex];
                     if (info.culled || !PassUsesTexture(info.pass, index)) continue;
-                    if (Samples(info.pass, new RGTextureRef(index, GenerationOfTexture(index)))) { attachmentOnly = false; break; }
+                    if (Samples(info.pass, new RGTextureHandle(index, GenerationOfTexture(index)))) { attachmentOnly = false; break; }
                     if (info.mergeGroup < 0) { attachmentOnly = false; break; }
                     if (group < 0) group = info.mergeGroup;
                     else if (group != info.mergeGroup) { attachmentOnly = false; break; }
@@ -983,12 +989,14 @@ namespace InfinityTech.Rendering.RenderGraph
                     lastPass = passIndex;
                 }
                 if (!attachmentOnly || group < 0 || lastPass < 0) continue;
-                RGTextureRef texture = new RGTextureRef(index, GenerationOfTexture(index));
+                RGTextureHandle texture = new RGTextureHandle(index, GenerationOfTexture(index));
                 RenderBufferStoreAction declared = depth
                     ? m_PassCompileInfos[lastPass].pass.depthBufferAction.storeAction
                     : StoreOfColor(m_PassCompileInfos[lastPass].pass, index);
                 if (EffectiveStore(texture, declared, lastPass) != RenderBufferStoreAction.DontCare) continue;
                 TextureDescriptor descriptor = m_Resources.GetTextureDescriptor(new RGResourceHandle(index, ERGResourceType.Texture));
+                // Unity drops memoryless color when the texture is also a UAV.
+                if (!depth && descriptor.enableRandomWrite) continue;
                 RenderTextureMemoryless memoryless = depth ? RenderTextureMemoryless.Depth : RenderTextureMemoryless.Color;
                 if ((int)descriptor.msaaSamples > 1) memoryless |= RenderTextureMemoryless.MSAA;
                 descriptor.memoryless = memoryless;

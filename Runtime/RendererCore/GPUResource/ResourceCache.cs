@@ -203,36 +203,36 @@ namespace InfinityTech.Rendering.GPUResource
         }
     }
 
-    public struct FBufferRef
+    public struct BufferHandle
     {
         internal int handle;
         internal BufferDescriptor descriptor;
         public ComputeBuffer buffer;
 
-        public FBufferRef(in int handle, in BufferDescriptor descriptor, ComputeBuffer buffer)
+        public BufferHandle(in int handle, in BufferDescriptor descriptor, ComputeBuffer buffer)
         {
             this.handle = handle;
             this.descriptor = descriptor;
             this.buffer = buffer;
         }
 
-        public static implicit operator ComputeBuffer(in FBufferRef bufferRef) => bufferRef.buffer;
+        public static implicit operator ComputeBuffer(in BufferHandle bufferHandle) => bufferHandle.buffer;
     }
 
-    public struct FTextureRef
+    public struct TextureHandle
     {
         internal int handle;
         internal TextureDescriptor descriptor;
         public RTHandle texture;
 
-        internal FTextureRef(in int handle, in TextureDescriptor descriptor, RTHandle texture)
+        internal TextureHandle(in int handle, in TextureDescriptor descriptor, RTHandle texture)
         {
             this.handle = handle;
             this.descriptor = descriptor;
             this.texture = texture;
         }
 
-        public static implicit operator RTHandle(in FTextureRef textureRef) => textureRef.texture;
+        public static implicit operator RTHandle(in TextureHandle textureHandle) => textureHandle.texture;
     }
 
     // A pooled allocation may still have readers on both queues. A new command user

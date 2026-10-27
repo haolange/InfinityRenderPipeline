@@ -21,28 +21,28 @@ namespace InfinityTech.Rendering.MeshPipeline
         private readonly ProfilingSampler m_ProfileSampler;
 
         internal readonly MeshTransformVersionCache transformVersions;
-        private FBufferRef m_RenderingLayerBuffer;
-        private FBufferRef m_BoundsCenterBuffer;
-        private FBufferRef m_BoundsExtentBuffer;
-        private FBufferRef m_InstanceTransformIndexBuffer;
-        private FBufferRef m_InstanceFlagsBuffer;
-        private FBufferRef m_InstanceLayerMaskBuffer;
-        private FBufferRef m_InstanceSceneCullingMaskBuffer;
-        private FBufferRef m_InstanceRenderingLayerBuffer;
+        private BufferHandle m_RenderingLayerBuffer;
+        private BufferHandle m_BoundsCenterBuffer;
+        private BufferHandle m_BoundsExtentBuffer;
+        private BufferHandle m_InstanceTransformIndexBuffer;
+        private BufferHandle m_InstanceFlagsBuffer;
+        private BufferHandle m_InstanceLayerMaskBuffer;
+        private BufferHandle m_InstanceSceneCullingMaskBuffer;
+        private BufferHandle m_InstanceRenderingLayerBuffer;
         private int m_TransformBufferCapacity;
         private int m_InstanceBufferCapacity;
         private bool m_HasTransformBuffer;
         private bool m_HasInstanceBuffer;
 
-        public FBufferRef TransformBuffer => transformVersions.current != null ? transformVersions.current.matrices : default;
-        public FBufferRef RenderingLayerBuffer => m_RenderingLayerBuffer;
-        public FBufferRef BoundsCenterBuffer => m_BoundsCenterBuffer;
-        public FBufferRef BoundsExtentBuffer => m_BoundsExtentBuffer;
-        public FBufferRef InstanceTransformIndexBuffer => m_InstanceTransformIndexBuffer;
-        public FBufferRef InstanceFlagsBuffer => m_InstanceFlagsBuffer;
-        public FBufferRef InstanceLayerMaskBuffer => m_InstanceLayerMaskBuffer;
-        public FBufferRef InstanceSceneCullingMaskBuffer => m_InstanceSceneCullingMaskBuffer;
-        public FBufferRef InstanceRenderingLayerBuffer => m_InstanceRenderingLayerBuffer;
+        public BufferHandle TransformBuffer => transformVersions.current != null ? transformVersions.current.matrices : default;
+        public BufferHandle RenderingLayerBuffer => m_RenderingLayerBuffer;
+        public BufferHandle BoundsCenterBuffer => m_BoundsCenterBuffer;
+        public BufferHandle BoundsExtentBuffer => m_BoundsExtentBuffer;
+        public BufferHandle InstanceTransformIndexBuffer => m_InstanceTransformIndexBuffer;
+        public BufferHandle InstanceFlagsBuffer => m_InstanceFlagsBuffer;
+        public BufferHandle InstanceLayerMaskBuffer => m_InstanceLayerMaskBuffer;
+        public BufferHandle InstanceSceneCullingMaskBuffer => m_InstanceSceneCullingMaskBuffer;
+        public BufferHandle InstanceRenderingLayerBuffer => m_InstanceRenderingLayerBuffer;
         public int TransformCapacity => m_TransformBufferCapacity;
         public int InstanceCapacity => m_InstanceBufferCapacity;
         public MeshScene Scene => m_Scene;
@@ -136,14 +136,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
-        void ReturnIfCreated(FBufferRef buffer)
+        void ReturnIfCreated(BufferHandle buffer)
         {
             if (buffer.buffer != null) m_ResourcePool.ReleaseBuffer(buffer);
         }
         void RecreateTransformAttributes(int capacity)
         {
             var old = m_RenderingLayerBuffer;
-            FBufferRef layers = default;
+            BufferHandle layers = default;
             try
             {
                 layers = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, sizeof(uint)));
@@ -163,7 +163,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             var old = (m_BoundsCenterBuffer, m_BoundsExtentBuffer, m_InstanceTransformIndexBuffer, m_InstanceFlagsBuffer,
                 m_InstanceLayerMaskBuffer, m_InstanceSceneCullingMaskBuffer, m_InstanceRenderingLayerBuffer);
-            FBufferRef center = default, extent = default, transforms = default, flags = default, layers = default, masks = default, rendering = default;
+            BufferHandle center = default, extent = default, transforms = default, flags = default, layers = default, masks = default, rendering = default;
             try
             {
                 center = m_ResourcePool.GetBuffer(new BufferDescriptor(capacity, Marshal.SizeOf<float4>()));

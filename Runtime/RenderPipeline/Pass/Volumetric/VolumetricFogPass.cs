@@ -59,15 +59,15 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Matrix4x4 matrix_WorldToView;
             public Vector4 worldSpaceCameraPos;
-            public RGBufferRef lightRecordBuffer;
+            public RGBufferHandle lightRecordBuffer;
             public FLightLoopInputs lightLoop;
             public FShadowInputs shadows;
             public ComputeShader volumetricFogShader;
-            public RGTextureRef depthTexture;
-            public RGTextureRef volumetricFogTexture;
-            public RGTextureRef historyTexture;
-            public RGTextureRef skyViewLUT;
-            public RGTextureRef aerialPerspectiveLUT;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle volumetricFogTexture;
+            public RGTextureHandle historyTexture;
+            public RGTextureHandle skyViewLUT;
+            public RGTextureHandle aerialPerspectiveLUT;
             public int hasSkyView;
             public int hasAerial;
             public float aerialDistance;
@@ -112,20 +112,20 @@ namespace InfinityTech.Rendering.Pipeline
             int froxelHeight = Mathf.CeilToInt(height / 8.0f);
 
             TextureDescriptor volumetricFogDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.TextureName, true);
-            RGTextureRef volumetricFogTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
+            RGTextureHandle volumetricFogTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.VolumetricFogBuffer, volumetricFogDsc);
 
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
-            RGTextureRef historyTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, out bool historyCreated));
+            RGTextureHandle historyTexture = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc, out bool historyCreated));
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyTexture);
 
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            bool hasSkyView = m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureRef skyViewLUT);
-            bool hasAerial = m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureRef aerialPerspectiveLUT);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            bool hasSkyView = m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereSkyViewLUT, out RGTextureHandle skyViewLUT);
+            bool hasAerial = m_RGScoper.TryQueryTexture(InfinityShaderIDs.AtmosphereAerialPerspectiveLUT, out RGTextureHandle aerialPerspectiveLUT);
             float aerialDistance = pipelineAsset.atmosphericalProfile != null
                 ? AtmosphereParameter.FromProfile(pipelineAsset.atmosphericalProfile).aerialPerspectiveDistance
                 : 0.0f;
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<VolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeVolumetricFog)))
             {
                 ref VolumetricFogPassData passData = ref passRef.GetPassData<VolumetricFogPassData>();
                 passData.density = fog.density;
@@ -168,7 +168,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.aerialPerspectiveLUT = passRef.ReadTexture(aerialPerspectiveLUT);
                 }
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in VolumetricFogPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.volumetricFogShader;
@@ -227,13 +227,13 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CopyHistoryVolumetricFogPassData
         {
-            public RGTextureRef source;
-            public RGTextureRef history;
+            public RGTextureHandle source;
+            public RGTextureHandle history;
         }
 
         void CopyHistoryVolumetricFog(HistoryCache historyCache, Camera camera)
         {
-            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureRef source))
+            if (!m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle source))
             {
                 return;
             }
@@ -242,10 +242,10 @@ namespace InfinityTech.Rendering.Pipeline
             int froxelWidth = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.x / 8.0f);
             int froxelHeight = Mathf.CeilToInt(m_ActiveFrameState.dimensions.internalSize.y / 8.0f);
             TextureDescriptor historyDsc = CreateVolumetricFogDescriptor(froxelWidth, froxelHeight, volFog.Resolve().depthSlices, VolumetricFogPassUtilityData.HistoryTextureName, false);
-            RGTextureRef history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
+            RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(InfinityShaderIDs.HistoryVolumetricFogBuffer, historyDsc));
             historyCache.MarkProduced(InfinityShaderIDs.HistoryVolumetricFogBuffer);
 
-            using (RGTransferPassRef passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricFog)))
+            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryVolumetricFogPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistoryVolumetricFog)))
             {
                 passRef.ReadTexture(source);
                 passRef.WriteTexture(history);

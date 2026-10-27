@@ -14,9 +14,9 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public bool enabled;
             public ComputeShader shader;
-            public RGTextureRef texture;
+            public RGTextureHandle texture;
             public int width, height;
-            public void Record(in RGComputeEncoder commands, RGTextureRef source)
+            public void Record(in RGComputeEncoder commands, RGTextureHandle source)
             {
                 if (!enabled) return;
                 int kernel = shader.FindKernel("CaptureTexture");
@@ -27,7 +27,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        CaptureStageSnapshot PrepareStageSnapshot(RGComputePassRef pass, string semantic, RGTextureRef source)
+        CaptureStageSnapshot PrepareStageSnapshot(RGComputePassHandle pass, string semantic, RGTextureHandle source)
         {
             var session = RenderCaptureService.current;
             if (session == null || !session.CaptureThisFrame || Array.IndexOf(session.request.buffers, semantic) < 0) return default;
@@ -42,7 +42,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CaptureTransferPassData
         {
-            public RGTextureRef source, destination;
+            public RGTextureHandle source, destination;
             public RenderCaptureSession.Staging staging;
             public RGBuilder graph;
             public int sourceMip, width, height;
@@ -69,8 +69,8 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CaptureLightMaskPassData
         {
-            public RGBufferRef source;
-            public RGTextureRef destination;
+            public RGBufferHandle source;
+            public RGTextureHandle destination;
             public ComputeShader shader;
             public int width, height;
         }
@@ -195,12 +195,12 @@ namespace InfinityTech.Rendering.Pipeline
 
         struct CaptureDepthPassData
         {
-            public RGTextureRef source, destination;
+            public RGTextureHandle source, destination;
             public ComputeShader shader;
             public int width, height, kernel;
         }
 
-        RGTextureRef ConvertCaptureDepth(RGTextureRef source, TextureDescriptor descriptor)
+        RGTextureHandle ConvertCaptureDepth(RGTextureHandle source, TextureDescriptor descriptor)
         {
             var shader = Resources.Load<ComputeShader>("Compute_CaptureDepth");
             if (shader == null || !shader.HasKernel("CaptureDepth"))
@@ -210,8 +210,8 @@ namespace InfinityTech.Rendering.Pipeline
             descriptor.isShadowMap = false;
             descriptor.enableRandomWrite = true;
             descriptor.name = "CaptureDepthValues";
-            RGTextureRef destination = m_RGBuilder.CreateTexture(descriptor);
-            using (RGComputePassRef pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
+            RGTextureHandle destination = m_RGBuilder.CreateTexture(descriptor);
+            using (RGComputePassHandle pass = m_RGBuilder.AddComputePass<CaptureDepthPassData>(s_CaptureDepthSampler))
             {
                 ref var data = ref pass.GetPassData<CaptureDepthPassData>();
                 data.source = pass.ReadTexture(source);
@@ -229,7 +229,7 @@ namespace InfinityTech.Rendering.Pipeline
             return destination;
         }
 
-        RGTextureRef ConvertCaptureMetadata(RGTextureRef source, TextureDescriptor descriptor)
+        RGTextureHandle ConvertCaptureMetadata(RGTextureHandle source, TextureDescriptor descriptor)
         {
             var shader = Resources.Load<ComputeShader>("Compute_CaptureTexture");
             if (shader == null || !shader.HasKernel("CaptureSurfaceMetadata"))
@@ -257,7 +257,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RecordCaptureTransfer(RenderCaptureSession session, string semantic, int shaderId, int sourceMip = 0)
         {
-            RGTextureRef source = m_RGScoper.QueryTexture(shaderId);
+            RGTextureHandle source = m_RGScoper.QueryTexture(shaderId);
             if (!source.IsValid()) throw new InvalidOperationException("Capture source producer is missing: " + semantic);
             var descriptor = m_RGBuilder.GetTextureDescriptor(source);
             var sourceDescriptor = descriptor;
@@ -285,10 +285,10 @@ namespace InfinityTech.Rendering.Pipeline
             if (sourceQueue == "External") staging.evidence.producerFrame = -1;
             staging.evidence.sourceDescriptor = sourceDescriptor;
             staging.evidence.sourceMip = sourceMip;
-            RGTextureRef destination = m_RGBuilder.ImportTexture(staging.handle);
-            using (RGTransferPassRef pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
+            RGTextureHandle destination = m_RGBuilder.ImportTexture(staging.handle);
+            using (RGTransferPassHandle pass = m_RGBuilder.AddTransferPass<CaptureTransferPassData>(s_CaptureTransferSampler))
             {
-                pass.MarkSideEffect();
+                pass.EnablePassCulling(false);
                 ref CaptureTransferPassData data = ref pass.GetPassData<CaptureTransferPassData>();
                 data.source = pass.ReadTexture(source);
                 data.destination = pass.WriteTexture(destination);

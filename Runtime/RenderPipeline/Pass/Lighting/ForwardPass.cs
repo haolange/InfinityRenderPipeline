@@ -21,18 +21,18 @@ namespace InfinityTech.Rendering.Pipeline
         struct ForwardPassData
         {
             public bool hasSubsurface;
-            public RGDrawListRef draws;
-            public RGRendererListRef rendererList;
-            public RGTextureRef atmosphereGGX;
-            public RGTextureRef occlusion;
+            public RGDrawListHandle draws;
+            public RGRendererListHandle rendererList;
+            public RGTextureHandle atmosphereGGX;
+            public RGTextureHandle occlusion;
             public bool hasOcclusion;
             public FShadowInputs shadows;
             public bool hasContactShadow;
-            public RGTextureRef contactShadowSun, contactShadowMask;
+            public RGTextureHandle contactShadowSun, contactShadowMask;
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
-            public RGBufferRef atmosphereSH;
-            public RGBufferRef lightRecords;
+            public RGBufferHandle atmosphereSH;
+            public RGBufferHandle lightRecords;
             public FLightLoopInputs lightLoop;
             public float iblMaxMip;
 
@@ -61,10 +61,10 @@ namespace InfinityTech.Rendering.Pipeline
 
         void RasterForward(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
-            RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
 
-            RGDrawListRef forwardDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Forward);
+            RGDrawListHandle forwardDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Forward);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterForwardPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -74,13 +74,13 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.OcclusionProbe | PerObjectData.ShadowMask | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RGRendererListRef forwardRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle forwardRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             //Add ForwardPass
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<ForwardPassData>(ProfilingSampler.Get(CustomSamplerId.RasterForward)))
             {
                 //Setup Phase
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(lightingTexture, 0, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectDiffuseBuffer), 1, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(m_RGScoper.QueryTexture(InfinityShaderIDs.IndirectSpecularBuffer), 2, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store);
@@ -95,14 +95,14 @@ namespace InfinityTech.Rendering.Pipeline
                     FShadowInputs shadows = QueryShadowInputs(renderContext);
                     shadows.Read(passRef);
                     passData.shadows = shadows;
-                    passData.hasContactShadow = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureRef contactShadowSun);
+                    passData.hasContactShadow = m_RGScoper.TryQueryTexture(InfinityShaderIDs.ContactShadowBuffer, out RGTextureHandle contactShadowSun);
                     if (passData.hasContactShadow)
                     {
                         passData.contactShadowSun = passRef.ReadTexture(contactShadowSun);
                         passData.contactShadowMask = passRef.ReadTexture(m_RGScoper.QueryTexture(InfinityShaderIDs.ContactShadowMaskBuffer));
                     }
                     passData.hasProbes = LightmapSettings.lightProbes != null && LightmapSettings.lightProbes.count > 0 ? 1 : 0;
-                    passData.hasOcclusion = m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureRef occlusion);
+                    passData.hasOcclusion = m_RGScoper.TryQueryTexture(InfinityShaderIDs.OcclusionBuffer, out RGTextureHandle occlusion);
                     if (passData.hasOcclusion) passData.occlusion = passRef.ReadTexture(occlusion);
                     passData.draws = passRef.UseDrawList(forwardDraws);
                     passData.rendererList = passRef.UseRendererList(forwardRendererList);

@@ -234,7 +234,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 SetRenderTarget(ref graphContext, info);
 
             graphContext.cmdBuffer.DisableScissorRect();
-            RGTextureRef viewportTarget = pass.colorBufferMaxIndex >= 0 ? pass.colorBuffers[0] : pass.depthBuffer;
+            RGTextureHandle viewportTarget = pass.colorBufferMaxIndex >= 0 ? pass.colorBuffers[0] : pass.depthBuffer;
             if (!viewportTarget.IsValid()) return;
             var descriptor = GetTextureDescriptor(viewportTarget);
             graphContext.cmdBuffer.SetViewport(new Rect(0, 0, descriptor.width, descriptor.height));

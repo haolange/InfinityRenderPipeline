@@ -108,7 +108,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     for (int i = 0; i < phases.Length; ++i)
                     {
                         view.visibilityPhase = phases[i];
-                        m_Readbacks.Add(AsyncGPUReadback.Request(m_World.GetGpuVisibilityBufferRef(view, m_MeshScene.InstanceHighWater).buffer));
+                        m_Readbacks.Add(AsyncGPUReadback.Request(m_World.GetGpuVisibilityBufferHandle(view, m_MeshScene.InstanceHighWater).buffer));
                     }
                     var states = (Dictionary<int, CameraFrameState>)typeof(InfinityRenderPipeline).GetField("m_CameraStates", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pipeline);
                     var state = states.Values.Single(s => s.camera == m_Camera);

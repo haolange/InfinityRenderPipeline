@@ -1,6 +1,6 @@
 # Infinity RP
 
-InfinityRP is a RenderGraph-native Scriptable Render Pipeline. This documentation covers user-facing setup and authoring. Architecture is described in `DESIGN.md` at the package root; per-feature verification state is in `Docs/FeatureStatus.md`.
+InfinityRP is a RenderGraph-native Scriptable Render Pipeline. This documentation covers user-facing setup and authoring. Architecture is described in `ARCHITECTURE.md` at the package root, Editor UI in `DESIGN.md`, and per-feature verification state in `Docs/FeatureStatus.md`.
 
 ## Contents
 

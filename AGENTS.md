@@ -13,8 +13,8 @@ This document defines coding conventions and collaboration rules for `com.infini
 
 1. **Entity data belongs to the entity; draw descriptions only reference it.** One logical object owns one `TransformId` / bounds. Submesh, material, and pass only add `MeshDraw` / template references.
 2. **Cache stable structure; regenerate view results.** Pass bins and their command table are rebuilt only on structural change. Visibility, LOD, sort order, and compaction are per request/view.
-3. **One public Mesh Drawing API for CPU and GPU backends.** Callers use `MeshDrawRequest` / `RGDrawListRef`; backends stay internal.
-4. **RenderGraph-native lifecycle.** `CreateDrawList` records only; structural pass culling runs first and propagates across every resource type; only live DrawLists schedule work; cleanup is graph-owned. Compiler-inserted mesh preparation moves to the earliest pass whose inputs exist. Recorded pass order is otherwise the schedule. Adjacent graphics work is one submission segment, and compatible raster passes are one native render pass. Unity has no GPU heap: overlap is a descriptor-level slot plan executed by `ResourcePool`. Resource handles carry a generation and are rejected after the graph that created them.
+3. **One public Mesh Drawing API for CPU and GPU backends.** Callers use `MeshDrawRequest` / `RGDrawListHandle`; backends stay internal.
+4. **RenderGraph-native lifecycle.** `CreateDrawList` records only; structural pass culling runs first and propagates across every resource type; only live DrawLists schedule work; cleanup is graph-owned. A pass that must run calls `EnablePassCulling(false)`. Compiler-inserted mesh preparation moves to the earliest pass whose inputs exist. Recorded pass order is otherwise the schedule. Adjacent graphics work is one submission segment, and compatible raster passes are one native render pass. Unity has no GPU heap: overlap is a descriptor-level slot plan executed by `ResourcePool`. Resource handles carry a generation and are rejected after the graph that created them.
 5. **No legacy / deprecated compatibility layers.** When a path is replaced, delete the old ownership path. Do not keep dual authorities.
 
 ## Naming
@@ -23,8 +23,9 @@ This document defines coding conventions and collaboration rules for `com.infini
 |------|------------|----------|
 | Namespace | `InfinityTech.<Domain>[.<Sub>][.Editor]` | `InfinityTech.Rendering.MeshPipeline` |
 | Enum | `E` prefix | `EPassType`, `EMeshBackendPolicy` |
-| Geometry / handle struct | `F` prefix | `FBound`, `FBufferRef`, `FPlane` |
-| RenderGraph type | `RG` prefix | `RGBuilder`, `RGDrawListRef` |
+| Geometry / GPU record | `F` prefix | `FBound`, `FPlane`, `FLightRecord` |
+| Handle | `Handle` suffix, no `F` | `TextureHandle`, `BufferHandle`, `RGTextureHandle`, `RGDrawListHandle`, `ObjectHandle<T>` |
+| RenderGraph type | `RG` prefix | `RGBuilder`, `RGRasterPassHandle` |
 | Job | `*Job` suffix | `MeshInstanceCullingJob` |
 | Private instance field | `m_` + PascalCase | `m_RGBuilder` |
 | Static readonly | `s_` prefix | `s_Shader` |
@@ -82,7 +83,7 @@ This document defines coding conventions and collaboration rules for `com.infini
 Public RDG usage:
 
 ```csharp
-RGDrawListRef draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
+RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
 data.draws = pass.UseDrawList(draws);
 // execute:
 cmdEncoder.Draw(data.draws);
@@ -93,7 +94,7 @@ cmdEncoder.Draw(data.draws);
 These rules exist because Console-clean patches have already hidden real ownership, ordering, and lifetime bugs. A silent fallback is not a fix.
 
 1. **Do not disable a designed path to silence Console.** Forbidden patterns include `EnableAsyncCompute(false)` as a correctness switch, replacing `throw` with `return false`, dispatching with `count = 0` to look wired, and `if (shader == null) return` inside execute. If a feature is unimplemented, do not record the pass.
-2. **Do not swallow invalid resources.** An invalid `RGTextureRef` / `RGBufferRef`, a `Query*` miss, or a failed Resolve must fail at record/setup. Forbidden: `Texture2D.blackTexture` fallbacks, lighting-as-history, binding an empty `RenderTargetIdentifier` to compute.
+2. **Do not swallow invalid resources.** An invalid `RGTextureHandle` / `RGBufferHandle`, a `Query*` miss, or a failed Resolve must fail at record/setup. Forbidden: `Texture2D.blackTexture` fallbacks, lighting-as-history, binding an empty `RenderTargetIdentifier` to compute.
 3. **Pass type is not a workaround knob.** Transfer = copy. Raster = draw. Compute = dispatch. Gizmo/WireOverlay and FinalOutput all stay Raster, because each of them ends in a draw. Never move Draw into Transfer to dodge an API, and never call `SetRenderTarget` inside a pass execute — attachments are declared at record time and bound by `RGBuilder`.
 4. **Image history lives only in `HistoryCache`.** Import accepted history for reads and pending targets for writes. A producer may write pending history directly, as fused TAA does; other producers use an explicit CopyHistory transfer. Accept pending history only after successful submission. Never Query a same-frame scoper ID that has not been written yet and call it history.
 5. **One semantic buffer, one owner.** Downstream reads the ID the last producer registered (`DisplayColorBuffer` for the frame's present source). Do not guess a sibling ID (`SuperResolutionBuffer` vs `AntiAliasingBuffer` vs `LightingBuffer`).
@@ -168,7 +169,7 @@ Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defe
 
 1. **`CommandBufferPool.Get()` is always unnamed.** A named buffer creates an implicit Frame Debugger scope that closes on every `ExecuteCommandBuffer`, orphaning any `BeginSample` / `EndSample` that spans later executes. Camera and pass grouping come only from `ProfilingScope(cmd, sampler)`.
 2. **An RG pass GPU name comes only from `pass.customSampler`.** Do not write `cmdBuffer.name = pass.name`. That duplicates the sampler and produces `RasterDepth > RasterDepth > draws`.
-3. **A `ProfilingSampler` name must not match any `cmd.BeginSample(string)` argument.** Cross-pass groups use `RGProfilingScope`, which records a pass range. The executor calls `sampler.Begin` / `sampler.End` on the command buffer of each submission segment that range touches. It does not insert passes. String `BeginSample` is only for in-pass temporary markers that have no same-named sampler (`BloomDownsample`, `BloomUpsample`).
+3. **A `ProfilingSampler` name must not match any `cmd.BeginSample(string)` argument.** Cross-pass groups use `RGProfilingScope`, which records a pass range. On one submission segment the parent sampler begins on the first live pass and ends on the last, on that segment's command buffer. A segment split closes it and begins it again on the next buffer. It does not insert passes, and each pass keeps its own `customSampler`. String `BeginSample` is only for in-pass temporary markers that have no same-named sampler (`BloomDownsample`, `BloomUpsample`).
 4. **`ProfilingScope(sampler)` without a CommandBuffer is a deliberate CPU-only track.** Do not add a cmdBuffer to it to "make GPU markers appear".
 
 ## Temporal / jitter conventions
@@ -252,7 +253,7 @@ Console-clean is not render-correct. A single depth-clear regression once held t
 - Atmosphere and light-list outputs are explicit consumer inputs; producers do not prebind globals. Every light-list consumer declares the z-bin and tile-mask buffers (`QueryLightLoop` + `ReadBuffer`) and binds them with `FLightLoopInputs.Bind` / `BindGlobal`.
 - Capture uses an explicitly selected active Game camera or requires one unambiguous active Game camera. No MainCamera-tag assumption.
 - Capture Lighting before its ownership moves into scene-color stages. Do not query a retired semantic name at frame end or guess an alias.
-- LightContext uploads are graph Transfer producers. All light-buffer consumers declare RGBufferRef inputs and bind through capabilities. Imported GraphicsBuffer targets are not ComputeBuffer descriptors; do not silently clone or cast them. Replaced LightContext buffers retire after Submit.
+- LightContext uploads are graph Transfer producers. All light-buffer consumers declare RGBufferHandle inputs and bind through capabilities. Imported GraphicsBuffer targets are not ComputeBuffer descriptors; do not silently clone or cast them. Replaced LightContext buffers retire after Submit.
 - History write reservations must not mutate committed descriptors/resources. Swap both on commit, and preserve old committed history on pending rollback. Shared-cache validity comes from queue-accepted producers, independent of camera success. Failed camera/frame transactions force history reset; frame cleanup preserves the first exception and still attempts Submit for earlier accepted work.
 
 ## Unity Editor interaction

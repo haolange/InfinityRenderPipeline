@@ -33,25 +33,25 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public bool hasSubsurface;
-            public RGTextureRef scatterDiffuse;
+            public RGTextureHandle scatterDiffuse;
             public int hasSSR;
             public int hasSSGI;
             public ComputeShader compositeShader;
-            public RGTextureRef lightingTexture;
-            public RGTextureRef indirectDiffuse, indirectSpecular;
-            public RGTextureRef gBufferA;
-            public RGTextureRef gBufferB;
-            public RGTextureRef gBufferC;
-            public RGTextureRef depthTexture;
-            public RGTextureRef ssrTexture;
-            public RGTextureRef ssgiTexture;
-            public RGTextureRef sceneColorTexture;
+            public RGTextureHandle lightingTexture;
+            public RGTextureHandle indirectDiffuse, indirectSpecular;
+            public RGTextureHandle gBufferA;
+            public RGTextureHandle gBufferB;
+            public RGTextureHandle gBufferC;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle ssrTexture;
+            public RGTextureHandle ssgiTexture;
+            public RGTextureHandle sceneColorTexture;
         }
 
         void ComputeScreenSpaceComposite(RenderContext renderContext, Camera camera)
         {
-            bool hasSSR = m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out RGTextureRef ssrTexture);
-            bool hasSSGI = m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out RGTextureRef ssgiTexture);
+            bool hasSSR = m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSRBuffer, out RGTextureHandle ssrTexture);
+            bool hasSSGI = m_RGScoper.TryQueryTexture(InfinityShaderIDs.SSGIBuffer, out RGTextureHandle ssgiTexture);
             if (!hasSSR && !hasSSGI)
             {
                 return;
@@ -71,15 +71,15 @@ namespace InfinityTech.Rendering.Pipeline
             compositeDsc.colorFormat = GraphicsFormat.R16G16B16A16_SFloat;
             compositeDsc.depthBufferBits = EDepthBits.None;
             compositeDsc.enableRandomWrite = true;
-            RGTextureRef compositeTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, compositeDsc);
+            RGTextureHandle compositeTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ScreenSpaceCompositeBuffer, compositeDsc);
 
-            RGTextureRef lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
-            RGTextureRef gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
-            RGTextureRef gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
-            RGTextureRef gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
+            RGTextureHandle gBufferA = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferA);
+            RGTextureHandle gBufferB = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferB);
+            RGTextureHandle gBufferC = m_RGScoper.QueryTexture(InfinityShaderIDs.GBufferC);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ScreenSpaceCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceComposite)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ScreenSpaceCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceComposite)))
             {
                 ref ScreenSpaceCompositePassData passData = ref passRef.GetPassData<ScreenSpaceCompositePassData>();
                 passData.resolution = new int2(width, height);
@@ -112,7 +112,7 @@ namespace InfinityTech.Rendering.Pipeline
                 }
                 passData.sceneColorTexture = passRef.WriteTexture(compositeTexture);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in ScreenSpaceCompositePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.compositeShader;

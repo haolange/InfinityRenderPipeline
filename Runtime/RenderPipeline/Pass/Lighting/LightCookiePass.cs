@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
         {
             public ComputeShader shader;
             public FCookieUpload[] uploads;
-            public RGTextureRef atlas;
+            public RGTextureHandle atlas;
         }
 
         sealed class CookieProduction : IRGPassQueueObserver
@@ -47,7 +47,7 @@ namespace InfinityTech.Rendering.Pipeline
             }
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.LightCookies);
 
-            RGTextureRef atlas = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
+            RGTextureHandle atlas = m_RGBuilder.ImportTexture(m_LightCookieAtlas.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.LightCookieAtlas, atlas);
 
             List<FCookieUpload> pending = m_LightCookieAtlas.Uploads;
@@ -58,13 +58,13 @@ namespace InfinityTech.Rendering.Pipeline
                 var keys = new FCookieKey[uploads.Length];
                 for (int i = 0; i < uploads.Length; ++i) keys[i] = uploads[i].key;
 
-                using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
+                using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<LightCookiePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeLightCookies)))
                 {
                     ref LightCookiePassData passData = ref passRef.GetPassData<LightCookiePassData>();
                     passData.shader = shaders.lightCookieShader;
                     passData.uploads = uploads;
                     passData.atlas = passRef.WriteTexture(atlas);
-                    passRef.MarkSideEffect();
+                    passRef.EnablePassCulling(false);
                     passRef.SetQueueObserver(new CookieProduction { atlas = m_LightCookieAtlas, keys = keys });
                     passRef.SetExecuteFunc((in LightCookiePassData passData, in RGComputeEncoder cmdEncoder) =>
                     {

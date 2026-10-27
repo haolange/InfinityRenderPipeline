@@ -20,8 +20,8 @@ namespace InfinityTech.Rendering.Pipeline
             public bool historyValid, diagnostics;
             public int kernel;
             public ComputeShader shader;
-            public RGTextureRef input, motion, metadata, reactive, historyColor, historyDepth;
-            public RGTextureRef accumulation, temporalDepth, sharpened, confidence, reprojection;
+            public RGTextureHandle input, motion, metadata, reactive, historyColor, historyDepth;
+            public RGTextureHandle accumulation, temporalDepth, sharpened, confidence, reprojection;
             public CaptureStageSnapshot inputSnapshot, historyColorSnapshot, historyDepthSnapshot;
         }
         static TextureDescriptor TemporalColorDescriptor(int width, int height, string name, bool writable = false, ETextureSizingDomain domain = ETextureSizingDomain.Internal)
@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
             var input = m_RGScoper.QueryTexture(TranslucentFeatureUtility.ResolveTemporalSceneColorId());
             bool diagnostics = m_ActiveFrameState.debugView != EDebugView.None ||
                 (RenderCaptureService.current != null && RenderCaptureService.current.CaptureThisFrame && RenderCaptureService.current.request.includeConfidence);
-            RGTextureRef confidence = default, reprojection = default;
+            RGTextureHandle confidence = default, reprojection = default;
             if (diagnostics)
             {
                 var descriptor = TemporalColorDescriptor(width, height, "TAADiagnostics", true);

@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int mipCount, kernel;
             public int2 fullSize, baseSize;
             public ComputeShader shader;
-            public RGTextureRef depth, closest, furthest;
+            public RGTextureHandle depth, closest, furthest;
         }
         internal static TextureDescriptor HiZDescriptor(int width, int height, string name)
             => new TextureDescriptor((width + 1) / 2, (height + 1) / 2, ETextureSizingDomain.Internal, 2)
@@ -55,7 +55,7 @@ namespace InfinityTech.Rendering.Pipeline
             MarkFeatureProduced(EFrameFeature.HiZ);
         }
 
-        RGTextureRef ComputeEarlyFurthestHiZ()
+        RGTextureHandle ComputeEarlyFurthestHiZ()
         {
             var depth = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             var size = m_RGBuilder.GetTextureDescriptor(depth);
@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
             return far;
         }
 
-        void RecordHiZ(RGTextureRef depth, RGTextureRef closest, RGTextureRef furthest, int width, int height, bool async, ProfilingSampler sampler)
+        void RecordHiZ(RGTextureHandle depth, RGTextureHandle closest, RGTextureHandle furthest, int width, int height, bool async, ProfilingSampler sampler)
         {
             var shader = shaders.hiZShader;
             string name = closest.IsValid() ? "HiZ_Generation" : "HiZ_FurthestGeneration";

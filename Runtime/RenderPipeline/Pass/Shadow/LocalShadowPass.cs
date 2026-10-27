@@ -39,8 +39,8 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4[] shadowMatrices;
             public Vector4[] tileRects;
             public Vector4[] casterBias, casterLight;
-            public RGDrawListRef[] draws;
-            public RGRendererListRef[] rendererLists;
+            public RGDrawListHandle[] draws;
+            public RGRendererListHandle[] rendererLists;
         }
 
         struct CopyCachedLocalShadowPassData
@@ -48,7 +48,7 @@ namespace InfinityTech.Rendering.Pipeline
             public int shaderPass;
             public int count;
             public Vector4[] sourceRects, destinationRects;
-            public RGTextureRef source;
+            public RGTextureHandle source;
         }
 
         sealed class CachedShadowProduction : IRGPassQueueObserver
@@ -90,7 +90,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shadowMapDsc.isShadowMap = true;
                 shadowMapDsc.filterMode = FilterMode.Bilinear;
             }
-            RGTextureRef shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LocalShadowMap, shadowMapDsc);
+            RGTextureHandle shadowMapTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LocalShadowMap, shadowMapDsc);
 
             // Same tile size as ShadowAllocator.Allocate, so a cached tile copies 1:1 into the frame atlas.
             int tileResolution = math.max(1, shadowMapResolution / 4);
@@ -100,8 +100,8 @@ namespace InfinityTech.Rendering.Pipeline
             Vector4[] tileRects = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
             Vector4[] casterBias = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
             Vector4[] casterLight = m_RGBuilder.GetRecordingArray<Vector4>(matrixCount);
-            RGDrawListRef[] sliceDraws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(matrixCount);
-            RGRendererListRef[] sliceRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(matrixCount);
+            RGDrawListHandle[] sliceDraws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(matrixCount);
+            RGRendererListHandle[] sliceRendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(matrixCount);
             // Cache slot per slice (-1 = rendered into the frame atlas) and whether the slot re-renders this frame.
             int[] cacheSlots = m_RGBuilder.GetRecordingArray<int>(matrixCount);
             bool[] cacheRender = m_RGBuilder.GetRecordingArray<bool>(matrixCount);
@@ -110,8 +110,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 shadowMatrices[i] = Matrix4x4.identity;
                 tileRects[i] = Vector4.zero;
-                sliceDraws[i] = RGDrawListRef.Invalid;
-                sliceRendererLists[i] = RGRendererListRef.Invalid;
+                sliceDraws[i] = RGDrawListHandle.Invalid;
+                sliceRendererLists[i] = RGRendererListHandle.Invalid;
                 cacheSlots[i] = -1;
             }
 
@@ -188,9 +188,9 @@ namespace InfinityTech.Rendering.Pipeline
                 sliceRendererLists[slice] = m_RGBuilder.CreateShadowRendererList(shadowDrawingSettings);
             }
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<LocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterLocalShadow)))
             {
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetDepthStencilAttachment(shadowMapTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref LocalShadowPassData passData = ref passRef.GetPassData<LocalShadowPassData>();
@@ -204,17 +204,17 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.tileRects = tileRects;
                     passData.casterBias = casterBias;
                     passData.casterLight = casterLight;
-                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListRef>(matrixCount);
-                    passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListRef>(matrixCount);
+                    passData.draws = m_RGBuilder.GetRecordingArray<RGDrawListHandle>(matrixCount);
+                    passData.rendererLists = m_RGBuilder.GetRecordingArray<RGRendererListHandle>(matrixCount);
                     for (int slice = 0; slice < matrixCount; ++slice)
                     {
                         // Current cached tiles have no draws; they are copied in from the cache afterwards.
                         passData.draws[slice] = sliceDraws[slice].IsValid
                             ? passRef.UseDrawList(sliceDraws[slice])
-                            : RGDrawListRef.Invalid;
+                            : RGDrawListHandle.Invalid;
                         passData.rendererLists[slice] = sliceRendererLists[slice].IsValid
                             ? passRef.UseRendererList(sliceRendererLists[slice])
-                            : RGRendererListRef.Invalid;
+                            : RGRendererListHandle.Invalid;
                     }
                 }
 
@@ -249,7 +249,7 @@ namespace InfinityTech.Rendering.Pipeline
         }
 
         static void DrawShadowSlice(in RGRasterEncoder cmdEncoder, Vector4 rect, Vector4 casterBias, Vector4 casterLight, Matrix4x4 shadowMatrix,
-            RGDrawListRef draws, RGRendererListRef rendererList)
+            RGDrawListHandle draws, RGRendererListHandle rendererList)
         {
             cmdEncoder.SetViewport(new Rect(rect.x, rect.y, rect.z, rect.w));
             cmdEncoder.SetGlobalDepthBias(0, 0);
@@ -266,7 +266,7 @@ namespace InfinityTech.Rendering.Pipeline
         // into its cache slot; a current tile is loaded from its cache slot. Drawing into the frame atlas avoids a
         // partial depth clear of the persistent atlas. Saving is the cache production: the slot commits when this
         // pass is queued and the frame is submitted.
-        void RecordCachedLocalShadows(int sliceCount, RGTextureRef shadowMapTexture, Vector4[] tileRects, int[] cacheSlots,
+        void RecordCachedLocalShadows(int sliceCount, RGTextureHandle shadowMapTexture, Vector4[] tileRects, int[] cacheSlots,
             bool[] cacheRender, FShadowCacheKey[] cacheKeys)
         {
             int saveCount = 0, loadCount = 0;
@@ -283,7 +283,7 @@ namespace InfinityTech.Rendering.Pipeline
                 return;
             }
 
-            RGTextureRef cacheAtlas = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
+            RGTextureHandle cacheAtlas = m_RGBuilder.ImportTexture(m_LocalShadowCache.GetAtlas());
             m_RGScoper.RegisterTexture(InfinityShaderIDs.CachedLocalShadowMap, cacheAtlas);
 
             int shaderPass = GraphicsUtility.BlitMaterial.FindPass("RasterCopyShadowDepthTile");
@@ -309,7 +309,7 @@ namespace InfinityTech.Rendering.Pipeline
                 RecordShadowDepthCopies(cacheAtlas, shadowMapTexture, cacheRects, frameRects, saveCount, loadCount, shaderPass, null);
         }
 
-        void RecordShadowDepthCopies(RGTextureRef source, RGTextureRef destination, Vector4[] sourceRects, Vector4[] destinationRects,
+        void RecordShadowDepthCopies(RGTextureHandle source, RGTextureHandle destination, Vector4[] sourceRects, Vector4[] destinationRects,
             int first, int count, int shaderPass, IRGPassQueueObserver observer)
         {
             using (var pass = m_RGBuilder.AddRasterPass<CopyCachedLocalShadowPassData>(ProfilingSampler.Get(CustomSamplerId.RasterCopyShadowDepthTiles)))

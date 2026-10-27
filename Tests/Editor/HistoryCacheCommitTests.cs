@@ -42,14 +42,14 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         {
             var small = MakeDescriptor(8, 8, "Accepted");
             var large = MakeDescriptor(17, 13, "Pending");
-            FTextureRef first = m_Cache.GetTexture(11, small, out bool created);
+            TextureHandle first = m_Cache.GetTexture(11, small, out bool created);
             Assert.IsTrue(created);
-            FTextureRef read = m_Cache.GetTexture(11, large, out bool invalid);
+            TextureHandle read = m_Cache.GetTexture(11, large, out bool invalid);
             Assert.IsTrue(invalid);
             Assert.AreSame(first.texture, read.texture);
             Assert.AreEqual(8, read.descriptor.width);
             Assert.AreEqual(0, m_Cache.RetiredQueuedCount);
-            FTextureRef pending = m_Cache.GetWriteTexture(11, large);
+            TextureHandle pending = m_Cache.GetWriteTexture(11, large);
             m_Cache.MarkProduced(11);
             m_Cache.CommitFrame();
             Assert.AreSame(pending.texture, m_Cache.GetTexture(11, large).texture);
@@ -67,13 +67,13 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             var descriptor = MakeDescriptor(17, 13, "History");
             descriptor.sizingDomain = ETextureSizingDomain.Internal;
             m_Cache.SetTextureCapacity(new FTextureCapacityContext(new Unity.Mathematics.int2(64), new Unity.Mathematics.int2(64)));
-            FTextureRef accepted = m_Cache.GetTexture(12, descriptor);
+            TextureHandle accepted = m_Cache.GetTexture(12, descriptor);
             m_Cache.SetTextureCapacity(new FTextureCapacityContext(new Unity.Mathematics.int2(128), new Unity.Mathematics.int2(128)));
-            FTextureRef read = m_Cache.GetTexture(12, descriptor, out bool invalid);
+            TextureHandle read = m_Cache.GetTexture(12, descriptor, out bool invalid);
             Assert.IsFalse(invalid);
             Assert.AreSame(accepted.texture, read.texture);
             Assert.AreEqual(64, read.descriptor.physicalWidth);
-            FTextureRef pending = m_Cache.GetWriteTexture(12, descriptor);
+            TextureHandle pending = m_Cache.GetWriteTexture(12, descriptor);
             Assert.AreEqual(128, pending.descriptor.physicalWidth);
             m_Cache.MarkProduced(12);
             m_Cache.CommitFrame();
@@ -85,12 +85,12 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         {
             var small = MakeDescriptor(8, 8, "Committed");
             var large = MakeDescriptor(17, 13, "Pending");
-            FTextureRef original = m_Cache.GetTexture(55, small);
-            FTextureRef readDuringResize = m_Cache.GetTexture(55, large, out bool invalid);
+            TextureHandle original = m_Cache.GetTexture(55, small);
+            TextureHandle readDuringResize = m_Cache.GetTexture(55, large, out bool invalid);
             Assert.IsTrue(invalid);
             Assert.AreSame(original.texture, readDuringResize.texture);
             Assert.AreEqual(8, readDuringResize.descriptor.width);
-            FTextureRef pending = m_Cache.GetWriteTexture(55, large);
+            TextureHandle pending = m_Cache.GetWriteTexture(55, large);
             m_Cache.MarkProduced(55);
             m_Cache.RollbackPending();
             Assert.AreSame(original.texture, m_Cache.GetTexture(55, small, out bool recreated).texture);
@@ -105,8 +105,8 @@ namespace InfinityTech.Rendering.GPUResource.Tests
         {
             var small = new BufferDescriptor(1, 16, ComputeBufferType.Structured);
             var large = new BufferDescriptor(8, 16, ComputeBufferType.Structured);
-            FBufferRef original = m_Cache.GetBuffer(56, small);
-            FBufferRef pending = m_Cache.GetWriteBuffer(56, large);
+            BufferHandle original = m_Cache.GetBuffer(56, small);
+            BufferHandle pending = m_Cache.GetWriteBuffer(56, large);
             m_Cache.MarkProduced(56);
             m_Cache.RollbackPending();
             Assert.AreSame(original.buffer, m_Cache.GetBuffer(56, small).buffer);
@@ -142,14 +142,14 @@ namespace InfinityTech.Rendering.GPUResource.Tests
             const int id = 33;
             TextureDescriptor descriptor = MakeDescriptor(8, 8, "HistorySwap");
 
-            FTextureRef committed = m_Cache.GetTexture(id, descriptor, out _);
-            FTextureRef pending = m_Cache.GetWriteTexture(id, descriptor);
+            TextureHandle committed = m_Cache.GetTexture(id, descriptor, out _);
+            TextureHandle pending = m_Cache.GetWriteTexture(id, descriptor);
             Assert.AreNotSame(committed.texture, pending.texture);
 
             m_Cache.MarkProduced(id);
             m_Cache.CommitFrame();
 
-            FTextureRef after = m_Cache.GetTexture(id, descriptor, out bool created);
+            TextureHandle after = m_Cache.GetTexture(id, descriptor, out bool created);
             Assert.IsFalse(created);
             Assert.AreSame(pending.texture, after.texture);
             Assert.AreEqual(1, m_Cache.TextureGeneration(id));

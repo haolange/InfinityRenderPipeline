@@ -74,14 +74,14 @@ namespace InfinityTech.Rendering.GPUResource
             return m_Textures.TryGetValue(id, out TextureSlot slot) ? slot.generation : 0;
         }
 
-        public FBufferRef GetBuffer(in int id, in BufferDescriptor descriptor)
+        public BufferHandle GetBuffer(in int id, in BufferDescriptor descriptor)
         {
             BufferSlot slot = GetOrCreateBufferSlot(id);
             ReallocCommittedBufferIfNeeded(slot, descriptor);
-            return new FBufferRef(-1, descriptor, slot.committed);
+            return new BufferHandle(-1, descriptor, slot.committed);
         }
 
-        public FBufferRef GetWriteBuffer(in int id, in BufferDescriptor descriptor)
+        public BufferHandle GetWriteBuffer(in int id, in BufferDescriptor descriptor)
         {
             BufferSlot slot = GetOrCreateBufferSlot(id);
             if (slot.pending != null && !descriptor.Equals(slot.pendingDescriptor))
@@ -97,15 +97,15 @@ namespace InfinityTech.Rendering.GPUResource
             }
 
             slot.pendingDescriptor = descriptor;
-            return new FBufferRef(-1, descriptor, slot.pending);
+            return new BufferHandle(-1, descriptor, slot.pending);
         }
 
-        public FTextureRef GetTexture(in int id, in TextureDescriptor descriptor)
+        public TextureHandle GetTexture(in int id, in TextureDescriptor descriptor)
         {
             return GetTexture(id, descriptor, out _);
         }
 
-        public FTextureRef GetTexture(in int id, in TextureDescriptor requestedDescriptor, out bool created)
+        public TextureHandle GetTexture(in int id, in TextureDescriptor requestedDescriptor, out bool created)
         {
             var descriptor = m_TextureCapacity.Resolve(requestedDescriptor);
             TextureSlot slot = GetOrCreateTextureSlot(id);
@@ -130,10 +130,10 @@ namespace InfinityTech.Rendering.GPUResource
                 slot.invalidateNextGet = false;
             }
 
-            return new FTextureRef(-1, slot.committedDescriptor, slot.committed);
+            return new TextureHandle(-1, slot.committedDescriptor, slot.committed);
         }
 
-        public FTextureRef GetWriteTexture(in int id, in TextureDescriptor requestedDescriptor)
+        public TextureHandle GetWriteTexture(in int id, in TextureDescriptor requestedDescriptor)
         {
             var descriptor = m_TextureCapacity.Resolve(requestedDescriptor);
             TextureSlot slot = GetOrCreateTextureSlot(id);
@@ -150,7 +150,7 @@ namespace InfinityTech.Rendering.GPUResource
             }
 
             slot.pendingDescriptor = descriptor;
-            return new FTextureRef(-1, descriptor, slot.pending);
+            return new TextureHandle(-1, descriptor, slot.pending);
         }
 
         public void Invalidate(in int id)
@@ -296,7 +296,8 @@ namespace InfinityTech.Rendering.GPUResource
 
         // A fence parks the physical destroy until the GPU has finished the frame that retired it.
         // Without a fence (tests, devices that cannot create one) the resources are released now.
-        public void FlushRetired(ResourceReuseFence fence)
+        // The fence type stays internal, matching MeshWorld.FlushRetired.
+        internal void FlushRetired(ResourceReuseFence fence)
         {
             ReleaseCompletedDestroys();
             bool wait = fence.hasGraphics || fence.hasCompute;

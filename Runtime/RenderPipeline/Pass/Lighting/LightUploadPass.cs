@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.Pipeline
 
         void UploadLightData(LightContext context)
         {
-            using (RGTransferPassRef pass = m_RGBuilder.AddTransferPass<LightUploadPassData>(s_LightUpload))
+            using (RGTransferPassHandle pass = m_RGBuilder.AddTransferPass<LightUploadPassData>(s_LightUpload))
             {
                 pass.GetPassData<LightUploadPassData>().context = context;
                 m_RGScoper.RegisterBuffer(LightShaderIDs.LightRecordBuffer, pass.WriteBuffer(m_RGBuilder.ImportBuffer(context.LightRecordBuffer, "LightRecordBuffer")));

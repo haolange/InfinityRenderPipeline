@@ -31,8 +31,8 @@ namespace InfinityTech.Rendering.Pipeline
             in AtmosphereParameter key,
             in TextureDescriptor transmittanceDescriptor,
             in TextureDescriptor multiScatterDescriptor,
-            out FTextureRef transmittance,
-            out FTextureRef multiScatter,
+            out TextureHandle transmittance,
+            out TextureHandle multiScatter,
             out bool hit)
         {
             bool committedHit = m_HasShared && m_SharedKey.Equals(key);
@@ -72,9 +72,9 @@ namespace InfinityTech.Rendering.Pipeline
             in TextureDescriptor cubemapDescriptor,
             in TextureDescriptor prefilterDescriptor,
             in BufferDescriptor shDescriptor,
-            out FTextureRef cubemap,
-            out FTextureRef prefilter,
-            out FBufferRef shCoefficients,
+            out TextureHandle cubemap,
+            out TextureHandle prefilter,
+            out BufferHandle shCoefficients,
             out bool hit)
         {
             bool committedHit = m_HasIBL && m_IBLKey.Equals(key);
@@ -183,9 +183,9 @@ namespace InfinityTech.Rendering.Pipeline
             in TextureDescriptor skyViewDescriptor,
             in TextureDescriptor aerialDescriptor,
             in BufferDescriptor sunDescriptor,
-            out FTextureRef skyView,
-            out FTextureRef aerial,
-            out FBufferRef sunBuffer,
+            out TextureHandle skyView,
+            out TextureHandle aerial,
+            out BufferHandle sunBuffer,
             out bool hit)
         {
             bool committedHit = m_HasKey && m_Key.Equals(key);

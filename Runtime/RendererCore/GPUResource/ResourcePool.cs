@@ -78,7 +78,7 @@ namespace InfinityTech.Rendering.GPUResource
             if (m_TextureUses.TryGetValue(texture, out var usage)) return usage;
             return texture.rt != null && m_TexturePhysicalUses.TryGetValue(texture.rt, out usage) ? usage : null;
         }
-        internal bool CanWriteBuffer(in FBufferRef buffer)
+        internal bool CanWriteBuffer(in BufferHandle buffer)
         {
             var usage = BufferUsage(buffer.buffer) ?? throw new InvalidOperationException("CPU writes require a buffer owned by this pool.");
             return !usage.returned && usage.CanWriteCpu;
@@ -96,10 +96,10 @@ namespace InfinityTech.Rendering.GPUResource
             };
         }
 
-        public FBufferRef GetBuffer(in BufferDescriptor descriptor)
+        public BufferHandle GetBuffer(in BufferDescriptor descriptor)
             => GetBuffer(descriptor, false, false, out _);
 
-        internal FBufferRef GetBuffer(in BufferDescriptor descriptor, bool commandUse, bool asyncCompute, out ResourceReuseFence reuseFence)
+        internal BufferHandle GetBuffer(in BufferDescriptor descriptor, bool commandUse, bool asyncCompute, out ResourceReuseFence reuseFence)
         {
             if (m_DisposeRequested) throw new ObjectDisposedException(nameof(ResourcePool));
             if (commandUse) EnsureRecording();
@@ -115,23 +115,23 @@ namespace InfinityTech.Rendering.GPUResource
             }
             m_BufferUses[buffer].returned = false;
 
-            return new FBufferRef(handle, descriptor, buffer);
+            return new BufferHandle(handle, descriptor, buffer);
         }
 
-        public void ReleaseBuffer(in FBufferRef bufferRef) => ReleaseBuffer(bufferRef, default);
+        public void ReleaseBuffer(in BufferHandle bufferHandle) => ReleaseBuffer(bufferHandle, default);
 
-        internal void ReleaseBuffer(in FBufferRef bufferRef, ResourceReuseFence reuseFence)
+        internal void ReleaseBuffer(in BufferHandle bufferHandle, ResourceReuseFence reuseFence)
         {
-            var usage = BufferUsage(bufferRef.buffer) ?? throw new InvalidOperationException("Cannot return a buffer owned by another pool.");
+            var usage = BufferUsage(bufferHandle.buffer) ?? throw new InvalidOperationException("Cannot return a buffer owned by another pool.");
             if (usage.returned) throw new InvalidOperationException("Buffer returned twice.");
             usage.SetTail(reuseFence); usage.returned = true;
-            buffers.Push(bufferRef.handle, bufferRef.descriptor, bufferRef.buffer, reuseFence, usage);
+            buffers.Push(bufferHandle.handle, bufferHandle.descriptor, bufferHandle.buffer, reuseFence, usage);
         }
 
-        public FTextureRef GetTexture(in TextureDescriptor descriptor)
+        public TextureHandle GetTexture(in TextureDescriptor descriptor)
             => GetTexture(descriptor, false, false, out _);
 
-        internal FTextureRef GetTexture(in TextureDescriptor descriptor, bool commandUse, bool asyncCompute, out ResourceReuseFence reuseFence)
+        internal TextureHandle GetTexture(in TextureDescriptor descriptor, bool commandUse, bool asyncCompute, out ResourceReuseFence reuseFence)
         {
             if (m_DisposeRequested) throw new ObjectDisposedException(nameof(ResourcePool));
             if (commandUse) EnsureRecording();
@@ -150,18 +150,18 @@ namespace InfinityTech.Rendering.GPUResource
             m_TextureUses[texture].returned = false;
 
             textureAcquired?.Invoke(texture, descriptor);
-            return new FTextureRef(handle, descriptor, texture);
+            return new TextureHandle(handle, descriptor, texture);
         }
 
-        public void ReleaseTexture(in FTextureRef textureRef) => ReleaseTexture(textureRef, default);
+        public void ReleaseTexture(in TextureHandle textureHandle) => ReleaseTexture(textureHandle, default);
 
-        internal void ReleaseTexture(in FTextureRef textureRef, ResourceReuseFence reuseFence)
+        internal void ReleaseTexture(in TextureHandle textureHandle, ResourceReuseFence reuseFence)
         {
-            var usage = TextureUsage(textureRef.texture) ?? throw new InvalidOperationException("Cannot return a texture owned by another pool.");
+            var usage = TextureUsage(textureHandle.texture) ?? throw new InvalidOperationException("Cannot return a texture owned by another pool.");
             if (usage.returned) throw new InvalidOperationException("Texture returned twice.");
             usage.SetTail(reuseFence); usage.returned = true;
-            var physical = textureRef.descriptor.PhysicalDescriptor();
-            textures.Push(physical.GetHashCode(), physical, textureRef.texture, reuseFence, usage);
+            var physical = textureHandle.descriptor.PhysicalDescriptor();
+            textures.Push(physical.GetHashCode(), physical, textureHandle.texture, reuseFence, usage);
         }
 
         public void Dispose()

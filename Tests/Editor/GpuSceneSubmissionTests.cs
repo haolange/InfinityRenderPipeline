@@ -16,16 +16,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class GpuSceneSubmissionTests
     {
-        struct CopyData { public ComputeShader shader; public int kernel; public RGBufferRef input, output; }
+        struct CopyData { public ComputeShader shader; public int kernel; public RGBufferHandle input, output; }
         struct FailureData { }
-        static void Copy(RGBuilder graph, ComputeShader shader, FBufferRef input, ComputeBuffer output)
+        static void Copy(RGBuilder graph, ComputeShader shader, BufferHandle input, ComputeBuffer output)
         {
             using (var pass = graph.AddComputePass<CopyData>(new ProfilingSampler("SubmissionCopy")))
             {
                 ref var data = ref pass.GetPassData<CopyData>();
                 data.shader = shader; data.kernel = shader.FindKernel("Copy");
                 data.input = pass.ReadBuffer(graph.ImportBuffer(input));
-                data.output = pass.WriteBuffer(graph.ImportBuffer(new FBufferRef(-1, new BufferDescriptor(1, 4), output)));
+                data.output = pass.WriteBuffer(graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(1, 4), output)));
                 pass.SetExecuteFunc((in CopyData d, in RGComputeEncoder commands) =>
                 {
                     commands.SetComputeIntParam(d.shader, "Count", 1);
@@ -134,7 +134,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (fail)
                 using (var pass = first.AddComputePass<FailureData>(new ProfilingSampler("InjectedFailureAfterCopy")))
                 {
-                    pass.MarkSideEffect();
+                    pass.EnablePassCulling(false);
                     pass.SetExecuteFunc((in FailureData data, in RGComputeEncoder commands) =>
                         throw new InvalidOperationException("Expected submission fixture failure."));
                 }

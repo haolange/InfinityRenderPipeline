@@ -12,7 +12,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 {
     public class RenderGraphViewerTests
     {
-        struct ViewerPassData { public RGTextureRef texture; }
+        struct ViewerPassData { public RGTextureHandle texture; }
 
         [Test]
         public void CaptureProvenance_DistinguishesPersistentImportFromMissingProducer()
@@ -23,17 +23,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var buffer = new ComputeBuffer(1, sizeof(uint));
             try
             {
-                graph.ImportBuffer(new FBufferRef(-1, new BufferDescriptor { count = 1, stride = sizeof(uint) }, buffer));
+                graph.ImportBuffer(new BufferHandle(-1, new BufferDescriptor { count = 1, stride = sizeof(uint) }, buffer));
                 Assert.Throws<InvalidOperationException>(() => graph.GetTextureProducer(default, out _));
                 Assert.Throws<InvalidOperationException>(() => graph.GetBufferProducer(default, out _));
                 TextureDescriptor descriptor = Descriptor("PersistentCaptureSource", 4);
-                RGTextureRef imported = graph.ImportTexture(new FTextureRef(-1, descriptor, handle));
+                RGTextureHandle imported = graph.ImportTexture(new TextureHandle(-1, descriptor, handle));
                 Assert.AreEqual(descriptor, graph.GetTextureDescriptor(imported));
                 StringAssert.StartsWith("Imported: ", graph.GetTextureProducer(imported, out string queue));
                 Assert.AreEqual("External", queue);
-                RGTextureRef unproduced = graph.CreateTexture(Descriptor("Unproduced", 4));
+                RGTextureHandle unproduced = graph.CreateTexture(Descriptor("Unproduced", 4));
                 Assert.Throws<InvalidOperationException>(() => graph.GetTextureProducer(unproduced, out _));
-                using (RGComputePassRef pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("CurrentProducer")))
+                using (RGComputePassHandle pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("CurrentProducer")))
                 {
                     pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(imported);
                 }
@@ -83,22 +83,22 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             RGDebugSession.changed += onChanged;
             try
             {
-                RGTextureRef texture = graph.CreateTexture(Descriptor("ViewerTexture", 8));
-                RGTextureRef unused = graph.CreateTexture(Descriptor("ViewerUnused", 4));
-                using (RGComputePassRef pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerProducer")))
+                RGTextureHandle texture = graph.CreateTexture(Descriptor("ViewerTexture", 8));
+                RGTextureHandle unused = graph.CreateTexture(Descriptor("ViewerUnused", 4));
+                using (RGComputePassHandle pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerProducer")))
                 {
-                    pass.MarkSideEffect();
+                    pass.EnablePassCulling(false);
                     pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(texture);
                     pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands) => { executed = true; });
                 }
-                using (RGComputePassRef pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerCulled")))
+                using (RGComputePassHandle pass = graph.AddComputePass<ViewerPassData>(new ProfilingSampler("ViewerCulled")))
                 {
                     pass.GetPassData<ViewerPassData>().texture = pass.WriteTexture(unused);
                     pass.SetExecuteFunc((in ViewerPassData data, in RGComputeEncoder commands) => { executed = true; });
                 }
-                using (RGTransferPassRef pass = graph.AddTransferPass<ViewerPassData>(new ProfilingSampler("ViewerConsumer")))
+                using (RGTransferPassHandle pass = graph.AddTransferPass<ViewerPassData>(new ProfilingSampler("ViewerConsumer")))
                 {
-                    pass.MarkSideEffect();
+                    pass.EnablePassCulling(false);
                     pass.GetPassData<ViewerPassData>().texture = pass.ReadTexture(texture);
                     pass.SetExecuteFunc((in ViewerPassData data, in RGTransferEncoder commands) => { executed = true; StopBeforeSubmit(); });
                 }

@@ -24,7 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         internal MeshTransformVersionCache owner;
         internal MeshTransformVersion source;
-        internal FBufferRef matrices, generations, patches;
+        internal BufferHandle matrices, generations, patches;
         internal FMeshTransformPatch[] changes;
         internal int changeCount;
         internal int sceneId, count, references = 1;
@@ -175,7 +175,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             public MeshTransformVersion version;
             public ComputeShader shader;
             public int copyKernel, patchKernel;
-            public RGBufferRef matrices, generations, sourceMatrices, sourceGenerations, patches;
+            public RGBufferHandle matrices, generations, sourceMatrices, sourceGenerations, patches;
         }
         internal void Record(RGBuilder graph, MeshTransformVersion version, ComputeShader shader, HashSet<MeshTransformVersion> scheduled, bool externallyObserved = false)
         {
@@ -191,7 +191,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_PatchKernel = shader.FindKernel("PatchTransformVersion");
             }
             Record(graph, version.source, shader, scheduled);
-            RGBufferRef patches = default;
+            RGBufferHandle patches = default;
             if (version.changeCount > 0)
             {
                 using (var upload = graph.AddTransferPass<UploadData>(s_Upload))

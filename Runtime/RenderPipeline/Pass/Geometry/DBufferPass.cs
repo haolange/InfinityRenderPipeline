@@ -18,8 +18,8 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct DBufferPassData
         {
-            public RGRendererListRef rendererList;
-            public RGTextureRef depthTexture;
+            public RGRendererListHandle rendererList;
+            public RGTextureHandle depthTexture;
         }
 
         void RasterDBuffer(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferADsc.depthBufferBits = EDepthBits.None;
                 dBufferADsc.clearColor = Color.clear;
             }
-            RGTextureRef dBufferA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
+            RGTextureHandle dBufferA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferA, dBufferADsc);
 
             TextureDescriptor dBufferBDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
@@ -50,7 +50,7 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferBDsc.depthBufferBits = EDepthBits.None;
                 dBufferBDsc.clearColor = Color.clear;
             }
-            RGTextureRef dBufferB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
+            RGTextureHandle dBufferB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferB, dBufferBDsc);
 
             TextureDescriptor dBufferCDsc = new TextureDescriptor(width, height, ETextureSizingDomain.Internal);
             {
@@ -60,9 +60,9 @@ namespace InfinityTech.Rendering.Pipeline
                 dBufferCDsc.depthBufferBits = EDepthBits.None;
                 dBufferCDsc.clearColor = Color.clear;
             }
-            RGTextureRef dBufferC = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);
+            RGTextureHandle dBufferC = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DBufferC, dBufferCDsc);
 
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDBufferPass, cullingResults, camera);
             {
@@ -73,11 +73,11 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.rendererConfiguration = PerObjectData.None;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RGRendererListRef dBufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle dBufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<DBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterDBuffer)))
             {
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(dBufferA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(dBufferB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(dBufferC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);

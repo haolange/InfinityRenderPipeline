@@ -6,11 +6,27 @@ they link here instead of claiming "completed".
 Latest bounded acceptance: [2026-10-26 Unity integration boundary receipt](History/UnityIntegration-20261026.md).
 Earlier dated sections below retain their original verification boundaries; the latest section supersedes them only for the cases it actually exercised.
 
-### RenderGraph compiler — 2026-10-26
+### RenderGraph compiler — 2026-10-27
 
-The compiler culls across resource types, plans descriptor-level alias slots, batches a submission segment per queue run, and merges compatible raster passes into one native render pass. Handles carry a generation. Profiling scopes are pass ranges. History retirement waits on the frame fence. Unity has no GPU heap, so aliasing is that slot plan executed by ResourcePool. Memoryless attachments are requested only for Metal.
+The compiler culls across resource types, plans descriptor-level alias slots, batches a submission segment per queue run, and merges compatible raster passes into one native render pass. Handles carry a generation. Profiling scopes are pass ranges. History retirement waits on the frame fence. Unity has no GPU heap, so aliasing is that slot plan executed by ResourcePool. Memoryless is requested only on Metal, only for an attachment that stays inside one native render pass and ends in `DontCare`, and not for a color UAV.
 
-EditMode contracts cover cross-type culling, stale handles, load-without-producer, alias slots, native-pass merge and split, segment boundaries, pass-local resources and recording-array lifetime. They have not been executed here: the public Unity package registry does not serve CoreRP 17.6, so this environment cannot reference the assemblies a Roslyn compile needs. Unity 6000.6.0f1 managed assemblies were downloaded only to attempt that gate. Metal tile overlap, memoryless allocations and a captured frame are TODO(UNVERIFIED). On the Mac Editor: refresh the Example project, open Window/Analysis/Infinity Render Graph Viewer, and run `infinity_tests_start` filtered to RenderGraph.
+Verified on the owned InfinityExample Editor, Unity 6000.6.0f1, Metal, `Scene_Spazon` MainCamera at 1666×937. The post-refresh `Editor.log` window and the rest of this Editor session contain no InfinityRP `InvalidOperationException`, no `numAttachments` assert, and no memoryless/UAV warning.
+
+EditMode via `infinity_tests_start`:
+
+- `RenderGraph`: 57 tests, 56 passed, 0 failed, 1 skipped. The skip is `RenderGraphQueueGpuTests.CrossQueueHazardsAndPhysicalReuse_PreserveValues` because this GPU/API does not support async compute. `GraphicsQueueHazardsAndPhysicalReuse_PreserveValues` passed. The run includes `RenderGraphCompileTests` (including the merged-execute and split-segment profiling scope cases), `RenderGraphQueueHazardTests`, `RenderGraphFailureTests` and `RenderGraphViewerTests`.
+- `RGDrawListLifetimeTests`: 11 passed, 0 failed.
+- `HistoryCacheCommitTests`: 6 passed, 0 failed.
+
+The Play snapshot for MainCamera had 3 submission segments, 36 physical alias slots, and merged groups: RasterDepth with RasterGBuffer (subpasses 0 and 1), object motion with camera motion, and translucent T1 with T2. This frame culled no passes, so the viewer had no cull reason to show. Cross-type culling is covered by the passing EditMode tests.
+
+Two window captures of the Scene_Spazon Editor differed after Play advanced from frame 121 to 459. The Game view shows the courtyard, columns, arches and banners. An earlier pair taken while the player loop was not advancing was identical and is not liveness evidence.
+
+Frame Debugger export: 107 events for MainCamera. Draw scopes are labeled `(RP 0:0)` on RasterDepth and `(RP 0:1)` on RasterGBuffer, which is Unity's label for two subpasses of one native render pass. Cascade shadow draws stay in `(RP 2:0)`. The export has no separate `BeginRenderPass` event. This is not a Metal System Trace of on-chip memory.
+
+Memoryless: that snapshot marked 0 resources. Sampled depth, GBuffer, lighting and history targets were not marked, so ordinary targets were not mis-tagged. No memoryless allocation was observed on this content.
+
+Still open: D3D12 and Vulkan, a Metal capture of tile memory, and a Spazon frame that actually culls a pass.
 
 ### Unity integration ownership — 2026-10-26
 

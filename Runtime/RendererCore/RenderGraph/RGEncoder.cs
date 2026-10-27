@@ -61,7 +61,7 @@ namespace InfinityTech.Rendering.RenderGraph
 
     public struct RGComputeEncoder : IComputeCommands
     {
-        public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferRef value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
+        public void SetComputeBufferParam(ComputeShader shader, int kernel, int nameID, RGBufferHandle value) => value.BindCompute(m_CommandBuffer, shader, kernel, nameID);
         internal CommandBuffer m_CommandBuffer;
 
         internal RGComputeEncoder(CommandBuffer commandBuffer)
@@ -409,7 +409,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.DispatchCompute(computeShader, kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
         }
 
-        public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferRef argsBuffer, in uint argsOffset)
+        public void DispatchComputeIndirect(ComputeShader computeShader, in int kernelIndex, RGBufferHandle argsBuffer, in uint argsOffset)
         {
             argsBuffer.DispatchIndirect(m_CommandBuffer, computeShader, kernelIndex, argsOffset);
         }
@@ -683,7 +683,7 @@ namespace InfinityTech.Rendering.RenderGraph
     public struct RGRasterEncoder : IRasterCommands
     {
         public void SetKeyword(GlobalKeyword keyword, bool value) => m_CommandBuffer.SetKeyword(keyword, value);
-        public void SetGlobalBuffer(int nameID, RGBufferRef value) => value.BindGlobal(m_CommandBuffer, nameID);
+        public void SetGlobalBuffer(int nameID, RGBufferHandle value) => value.BindGlobal(m_CommandBuffer, nameID);
         public void IssuePluginEventAndData(System.IntPtr callback, int eventId, System.IntPtr data)
         {
             m_CommandBuffer.IssuePluginEventAndData(callback, eventId, data);
@@ -699,7 +699,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_RendererLists = rendererLists;
         }
 
-        public void Draw(in RGDrawListRef draws)
+        public void Draw(in RGDrawListHandle draws)
         {
             // Submit rejects stale generation / out-of-range refs without throwing.
             m_DrawLists?.Submit(m_CommandBuffer, draws);
@@ -966,7 +966,7 @@ namespace InfinityTech.Rendering.RenderGraph
             m_CommandBuffer.DrawRendererList(rendererList);
         }
 
-        public void DrawRendererList(in RGRendererListRef rendererList)
+        public void DrawRendererList(in RGRendererListHandle rendererList)
         {
             m_RendererLists?.Submit(m_CommandBuffer, rendererList);
         }

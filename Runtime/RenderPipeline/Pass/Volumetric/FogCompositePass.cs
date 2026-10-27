@@ -35,17 +35,17 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public ComputeShader fogCompositeShader;
-            public RGTextureRef sceneColorTexture;
-            public RGTextureRef foggedSceneColorTexture;
-            public RGTextureRef depthTexture;
-            public RGTextureRef volumetricFogTexture;
-            public RGTextureRef volumetricCloudTexture;
+            public RGTextureHandle sceneColorTexture;
+            public RGTextureHandle foggedSceneColorTexture;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle volumetricFogTexture;
+            public RGTextureHandle volumetricCloudTexture;
         }
 
         void ComputeFogComposite(RenderContext renderContext, Camera camera)
         {
-            bool hasFog = m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureRef volumetricFogTexture);
-            bool hasCloud = m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureRef volumetricCloudTexture);
+            bool hasFog = m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricFogBuffer, out RGTextureHandle volumetricFogTexture);
+            bool hasCloud = m_RGScoper.TryQueryTexture(InfinityShaderIDs.VolumetricCloudBuffer, out RGTextureHandle volumetricCloudTexture);
             if (!TranslucentFeatureUtility.ShouldRecordFogComposite(hasFog, hasCloud))
             {
                 return;
@@ -62,8 +62,8 @@ namespace InfinityTech.Rendering.Pipeline
                 m_FogCompositeKernelShader = shaders.fogCompositeShader;
             }
 
-            RGTextureRef sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle sceneColorTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.OpaqueSceneColorBuffer);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             float maxDistance = 64.0f;
             var volFog = ActiveVolumeStack.GetComponent<InfinityTech.Rendering.PostProcess.VolumetricFog>();
             maxDistance = volFog.MaxDistance.value;
@@ -76,9 +76,9 @@ namespace InfinityTech.Rendering.Pipeline
             foggedDsc.enableRandomWrite = true;
             foggedDsc.filterMode = FilterMode.Bilinear;
             foggedDsc.wrapMode = TextureWrapMode.Clamp;
-            RGTextureRef foggedSceneColor = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.FoggedSceneColorBuffer, foggedDsc);
+            RGTextureHandle foggedSceneColor = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.FoggedSceneColorBuffer, foggedDsc);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<FogCompositePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeFogComposite)))
             {
                 ref FogCompositePassData passData = ref passRef.GetPassData<FogCompositePassData>();
                 passData.kernel = m_FogCompositeKernel;
@@ -101,7 +101,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.volumetricCloudTexture = passRef.ReadTexture(volumetricCloudTexture);
                 }
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetExecuteFunc((in FogCompositePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {
                     ComputeShader shader = passData.fogCompositeShader;

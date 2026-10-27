@@ -10,9 +10,9 @@ namespace InfinityTech.Rendering.RenderGraph
     internal readonly struct MeshOcclusionLists
     {
         internal readonly MeshView first, final, recovered;
-        internal readonly RGBufferRef deferred;
+        internal readonly RGBufferHandle deferred;
         internal readonly bool history;
-        internal MeshOcclusionLists(MeshView first, MeshView final, MeshView recovered, RGBufferRef deferred, bool history)
+        internal MeshOcclusionLists(MeshView first, MeshView final, MeshView recovered, RGBufferHandle deferred, bool history)
         { this.first = first; this.final = final; this.recovered = recovered; this.deferred = deferred; this.history = history; }
     }
 
@@ -27,8 +27,8 @@ namespace InfinityTech.Rendering.RenderGraph
             public bool history, recovery;
             public Matrix4x4 projection;
             public int2 extent;
-            public RGTextureRef furthest;
-            public RGBufferRef deferred, final, recovered, transforms, generations, previousTransforms, previousGenerations, instanceTransforms;
+            public RGTextureHandle furthest;
+            public RGBufferHandle deferred, final, recovered, transforms, generations, previousTransforms, previousGenerations, instanceTransforms;
         }
         static class MeshOcclusionBindings
         {
@@ -55,11 +55,11 @@ namespace InfinityTech.Rendering.RenderGraph
                 return recovery ? s_Recovery : history ? s_History : s_NoHistory;
             }
         }
-        RGBufferRef OcclusionList(in MeshView view, int count)
-            => ImportBuffer(m_MeshWorld.GetGpuVisibilityBufferRef(view, count));
-        void RegisterOcclusionList(in MeshView view, RGBufferRef buffer)
+        RGBufferHandle OcclusionList(in MeshView view, int count)
+            => ImportBuffer(m_MeshWorld.GetGpuVisibilityBufferHandle(view, count));
+        void RegisterOcclusionList(in MeshView view, RGBufferHandle buffer)
             => m_GpuCullVisibility.Add(MeshGpuVisibilityCache.MakeKey(view, true), buffer);
-        MeshGpuCullPassData CullInputs(in MeshView view, RGComputePassRef pass)
+        MeshGpuCullPassData CullInputs(in MeshView view, RGComputePassHandle pass)
         {
             var residency = m_MeshWorld.Residency;
             var data = new MeshGpuCullPassData { view = view, instanceCount = residency.Scene.InstanceHighWater, frustumPlanes = GetRecordingArray<Vector4>(6) };
@@ -75,7 +75,7 @@ namespace InfinityTech.Rendering.RenderGraph
         static readonly RGComputePassExecuteAction<MeshOcclusionData> s_ExecuteMeshOcclusion = ExecuteMeshOcclusion;
 
         internal MeshOcclusionLists RecordMeshOcclusionFirst(MeshView view, ComputeShader shader, MeshMotionBinding motion,
-            RGTextureRef previousFurthest, Matrix4x4 previousProjection, int2 extent, ulong historyVersion)
+            RGTextureHandle previousFurthest, Matrix4x4 previousProjection, int2 extent, ulong historyVersion)
         {
             bool history = previousFurthest.IsValid() && motion.previous != null;
             view.visibilityHistory = historyVersion;
@@ -107,7 +107,7 @@ namespace InfinityTech.Rendering.RenderGraph
             }
             return new MeshOcclusionLists(first, view, recovered, deferred, history);
         }
-        internal void RecordMeshOcclusionRecovery(in MeshOcclusionLists lists, ComputeShader shader, RGTextureRef furthest,
+        internal void RecordMeshOcclusionRecovery(in MeshOcclusionLists lists, ComputeShader shader, RGTextureHandle furthest,
             Matrix4x4 projection, int2 extent)
         {
             var recovered = OcclusionList(lists.recovered, m_MeshWorld.Residency.Scene.InstanceHighWater);

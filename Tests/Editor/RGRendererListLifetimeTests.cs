@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         public void CreateWithoutUse_DoesNotCreateOnSrc()
         {
             var context = new RGRendererListContext();
-            RGRendererListRef unused = context.Declare(DummyDesc());
+            RGRendererListHandle unused = context.Declare(DummyDesc());
 
             context.ReleaseUnused();
             context.CreateLiveWith(_ => RendererList.nullRendererList);
@@ -26,7 +26,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         public void UseAndLive_CreatesOnce()
         {
             var context = new RGRendererListContext();
-            RGRendererListRef used = context.Declare(DummyDesc());
+            RGRendererListHandle used = context.Declare(DummyDesc());
             context.MarkLiveConsumer(used.index, 0);
             context.ReleaseUnused();
 
@@ -46,8 +46,8 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         public void CulledPass_DoesNotCreate()
         {
             var context = new RGRendererListContext();
-            RGRendererListRef unused = context.Declare(DummyDesc());
-            RGRendererListRef used = context.Declare(DummyDesc());
+            RGRendererListHandle unused = context.Declare(DummyDesc());
+            RGRendererListHandle used = context.Declare(DummyDesc());
             context.MarkLiveConsumer(used.index, 0);
             context.ReleaseUnused();
             context.CreateLiveWith(_ => RendererList.nullRendererList);
@@ -61,13 +61,13 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         public void StaleRef_DrawRejects()
         {
             var context = new RGRendererListContext();
-            RGRendererListRef used = context.Declare(DummyDesc());
+            RGRendererListHandle used = context.Declare(DummyDesc());
             context.MarkLiveConsumer(used.index, 0);
             context.ReleaseUnused();
             context.CreateLiveWith(_ => RendererList.nullRendererList);
             context.ReleaseAll();
 
-            Assert.IsFalse(context.IsLiveRef(used));
+            Assert.IsFalse(context.IsLive(used));
             Assert.IsFalse(context.TryGetCreated(used, out _));
             Assert.AreEqual(ERGRendererListCompileState.Released, context.GetState(used));
 

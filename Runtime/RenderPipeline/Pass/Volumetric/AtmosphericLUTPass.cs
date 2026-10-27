@@ -91,15 +91,15 @@ namespace InfinityTech.Rendering.Pipeline
             public int shPartialCount;
             public ComputeShader atmosphericLUTShader;
             public ComputeShader cubeFilterShader;
-            public RGTextureRef transmittanceLUT;
-            public RGTextureRef multiScatteringLUT;
-            public RGTextureRef skyViewLUT;
-            public RGTextureRef aerialPerspectiveLUT;
-            public RGTextureRef atmosphereCubemap;
-            public RGTextureRef ggxPrefilter;
-            public RGBufferRef sunBuffer;
-            public RGBufferRef shCoefficients;
-            public RGBufferRef shPartial;
+            public RGTextureHandle transmittanceLUT;
+            public RGTextureHandle multiScatteringLUT;
+            public RGTextureHandle skyViewLUT;
+            public RGTextureHandle aerialPerspectiveLUT;
+            public RGTextureHandle atmosphereCubemap;
+            public RGTextureHandle ggxPrefilter;
+            public RGBufferHandle sunBuffer;
+            public RGBufferHandle shCoefficients;
+            public RGBufferHandle shPartial;
         }
 
         static TextureDescriptor CreateAtmosphereLUTDescriptor(int width, int height, string name)
@@ -215,18 +215,18 @@ namespace InfinityTech.Rendering.Pipeline
             BufferDescriptor shDsc = new BufferDescriptor(9, sizeof(float) * 4, ComputeBufferType.Structured);
             shDsc.name = AtmosphericLUTPassUtilityData.SkySHName;
 
-            m_AtmosphereSharedCache.ResolveShared(parameter, transmittanceDsc, multiScatterDsc, out FTextureRef transmittanceHandle, out FTextureRef multiScatterHandle, out bool sharedHit);
-            m_ActiveFrameState.atmosphereViewCache.Resolve(viewKey, skyViewDsc, aerialDsc, sunDsc, out FTextureRef skyViewHandle, out FTextureRef aerialHandle, out FBufferRef sunHandle, out bool viewHit);
-            m_AtmosphereSharedCache.ResolveIBL(iblKey, cubemapDsc, prefilterDsc, shDsc, out FTextureRef cubemapHandle, out FTextureRef prefilterHandle, out FBufferRef shHandle, out bool iblHit);
+            m_AtmosphereSharedCache.ResolveShared(parameter, transmittanceDsc, multiScatterDsc, out TextureHandle transmittanceHandle, out TextureHandle multiScatterHandle, out bool sharedHit);
+            m_ActiveFrameState.atmosphereViewCache.Resolve(viewKey, skyViewDsc, aerialDsc, sunDsc, out TextureHandle skyViewHandle, out TextureHandle aerialHandle, out BufferHandle sunHandle, out bool viewHit);
+            m_AtmosphereSharedCache.ResolveIBL(iblKey, cubemapDsc, prefilterDsc, shDsc, out TextureHandle cubemapHandle, out TextureHandle prefilterHandle, out BufferHandle shHandle, out bool iblHit);
 
-            RGTextureRef transmittanceLUT = m_RGBuilder.ImportTexture(transmittanceHandle);
-            RGTextureRef multiScatteringLUT = m_RGBuilder.ImportTexture(multiScatterHandle);
-            RGTextureRef skyViewLUT = m_RGBuilder.ImportTexture(skyViewHandle);
-            RGTextureRef aerialPerspectiveLUT = m_RGBuilder.ImportTexture(aerialHandle);
-            RGTextureRef atmosphereCubemap = m_RGBuilder.ImportTexture(cubemapHandle);
-            RGTextureRef ggxPrefilter = m_RGBuilder.ImportTexture(prefilterHandle);
-            RGBufferRef sunBuffer = m_RGBuilder.ImportBuffer(sunHandle);
-            RGBufferRef shCoefficients = m_RGBuilder.ImportBuffer(shHandle);
+            RGTextureHandle transmittanceLUT = m_RGBuilder.ImportTexture(transmittanceHandle);
+            RGTextureHandle multiScatteringLUT = m_RGBuilder.ImportTexture(multiScatterHandle);
+            RGTextureHandle skyViewLUT = m_RGBuilder.ImportTexture(skyViewHandle);
+            RGTextureHandle aerialPerspectiveLUT = m_RGBuilder.ImportTexture(aerialHandle);
+            RGTextureHandle atmosphereCubemap = m_RGBuilder.ImportTexture(cubemapHandle);
+            RGTextureHandle ggxPrefilter = m_RGBuilder.ImportTexture(prefilterHandle);
+            RGBufferHandle sunBuffer = m_RGBuilder.ImportBuffer(sunHandle);
+            RGBufferHandle shCoefficients = m_RGBuilder.ImportBuffer(shHandle);
 
             m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereTransmittanceLUT, transmittanceLUT);
             m_RGScoper.RegisterTexture(InfinityShaderIDs.AtmosphereMultiScatteringLUT, multiScatteringLUT);
@@ -249,7 +249,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             int groupsX = Mathf.CeilToInt(parameter.cubemapSize / 8.0f);
             int shPartialCount = groupsX * groupsX * 6;
-            RGBufferRef shPartial = default;
+            RGBufferHandle shPartial = default;
             if (generateIBL)
             {
                 BufferDescriptor partialDsc = new BufferDescriptor(Mathf.Max(1, shPartialCount * 9), sizeof(float) * 4, ComputeBufferType.Structured);
@@ -257,7 +257,7 @@ namespace InfinityTech.Rendering.Pipeline
                 shPartial = m_RGBuilder.CreateBuffer(partialDsc);
             }
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<AtmosphericLUTPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeAtmosphericLUT)))
             {
                 passRef.SetQueueObserver(new AtmosphereProduction { shared = m_AtmosphereSharedCache,
                     view = m_ActiveFrameState.atmosphereViewCache, generateShared = generateShared,
@@ -302,7 +302,7 @@ namespace InfinityTech.Rendering.Pipeline
                     passData.shPartial = passRef.WriteBuffer(shPartial);
                 }
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in AtmosphericLUTPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {

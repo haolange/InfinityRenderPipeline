@@ -50,11 +50,11 @@ namespace InfinityTech.Rendering.Pipeline
             public Matrix4x4 matrix_InvViewProj;
             public Vector4 worldSpaceCameraPos;
             public FLightLoopInputs lightLoop;
-            public RGBufferRef lightRecordBuffer;
+            public RGBufferHandle lightRecordBuffer;
             public ComputeShader contactShadowShader;
-            public RGTextureRef depthTexture;
-            public RGTextureRef sunTexture;
-            public RGTextureRef maskTexture;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle sunTexture;
+            public RGTextureHandle maskTexture;
         }
 
         // Requested in the content phase: the Volume is active and the sun or a local light has Contact Shadows on.
@@ -78,13 +78,13 @@ namespace InfinityTech.Rendering.Pipeline
                 depthBufferBits = EDepthBits.None,
                 enableRandomWrite = true
             };
-            RGTextureRef sunTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowBuffer, sunDsc);
+            RGTextureHandle sunTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowBuffer, sunDsc);
             TextureDescriptor maskDsc = sunDsc;
             maskDsc.name = ContactShadowPassUtilityData.MaskTextureName;
             maskDsc.colorFormat = GraphicsFormat.R32_UInt;
-            RGTextureRef maskTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowMaskBuffer, maskDsc);
+            RGTextureHandle maskTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.ContactShadowMaskBuffer, maskDsc);
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<ContactShadowPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeContactShadow)))
             {
                 ref ContactShadowPassData passData = ref passRef.GetPassData<ContactShadowPassData>();
                 passData.settings = settings;
@@ -103,7 +103,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.sunTexture = passRef.WriteTexture(sunTexture);
                 passData.maskTexture = passRef.WriteTexture(maskTexture);
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in ContactShadowPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {

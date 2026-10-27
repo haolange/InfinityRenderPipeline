@@ -98,24 +98,24 @@ namespace InfinityTech.Rendering.Pipeline
             public Texture2D rankingTile;
             public Texture2D scramblingTile;
             public Texture2D owenScrambledSobol;
-            public RGTextureRef depthTexture;
-            public RGTextureRef hiZTexture;
-            public RGTextureRef gBufferB;
-            public RGTextureRef gBufferC;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle hiZTexture;
+            public RGTextureHandle gBufferB;
+            public RGTextureHandle gBufferC;
             public FTemporalColorView temporalColor;
-            public RGTextureRef motionMetadata;
-            public RGTextureRef motionTexture;
-            public RGTextureRef historyRadiance;
-            public RGTextureRef historyMeta;
-            public RGBufferRef tileArgs;
-            public RGBufferRef tileList;
-            public RGTextureRef rayHit;
-            public RGTextureRef traceRadiance;
-            public RGTextureRef hitDistance;
-            public RGTextureRef temporal;
-            public RGTextureRef meta;
-            public RGTextureRef output;
-            public RGTextureRef filtered;
+            public RGTextureHandle motionMetadata;
+            public RGTextureHandle motionTexture;
+            public RGTextureHandle historyRadiance;
+            public RGTextureHandle historyMeta;
+            public RGBufferHandle tileArgs;
+            public RGBufferHandle tileList;
+            public RGTextureHandle rayHit;
+            public RGTextureHandle traceRadiance;
+            public RGTextureHandle hitDistance;
+            public RGTextureHandle temporal;
+            public RGTextureHandle meta;
+            public RGTextureHandle output;
+            public RGTextureHandle filtered;
             public bool runSpatial;
             public bool captureRayHit;
             public CaptureStageSnapshot traceSnapshot;
@@ -140,19 +140,19 @@ namespace InfinityTech.Rendering.Pipeline
 
             var capture = RenderCaptureService.current;
             bool captureRayHit = capture != null && capture.CaptureThisFrame && System.Array.IndexOf(capture.request.buffers, "SSGIRayHit") >= 0;
-            RGTextureRef rayHit = captureRayHit ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIRayHitBuffer,
+            RGTextureHandle rayHit = captureRayHit ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIRayHitBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.RayHitName, GraphicsFormat.R32G32B32A32_SFloat, FilterMode.Point, divisor)) : default;
-            RGTextureRef traceRadiance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITraceRadianceBuffer,
+            RGTextureHandle traceRadiance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITraceRadianceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TraceRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureRef hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIHitDistanceBuffer,
+            RGTextureHandle hitDistance = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIHitDistanceBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, "SSGIHitDistance", GraphicsFormat.R32_SFloat, FilterMode.Point, divisor));
-            RGTextureRef temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITemporalBuffer,
+            RGTextureHandle temporal = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGITemporalBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.TemporalName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor));
-            RGTextureRef meta = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIMetaBuffer,
+            RGTextureHandle meta = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIMetaBuffer,
                 SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.MetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor));
-            RGTextureRef filtered = runSpatial ? traceRadiance : temporal;
+            RGTextureHandle filtered = runSpatial ? traceRadiance : temporal;
             m_RGScoper.RegisterTexture(InfinityShaderIDs.SSGIFilteredBuffer, filtered);
-            RGTextureRef output = settings.halfResolution
+            RGTextureHandle output = settings.halfResolution
                 ? m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.SSGIBuffer,
                     SSRPassUtilityData.CreateDescriptor(width,height,SSGIPassUtilityData.OutputName,GraphicsFormat.R16G16B16A16_SFloat,FilterMode.Bilinear))
                 : filtered;
@@ -160,8 +160,8 @@ namespace InfinityTech.Rendering.Pipeline
             TextureDescriptor historyRadianceDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryRadianceName, GraphicsFormat.R16G16B16A16_SFloat, FilterMode.Bilinear, divisor);
             TextureDescriptor historyMetaDsc = SSRPassUtilityData.CreateDescriptor(workWidth, workHeight, SSGIPassUtilityData.HistoryMetaName, GraphicsFormat.R32G32_UInt, FilterMode.Point, divisor);
             historyMetaDsc.filterMode = FilterMode.Point;
-            RGTextureRef historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
-            RGTextureRef historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
+            RGTextureHandle historyRadiance = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadianceDsc, out bool historyRadianceCreated));
+            RGTextureHandle historyMeta = m_RGBuilder.ImportTexture(historyCache.GetTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMetaDsc, out bool historyMetaCreated));
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSGIRadianceBuffer, historyRadiance);
             m_RGScoper.RegisterTexture(InfinityShaderIDs.HistorySSGIMetaBuffer, historyMeta);
             bool historyValid = m_ActiveFrameState.acceptedSSGI && !(m_CameraUniform.historyReset || historyRadianceCreated || historyMetaCreated)
@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             InfinityRenderPipelineRuntimeTextures textures = resources.textures;
 
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<SSGIPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceIndirect)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<SSGIPassData>(ProfilingSampler.Get(CustomSamplerId.ComputeScreenSpaceIndirect)))
             {
                 ref SSGIPassData passData = ref passRef.GetPassData<SSGIPassData>();
                 passData.settings = settings;
@@ -221,7 +221,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.filtered = runSpatial ? passRef.WriteTexture(filtered) : passData.temporal;
                 passData.output = settings.halfResolution ? passRef.WriteTexture(output) : passData.filtered;
 
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in SSGIPassData passData, in RGComputeEncoder cmdEncoder) =>
                 {

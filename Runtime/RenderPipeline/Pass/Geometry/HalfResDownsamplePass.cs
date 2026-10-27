@@ -26,10 +26,10 @@ namespace InfinityTech.Rendering.Pipeline
             public int2 fullResolution;
             public int2 halfResolution;
             public ComputeShader halfResShader;
-            public RGTextureRef depthTexture;
-            public RGTextureRef normalTexture;
-            public RGTextureRef halfResDepthTexture;
-            public RGTextureRef halfResNormalTexture;
+            public RGTextureHandle depthTexture;
+            public RGTextureHandle normalTexture;
+            public RGTextureHandle halfResDepthTexture;
+            public RGTextureHandle halfResNormalTexture;
         }
 
         void ComputeHalfResDownsample(RenderContext renderContext, Camera camera)
@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.Pipeline
                 halfResDepthDsc.depthBufferBits = EDepthBits.None;
                 halfResDepthDsc.enableRandomWrite = true;
             }
-            RGTextureRef halfResDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
+            RGTextureHandle halfResDepthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResDepthBuffer, halfResDepthDsc);
 
             TextureDescriptor halfResNormalDsc = new TextureDescriptor(halfWidth, halfHeight, ETextureSizingDomain.Internal, 2);
             {
@@ -63,12 +63,12 @@ namespace InfinityTech.Rendering.Pipeline
                 halfResNormalDsc.depthBufferBits = EDepthBits.None;
                 halfResNormalDsc.enableRandomWrite = true;
             }
-            RGTextureRef halfResNormalTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResNormalBuffer, halfResNormalDsc);
+            RGTextureHandle halfResNormalTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.HalfResNormalBuffer, halfResNormalDsc);
 
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             //Add HalfResDownsamplePass
-            using (RGComputePassRef passRef = m_RGBuilder.AddComputePass<HalfResDownsamplePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHalfResDownsample)))
+            using (RGComputePassHandle passRef = m_RGBuilder.AddComputePass<HalfResDownsamplePassData>(ProfilingSampler.Get(CustomSamplerId.ComputeHalfResDownsample)))
             {
                 //Setup Phase
                 ref HalfResDownsamplePassData passData = ref passRef.GetPassData<HalfResDownsamplePassData>();
@@ -81,7 +81,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passData.halfResNormalTexture = passRef.WriteTexture(halfResNormalTexture);
 
                 //Execute Phase
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.EnableAsyncCompute(true);
                 passRef.SetExecuteFunc((in HalfResDownsamplePassData passData, in RGComputeEncoder cmdEncoder) =>
                 {

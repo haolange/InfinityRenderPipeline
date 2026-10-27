@@ -26,17 +26,17 @@ namespace InfinityTech.Rendering.Pipeline
             public bool bindDBuffer;
             public int hasProbes;
             public bool directionalLightmap, shadowmask;
-            public RGDrawListRef draws;
-            public RGRendererListRef rendererList;
-            public RGTextureRef dBufferA;
-            public RGTextureRef dBufferB;
-            public RGTextureRef dBufferC;
+            public RGDrawListHandle draws;
+            public RGRendererListHandle rendererList;
+            public RGTextureHandle dBufferA;
+            public RGTextureHandle dBufferB;
+            public RGTextureHandle dBufferC;
         }
 
         void RasterGBuffer(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
             ActiveFeatures.ThrowIfCannotProduce(EFrameFeature.GBuffer);
-            RGTextureRef depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
+            RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
 
             TextureDescriptor gbufferADsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferADsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
                 gbufferADsc.depthBufferBits = EDepthBits.None;
             }
-            RGTextureRef gbufferTextureA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
+            RGTextureHandle gbufferTextureA = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferA, gbufferADsc);
 
             TextureDescriptor gbufferBDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -54,7 +54,7 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferBDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
                 gbufferBDsc.depthBufferBits = EDepthBits.None;
             }
-            RGTextureRef gbufferTextureB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
+            RGTextureHandle gbufferTextureB = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferB, gbufferBDsc);
 
             TextureDescriptor gbufferCDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -63,7 +63,7 @@ namespace InfinityTech.Rendering.Pipeline
                 gbufferCDsc.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
                 gbufferCDsc.depthBufferBits = EDepthBits.None;
             }
-            RGTextureRef gbufferTextureC = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
+            RGTextureHandle gbufferTextureC = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.GBufferC, gbufferCDsc);
 
             TextureDescriptor lightingDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -73,18 +73,18 @@ namespace InfinityTech.Rendering.Pipeline
                 lightingDsc.depthBufferBits = EDepthBits.None;
                 lightingDsc.enableRandomWrite = true;
             }
-            RGTextureRef lightingTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingDsc);
+            RGTextureHandle lightingTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.LightingBuffer, lightingDsc);
 
-            RGTextureRef dBufferA = default;
-            RGTextureRef dBufferB = default;
-            RGTextureRef dBufferC = default;
+            RGTextureHandle dBufferA = default;
+            RGTextureHandle dBufferB = default;
+            RGTextureHandle dBufferC = default;
             bool bindDBuffer = ActiveFeatures.IsProduced(EFrameFeature.DBuffer)
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferA, out dBufferA)
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferB, out dBufferB)
                 && m_RGScoper.TryQueryTexture(InfinityShaderIDs.DBufferC, out dBufferC);
 
 
-            RGDrawListRef gbufferDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.GBuffer);
+            RGDrawListHandle gbufferDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.GBuffer);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterGBufferPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;
@@ -94,18 +94,18 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.rendererConfiguration = PerObjectData.Lightmaps | PerObjectData.LightProbe | PerObjectData.ShadowMask | PerObjectData.OcclusionProbe | PerObjectData.LightProbeProxyVolume | PerObjectData.OcclusionProbeProxyVolume;
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
-            RGRendererListRef gbufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGRendererListHandle gbufferRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
 
             var bakedDescriptor = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal)
             { name = "BakedDiffuse", dimension = TextureDimension.Tex2D, wrapMode = TextureWrapMode.Clamp, colorFormat = GraphicsFormat.R16G16B16A16_SFloat, clearColor = Color.clear };
-            RGTextureRef bakedDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedDiffuseBuffer, bakedDescriptor);
+            RGTextureHandle bakedDiffuse = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedDiffuseBuffer, bakedDescriptor);
             bakedDescriptor.name = "BakedOcclusion";
             bakedDescriptor.colorFormat = GraphicsFormat.R8G8B8A8_UNorm;
-            RGTextureRef bakedOcclusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedOcclusionBuffer, bakedDescriptor);
+            RGTextureHandle bakedOcclusion = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.BakedOcclusionBuffer, bakedDescriptor);
 
-            using (RGRasterPassRef passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGBuffer)))
+            using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<GBufferPassData>(ProfilingSampler.Get(CustomSamplerId.RasterGBuffer)))
             {
-                passRef.MarkSideEffect();
+                passRef.EnablePassCulling(false);
                 passRef.SetColorAttachment(gbufferTextureA, 0, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(gbufferTextureB, 1, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
                 passRef.SetColorAttachment(gbufferTextureC, 2, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store);
