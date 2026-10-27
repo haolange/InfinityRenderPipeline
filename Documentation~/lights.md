@@ -1,66 +1,44 @@
 # Lights
 
-## Who owns what
+## Ownership
 
 | Data | Owner |
 |---|---|
-| Color, intensity, color temperature, range, spot angles, shadow mode / strength / bias / near plane, culling mask, caster layers, bake mode, bounce intensity, cookie | Unity `Light` |
-| Source shape (type, radius, length, width / height, barn doors, sun angle, spot shape), shadow filter, light layers, diffuse / specular weights, contact shadows, volumetrics, maximum distance | `InfinityAdditionalLightData` |
+| Color, intensity, color temperature, range, spot angles, shadow mode, strength, bias, near plane, culling mask, rendering-layer mask, bake mode, bounce intensity, cookie | Unity `Light` |
+| Analytic source shape, shadow filter, update mode, light-layer mask, diffuse and specular weights, contact shadows, volumetrics, maximum distance, IES profile | `InfinityAdditionalLightData` |
 
-The Infinity Light inspector edits the shape in Unreal Engine form and writes the native fields Unity derives from it
-(`type`, `shapeRadius`, `areaSize`, `shadowAngle`), so Unity's lightmapper, culling and gizmos agree with the renderer.
-The native fields are written only on edits, never when a scene loads. A light without the Infinity component (created
-by a script or imported) renders the shape its native fields describe. Adding the component adopts that shape.
+`FLightShape` is the analytic emitter: type, spot shape, source radius, soft source radius, source length, source width and height, barn-door angle and length, source angle, soft source angle, pyramid aspect and box size. When the Infinity component has authored that shape, it is the authority. Edits and API setters write the derived native fields (`type`, `shapeRadius`, `areaSize`, `shadowAngle`) so the lightmapper, culling and gizmos match the renderer. Loading a scene does not write those fields. A light without the component, or without an authored shape, renders the shape described by its native fields. Adding the component adopts that shape.
 
-## Types and shapes
+The GPU light record has no shape enum. Shape is the combination of these parameters and record flags.
 
-| Type | Shape parameters | Native type |
+## Shapes
+
+| Type | Parameters | Native carrier |
 |---|---|---|
-| Directional | Source Angle (sun disk diameter, default 0.5357°), Soft Source Angle | Directional |
-| Point | Source Radius (sphere), Soft Source Radius, Source Length (line when the radius is 0, tube otherwise) | Point, or Tube when the length is positive |
-| Spot | Spot Shape: Cone, Pyramid (aspect ratio) or Box (size); cone and pyramid may have a Source Radius | Spot, Pyramid, Box |
-| Rect | Source Width, Source Height, Barn Door Angle / Length; one-sided, emits along the light's forward axis | Rectangle |
-| Disk | Source Radius; one-sided | Rectangle culling carrier; GI Disc |
+| Directional | Source angle (sun disk, default 0.5357°), soft source angle | Directional |
+| Point | Source radius (sphere), soft source radius, source length (line when the radius is 0, tube otherwise) | Point, or Tube when the length is positive |
+| Spot | Cone, pyramid (aspect) or box (size). Cone and pyramid may set a source radius | Spot, Pyramid or Box |
+| Rectangle | Source width, source height, barn-door angle and length. Emission is along the light forward axis | Rectangle |
+| Disk | Source radius. Emission is one-sided | Rectangle for realtime culling. The lightmapper receives a disk |
 
-A tube's diameter is twice its Source Radius; there is no separate thickness parameter. Tube and line lights are
-realtime only (the lightmapper skips them, as in HDRP).
+A tube's diameter is twice its source radius. Tube and line lights are realtime only. The lightmapper skips them.
 
-Shading (no LTC): specular uses the Karis representative point for every shape (closest point on the sphere, segment,
-tube, rect, disk or sun disk to the reflection ray) with energy normalization; diffuse uses the Frostbite
-horizon-clipped form factor for spheres and disks, the Karis line irradiance for lines and tubes and the polygon form
-factor for rects. Every shape converges to the punctual result far away, so changing a light's size does not change
-its overall brightness. **Soft Source Radius / Angle** widen highlights without moving them. Rect barn doors narrow the
-emission cone as Barn Door Length grows relative to the emitter. Every shape casts realtime shadows (see
-[Shadows](shadows.md)).
+Specular evaluation picks a representative point on the emitter and normalizes energy so a large source matches the punctual result at distance. Sphere and disk diffuse use a horizon-clipped form factor. Lines and tubes use line irradiance. Rectangles use a polygon form factor. There is no LTC table. Soft source radius and soft source angle widen the highlight without moving it. Barn-door length narrows the rectangle emission cone. Every shape can cast a realtime shadow. See [Shadows](shadows.md).
 
 ## Cookies and IES
 
-The cookie is the native Light's Cookie (directional lights tile it over Cookie Size). Spot, pyramid and box lights
-project 2D cookies, point lights use cube cookies, rect and disk lights use the cookie as their emission texture
-(blurred by roughness in highlights). **IES Profile** on the Infinity component takes the texture CoreRP's IES
-importer produces (cube for any local light, 2D for cone and pyramid spots); importing an .ies file while Infinity is
-active also creates a ready-made light prefab. Cookies and profiles share one atlas (RP Asset → Cookie Atlas
-Resolution, Cookie Max Size).
+The cookie is the native Light cookie. Directional lights tile it over Cookie Size. Spot, pyramid and box lights project a 2D cookie. Point lights use a cube cookie. Rectangle and disk lights use the cookie as an emission texture. The IES profile on the Infinity component is the texture produced by the Core RP IES importer: a cube for any local light, and a 2D texture for cone and pyramid spots. Importing an `.ies` file while Infinity is active also creates a light prefab. Cookies and profiles share one atlas. Resolution and maximum cookie size are on the pipeline asset.
 
-## Light layers
+## Layers and distance
 
-**Light Layers** on the Infinity component must intersect a renderer's rendering layer mask for the light to affect it;
-the native Light's Rendering Layer Mask chooses which renderers cast its shadows.
+Light Layers on the Infinity component must intersect a receiver's rendering-layer mask. The native Light rendering-layer mask selects casters.
+
+Local lights fade across Distance Fade meters before Maximum Distance and are skipped beyond it. Zero disables the limit. Rendering Debugger > Infinity Lighting reports how many lights were skipped.
 
 ## Baking
 
-InfinityRP installs its own lightmapper delegate while it is the active pipeline: Unity's lightmapper receives the
-Infinity shape (sphere radius as the baked soft-shadow radius, sun angle as the penumbra, pyramid and box spots),
-inverse-square falloff and the real inner spot angle. Intensities are not multiplied by π because InfinityRP's BRDF is
-physically normalized.
+While Infinity is the active pipeline, its lightmapper delegate sends the analytic shape to Unity's lightmapper: sphere radius as the baked soft-shadow radius, sun angle as the penumbra, pyramid and box spots, inverse-square falloff and the inner spot angle. Intensities are not multiplied by π. The surface BRDF is normalized.
 
-## Maximum distance
+## Disk carrier
 
-Local lights fade out over **Distance Fade** meters before **Maximum Distance** from the camera and are skipped beyond
-it (0 disables the limit). Rendering Debugger → Infinity Lighting shows how many lights were skipped.
-
-Authored Disk lights use a native Rectangle carrier because native Disc lights are omitted from realtime culling and
-revert to Baked during Unity Undo deserialization. Disk identity and radius remain on Additional Light Data; the
-lightmapper receives a Disc emitter. Explicit shape or baking-mode edits establish the carrier. Loading a scene or
-adopting an existing native Disc in the Inspector does not convert it. A bare native Disc retains Unity's Baked support;
-its native fields alone cannot represent an authored realtime Infinity Disk.
+An authored disk uses a native Rectangle carrier because a native Disc is omitted from realtime culling and can revert to Baked during Undo deserialization. Disk identity and radius stay on the additional-data component. The lightmapper still receives a disk. Explicit shape or baking-mode edits establish the carrier. Loading a scene, or adopting an existing native Disc in the Inspector, does not convert it. A bare native Disc keeps Unity's baked support. Its native fields alone cannot represent an authored realtime disk.

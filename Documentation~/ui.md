@@ -1,7 +1,12 @@
 # UI
 
-`SupportedRenderingFeatures.rendersUIOverlay` is enabled. A Raster `RenderUIOverlay` pass records `CreateUIOverlayRendererList` and draws that list onto display-linear `DisplayColorBuffer` before final Present encoding. It runs only for Game cameras with no explicit target texture, matching the Editor display-overlay contract. SceneView and RenderTexture cameras do not own this display overlay list.
+`SupportedRenderingFeatures.rendersUIOverlay` is enabled.
 
-Screen Space Camera and World Space canvases go through the T2 translucent RendererList (`SRPDefaultUnlit` / untagged). Their rendering does not depend on the display-overlay pass.
+Screen-space overlay canvases are drawn with `CreateUIOverlayRendererList` for a Game camera that has no target texture. Scene view and cameras with a target texture do not receive that list. The overlay pass does not use a native render pass, because Unity does not expose the overlay list as a render-pass attachment.
 
-Create `Validation_UI` from `Window > Infinity > Create UI Fixture` on the Example project.
+- When output keeps a display-linear intermediate, the overlay is drawn into `DisplayColorBuffer` before the encode.
+- When output writes the camera target directly, the overlay is drawn onto that hardware-sRGB target.
+
+Screen-space camera and world-space canvases use the T2 translucent renderer list (`SRPDefaultUnlit` and untagged passes). They do not use the overlay pass.
+
+Create the UI fixture from Window > Infinity > Create UI Fixture in the Example project.

@@ -1,338 +1,267 @@
-# InfinityRP Agent Guide
+# InfinityRP contributor and agent specification
 
-## Task tracking
+This document is normative for changes to `com.infinity.render-pipeline`. [ARCHITECTURE.md](ARCHITECTURE.md) describes the implementation. [Docs/FeatureStatus.md](Docs/FeatureStatus.md) records verification. [Documentation~/index.md](Documentation~/index.md) is the authoring manual. [Docs/History/](Docs/History) is immutable evidence.
 
-Track execution and verification in the conversation Todo list. Do not create a root task ledger.
-Necessary recovery state belongs in the task-owned project intermediate directory and is removed at completion.
-Historical upgrade records live under Docs/History and never authorize branches, pushes or new work.
-Player builds and packaging require explicit user authorization.
+A silent fallback is not a fix. Console output with no errors has hidden ownership, order and lifetime defects, including a depth clear that left the Game view empty.
 
-This document defines coding conventions and collaboration rules for `com.infinity.render-pipeline` (InfinityRP). It states rules and current code facts only; verification state lives in `Docs/FeatureStatus.md`, and archived plans and receipts live in `Docs/History/`.
+## 1. Work tracking
 
-## Architecture principles
+Track active work in the conversation task list. Do not create a root task ledger. Completed verification belongs in `Docs/FeatureStatus.md`.
 
-1. **Entity data belongs to the entity; draw descriptions only reference it.** One logical object owns one `TransformId` / bounds. Submesh, material, and pass only add `MeshDraw` / template references.
-2. **Cache stable structure; regenerate view results.** Pass bins and their command table are rebuilt only on structural change. Visibility, LOD, sort order, and compaction are per request/view.
-3. **One public Mesh Drawing API for CPU and GPU backends.** Callers use `MeshDrawRequest` / `RGDrawListHandle`; backends stay internal.
-4. **RenderGraph-native lifecycle.** `CreateDrawList` records only; structural pass culling runs first and propagates across every resource type; only live DrawLists schedule work; cleanup is graph-owned. A pass that must run calls `EnablePassCulling(false)`. Compiler-inserted mesh preparation moves to the earliest pass whose inputs exist. Recorded pass order is otherwise the schedule. Adjacent graphics work is one submission segment, and compatible raster passes are one native render pass. Unity has no GPU heap: overlap is a descriptor-level slot plan executed by `ResourcePool`. Resource handles carry a generation and are rejected after the graph that created them.
-5. **No legacy / deprecated compatibility layers.** When a path is replaced, delete the old ownership path. Do not keep dual authorities.
+### Execution
 
-## Naming
+Deliver the requested scope in the same interaction: decide, change, verify, and leave a connected result. Do not shrink it to a sample, a draft, or a proof of concept, and do not stop after the easy path, a plan, or a local patch that its callers never reach. Stages inside the interaction are allowed. Stop only when continuing could lose data, break an API, ABI, or serialized schema, force a wide or irreversible change, move a security or permission boundary, or change user-visible behavior that cannot be rolled back, or when the evidence supports no safe default. Ask in those cases. For every other ambiguity, state the default, why it was chosen, the risk, and the rollback, then finish the reversible work.
+
+Do not create a git branch unless the user explicitly asks, or the session is already a worktree. Choosing an approach is not a branch. `Docs/History` does not authorize a push or new work.
+
+Base a load-bearing decision on code, documents, logs, tests, historical assets, or an explicit user instruction. Keep the working state as a short summary that can be rechecked: goal size, evidence, decision, and what is still open.
+
+Change only the requested code, documents, and the couplings that must move with them. Do not add flexibility, abstraction, or a repository-wide rewrite for later. Do not keep a second implementation, and do not add a compatibility shim to avoid deleting a replaced path. Principle 5 still requires that deletion once its consumers are closed.
+
+The checks that match the goal are the stop condition. A static check does not close a runtime path. An independent verifier, when one is used, does not replace the implementing agent's own checks.
+
+### Living documents
+
+After an iteration, update each of `AGENTS.md`, `ARCHITECTURE.md`, and `DESIGN.md` that exists. Add a durable fact that became true, delete a statement that is no longer true, and rewrite a statement that changed. Do not append an iteration log. `AGENTS.md` is the short normative contract and stays the shortest of the three. `ARCHITECTURE.md` describes the implementation. `DESIGN.md` exists only for a visual design system this package actually has; it is absent on purpose. Prefer a tighter sentence, or a deletion, to a new section.
+
+Player builds and packaging require explicit user authorization. Editor load and script reload never migrate, rebuild, delete or save user assets. A migration is explicit and targeted, with current-byte backups, an integrity check, a reopen and a no-op. Preflight never activates source scenes or instantiates prefabs.
+
+An implementing agent owns planning, code and self-tests. An independent verifier reviews a candidate batch. A failed, partial or missing verification returns the batch and locks dependent batches. Verification does not downgrade a result. Model names are not part of this contract.
+
+Without an Editor, the offline gate is `Tools/StaticCheck/`. Image results stay `TODO(UNVERIFIED)` until a captured frame confirms them.
+
+### Intermediate data
+
+1. Task output lives in `<Unity project root>/intermediate/<task-id>/<run-id>/`. For this workspace that root is the Example project's `intermediate/`, never the package root. `.gitignore` excludes `intermediate/`. The directory holds captures, repeated screenshots, test output, diagnostic log copies, temporary scripts, scratch projects and temporary archives. Do not accumulate those files in `/tmp`, `/private/tmp`, the home directory or an unrelated archive. If a tool forces another path, collect the output into the task directory and remove the tool's copy once it is no longer in use.
+2. Before a large capture, record paths, approximate size and owner. Check free space and estimate size from resolution, format, buffer count and frame count. Bound the capture count.
+3. After a completed task or subtask, stop producers, drain pending writes and readbacks, keep the required summary, and delete that task's intermediate data. GPU drain and disk cleanup are separate checks.
+4. Data may remain between steps only for a named next consumer. Record the path, reason and consuming step. Delete it when that consumer finishes.
+5. Before declaring the overall task complete, delete every intermediate path that task owns, including carry-over, and remove the empty task directory. If no other task owns data there, `intermediate/` is empty or absent. A blocked task reports retained paths, sizes and the next consumer, and is not described as complete.
+6. Keep original failure evidence unchanged while diagnosis needs it. A durable raw archive exists only when a separate user requirement asks for one, and only after that archive is verified. Moving files is not cleanup.
+7. Delete by recorded task path. Do not delete user source, baked data, Unity `Library`, engine caches, user logs, approved deliverables or another task's files. Do not recursively delete a shared `intermediate/` that contains other tasks. Do not commit intermediate payloads.
+8. The delivery note states that the task paths are gone, the reclaimed space, and any cleanup blocker. A delete command alone is not that statement.
+
+## 2. Principles
+
+1. Entity data belongs to the entity. One logical object owns one `TransformId` and one bounds record. Submesh, material and pass add draw references.
+2. Stable structure is cached. View results are regenerated. Pass bins rebuild on structural change. Visibility, LOD, sort and compaction are per request.
+3. Passes record mesh work with `RGDrawListHandle` (`CreateDrawList`, `UseDrawList`, `Draw`). Content code mutates `MeshComponent`. Backends stay internal. There is no `MeshDrawRequest` type.
+4. `CreateDrawList` records only. Structural culling runs first and crosses every resource type. Only live draw lists schedule work. A pass that must run calls `EnablePassCulling(false)`. Compiler-inserted mesh preparation moves to the earliest pass whose inputs exist. Recorded order is otherwise the schedule. Adjacent graphics work is one submission segment. Compatible raster passes are one native render pass. Overlap is a descriptor-level slot plan executed by `ResourcePool`. Handles carry a generation and are rejected after their graph.
+5. A replaced path is deleted after its consumers are closed and the replacement owns the same responsibility. Two authorities for one quantity are not kept.
+
+## 3. Names and files
 
 | Kind | Convention | Examples |
-|------|------------|----------|
+|---|---|---|
 | Namespace | `InfinityTech.<Domain>[.<Sub>][.Editor]` | `InfinityTech.Rendering.MeshPipeline` |
 | Enum | `E` prefix | `EPassType`, `EMeshBackendPolicy` |
-| Geometry / GPU record | `F` prefix | `FBound`, `FPlane`, `FLightRecord` |
-| Handle | `Handle` suffix, no `F` | `TextureHandle`, `BufferHandle`, `RGTextureHandle`, `RGDrawListHandle`, `ObjectHandle<T>` |
-| RenderGraph type | `RG` prefix | `RGBuilder`, `RGRasterPassHandle` |
+| Geometry or GPU record | `F` prefix | `FBound`, `FPlane`, `FLightRecord` |
+| Handle | `Handle` suffix, no `F` | `TextureHandle`, `RGDrawListHandle`, `ObjectHandle<T>` |
+| Render-graph type | `RG` prefix | `RGBuilder`, `RGRasterPassHandle` |
 | Job | `*Job` suffix | `MeshInstanceCullingJob` |
 | Private instance field | `m_` + PascalCase | `m_RGBuilder` |
 | Static readonly | `s_` prefix | `s_Shader` |
-| Shader property IDs | `ID_` or semantic names on `InfinityShaderIDs` | `TransformBuffer` |
-| Shader bindings | `SRV_` / `UAV_` / `CBV_` (HLSL/C#) | `SRV_DepthTexture` |
+| Shader property IDs | `ID_` or a name on `InfinityShaderIDs` | `TransformBuffer` |
+| Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
 
-## Organization
+Extend `InfinityRenderPipeline` only through partial files under `Runtime/RenderPipeline/Pass/<domain>/`. Volume components live in `Runtime/Volume/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Prefer `#region` in Editor inspectors and avoid it on hot runtime paths. One primary type per file unless a pass or feature group is clearer together.
 
-- Extend `InfinityRenderPipeline` only via `partial` files under `Runtime/RenderPipeline/Pass/<domain>/` (Geometry, Lighting, Shadow, ScreenSpace, Volumetric, Translucent, Temporal, Post, Output, Debug). Volume components live in `Runtime/Volume/<domain>/`.
-- Pass file pattern: `XxxPassData` struct + optional `XxxPassUtilityData` + pipeline method.
-- Prefer `#region` in Editor inspectors; avoid in hot Runtime paths.
-- One primary type per file unless Pass/Feature grouping clearly benefits.
+Assembly names are `Unity.RenderPipelines.Infinity.*`. Old identities appear only in temporary migration tooling and in immutable history, never as a compatibility shim.
 
-## Performance code
+Components prefer `[ExecuteAlways]` and `AddComponentMenu("InfinityRenderer/...")`. Asset fields are `[SerializeField] private`. Shader paths start with `InfinityPipeline/`. The shader tag is `RenderPipeline=InfinityRenderPipeline`. Compute files are `Compute_<Feature>.compute`. LightMode values match `InfinityPassIDs`.
 
-- Hot paths: `struct` + Burst jobs; explicit `Allocator` (`Persistent` / `TempJob` / `Temp`).
-- `unsafe` only for Native containers and culling pointer jobs (`allowUnsafeCode` is enabled).
-- Do not put managed delegates into Burst jobs.
-- `MeshDrawCommandKey` uses full structured equality; hash is lookup acceleration only.
-- Filter / Grouping / Sort are three separate semantics — never one hash for all.
+Comments are English. A TODO has the form `// TODO: <action>`. Do not commit large blocks of commented-out code. When a change touches a misspelled symbol, correct that spelling. Do not add a new divergent spelling.
 
-## Mesh Drawing Pipeline touchpoints
+GPU work uses Raster for draw, Compute for dispatch, Copy for resource copy and Upload for CPU upload. Unity `ShadowCaster`, `Meta` and `SRPDefaultUnlit` remain the engine entry points. Infinity LightModes and the matching pass names use `RasterXXXPass`. Other owned raster shader names use the Raster prefix. Ray-traced occlusion selects `ComputeRayTracedOcclusion` or `RayTracingOcclusion` from its Unified Ray Tracing backend. Its graph pass type stays RayTracing. Pass names come from the existing `ProfilingSampler`. Old-name aliases are not added.
+
+## 4. Hot paths
+
+Hot paths are structs and Burst jobs with an explicit `Allocator` (`Persistent`, `TempJob` or `Temp`). `unsafe` is limited to native containers and culling jobs. Burst jobs do not capture managed delegates.
+
+`MeshDrawCommandKey`, `MeshVisibilitySignature`, `BufferDescriptor` and `TextureDescriptor` use field-level `Equals`. `GetHashCode` only accelerates lookup. Filter, grouping and sort are three operations. One hash does not stand for all three. Sort keys saturate signed and unsigned 16-bit segments before packing. Silent truncation is not saturation.
+
+Fixed object counts after warmup aim for zero managed allocation in normal library proxy update, graph record and execution, for stationary and moving objects. Growth, registration and requested diagnostics are separate. Diagnostic observers run outside the measured scope. Reuse does not shorten recording, submission, cancellation or completion ownership.
+
+## 5. Mesh scene
 
 | Module | Responsibility |
-|--------|----------------|
-| `MeshScene` / `MeshSceneUpdate` | SoA tables, typed IDs + generation, dirty-page bitmaps, undo transactions |
-| `GpuScene` | Dirty-page GPU upload of transforms, layers, bounds, flags |
-| `PassBinStore` / `MeshDrawCommandKey` | Per-pass filter, structural sort, grouping into command spans |
-| `MeshVisibilityShare` | Intern CPU cull results by `MeshVisibilitySignature` |
-| `MeshGpuVisibilityCache` | Physical visibility buffers per view/phase; RG interns logical requests including history identity |
-| `MeshDrawCompiler` | `MeshPassExtractJob` (commands × visibility → draw commands) |
+|---|---|
+| `MeshScene` / `MeshSceneUpdate` | SoA tables, typed IDs, dirty pages, undo transactions |
+| `GpuScene` | Dirty-page upload of transforms, layers, bounds and flags |
+| `PassBinStore` / `MeshDrawCommandKey` | Per-pass filter, structural sort, command spans |
+| `MeshVisibilityShare` | Interned CPU results in `MeshVisibilityCache.cs` |
+| `MeshGpuVisibilityCache` | Physical visibility buffers per view |
+| `MeshDrawCompiler` | `MeshPassExtractJob` |
 | `MeshCandidateTableStore` | Per-pass GPU command and candidate tables |
-| `MeshDrawPipeline` / `MeshWorld` | Facades: extract / resolve / submit; per-scene ownership |
-| `MeshDrawGPUBackend` | Per-DrawList GPU payloads, compaction, indirect args + Auto fallback |
-| `RGDrawList*` | Graph registry; not an `ERGResourceType` |
+| `MeshDrawPipeline` / `MeshWorld` | Extract, resolve, submit; per-scene ownership |
+| `MeshDrawGPUBackend` | Per-draw-list payloads, compaction, indirect arguments |
+| `RGDrawListContext` | Graph registry. Not an `ERGResourceType` |
 
-### Mesh Drawing Pipeline conventions (required)
-
-1. **`MeshSceneUpdate` must fully undo.** Every mutating op pushes an undo entry; `Dispose` without `Commit` rolls back via the undo log (live counts / object relations) and restores revision + dirty ranges. Free-list membership and highWater stay owned by Free*/Restore*/deferred reclaim — do not truncate free-lists on rollback. Do not add half-applied structural edits.
-2. **Deferred section/material reclaim inside a transaction.** When `refCount` hits zero during `BeginUpdate`…`EndUpdate`, queue pending reclaim — do not free immediately. `Commit` flushes pending reclaim; `Rollback` discards pending lists after undo restores refCounts.
-3. **`MeshDrawCommandKey` and `MeshVisibilitySignature` use structured `Equals`.** Hash codes are lookup acceleration only; never treat hash equality as key equality.
-4. **Visibility ownership:** `MeshVisibilityShare` interns results; RDG `ReleaseAllDrawLists` (paired `Release`) owns handle lifetime. Do not leave TempJob cull arrays alive across frames.
-5. **GPU payload is per-DrawList.** The backend pool retains empty CPU payload objects; physical buffers belong to ResourcePool and follow its recording/submission/completion state. A payload lifetime never authorizes physical destruction or immediate CPU writes.
-6. **No process-global static indirect / args buffer** shared across concurrent DrawLists or cameras.
-7. **GPU cull is always instance-indexed.** Bounds / visibility / candidate indices use instance slots; compacted indices written for shading are **transform** indices. CPU `MeshDrawList.instanceIndices` remain transform indices for procedural submit.
-8. **Sort encoding must explicitly saturate** (signed and unsigned 16-bit segments). Never rely on silent truncation / wrap.
-9. **`ERenderingLayer` is the shared Mesh/Light bit-flag mask** (`enum : byte` + `[Flags]`; `Everything = 0xFF`). Do not reintroduce an int-index `renderLayer` / `1 << layer` convention.
-10. **Logical retirement and physical completion are separate.** `ReleaseAll` / `ReleaseAllDrawLists` perform logical cleanup + `RetirePayload` (and CPU rented-buffer retire) only. After native Submit, `FlushRetiredPayloads` / `FlushRetiredBuffers` return allocations to ResourcePool without clearing their outstanding uses. Physical destruction requires no recording references and completed GPU uses. Native Submit, successful queueing of the final fence, and frame-transaction acceptance are distinct results; a fence that was never queued cannot acknowledge work.
-11. **No mid-recording ComputeBuffer Release / EnsureCapacity rebuild.** Pre-record: `ComputePayloadBudget` then one `EnsureCapacity`. During CommandBuffer recording / submit: `RequireCapacity` check only — never grow or recreate buffers already bound to a live command buffer.
-12. **`TransformId` ownership is exclusive (1:1).** One live transform maps to at most one `MeshInstance`. `CreateInstance` must reject an already-owned transform. Do not add refcount-free multi-instance transform sharing.
-13. **`BufferDescriptor` / `TextureDescriptor`: field-level `Equals` is authoritative.** `GetHashCode` is lookup acceleration only (same principle as `MeshDrawCommandKey`).
-14. **Pool return does not prove safe reuse.** `ReleaseBuffer` / `ReleaseTexture` preserve physical recording references and queued-use state, including their no-fence overloads. Cancelled recordings release only their recording references; partially queued or uncertain submissions remain protected. Same-queue command reuse follows queue order; opposite-queue reuse requires a queued dependency. CPU `SetData` requires no recording/pending use and CPU-queryable completion, or a separate writable allocation. `GpuScene` publishes replacement attribute tables atomically; DrawLists bind frozen physical tables. Pool disposal defers physical destruction until recording references and GPU uses complete. A CPU frame transition or GPU wait is never CPU-write permission.
-
-
-Public RDG usage:
+1. `MeshSceneUpdate` undoes every mutation. `Dispose` without `Commit` restores live counts, relations, revisions and dirty ranges through the undo log. Free-list membership and high-water marks stay with `Free*`, `Restore*` and deferred reclaim. Rollback does not truncate free lists. A structural edit is not left half applied.
+2. A section or material whose reference count reaches zero inside `BeginUpdate`…`EndUpdate` is queued. `Commit` flushes the queue. `Rollback` discards it after undo restores the counts.
+3. Visibility results are interned by `MeshVisibilityShare`. `ReleaseAllDrawLists` owns that handle lifetime. TempJob cull arrays do not survive the frame.
+4. GPU payload objects in the backend pool are empty. Physical buffers belong to `ResourcePool`. A payload lifetime is not permission to destroy a buffer or to write it from the CPU.
+5. No process-global indirect or argument buffer is shared across draw lists or cameras.
+6. GPU culling indexes instance slots. Compacted indices and CPU `MeshDrawList.instanceIndices` are transform indices.
+7. `ERenderingLayer` is the shared mesh and light mask (`enum : byte`, `[Flags]`, `Everything = 0xFF`). Do not reintroduce an integer layer index. Pass-bin rebuild does not apply this mask. Shadow views do, through visibility.
+8. `ReleaseAll` and `ReleaseAllDrawLists` perform logical cleanup and `RetirePayload` only. After native submit, `FlushRetiredPayloads` and `FlushRetiredBuffers` return allocations without clearing outstanding use. Physical destruction requires no recording references and completed GPU use. Native submit, queueing the final fence, and accepting the frame transaction are three results. A fence that was never queued does not acknowledge work.
+9. Before recording, compute the payload budget and call `EnsureCapacity` once. During recording, `RequireCapacity` checks only. Do not grow or recreate a buffer already bound to a live command buffer.
+10. `CreateInstance` rejects an owned transform. Do not share one transform across instances without that rejection.
+11. `GpuScene.Update` throws while a transaction is open. Replacement attribute tables are published atomically. Draw lists bind the frozen tables.
+12. Policy order is an explicit camera or test override, then the Rendering Debugger override, then the asset `meshBackendPolicy`. Auto is capability-based. CPU direct records no GPU mesh culling or compaction.
+13. `MeshComponent` keeps its serialized field identities. Callers use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`. `Materials` is read-only. Do not add a public mutable material array or per-instance resource polling.
+14. Call `NotifyGeometryChanged` after in-place mesh edits, `MaterialRouteUtility.ApplyPassState` after route or stage edits, `NotifyMaterialRoutingChanged` after direct queue or pass edits, and `NotifyInstanceChanged` after static pose or external instance edits. Dynamic world matrices are read automatically. Ordinary uniforms do not invalidate draw structure. Inspector and Undo callbacks notify without saving assets.
+15. Change queues deduplicate until publication. One transaction applies changed transforms and bounds. A `MeshSceneUpdate` lease carries a generation. A copied or expired lease cannot mutate a newer transaction. Instance draw links remove only that instance's draws.
+16. Mesh preparation markers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, without view-domain prefixes. Draw markers are `RenderLoop.DrawMeshDirect` / `Indirect` or `Shadows.DrawMeshDirect` / `Indirect`, selected from `EMeshViewKind`. `MeshDrawProfiling` owns those samplers. Renderer-list submission adds no wrapper. Shadow slice and face labels, and native `(RP ...)` labels, stay as Unity emits them.
+17. Steady state requires `MeshScene.MatrixDuplicateRatio == 1.0`.
 
 ```csharp
 RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
 data.draws = pass.UseDrawList(draws);
-// execute:
 cmdEncoder.Draw(data.draws);
 ```
 
-## Integrity / no paper-over
+## 6. Graph, resources and output
 
-These rules exist because Console-clean patches have already hidden real ownership, ordering, and lifetime bugs. A silent fallback is not a fix.
+1. Do not disable a designed path to quiet the Console. Forbidden examples are `EnableAsyncCompute(false)` as a correctness switch, replacing `throw` with `return false`, a dispatch with count 0 that only looks wired, and `if (shader == null) return` inside execute. An unimplemented feature is not recorded.
+2. An invalid `RGTextureHandle` or `RGBufferHandle`, a failed query, or a failed resolve fails at record or setup. Do not bind `Texture2D.blackTexture`, a lighting buffer used as history, or an empty `RenderTargetIdentifier`.
+3. Transfer copies. Raster draws. Compute dispatches. Do not move a draw into Transfer to avoid an API. Do not call `SetRenderTarget` inside execute.
+4. Image history lives only in `HistoryCache`. Import accepted history for reads and pending targets for writes. Fused temporal producers may write the pending target. Other producers use CopyHistory. Accept pending history only after successful submission. A same-frame scoper ID that has not been written is not history.
+5. Downstream reads the semantic ID the last producer registered. `DisplayColorBuffer` is the present source when a linear intermediate exists. Do not guess among `SuperResolutionBuffer`, `AntiAliasingBuffer` and `LightingBuffer`.
+6. Unity's `temporary render texture` message means an empty identifier. It does not mean the graph called `GetTemporaryRT`. Check handle validity, pass order and which producer must register the ID.
+7. A workaround is marked `// TODO: <root cause>` and is not the final design. Ownership, order and lifetime come before an API migration.
+8. Graph textures are created, imported or taken from `ResourcePool`. Hot paths do not call `GetTemporaryRT`.
+9. A missing volume or a disabled optional feature skips recording. A missing shader or kernel for an optional feature also skips recording. Lighting, active temporal anti-aliasing and display throw at record when their contract is broken. Execute does not contain `if (shader == null) return`.
+10. Feature code uses `IComputeCommands`, `IRasterCommands`, `IRaytracingCommands` and `ITransferCommands`. Graph encoders implement them. Outside the graph, wrap a `CommandBuffer` with `CommandBufferCommands`. Encoders do not define `implicit operator CommandBuffer`.
+11. Mip chains stay in one compute pass. The graph tracks resources, not subresources. Loop the dispatches inside one execute.
+12. Lookup tables, froxel volumes and cubemaps are compute. Atmosphere tables are not produced with `Blit`, `SetRenderTarget` or `BuiltinRenderTextureType`. Cubemap faces are a `RWTexture2DArray`.
+13. `ReadOnlyDepthStencil` is set only when the pass declared read-only depth and does not write it.
+14. `CommandBufferPool.Get()` is unnamed. Camera and pass groups use `ProfilingScope(cmd, sampler)`. A pass GPU name comes only from `pass.customSampler`. A `ProfilingSampler` name must not match a `cmd.BeginSample(string)` argument. String `BeginSample` is only an in-pass marker with no sampler of the same name (`BloomDownsample`, `BloomUpsample`). `ProfilingScope(sampler)` without a command buffer is a CPU-only track.
+15. `EnableNativeRenderPass(false)` is allowed only for gizmos and wire overlay, final output, and UI overlay, for the API reasons in [ARCHITECTURE.md](ARCHITECTURE.md). A new use needs the same kind of hard limit. Overlay is not `DrawUIOverlay`.
+16. Clear depth uses `GraphicsUtility.ClearDepthFar`. Sampled depth comparisons use `GraphicsUtility.SampledFarDepth`.
+17. A color-only target uses the color-only `SetRenderTarget` overload. An empty depth identifier is not passed in a `RenderTargetBinding`.
+18. The backbuffer enters through `ImportBackbuffer`. `RTHandle.SetTexture` is internal to Core RP. Rebinding reallocates when the identifier changes.
+19. History reallocates on the field-level physical descriptor compare. Do not compare through `RenderTextureDescriptor`.
+20. `ReleaseBuffer` and `ReleaseTexture` preserve recording references and queued use. Cancelled recordings release only their recording references. Partially queued or uncertain submissions stay protected. Pool return is not proof of safe CPU reuse.
+21. Compile RAW, WAR and WAW on the effective queue, gated by device async-compute and fence support. Pooled allocations keep last-use fences from both queues. Never query an async-queue fence as a CPU completion signal on a Metal device that does not support it.
+22. `RGBuilder.Execute` propagates the original failure. Attachment Load is a read. Depth that a later effect or capture consumes is stored. Atmosphere and light-list outputs are consumer inputs. Producers do not prebind those outputs as globals. Every light-list consumer declares the z-bin and tile-mask buffers and binds them with `FLightLoopInputs`. Light-context uploads are Transfer producers. An imported `GraphicsBuffer` is not cloned into a `ComputeBuffer` descriptor. Replaced light-context buffers retire after submit.
+23. History write reservations do not mutate committed descriptors. Swap both descriptor and allocation on commit. Preserve committed history if the pending write rolls back. Shared-cache validity comes from queue-accepted production, independent of camera success. Failed camera or frame transactions force a history reset. Frame cleanup keeps the first exception and still attempts submit for earlier accepted work.
+24. Camera framebuffer descriptors declare Internal or Display sizing. Fixed lookup tables, atlases and external targets stay Exact. Each camera owns its capacity history. Capacity aligns to 64 texels, grows by at least 12.5% when exceeded, and shrinks after 30 accepted requests whose three-request peak is below 75% of capacity area. Orientation changes reset that history. Failed submissions do not advance it.
+25. Pool retention watermarks are 400 MiB for textures and 64 MiB for buffers. Idle age greater than two successful submission epochs selects the oldest entries above the watermark. Eviction waits for a CPU-queryable fence. Counters are estimates.
+26. Generate screen-binding registries with `python3 -B Tools/TextureViews.py --write`. The offline gate checks them. Do not generate bindings by loading assets.
+27. `FOutputPlan` selects direct or display-linear output before post-processing. Encoded targets never alias `PostProcessBuffer` or `DisplayColorBuffer`. HDR UI, debug view, Editor overlays and requested linear captures keep a linear intermediate. Hardware-sRGB SDR UI blends on the final target. Post-combine owns grading, exposure, bloom, vignette and grain through `PostCombine.hlsl`. A later output draw encodes an already composed buffer and does not grade again. Read-only post bypass may alias its source. An overlay writer requires its own target.
+28. `ReactiveMask` exists only for temporal anti-aliasing. The first translucent color pass clears it even with zero draws. Later passes load it. Other policies omit the output and compact the motion and metadata targets. There is no standalone clear dispatch.
+29. Display-depth upsampling exists only for recorded Editor overlays that need it. Cached depth-atlas tile copies stay raster. Unity `CopyTexture` forbids a partial depth-only copy.
+30. Debug view writes linear quantities only, immediately before gizmos and wire overlay, and only into the post buffer when a debug view is active. `TAAConfidenceBuffer` is created only when `debugView != None` or this frame's capture requests confidence. Capture does not change debug view or history.
+31. One live draw list receives one upload producer and, for GPU indirect, one compute producer with visibility, metadata, index and argument dependencies. Raster consumers only draw. Batch index and argument ranges are disjoint. Payload capacity is acquired before recording and does not grow during execution.
 
-1. **Do not disable a designed path to silence Console.** Forbidden patterns include `EnableAsyncCompute(false)` as a correctness switch, replacing `throw` with `return false`, dispatching with `count = 0` to look wired, and `if (shader == null) return` inside execute. If a feature is unimplemented, do not record the pass.
-2. **Do not swallow invalid resources.** An invalid `RGTextureHandle` / `RGBufferHandle`, a `Query*` miss, or a failed Resolve must fail at record/setup. Forbidden: `Texture2D.blackTexture` fallbacks, lighting-as-history, binding an empty `RenderTargetIdentifier` to compute.
-3. **Pass type is not a workaround knob.** Transfer = copy. Raster = draw. Compute = dispatch. Gizmo/WireOverlay and FinalOutput all stay Raster, because each of them ends in a draw. Never move Draw into Transfer to dodge an API, and never call `SetRenderTarget` inside a pass execute — attachments are declared at record time and bound by `RGBuilder`.
-4. **Image history lives only in `HistoryCache`.** Import accepted history for reads and pending targets for writes. A producer may write pending history directly, as fused TAA does; other producers use an explicit CopyHistory transfer. Accept pending history only after successful submission. Never Query a same-frame scoper ID that has not been written yet and call it history.
-5. **One semantic buffer, one owner.** Downstream reads the ID the last producer registered (`DisplayColorBuffer` for the frame's present source). Do not guess a sibling ID (`SuperResolutionBuffer` vs `AntiAliasingBuffer` vs `LightingBuffer`).
-6. **Console wording is not the root cause.** Unity's `temporary render texture` message is the empty-identifier diagnostic. It does not mean RDG used `GetTemporaryRT`. Check handle validity, pass order, and who should `Register*` first.
-7. **Ownership, order, and lifetime first; API migration second.** A workaround must be `// TODO: <root cause>` and cannot be the final design.
-8. **RDG textures go through Create / Import / ResourcePool only.** No `GetTemporaryRT` on hot paths.
-9. **Record-time gate vs execute-time silence.** Volume-missing or optional-feature-off may skip recording. Shader/kernel missing for an optional feature also skips recording. A required producer (Lighting, active TAA, Display) throws at record. Execute must not contain `if (shader == null) return`.
-10. **Feature classes talk to command capability interfaces, never `CommandBuffer`.** `IComputeCommands` / `IRasterCommands` / `IRaytracingCommands` / `ITransferCommands` are the only command surfaces. RG encoders implement them. Outside RG, wrap a `CommandBuffer` with `CommandBufferCommands`. Do not add `implicit operator CommandBuffer` on encoders.
-11. **One physical quantity, one authority.** Atmosphere lives only on `AtmosphericalProfile`. There is no Volume override and no `AtmosphereParameter.Default()`. `FromProfile(null)` throws. `ThrowIfInvalid` rejects physical-range violations (thickness, Hillaire scatter/Mie/heights/ozone/sunAngle), not only zeros. Geometric sizes are meters. Hillaire scatter/absorption coefficients are stored per kilometer and converted to per-meter at bind (`AtmosphereParameter.ScatterPerKmToPerMeter`). Do not mix the two units in the compute shader. **Default Volume values come only from `InfinityDefaultVolumeProfileSettings` on `InfinityRenderPipelineGlobalSettings`. Quality-level Volume values come from the optional RP Asset `qualityVolumeProfile`. The constructor calls `VolumeManager.Initialize(defaultProfile, qualityProfile)` once; do not register the same profile again as a custom default. There is no second hardcoded default (no IdentityLut, no AtmosphereParameter.Default).** Atmosphere / DeferredShading / TAA are not Volume features.
-12. **Validate the Player Volume type registry before recording.** CoreRP 17.6 Editor discovers types by reflection, but Player only registers components listed in the global default Profile. Missing types return null; do not rely on Editor behavior or substitute hardcoded values. The default Profile includes required color/exposure components and every consumed optional-feature type. Optional features record only when `VolumeComponent.IsActive()` is true (explicit `enable` or a documented intensity/mode threshold). `overrideState` marks a scene override; it is not a feature gate.
-13. **Replaced rendering paths are deletable only after consumer closure and equivalent RG ownership are proved.** "Not wired yet" is not "obsolete". Without an Editor, consumer closure is proved by the differential compile gate plus a repository-wide search (including `Editor/Cli`, docs and tests). Valid unintegrated hardware-RT assets are kept.
+## 7. Temporal
 
-## RenderGraph resource and pass shape
+1. `UNITY_MATRIX_VP` is `Matrix_ViewJitterProj`. Reconstruction from screen UV and the depth buffer uses the jittered inverse. On the compute side that matrix is `matrix_*FlipYJitter*`.
+2. Motion vectors are jitter-free. `SV_POSITION` uses the jittered view-projection. The clip positions used for velocity do not.
+3. Temporal anti-aliasing reads `screenUV = (id.xy + 0.5) * texelSize` with point clamp. Do not bilinear-sample at `screenUV - TAAJitter`.
+4. Color history uses `uv - motion`. Raster depth uses `uv - motion + previousJitterUV - currentJitterUV`. Motion metadata carries expected previous raw depth, current surface raw depth, validity and reserved data from one surface. Invalid, off-screen or disoccluded history has zero weight. Sample age lives in the alpha of the `RGBA16F` history. Do not compare current eye depth with previous-camera eye depth.
+5. Sharpening never feeds history. Temporal blending is linear RGB. Output sharpening scales RGB together. A YCoCg Y offset that adds a constant to RGB is not that operation. The anti-aliasing sharpen constant is 0.35. Super resolution writes unsharpened color and display-grid surface depth to pending history in its production dispatch. Its sharpened display result has no history-copy path. Reset and off-screen super-resolution history is not sampled. Multiplying undefined history by zero is not rejection. `TAAJitter` has super-resolution consumers. Do not remove that upload without those consumers.
+6. Scene-view history advances by accepted camera submissions. A global frame gap does not reset a live Scene view. Cuts, projection or descriptor changes and failed submission do. New and reset frames use zero jitter. Do not substitute another camera's latest object pose. Native renderer-list draws use `unity_MatrixPreviousM` and skinned previous positions. The pipeline keeps no second native pose history and sets no per-renderer property blocks.
+7. The anti-aliasing dispatch is one 8×8 tile plus a one-pixel halo. Halo lanes participate in the group barrier outside the logical image.
 
-1. **Mip chains stay in one compute pass.** HiZ / ColorPyramid / bloom downsample are the same resource reading mip N-1 and writing mip N. RG tracks resources, not subresources; splitting per-mip into multiple passes creates false hazards and no extra parallelism. Loop dispatches inside one execute.
-2. **LUT / froxel / cubemap generation is compute.** Do not introduce `Blit` / `SetRenderTarget` / `BuiltinRenderTextureType` to generate atmosphere tables. Cubemap faces are a `RWTexture2DArray`.
-3. **Fallback raster depth flags follow `EDepthAccess`.** `ReadOnlyDepthStencil` is set only when the pass declared read-only depth without write.
-4. **DebugView writes linear quantities only, immediately before Gizmo/WireOverlay.** It writes `PostProcessBuffer` only when DebugView is active. Gizmo/WireOverlay then draw on that linear buffer. Output planning allocates a display-linear intermediate only for real consumers; otherwise raster post-combine writes the camera target directly. Output encoding has one owner per target. DebugView is not a second encoding owner. `TAAConfidenceBuffer` is created only when `debugView != None` or an explicit normal-frame capture requests confidence for this frame. Capture must not change DebugView or history.
-5. **Queue and physical identity are explicit.** Compile RAW, WAR and WAW dependencies using the effective queue, gated by device Async Compute/fence support. Repeated physical texture/buffer imports share one graph identity; texture binding aliases do not create independent hazards. Pooled allocations retain last-use fences from both queues. GPU reuse waits on the opposite queue; CPU reuse queries separate CPU-synchronisation completion fences. Never query an AsyncQueueSynchronisation fence as a CPU completion signal on unsupported Metal devices.
+## 8. Features
 
-## 0.5.0 architecture rules
+1. Atmosphere lives only on `AtmosphericalProfile`. There is no Volume override and no `AtmosphereParameter.Default()`. `FromProfile(null)` throws. `ThrowIfInvalid` rejects out-of-range thickness, scattering, Mie, heights, ozone and sun angle, not only zeros. Lengths are meters. Scattering and absorption are stored per kilometer and converted with `AtmosphereParameter.ScatterPerKmToPerMeter` at bind. The compute shader uses one of those units, not both.
+2. Default Volume values come only from `InfinityDefaultVolumeProfileSettings`. Quality-level Volume values come from the optional asset `qualityVolumeProfile`. The constructor calls `VolumeManager.Initialize(defaultProfile, qualityProfile)` once. Do not register that profile again as a custom default. There is no second hardcoded default and no identity LUT used as one. Atmosphere, deferred shading and temporal anti-aliasing are not Volume features. The Editor discovers Volume types by reflection. A Player registers only the components listed on the global default profile. Missing types return null. Do not substitute a hardcoded value for a missing Player component. The default profile includes the required color and exposure components and every consumed optional type. Required exposure reads the resolved camera stack. `overrideState` does not gate it. Combine LUT has no inactive-component constant fallback. Exposure is a multiply before the LUT. Tonemap is None or ACES.
+3. A Volume feature exposes `quality` plus its low-level parameters. `Resolve()` returns `F<Feature>Settings`. Custom reads the Volume. Other levels read `QualityPresets.<Feature>`. Passes do not branch on `EQualityLevel`.
+4. Unity `Light` owns color, intensity, temperature, range, spot angles, shadow mode, strength, bias, near plane, culling mask, rendering layers, bake type, bounce intensity and the cookie. `InfinityAdditionalLightData` owns `FLightShape` and the Infinity-only fields: shadow filter, update mode, contact shadow, volumetric weights, IES, distance fade and light layer. Derived native fields (`type`, `shapeRadius`, `areaSize`, `shadowAngle`) are written on user edits and API setters, never on load. A light without an authored shape derives `FLightShape` from the native fields. The GPU record has no shape enum.
+5. Atlases that live across cameras and frames follow `AtmosphereSharedCache`: pending reservations, commit on queue-accepted `MarkProduced`, `DiscardUnproducedPending` for failed cameras, physical retirement after submit. Cross-frame keys are instance IDs, not per-frame record indices.
+6. Volume, asset, kernel and dependency configuration run before culling. Recording that depends on scene content is decided after `LightContext.Build`.
+7. A C# struct uploaded to a shader carries `// GPU-RECORD: <HlslStruct> <hlsl file>`. `Tools/StaticCheck/static_check.py` and an EditMode test compare field order and types with the HLSL struct.
+8. Screen-space reflection may trace at half resolution. Resolve, temporal, spatial and their histories stay full resolution. Do not add a half-resolution reflection denoiser or a redundant output upscale.
+9. Screen-space indirect diffuse has no ray-reuse resolve. Cosine trace samples the accepted unsharpened color pyramid. Trace, temporal, world-space spatial and history share the work grid. Reconstruction writes full resolution. Spatial-filtered diffuse history is recurrent. Reflection history remains pre-spatial.
+10. Half-resolution indirect-diffuse samples keep the accepted view's quad phase with the history transaction. Reconstruction uses the representative positions, including the shorter last interval on an odd edge. Metadata is `R32G32_UInt`. Integer loads only. Diagnostic readback decodes on the GPU because Metal does not expose that format to `AsyncGPUReadback`. Ray-hit storage is diagnostic-only. Trace and spatial share working storage. A trace capture snapshots the last use before spatial overwrites it. Each 8×8 tile is binned in group shared memory into one compact interval. Trace is a 64-wide indirect dispatch. All lanes participate in group barriers.
+11. Subsurface owns an optional diffuse-only attachment when it is supported and requested. Deferred and forward produce it. Indirect composition replaces its indirect term. Half-resolution diffusion recomposes main color as main minus original diffuse plus filtered diffuse. Specular and emissive light never enter the filter. The material profile index selects the profile. The Volume owns enable and `numSamples`. The asset owns diffusion profiles. No subsurface allocation or extra output exists when the feature is off. Routing still requires opaque Deferred subsurface.
+12. Async eligibility is not evidence of overlap. History copies of previous-color effects sit after the independent raster window. A graphics transfer immediately after an async producer joins that producer. Early visibility recovery and immediately dependent late effects stay on graphics by design.
+13. Native HDR state is queried live. Encoding matches the active swapchain transfer and primaries. Linear Rec.2020, PQ Rec.2020 and linear Rec.709 scRGB are different contracts. HLG needs a native HLG interface, which the current color-gamut API does not provide. HDR automatic tonemapping has one owner and is restored on exit.
+14. Subsurface sample count lives only on the Volume. Fixed-ratio super resolution uses asset `renderScale` in `[0.5, 1.0]`, default 1, for Game cameras when super resolution is enabled. One per-camera descriptor owns internal and display size. Explicit Unity camera targets are imported by identifier. Dimensions freeze after `BeginCameraRendering`.
 
-1. **Quality presets resolve before passes.** A Volume feature exposes `quality` (`EQualityLevel`: Low / Medium / High / Ultra / Custom) plus all of its low-level parameters. `Resolve()` returns a low-level settings struct (`F<Feature>Settings`): `Custom` reads the Volume parameters, every other level reads a hardcoded preset table in code (`Runtime/RenderPipeline/Quality/QualityPresets.<Feature>.cs`). Passes consume only the settings struct and never branch on `EQualityLevel`.
-2. **Light data authority.** Unity `Light` owns color, intensity, temperature, range, spot angles, shadow mode/strength/bias/near plane, culling mask, rendering layers, bake type, bounce intensity and the cookie texture. `InfinityAdditionalLightData` owns the source shape in Unreal form (`sourceRadius`, `softSourceRadius`, `sourceLength`, `sourceWidth`/`sourceHeight`, barn doors, `sourceAngle`) and Infinity-only fields (shadow filter, update mode, contact shadow, volumetric, weights, IES, distance fade). The component writes the derived native fields (`type`, `shapeRadius`, `areaSize`, `shadowAngle`) only on user edits and API setters, never on load. A light without the component derives its shape from the native fields. The GPU record has no shape enum: shapes are parameter combinations.
-3. **Persistent cross-frame caches are transactions.** Atlases that live across cameras and frames (reflection probes, cookies/IES, cached shadows, sky IBL) follow the `AtmosphereSharedCache` pattern: pending reservations, commit only on queue-accepted production (`MarkProduced`), `DiscardUnproducedPending` for failed cameras, physical retirement after Submit. Cross-frame keys use instance IDs, never per-frame record indices.
-4. **Content-dependent gating happens after light/probe collection.** Feature configuration (Volume, asset, kernels, dependency closure) runs before culling; features whose recording depends on scene content (tile masks, moment shadows, probe/cookie atlas updates, local contact shadows) are decided after `LightContext.Build`.
-5. **GPU records have one layout.** A C# struct uploaded to a shader carries a `// GPU-RECORD: <HlslStruct> <hlsl file>` marker; `Tools/StaticCheck/static_check.py` and an EditMode test compare field order and types with the HLSL struct.
+## 9. Shaders and materials
 
-## Integration exceptions (explicit and bounded)
+`MaterialRouteUtility` validates surface route and translucent stage and applies pass state. Do not add a second parser or a rounding path. `ShaderGUI.ValidateMaterial` is read-only. An inspector redraw does not apply derived pass state or mark every referencing `MeshComponent` dirty. Runtime edits of `_SurfaceRoute` or `_TranslucentStage` call `ApplyPassState`. Exact values are validated before derived mutations. Subsurface requires opaque Deferred routing.
 
-- **Shader Graph.** Shader Graph 17.6 declares `Target`/`SubTarget` internal (`// TODO: Public`) and grants access only to Unity assemblies. InfinityRP compiles its target into `Unity.ShaderGraph.Editor` through the single asmref at `Editor/ShaderGraph/`. Only code under that folder may use Shader Graph internals. It references Infinity only by strings (shader paths, include paths, Material GUI class names); `static_check.py` verifies those strings. Nothing in Runtime may depend on it. No other assembly may use asmref injection, reflection into Unity internals or friend-name spoofing.
-- **Adaptive Probe Volumes.** CoreRP binds APV runtime resources with `ProbeReferenceVolume.BindAPVRuntimeResources(CommandBuffer, ...)` and `UpdateShaderVariablesProbeVolumes(CommandBuffer, ...)`. These are CoreRP-owned, persistent, read-only globals. They are bound in the per-camera setup block on the pipeline command buffer, before the RenderGraph records; no RG encoder exposes a `CommandBuffer` for them.
+GBuffer encode and decode symmetry is owned by `GBufferPack.hlsl`.
 
-## Source schema and integration boundaries
+Metal value and out helpers initialize their results before guarded work and return once where the cross-compiler requires a single exit. Resource access stays behind its validity gate. A rejected surface keeps its raw depth. Ray loops exit through an explicit found state and `break`, without changing traversal order. Do not suppress diagnostics or replace a callee result with a caller-side default. Kernel bounds exits and group-barrier participation keep their existing meaning.
 
-- Native legacy fields and current effective values are different evidence. Before an explicit schema cleanup, identify the actual owner, bind source/meta and per-object/native field identities, and prove every non-approved field/reference unchanged. Preserve the currently running effective configuration; do not infer old physical units or material/light authority from discarded fields.
-- An approved source schema change uses fresh durable backups and intent before targeted saves, exact allowed native deltas, stable GUID/local IDs and references, current scene/dirty preservation, second-save byte identity and a separate no-op. Preserve pending evidence and original exceptions; do not clear dirty flags or blindly restore source bytes. Loading/reload never authorizes migration.
-- Renaming a serialized field (Volume parameter, component or asset field) resets user values because `FormerlySerializedAs` is not used. Prefer adding fields. Every unavoidable rename is listed in the verification playbook of the change.
-- Custom VFX Graph outputs are **unsupported**. Do not restore an old HDRP identity, add a friend-assembly shim, or patch PackageCache to revive them. Standard Unity ParticleSystem rendering goes through the translucent RendererList.
-- Schema, compilation and image gates remain separate. Passing a schema or compile check does not make a frame correct.
+Guard a degenerate normalization before a reciprocal length. Bind required resources and validate physical inputs at setup. Do not substitute a fallback texture. Compute passes changed while closing a diagnostic resolve kernels by name and store kernel and thread-group sizes in pass data at record time. Deferred shading uses an 8×8 group. The clustered light lookup keeps 16×16 tiles. Warning acceptance is public `ShaderUtil` diagnostics after a production dispatch or draw, a fresh log window, and the current Example feature chain. A fixture, a reimport or `FindKernel` alone is not that acceptance.
 
-## Known gaps (do not paper over)
+## 10. Unity integration
 
-Per-feature verification state is in `Docs/FeatureStatus.md`. The technical defects below are known in code; current ownership and verification limits are recorded in Docs/FeatureStatus.md. Do not hide them behind fallbacks.
+- Shader Graph 17.6 keeps `Target` and `SubTarget` internal. The Infinity target is compiled into `Unity.ShaderGraph.Editor` through the single asmref at `Editor/ShaderGraph/`. Only that folder uses Shader Graph internals. It references Infinity by strings. `static_check.py` checks those strings. Runtime does not depend on it. No other assembly uses an asmref, reflection into Unity internals, or a spoofed friend name for this purpose.
+- Adaptive Probe Volumes are bound with `ProbeReferenceVolume.BindAPVRuntimeResources` and `UpdateShaderVariablesProbeVolumes` on the pipeline command buffer, before the graph records. No graph encoder exposes a `CommandBuffer` for that bind. One integration owns initialization and cleanup. Enable and disable of an entity each pair with one unregister, including disable followed by destroy.
+- Native renderer content uses Unity culling and renderer lists, including lightmaps, legacy probes, light-probe proxy volumes, shadowmask and motion. `Light.bakingOutput` on a visible light decides shadowmask. Mesh state does not.
+- `MeshComponent` never discovers or changes a renderer and stores no lightmap or CPU per-instance probe data. Its material may sample Adaptive Probe Volumes in world space. Atmosphere and realtime lights remain pipeline inputs.
+- Unified Ray Tracing's public explicit-instance API is wrapped by an isolated adapter. Native renderer identity and custom draw generation are distinct. A mesh resource is not an instance identity. Native scene changes do not wait for mesh-scene revisions. The persistent-scene scope is transient and is released with the adapter.
+- Additional-data components own only Infinity extensions. They are added with Undo by `ObjectFactory.componentWasAdded` and by the Infinity inspectors. Do not expose a public field that the user assigns to a camera or light. Editor load, reload and scene save do not migrate or regenerate hidden data. Terrain sector regeneration is an explicit inspector action with Undo and prefab tracking.
+- The file inventory is `Docs/UnityIntegrationAudit.md` and `Docs/UnityBoundaryInventory.csv`. Inventory hashes describe inspected bytes, not runtime verification.
 
-- Mesh: pass `defaultSort` plans are not applied (bins sort only by `CompareStructural`).
-- Validation scenes (Decal, LocalLights, Translucent) show sky black bands, large dark triangles and cube blotches. Their cause is undiagnosed.
-- Cached (OnEnable / OnDemand) local shadows keep the casters of their last render; moving objects do not update them, and there is no dynamic-caster overlay.
-- Rect and disk shadow tiles cover a 120° cone in front of the emitter; receivers at grazing angles outside it are unshadowed.
-- Reflection probes are axis aligned (no rotation) and limited to the RP Asset Max Reflection Probes per frame (atlas slots; further probes are skipped in priority order); probe rendering layers are not supported. Unity culls probes by their box bounds, so a sphere influence larger than the box can be culled while still visible. Translucent T0 surfaces have no specular environment term.
-- Infinity Shader Graphs: the Scene Depth node is bound only in Decal graphs and Scene Color only in the T1 translucent stage; the Fog node returns no fog; graph motion vectors assume rigid motion (vertex animation in the graph does not reach the previous position).
-- Contact shadows cover at most 24 local lights per camera (largest on screen first); directional lights other than the sun get none.
-- InfinityLit has no metallic / mask, occlusion, detail, height or emission maps; the material converters drop them (the Conversion Wizard lists them).
-- The Light / Reflection Probe Complexity debug views count what the clustered loop visits (tile and depth-bin overlap), not the lights that reach the pixel.
-- Image regression has no baselines until they are recorded on a verified Editor; baselines are per graphics API, not per GPU vendor.
-- `TAAJitter` has SuperResolution consumers. TAA uses explicit current/previous framebuffer jitter UV and per-pixel sample age; do not remove the shared upload without checking SR consumers.
-- TAA uses one tiled dispatch for accumulation and sharpening at strength 0.35. RGBA16F unsharpened color/sample-age and current surface depth write directly to pending history; sharpened color is display-only. Halo lanes participate in the group barrier even outside the logical image.
-- Several passes always record but emit no draws, so Frame Debugger may omit them (`RenderDBuffer` without a DBufferPass shader, `RenderLocalShadow` without local casters, the `CopyHistory*` Transfer passes). `RenderCascadeShadow` records and binds its target even with 0 draws.
-- HiZ / HalfRes / LUT / light masks / AO-contact / previous-color effects are async eligible where supported. Actual hardware overlap and acceleration remain unmeasured; the current Metal validation host reports no Async Compute support.
-- RTAO records only when UnifiedRayTracing `RayTracingContext` + `IRayTracingAccelStruct` + `VisibilityRTAO.urtshader` are ready and the accel has instances; otherwise GTAO owns AO and the Debugger shows the reason. Player shader load is unverified.
-- CombineLUT is keyed (grading + ACES + output mode); cache hit is zero dispatch. The LUT writes Rec.709 linear only.
+Runtime resources live only in Global Settings `IRenderPipelineResources` containers with `[ResourcePath]`. The pipeline asset never references runtime shaders. Its material fields are optional overrides for objects created from the GameObject menu. A missing required resource fails at record or setup. `ResolveDefaultVolumeProfile` throws when the Global Settings slot is empty. There is no `Resources.Load` fallback. Player shader stripping lives in `Editor/ShaderStripper/`.
 
-## Render target and depth conventions
+`SupportedRenderingFeatures.active.rendersUIOverlay` is true. Screen-space overlay uses `CreateUIOverlayRendererList` and `DrawRendererList` for a Game camera with no target texture: on the hardware-sRGB target after direct output, or on `DisplayColorBuffer` before encoding when a linear intermediate is required. Scene view never draws that list. Screen-space camera and world-space canvases use the translucent renderer list.
 
-1. **`EnableNativeRenderPass(false)` is allowed only where a native-RP attachment is impossible.** Today that is Gizmo / WireOverlay (Unity forbids drawing gizmos inside `BeginRenderPass`), FinalOutput (the backbuffer has no owning `RenderTexture`, so `AttachmentDescriptor.graphicsFormat` cannot be resolved), and UI Overlay (`CreateUIOverlayRendererList` / `DrawRendererList` is uGUI's overlay list; Unity does not expose that list as a native-RP attachment payload). A new use needs the same kind of hard API reason, not convenience. Overlay is not `DrawUIOverlay`.
-2. **Clear depth and sampled depth are different values.** `ClearRenderTarget(depth)` and `AttachmentDescriptor.clearDepth` are normalized by Unity: `1.0` always means far plane and the backend flips it on reversed-Z platforms. Use `GraphicsUtility.ClearDepthFar` there. Only shader-side comparisons against a sampled depth buffer use `GraphicsUtility.SampledFarDepth`. Feeding one into the other clears the depth buffer to the near plane and silently kills geometry in every raster pass.
-3. **A color-only raster target binds color only.** Never pass an empty `RenderTargetIdentifier` as the depth target of a `RenderTargetBinding`; Unity reports it as `temporary render texture not found`. Use the color-only `SetRenderTarget` overload.
-4. **The backbuffer enters RDG through `ImportBackbuffer`.** It is an imported resource and therefore skips Create/Release. `RTHandle.SetTexture` is CoreRP-internal, so rebinding reallocates when the identifier changes.
-5. **`HistoryCache` reallocates only via field-level physical descriptor equality.** Logical extent/history validity and physical compatibility are separate authorities; `TextureDescriptor.Equals` still compares the complete logical descriptor. That field-level compare is the authority (same rule as `MeshDrawCommandKey`). Do not rebuild a second compare through `RenderTextureDescriptor`: the implicit conversion forced `depthStencilFormat = None` and `mipCount = -1`, so history textures could reallocate every frame, latch `resetHistory`, and silently kill TAA accumulation.
+`Dispose` restores `SupportedRenderingFeatures.active`, `Shader.globalRenderPipeline` and the `GraphicsSettings` flags captured at construction.
 
-## Profiling conventions
+Custom VFX Graph outputs are unsupported. Do not add a friend-assembly shim or patch Package Cache to revive them. Standard `ParticleSystem` rendering uses the translucent renderer list.
 
-1. **`CommandBufferPool.Get()` is always unnamed.** A named buffer creates an implicit Frame Debugger scope that closes on every `ExecuteCommandBuffer`, orphaning any `BeginSample` / `EndSample` that spans later executes. Camera and pass grouping come only from `ProfilingScope(cmd, sampler)`.
-2. **An RG pass GPU name comes only from `pass.customSampler`.** Do not write `cmdBuffer.name = pass.name`. That duplicates the sampler and produces `RasterDepth > RasterDepth > draws`.
-3. **A `ProfilingSampler` name must not match any `cmd.BeginSample(string)` argument.** Cross-pass groups use `RGProfilingScope`, which records a pass range. On one submission segment the parent sampler begins on the first live pass and ends on the last, on that segment's command buffer. A segment split closes it and begins it again on the next buffer. It does not insert passes, and each pass keeps its own `customSampler`. String `BeginSample` is only for in-pass temporary markers that have no same-named sampler (`BloomDownsample`, `BloomUpsample`).
-4. **`ProfilingScope(sampler)` without a CommandBuffer is a deliberate CPU-only track.** Do not add a cmdBuffer to it to "make GPU markers appear".
+Debug state is runtime. `InfinityDebugDisplaySettings` owns the debug view and its panels. Do not serialize `debugView` on the pipeline asset. Do not add a debugger control without a consumer.
 
-## Temporal / jitter conventions
+## 11. Serialized data
 
-1. **`UNITY_MATRIX_VP` is `Matrix_ViewJitterProj`.** Depth and GBuffer are rasterized in jitter space. Any matrix that reconstructs world/view position from `(screenUV, depth buffer)` must be the jittered inverse VP. On the compute side that is `matrix_*FlipYJitter*` — `FlipY` in this repo means `GL.GetGPUProjectionMatrix(..., renderIntoTexture = false)`.
-2. **Motion vectors must be jitter-free.** `SV_POSITION` uses the jitter VP so coverage matches the depth buffer. The clip positions used to compute velocity use the non-jitter VP. Baking jitter into motion makes a static frame produce `j_prev - j_curr` every Halton step, which wobbles history lookups and bicubic-resamples the accumulation.
-3. **TAA reads the current frame at the exact texel.** `screenUV = (id.xy + 0.5) * texelSize` with point-clamp. Do not bilinear-resample at `screenUV - TAAJitter` to "unjitter" the image; that throws away the subpixel sample TAA exists to accumulate.
-4. **Color history and depth history have distinct grids.** Resolved color uses `uv - motion`; raster depth uses `uv - motion + previousJitterUV - currentJitterUV`. MotionMetadata RGBA32F carries expected previous raw depth, current surface raw depth, validity and reserved data from one surface. TAA copies this current surface depth into R32F history. Invalid/offscreen/disoccluded history has zero weight; valid accumulation tracks sample age in RGBA16F alpha. Never compare current eye depth directly with previous-camera eye depth.
-5. **Sharpening never feeds history.** Temporal blending is linear RGB, with reversible linear-luminance compression for neighborhood clipping. Output sharpening changes bounded luminance by scaling RGB together. Adding a constant to RGB via a YCoCg Y edit changes chromaticity and is not equivalent.
-   Super Resolution also writes unsharpened RGBA16F color and display-grid R32 surface depth directly to pending history in its production dispatch. Its sharpened display result has no history-copy path. Reset/offscreen SR history is not sampled; multiplying undefined history by zero is not rejection.
-6. **SceneView history advances by accepted camera submissions.** A global frame gap alone does not reset or recycle a live SceneView. Cuts, projection/descriptor changes and failed submission reset history; new/reset frames use zero jitter. Scene-owned `GpuScene.transformVersions` holds immutable matrix/generation buffers. `MeshViewMotionHistory` retains only accepted/pending version references and commits with camera matrices. A transform revision advances only for changed matrices or slot membership; dirty 64-slot patches upload once per version and a compute producer copies unchanged data. Shader motion validates scene identity, snapshot range and slot generation. Static views and cameras sharing a version do not copy or upload matrix tables. Do not substitute another camera's most recent object pose. Native renderer-list draws use Unity's own previous-frame data (`unity_MatrixPreviousM`, skinned previous positions); the pipeline keeps no second native pose history and sets no per-renderer PropertyBlocks.
+Native legacy fields and current effective values are different evidence. Before a schema cleanup, identify the owner, the bind source and the per-object field identities, and prove every non-approved field unchanged. Do not infer old units or authority from a discarded field.
 
-## Unity / Shader
+An approved schema change uses a fresh durable backup and a written intent before the save, an exact allowed delta, stable GUID and local IDs, preservation of unrelated scene dirtiness, a second save that is byte-identical, and a separate no-op. Loading never migrates.
 
-- Components: prefer `[ExecuteAlways]` + `AddComponentMenu("InfinityRenderer/...")`.
-- Asset private serialization: `[SerializeField] private T m_*`.
-- Shader path: `InfinityPipeline/...`; tag `RenderPipeline=InfinityRenderPipeline`.
-- Compute files: `Compute_<Feature>.compute`.
-- LightMode tags must match `InfinityPassIDs` (`RasterDepthPass`, `RasterGBufferPass`, …).
-- GBuffer encode/decode symmetry (YCoCg checkerboard from `SV_POSITION.xy` and BestFit) is owned by `GBufferPack.hlsl`.
-- Metal helper outputs must have defined control flow. For value/out helpers that produce cross-compiler initialization diagnostics, initialize meaningful results before guarded work and return once; keep resource access behind its original validity gate. Preserve raw depth on rejected surfaces. Ray-loop exits use explicit found state and break, without changing traversal order. Do not suppress diagnostics or substitute caller-side defaults for a complete callee contract. Kernel bounds exits and group-barrier participation retain their existing semantics.
+Renaming a serialized Volume, component or asset field resets user values because `FormerlySerializedAs` is not used. Prefer adding a field. Every unavoidable rename is listed in the verification playbook of that change. Replaced types are deleted after consumer closure and an explicit Example-project migration.
 
-## Comments and hygiene
+Schema, compilation and image checks are separate gates. A schema or compile pass does not make a frame correct.
 
-- Comments in English; TODO format: `// TODO: <action>`.
-- Do not commit large blocks of commented-out dead code.
-- Do not introduce spellings that diverge further; fix typos when touching a symbol.
-- Assembly identities use `Unity.RenderPipelines.Infinity.*`; keep references and friend declarations consistent. Old identities are allowed only in temporary explicit migration tooling and immutable historical evidence, never as compatibility shims.
+## 12. Editor interaction and verification
 
-## Roles
+Automated Editor interaction uses the Unity CLI connection to an explicitly selected project (`Editor/Cli`, compiled only with `INFINITY_UNITY_CLI`). Commands take explicit arguments, return status and evidence paths, and never save assets. Use `127.0.0.1`. Keep bearer authentication and loopback enforcement. Never print or archive credentials.
 
-- An implementing agent owns planning, code and self-tests. An independent verifier reviews candidate batches; a failed, partial or missing verification returns the batch and locks dependent batches. Verification never silently downgrades. Model names are not part of this contract.
-- Conversation tasks track active work. Completed verification belongs in `Docs/FeatureStatus.md`; historical records stay under `Docs/History/`.
-- Editor loading/script reload must never migrate, rebuild, delete or save user assets. Migrations are explicit and targeted, with current-byte backups, integrity, reopen and no-op checks.
-- Preflight never activates source scenes or instantiates prefabs. Use bounded cancellable inspection.
-- Without an Editor, a change passes the offline gate (`Tools/StaticCheck/`) and stays `TODO(UNVERIFIED)` for images.
+Never use `unity run`, a batch build or a second Editor against a project an Editor already holds. Confirm the project and process ID before a command. `com.unity.pipeline` `screenshot` replaces `camera.targetTexture` and calls `Camera.Render`. It is not a normal-frame, history, temporal or window capture. Use the graph transfer capture and observe the real window. Long-running operations expose status and cancellation. A timeout is not permission to submit again, release resources or restart the Editor.
 
-## User-facing integration contracts
+Scene view creation, close, docking and restoration run on the Editor update pump. The render callback may advance a bounded motion pose only. Closing a Scene view inside its own render or `OnGUI` stack destroys an active camera and render texture and can crash native outline drawing. Preserve tab ownership and position. Setting `EditorWindow.position` can undock the view.
 
-1. **Runtime resources live only in GlobalSettings `IRenderPipelineResources` containers** with `[ResourcePath]` (compute shaders, blit material, LUT textures). The RP Asset never references runtime shaders; its shader/material fields are optional overrides for the default materials Unity assigns to GameObject-menu objects. Missing required resources fail at record/setup. `ResolveDefaultVolumeProfile` throws when the GlobalSettings slot is empty; there is no `Resources.Load` fallback. Player shader stripping lives in `Editor/ShaderStripper/`.
-2. **Debug state is runtime.** Rendering Debugger (`InfinityDebugDisplaySettings`) owns DebugView and its panels. Do not serialize `debugView` on the RP Asset. Do not add a Debugger control without a consumer.
-3. **Additional data is the only per-Camera/Light Infinity storage.** `InfinityAdditionalCameraData` / `InfinityAdditionalLightData` are added with Undo by `ObjectFactory.componentWasAdded` and by the Infinity inspectors. Do not expose a public `unityCamera` / `unityLight` field for the user to assign.
-4. **uGUI is a first-class consumer.** `SupportedRenderingFeatures.active.rendersUIOverlay = true`. Screen Space Overlay uses `CreateUIOverlayRendererList` + `DrawRendererList` on the hardware-sRGB camera target after direct final output, or on the display-linear `DisplayColorBuffer` before output encoding when a linear intermediate is required, only for `CameraType.Game` with no target texture (`UIOverlayPass`). SceneView never draws the display overlay list. Screen Space Camera / World Space canvases use the translucent RendererList.
-5. **SSS quality lives only on Volume `numSamples`.** Diffusion profiles stay on the RP Asset.
-6. **Fixed-ratio SR:** RP Asset `renderScale` in [0.5, 1.0], default 1.0, Game cameras only when Super Resolution is enabled. One per-camera dimension descriptor owns internal vs display size. Explicit Unity-owned camera targets are imported by identifier with their descriptor; dimensions freeze after BeginCameraRendering callbacks.
-7. **Dispose restores process-global state the pipeline set:** `SupportedRenderingFeatures.active`, `Shader.globalRenderPipeline`, and the `GraphicsSettings` flags captured at construction.
-8. **No compatibility shims.** Replaced types are deleted after consumer closure and an explicit Example-project migration. Do not add `FormerlySerializedAs`.
+Capture uses an explicitly selected active Game camera, or the one unambiguous active Game camera. Do not assume the MainCamera tag. Capture lighting before its ownership moves into scene color. Do not query a retired semantic name at frame end.
 
-## Verification
+EditMode tests live under `Tests/Editor`.
 
-- EditMode tests live under `Tests/Editor` (Test Framework dependency in `package.json`).
-- Runtime Editor is not assumed available in every agent environment; mark unverified GPU/platform results as `TODO(UNVERIFIED)` in delivery notes.
-- Steady-state invariant: `MeshScene.MatrixDuplicateRatio == 1.0`.
+After an InfinityRP code or shader change, do not wait for the user to compile:
 
-### Intermediate data location and mandatory cleanup
+1. Confirm the owned Editor and project path. Never operate another session. When that source is occupied, use the authorized independent task mirror and its Library.
+2. Refresh with the Unity CLI or `Tools/RefreshUnityEditor.sh` / `.ps1`, which call `AssetDatabase.Refresh`. UI inspection uses computer use on the verified owned window.
+3. Wait for compilation and domain reload. Confirm the candidate DLL loaded. Read diagnostics from that Editor's `Application.consoleLogPath`. A previously stable log is not acceptance.
+4. Diagnose only the new log after the mark. Fix the first real owner, order, lifetime or shader-contract defect.
+5. Capture with `Tools/CaptureUnityWindow.sh` or `Tools/CaptureUnityWindow.ps1` and inspect the image. Any change to clears, depth, attachments, pass order or present is unverified until the image is inspected.
+6. Repeat until the new log window has no InfinityRP flood and the captured frame is correct. Log-only results keep `TODO(UNVERIFIED)`.
 
-1. **One location for task-generated intermediate data.** Use `<Unity project root>/intermediate/<task-id>/<run-id>/`. For the maintainer's workspace the root is the Example project's `intermediate/`, never the package repository root (`.gitignore` excludes `intermediate/`). This includes raw GPU/frame captures, repeated screenshots, test outputs, diagnostic log copies, temporary scripts, scratch projects and temporary archives. Configure every controllable producer explicitly; do not accumulate these files in `/tmp`, `/private/tmp`, the home directory or unrelated archive folders. If a tool forces another output location, promptly collect its output into the task directory and remove the redundant tool output once verified and no longer in use.
-2. **Account for storage before and during capture.** Record the task's output paths, approximate size and owner. Check free space on the actual destination volume and estimate capture size from resolution, formats, buffers and frame count before a large run. Bound capture counts and avoid retaining duplicate raw buffers across repeated tests without a concrete validation need. An OS temporary directory is not an automatic cleanup policy.
-3. **Clean after every completed task or subtask.** Stop producers, drain pending writes/readbacks, retain the required result summary, and delete that task's intermediate data as part of its completion. GPU/resource drain is not disk cleanup; verify both separately. Do not postpone cleanup until the user notices disk pressure.
-4. **Carry-over requires a specific next consumer.** Intermediate data may remain between steps only when a named upcoming verification, review or repair needs it. Record the exact paths, reason and consuming step in the conversation task state. "May be useful later" or generic evidence preservation is not sufficient. Delete the retained data immediately after that consumer finishes.
-5. **Final completion has no intermediate-data exemption.** Before declaring the overall task complete, delete all intermediate data owned by that task, including carry-over data, temporary copies and scratch outputs outside the canonical directory. Remove its empty task directory. If no other task owns data there, `intermediate/` must be empty or absent. A blocked or interrupted task must explicitly report any retained paths, sizes and next consumer; it must not be presented as completed.
-6. **Evidence retention must not become hidden duplication.** Preserve original failure evidence unchanged while it is needed for diagnosis and acceptance. Keep concise final reports, test verdicts, relevant images and hashes as deliberate deliverables. When a separate user requirement explicitly requires a durable raw-evidence archive, verify that archive before deleting the intermediate originals; do not create an unsolicited permanent archive, or merely move temporary data elsewhere and call that cleanup. Archive verification alone does not complete local cleanup.
-7. **Delete by task ownership, never by broad directory guesses.** Cleanup must not delete user source/assets, baked data, Unity's actual `Library` or engine-managed caches, user-owned logs, approved deliverables, or another active task's files. Use the recorded task paths, validate their resolved locations, and ensure no active producer or consumer still holds them. Do not recursively delete a shared `intermediate/` containing other tasks. Do not commit intermediate payloads to Git.
-8. **Report cleanup as a delivery check.** Verify the task's intermediate paths are gone and check actual disk usage after cleanup. State the reclaimed space and any outstanding cleanup blocker in the final status. Do not claim "all cleaned" from zero outstanding GPU requests, successful archiving, or a delete command alone.
+A Game view that is not redrawing produces identical screenshots. Require Play mode, or at least one pair of captures that differ in the Game view region, before treating images as liveness evidence.
 
-### Post-change self-check loop
+## 13. Defects that must stay visible
 
-Console-clean is not render-correct. A single depth-clear regression once held the Console at 0 errors while the Game view rendered nothing at all, because every raster pass had lost its geometry to a failed depth test.
+Do not hide the following behind a fallback, a disabled pass or a dummy resource. Current verification limits are in `Docs/FeatureStatus.md`.
 
-1. Refresh through the explicitly targeted connected-Editor CLI command. If the connection is unavailable, diagnose it; do not silently fall back to UI-driving scripts. Never launch a second Unity or a `-batchmode` run against a project held by a live editor.
-2. Diagnose only the new `Logs/Editor.log` window past the pre-refresh byte mark, and fix the first real owner / order / lifetime / contract defect rather than the loudest message.
-3. Capture a normal frame through the validated noninterfering capture entrypoint, obtain actual window evidence where required, and inspect it. Official camera-rerender screenshots are not equivalent. Any change touching clears, depth, attachments, pass order, or present is unverified until the image has been inspected.
-4. Repeat until the new log window is free of InfinityRP errors **and** the captured frame is correct.
-5. Only results confirmed by a captured frame may drop the `TODO(UNVERIFIED)` marker. Log-only checks keep it.
-6. **Editor Game view that is not redrawing produces identical consecutive screenshots.** "Two static frames match" is not a convergence proof by itself. Require a liveness gate first: Play mode, or at least one pair of captures that differ in the Game view region. Without that gate, report the capture as invalid and do not claim image results.
+- Mesh bins sort only by `CompareStructural`. `defaultSort` is not applied.
+- Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is undiagnosed.
+- Cached OnEnable and OnDemand local shadows keep the casters of their last render. Moving objects do not update them. There is no dynamic-caster overlay.
+- Rectangle and disk shadow tiles cover a 120° cone in front of the emitter.
+- Reflection probes are axis-aligned, limited to the asset slot count, and have no rendering-layer test. Unity culls them by box bounds, so a larger sphere influence can be culled while visible. Translucent T0 has no specular environment term.
+- Shader Graph scene depth is bound only in decal graphs, and scene color only in translucent T1. The fog node returns no fog. Graph motion assumes rigid motion.
+- Contact shadows cover at most 24 local lights per camera, largest on screen first. Directional lights other than the sun get none.
+- InfinityLit has no metallic, mask, occlusion, detail, height or emission map. Converters drop them and the wizard lists them.
+- Light and reflection-probe complexity views count clustered-loop visits, not lights that reach the pixel.
+- Image regression has no baselines until they are recorded on a verified Editor. Baselines are per graphics API, not per GPU vendor.
+- Several passes record and emit no draws, so Frame Debugger may omit them (`RenderDBuffer` without a DBuffer shader, `RenderLocalShadow` without local casters, `CopyHistory*` transfers). `RenderCascadeShadow` records and binds its target even with zero draws.
+- Hi-Z, half-resolution geometry, lookup tables, light masks, ambient occlusion, contact shadows and previous-color effects are async-eligible where supported. Overlap is unmeasured. The current Metal validation host reports no async compute.
+- Ray-traced ambient occlusion records only when Unified Ray Tracing's context, acceleration structure and `VisibilityRTAO.urtshader` are ready and the structure has instances. Otherwise ground-truth ambient occlusion owns the result and the debugger shows the reason. Player shader load is unverified.
+- Combine LUT is keyed by grading, the ACES curve and output mode. A cache hit dispatches nothing. The LUT writes Rec.709 linear only.
 
-### RenderGraph failure and ownership contracts
-
-- `RGBuilder.Execute` propagates the original failure; it never returns a soft false result. Graph commands are isolated from enclosing frame/camera profiling scopes. Unreturned owned graph allocations retire into pools only after Submit.
-- Attachment Load declares a read. Preserve depth with Store when subsequent effects or diagnostics consume it.
-- Atmosphere and light-list outputs are explicit consumer inputs; producers do not prebind globals. Every light-list consumer declares the z-bin and tile-mask buffers (`QueryLightLoop` + `ReadBuffer`) and binds them with `FLightLoopInputs.Bind` / `BindGlobal`.
-- Capture uses an explicitly selected active Game camera or requires one unambiguous active Game camera. No MainCamera-tag assumption.
-- Capture Lighting before its ownership moves into scene-color stages. Do not query a retired semantic name at frame end or guess an alias.
-- LightContext uploads are graph Transfer producers. All light-buffer consumers declare RGBufferHandle inputs and bind through capabilities. Imported GraphicsBuffer targets are not ComputeBuffer descriptors; do not silently clone or cast them. Replaced LightContext buffers retire after Submit.
-- History write reservations must not mutate committed descriptors/resources. Swap both on commit, and preserve old committed history on pending rollback. Shared-cache validity comes from queue-accepted producers, independent of camera success. Failed camera/frame transactions force history reset; frame cleanup preserves the first exception and still attempts Submit for earlier accepted work.
-
-## Unity Editor interaction
-
-- Automated Editor interaction uses the official Unity CLI connection to an explicitly selected project (`Editor/Cli`, compiled only with `INFINITY_UNITY_CLI`). Commands take explicit arguments, return status/evidence paths, and never save assets. Use `127.0.0.1` endpoints; keep bearer authentication and loopback enforcement; never print or archive credentials.
-- Never use `unity run`, batch builds or a second Editor against a project already held by an Editor. Confirm the target project and PID before commands.
-- `com.unity.pipeline` `screenshot` replaces `camera.targetTexture` and calls `Camera.Render`. It is not a normal-frame, history, TAA/SR or actual-window capture. Use the RG transfer capture contract and observe the real window.
-- Long-running operations expose status and cancellation/drain; a timeout never authorizes repeated submission, resource release or Editor restart.
-
-
-### Material routes
-
-- Use `MaterialRouteUtility` for Infinity surface route validation and explicit pass-state updates. Do not reintroduce independent Editor rounding or route parsing.
-- `ShaderGUI.ValidateMaterial` is read-only. Inspector redraw alone must not apply derived pass state or mark every referencing MeshComponent dirty.
-- Runtime callers changing `_SurfaceRoute` or `_TranslucentStage` must call `MaterialRouteUtility.ApplyPassState` to apply Unity Renderer pass enables. Exact route values and Deferred-only SSS are validated before derived mutations.
-
-### SceneView validation lifecycle
-
-SceneView window creation, close, docking and restoration run only in the Editor update pump. The render callback may advance the bounded motion pose only. Closing a SceneView inside its own render/OnGUI stack destroys an active camera and render texture and can crash native outline drawing. Preserve tab ownership as well as position; setting `EditorWindow.position` can undock the view.
-
-### Execution and shader pass naming
-
-GPU work markers and recording methods use Raster for draw, Compute for dispatch,
-Copy for resource copy, and Upload for CPU uploads. Unity ShadowCaster, Meta and
-SRPDefaultUnlit are fixed engine entrypoints. Infinity custom LightModes and their
-matching pass names use RasterXXXPass. Other owned raster shader names use Raster.
-RTAO selects ComputeRayTracedOcclusion or RayTracingOcclusion from its owned URT
-context backend; its RenderGraph pass type remains RayTracing. Pass names continue
-to come from the existing ProfilingSampler. No old-name aliases are supported.
-
-### Output and temporal attachment ownership
-
-- `FOutputPlan` resolves direct versus display-linear output before recording post-processing. Encoded camera targets never alias `PostProcessBuffer` or `DisplayColorBuffer`. HDR UI, DebugView, Editor overlays and requested linear captures retain a linear intermediate. Hardware-sRGB SDR UI blends directly on the final target.
-- Raster post-combine owns grading, exposure, Bloom combination, vignette and grain through one shared HLSL implementation. A remaining output-only draw encodes an already composed linear intermediate; it never grades twice. Read-only post bypass may alias its source; overlay writers require independent ownership.
-- ReactiveMask belongs to transparent/TAA inputs. Only active TAA allocates it; the first transparent color pass clears its attachment even with zero draws, later passes Load. Non-TAA shader variants omit the output and compact motion/metadata MRT slots. There is no standalone clear dispatch.
-- Display-depth upsampling exists only for recorded Editor overlays that need it. Cached depth-atlas tile copies remain raster because Unity CopyTexture forbids partial depth-only copies.
-
-
-### Texture capacity and MeshDraw graph preparation
-
-- Camera framebuffer descriptors declare Internal or Display sizing explicitly. Fixed LUTs, atlases and external targets stay Exact. Logical width/height own pixel coordinates and dispatch bounds; allocation width/height own physical compatibility. Each camera owns independent accepted-request capacity state; preview/capture cameras cannot grow another view's state.
-- Capacity is aligned to 64 texels, grows by at least 12.5% when exceeded, and shrinks after 30 accepted requests whose three-request peak is below 75% of capacity area. Orientation changes reset that history. Failed submissions never advance capacity history. Logical size changes retain the existing temporal reset behavior.
-- Pool allocation, compatibility, accounting and eviction have one owner shared by RenderGraph and other clients. Retention watermarks are 400 MiB for textures and 64 MiB for buffers; resources idle for more than two successful submission epochs are evicted oldest first above those watermarks. They are not hard working-set limits. Physical eviction waits for a CPU-queryable GPU completion fence, never by blocking the CPU. Size counters are estimates, not driver VRAM telemetry.
-- Owned screen texture bindings carry per-texture logical/physical metadata. Normalized sampling and mip bounds use `TextureView.hlsl`; integer loads remain logical pixel coordinates. Material texture sampling is unchanged. Generate binding registries explicitly with `python3 -B Tools/TextureViews.py --write`; the offline gate checks their consistency. No asset-load code generation is allowed.
-- History reads preserve the accepted texture and its previous logical/physical view until a pending writer commits. A capacity-only change does not invalidate history; failed resized writers cannot replace accepted history.
-- Structural graph culling precedes DrawList resolution and preparation. One live DrawList gets one Upload producer and, for GPU Indirect, one explicit Compute producer with declared visibility/metadata/index/args dependencies. Raster consumers only draw. Each batch has disjoint global index and args ranges; payload capacity is acquired before recording and never grows during execution.
-- Mesh Drawing Pipeline markers use RenderLoop.DrawMeshDirect/Indirect for ordinary views and Shadows.DrawMeshDirect/Indirect for shadow views, selected from EMeshViewKind. Mesh preparation uses one cached sampler per operation: ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData, without view-domain prefixes or Cascade/Local variants. Shared samplers never merge graph nodes; parent scopes identify views. MeshDrawProfiling is their single cached naming owner and participates in Timings. Other SRP pass names retain their Raster/Compute/Copy/Upload conventions. Neutral functional groups may contain multiple execution types; preparation stays outside Raster. RendererList submission adds no wrapper around Unity markers; shadow Slice/Face context and native (RP ...) labels remain intact.
-
-### Shader diagnostic closure
-
-- For a reported Metal output warning, initialize result/output state explicitly and keep a single return where cross-compiler control flow requires it. Preserve valid branch formulas and rejection semantics; do not suppress diagnostics or disable consumers.
-- Guard degenerate vector normalization before reciprocal length evaluation. Bind required resources and validate physical inputs at setup rather than substituting fallback textures.
-- For compute passes changed during diagnostic repairs, resolve kernels by name and freeze kernel/thread-group dispatch metadata into pass data at recording. Deferred shading uses an 8x8 workgroup; clustered light lookup independently retains 16x16 screen tiles.
-- Warning acceptance covers public ShaderUtil diagnostics after actual production dispatch/draw, a fresh rendering log window, and the current Example feature chain. A fixture, reimport or FindKernel alone cannot establish full-scene acceptance.
-
-## Screen-space signal and diffuse-scattering contracts
-
-- SSR may trace at half resolution; Resolve, Temporal, Spatial and their histories stay full resolution. Do not add a half-resolution SSR denoising path or a redundant output upscale.
-- SSGI has no ray-reuse Resolve. Cosine Trace samples the accepted unsharpened temporal color mip chain directly. Trace radiance, Temporal, world-space Spatial and history share the selected work grid; only the final geometric reconstruction writes full resolution. Spatial-filtered diffuse history is recurrent; SSR history remains pre-spatial.
-- Rotating half-resolution SSGI samples retain the accepted view's quad phase with the history transaction. Reconstruction interpolates actual representative positions, including shortened intervals at odd edges. Surface metadata uses RG32UInt (exact depth bits and packed oct normal/age/validity); invalid/offscreen history contributes zero confidence. World-space taps are projected with the current jittered matrices and reject incompatible surfaces.
-- SSS owns an optional diffuse-only attachment when supported and requested. Deferred/Forward produce it, indirect composition replaces its indirect term, and half-resolution Burley diffusion recomposes main color as main minus original diffuse plus filtered diffuse. Specular/emissive components never enter diffusion. Diffusion parameters come from the material's profile index; the Volume owns enable and sample count only. No SSS allocation or MRT output exists when the feature is off.
-- Async eligibility is not evidence of overlap or acceleration. Place effect history copies after the independent raster window; a graphics Transfer immediately after an async producer would join it prematurely. Keep early visibility recovery and immediately dependent late effects on Graphics by design, without disabling Async to hide hazards.
-
-## Runtime Mesh mutation and steady-state allocation
-
-- `MeshComponent` preserves its serialized field identities but exposes typed mutation APIs. Use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`; `Materials` is a read-only span. Do not reintroduce public mutable arrays or per-instance resource polling.
-- Call `NotifyGeometryChanged` after in-place Mesh edits, `MaterialRouteUtility.ApplyPassState` after changing route/stage, `NotifyMaterialRoutingChanged` after direct queue/pass changes, and `NotifyInstanceChanged` after static world-pose or external instance configuration edits. Dynamic full world matrices, including parent motion, are read automatically in a persistent TransformAccess batch. Ordinary material uniforms do not invalidate draw structure. Inspector/Undo callbacks notify without saving assets.
-- Change queues deduplicate until successful publication. One batch transaction applies changed transforms and bounds; component snapshots publish after commit. Scene-owned undo and dirty-page snapshots are reusable. A `MeshSceneUpdate` value lease carries a generation: copied/expired leases cannot mutate or undo a newer transaction. Instance-owned draw links bound removal to that instance's draws.
-- Fixed object counts after warmup target zero managed allocation in normal library proxy update, graph record and execution, for stationary and moving objects. Growth/registration and explicitly requested Viewer/capture/log diagnostics are separate. Diagnostic measurement observers run outside measured scopes. Reuse must never shorten recording, submitted, cancellation or completion ownership.
-- Mesh policy priority is an explicitly owned camera/test override, then Rendering Debugger temporary override, then Asset `meshBackendPolicy`. Auto remains capability-based. CPU Direct records no GPU Mesh culling/compaction.
-- SSR/SSGI surface metadata uses `R32G32_UInt`: exact raw-depth bits plus oct12+12, age7 and validity1. Integer Load only. Diagnostic readback decodes on GPU because Metal does not expose RG32UInt AsyncGPUReadback. SSGI ray-hit storage is diagnostic-only; Trace/Spatial share working storage, and Trace capture snapshots at the last pre-overwrite use.
-- SSGI bins each 8x8 tile in LDS and reserves one compact ray interval per nonempty tile; Trace is 1D 64-wide indirect. Logical pixel/frame seeds survive compaction. All lanes participate in group barriers.
-- Native HDR state is queried live. Encoding must match active swapchain transfer and primaries. Linear Rec.2020, PQ Rec.2020 and linear Rec.709 scRGB are different contracts; HLG requires a native HLG interface, which Unity's current ColorGamut API does not provide. HDR auto tonemapping has one owner and is restored on exit.
-
-## Unity and Infinity integration ownership
-
-- Native Renderer content uses Unity CullingResults and RendererList/ShadowRendererList, including per-object Lightmap, legacy Probe/LPPV, Shadowmask and motion data. Native Light bakingOutput determines visible-light Shadowmask requirements; custom Mesh state is never the authority.
-- Infinity Mesh, RenderGraph, ResourcePool and custom terrain algorithms remain Infinity-owned. A MeshComponent never discovers or changes a Renderer, and has no Lightmap or CPU per-instance Probe data. Its material may sample CoreRP APV directly in world space; atmosphere/IBL and realtime lights remain pipeline inputs. Future custom vegetation follows this boundary.
-- URT's public explicit-instance API needs an isolated input adapter. Native renderer identities and custom draw generations are distinct; a Mesh resource is not an instance identity. Native scene changes do not wait for MeshScene revisions. The owned persistent-scene scope is transient and released with the adapter.
-- AdditionalData owns only Infinity extensions. Editor load/reload/scene-save never authorizes migration or hidden regeneration. Terrain sector regeneration is an explicit Inspector action with Undo and Prefab tracking.
-- Global CoreRP systems have one active owner. APV initialization requires the previous integration to be disposed; only the integration that initialized it may clean it up. Entity registration pairs each enable with one unregister, including Disable followed by Destroy.
-- Full file inventory and interface audit are recorded in Docs/UnityIntegrationAudit.md and Docs/UnityBoundaryInventory.csv. Inventory hashes describe inspected bytes, not runtime verification. FeatureStatus owns the execution verdict.
+A replaced path is deletable only after consumer closure and equivalent graph ownership are proved. "Not wired yet" is not "obsolete". Without an Editor, consumer closure is the differential compile gate plus a repository-wide search, including `Editor/Cli`, docs and tests. Valid hardware ray-tracing assets that are not yet integrated are kept.

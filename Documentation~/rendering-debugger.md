@@ -1,35 +1,25 @@
 # Rendering Debugger
 
-`Window > Analysis > Rendering Debugger` shows the Infinity panels:
+Window > Analysis > Rendering Debugger is Unity's window. Infinity registers these panels when the pipeline is active.
 
-- **Infinity Rendering**: the master Debug View (every view), Motion Magnitude / TAA Confidence / Pre-Tonemap Luma,
-  the Frame Features and Frame Settings of the last camera.
-- **Infinity Material**: Albedo, Normal, Roughness, Metallic, Specular, Shading Model (blue = forward route, orange =
-  subsurface, gray = default lit), Rendering Layers.
-- **Infinity Lighting**: Light Complexity and Reflection Probe Complexity heat maps (the lights / probes a pixel's
-  clustered loop visits; red at **Complexity Range**), Baked Diffuse, Indirect Diffuse, Indirect Specular, the shadow,
-  moment and cookie atlases, Reflection Probe Atlas (six faces of the probe at **Reflection Probe Index**), Contact
-  Shadows; light, probe and cache counters.
-- **Infinity Screen Space**: AO, SSR, SSGI and the SSR tile / ray / confidence / history views.
-- **Volume**: CoreRP's Volume panel (camera, component, interpolated values, each volume's influence).
-- **Infinity Timings**: **Record Pass Timings** turns on the profiler recorders of every pass and lists their GPU and
-  CPU time (previous frame, summed over cameras).
-- **Infinity Mesh**: MeshScene matrix duplicate ratio.
+| Panel | Contents |
+|---|---|
+| Infinity Rendering | Debug View for the whole `EDebugView` enumeration, the Rendering subset, Frame Features of the last camera, Frame Settings of the last camera |
+| Infinity Material | Material views: albedo, normal, roughness, metallic, specular, shading model, rendering layers. Shading model draws the forward route, subsurface and the default lit model in different colors |
+| Infinity Lighting | Lighting views, Reflection Probe Index, Complexity Range, Volume selection, and the last camera's directional, local, probe, invalid-shape, distance-culled, cached-shadow and ray-tracing counts |
+| Infinity Screen Space | Ambient occlusion, reflection, indirect diffuse, and the reflection tile, ray, confidence and history views |
+| Volume | Core RP camera, component and contribution panel |
+| Infinity Timings | Record Pass Timings. When recording is on, the previous frame's total and a Passes foldout with one row per pass sampler |
+| Infinity Mesh | Matrix Duplicate Ratio, Override Mesh Backend, the backend enum when override is on, requested backend, actual backend, and the backend reason |
 
-Every panel drives one debug view: choosing a view in one panel sets the others to None. A view whose producer did not
-run this frame is magenta. The debug view is never serialized on the RP Asset, and reflection probe captures and
-previews ignore it.
+Choosing a view in one panel clears the other panels' views. A view whose producer did not run is magenta. The debug view is not serialized on the pipeline asset. Probe and preview cameras do not take a debug view. Game, Scene and VR cameras can.
+
+Light and reflection-probe complexity count the lights and probes the clustered loop visits for that pixel's tile and depth bin. They do not count lights that pass the pixel's lighting test. Red is the top of Complexity Range.
 
 ## Scene view Draw Modes
 
-The Scene view Draw Mode menu has a section per panel (Infinity Material, Infinity Lighting, Infinity Screen Space,
-Infinity Rendering). A mode applies to that Scene view only; Shaded returns it to the debugger's view. Built-in modes
-the pipeline does not render (Shadow Cascades, Overdraw, Mipmaps, Deferred buffers, validation modes) are disabled.
+The Scene view menu has one section per Infinity panel: Infinity Material, Infinity Lighting, Infinity Screen Space and Infinity Rendering. There is no Volume section. A mode replaces the debugger view for that Scene view. Shaded restores the debugger view. While Infinity is active, built-in modes the pipeline does not render, including shadow cascades, overdraw and the deferred validation modes, are disabled.
 
 ## Render Graph Viewer
 
-`Window > Analysis > Infinity Render Graph Viewer` shows the last compiled render graph of each camera: passes in
-record order as columns (orange = async compute, gray = culled), resources as rows, the pass reading (green), writing
-(red) or both (yellow), and the pool lifetime of each resource from its allocating to its releasing pass. Click a pass
-header or a resource for details; **Pause** freezes the capture, **Copy** puts the graph on the clipboard as text. The
-graph is captured only while the window is open.
+The viewer is a separate window. Its layout, colors and selection fields are in [Editor tools](editor.md).

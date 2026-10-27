@@ -1,55 +1,41 @@
 # Volumes
 
-All Infinity Volume components use `[SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]`.
+Infinity Volume components declare `[SupportedOnRenderPipeline(typeof(InfinityRenderPipelineAsset))]`.
 
-Optional features (`SSR`, `SSGI`, `SSAO`, fog, cloud, contact shadow, SSS, RTAO) expose an `enable` flag and implement `IsActive()`. Bloom / Vignette / Grain activate when `intensity > 0`. Tonemapping activates when `mode == ACES` (InfinityRP supports only None and ACES).
+Optional features implement `IsActive()`. Screen-space reflection, screen-space indirect diffuse, horizon ambient occlusion, ray-traced ambient occlusion, volumetric fog, volumetric clouds, contact shadows and subsurface scattering each have an enable flag. Bloom, vignette and grain are active when intensity is greater than zero. Film tonemap is active when the mode is ACES. The supported modes are None and ACES.
 
-`overrideState` is only a scene-override marker. The default profile must contain every consumed type. `Validate & Complete` appends missing types. `Reset to packaged defaults` is a separate confirmed action.
+`overrideState` marks a scene override. It does not turn a feature on, and it does not gate required exposure. The default profile contains every consumed component type. Window > Infinity > Validate Default Volume Profile checks that profile and does not rewrite a complete one. Window > Infinity > Append Missing Default Volume Components adds absent types and keeps existing components, identities and values. Reset to packaged defaults is a confirmed action on the Global Settings default-profile drawer. It preserves subasset identities and unrelated components.
 
-## Quality presets
+Atmosphere is not a Volume. It is an `AtmosphericalProfile` on the pipeline asset.
 
-Features with a cost/quality trade-off (SSR, SSGI, GTAO, RTAO, contact shadows, volumetric fog, volumetric cloud) have a **Quality** parameter:
+## Quality
 
-- **Low / Medium / High / Ultra** select a preset that is hardcoded in `Runtime/RenderPipeline/Quality/QualityPresets.<Feature>.cs`. The quality parameters (sample counts, steps, resolution, temporal weights) are shown read-only.
-- **Custom** uses the quality parameters authored on the Volume. This is the default, so profiles created before 0.5.0 keep their values.
+Screen-space reflection, screen-space indirect diffuse, horizon ambient occlusion, ray-traced ambient occlusion, contact shadows, volumetric fog and volumetric clouds have a Quality parameter.
 
-Artistic parameters (intensity, radius, density, colors, distances) are always taken from the Volume. Rendering code only reads the resolved low-level settings, never the quality level, so presets are edited in one place in code.
+- Low, Medium, High and Ultra read a preset in `Runtime/RenderPipeline/Quality/QualityPresets.<Feature>.cs`. The inspector shows those values read-only. Copy Preset To Custom writes them onto the Volume.
+- Custom, the default, uses the values on the Volume. Profiles authored before that control keep their values.
 
-## Screen Space Reflection
+Intensity, radius, density, color and distance always come from the Volume. Passes read the resolved settings struct and do not branch on the quality level.
 
-Stochastic SSR after Frostbite (Stachowiak 2015). Per frame:
+## Screen-space reflection
 
-1. **Classify** 8x8 trace tiles by the smallest roughness inside: tiles without a reflective deferred pixel are skipped;
-   tiles whose smoothest pixel is below **Linear Roughness** trace with the precise Hi-Z walk; the others use the
-   cheaper linear march. Forward-route pixels and pixels rougher than **Max Roughness** are never traced and keep
-   probe/sky reflections.
-2. **Trace** one GGX visible-normal sample per trace pixel (blue-noise Sobol sequence). **Half Resolution** traces one
-   pixel of every 2x2 quad, rotating through the quad each frame. **Brdf Bias** trims the lobe tail.
-3. **Resolve** at full resolution reuses **Resolve Samples** neighboring rays within **Resolve Radius** (ratio
-   estimator weighted by the pixel's own BRDF over each ray's pdf) and reads the lit color pyramid at the mip that
-   matches each ray's cone (filtered importance sampling). Pixels smoother than **Mirror Roughness** use only their
-   own mirror ray. Screen edges (**fade**), back faces and the last 10% of **Max Distance** lower the confidence.
-4. **Temporal** accumulation reprojects both the surface and the reflection's virtual image, clips history to the
-   neighborhood (**Temporal Scale** standard deviations) and tracks per-pixel history age up to **Temporal Weight**.
-5. An optional a-trous **Spatial** pass smooths rough reflections.
+1. Classify each 8×8 trace tile by its smallest roughness. Tiles with no reflective deferred pixel are skipped. Tiles whose smoothest pixel is below Linear Roughness use the Hi-Z walk. The others use a linear march. Forward-route pixels, and pixels rougher than Max Roughness, are not traced.
+2. Trace one GGX visible-normal sample per trace pixel. Half Resolution traces one pixel of each 2×2 quad and rotates through the quad. BRDF Bias trims the lobe.
+3. Resolve at full resolution reuses neighboring rays inside Resolve Radius, weighted by the pixel BRDF over each ray's density, and samples the lit color pyramid at the mip of the ray cone. Pixels smoother than Mirror Roughness keep their own mirror ray. Screen edges, back faces and the last 10% of Max Distance reduce confidence.
+4. Temporal accumulation reprojects the surface and the reflection, clips history to the neighborhood, and tracks age up to Temporal Weight.
+5. An optional spatial pass filters rough reflections.
 
-The reflected color is the current frame's opaque lighting (one bounce). Rendering Debugger → Debug View offers
-SSR Tile Class (blue Hi-Z, orange linear, gray skipped), SSR Ray Hit (green hit, red miss), SSR Confidence and SSR
-History Age.
+The reflected color is the current frame's opaque lighting. Debug views show tile class, ray hit, confidence and history age.
 
-## Screen Space Indirect Diffuse
+## Screen-space indirect diffuse
 
-SSGI runs on the SSR core (same tiles, trace, ray reuse and denoising) with a cosine lobe:
+This component has no resolve-sample count and no resolve radius. Those controls belonged to an earlier ray-reuse path and are not read.
 
-1. **Classify** 8x8 trace tiles: tiles without a deferred pixel are skipped. Forward-route pixels keep their own
-   indirect diffuse.
-2. **Trace** one cosine-distributed ray per trace pixel with the Hi-Z walk (**Num Steps**), at **Half Resolution**
-   by default.
-3. **Resolve** reuses **Resolve Samples** rays within **Resolve Radius** and reads the lit color pyramid at the mip of
-   each ray's cone, scaled by **Intensity Scale**. Missed rays add no light: that share of the pixel keeps its
-   lightmap, probe or sky ambient. Screen edges, back faces and the last 10% of **Max Distance** lower the confidence.
-4. **Temporal** accumulation follows the surface, clips history to the neighborhood (**Temporal Scale**) and tracks
-   per-pixel history age up to **Temporal Weight**; an optional a-trous **Spatial** pass follows.
+1. Trace one cosine-distributed ray per work pixel with the Hi-Z walk. The ray samples the accepted unsharpened color pyramid from the previous temporal resolve. Half Resolution, when set, traces one pixel of each 2×2 quad.
+2. Temporal accumulation follows the surface on that work grid and clips history with Temporal Scale, up to Temporal Weight.
+3. Spatial Passes runs a world-space filter on the same grid. The radius comes from the hit distance and the pixel footprint.
+4. Reconstruction writes full resolution from the rotating quad representatives, including the shorter last interval on an odd edge.
 
-The gathered light is the current frame's opaque lighting (one bounce per frame). Debug View **SSGI** shows the result.
+Missed rays add no radiance. That portion of the pixel keeps its lightmap, probe or sky ambient. History stores the filtered work-grid result, not a pre-spatial buffer. Surface history is an integer texture: exact depth bits, a packed octahedral normal, age and a validity bit. Invalid and off-screen history contribute nothing.
 
+The gathered light is one bounce from the accepted previous color. It does not read the current frame's lighting buffer.

@@ -15,7 +15,7 @@ import sys
 
 
 ASSET_SUFFIXES = {".asset", ".mat", ".unity", ".prefab", ".cs", ".asmdef", ".asmref"}
-PACKAGE_INPUTS = ("package.json", "AGENTS.md", "DESIGN.md",
+PACKAGE_INPUTS = ("package.json", "AGENTS.md", "Documentation~/editor.md",
                   "Docs/FullRendering-Delivery-Report.md",
                   "Editor/Tools/Validation/InfinityValidationMenus.cs")
 
