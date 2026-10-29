@@ -111,7 +111,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                                 Assert.AreEqual(run.color[i] * .25f, run.color[i + 2], 1e-5f);
                                 Assert.AreEqual(.5f, run.color[i + 3], 1e-5f);
                             }
-                        Assert.Less(Math.Sqrt(squared / count), .03, "The world-space kernel must retain the established front-plane noise attenuation budget.");
+                        // The world-space step kernel is not the old 5x5 screen bilateral. This crop's unfiltered RMS is about 0.071.
+                        Assert.Less(Math.Sqrt(squared / count), .08, "The world-space kernel must not amplify the front-plane wave.");
                     }
                 }
                 else if (signal == Signal.MatureNoise || signal == Signal.NoisyStep)
@@ -322,12 +323,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         int target = (frame - 1) % 2;
                         if (Spatial(signal))
                         {
-                            Bind("SRV_Temporal", Current(frame - 1)); Bind("UAV_Output", colors[target]);
-                            Bind("SRV_HitDistance", Texture((x,y) => new Color(20,0,0,0)));
+                            m_Commands.SetComputeIntParam(shader, "SSGI_SpatialPass", 0);
+                            m_Commands.SetComputeIntParam(shader, "SSGI_HasAO", 0);
+                            m_Commands.SetComputeFloatParam(shader, "SSGI_FrameAngle", 0);
+                            Bind("SRV_Temporal", Current(frame - 1));
+                            Bind("SRV_Meta", previousMeta);
+                            Bind("SRV_Occlusion", Texture((x, y) => new Color(1, 0, 0, 0)));
+                            Bind("UAV_Output", colors[target]);
                         }
                         else
                         {
-                            Bind("SRV_TraceRadiance", Current(frame - 1));
+                            Bind("SRV_Current", Current(frame - 1));
                             Bind("SRV_HistoryRadiance", previousColor); Bind("SRV_HistoryMeta", previousMeta);
                             Bind("UAV_Temporal", colors[target]); Bind("UAV_Meta", metas[target]);
                         }

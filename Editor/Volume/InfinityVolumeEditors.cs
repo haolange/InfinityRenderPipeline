@@ -227,15 +227,15 @@ namespace InfinityTech.Rendering.Editor
     [CustomEditor(typeof(ScreenSpaceReflection))]
     sealed class ScreenSpaceReflectionEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_MaxRoughness, m_Fade;
-        SerializedDataParameter m_HalfResolution, m_MirrorRoughness, m_LinearRoughness, m_HiZSteps, m_LinearSteps;
-        SerializedDataParameter m_ResolveSamples, m_ResolveRadius, m_BrdfBias, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
+        SerializedDataParameter m_Enable, m_TraceBehind, m_TowardRay, m_MaxRoughness, m_Fade;
+        SerializedDataParameter m_HalfResolution, m_MirrorRoughness, m_LinearRoughness, m_HiZSteps, m_LinearSteps, m_BinarySteps;
+        SerializedDataParameter m_ResolveSamples, m_Samples, m_ResolveRadius, m_BrdfBias, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceReflection>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
-            m_MaxDistance = Unpack(o.Find(x => x.MaxDistance));
-            m_Thickness = Unpack(o.Find(x => x.Thickness));
+            m_TraceBehind = Unpack(o.Find(x => x.TraceBehind));
+            m_TowardRay = Unpack(o.Find(x => x.TowardRay));
             m_MaxRoughness = Unpack(o.Find(x => x.MaxRoughness));
             m_Fade = Unpack(o.Find(x => x.fade));
             SetQualityParameter(Unpack(o.Find(x => x.quality)));
@@ -244,7 +244,9 @@ namespace InfinityTech.Rendering.Editor
             m_LinearRoughness = Unpack(o.Find(x => x.LinearRoughness));
             m_HiZSteps = Unpack(o.Find(x => x.NumSteps));
             m_LinearSteps = Unpack(o.Find(x => x.LinearSteps));
+            m_BinarySteps = Unpack(o.Find(x => x.BinarySearchSteps));
             m_ResolveSamples = Unpack(o.Find(x => x.ResolveSamples));
+            m_Samples = Unpack(o.Find(x => x.Samples));
             m_ResolveRadius = Unpack(o.Find(x => x.ResolveRadius));
             m_BrdfBias = Unpack(o.Find(x => x.BrdfBias));
             m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
@@ -254,7 +256,7 @@ namespace InfinityTech.Rendering.Editor
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_MaxRoughness); PropertyField(m_Fade);
+            PropertyField(m_TraceBehind); PropertyField(m_TowardRay); PropertyField(m_MaxRoughness); PropertyField(m_Fade);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
             QualityField(m_HalfResolution, l => Preset(l).halfResolution);
@@ -262,7 +264,9 @@ namespace InfinityTech.Rendering.Editor
             QualityField(m_LinearRoughness, l => Preset(l).linearRoughness);
             QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
             QualityField(m_LinearSteps, l => Preset(l).linearSteps);
+            QualityField(m_BinarySteps, l => Preset(l).binarySteps);
             QualityField(m_ResolveSamples, l => Preset(l).resolveSamples);
+            QualityField(m_Samples, l => Preset(l).samples);
             QualityField(m_ResolveRadius, l => Preset(l).resolveRadius);
             QualityField(m_BrdfBias, l => Preset(l).brdfBias);
             QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
@@ -275,8 +279,8 @@ namespace InfinityTech.Rendering.Editor
             FSSRSettings preset = Preset(level);
             Set(m_HalfResolution, preset.halfResolution);
             Set(m_MirrorRoughness, preset.mirrorRoughness); Set(m_LinearRoughness, preset.linearRoughness);
-            Set(m_HiZSteps, preset.hiZSteps); Set(m_LinearSteps, preset.linearSteps);
-            Set(m_ResolveSamples, preset.resolveSamples); Set(m_ResolveRadius, preset.resolveRadius);
+            Set(m_HiZSteps, preset.hiZSteps); Set(m_LinearSteps, preset.linearSteps); Set(m_BinarySteps, preset.binarySteps);
+            Set(m_ResolveSamples, preset.resolveSamples); Set(m_Samples, preset.samples); Set(m_ResolveRadius, preset.resolveRadius);
             Set(m_BrdfBias, preset.brdfBias); Set(m_TemporalWeight, preset.temporalWeight);
             Set(m_TemporalScale, preset.temporalClampScale); Set(m_SpatialPasses, preset.spatialPasses);
         }
@@ -285,42 +289,39 @@ namespace InfinityTech.Rendering.Editor
     [CustomEditor(typeof(ScreenSpaceIndirectDiffuse))]
     sealed class ScreenSpaceIndirectDiffuseEditor : InfinityQualityVolumeEditor
     {
-        SerializedDataParameter m_Enable, m_MaxDistance, m_Thickness, m_Intensity;
-        SerializedDataParameter m_HalfResolution, m_HiZSteps, m_TemporalWeight, m_TemporalScale, m_SpatialPasses;
+        SerializedDataParameter m_Enable, m_TraceBehind, m_TowardRay, m_Intensity;
+        SerializedDataParameter m_HiZSteps, m_Samples, m_TemporalWeight, m_TemporalScale;
         public override void OnEnable()
         {
             var o = new PropertyFetcher<ScreenSpaceIndirectDiffuse>(serializedObject);
             m_Enable = Unpack(o.Find(x => x.enable));
-            m_MaxDistance = Unpack(o.Find(x => x.MaxDistance));
-            m_Thickness = Unpack(o.Find(x => x.Thickness));
+            m_TraceBehind = Unpack(o.Find(x => x.TraceBehind));
+            m_TowardRay = Unpack(o.Find(x => x.TowardRay));
             m_Intensity = Unpack(o.Find(x => x.IntensityScale));
             SetQualityParameter(Unpack(o.Find(x => x.quality)));
-            m_HalfResolution = Unpack(o.Find(x => x.HalfResolution));
             m_HiZSteps = Unpack(o.Find(x => x.NumSteps));
+            m_Samples = Unpack(o.Find(x => x.Samples));
             m_TemporalWeight = Unpack(o.Find(x => x.TemporalWeight));
             m_TemporalScale = Unpack(o.Find(x => x.TemporalScale));
-            m_SpatialPasses = Unpack(o.Find(x => x.SpatialPasses));
         }
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enable);
-            PropertyField(m_MaxDistance); PropertyField(m_Thickness); PropertyField(m_Intensity);
+            PropertyField(m_TraceBehind); PropertyField(m_TowardRay); PropertyField(m_Intensity);
             EditorGUILayout.LabelField("Quality", EditorStyles.boldLabel);
             DrawQuality();
-            QualityField(m_HalfResolution, l => Preset(l).halfResolution);
             QualityField(m_HiZSteps, l => Preset(l).hiZSteps);
+            QualityField(m_Samples, l => Preset(l).samples);
             QualityField(m_TemporalWeight, l => Preset(l).temporalWeight);
             QualityField(m_TemporalScale, l => Preset(l).temporalClampScale);
-            QualityField(m_SpatialPasses, l => Preset(l).spatialPasses);
         }
         static FSSGISettings Preset(EQualityLevel level) => QualityPresets.Select(QualityPresets.SSGI, level);
         protected override void CopyPresetToCustom(EQualityLevel level)
         {
             FSSGISettings preset = Preset(level);
-            Set(m_HalfResolution, preset.halfResolution);
             Set(m_HiZSteps, preset.hiZSteps);
+            Set(m_Samples, preset.samples);
             Set(m_TemporalWeight, preset.temporalWeight); Set(m_TemporalScale, preset.temporalClampScale);
-            Set(m_SpatialPasses, preset.spatialPasses);
         }
     }
 

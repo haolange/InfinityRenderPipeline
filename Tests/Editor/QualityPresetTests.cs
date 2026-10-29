@@ -106,7 +106,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.That(p.linearRoughness, Is.InRange(ssr.LinearRoughness.min, ssr.LinearRoughness.max));
                     Assert.That(p.hiZSteps, Is.InRange(ssr.NumSteps.min, ssr.NumSteps.max));
                     Assert.That(p.linearSteps, Is.InRange(ssr.LinearSteps.min, ssr.LinearSteps.max));
+                    Assert.That(p.binarySteps, Is.InRange(ssr.BinarySearchSteps.min, ssr.BinarySearchSteps.max));
                     Assert.That(p.resolveSamples, Is.InRange(ssr.ResolveSamples.min, ssr.ResolveSamples.max));
+                    Assert.That(p.samples, Is.InRange(ssr.Samples.min, ssr.Samples.max));
                     Assert.That(p.resolveRadius, Is.InRange(ssr.ResolveRadius.min, ssr.ResolveRadius.max));
                     Assert.That(p.brdfBias, Is.InRange(ssr.BrdfBias.min, ssr.BrdfBias.max));
                     Assert.That(p.temporalWeight, Is.InRange(ssr.TemporalWeight.min, ssr.TemporalWeight.max));
@@ -120,14 +122,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.AreEqual(medium.linearRoughness, ssr.LinearRoughness.value);
                 Assert.AreEqual(medium.hiZSteps, ssr.NumSteps.value);
                 Assert.AreEqual(medium.linearSteps, ssr.LinearSteps.value);
+                Assert.AreEqual(medium.binarySteps, ssr.BinarySearchSteps.value);
                 Assert.AreEqual(medium.resolveSamples, ssr.ResolveSamples.value);
+                Assert.AreEqual(medium.samples, ssr.Samples.value);
+                Assert.AreEqual(1, QualityPresets.SSR[(int)EQualityLevel.Low].samples);
+                Assert.AreEqual(2, QualityPresets.SSR[(int)EQualityLevel.Ultra].samples);
 
-                ssr.MaxDistance.value = 12.0f;
+                ssr.TraceBehind.value = false;
                 ssr.quality.value = EQualityLevel.Low;
                 FSSRSettings low = ssr.Resolve();
                 Assert.IsTrue(low.halfResolution);
                 Assert.AreEqual(QualityPresets.SSR[(int)EQualityLevel.Low].resolveSamples, low.resolveSamples);
-                Assert.AreEqual(12.0f, low.maxDistance, "Artistic parameters never come from a preset.");
+                Assert.AreEqual(QualityPresets.SSR[(int)EQualityLevel.Low].binarySteps, low.binarySteps);
+                Assert.IsFalse(low.traceBehind, "Artistic parameters never come from a preset.");
             }
             finally
             {
@@ -146,20 +153,19 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     Assert.That(p.hiZSteps, Is.InRange(ssgi.NumSteps.min, ssgi.NumSteps.max));
                     Assert.That(p.temporalWeight, Is.InRange(ssgi.TemporalWeight.min, ssgi.TemporalWeight.max));
                     Assert.That(p.temporalClampScale, Is.InRange(ssgi.TemporalScale.min, ssgi.TemporalScale.max));
-                    Assert.That(p.spatialPasses, Is.InRange(ssgi.SpatialPasses.min, ssgi.SpatialPasses.max));
+                    Assert.That(p.samples, Is.InRange(ssgi.Samples.min, ssgi.Samples.max));
                 }
 
                 FSSGISettings medium = QualityPresets.SSGI[(int)EQualityLevel.Medium];
-                Assert.AreEqual(medium.halfResolution, ssgi.HalfResolution.value, "Medium equals the Volume defaults.");
                 Assert.AreEqual(medium.hiZSteps, ssgi.NumSteps.value);
+                Assert.AreEqual(medium.samples, ssgi.Samples.value);
                 Assert.AreEqual(medium.temporalWeight, ssgi.TemporalWeight.value);
                 Assert.AreEqual(medium.temporalClampScale, ssgi.TemporalScale.value);
-                Assert.AreEqual(medium.spatialPasses, ssgi.SpatialPasses.value);
 
                 ssgi.IntensityScale.value = 0.5f;
                 ssgi.quality.value = EQualityLevel.Ultra;
                 FSSGISettings ultra = ssgi.Resolve();
-                Assert.IsFalse(ultra.halfResolution);
+                Assert.AreEqual(2, ultra.samples);
                 Assert.AreEqual(QualityPresets.SSGI[(int)EQualityLevel.Ultra].hiZSteps, ultra.hiZSteps);
                 Assert.AreEqual(0.5f, ultra.intensity, "Artistic parameters never come from a preset.");
             }

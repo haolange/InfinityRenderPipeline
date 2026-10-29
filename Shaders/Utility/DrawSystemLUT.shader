@@ -535,7 +535,7 @@
 		{
 			float2 uv = i.localTexcoord.xy;
 
-			float DiffuseD = IBL_Defualt_DiffuseIntegrated(uv.x, uv.y);
+			float DiffuseD = IBL_Default_DiffuseIntegrated(uv.x, uv.y);
 			return DiffuseD;
 		}
 
@@ -543,7 +543,7 @@
 		{
 			float2 uv = i.localTexcoord.xy;
 
-			float2 ReflectionGF = IBL_Defualt_SpecularIntegrated(uv.x, uv.y);
+			float2 ReflectionGF = IBL_Default_SpecularIntegrated(uv.x, uv.y);
 			return ReflectionGF;
 		}
 

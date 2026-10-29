@@ -24,19 +24,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("No graphics device.");
         }
 
-        [TestCase(32, 32, false)]
-        [TestCase(17, 19, true)]
-        public void UnobstructedPlane_TracesMissesAndKeepsBakedDiffuse(int width, int height, bool halfResolution)
+        [TestCase(32, 32)]
+        [TestCase(17, 19)]
+        public void UnobstructedPlane_TracesMissesAndKeepsBakedDiffuse(int width, int height)
         {
             RequireGpu();
-            using (var run = new Run(width, height, halfResolution, sky: false))
+            using (var run = new Run(width, height, sky: false))
             {
-                uint[] args = run.Bin();
-                int rayCount = ((width + (halfResolution ? 1 : 0)) / (halfResolution ? 2 : 1)) * ((height + (halfResolution ? 1 : 0)) / (halfResolution ? 2 : 1));
-                Assert.AreEqual(rayCount, (int)args[3]);
-                Assert.AreEqual((rayCount + 63) / 64, (int)args[0]);
-                Assert.AreEqual(1, (int)args[1]); Assert.AreEqual(1, (int)args[2]);
-
                 float[] rays = run.Trace();
                 for (int i = 0; i < rays.Length; i += 4)
                     Assert.Less(rays[i + 3], 0.0f, "Every trace pixel records a miss: an unobstructed plane does not light itself.");
@@ -57,11 +51,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void Sky_BinsZeroRays()
         {
             RequireGpu();
-            using (var run = new Run(24, 16, false, sky: true))
+            using (var run = new Run(24, 16, sky: true))
             {
-                uint[] args = run.Bin();
-                Assert.AreEqual(0, (int)args[3]);
-                Assert.AreEqual(0, (int)args[0]);
                 foreach (float value in run.Trace())
                     Assert.AreEqual(0.0f, value, "Skipped tiles clear their ray records.");
             }
@@ -71,20 +62,48 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void SparseOddTiles_ContainEachValidLogicalPixelExactlyOnce(int phase)
         {
             RequireGpu();
-            using (var run = new Run(35, 39, true, false)) run.CheckSparseList(phase);
+            using (var run = new Run(35, 39, false)) run.CheckSparseList(phase);
         }
 
         [Test]
-        public void Spatial_PreservesConstantSignal()
+        public void Bilateral_PreservesConstantSignal()
         {
             RequireGpu();
-            using (var run = new Run(19, 17, false, sky: false))
+            using (var run = new Run(19, 17, sky: false))
             {
-                float[] spatial = run.Spatial(new Color(0.25f, 0.25f, 0.25f, 0.6f));
-                for (int i = 0; i < spatial.Length; i += 4)
+                float[] filtered = run.Spatial(new Color(0.25f, 0.25f, 0.25f, 0.6f));
+                for (int i = 0; i < filtered.Length; i += 4)
                 {
-                    Assert.AreEqual(0.25f, spatial[i], 1e-3f, "Normalized irradiance");
-                    Assert.AreEqual(0.6f, spatial[i + 3], 1e-3f, "Normalized confidence");
+                    Assert.AreEqual(0.25f, filtered[i], 1e-3f, "Normalized irradiance");
+                    Assert.AreEqual(0.6f, filtered[i + 3], 1e-3f, "Normalized confidence");
+                }
+            }
+        }
+
+        [Test]
+        public void Samples_AverageMissesToZero()
+        {
+            RequireGpu();
+            using (var run = new Run(16, 16, sky: false))
+            {
+                run.SetSamples(2);
+                run.Trace();
+                foreach (float value in run.TraceRadiance())
+                    Assert.AreEqual(0.0f, value, 1e-6f, "Two misses average to zero radiance.");
+            }
+        }
+
+        [Test]
+        public void Temporal_ReadsBilateralBeforeHistory()
+        {
+            RequireGpu();
+            using (var run = new Run(16, 16, sky: false))
+            {
+                float[] temporal = run.TemporalFrom(new Color(0.2f, 0.1f, 0.05f, 0.4f), new Color(0.9f, 0.9f, 0.9f, 0.9f));
+                for (int i = 0; i < temporal.Length; i += 4)
+                {
+                    Assert.AreEqual(0.2f, temporal[i], 1e-4f, "Temporal reads the bilateral buffer, not the trace buffer.");
+                    Assert.AreEqual(0.4f, temporal[i + 3], 1e-4f);
                 }
             }
         }
@@ -95,7 +114,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void BilateralReconstruction_PreservesCoverageAndRejectsOtherSurfaces(int width,int height,bool reject)
         {
             RequireGpu();
-            using (var run = new Run(width,height,true,sky:false))
+            using (var run = new Run(width, height, sky: false))
             {
                 float[] result = run.Upsample(reject);
                 for (int i=0;i<result.Length;i+=4)
@@ -113,7 +132,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void BilateralReconstruction_TracksRotatingQuadAndOddEdge(int phase)
         {
             RequireGpu();
-            using (var run = new Run(17,19,true,sky:false))
+            using (var run = new Run(17, 19, sky: false))
             {
                 float[] result = run.UpsampleRamp(phase);
                 int offsetX = phase == 1 || phase == 2 ? 1 : 0;
@@ -139,15 +158,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             readonly RenderTexture m_HistoryMeta;
 
             public Vector2Int TileCount { get; }
+            public int TracePixels => m_Trace.x * m_Trace.y;
 
-            public Run(int width, int height, bool halfResolution, bool sky)
+            public Run(int width, int height, bool sky)
             {
                 var asset = AssetDatabase.LoadAssetAtPath<ComputeShader>(k_ShaderPath);
                 Assert.IsNotNull(asset, "Missing production compute shader " + k_ShaderPath);
                 m_Shader = Track(UnityEngine.Object.Instantiate(asset));
                 m_Width = width;
                 m_Height = height;
-                Unity.Mathematics.int2 trace = ScreenSpaceTraceUtility.TraceSize(new Unity.Mathematics.int2(width, height), halfResolution);
+                Unity.Mathematics.int2 trace = ScreenSpaceTraceUtility.TraceSize(new Unity.Mathematics.int2(width, height), true);
                 Unity.Mathematics.int2 tiles = ScreenSpaceTraceUtility.TileCount(trace);
                 m_Trace = new Vector2Int(trace.x, trace.y);
                 TileCount = new Vector2Int(tiles.x, tiles.y);
@@ -178,13 +198,13 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 ComputeShader s = m_Shader;
                 s.SetVector("SSGI_Resolution", new Vector4(width, height, 1.0f / width, 1.0f / height));
                 s.SetVector("SSGI_TraceResolution", new Vector4(m_Trace.x, m_Trace.y, 1.0f / m_Trace.x, 1.0f / m_Trace.y));
-                s.SetInt("SSGI_TraceScale", halfResolution ? 2 : 1);
+                s.SetInt("SSGI_TraceScale", 2);
+                s.SetInt("SSGI_Samples", 1);
                 s.SetInt("SSGI_FrameIndex", 3);
                 s.SetInt("SSGI_MaxTiles", TileCount.x * TileCount.y);
-                s.SetFloat("SSGI_MaxDistance", 50);
-                s.SetFloat("SSGI_Thickness", 0.1f);
                 s.SetFloat("SSGI_Intensity", 1);
                 s.SetInt("SSGI_HiZSteps", 16);
+                s.SetInt("SSGI_TraceFlags", 3);
                 s.SetFloat("SSGI_TemporalWeight", 0.93f);
                 s.SetFloat("SSGI_TemporalClampScale", 1.25f);
                 s.SetFloat("SSGI_HistoryValid", 0);
@@ -200,24 +220,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 s.SetMatrix("Matrix_LastMotionViewProj", projection);
             }
 
-            public uint[] Bin()
-            {
-                int initialize = m_Shader.FindKernel("SSGIInitialize");
-                m_Shader.SetBuffer(initialize, "UAV_TileArgs", m_Args); m_Shader.Dispatch(initialize, 1, 1, 1);
-                int kernel = m_Shader.FindKernel("SSGIBinDebug");
-                BindSurface(kernel);
-                m_Shader.SetBuffer(kernel, "UAV_TileArgs", m_Args);
-                m_Shader.SetBuffer(kernel, "UAV_TileList", m_TileList);
-                m_Shader.SetTexture(kernel, "UAV_TraceRadiance", m_TraceRadiance);
-                m_Shader.SetTexture(kernel, "UAV_HitDistance", m_HitDistance);
-                m_Shader.SetTexture(kernel, "UAV_RayHit", m_RayHit);
-                m_Shader.Dispatch(kernel, TileCount.x, TileCount.y, 1);
-                int build = m_Shader.FindKernel("SSGIBuildIndirectArgs");
-                m_Shader.SetBuffer(build, "UAV_TileArgs", m_Args); m_Shader.Dispatch(build, 1, 1, 1);
-                var args = new uint[4]; m_Args.GetData(args);
-                return args;
-            }
-
             public void CheckSparseList(int phase)
             {
                 m_Shader.SetInt("SSGI_FrameIndex", phase);
@@ -225,17 +227,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 for (int y = 0; y < m_Height; ++y) for (int x = 0; x < m_Width; ++x)
                     pixels[y * m_Width + x] = (x + y * 3) % 5 == 0 ? new Color((4 << 4) / 255f,0,0,0) : Color.clear;
                 m_GBufferC.SetPixels(pixels); m_GBufferC.Apply();
-                var args = Bin(); var indices = new uint[m_Trace.x * m_Trace.y]; m_TileList.GetData(indices);
-                var expected = new HashSet<uint>();
+                Trace();
+                float[] rays = Read(m_RayHit, 4);
                 int[] px = { 0, 1, 1, 0 }, py = { 0, 1, 0, 1 };
                 for (int y = 0; y < m_Trace.y; ++y) for (int x = 0; x < m_Trace.x; ++x)
                 {
                     int fullX = Math.Min(x * 2 + px[phase], m_Width - 1), fullY = Math.Min(y * 2 + py[phase], m_Height - 1);
-                    if ((fullX + fullY * 3) % 5 == 0) expected.Add((uint)(y * m_Trace.x + x));
+                    bool valid = (fullX + fullY * 3) % 5 == 0;
+                    float pdf = rays[(y * m_Trace.x + x) * 4 + 3];
+                    if (valid) Assert.Less(pdf, 0.0f, "A valid logical pixel records its miss.");
+                    else Assert.AreEqual(0.0f, pdf, "An invalid logical pixel stays clear.");
                 }
-                Assert.AreEqual(expected.Count, args[3]);
-                for (int i = 0; i < args[3]; ++i) Assert.IsTrue(expected.Remove(indices[i]), "Missing/duplicate logical pixel " + indices[i]);
-                Assert.IsEmpty(expected);
             }
 
             public float[] Trace()
@@ -244,7 +246,6 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 using (var cmd = new CommandBuffer())
                 {
                     int trace = m_Shader.FindKernel("SSGITraceDebug");
-                    cmd.SetComputeBufferParam(m_Shader, trace, "UAV_TileArgs", m_Args);
                     BindSurface(trace);
                     m_Shader.SetTexture(trace,"SRV_TemporalColor",m_Lighting);
                     m_Shader.SetTexture(trace,"SRV_TemporalColorMips",m_Lighting);
@@ -254,15 +255,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     m_Shader.SetInt("TemporalColorValid",0);
                     m_Shader.SetInt("TemporalColorMipCount",m_Lighting.mipmapCount);
                     m_Shader.SetVector("TemporalColorResolution",new Vector4(m_Width,m_Height,1f/m_Width,1f/m_Height));
-                    cmd.SetComputeBufferParam(m_Shader, trace, "SRV_TileList", m_TileList);
                     cmd.SetComputeTextureParam(m_Shader, trace, "SRV_HiZClosestTexture", m_HiZ);
+                    cmd.SetComputeTextureParam(m_Shader, trace, "SRV_HiZFurthestTexture", m_HiZ);
                     cmd.SetComputeTextureParam(m_Shader, trace, "_Ranking_Tile", LoadTexture("RankingTile256SPP"));
                     cmd.SetComputeTextureParam(m_Shader, trace, "_Scrambled_Tile", LoadTexture("ScramblingTile256SPP"));
                     cmd.SetComputeTextureParam(m_Shader, trace, "_ScrambledOwen_Noise", LoadTexture("ScrambledNoise_Owen"));
                     cmd.SetComputeTextureParam(m_Shader, trace, "UAV_RayHit", m_RayHit);
                     cmd.SetComputeTextureParam(m_Shader, trace, "UAV_TraceRadiance", m_TraceRadiance);
                     cmd.SetComputeTextureParam(m_Shader, trace, "UAV_HitDistance", m_HitDistance);
-                    cmd.DispatchCompute(m_Shader, trace, m_Args, 0);
+                    cmd.DispatchCompute(m_Shader, trace, TileCount.x, TileCount.y, 1);
                     Graphics.ExecuteCommandBuffer(cmd);
                 }
                 return Read(m_RayHit, 4);
@@ -270,35 +271,57 @@ namespace InfinityTech.Rendering.Pipeline.Tests
 
             public float[] TraceRadiance() => Read(m_TraceRadiance,4);
 
+            float[] m_LastTemporalMeta;
+
             public float[] Temporal()
+            {
+                float[] color = FilterTemporal(m_TraceRadiance, Solid(m_Trace.x, m_Trace.y, new Color(0.9f, 0.9f, 0.9f, 0.9f), false));
+                foreach (float value in color)
+                    Assert.AreEqual(0.0f, value, 1e-6f, "History is invalid this frame, so the bilateral sample is taken as is.");
+                return m_LastTemporalMeta;
+            }
+
+            float[] FilterTemporal(Texture bilateral, Texture traceDecoy)
             {
                 RenderTexture temporal = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
                 RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32_UInt);
                 int kernel = m_Shader.FindKernel("SSGITemporal");
-                m_Shader.SetTexture(kernel,"SRV_HitMotionMetadata",m_MotionMetadata);
+                m_Shader.SetTexture(kernel, "SRV_HitMotionMetadata", m_MotionMetadata);
                 BindSurface(kernel);
-                m_Shader.SetTexture(kernel, "SRV_TraceRadiance", m_TraceRadiance);
+                m_Shader.SetTexture(kernel, "SRV_Current", bilateral);
+                m_Shader.SetTexture(kernel, "SRV_TraceRadiance", traceDecoy);
                 m_Shader.SetTexture(kernel, "SRV_MotionTexture", m_Motion);
                 m_Shader.SetTexture(kernel, "SRV_HistoryRadiance", m_HistoryRadiance);
                 m_Shader.SetTexture(kernel, "SRV_HistoryMeta", m_HistoryMeta);
                 m_Shader.SetTexture(kernel, "UAV_Temporal", temporal);
                 m_Shader.SetTexture(kernel, "UAV_Meta", meta);
-                DispatchFull(kernel);
-                foreach (float value in Read(temporal, 4))
-                    Assert.AreEqual(0.0f, value, 1e-6f, "History is invalid this frame, so the current sample is taken as is.");
-                return SurfaceMetadataTestUtility.Read(meta);
+                DispatchTrace(kernel);
+                m_LastTemporalMeta = SurfaceMetadataTestUtility.Read(meta);
+                return Read(temporal, 4);
             }
+
+            public void SetSamples(int samples) => m_Shader.SetInt("SSGI_Samples", samples);
 
             public float[] Spatial(Color input)
             {
                 RenderTexture output = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32B32A32_SFloat);
+                RenderTexture meta = Target(m_Trace.x, m_Trace.y, GraphicsFormat.R32G32_UInt);
                 int kernel = m_Shader.FindKernel("SSGISpatial");
                 BindSurface(kernel);
+                m_Shader.SetInt("SSGI_SpatialPass", 0);
+                m_Shader.SetInt("SSGI_HasAO", 0);
+                m_Shader.SetFloat("SSGI_FrameAngle", 0);
                 m_Shader.SetTexture(kernel, "SRV_Temporal", Solid(m_Trace.x, m_Trace.y, input, false));
+                m_Shader.SetTexture(kernel, "SRV_Meta", meta);
+                m_Shader.SetTexture(kernel, "SRV_Occlusion", m_Depth);
                 m_Shader.SetTexture(kernel, "UAV_Output", output);
-                m_Shader.SetTexture(kernel, "SRV_HitDistance", Solid(m_Trace.x, m_Trace.y, Color.clear, false));
-                DispatchFull(kernel);
+                DispatchTrace(kernel);
                 return Read(output, 4);
+            }
+
+            public float[] TemporalFrom(Color bilateral, Color trace)
+            {
+                return FilterTemporal(Solid(m_Trace.x, m_Trace.y, bilateral, false), Solid(m_Trace.x, m_Trace.y, trace, false));
             }
 
             public float[] Upsample(bool reject)
@@ -337,6 +360,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 m_Shader.SetTexture(kernel, "SRV_DepthTexture", m_Depth);
                 m_Shader.SetTexture(kernel, "SRV_GBufferB", m_GBufferB);
                 m_Shader.SetTexture(kernel, "SRV_GBufferC", m_GBufferC);
+            }
+
+            void DispatchTrace(int kernel)
+            {
+                m_Shader.Dispatch(kernel, (m_Trace.x + 7) / 8, (m_Trace.y + 7) / 8, 1);
             }
 
             void DispatchFull(int kernel)

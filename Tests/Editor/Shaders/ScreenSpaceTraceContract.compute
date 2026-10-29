@@ -1,0 +1,28 @@
+#pragma kernel TracePair
+#pragma multi_compile_local _ SCREEN_TRACE_RELATIVE_THICKNESS
+#include "../../../Shaders/ShaderLibrary/RayTracing/ScreenSpaceRayTrace/SSRTRayCast.hlsl"
+
+Texture2D<float> SurfaceDepth;
+Texture2D<float> ClosestPyramid;
+Texture2D<float> FurthestPyramid;
+float4x4 Projection;
+float4 Origin;
+float4 Direction;
+uint Budget;
+uint Steps;
+uint BinarySteps;
+uint Flags;
+RWStructuredBuffer<float4> Results;
+
+[numthreads(1, 1, 1)]
+void TracePair(uint3 id : SV_DispatchThreadID)
+{
+    FScreenSpaceHit hiZ = (FScreenSpaceHit)0;
+    FScreenSpaceHit march = (FScreenSpaceHit)0;
+    bool hiZFound = TraceScreenSpaceHiZ(Origin.xyz, Direction.xyz, Budget, 0, Flags, Projection,
+        SurfaceDepth, float4(0, 0, 0, 0), ClosestPyramid, float4(0, 0, 0, 0), FurthestPyramid, hiZ);
+    bool marchFound = TraceScreenSpaceLinear(Origin.xyz, Direction.xyz, Steps, BinarySteps, 0, Flags, Projection,
+        SurfaceDepth, float4(0, 0, 0, 0), ClosestPyramid, float4(0, 0, 0, 0), FurthestPyramid, march);
+    Results[0] = float4(hiZ.uv, hiZ.rawDepth, hiZFound ? 1 : 0);
+    Results[1] = float4(march.uv, march.rawDepth, marchFound ? 1 : 0);
+}

@@ -143,7 +143,7 @@ still fails. Retain the original failed check; these missing historical images a
    - Debug View **SSR Tile Class**: floor tiles blue (Hi-Z), rough tiles orange (linear), sky and forward materials gray.
    - **SSR Ray Hit**: green where reflected objects are on screen, red elsewhere; with Half Resolution the pattern is
      a 2x2 rotating checker.
-   - **SSR Confidence** fades at screen edges and near Max Distance; **SSR History Age** goes white within ~16 frames
+   - **SSR Confidence** is the hit's screen-edge fade; back faces are empty, not a fade. **SSR History Age** goes white within ~16 frames
      on a still camera. On disocclusion a valid surface restarts at age 1 (near black), while invalid pixels have age 0.
      Use Dynamic MeshComponents for moving-object controls and confirm the actual Depth change before judging rejection.
    - Final image: mirror reflections sharp and stable while orbiting; rough reflections blurred without fireflies.

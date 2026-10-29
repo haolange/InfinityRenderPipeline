@@ -62,13 +62,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 shader.SetMatrix("Projection", projection);
                 shader.SetVector("ScreenSpaceDepthParams", new Vector4(0.1f, 100, 0, SystemInfo.usesReversedZBuffer ? 1 : 0));
                 shader.SetVector("Origin", origin); shader.SetVector("Direction", (target - origin).normalized);
-                shader.SetFloat("RayDistance", (target - origin).magnitude + 1);
                 shader.SetTexture(shader.FindKernel("TraceContract"), "DepthPyramid", closest);
                 shader.SetTexture(shader.FindKernel("TraceContract"), "SurfaceDepth", depth);
                 Shader.SetGlobalVector("_ZBufferParams", SystemInfo.usesReversedZBuffer ? new Vector4(999, 1, 9.99f, 0.01f) : new Vector4(-999, 1000, -9.99f, 10));
                 Shader.SetGlobalVector("_ProjectionParams", new Vector4(1, 0.1f, 100, 0.01f));
                 Vector4 hit = Run(shader, "TraceContract", 1)[0];
-                Assert.AreEqual(wall ? 1 : 0, hit.w);
+                Assert.AreEqual(wall ? 1 : 0, hit.w, hit.ToString());
                 if (wall)
                 {
                     Assert.That(hit.x, Is.EqualTo(0.75f).Within(1f / 128 + 1e-5f));

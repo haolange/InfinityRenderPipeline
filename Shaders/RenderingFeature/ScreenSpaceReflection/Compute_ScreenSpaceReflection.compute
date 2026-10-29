@@ -1,27 +1,26 @@
 #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 // Stochastic screen-space reflections after Frostbite (Stachowiak 2015, "Stochastic Screen-Space Reflections").
 //
-//   SSRClassify      one group per 8x8 trace tile: skip, Hi-Z (smooth) or linear (rough) by the tile's minimum roughness
-//   SSRClearSkipped  indirect over skip tiles: clears their ray records
-//   SSRTraceHiZ      indirect over Hi-Z tiles: one VNDF ray per trace pixel, Hi-Z walk
-//   SSRTraceLinear   indirect over linear tiles: one VNDF ray per trace pixel, linear march
-//   SSRResolve       full resolution: ratio estimator over neighbor rays (ray reuse), filtered importance sampling mip
-//   SSRTemporal      full resolution: virtual-point + surface reprojection, variance clip, per-pixel history age
-//   SSRSpatial       full resolution: optional 5x5 a-trous pass with roughness-scaled spacing
+//   SSRClearArgs     one thread: indirect counter to (0, 1, 1) before classify atomics
+//   SSRClassify      one group per 8x8 trace tile: skip, Hi-Z (smooth) or linear (rough). Skip tiles clear their records.
+//   SSRTrace         one indirect group per reflective tile: up to four sample records, shaded in this kernel
+//   SSRResolve       full resolution: rebuilds receiver BRDF weights from those records; does not sample color
+//   SSRTemporal      full resolution: motion-vector and hit-point reprojection, clamped to mean ± dev
+//   SSRBilateral     full resolution: runs only where the smoothed reconstruction variance is high
 //   SSRDebug         full resolution: tile class, ray result, confidence and history age views
 //
 // Trace resolution is full or half; tiles, quad rotation, ray records and ray reuse are shared with SSGI
 // (RayTracing/ScreenSpaceRayTrace/ScreenSpaceTraceTiles.hlsl).
-// Resolved / Temporal / SSRTexture (RGBA16F): rgb = radiance premultiplied by confidence, a = confidence.
+// Resolved / Temporal / SSRTexture (RGBA16F): rgb = hit radiance premultiplied by the hit edge fade, a = that fade.
+// A miss does not enter the average. No hit leaves alpha at 0 so the environment term stays.
 // Meta (RG32UInt): exact depth, oct12x2 world normal, age7 and valid1.
 
+#pragma kernel SSRClearArgs
 #pragma kernel SSRClassify
-#pragma kernel SSRClearSkipped
-#pragma kernel SSRTraceHiZ
-#pragma kernel SSRTraceLinear
+#pragma kernel SSRTrace
 #pragma kernel SSRResolve
 #pragma kernel SSRTemporal
-#pragma kernel SSRSpatial
+#pragma kernel SSRBilateral
 #pragma kernel SSRDebug
 
 #include "../../ShaderLibrary/Common.hlsl"
@@ -46,10 +45,6 @@ float4 SSR_Resolution;
 float4 SSR_TraceResolution;
 uint SSR_TraceScale;
 uint SSR_FrameIndex;
-uint SSR_MaxTiles;
-uint SSR_TileListOffset;
-float SSR_MaxDistance;
-float SSR_Thickness;
 float SSR_MaxRoughness;
 float SSR_EdgeFade;
 float SSR_MirrorRoughness;
@@ -57,7 +52,10 @@ float SSR_LinearRoughness;
 float SSR_BRDFBias;
 uint SSR_HiZSteps;
 uint SSR_LinearSteps;
+uint SSR_BinarySteps;
+uint SSR_TraceFlags;
 uint SSR_ResolveSamples;
+uint SSR_Samples;
 float SSR_ResolveRadius;
 float SSR_TemporalWeight;
 float SSR_TemporalClampScale;
@@ -71,6 +69,7 @@ float4x4 Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewPro
 
 Texture2D<float> SRV_DepthTexture;
 Texture2D<float> SRV_HiZClosestTexture;
+Texture2D<float> SRV_HiZFurthestTexture;
 Texture2D SRV_GBufferA;
 Texture2D SRV_GBufferB;
 Texture2D SRV_GBufferC;
@@ -82,6 +81,10 @@ Texture2D<float4> SRV_RayHit;
 Texture2D<float4> SRV_Resolved;
 Texture2D<float> SRV_HitDistance;
 Texture2D<float4> SRV_Temporal;
+Texture2D<float4> SRV_HitMean;
+Texture2D<float4> SRV_HitDev;
+Texture2D<float> SRV_HistoryVariance;
+Texture2D<float> SRV_Variance;
 Texture2D<uint2> SRV_Meta;
 Texture2D<uint> SRV_TileClass;
 StructuredBuffer<uint> SRV_TileList;
@@ -90,8 +93,18 @@ RWStructuredBuffer<uint> UAV_TileArgs;
 RWStructuredBuffer<uint> UAV_TileList;
 RWTexture2D<uint> UAV_TileClass;
 RWTexture2D<float4> UAV_RayHit;
+struct FReflectionSample
+{
+    float4 radiance; // rgb = unweighted Li, a = hit confidence
+    float4 dirT;     // xyz = Dir * HitT from this sample's origin, w = signed inverse pdf
+};
+RWStructuredBuffer<FReflectionSample> UAV_Samples;
+StructuredBuffer<FReflectionSample> SRV_Samples;
 RWTexture2D<float4> UAV_Resolved;
+RWTexture2D<float4> UAV_HitMean;
+RWTexture2D<float4> UAV_HitDev;
 RWTexture2D<float> UAV_HitDistance;
+RWTexture2D<float> UAV_Variance;
 RWTexture2D<float4> UAV_Temporal;
 RWTexture2D<uint2> UAV_Meta;
 RWTexture2D<float4> UAV_Output;
@@ -159,8 +172,37 @@ uint2 FullToTracePixel(uint2 pixel)
 // ---------------------------------------------------------------------------------------------------------------------
 // Classification
 
+uint ReflectionSampleIndex(uint2 pixel, uint sampleIndex)
+{
+    return (pixel.y * (uint)SSR_TraceResolution.x + pixel.x) * 4u + sampleIndex;
+}
+
+void WriteReflectionSample(uint2 pixel, uint sampleIndex, float4 radiance, float4 dirT)
+{
+    FReflectionSample record;
+    record.radiance = radiance;
+    record.dirT = dirT;
+    UAV_Samples[ReflectionSampleIndex(pixel, sampleIndex)] = record;
+}
+
+void ClearReflectionPixel(uint2 pixel)
+{
+    UAV_RayHit[pixel] = 0;
+    [unroll] for (uint sampleIndex = 0; sampleIndex < 4; ++sampleIndex)
+        WriteReflectionSample(pixel, sampleIndex, 0, 0);
+}
+
+[numthreads(1, 1, 1)]
+void SSRClearArgs(uint3 id : SV_DispatchThreadID)
+{
+    UAV_TileArgs[0] = 0;
+    UAV_TileArgs[1] = 1;
+    UAV_TileArgs[2] = 1;
+}
+
 groupshared uint gs_ReflectiveCount;
 groupshared uint gs_MinRoughness;
+groupshared uint gs_TileClass;
 
 [numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
 void SSRClassify(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
@@ -173,7 +215,8 @@ void SSRClassify(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThrea
     GroupMemoryBarrierWithGroupSync();
 
     uint2 tracePixel = groupId.xy * SSR_TILE_SIZE + groupThreadId.xy;
-    if (all(tracePixel < (uint2)SSR_TraceResolution.xy))
+    bool inside = all(tracePixel < (uint2)SSR_TraceResolution.xy);
+    if (inside)
     {
         float rawDepth, roughness;
         if (IsReflectiveSurface(TraceToFullPixel(tracePixel), rawDepth, roughness))
@@ -191,97 +234,185 @@ void SSRClassify(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThrea
         if (gs_ReflectiveCount > 0)
         {
             tileClass = asfloat(gs_MinRoughness) < SSR_LinearRoughness ? SSR_CLASS_HIZ : SSR_CLASS_LINEAR;
+            uint slot;
+            InterlockedAdd(UAV_TileArgs[0], 1u, slot);
+            UAV_TileList[slot] = PackTraceTile(groupId.xy);
         }
-        uint slot;
-        InterlockedAdd(UAV_TileArgs[tileClass * 3], 1u, slot);
-        UAV_TileList[tileClass * SSR_MaxTiles + slot] = PackTraceTile(groupId.xy);
+        gs_TileClass = tileClass;
         UAV_TileClass[groupId.xy] = tileClass;
     }
-}
-
-uint2 TileTracePixel(uint3 groupId, uint3 groupThreadId)
-{
-    return UnpackTraceTile(SRV_TileList[SSR_TileListOffset + groupId.x]) * SSR_TILE_SIZE + groupThreadId.xy;
-}
-
-[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
-void SSRClearSkipped(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
-{
-    uint2 tracePixel = TileTracePixel(groupId, groupThreadId);
-    if (all(tracePixel < (uint2)SSR_TraceResolution.xy))
+    GroupMemoryBarrierWithGroupSync();
+    if (inside && gs_TileClass == SSR_CLASS_SKIP)
     {
-        UAV_RayHit[tracePixel] = 0;
+        ClearReflectionPixel(tracePixel);
     }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Trace
 
-void TraceTilePixel(uint3 groupId, uint3 groupThreadId, bool linearMarch)
+uint2 TileTracePixel(uint3 groupId, uint3 groupThreadId, out uint2 tile)
 {
-    uint2 tracePixel = TileTracePixel(groupId, groupThreadId);
-    if (any(tracePixel >= (uint2)SSR_TraceResolution.xy))
-    {
-        return;
-    }
+    tile = UnpackTraceTile(SRV_TileList[groupId.x]);
+    return tile * SSR_TILE_SIZE + groupThreadId.xy;
+}
 
+// 0 keeps the hit. 1 is a back-facing surface, 2 is a zero edge fade, 3 is invalid temporal color.
+// Any of those is an empty sample: a miss still occupies estimator weight.
+int ShadeReflectionHit(FSSRSurface surface, float3 L, float pdf, FScreenSpaceHit hit, bool mirror, out float4 radiance, out float hitDistance)
+{
+    float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewProj);
+    hitDistance = max(length(hitWS - surface.positionWS), 1e-3);
+    uint2 hitPixel = min((uint2)(hit.uv * SSR_Resolution.xy), (uint2)SSR_Resolution.xy - 1);
+    float3 hitNormal = normalize(SRV_GBufferB[hitPixel].xyz * 2 - 1);
+    float facing = saturate(-dot(hitNormal, L) * 4);
+    float edge = GetScreenFadeBord(hit.uv, SSR_EdgeFade);
+    radiance = 0;
+    int reason = 0;
+    if (facing <= 0) reason = 1;
+    else if (edge <= 0) reason = 2;
+    else
+    {
+        float projectionScale = 0.5 * TemporalColorResolution.y * abs(Matrix_Proj[1][1]);
+        float mip = mirror ? 0 : RayConeMip(pdf, clamp(SSR_Samples, 1u, 4u), hitDistance, projectionScale, ScreenSpaceLinearEyeDepth(hit.rawDepth), (uint)TemporalColorMipCount);
+        float colorConfidence;
+        float3 color = SampleTemporalHitColor(hit.uv, hit.rawDepth, SRV_MotionTexture[hitPixel].xy, SRV_HitMotionMetadata[hitPixel], mip,
+            Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, colorConfidence);
+        if (colorConfidence <= 0) reason = 3;
+        else radiance = float4(color, edge);
+    }
+    return reason;
+}
+
+[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
+void SSRTrace(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+{
+    uint2 tile;
+    uint2 tracePixel = TileTracePixel(groupId, groupThreadId, tile);
+    if (any(tracePixel >= (uint2)SSR_TraceResolution.xy)) return;
+    bool linearMarch = SRV_TileClass[tile] == SSR_CLASS_LINEAR;
     FSSRSurface surface;
     if (!LoadSurface(TraceToFullPixel(tracePixel), surface))
     {
-        UAV_RayHit[tracePixel] = 0;
+        ClearReflectionPixel(tracePixel);
         return;
     }
 
     float3 V = -surface.viewRayWS;
     float3 N = surface.normalWS;
-    float3 L;
-    float pdf;
-    if (surface.roughness < SSR_MirrorRoughness)
+    bool mirror = surface.roughness < SSR_MirrorRoughness;
+    uint spp = mirror ? 1u : clamp(SSR_Samples, 1u, 4u);
+    [loop]
+    for (uint rayIndex = 0; rayIndex < 4; ++rayIndex)
     {
-        // Mirror pixels resolve their own ray only; the pdf is unused.
-        L = reflect(-V, N);
-        pdf = 1;
+        if (rayIndex >= spp)
+        {
+            WriteReflectionSample(tracePixel, rayIndex, 0, 0);
+            continue;
+        }
+        float3 L = 0;
+        float pdf = 1;
+        bool sampled = true;
+        if (mirror)
+        {
+            L = reflect(-V, N);
+        }
+        else
+        {
+            float3x3 tangentBasis = GetTangentBasis(N);
+            float3 tangentV = mul(tangentBasis, V);
+            float2 E = float2(GetBNDSequenceSample(tracePixel, SSR_FrameIndex, (int)(rayIndex * 3)), GetBNDSequenceSample(tracePixel, SSR_FrameIndex, (int)(rayIndex * 3 + 1)));
+            E.x *= 1 - SSR_BRDFBias;
+            float4 sampleH = ImportanceSampleVisibleGGX(E, max(surface.roughness, 0.02), tangentV);
+            float3 H = mul(sampleH.xyz, tangentBasis);
+            L = reflect(-V, H);
+            pdf = sampleH.w / max(4 * saturate(dot(V, H)), 1e-5);
+            sampled = dot(N, L) > 0;
+        }
+        FScreenSpaceHit hit = (FScreenSpaceHit)0;
+        bool found = false;
+        if (sampled && dot(N, L) > 0)
+        {
+            float3 directionVS = normalize(mul((float3x3)Matrix_WorldToView, L));
+            float jitter = GetBNDSequenceSample(tracePixel, SSR_FrameIndex, (int)(rayIndex * 3 + 2));
+            found = linearMarch
+                ? TraceScreenSpaceLinear(surface.positionVS, directionVS, SSR_LinearSteps, SSR_BinarySteps, jitter, SSR_TraceFlags, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit)
+                : TraceScreenSpaceHiZ(surface.positionVS, directionVS, SSR_HiZSteps, jitter, SSR_TraceFlags, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SRV_HiZFurthestTexture, hit);
+        }
+        float invPdf = rcp(max(pdf, 1e-5));
+        float4 radiance = 0;
+        float4 dirT = 0;
+        if (!sampled)
+        {
+            // The sampled direction points into the receiver. w stays 0 so resolve ignores it.
+            dirT = float4(4, 4, 4, 0);
+        }
+        else if (!found)
+        {
+            // A miss keeps the unit direction. Negative inverse pdf still enters the estimator.
+            dirT = float4(L, -invPdf);
+        }
+        else
+        {
+            float hitDistance;
+            int reason = ShadeReflectionHit(surface, L, pdf, hit, mirror, radiance, hitDistance);
+            if (reason == 0)
+            {
+                float3 hitWS = GetWorldSpacePos(GetNDCPos(hit.uv, hit.rawDepth), Matrix_InvViewProj);
+                dirT = float4(hitWS - surface.positionWS, invPdf);
+            }
+            else
+            {
+                dirT = float4(reason, reason, reason, 0);
+                radiance = 0;
+            }
+        }
+        WriteReflectionSample(tracePixel, rayIndex, radiance, dirT);
+        if (rayIndex == 0)
+        {
+            // The sample record keeps the unit miss direction. The debug ray stores the octahedron and why the march stopped.
+            UAV_RayHit[tracePixel] = sampled && !found
+                ? float4(UnitVectorToOctahedron(L), hit.exitReason, -invPdf)
+                : dirT;
+        }
     }
-    else
-    {
-        float3x3 tangentBasis = GetTangentBasis(N);
-        float3 tangentV = mul(tangentBasis, V);
-        float2 E = float2(GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 0), GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 1));
-        // BRDF bias truncates the lobe tail: E.x is the radial coordinate of the visible-normal disk.
-        E.x *= 1 - SSR_BRDFBias;
-        float4 sampleH = ImportanceSampleVisibleGGX(E, max(surface.roughness, 0.02), tangentV);
-        float3 H = mul(sampleH.xyz, tangentBasis);
-        L = reflect(-V, H);
-        float VoH = saturate(dot(V, H));
-        pdf = sampleH.w / max(4 * VoH, 1e-5);
-    }
-
-    if (dot(N, L) <= 0)
-    {
-        UAV_RayHit[tracePixel] = 0;
-        return;
-    }
-
-    float3 directionVS = normalize(mul((float3x3)Matrix_WorldToView, L));
-    float jitter = GetBNDSequenceSample(tracePixel, SSR_FrameIndex, 2);
-    float3 hit;
-    bool found = linearMarch
-        ? TraceScreenSpaceRayLinear(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_LinearSteps, jitter, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, SSR_TraceScale - 1, hit)
-        : TraceScreenSpaceRay(surface.positionVS, directionVS, SSR_MaxDistance, SSR_Thickness, SSR_HiZSteps, jitter, Matrix_Proj, SRV_DepthTexture, SRV_DepthTexture_InfinityView, SRV_HiZClosestTexture, SRV_HiZClosestTexture_InfinityView, hit);
-
-    UAV_RayHit[tracePixel] = found ? EncodeRayHit(hit, pdf) : EncodeRayMiss(L, pdf);
 }
 
-[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
-void SSRTraceHiZ(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+float3 TracePixelOrigin(uint2 tracePixel)
 {
-    TraceTilePixel(groupId, groupThreadId, false);
+    uint2 fullPixel = TraceToFullPixel(tracePixel);
+    float rawDepth = SRV_DepthTexture[fullPixel];
+    float2 uv = (fullPixel + 0.5) * SSR_Resolution.zw;
+    return GetWorldSpacePos(GetNDCPos(uv, rawDepth), Matrix_InvViewProj);
 }
 
-[numthreads(SSR_TILE_SIZE, SSR_TILE_SIZE, 1)]
-void SSRTraceLinear(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+void AccumulateReflectionRecord(FReflectionSample record, uint2 tracePixel, FSSRSurface surface, float3 N,
+    inout float3 radianceSum, inout float confidenceSum, inout float weightSum, inout float distanceSum, inout float distanceWeight,
+    inout float3 rawColorSum, inout float3 rawColorSquareSum, inout float rawColorCount,
+    inout float confidenceStatSum, inout float confidenceStatSquareSum, inout float confidenceStatCount)
 {
-    TraceTilePixel(groupId, groupThreadId, true);
+    float signedInvPdf = record.dirT.w;
+    // A miss keeps alpha at 0 so the environment term stays. It does not dilute a hit.
+    if (signedInvPdf <= 0) return;
+    float3 hitWS = TracePixelOrigin(tracePixel) + record.dirT.xyz;
+    float3 delta = hitWS - surface.positionWS;
+    float hitDistance = length(delta);
+    if (hitDistance <= 1e-4) return;
+    float3 L = delta / hitDistance;
+    if (dot(N, L) <= 0) return;
+    float3 radiance = record.radiance.rgb;
+    float edgeFade = saturate(record.radiance.a);
+    radianceSum += radiance;
+    confidenceSum += edgeFade;
+    weightSum += 1;
+    rawColorSum += radiance;
+    rawColorSquareSum += radiance * radiance;
+    rawColorCount += 1;
+    confidenceStatSum += edgeFade;
+    confidenceStatSquareSum += edgeFade * edgeFade;
+    confidenceStatCount += 1;
+    distanceSum += hitDistance;
+    distanceWeight += 1;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -300,22 +431,17 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
     {
         UAV_Resolved[pixel] = 0;
         UAV_HitDistance[pixel] = 0;
+        UAV_HitMean[pixel] = 0;
+        UAV_HitDev[pixel] = 0;
         return;
     }
 
-    float3 V = -surface.viewRayWS;
     float3 N = surface.normalWS;
-    float NoV = saturate(dot(N, V)) + 1e-5;
-    float roughness = max(surface.roughness, 0.02);
-    float roughness4 = pow4(roughness);
     bool mirror = surface.roughness < SSR_MirrorRoughness;
 
-    uint lightingMips = (uint)TemporalColorMipCount;
-    // Pixels covered by one world unit at eye depth 1.
-    float projectionScale = 0.5 * TemporalColorResolution.y * abs(Matrix_Proj[1][1]);
-
     uint2 traceCenter = FullToTracePixel(pixel);
-    uint sampleCount = mirror ? 1u : clamp(SSR_ResolveSamples, 1u, 16u);
+    uint reuseCount = mirror ? 1u : clamp(SSR_ResolveSamples, 1u, 16u);
+    uint spp = mirror ? 1u : clamp(SSR_Samples, 1u, 4u);
     float rotation = InterleavedGradientNoise(float2(pixel) + 0.5, (float)(SSR_FrameIndex & 7u)) * 6.2831853;
 
     float weightSum = 0;
@@ -323,78 +449,37 @@ void SSRResolve(uint3 id : SV_DispatchThreadID)
     float confidenceSum = 0;
     float distanceSum = 0;
     float distanceWeight = 0;
+    float3 rawColorSum = 0;
+    float3 rawColorSquareSum = 0;
+    float rawColorCount = 0;
+    float confidenceStatSum = 0;
+    float confidenceStatSquareSum = 0;
+    float confidenceStatCount = 0;
     [loop]
-    for (uint i = 0; i < sampleCount; ++i)
+    for (uint own = 0; own < spp; ++own)
+        AccumulateReflectionRecord(SRV_Samples[ReflectionSampleIndex(traceCenter, own)], traceCenter, surface, N, radianceSum, confidenceSum, weightSum, distanceSum, distanceWeight, rawColorSum, rawColorSquareSum, rawColorCount, confidenceStatSum, confidenceStatSquareSum, confidenceStatCount);
+    [loop]
+    for (uint i = 1; i < reuseCount; ++i)
     {
-        int2 samplePixel = clamp(int2(traceCenter) + RayReuseOffset(i, sampleCount, SSR_ResolveRadius, rotation), 0, int2(SSR_TraceResolution.xy) - 1);
-        float4 ray = SRV_RayHit[samplePixel];
-        if (ray.w == 0)
-        {
-            continue;
-        }
-
-        float pdf = abs(ray.w);
-        float3 L;
-        float3 radiance = 0;
-        float hitConfidence = 0;
-        float hitDistance = 0;
-        if (ray.w > 0)
-        {
-            float3 hitWS = GetWorldSpacePos(GetNDCPos(ray.xy, ray.z), Matrix_InvViewProj);
-            float3 toHit = hitWS - surface.positionWS;
-            hitDistance = length(toHit);
-            if (hitDistance <= 1e-4)
-            {
-                continue;
-            }
-            L = toHit / hitDistance;
-
-            // The back of an object is never visible in a reflection; a ray that lands on one is treated as a miss.
-            uint2 hitPixel = min((uint2)(ray.xy * SSR_Resolution.xy), (uint2)SSR_Resolution.xy - 1);
-            float3 hitNormal = normalize(SRV_GBufferB[hitPixel].xyz * 2 - 1);
-            float facing = saturate(-dot(hitNormal, L) * 4);
-            float distanceFade = saturate((SSR_MaxDistance - hitDistance) / max(0.1 * SSR_MaxDistance, 1e-3));
-            hitConfidence = GetScreenFadeBord(ray.xy, SSR_EdgeFade) * facing * distanceFade;
-
-            // Filtered importance sampling: mirrors read the full-resolution image.
-            float mip = mirror ? 0 : RayConeMip(pdf, sampleCount, hitDistance, projectionScale, ScreenSpaceLinearEyeDepth(ray.z), lightingMips);
-            float colorConfidence;
-            radiance = SampleTemporalHitColor(ray.xy,ray.z,SRV_MotionTexture[hitPixel].xy,SRV_HitMotionMetadata[hitPixel],mip,
-                Matrix_InvViewProj,Matrix_HistoryViewProj,Matrix_MotionViewProj,Matrix_LastMotionViewProj,colorConfidence);
-            hitConfidence *= colorConfidence;
-        }
-        else
-        {
-            L = OctahedronToUnitVector(ray.xy);
-        }
-
-        float NoL = dot(N, L);
-        if (NoL <= 0)
-        {
-            continue;
-        }
-
-        // Ratio estimator: sum(f * Li / pdf) / sum(f / pdf). Fresnel is applied by the composite with the split-sum
-        // term, so f is D * Vis * NoL here. A miss adds weight but no confidence: that part falls back to probes.
-        float weight = 1;
-        if (!mirror)
-        {
-            float NoH = saturate(dot(N, normalize(V + L)));
-            weight = D_GGX(NoH, roughness4) * Vis_Smith(NoL, NoV, roughness) * NoL / pdf;
-        }
-        weightSum += weight;
-        radianceSum += weight * hitConfidence * radiance;
-        confidenceSum += weight * hitConfidence;
-        if (ray.w > 0)
-        {
-            distanceSum += weight * hitDistance;
-            distanceWeight += weight;
-        }
+        int2 samplePixel = clamp(int2(traceCenter) + RayReuseOffset(i, reuseCount, SSR_ResolveRadius, rotation), 0, int2(SSR_TraceResolution.xy) - 1);
+        AccumulateReflectionRecord(SRV_Samples[ReflectionSampleIndex((uint2)samplePixel, 0)], (uint2)samplePixel, surface, N, radianceSum, confidenceSum, weightSum, distanceSum, distanceWeight, rawColorSum, rawColorSquareSum, rawColorCount, confidenceStatSum, confidenceStatSquareSum, confidenceStatCount);
     }
 
     float inverseWeight = weightSum > 0 ? rcp(weightSum) : 0;
-    UAV_Resolved[pixel] = float4(radianceSum * inverseWeight, saturate(confidenceSum * inverseWeight));
+    float edgeFade = saturate(confidenceSum * inverseWeight);
+    UAV_Resolved[pixel] = float4(radianceSum * inverseWeight * edgeFade, edgeFade);
     UAV_HitDistance[pixel] = distanceWeight > 0 ? distanceSum / distanceWeight : 0;
+    float3 colorMean = rawColorCount > 0 ? rawColorSum / rawColorCount : 0;
+    float3 colorDev = rawColorCount > 0 ? sqrt(max(rawColorSquareSum / rawColorCount - colorMean * colorMean, 0)) : 0;
+    float confidenceMean = confidenceStatCount > 0 ? confidenceStatSum / confidenceStatCount : 0;
+    float confidenceDev = confidenceStatCount > 0 ? sqrt(max(confidenceStatSquareSum / confidenceStatCount - confidenceMean * confidenceMean, 0)) : 0;
+    UAV_HitMean[pixel] = float4(colorMean, confidenceMean);
+    UAV_HitDev[pixel] = float4(colorDev, confidenceDev);
+}
+
+float ReflectionLuma(float3 rgb)
+{
+    return dot(rgb, float3(0.2126729, 0.7151522, 0.0721750));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -417,21 +502,10 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     }
 
     float4 current = SRV_Resolved[pixel];
-    float4 sum = 0;
-    float4 sumSquares = 0;
-    int2 maxPixel = int2(SSR_Resolution.xy) - 1;
-    [unroll]
-    for (int y = -1; y <= 1; ++y)
-    {
-        [unroll]
-        for (int x = -1; x <= 1; ++x)
-        {
-            float4 value = SRV_Resolved[clamp(int2(pixel) + int2(x, y), 0, maxPixel)];
-            sum += value;
-            sumSquares += value * value;
-        }
-    }
-    FNeighborhoodMoments moments = ResolveNeighborhoodMoments(sum, sumSquares, 9, current, SSR_TemporalClampScale);
+    float3 colorMean = SRV_HitMean[pixel].rgb;
+    float3 colorDev = max(SRV_HitDev[pixel].rgb, 1e-5);
+    float currentVariance = dot(colorDev * colorDev, float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0));
+    float3 resolvedColor = current.a > 1e-5 ? current.rgb / current.a : 0;
 
     float2 uv = (pixel + 0.5) * SSR_Resolution.zw;
     float2 surfaceMotion = SRV_MotionTexture[pixel].xy;
@@ -440,7 +514,6 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
     ReprojectSurface(uv, surface.rawDepth, surfaceMotion, Matrix_InvViewProj, Matrix_HistoryViewProj, Matrix_MotionViewProj, Matrix_LastMotionViewProj, surfaceUV, expectedDepth);
 
     float historyAge = 0;
-    float4 history = current;
     float4 motionSurface = SRV_HitMotionMetadata[pixel];
     bool validMotionSurface = motionSurface.z > 0 && isfinite(motionSurface.x) && motionSurface.x >= 0 && motionSurface.x <= 1;
     // Use the previous object surface depth, rather than projecting its current pose.
@@ -454,80 +527,92 @@ void SSRTemporal(uint3 id : SV_DispatchThreadID)
         historyAge = historyValid > 0 ? historyMeta.w : 0;
     }
 
+    float historyVariance = currentVariance;
+    float3 filtered = resolvedColor;
     if (historyValid > 0)
     {
-        float4 surfaceHistory = InfinitySampleLevel(SRV_HistoryRadiance,Global_bilinear_clamp_sampler,surfaceUV,0);
-        history = surfaceHistory;
+        float4 surfaceHistory = InfinitySampleLevel(SRV_HistoryRadiance, Global_bilinear_clamp_sampler, surfaceUV, 0);
         float hitDistance = SRV_HitDistance[pixel];
-        float2 virtualUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_HistoryViewProj) : -1;
-
-    if (all(virtualUV >= 0) && all(virtualUV <= 1))
+        float2 hitUV = hitDistance > 0 ? ReprojectVirtualPoint(surface.positionWS, surface.viewRayWS, hitDistance, Matrix_HistoryViewProj) : -1;
+        bool hitValid = all(hitUV >= 0) && all(hitUV <= 1);
+        float4 hitHistory = hitValid ? InfinitySampleLevel(SRV_HistoryRadiance, Global_bilinear_clamp_sampler, hitUV, 0) : surfaceHistory;
+        // A near-zero history alpha unpremultiplies to black and, at a ~0.97 history weight, covers this frame's hit.
+        float historyConfidence = max(surfaceHistory.a, hitValid ? hitHistory.a : 0);
+        bool historyHasSignal = historyConfidence >= max(current.a * 0.5, 1e-3);
+        if (!historyHasSignal)
         {
-            // Smooth lobes follow the reflected image; rough lobes follow the surface. The neighborhood arbitrates.
-            float4 virtualHistory = InfinitySampleLevel(SRV_HistoryRadiance,Global_bilinear_clamp_sampler,virtualUV,0);
-            float prior = 1 - smoothstep(0.1, 0.4, surface.roughness);
-            float virtualWeight = prior * exp2(-NeighborhoodDistance(virtualHistory, moments));
-            float surfaceWeight = (1 - prior) * exp2(-NeighborhoodDistance(surfaceHistory, moments)) + 1e-4;
-            history = (virtualHistory * virtualWeight + surfaceHistory * surfaceWeight) / (virtualWeight + surfaceWeight);
+            historyValid = 0;
         }
-        history = ClipHistoryToNeighborhood(history, moments);
+        else
+        {
+            float3 surfaceColor = surfaceHistory.a > 1e-5 ? surfaceHistory.rgb / surfaceHistory.a : 0;
+            float3 hitColor = hitHistory.a > 1e-5 ? hitHistory.rgb / hitHistory.a : 0;
+            float surfaceWeight = exp2(-10 * ReflectionLuma((surfaceColor - colorMean) / colorDev));
+            float hitWeight = hitValid ? exp2(-10 * ReflectionLuma((hitColor - colorMean) / colorDev)) : 0;
+            float3 surfaceColorClamped = max(clamp(surfaceColor, colorMean - colorDev, colorMean + colorDev), resolvedColor);
+            float3 hitColorClamped = max(clamp(hitColor, colorMean - colorDev, colorMean + colorDev), resolvedColor);
+            float weight = surfaceWeight + hitWeight;
+            float3 historyColor = weight > 0
+                ? (surfaceColorClamped * surfaceWeight + hitColorClamped * hitWeight) / weight
+                : surfaceColorClamped;
+            filtered = lerp(historyColor, resolvedColor, TemporalCurrentWeight(historyAge, SSR_TemporalWeight));
+            historyVariance = SRV_HistoryVariance.SampleLevel(Global_bilinear_clamp_sampler, surfaceUV, 0);
+        }
     }
 
-    float currentWeight = TemporalCurrentWeight(historyAge, SSR_TemporalWeight);
-    UAV_Temporal[pixel] = max(0, lerp(history, current, currentWeight));
+    filtered = max(filtered, resolvedColor);
+    UAV_Temporal[pixel] = float4(max(0, filtered) * current.a, current.a);
     UAV_Meta[pixel] = EncodeSurfaceMetadata(surface.normalWS, surface.rawDepth, (uint)NextHistoryAge(historyAge), true);
+    // Hysteresis 0.5 on the reconstruction variance. The slide does not name a reprojection for this scalar.
+    UAV_Variance[pixel] = lerp(currentVariance, historyVariance, historyValid > 0 ? 0.5 : 0);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Spatial
+// Bilateral cleanup. The slide gives no kernel radius. Width and sample count below are a monotone
+// stand-in for "variable kernel width, sample count", and 1e-4 is the gate for "only where variance high".
 
 [numthreads(8, 8, 1)]
-void SSRSpatial(uint3 id : SV_DispatchThreadID)
+void SSRBilateral(uint3 id : SV_DispatchThreadID)
 {
-    if (any(id.xy >= (uint2)SSR_Resolution.xy))
-    {
-        return;
-    }
+    if (any(id.xy >= (uint2)SSR_Resolution.xy)) return;
     uint2 pixel = id.xy;
     float4 center = SRV_Temporal[pixel];
-    float centerDepth, centerRoughness;
-    if (!IsReflectiveSurface(pixel, centerDepth, centerRoughness) || centerRoughness < SSR_MirrorRoughness)
+    float variance = SRV_Variance[pixel];
+    if (variance < 1e-4)
     {
         UAV_Output[pixel] = center;
         return;
     }
-
+    float centerDepth, centerRoughness;
+    if (!IsReflectiveSurface(pixel, centerDepth, centerRoughness))
+    {
+        UAV_Output[pixel] = center;
+        return;
+    }
+    float response = saturate(variance / (variance + 0.05));
+    float radius = lerp(1.0, 6.0, response);
+    uint sampleCount = (uint)lerp(4.0, 16.0, response);
     float centerEye = ScreenSpaceLinearEyeDepth(centerDepth);
     float3 centerNormal = normalize(SRV_GBufferB[pixel].xyz * 2 - 1);
-    // Wider spacing for rougher lobes: mirrors keep detail, rough reflections are smoothed.
-    float spacing = lerp(1.0, 3.0, saturate(centerRoughness / max(SSR_MaxRoughness, 1e-3)));
     int2 maxPixel = int2(SSR_Resolution.xy) - 1;
-
-    float4 sum = 0;
+    float rotation = (SSR_FrameIndex & 63u) * 0.1;
+    float3 sum = 0;
     float weightSum = 0;
-    [unroll]
-    for (int y = -2; y <= 2; ++y)
+    [loop]
+    for (uint i = 0; i < 16; ++i)
     {
-        [unroll]
-        for (int x = -2; x <= 2; ++x)
-        {
-            int2 tap = int2(x, y);
-            uint2 samplePixel = (uint2)clamp(int2(pixel) + (int2)round(float2(tap) * spacing), 0, maxPixel);
-            float sampleDepth, sampleRoughness;
-            if (!IsReflectiveSurface(samplePixel, sampleDepth, sampleRoughness))
-            {
-                continue;
-            }
-            float3 sampleNormal = normalize(SRV_GBufferB[samplePixel].xyz * 2 - 1);
-            float weight = AtrousKernelWeight(tap)
-                * AtrousDepthWeight(centerEye, ScreenSpaceLinearEyeDepth(sampleDepth), 0.05)
-                * AtrousNormalWeight(centerNormal, sampleNormal, 32)
-                * AtrousRoughnessWeight(centerRoughness, sampleRoughness);
-            sum += SRV_Temporal[samplePixel] * weight;
-            weightSum += weight;
-        }
+        if (i >= sampleCount) break;
+        int2 offset = RayReuseOffset(i + 1, sampleCount, radius, rotation);
+        uint2 samplePixel = (uint2)clamp(int2(pixel) + offset, 0, maxPixel);
+        float sampleDepth, sampleRoughness;
+        if (!IsReflectiveSurface(samplePixel, sampleDepth, sampleRoughness)) continue;
+        float3 sampleNormal = normalize(SRV_GBufferB[samplePixel].xyz * 2 - 1);
+        float weight = AtrousDepthWeight(centerEye, ScreenSpaceLinearEyeDepth(sampleDepth), 0.05)
+            * saturate(dot(centerNormal, sampleNormal));
+        sum += SRV_Temporal[samplePixel].rgb * weight;
+        weightSum += weight;
     }
-    UAV_Output[pixel] = weightSum > 0 ? sum / weightSum : center;
+    UAV_Output[pixel] = float4(weightSum > 0 ? sum / weightSum : center.rgb, center.a);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -551,15 +636,21 @@ void SSRDebug(uint3 id : SV_DispatchThreadID)
     else if (SSR_DebugMode == DEBUGVIEW_SSRRAYHIT)
     {
         float4 ray = SRV_RayHit[tracePixel];
-        color = ray.w > 0 ? float3(0, 1, 0) : (ray.w < 0 ? float3(1, 0, 0) : float3(0, 0, 0));
+        if (ray.w > 0) color = float3(0, 1, 0);
+        else if (ray.w < 0) color = ray.z == 2 ? float3(1, 0.45, 0) : (ray.z == 3 ? float3(0.45, 0, 0) : float3(1, 0, 0));
+        else if (ray.x == 1) color = float3(1, 0, 1);
+        else if (ray.x == 2) color = float3(1, 1, 0);
+        else if (ray.x == 3) color = float3(0, 1, 1);
+        else if (ray.x == 4) color = float3(0.2, 0.35, 1);
+        else color = 0;
     }
     else if (SSR_DebugMode == DEBUGVIEW_SSRCONFIDENCE)
     {
-        color = SRV_Resolved[tracePixel].aaa;
+        color = SRV_Resolved[pixel].aaa;
     }
     else if (SSR_DebugMode == DEBUGVIEW_SSRHISTORYAGE)
     {
-        color = saturate(DecodeSurfaceMetadata(SRV_Meta[tracePixel]).w / 16.0).xxx;
+        color = saturate(DecodeSurfaceMetadata(SRV_Meta[pixel]).w / 16.0).xxx;
     }
     UAV_Debug[pixel] = float4(color, 1);
 }

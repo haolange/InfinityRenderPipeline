@@ -149,10 +149,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally { Object.DestroyImmediate(depth); Object.DestroyImmediate(flags); Object.DestroyImmediate(normals); }
         }
 
-        [TestCase(false, 1f)]
-        [TestCase(true, 1f)]
-        [TestCase(false, 0f)]
-        public void TraceExit_PreservesPlaneHitsSkyMissesAndZeroLengthRejection(bool sky, float distance)
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TraceExit_PreservesPlaneHitsAndSkyMisses(bool sky)
         {
             var surface = new Texture2D(16, 8, TextureFormat.RGBAFloat, false, true);
             var pyramid = new Texture2D(8, 4, TextureFormat.RGBAFloat, true, true);
@@ -178,15 +177,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     shader.SetTexture(kernel, "ContractSurfaceDepth", surface);
                     shader.SetVector("ContractOrigin", new Vector4(-.6f, 0, reversed ? -.8f : -.2f, 0));
                     shader.SetVector("ContractDirection", new Vector4(.8f, 0, reversed ? .6f : -.6f, 0));
-                    shader.SetFloat("ContractTraceDistance", distance);
                     shader.SetVector("ScreenSpaceDepthParams", new Vector4(.1f, 100, 1, reversed ? 1 : 0));
                 });
                 foreach (Vector4 result in results)
                 {
-                    if (sky || distance == 0) Assert.AreEqual(Vector4.zero, result);
+                    if (sky) Assert.AreEqual(Vector4.zero, result);
                     else
                     {
-                        Assert.AreEqual(1, result.w);
+                        Assert.AreEqual(1, result.w, result.ToString());
                         Assert.That(result.z, Is.EqualTo(.5f).Within(1e-6));
                         Assert.That(result.x * 16 - .5f, Is.EqualTo(Mathf.Round(result.x * 16 - .5f)).Within(1e-5));
                         Assert.That(result.y * 8 - .5f, Is.EqualTo(Mathf.Round(result.y * 8 - .5f)).Within(1e-5));

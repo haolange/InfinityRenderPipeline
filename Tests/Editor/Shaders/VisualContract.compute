@@ -12,14 +12,14 @@ Texture2D<float> DepthPyramid;
 Texture2D<float> ShadowRamp;
 float4x4 Projection;
 float4 Origin, Direction;
-float RayDistance, ShadowStrength;
+float ShadowStrength;
 RWStructuredBuffer<float4> Results;
 [numthreads(1, 1, 1)]
 void TraceContract(uint3 id : SV_DispatchThreadID)
 {
-    float3 hit;
-    bool valid = TraceScreenSpaceRay(Origin.xyz, Direction.xyz, RayDistance, 0.01, 64, 0, Projection, SurfaceDepth, float4(0,0,0,0), DepthPyramid, float4(0,0,0,0), hit);
-    Results[0] = float4(hit, valid ? 1 : 0);
+    FScreenSpaceHit hit = (FScreenSpaceHit)0;
+    bool valid = TraceScreenSpaceHiZ(Origin.xyz, Direction.xyz, 64, 0, SCREEN_TRACE_TOWARD | SCREEN_TRACE_BEHIND, Projection, SurfaceDepth, float4(0,0,0,0), DepthPyramid, float4(0,0,0,0), DepthPyramid, hit);
+    Results[0] = float4(hit.uv, hit.rawDepth, valid ? 1 : 0);
 }
 [numthreads(1, 1, 1)]
 void MixedShadowContract(uint3 id : SV_DispatchThreadID)

@@ -3,8 +3,9 @@
 // Trace bookkeeping shared by the stochastic screen-space signals (SSR, SSGI; C# ScreenSpaceTraceUtility):
 //   - 8x8 trace tiles, listed per class for indirect dispatch (one group per tile, packed x | y << 16);
 //   - half-resolution tracing, where each trace pixel traces a different pixel of its 2x2 quad every frame;
-//   - ray records (RGBA32F, trace resolution): hit = (uv, raw depth, +pdf); miss = (octahedral world direction, 0,
-//     -pdf); no ray = 0. The pdf is the solid-angle pdf of the traced direction;
+//   - ray records (RGBA32F, trace resolution): hit = (uv, raw depth, +pdf); miss = (octahedral world direction,
+//     exit reason, -pdf); no ray = 0. Exit reason is 1 clip, 2 behind a surface, 3 step budget.
+//     The pdf is the solid-angle pdf of the traced direction;
 //   - ray reuse: the resolve gathers its own ray and neighbor rays on a rotated Vogel disk, and samples the color
 //     pyramid at the mip that covers the solid angle each reused ray stands for (Krivanek and Colbert 2008).
 #include "../../GBufferPack.hlsl"
@@ -42,12 +43,13 @@ float4 EncodeRayHit(float3 hitUVDepth, float pdf)
     return float4(hitUVDepth, max(pdf, 1e-5));
 }
 
-float4 EncodeRayMiss(float3 directionWS, float pdf)
+float4 EncodeRayMiss(float3 directionWS, float pdf, float exitReason)
 {
-    return float4(UnitVectorToOctahedron(directionWS), 0, -max(pdf, 1e-5));
+    return float4(UnitVectorToOctahedron(directionWS), exitReason, -max(pdf, 1e-5));
 }
 
-// Offset of reuse sample i of count (sample 0 is the pixel's own ray) on a Vogel disk of the given radius.
+// Offset of reuse sample i of count (sample 0 is the pixel's own ray) on a Vogel disk.
+// That disk is the runtime Poisson distribution used by the full-resolution reconstruction.
 int2 RayReuseOffset(uint i, uint count, float radius, float rotation)
 {
     int2 offset = 0;

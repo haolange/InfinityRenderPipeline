@@ -11,27 +11,25 @@ namespace InfinityTech.Rendering.PostProcess
     {
         public BoolParameter enable = new BoolParameter(false);
 
-        // Artistic
-        [Tooltip("Maximum ray length in meters. Hits fade out over the last 10%.")]
-        public MinFloatParameter MaxDistance = new MinFloatParameter(50f, 0.01f);
-        [Tooltip("Assumed thickness of depth-buffer surfaces in meters.")]
-        public MinFloatParameter Thickness = new MinFloatParameter(0.1f, 0.001f);
+        // Artistic. Rays are clipped to the near and far planes and to the screen; there is no world-space length.
+        [Tooltip("After a ray passes behind a surface, keep tracing for the next one.")]
+        public BoolParameter TraceBehind = new BoolParameter(true);
+        [Tooltip("Trace rays that travel toward the camera.")]
+        public BoolParameter TowardRay = new BoolParameter(true);
         [Tooltip("Scales the radiance gathered from the screen.")]
-        public ClampedFloatParameter IntensityScale = new ClampedFloatParameter(1.0f, 0.0f, 1.0f);
+        public ClampedFloatParameter IntensityScale = new ClampedFloatParameter(1.0f, 0.0f, 10.0f);
 
         // Quality
         [Tooltip("Low/Medium/High/Ultra use hardcoded presets for the quality parameters. Custom uses the values below.")]
         public QualityLevelParameter quality = new QualityLevelParameter(EQualityLevel.Custom);
-        [Tooltip("Trace one ray per 2x2 pixel quad, rotating through the quad every frame.")]
-        public BoolParameter HalfResolution = new BoolParameter(true);
         [Tooltip("Hi-Z walk budget; the walk takes at most four times this many cell steps.")]
         public ClampedIntParameter NumSteps = new ClampedIntParameter(12, 4, 64);
+        [Tooltip("Cosine rays traced per half-resolution work pixel.")]
+        public ClampedIntParameter Samples = new ClampedIntParameter(1, 1, 4);
         [Tooltip("Maximum history weight of the temporal filter.")]
         public ClampedFloatParameter TemporalWeight = new ClampedFloatParameter(0.93f, 0.0f, 0.97f);
         [Tooltip("Width of the temporal variance clip box in standard deviations.")]
         public ClampedFloatParameter TemporalScale = new ClampedFloatParameter(1.25f, 0.0f, 8.0f);
-        [Tooltip("World-space spatial passes after the temporal filter.")]
-        public ClampedIntParameter SpatialPasses = new ClampedIntParameter(1, 0, 1);
 
         public bool IsActive() => active && enable.value;
 
@@ -40,15 +38,14 @@ namespace InfinityTech.Rendering.PostProcess
             FSSGISettings settings = quality.value == EQualityLevel.Custom
                 ? new FSSGISettings
                 {
-                    halfResolution = HalfResolution.value,
                     hiZSteps = NumSteps.value,
+                    samples = Samples.value,
                     temporalWeight = TemporalWeight.value,
                     temporalClampScale = TemporalScale.value,
-                    spatialPasses = SpatialPasses.value,
                 }
                 : QualityPresets.Select(QualityPresets.SSGI, quality.value);
-            settings.maxDistance = MaxDistance.value;
-            settings.thickness = Thickness.value;
+            settings.traceBehind = TraceBehind.value;
+            settings.traceToward = TowardRay.value;
             settings.intensity = IntensityScale.value;
             return settings;
         }

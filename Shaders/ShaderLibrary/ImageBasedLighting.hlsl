@@ -7,7 +7,7 @@
 #include "AtmosphereCommon.hlsl"
 
 // Environment LUT 
-float IBL_Defualt_DiffuseIntegrated(float Roughness, float NoV) 
+float IBL_Default_DiffuseIntegrated(float Roughness, float NoV) 
 {
     float r = 0; 
 	const uint NumSamples = 1024;
@@ -28,7 +28,7 @@ float IBL_Defualt_DiffuseIntegrated(float Roughness, float NoV)
     return r / NumSamples;
 }
 
-float2 IBL_Defualt_SpecularIntegrated(float Roughness, float NoV) 
+float2 IBL_Default_SpecularIntegrated(float Roughness, float NoV) 
 {
     float2 r = 0;
     const uint NumSamples = 1024;
@@ -89,7 +89,7 @@ float2 IBL_Ashikhmin_SpecularIntegrated(float Roughness, float NoV)
     return r /= NumSamples;
 }
 
-float2 IBL_Defualt_SpecularIntegrated_Approx(float Roughness, float NoV) 
+float2 IBL_Default_SpecularIntegrated_Approx(float Roughness, float NoV) 
 {
     const float4 c0 = float4(-1.0, -0.0275, -0.572,  0.022);
     const float4 c1 = float4( 1.0,  0.0425,  1.040, -0.040);
@@ -98,7 +98,7 @@ float2 IBL_Defualt_SpecularIntegrated_Approx(float Roughness, float NoV)
     return float2(-1.04, 1.04) * a004 + r.zw;
 }
 
-float IBL_Defualt_SpecularIntegrated_Approx_Nonmetal(float Roughness, float NoV) 
+float IBL_Default_SpecularIntegrated_Approx_Nonmetal(float Roughness, float NoV) 
 {
 	const float2 c0 = { -1, -0.0275 };
 	const float2 c1 = { 1, 0.0425 };
@@ -183,7 +183,7 @@ float3 IBL_Hair_FullIntegrated(float3 V, float3 N, float3 SpecularColor, float R
 
 float4 EnvBRDFApprox(float3 SpecularColor, float Roughness, float NoV)
 {
-	float2 AB = IBL_Defualt_SpecularIntegrated_Approx(Roughness, NoV);
+	float2 AB = IBL_Default_SpecularIntegrated_Approx(Roughness, NoV);
 	AB.y *= saturate( 50 * SpecularColor.g );
 	return float4(SpecularColor * AB.x + AB.y, 1);
 }

@@ -68,9 +68,8 @@ void ScreenSpaceComposite(uint3 id : SV_DispatchThreadID)
     float3 worldPos = GetWorldSpacePos(ndcPos, Matrix_InvViewProj);
     float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
     float4 ssrColor = SRV_SSRTexture[pixelCoord];
-    float2 envBRDF = IBL_Defualt_SpecularIntegrated_Approx(gbufferData.Roughness, saturate(dot(gbufferData.Normal, viewDir)));
     float3 indirectSpecular = ssrColor.rgb;
-    lighting = ReplaceIndirectContribution(lighting, SRV_IndirectSpecular[pixelCoord].rgb, (microfaceCtx.SpecularColor * envBRDF.x + envBRDF.y) * indirectSpecular, ssrColor.a);
+    lighting = ReplaceIndirectContribution(lighting, SRV_IndirectSpecular[pixelCoord].rgb, EnvBRDFApprox(microfaceCtx.SpecularColor, microfaceCtx.RoughnessClamp, saturate(dot(gbufferData.Normal, viewDir))).rgb * indirectSpecular, ssrColor.a);
 #endif
 
     UAV_SceneColor[pixelCoord] = float4(max(0, lighting), 1);

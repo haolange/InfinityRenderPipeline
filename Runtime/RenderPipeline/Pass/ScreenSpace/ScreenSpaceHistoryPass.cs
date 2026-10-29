@@ -26,6 +26,33 @@ namespace InfinityTech.Rendering.Pipeline
 
     public partial class InfinityRenderPipeline
     {
+        struct CopyHistoryScalarPassData
+        {
+            public RGTextureHandle source;
+            public RGTextureHandle history;
+        }
+
+        void CopyHistoryScalar(HistoryCache historyCache, int sourceId, int historyId, string name)
+        {
+            if (!m_RGScoper.TryQueryTexture(sourceId, out RGTextureHandle source)) return;
+            TextureDescriptor descriptor = m_RGBuilder.GetTextureDescriptor(source);
+            descriptor.name = name;
+            RGTextureHandle history = m_RGBuilder.ImportTexture(historyCache.GetWriteTexture(historyId, descriptor));
+            historyCache.MarkProduced(historyId);
+            using (RGTransferPassHandle passRef = m_RGBuilder.AddTransferPass<CopyHistoryScalarPassData>(ProfilingSampler.Get(CustomSamplerId.CopyHistorySSR)))
+            {
+                passRef.ReadTexture(source);
+                passRef.WriteTexture(history);
+                ref CopyHistoryScalarPassData passData = ref passRef.GetPassData<CopyHistoryScalarPassData>();
+                passData.source = source;
+                passData.history = history;
+                passRef.SetExecuteFunc((in CopyHistoryScalarPassData data, in RGTransferEncoder cmdEncoder) =>
+                {
+                    cmdEncoder.CopyTexture(data.source, data.history);
+                });
+            }
+        }
+
         struct CopyHistoryRadianceMetaPassData
         {
             public RGTextureHandle radianceSource;
@@ -42,15 +69,17 @@ namespace InfinityTech.Rendering.Pipeline
                 InfinityShaderIDs.SSRTemporalBuffer, InfinityShaderIDs.SSRMetaBuffer,
                 InfinityShaderIDs.HistorySSRRadianceBuffer, InfinityShaderIDs.HistorySSRMetaBuffer,
                 SSRPassUtilityData.HistoryRadianceName, SSRPassUtilityData.HistoryMetaName);
+            CopyHistoryScalar(historyCache, InfinityShaderIDs.SSRVarianceBuffer, InfinityShaderIDs.HistorySSRVarianceBuffer, "HistorySSRVariance");
         }
 
-        // Diffuse history is recurrent: accept the world-space filtered working result.
+        // Each denoise stage keeps the combiner mix, not the temporal output.
         void CopyHistorySSGI(RenderContext renderContext, HistoryCache historyCache, Camera camera)
         {
             CopyHistoryRadianceMeta(historyCache, CustomSamplerId.CopyHistorySSGI,
                 InfinityShaderIDs.SSGIFilteredBuffer, InfinityShaderIDs.SSGIMetaBuffer,
                 InfinityShaderIDs.HistorySSGIRadianceBuffer, InfinityShaderIDs.HistorySSGIMetaBuffer,
                 SSGIPassUtilityData.HistoryRadianceName, SSGIPassUtilityData.HistoryMetaName);
+            CopyHistoryScalar(historyCache, InfinityShaderIDs.SSGICombinerNarrowBuffer, InfinityShaderIDs.HistorySSGINarrowBuffer, "HistorySSGINarrow");
         }
 
         // History of the stochastic screen-space signals: RGBA16F radiance (bilinear) and RGBA32F geometric meta (point).
