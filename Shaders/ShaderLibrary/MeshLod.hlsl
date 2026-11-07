@@ -23,7 +23,16 @@ uint _LodOrthographic;
 
 float MeshLodScreenSize(FMeshLodChain chain, uint level)
 {
-    return level < 4u ? chain.screenSize0[level] : chain.screenSize1[level - 4u];
+    // float4[variable] is out of range on Metal even when the other side of a ternary is taken.
+    float size = chain.screenSize0.x;
+    if (level == 1u) size = chain.screenSize0.y;
+    else if (level == 2u) size = chain.screenSize0.z;
+    else if (level == 3u) size = chain.screenSize0.w;
+    else if (level == 4u) size = chain.screenSize1.x;
+    else if (level == 5u) size = chain.screenSize1.y;
+    else if (level == 6u) size = chain.screenSize1.z;
+    else if (level == 7u) size = chain.screenSize1.w;
+    return size;
 }
 
 // Packed visibility of one entity: 0 when no level draws, else 1 | level << 8 | fade << 16, where fade is
