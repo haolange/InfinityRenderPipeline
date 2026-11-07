@@ -78,11 +78,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             var items = new NativeList<MeshDrawItem>(6, Allocator.Temp);
             var draws = new NativeList<MeshInstancedDraw>(6, Allocator.Temp);
             var instanceToEntity = new NativeArray<uint>(6, Allocator.Temp);
+            var instanceFade = new NativeArray<float>(6, Allocator.Temp);
             try
             {
                 int[] commands = { 2, 2, 5, 2, 7, 7 };
                 for (int i = 0; i < commands.Length; ++i) items.Add(new MeshDrawItem { command = commands[i], entity = 10 + i });
-                new MeshDrawMergeJob { items = items, draws = draws, instanceToEntity = instanceToEntity }.Execute();
+                new MeshDrawMergeJob { items = items, draws = draws, instanceToEntity = instanceToEntity, instanceFade = instanceFade }.Execute();
 
                 CollectionAssert.AreEqual(new uint[] { 10, 11, 12, 13, 14, 15 }, instanceToEntity.ToArray());
                 var expected = new[] { (2, 0, 2), (5, 2, 1), (2, 3, 1), (7, 4, 2) };
@@ -95,6 +96,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 items.Dispose();
                 draws.Dispose();
                 instanceToEntity.Dispose();
+                instanceFade.Dispose();
             }
         }
 
@@ -185,7 +187,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Build(fixture, MeshPassPresets.TranslucentT0, materials, specs, out int[] order, out var runs, out int[] commands);
 
                 CollectionAssert.AreEqual(new[] { 3, 1, 2, 0, 4 }, order);
-                CollectionAssert.AreEqual(new[] { (commands[0], 0, 1), (commands[1], 1, 1), (commands[0], 2, 2), (commands[0], 4, 1) }, runs);
+                // Translucent passes do not dither, so the three visible members of command 0 are one run.
+                CollectionAssert.AreEqual(new[] { (commands[0], 0, 1), (commands[1], 1, 1), (commands[0], 2, 3) }, runs);
             }
         }
 
