@@ -3,7 +3,8 @@
 
 // LOD selection on the GPU; mirrors MeshLodSelection in C#. LODGroup semantics: level i draws while the screen size is at
 // least its lower bound; the cross-fade band sits above each positive bound and is fadeWidth of the gap to the previous
-// bound (1 for level 0). Screen size is radius * scale * bias / distance, with distance 1 for orthographic views.
+// bound (1 for level 0). Screen size is the largest half-extent * scale * bias / distance, with distance 1 for
+// orthographic views; the largest half-extent is LODGroup size / 2.
 struct FMeshLodChain
 {
     float4 screenSize0;
@@ -31,7 +32,7 @@ uint MeshPackLodVisibility(uint entity, float3 center, float3 extent)
 {
     FMeshLodChain chain = _EntityLodChains[entity];
     float distance = _LodOrthographic != 0u ? 1.0 : max(length(center - _LodOrigin.xyz), 1e-6);
-    float screen = length(extent) * _LodScale * _LodBias / distance;
+    float screen = max(max(extent.x, extent.y), extent.z) * _LodScale * _LodBias / distance;
     uint packed = 0u;
     bool found = false;
     [loop]

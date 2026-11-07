@@ -220,6 +220,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             string marker = MeshDrawProfiling.Draw(viewKind, true);
             commands.BeginSample(marker);
+            bool dithering = false;
             try
             {
                 NativeArray<uint> meta = cache.GetCommandMeta();
@@ -235,19 +236,23 @@ namespace InfinityTech.Rendering.MeshPipeline
                 foreach (int command in order)
                 {
                     if (command >= commandCount) throw new InvalidOperationException("A pass cache grew between draw-list record and execution.");
-                    anyFading |= records[command].multiLodCount > 0;
+                    anyFading |= records[command].fadingMemberCount > 0;
                     DrawRange(commands, payload, cache, meta, command, 0);
                 }
-                // Fading ranges exist only for commands with multi-level members, and only in passes that dither.
+                // Fading ranges exist only for commands with members that can fade, and only in passes that dither.
                 if (anyFading && cache.desc.ditherLodTransitions)
                 {
+                    dithering = true;
                     commands.SetKeyword(s_LodDither, true);
                     foreach (int command in order)
-                        if (records[command].multiLodCount > 0) DrawRange(commands, payload, cache, meta, command, 1);
-                    commands.SetKeyword(s_LodDither, false);
+                        if (records[command].fadingMemberCount > 0) DrawRange(commands, payload, cache, meta, command, 1);
                 }
             }
-            finally { commands.EndSample(marker); }
+            finally
+            {
+                if (dithering) commands.SetKeyword(s_LodDither, false);
+                commands.EndSample(marker);
+            }
         }
 
         // range 0 = stable, 1 = fading; arguments are (command, range) records of k_ArgsStride uints.

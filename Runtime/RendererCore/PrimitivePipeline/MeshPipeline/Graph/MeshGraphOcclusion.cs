@@ -51,6 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal MeshOcclusionLists RecordMeshOcclusionFirst(RGBuilder builder, MeshView view, MeshMotionBinding motion,
             RGTextureHandle previousFurthest, Matrix4x4 previousProjection, int2 extent, ulong historyVersion)
         {
+            view.lodProjection.ThrowIfInvalid();
             MeshGpuDrawBackend backend = world.gpuBackend;
             bool history = previousFurthest.IsValid() && motion.previous != null;
             view.visibilityHistory = historyVersion;

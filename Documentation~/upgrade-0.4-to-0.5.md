@@ -11,3 +11,16 @@
   `InfinityAdditionalReflectionProbeData`.
 - **Debug views** apply to Game and Scene view cameras only; reflection probe captures and previews ignore them.
 - Asset create menus moved from Create → InfinityRenderPipeline to Create → Rendering → Infinity.
+- **MeshComponent** draws a `MeshAsset` (a mesh per LOD level, screen sizes, material slots and fade width) instead of a
+  Mesh, and its mobility field is spelled correctly. Loading never converts the old fields: until you migrate, a 0.4
+  MeshComponent draws nothing and a dynamic one reads as static. Back up the project, save and open every scene that
+  has MeshComponents (the tool refuses while one is closed), then run **Window → Infinity → Migrate MeshComponents to
+  MeshAsset (0.5)**. It assigns each component
+  the shared one-level MeshAsset of its old Mesh (created under `Assets/InfinityMeshAssets/`), copies the mobility,
+  clears the old Mesh reference, rebuilds MeshAssets made from a prefab, re-saves every MeshAsset, saves the touched
+  scenes and prefabs and prints a report. The tool and the old fields exist only until a later 0.5 commit
+  removes them; migrate on a version that still has the menu. Components keep their own materials; a submesh draws
+  the material at its slot.
+- **MeshComponent scripts**: `MeshAsset` is a `MeshAsset` instead of a `Mesh`, `EStateType` is `EMeshMobility`, and
+  `NotifyInstanceChanged` is `NotifyEntityChanged`. `NotifyGeometryChanged(Mesh)` re-reads every MeshAsset that draws
+  the mesh.

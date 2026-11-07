@@ -54,6 +54,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         internal RGDrawListHandle CreateDrawList(RGBuilder builder, in MeshView view, in MeshPassDesc desc)
         {
+            view.lodProjection.ThrowIfInvalid();
             RGDrawListHandle draws = drawLists.Declare(view, desc);
             RGDrawListRecord record = drawLists.GetRecordCopy(draws.index);
             // Recording references keep the frozen tables alive for this graph.
@@ -252,6 +253,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             MeshGraphExtension extension = MeshGraphExtension.Of(builder);
             if (extension.world.SelectBackend(MeshPassPresets.Depth) != EMeshBackendPolicy.GpuIndirect) return;
+            view.lodProjection.ThrowIfInvalid();
             extension.EnsureMeshGpuCull(builder, view, RGDrawListHandle.Invalid);
         }
 

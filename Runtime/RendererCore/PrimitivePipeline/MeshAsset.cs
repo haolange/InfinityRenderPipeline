@@ -73,8 +73,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>The cross-fade band above each LOD threshold, as a fraction of the gap to the previous threshold.</summary>
         public float FadeWidth => fadeWidth;
 
-        /// <summary>LOD <paramref name="level"/>. Its material slot array belongs to the asset and is not modified.</summary>
-        public MeshLODInfo GetLod(int level) => lODInfos[level];
+        /// <summary>The lower screen-size bound of LOD <paramref name="level"/>.</summary>
+        public float GetScreenSize(int level) => lODInfos[level].screenSize;
+
+        /// <summary>The material slot of <paramref name="submesh"/> in LOD <paramref name="level"/>, or -1 when it has none.</summary>
+        public int GetMaterialSlot(int level, int submesh) => lODInfos[level].GetMaterialSlot(submesh);
+
+        internal bool LodEquals(int level, in MeshLODInfo other) => lODInfos[level].Equals(other);
 
         /// <summary>The world LOD chain of this asset. Call <see cref="ThrowIfInvalid"/> first.</summary>
         public MeshLodChain BuildLodChain()
@@ -91,29 +96,31 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// screen sizes and fade width that <see cref="MeshLodChain.Create"/> accepts, and material slots inside
         /// <c>materials</c>. Submesh counts are not checked here: they belong to the live meshes.
         /// </summary>
-        public void ThrowIfInvalid() => ThrowIfInvalid(name, meshes, materials, lODInfos, fadeWidth);
+        public void ThrowIfInvalid() => ThrowIfInvalid(this, meshes, materials, lODInfos, fadeWidth);
 
-        internal static void ThrowIfInvalid(string assetName, Mesh[] meshes, Material[] materials, MeshLODInfo[] lods, float fadeWidth)
+        /// <param name="owner">Names the data in messages; read only when throwing.</param>
+        internal static void ThrowIfInvalid(UnityEngine.Object owner, Mesh[] meshes, Material[] materials, MeshLODInfo[] lods, float fadeWidth)
         {
+            string assetName() => owner != null ? owner.name : "<unnamed>";
             int count = lods?.Length ?? 0;
             if (count < 1 || count > MeshLodChain.MaxLevels)
-                throw new InvalidOperationException($"MeshAsset '{assetName}' has {count} LOD levels; 1 to {MeshLodChain.MaxLevels} are supported.");
+                throw new InvalidOperationException($"MeshAsset '{assetName()}' has {count} LOD levels; 1 to {MeshLodChain.MaxLevels} are supported.");
             if ((meshes?.Length ?? 0) != count)
-                throw new InvalidOperationException($"MeshAsset '{assetName}' has {meshes?.Length ?? 0} meshes for {count} LOD levels; each level needs one mesh.");
+                throw new InvalidOperationException($"MeshAsset '{assetName()}' has {meshes?.Length ?? 0} meshes for {count} LOD levels; each level needs one mesh.");
             int materialCount = materials?.Length ?? 0;
             Span<float> sizes = stackalloc float[MeshLodChain.MaxLevels];
             for (int i = 0; i < count; ++i)
             {
-                if (meshes[i] == null) throw new InvalidOperationException($"MeshAsset '{assetName}' has no mesh in LOD {i}.");
+                if (meshes[i] == null) throw new InvalidOperationException($"MeshAsset '{assetName()}' has no mesh in LOD {i}.");
                 int[] slots = lods[i].materialSlot;
                 if (slots != null)
                     for (int s = 0; s < slots.Length; ++s)
                         if (slots[s] < 0 || slots[s] >= materialCount)
-                            throw new InvalidOperationException($"MeshAsset '{assetName}' LOD {i} submesh {s} uses material slot {slots[s]}; the asset has {materialCount} slots.");
+                            throw new InvalidOperationException($"MeshAsset '{assetName()}' LOD {i} submesh {s} uses material slot {slots[s]}; the asset has {materialCount} slots.");
                 sizes[i] = lods[i].screenSize;
             }
             try { MeshLodChain.Create(sizes.Slice(0, count), fadeWidth); }
-            catch (ArgumentException exception) { throw new InvalidOperationException($"MeshAsset '{assetName}': {exception.Message}", exception); }
+            catch (ArgumentException exception) { throw new InvalidOperationException($"MeshAsset '{assetName()}': {exception.Message}", exception); }
         }
 
         /// <summary>
@@ -147,5 +154,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             MeshComponent.NotifyGeometryChanged(this);
         }
 #endif
+
+        // Destroying or unloading the asset re-syncs its components, which then stop drawing it.
+        void OnDisable() => MeshComponent.NotifyGeometryChanged(this);
     }
 }

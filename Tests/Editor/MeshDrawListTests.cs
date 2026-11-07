@@ -204,11 +204,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshTestUtility.RequireGpuIndirect(world);
                 Mesh mesh = fixture.Mesh(2);
                 Material[] materials = { fixture.Material(0, 0), fixture.Material(1, 0) };
-                // Bands [0.3, 0.44] and [0.1, 0.14]; the bound radius is 0.866, so the screen size is 0.866 / distance. The
-                // distances cover stable and fading levels 0 and 1, a fading last level and a LOD-culled entity (9). The same
-                // mesh fills both levels, so a fading command holds the outgoing and the incoming instance of one entity.
+                // Bands [0.3, 0.44] and [0.1, 0.14]; the bound's largest half-extent is 0.5, so the screen size is 0.5 / distance.
+                // The distances cover stable and fading levels 0 and 1, a fading last level and a LOD-culled entity (5.2 m).
+                // The same mesh fills both levels, so a fading command holds the outgoing and the incoming instance of one entity.
                 MeshLodChain chain = MeshLodChain.Create(new[] { 0.3f, 0.1f }, 0.2f);
-                float[] distances = { 1f, 2.2f, 2.5f, 2f, 4f, 6.5f, 9f, 1.5f, 2.3f, 3f, 7f, 8f };
+                float[] distances = { 0.6f, 1.25f, 1.45f, 1.2f, 2.3f, 3.8f, 5.2f, 0.85f, 1.3f, 1.75f, 4f, 4.6f };
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     for (int i = 0; i < distances.Length; ++i)

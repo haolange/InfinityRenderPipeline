@@ -170,7 +170,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             RequireTransaction(generation);
             RenderingLayerUtility.Validate(desc.renderingLayerMask);
-            if (lod.count < 1 || lod.count > MeshLodChain.MaxLevels) throw new ArgumentOutOfRangeException(nameof(lod), lod.count, "Build LOD chains with MeshLodChain.Create.");
+            lod.ThrowIfInvalid();
             int index = m_Entities.Allocate(new MeshEntity { desc = desc, lod = lod, firstElement = -1, elementCount = 0 }, out uint entityGeneration);
             m_EntityUndo.Add(new SlotUndo<MeshEntity> { index = index, wasLive = false });
             while (m_EntityTransforms.Length <= index)

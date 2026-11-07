@@ -75,7 +75,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
     /// <summary>
     /// Total order of draw items. Back-to-front: key (priority), exact distance descending, command, entity, fade. Other
-    /// modes: key, command, stable before fading, distance ascending, entity, fade.
+    /// modes: stable before fading (one dither keyword change per list, as on the GPU backend), key, command, distance
+    /// ascending, entity, fade.
     /// </summary>
     internal struct MeshDrawItemComparer : IComparer<MeshDrawItem>
     {
@@ -83,19 +84,22 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public int Compare(MeshDrawItem a, MeshDrawItem b)
         {
-            int c = a.key.CompareTo(b.key);
-            if (c != 0) return c;
+            int c;
             if (backToFront)
             {
+                c = a.key.CompareTo(b.key);
+                if (c != 0) return c;
                 c = b.depth.CompareTo(a.depth);
                 if (c != 0) return c;
                 c = a.command.CompareTo(b.command);
             }
             else
             {
-                c = a.command.CompareTo(b.command);
-                if (c != 0) return c;
                 c = a.fading.CompareTo(b.fading);
+                if (c != 0) return c;
+                c = a.key.CompareTo(b.key);
+                if (c != 0) return c;
+                c = a.command.CompareTo(b.command);
                 if (c != 0) return c;
                 c = a.depth.CompareTo(b.depth);
             }

@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -13,7 +17,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
     {
         static readonly MeshLodProjection Perspective = new MeshLodProjection { origin = float3.zero, scale = 1, bias = 1 };
 
-        // A bound whose radius is exactly 1, so the screen size is 1 / distance under the perspective projection above.
+        // A bound whose largest half-extent is exactly 1, so the screen size is 1 / distance under the perspective projection above.
         static FBound UnitBound(float distance) => new FBound(new float3(distance, 0, 0), new float3(1, 0, 0));
 
         [Test]
@@ -31,6 +35,82 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             Assert.AreEqual(MeshLodChain.MaxLevels, chain.count);
             Assert.AreEqual(0.05f, chain.ScreenSize(6));
             Assert.AreEqual(0.25f, chain.fadeWidth);
+        }
+
+        [Test]
+        public void LodChain_MatchesHlslFieldForField()
+        {
+            const string path = "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/MeshLod.hlsl";
+            Match body = Regex.Match(File.ReadAllText(Path.GetFullPath(path)), @"struct\s+FMeshLodChain\s*\{(?<body>[^}]*)\}");
+            Assert.IsTrue(body.Success, "FMeshLodChain not found in " + path);
+            MatchCollection hlsl = Regex.Matches(body.Groups["body"].Value, @"(\w+)\s+(\w+)\s*;");
+            FieldInfo[] fields = typeof(MeshLodChain).GetFields(BindingFlags.Instance | BindingFlags.Public);
+            Assert.AreEqual(hlsl.Count, fields.Length, "Field count");
+            int bytes = 0;
+            for (int i = 0; i < fields.Length; ++i)
+            {
+                Type type = fields[i].FieldType;
+                string expected = type == typeof(float4) ? "float4" : type == typeof(float) ? "float" : type == typeof(int) ? "int" : type.Name;
+                Assert.AreEqual(hlsl[i].Groups[2].Value, fields[i].Name, $"Field {i} name");
+                Assert.AreEqual(hlsl[i].Groups[1].Value, expected, $"Field {fields[i].Name} type");
+                bytes += Marshal.SizeOf(type);
+            }
+            Assert.AreEqual(bytes, Marshal.SizeOf<MeshLodChain>(), "No padding");
+        }
+
+        [Test]
+        public void LodChain_ThrowIfInvalid_RejectsHandBuiltChains()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodChain { count = 0, fadeWidth = 0.2f }.ThrowIfInvalid());
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodChain { count = 1 }.ThrowIfInvalid(), "fadeWidth 0 would divide by zero in the band.");
+            Assert.Throws<ArgumentException>(() => new MeshLodChain { count = 2, fadeWidth = 0.2f }.ThrowIfInvalid(), "Two zero bounds do not decrease.");
+            Assert.DoesNotThrow(() => MeshLodChain.Single.ThrowIfInvalid());
+            Assert.IsFalse(MeshLodChain.Single.hasFadeBand);
+            Assert.IsTrue(MeshLodChain.Create(new[] { 0.1f }, 0.2f).hasFadeBand, "A single level with a positive bound fades out.");
+            Assert.IsTrue(MeshLodChain.Create(new[] { 0.5f, 0f }, 0.2f).hasFadeBand);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => default(MeshLodProjection).ThrowIfInvalid(), "Scale 0 culls every positive bound.");
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodProjection { scale = float.PositiveInfinity, bias = 1 }.ThrowIfInvalid());
+            Assert.Throws<ArgumentOutOfRangeException>(() => new MeshLodProjection { scale = 1, bias = 0 }.ThrowIfInvalid());
+            Assert.Throws<ArgumentException>(() => new MeshLodProjection { origin = new float3(float.NaN, 0, 0), scale = 1, bias = 1 }.ThrowIfInvalid());
+            Assert.DoesNotThrow(() => Perspective.ThrowIfInvalid());
+        }
+
+        [Test]
+        public void FadingMembers_AreTheMembersWhoseChainHasABand()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                MeshWorld world = fixture.world;
+                Mesh mesh = fixture.Mesh(1);
+                MeshLodChain[] chains = { MeshLodChain.Single, MeshLodChain.Create(new[] { 0.1f }, 0.2f), MeshLodChain.Create(new[] { 0.5f, 0f }, 0.2f) };
+                int[] expected = { 0, 1, 1 };
+                var materials = new Material[chains.Length];
+                using (MeshWorldUpdate update = world.BeginUpdate())
+                {
+                    for (int i = 0; i < chains.Length; ++i)
+                    {
+                        // One material per entity, so each entity owns one command.
+                        materials[i] = fixture.Material(0, 0);
+                        MeshEntityId entity = update.CreateEntity(float4x4.identity, MeshTestUtility.Bound(float3.zero), MeshTestUtility.Desc(), chains[i]);
+                        update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(materials[i]), MeshTestUtility.StateOf(materials[i]), 0);
+                    }
+                    update.Commit();
+                }
+                MeshPassCache cache = world.GetPassCache(MeshPassPresets.GBuffer);
+                for (int i = 0; i < chains.Length; ++i)
+                {
+                    ulong materialId = MeshTestUtility.Id(materials[i]);
+                    int found = -1;
+                    for (int command = 0; command < cache.commandHighWater; ++command)
+                    {
+                        MeshDrawCommand record = cache.commands[command];
+                        if (record.refCount > 0 && world.materials[record.key.material].materialId == materialId) found = command;
+                    }
+                    Assert.GreaterOrEqual(found, 0, $"command of chain {i}");
+                    Assert.AreEqual(expected[i], cache.commands[found].fadingMemberCount, $"fading members of chain {i}");
+                }
+            }
         }
 
         [Test]
@@ -159,11 +239,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshLodChain chain = MeshLodChain.Create(new[] { 0.4f, 0.2f, 0.1f }, 0.3f);
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    // Bound radius 0.866: distances from 1 m to 9.75 m sweep every level, every band and the LOD-culled range beyond
-                    // 8.66 m; no distance lands within 1% of a bound or a band top.
+                    // Half-extent 0.5: distances from 0.6 m to 5.85 m sweep every level, every band and the LOD-culled range
+                    // beyond 5 m; no distance lands within 0.9% of a bound or a band top.
                     for (int i = 0; i < 36; ++i)
                     {
-                        var center = new float3(1 + i * 0.25f, 0, 0);
+                        var center = new float3(0.6f + i * 0.15f, 0, 0);
                         update.CreateEntity(float4x4.Translate(center), MeshTestUtility.Bound(center), MeshTestUtility.Desc(), chain);
                     }
                     update.Commit();

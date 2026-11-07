@@ -60,12 +60,11 @@ namespace InfinityTech.Component
                 var drawn = new List<int>();
                 for (int i = 0, k = 0; i < levels; ++i)
                 {
-                    MeshLODInfo info = asset.GetLod(i);
                     for (int s = 0; s < counts[i]; ++s, ++k)
                     {
                         lod[k] = i;
                         submesh[k] = s;
-                        slot[k] = info.GetMaterialSlot(s);
+                        slot[k] = asset.GetMaterialSlot(i, s);
                         if (slot[k] >= 0 && !drawn.Contains(slot[k])) drawn.Add(slot[k]);
                     }
                 }
@@ -75,11 +74,15 @@ namespace InfinityTech.Component
         }
 
         static readonly Dictionary<MeshAsset, GeometryState> s_Geometry = new Dictionary<MeshAsset, GeometryState>();
+        /// <summary>Live shared geometry states; one per asset that a registered component references.</summary>
+        internal static int geometryStateCount => s_Geometry.Count;
         GeometryState m_Geometry;
         MeshAsset m_RetainedAsset;
 
+        /// <summary>A registered component holds one reference on its asset's geometry state; an unregistered one holds none.</summary>
         void RefreshGeometryReference()
         {
+            if (!s_Registered.Contains(this)) return;
             if (!ReferenceEquals(m_RetainedAsset, asset) || m_Geometry == null)
             {
                 ReleaseGeometryReference();

@@ -26,7 +26,11 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly MeshLodProjection lodProjection;
 
         /// <param name="requestIdentity">Includes the occlusion history, so a recovered request never shares a stale buffer.</param>
-        internal MeshVisibilityKey(in MeshView view, bool requestIdentity)
+        /// <param name="residentIdentity">
+        /// Drops the LOD projection. A resident GPU buffer lives across frames while the projection moves with the camera;
+        /// within one camera render a view's projection is fixed, like its planes.
+        /// </param>
+        internal MeshVisibilityKey(in MeshView view, bool requestIdentity, bool residentIdentity = false)
         {
             viewKey = view.viewKey;
             m_Phase = view.visibilityPhase;
@@ -37,7 +41,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             sceneCullingMask = view.sceneCullingMask;
             renderingLayerMask = view.renderingLayerMask;
             filterRenderingLayers = view.FilterRenderingLayers;
-            lodProjection = view.lodProjection;
+            lodProjection = residentIdentity ? default : view.lodProjection;
         }
 
         public bool Equals(MeshVisibilityKey other)
@@ -147,10 +151,14 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public const byte None = 255;
 
+        /// <summary>
+        /// The largest half-extent of the world bounds times scale and bias over distance: for a camera, the share of the
+        /// view height the bounds' largest side covers, as <c>LODGroup.size</c> drives <c>screenRelativeTransitionHeight</c>.
+        /// </summary>
         public static float ScreenSize(in FBound bound, in MeshLodProjection projection)
         {
             float distance = projection.orthographic ? 1.0f : math.max(math.length(bound.center - projection.origin), 1e-6f);
-            return math.length(bound.extents) * projection.scale * projection.bias / distance;
+            return math.cmax(bound.extents) * projection.scale * projection.bias / distance;
         }
 
         public static void Select(in MeshLodChain chain, in FBound bound, in MeshLodProjection projection, out byte level, out float fade)

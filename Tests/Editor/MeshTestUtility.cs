@@ -173,16 +173,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             shader.SetInt("_LodOrthographic", lod.orthographic ? 1 : 0);
         }
 
-        /// <summary>Single-level chains for a hand-built entity table.</summary>
-        internal static ComputeBuffer SingleLodChains(int count)
-        {
-            var buffer = new ComputeBuffer(count, System.Runtime.InteropServices.Marshal.SizeOf<MeshLodChain>());
-            var chains = new MeshLodChain[count];
-            for (int i = 0; i < count; ++i) chains[i] = MeshLodChain.Single;
-            buffer.SetData(chains);
-            return buffer;
-        }
-
         /// <summary>Reduces packed visibility words to 0/1 for list comparisons.</summary>
         internal static uint[] VisibleBits(uint[] packed)
         {

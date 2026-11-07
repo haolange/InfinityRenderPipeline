@@ -872,7 +872,7 @@ After drain, restore Play/pause, scenes/camera/Asset/Volume/HDR, remove transien
 
 Each window reports p50/p95/min/max/mean of the complete Render scope, the proxy update and its transform and apply sections in milliseconds, GC.Alloc counts for the Render and proxy scopes, Mono used and heap bytes, total allocated and reserved bytes, graphics-driver bytes, ResourcePool texture and buffer estimates, GC collection counts, the mesh entity and element counts and the actual backend. Every sample pairs one frame's Render scope with the same frame's proxy sections. Movement, window closing and the evidence write run on the Editor update, outside Render. Keep only the Game view rendering (close or hide Scene views) so each Render call belongs to the probed camera. A frame rate above 1000 Hz fails the probe instead of dropping samples.
 
-`Editor/Cli/RuntimeProbeCommands.cs` is the measurement and stays unchanged across authoring-API changes. `RuntimeProbeContent.cs` is the only part that uses the MeshComponent API, so a baseline run on an earlier commit and a candidate run measure the same thing. Compare windows rather than single frames: memory and pool estimates between the 20 s and 60 s windows show growth at a fixed object count, and proxy GC.Alloc at steady state should stay zero.
+`Editor/Cli/RuntimeProbeCommands.cs` is the measurement and stays unchanged across authoring-API changes. `RuntimeProbeContent.cs` is the only part that uses the MeshComponent API (from the `[P5]` commit on it draws the cube through one runtime one-level MeshAsset that the probe owns and destroys), so a baseline run on an earlier commit and a candidate run measure the same thing. Compare windows rather than single frames: memory and pool estimates between the 20 s and 60 s windows show growth at a fixed object count, and proxy GC.Alloc at steady state should stay zero.
 
 ## Unity integration ownership acceptance
 
@@ -881,3 +881,76 @@ Use one task-owned full Example mirror. Native Renderer and custom Mesh paths mu
 Record a full Scene_Spazon baseline and candidate with identical camera/quality. Native Lightmap/Directional/Shadowmask output must remain valid after actual Bake, scene reopen and Play transitions with and without Domain Reload. Custom Mesh has no baked/legacy Probe data; validate world-position APV separately and document the intentional removal of per-instance SH. Include native/custom shared-Mesh ray tracing instances, moving native renderers, inactive roots and persistent-scene content.
 
 Inspect graph/draw provenance and finite GPU readbacks; import generated Lit/Unlit/Decal graphs. Run bounded zero-GC checks after warmup, and keep real Async/native fault/HDR platform limits distinct. The audit inventory is a file coverage receipt, not evidence of GPU behavior. Restore settings, drain all producers and remove the owned mirror/cache.
+
+## MeshComponent and MeshAsset migration (0.5)
+
+The `[P5]` commit makes `MeshComponent` draw a `MeshAsset` and adds the explicit menu **Window → Infinity → Migrate
+MeshComponents to MeshAsset (0.5)** (`Editor/Tools/Migration/MeshComponentMigration05.cs`). A later commit deletes the
+bridge fields and the tool once the Example project is migrated and verified. Loading, reload and scene save never
+migrate: before the menu runs, a 0.4 component has no `asset` and draws nothing, and a dynamic one reads `mobility`
+Static.
+
+Serialized changes (Unity drops a removed key and writes an added key with its default on the next save of the file):
+
+| Type | Field | Change |
+|---|---|---|
+| MeshComponent | `asset` (MeshAsset) | Added. The only geometry source. |
+| MeshComponent | `mobility` (`EMeshMobility`, default Static) | Added. The only mobility source; corrects the `movebility` spelling. |
+| MeshComponent | `meshAsset` (Mesh) | Bridge: hidden, never read at runtime. The migration reads it and clears it. |
+| MeshComponent | `movebility` (`EMeshMobility`, same values as the old `EStateType`) | Bridge: hidden, never read at runtime. The migration reads it. |
+| MeshAsset | `meshes`, `materials`, `lODInfos` | Now `[SerializeField] private`; same names and values. `meshes[i]` is LOD i, `lODInfos[i].screenSize` its LODGroup lower bound, `lODInfos[i].materialSlot[s]` the material slot of submesh s. |
+| MeshAsset | `fadeWidth` (0.01–0.99, default 0.2) | Added. |
+| MeshAsset | `Tree` | Removed. |
+| MeshAsset | `target` (GameObject, Editor only) | Bridge: hidden legacy source prefab, read by the migration. |
+
+Exact migration delta:
+
+1. Preconditions, checked before any write: Edit mode, Prefab Mode closed, every loaded scene that has work is saved
+   and not dirty (so a scene save carries only the migration delta), every scene under `Assets/` that references the
+   MeshComponent script (or is not text-serialized) is loaded, and every shared MeshAsset path is free or already holds
+   that asset. An instance in an unloaded scene would otherwise inherit its migrated source prefab's values instead of
+   its own legacy overrides.
+2. Every `MeshAsset` under `Assets/` with a `target` is rebuilt from it by the current prefab builder unless it already
+   holds that data. The builder accepts one renderer per LOD level at the prefab root's transform; any other prefab is
+   listed as not rebuildable and its asset keeps its data. Default chosen against the original "only when `meshes`/`lODInfos` lengths differ" rule: the legacy
+   builder wrote placeholder screen sizes (`1 - 0.125 i`, or 1 for a single renderer), which the lower-bound LOD chain
+   would cull, and kept only the last of two builds when a prefab had both a LODGroup and a root MeshRenderer. Risk: a
+   hand edit of such an asset is replaced; nothing consumed MeshAssets before this commit. Rollback: the baseline
+   backup. Assets without `target` keep their data; mismatched lengths and failed validations are listed. Every
+   MeshAsset is re-saved (`SaveAssetIfDirty`), which drops `Tree`.
+3. For every MeshComponent in the scenes and prefabs under `Assets/` whose effective `meshAsset` is set and that has
+   no `asset` of its own: `asset` = the shared one-level MeshAsset of that Mesh at
+   `Assets/InfinityMeshAssets/<MeshName>_<GUID8>_<local file id, hex>.asset` (name characters outside `[A-Za-z0-9_-]`
+   become `_`; created when missing: screen size 0, fade width 0.2, `materialSlot` 0..n-1, materials from the first
+   referencing component padded to the submesh count), `mobility` = `movebility`, `meshAsset` = None. A component that
+   already has its own `asset` is listed and left unchanged. A prefab instance part writes only what it overrides: an
+   overridden `meshAsset` writes `asset` and sets the override to None, an overridden `meshAsset` of None writes an
+   `asset` override of None, an overridden `movebility` writes `mobility`; the rest arrives from the source prefab,
+   migrated as its own file. A part whose source prefab is outside `Assets/` and a mesh that is not a saved asset are
+   listed and not migrated. Only values that differ are written, through `SerializedObject.ApplyModifiedPropertiesWithoutUndo`.
+4. Touched prefabs are saved with `PrefabUtility.SaveAsPrefabAsset`, each after the prefabs whose instances it contains,
+   so that instance overrides written afterwards differ from the migrated source and are recorded. Touched scenes are
+   saved last with `EditorSceneManager.SaveScene`. Nothing else is saved; `AssetDatabase.SaveAssets` is not called.
+5. The Console report lists migrated components, created, rebuilt, unrebuildable and invalid MeshAssets, what was not
+   migrated, and every written file with "created", "bytes changed" or "bytes unchanged".
+
+Procedure on a task-owned Example mirror:
+
+1. Write the intent (expected scenes, prefabs and MeshAssets) into the task directory, then capture a durable backup
+   of the current bytes:
+   `python3 Tools/AssetBaseline.py capture --project <Example> --package <package> --run <new task directory outside the project>`.
+2. Open the Example project with the candidate package, wait for import and mark the log. `SaveAsPrefabAsset` and
+   `SaveScene` re-serialize the whole file, so first normalize the files the run will touch: re-serialize those scenes
+   and prefabs without edits (`AssetDatabase.ForceReserializeAssets` on their paths), review that delta on its own (it
+   may only add current-schema default keys), and capture a second baseline. Open every scene under `Assets/` that has
+   MeshComponents (the menu refuses otherwise), run the menu, and keep the report.
+3. `python3 Tools/AssetBaseline.py compare --run <second run>` lists the changed files. Each must be in the report. In
+   each diff, MeshComponent blocks change only `asset`, `mobility` and `meshAsset`; MeshAsset files change only `Tree`
+   (removed), `fadeWidth` (added) and, for rebuilt assets, `meshes`, `materials` and `lODInfos`. GUIDs, local file IDs
+   and `.meta` files are unchanged.
+4. Reopen the touched scenes (or restart the Editor): migrated components draw their LOD 0 with their own materials
+   and dynamic ones are Dynamic.
+5. Second save: re-save every written file without edits; each must be byte-identical to the first save.
+6. No-op: capture a new baseline, run the menu again, and compare. The report shows 0 components migrated, 0 created
+   and 0 rebuilt, every written file "bytes unchanged", and `compare` passes.
+7. Restore the mirror from the backup if any step fails, and delete the task paths afterwards.

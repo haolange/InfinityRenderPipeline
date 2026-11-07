@@ -94,8 +94,8 @@ namespace InfinityTech.Component
         protected override void OnRegister()
         {
             uint epoch = ++m_RegistrationEpoch;
-            RefreshGeometryReference();
             s_Registered.Add(this);
+            RefreshGeometryReference();
             FGraphics.RegisterMesh(this, epoch);
         }
 
@@ -138,7 +138,7 @@ namespace InfinityTech.Component
             RefreshGeometryReference();
             SyncState current = m_Staged ? m_Next : m_State;
             bool alive = IsPublishedIn(world, current);
-            bool drawable = isActiveAndEnabled && asset != null && materials != null;
+            bool drawable = isActiveAndEnabled && asset != null && materials != null && m_Geometry != null;
             if (drawable && !TryValidate(out string error))
             {
                 Debug.LogError($"MeshComponent '{name}' is not drawn: {error}", this);

@@ -27,12 +27,14 @@ namespace InfinityTech.Rendering.Editor.Migration
 
         const string k_Delta =
             "Changes and saves serialized data:\n\n" +
-            "- Every MeshComponent in the loaded scenes and in prefabs under Assets/ whose legacy 'meshAsset' Mesh is set: " +
-            "'asset' = the shared one-level MeshAsset of that Mesh (Assets/InfinityMeshAssets/<Mesh>_<GUID8>.asset, created when missing), " +
-            "'mobility' = legacy 'movebility', legacy 'meshAsset' = None. On prefab instances only overridden values are written.\n" +
+            "- Every MeshComponent in the scenes and prefabs under Assets/ whose legacy 'meshAsset' Mesh is set and that has no " +
+            "'asset' of its own: 'asset' = the shared one-level MeshAsset of that Mesh " +
+            "(Assets/InfinityMeshAssets/<Mesh>_<GUID8>_<local id>.asset, created when missing), 'mobility' = legacy 'movebility', " +
+            "legacy 'meshAsset' = None. On prefab instances only overridden values are written; an instance that overrides the " +
+            "legacy Mesh with None gets 'asset' = None.\n" +
             "- Every MeshAsset under Assets/ is re-saved, which drops the removed 'Tree' data. One with a legacy source prefab " +
             "('target') is rebuilt from it first.\n" +
-            "- The touched scenes and prefabs are saved. Nothing else is changed.\n\n" +
+            "- The touched prefabs (sources before the files that contain their instances) and scenes are saved.\n\n" +
             "Capture a backup first (Tools/AssetBaseline.py capture).";
 
         sealed class Work
@@ -46,6 +48,8 @@ namespace InfinityTech.Rendering.Editor.Migration
             public Mesh mesh;
             /// <summary>This object owns its mobility value: write 'mobility' from the bridge.</summary>
             public bool mobility;
+            /// <summary>A prefab instance part that overrides the legacy mesh with None: write 'asset' = None.</summary>
+            public bool clearAsset;
         }
 
         sealed class Report
@@ -109,7 +113,9 @@ namespace InfinityTech.Rendering.Editor.Migration
             var scenes = new List<(Scene scene, List<Work> work)>();
             var prefabs = new List<(string path, List<Work> work)>();
             PlanScenes(scenes, blockers, report);
+            PlanUnloadedScenes(blockers);
             PlanPrefabs(prefabs, report);
+            PlanSharedAssets(prefabs, scenes, blockers);
             if (blockers.Count > 0)
             {
                 EditorUtility.DisplayDialog(k_Title, "Nothing was changed:\n\n" + string.Join("\n", blockers), "OK");
@@ -123,10 +129,12 @@ namespace InfinityTech.Rendering.Editor.Migration
 
             try
             {
-                ResaveMeshAssets(report);
                 Dictionary<Mesh, MeshAsset> shared = CreateSharedAssets(prefabs, scenes, report);
-                foreach (var entry in scenes) WriteScene(entry.scene, entry.work, shared, report);
+                ResaveMeshAssets(report);
+                // A source prefab is saved before every file that holds one of its instances, so an instance override
+                // written afterwards differs from the migrated source value and is recorded.
                 foreach (var entry in prefabs) WritePrefab(entry.path, entry.work, shared, report);
+                foreach (var entry in scenes) WriteScene(entry.scene, entry.work, shared, report);
             }
             finally
             {
@@ -154,10 +162,48 @@ namespace InfinityTech.Rendering.Editor.Migration
             }
         }
 
+        /// <summary>
+        /// Every scene under Assets/ that may hold MeshComponents must be loaded: an instance in an unloaded scene would
+        /// silently inherit its migrated source prefab's values instead of its own legacy overrides.
+        /// </summary>
+        static void PlanUnloadedScenes(List<string> blockers)
+        {
+            string scriptGuid = null;
+            foreach (string guid in AssetDatabase.FindAssets("t:MonoScript MeshComponent"))
+            {
+                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(AssetDatabase.GUIDToAssetPath(guid));
+                if (script != null && script.GetClass() == typeof(MeshComponent)) scriptGuid = guid;
+            }
+            if (scriptGuid == null)
+            {
+                blockers.Add("The MeshComponent script asset was not found, so unloaded scenes cannot be checked.");
+                return;
+            }
+            var loaded = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < SceneManager.sceneCount; ++i)
+            {
+                Scene scene = SceneManager.GetSceneAt(i);
+                if (scene.isLoaded && !string.IsNullOrEmpty(scene.path)) loaded.Add(scene.path);
+            }
+            string[] paths = Array.ConvertAll(AssetDatabase.FindAssets("t:Scene", new[] { "Assets" }), AssetDatabase.GUIDToAssetPath);
+            Array.Sort(paths, StringComparer.Ordinal);
+            foreach (string path in paths)
+            {
+                if (loaded.Contains(path)) continue;
+                string text = File.ReadAllText(path);
+                if (!text.StartsWith("%YAML", StringComparison.Ordinal))
+                    blockers.Add($"Scene '{path}' is not text-serialized and not loaded; open it (additively) before migrating.");
+                else if (text.Contains("guid: " + scriptGuid))
+                    blockers.Add($"Scene '{path}' has MeshComponents and is not loaded; open it (additively) before migrating.");
+            }
+        }
+
+        /// <summary>Prefabs under Assets/ with work, each after the planned prefabs it contains instances of.</summary>
         static void PlanPrefabs(List<(string, List<Work>)> prefabs, Report report)
         {
             string[] paths = Array.ConvertAll(AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" }), AssetDatabase.GUIDToAssetPath);
             Array.Sort(paths, StringComparer.Ordinal);
+            var planned = new Dictionary<string, List<Work>>(StringComparer.Ordinal);
             foreach (string path in paths)
             {
                 GameObject root = AssetDatabase.LoadAssetAtPath<GameObject>(path);
@@ -165,7 +211,34 @@ namespace InfinityTech.Rendering.Editor.Migration
                 MeshComponent[] components = root.GetComponentsInChildren<MeshComponent>(true);
                 var work = new List<Work>();
                 for (int i = 0; i < components.Length; ++i) Plan(components[i], path, i, work, report);
-                if (work.Count > 0) prefabs.Add((path, work));
+                if (work.Count > 0) planned.Add(path, work);
+            }
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string path in paths) Visit(path);
+
+            void Visit(string path)
+            {
+                if (!planned.ContainsKey(path) || !visited.Add(path)) return;
+                string[] dependencies = AssetDatabase.GetDependencies(path, true);
+                Array.Sort(dependencies, StringComparer.Ordinal);
+                foreach (string dependency in dependencies)
+                    if (dependency != path) Visit(dependency);
+                prefabs.Add((path, planned[path]));
+            }
+        }
+
+        /// <summary>Every shared asset path must be free or already hold that asset before anything is written.</summary>
+        static void PlanSharedAssets(List<(string path, List<Work> work)> prefabs, List<(Scene scene, List<Work> work)> scenes, List<string> blockers)
+        {
+            var checkedMeshes = new HashSet<Mesh>();
+            var all = new List<Work>();
+            foreach (var entry in prefabs) all.AddRange(entry.work);
+            foreach (var entry in scenes) all.AddRange(entry.work);
+            foreach (Work item in all)
+            {
+                if (item.mesh == null || !checkedMeshes.Add(item.mesh)) continue;
+                try { MeshAssetBuilder.ThrowIfSingleLevelBlocked(item.mesh); }
+                catch (InvalidOperationException error) { blockers.Add($"Mesh '{item.mesh.name}': {error.Message}"); }
             }
         }
 
@@ -179,18 +252,31 @@ namespace InfinityTech.Rendering.Editor.Migration
             {
                 SerializedProperty meshBridge = serialized.FindProperty(k_MeshBridge);
                 SerializedProperty mobilityBridge = serialized.FindProperty(k_MobilityBridge);
+                SerializedProperty assetProperty = serialized.FindProperty(k_Asset);
                 string hierarchy = HierarchyPath(component.transform);
                 var mesh = meshBridge.objectReferenceValue as Mesh;
+                bool instance = PrefabUtility.IsPartOfPrefabInstance(component);
+                bool ownsMobility = !instance || mobilityBridge.prefabOverride;
                 if (mesh == null)
                 {
+                    if (instance && meshBridge.prefabOverride && assetProperty.objectReferenceValue == null && SourceHasLegacyMesh(component))
+                    {
+                        // The instance deliberately had no mesh; its migrated source will have an asset to override.
+                        work.Add(new Work { component = component, owner = owner, hierarchy = hierarchy, index = index, clearAsset = true, mobility = ownsMobility });
+                        return;
+                    }
                     if (mobilityBridge.intValue == (int)EMeshMobility.Dynamic && serialized.FindProperty(k_Mobility).intValue != mobilityBridge.intValue
-                        && serialized.FindProperty(k_Asset).objectReferenceValue == null)
+                        && assetProperty.objectReferenceValue == null)
                         report.skipped.Add($"{owner}: {hierarchy} has no legacy mesh; its legacy Dynamic mobility is not migrated (set Mobility by hand).");
                     return;
                 }
-                bool instance = PrefabUtility.IsPartOfPrefabInstance(component);
+                if (assetProperty.objectReferenceValue != null && (!instance || assetProperty.prefabOverride))
+                {
+                    report.skipped.Add($"{owner}: {hierarchy} already has MeshAsset '{AssetDatabase.GetAssetPath(assetProperty.objectReferenceValue)}'; " +
+                        "its asset and mobility are left unchanged (the legacy fields are ignored).");
+                    return;
+                }
                 bool ownsMesh = !instance || meshBridge.prefabOverride;
-                bool ownsMobility = !instance || mobilityBridge.prefabOverride;
                 if (!ownsMesh)
                 {
                     string source = AssetDatabase.GetAssetPath(PrefabUtility.GetCorrespondingObjectFromSource(component));
@@ -203,6 +289,13 @@ namespace InfinityTech.Rendering.Editor.Migration
                 }
                 work.Add(new Work { component = component, owner = owner, hierarchy = hierarchy, index = index, mesh = ownsMesh ? mesh : null, mobility = ownsMobility });
             }
+        }
+
+        static bool SourceHasLegacyMesh(MeshComponent component)
+        {
+            MeshComponent source = PrefabUtility.GetCorrespondingObjectFromSource(component);
+            if (source == null) return false;
+            using (var serialized = new SerializedObject(source)) return serialized.FindProperty(k_MeshBridge).objectReferenceValue != null;
         }
 
         static string HierarchyPath(Transform transform)
@@ -229,13 +322,13 @@ namespace InfinityTech.Rendering.Editor.Migration
                 if (asset == null) continue;
                 GameObject source;
                 using (var serialized = new SerializedObject(asset)) source = serialized.FindProperty(k_TargetBridge).objectReferenceValue as GameObject;
-                bool rebuilt = false;
+                bool built = false;
                 if (source != null)
                 {
                     try
                     {
                         MeshAssetBuilder.Build(source, asset.FadeWidth, out Mesh[] meshes, out Material[] materials, out MeshLODInfo[] lods);
-                        rebuilt = true;
+                        built = true;
                         if (!MeshAssetBuilder.Holds(asset, meshes, materials, lods))
                         {
                             asset.Initialize(meshes, materials, lods, asset.FadeWidth);
@@ -248,7 +341,7 @@ namespace InfinityTech.Rendering.Editor.Migration
                 {
                     report.unrebuildable.Add($"{path}: {asset.Meshes.Length} meshes for {asset.lodCount} LOD levels and no source prefab.");
                 }
-                if (!rebuilt)
+                if (!built)
                 {
                     try { asset.ThrowIfInvalid(); }
                     catch (InvalidOperationException error) { report.invalid.Add($"{path}: {error.Message}"); }
@@ -328,7 +421,10 @@ namespace InfinityTech.Rendering.Editor.Migration
             }
         }
 
-        /// <summary>Writes only the planned properties; the mobility value is the object's legacy value.</summary>
+        /// <summary>
+        /// Writes only the planned properties whose value differs, so a second run writes nothing; the mobility value is the
+        /// object's legacy value. Returns whether anything changed.
+        /// </summary>
         static bool Write(MeshComponent component, Work item, Dictionary<Mesh, MeshAsset> shared, Report report)
         {
             MeshAsset asset = null;
@@ -336,18 +432,34 @@ namespace InfinityTech.Rendering.Editor.Migration
             using (var serialized = new SerializedObject(component))
             {
                 var change = new StringBuilder($"{item.owner}: {item.hierarchy}");
-                if (asset != null)
+                bool changed = false;
+                SerializedProperty assetProperty = serialized.FindProperty(k_Asset);
+                SerializedProperty meshBridge = serialized.FindProperty(k_MeshBridge);
+                if (asset != null && (assetProperty.objectReferenceValue != asset || meshBridge.objectReferenceValue != null))
                 {
-                    serialized.FindProperty(k_Asset).objectReferenceValue = asset;
-                    serialized.FindProperty(k_MeshBridge).objectReferenceValue = null;
+                    assetProperty.objectReferenceValue = asset;
+                    meshBridge.objectReferenceValue = null;
                     change.Append(" asset=").Append(AssetDatabase.GetAssetPath(asset));
+                    changed = true;
+                }
+                if (item.clearAsset && assetProperty.objectReferenceValue != null)
+                {
+                    assetProperty.objectReferenceValue = null;
+                    change.Append(" asset=None (instance override)");
+                    changed = true;
                 }
                 if (item.mobility)
                 {
                     int value = serialized.FindProperty(k_MobilityBridge).intValue;
-                    serialized.FindProperty(k_Mobility).intValue = value;
-                    change.Append(" mobility=").Append((EMeshMobility)value);
+                    SerializedProperty mobility = serialized.FindProperty(k_Mobility);
+                    if (mobility.intValue != value)
+                    {
+                        mobility.intValue = value;
+                        change.Append(" mobility=").Append((EMeshMobility)value);
+                        changed = true;
+                    }
                 }
+                if (!changed) return false;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
                 report.migrated.Add(change.ToString());
             }

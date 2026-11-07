@@ -19,6 +19,7 @@ Assigning an Infinity pipeline asset selects the camera, light and Volume Profil
 | Rendering Debugger | Window > Analysis > Rendering Debugger | See [Rendering Debugger](rendering-debugger.md). |
 | Render Graph Viewer | Window > Analysis > Infinity Render Graph Viewer | See below. |
 | Validation fixtures | Window > Infinity > Create … Fixture | Scenes for lights, shadows, cookies, probes, baked lighting, screen space, decals, translucency, temporal effects, output, volumes and UI. |
+| MeshComponent migration (0.5) | Window > Infinity > Migrate MeshComponents to MeshAsset (0.5) | Explicit, one-time upgrade of 0.4 MeshComponents. See [Upgrade 0.4 to 0.5](upgrade-0.4-to-0.5.md). |
 | Image regression | Window > Infinity > Image Regression | Record Baselines and Run Comparison on fixture cameras in Play mode. Baselines live in `ImageBaselines/<graphics API>/` next to `Assets`. Reports live in `Library/InfinityImageRegression/`. |
 
 Create menus are GameObject > Light > Infinity, GameObject > Rendering > Infinity, GameObject > 3D Object > Infinity > MeshEntity, Assets > Create > Rendering > Infinity, and Assets > Create > Shader Graph > Infinity.
@@ -33,7 +34,7 @@ The command-line adapter under `Editor/Cli` is compiled only with `INFINITY_UNIT
 |---|---|
 | Camera | Projection, Rendering, Environment (Volume Mask, Volume Trigger, Super Resolution), Frame Settings, Output |
 | Light | General, Shape, Emission, Baking, Cookie & IES, Shadows (caster layers, filter, update mode, Request Shadow Map Rendering, contact shadows), Volumetric, Layers & Distance. Additional Properties reveals the less common fields. Scene handles edit range, angles and the source shape |
-| Mesh | State (Mobility), Mesh, Lighting, Rendering |
+| Mesh | State (Mobility), Mesh (Mesh Asset, Materials; with no asset, Create MeshAsset from Mesh), Lighting, Rendering. Assigning a Mesh Asset copies its materials once |
 | Decal | General, Projection |
 | Volume Profile | The Core RP component list |
 | Pipeline asset | Rendering, Lighting & Shadows (including shadow-filter quality), Post-processing & Output, Frame Settings (Cameras and Reflection Probe Captures), Default Materials. Runtime shaders are named in a help box and resolve from Global Settings |

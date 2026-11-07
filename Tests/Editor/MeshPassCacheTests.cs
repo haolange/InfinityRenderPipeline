@@ -33,6 +33,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             return elementIndex < candidates.Length ? candidates[elementIndex] : new uint2(0u, MeshPassCache.NoCommand);
         }
 
+        static int CommandAt(MeshPassCache cache, int elementIndex) => (int)(CandidateAt(cache, elementIndex).y & MeshPassCache.CommandMask);
+
         static Dictionary<MeshDrawCommandKey, int> LiveCommandRefCounts(MeshPassCache cache)
         {
             var result = new Dictionary<MeshDrawCommandKey, int>();
@@ -350,8 +352,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 uint shadowRevision = shadow.revision;
                 Assert.AreEqual(1, cache.commandCount);
                 Assert.AreEqual(3, cache.memberCount);
-                int command = (int)CandidateAt(cache, (int)elements[0].Index).y;
-                for (int i = 0; i < 3; ++i) Assert.AreEqual((uint)command, CandidateAt(cache, (int)elements[i].Index).y);
+                int command = CommandAt(cache, (int)elements[0].Index);
+                for (int i = 0; i < 3; ++i) Assert.AreEqual(command, CommandAt(cache, (int)elements[i].Index));
                 Assert.AreEqual(3, cache.commands[command].refCount);
                 MeshDrawCommandBinding binding = cache.GetBinding(command);
                 Assert.AreSame(mesh, binding.mesh);
@@ -384,7 +386,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 }
                 Assert.AreEqual(1, cache.commandCount);
                 Assert.AreEqual(1, cache.commandHighWater, "The freed command slot is reused.");
-                Assert.AreEqual((uint)command, CandidateAt(cache, (int)elements[2].Index).y);
+                Assert.AreEqual(command, CommandAt(cache, (int)elements[2].Index));
                 Assert.AreSame(second, cache.GetBinding(command).material, "A reused slot resolves the binding of its new key.");
                 Assert.AreEqual((int)world.elements[(int)elements[2].Index].material.Index, cache.commands[command].key.material);
 
@@ -399,7 +401,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     recreatedElement = update.AddElement(recreated, meshId, 0, 0, MeshTestUtility.Id(second), MeshTestUtility.StateOf(second), 0);
                     update.Commit();
                 }
-                command = (int)CandidateAt(cache, (int)recreatedElement.Index).y;
+                command = CommandAt(cache, (int)recreatedElement.Index);
                 Assert.AreEqual(1, cache.commandCount);
                 Assert.AreEqual(6u, cache.GetBinding(command).indexCount, "A command created again resolves the current submesh range.");
                 Assert.AreEqual(6u, cache.GetCommandMeta()[command * 4 + 0]);

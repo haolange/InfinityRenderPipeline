@@ -39,6 +39,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             };
         }
 
+        /// <summary>Throws unless the origin is finite and the scale and bias are finite and positive.</summary>
+        public void ThrowIfInvalid()
+        {
+            if (!math.all(math.isfinite(origin))) throw new System.ArgumentException($"LOD origin {origin} is not finite.");
+            if (!(scale > 0 && math.isfinite(scale))) throw new System.ArgumentOutOfRangeException(nameof(scale), scale, "The LOD scale is finite and positive.");
+            if (!(bias > 0 && math.isfinite(bias))) throw new System.ArgumentOutOfRangeException(nameof(bias), bias, "The LOD bias is finite and positive.");
+        }
+
         public bool Equals(MeshLodProjection other) => origin.Equals(other.origin) && scale == other.scale && bias == other.bias && orthographic == other.orthographic;
         public override bool Equals(object obj) => obj is MeshLodProjection other && Equals(other);
         public override int GetHashCode() => origin.GetHashCode() ^ scale.GetHashCode() ^ (bias.GetHashCode() * 397);

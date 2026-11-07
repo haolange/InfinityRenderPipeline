@@ -4,6 +4,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Core;
+using InfinityTech.Rendering.GPUResource;
 using Object = UnityEngine.Object;
 
 namespace InfinityTech.Rendering.MeshPipeline.Tests
@@ -135,6 +136,34 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 share.Release(shared);
                 share.Release(next);
                 Assert.AreEqual(0, share.liveCount);
+            }
+        }
+
+        [Test]
+        public void ResidentGpuVisibility_IsKeptAcrossCameraMotion()
+        {
+            var pool = new ResourcePool();
+            var cache = new MeshGpuVisibilityCache(pool);
+            try
+            {
+                MeshView view = MeshTestUtility.CameraView(51);
+                BufferHandle first = cache.GetBufferHandle(view, 64);
+                for (int frame = 1; frame <= 4; ++frame)
+                {
+                    // The LOD projection moves with the camera every frame; LOD bias edits change it too.
+                    view.lodProjection.origin = new float3(frame, 0, 0);
+                    view.lodProjection.bias = 1 + frame * 0.25f;
+                    Assert.AreSame(first.buffer, cache.GetBufferHandle(view, 64).buffer, $"frame {frame}");
+                }
+                Assert.AreEqual(1, cache.allocatedViewCount);
+                MeshView other = MeshTestUtility.CameraView(52);
+                Assert.AreNotSame(first.buffer, cache.GetBufferHandle(other, 64).buffer, "Another view keeps its own buffer.");
+                Assert.AreEqual(2, cache.allocatedViewCount);
+            }
+            finally
+            {
+                cache.Dispose();
+                pool.Dispose();
             }
         }
 

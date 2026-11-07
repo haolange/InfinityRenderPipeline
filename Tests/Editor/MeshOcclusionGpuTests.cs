@@ -4,6 +4,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using InfinityTech.Rendering.MeshPipeline;
 using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
@@ -51,7 +52,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var boundCenters = Buffer(centers, 16); var boundExtents = Buffer(extents, 16);
                 var boundFlags = Buffer(flags, 4); var boundLayers = Buffer(layers, 4);
                 var boundRendering = Buffer(rendering, 4); var boundScenes = Buffer(scenes, 8);
-                var chains = MeshTestUtility.SingleLodChains(Count); allocations.Add(chains);
+                // A small positive bound: with a missing or zero LOD scale every such entity would be LOD-culled. Entity 1 keeps
+                // a zero bound (always stable) and entity 10 has zero extent, so its screen size is 0.
+                var chainValues = new MeshLodChain[Count];
+                for (int i = 0; i < Count; ++i) chainValues[i] = i == 1 || i == 10 ? MeshLodChain.Single : MeshLodChain.Create(new[] { 1e-3f }, 0.2f);
+                var chains = Buffer(chainValues, System.Runtime.InteropServices.Marshal.SizeOf<MeshLodChain>());
                 int noHistory = shader.FindKernel("CullFirstNoHistory"), history = shader.FindKernel("CullFirstWithHistory"), recovery = shader.FindKernel("CullOcclusionRecovery");
                 foreach (int kernel in new[] { noHistory, history })
                 {
@@ -68,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 // Intentionally no history texture, matrix or generation bindings for this kernel.
                 shader.Dispatch(noHistory, 1, 1, 1);
                 CollectionAssert.AreEqual(new uint[] {1,1,1,1,1,1,0,0,1,1,1}, Visible(first));
-                Assert.AreEqual(1u | (65535u << 16), Read(first)[1], "A single-level chain packs level 0 as stable.");
+                Assert.AreEqual(1u | (65535u << 16), Read(first)[1], "A zero-bound chain packs level 0 as stable.");
                 CollectionAssert.AreEqual(new uint[Count], Read(deferred));
                 shader.SetBuffer(history, "_MeshCullCurrentTransforms", Buffer(matrices, 64));
                 shader.SetBuffer(history, "_MeshCullPreviousTransforms", Buffer(oldMatrices, 64));
@@ -111,6 +116,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 boundCenters.SetData(centers);
                 var shifted = Matrix4x4.identity; shifted.m03 = shifted.m13 = shifted.m23 = -2048;
                 shader.SetMatrix("_MeshCullProjection", shifted);
+                var shiftedLod = new MeshLodProjection { origin = new Unity.Mathematics.float3(2048, 2048, 2048), scale = 1, bias = 1 };
+                foreach (int kernel in new[] { noHistory, history, recovery }) MeshTestUtility.BindLod(shader, kernel, chains, shiftedLod);
                 shader.SetVectorArray("_FrustumPlanes", new[] {new Vector4(1,0,0,-2047),new Vector4(-1,0,0,2049),new Vector4(0,1,0,-2047),new Vector4(0,-1,0,2049),new Vector4(0,0,1,-2048),new Vector4(0,0,-1,2049)});
                 shader.Dispatch(history, 1, 1, 1);
                 CollectionAssert.AreEqual(new uint[] {0,1,1,1,1,1,0,0,1,0,1}, Visible(first));

@@ -27,8 +27,8 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public MeshDrawCommandKey key;
         public int refCount;
-        /// <summary>Members whose entity has more than one LOD level; only such commands can draw a fading range.</summary>
-        public int multiLodCount;
+        /// <summary>Members whose entity's LOD chain has a cross-fade band; only such commands can draw a fading range.</summary>
+        public int fadingMemberCount;
         /// <summary>Shader-state rank, material slot and section slot, each saturated into its segment.</summary>
         public ulong stateKey;
     }
@@ -69,7 +69,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly MeshPassDesc desc;
         readonly uint m_RouteMask;
         NativeList<uint2> m_Candidates;
-        NativeList<byte> m_MultiLod;
+        NativeList<byte> m_CanFade;
         NativeList<MeshDrawCommand> m_Commands;
         readonly List<MeshDrawCommandBinding> m_Bindings = new List<MeshDrawCommandBinding>(64);
         NativeParallelHashMap<MeshDrawCommandKey, int> m_Lookup;
@@ -109,7 +109,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 for (int stage = 0; stage <= 3; ++stage)
                     if (MaterialRouteUtility.RouteEnablesPass(route, stage, desc.lightMode)) m_RouteMask |= 1u << (route * 4 + stage);
             m_Candidates = new NativeList<uint2>(1024, Allocator.Persistent);
-            m_MultiLod = new NativeList<byte>(1024, Allocator.Persistent);
+            m_CanFade = new NativeList<byte>(1024, Allocator.Persistent);
             m_Commands = new NativeList<MeshDrawCommand>(64, Allocator.Persistent);
             m_Lookup = new NativeParallelHashMap<MeshDrawCommandKey, int>(64, Allocator.Persistent);
             m_FreeCommands = new NativeList<int>(16, Allocator.Persistent);
@@ -168,12 +168,19 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             m_Prepared.Clear();
             m_Pending.Clear();
+            int newCommands = 0;
             foreach (int element in dirtyElements)
             {
                 m_Pending.Add(element);
                 if (Qualifies(world, element, out MeshDrawCommandKey key, out _) && !m_Prepared.ContainsKey(key))
+                {
                     m_Prepared.Add(key, Resolve(world, key));
+                    if (!m_Lookup.ContainsKey(key)) newCommands++;
+                }
             }
+            // Free slots are reused before the table grows, so no command index exceeds the live count after Apply.
+            if ((long)commandCount + newCommands > CommandMask)
+                throw new InvalidOperationException($"Mesh pass '{desc.lightMode}' would hold more than {CommandMask} commands.");
         }
 
         internal void DiscardPrepared()
@@ -186,7 +193,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void Apply(MeshWorld world)
         {
             bool changed = false;
-            while (m_Candidates.Length < world.elementHighWater) { m_Candidates.Add(new uint2(0u, NoCommand)); m_MultiLod.Add(0); }
+            while (m_Candidates.Length < world.elementHighWater) { m_Candidates.Add(new uint2(0u, NoCommand)); m_CanFade.Add(0); }
             while (m_EntityMemberCount.Length < world.entityHighWater) m_EntityMemberCount.Add(0);
 
             foreach (int element in m_Pending)
@@ -196,8 +203,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 int command = (int)(candidate.y & CommandMask);
                 MeshDrawCommand record = m_Commands[command];
                 record.refCount--;
-                if (m_MultiLod[element] != 0) record.multiLodCount--;
-                m_MultiLod[element] = 0;
+                if (m_CanFade[element] != 0) record.fadingMemberCount--;
+                m_CanFade[element] = 0;
                 if (record.refCount == 0)
                 {
                     m_Lookup.Remove(record.key);
@@ -224,13 +231,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                 {
                     command = AllocateCommand(key, binding);
                 }
-                if (command > (int)CommandMask) throw new InvalidOperationException("A pass cache holds at most 2^24 - 1 commands.");
                 MeshDrawCommand record = m_Commands[command];
                 record.refCount++;
                 record.stateKey = StateKey(binding, key);
-                bool multiLod = world.entities[entity].lod.count > 1;
-                if (multiLod) record.multiLodCount++;
-                m_MultiLod[element] = (byte)(multiLod ? 1 : 0);
+                bool canFade = world.entities[entity].lod.hasFadeBand;
+                if (canFade) record.fadingMemberCount++;
+                m_CanFade[element] = (byte)(canFade ? 1 : 0);
                 m_Commands[command] = record;
                 int lodIndex = world.elements[element].lodIndex;
                 m_Candidates[element] = new uint2((uint)entity, (uint)command | ((uint)lodIndex << LodShift));
@@ -416,7 +422,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (m_Disposed) return;
             m_Disposed = true;
             m_Candidates.Dispose();
-            m_MultiLod.Dispose();
+            m_CanFade.Dispose();
             m_Commands.Dispose();
             m_Lookup.Dispose();
             m_FreeCommands.Dispose();

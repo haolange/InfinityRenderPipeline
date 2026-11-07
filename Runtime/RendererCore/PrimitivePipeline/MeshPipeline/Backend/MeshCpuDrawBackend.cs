@@ -25,7 +25,13 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal void AllocateInstances(int memberCount, out BufferHandle instances, out BufferHandle fades)
         {
             instances = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(uint)) { name = "MeshInstanceToEntity" });
-            fades = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(float)) { name = "MeshInstanceFade" });
+            try { fades = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(float)) { name = "MeshInstanceFade" }); }
+            catch
+            {
+                m_Pool.ReleaseBuffer(instances);
+                instances = default;
+                throw;
+            }
         }
 
         internal void Upload(CommandBuffer commands, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades)
@@ -44,6 +50,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (build.draws.Length == 0) return;
             string marker = MeshDrawProfiling.Draw(viewKind, false);
             commands.BeginSample(marker);
+            bool dithering = false;
             try
             {
                 m_Properties.Clear();
@@ -52,7 +59,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
-                bool dithering = false;
                 foreach (MeshInstancedDraw draw in build.draws)
                 {
                     MeshDrawCommandBinding binding = cache.GetBinding(draw.command);
@@ -69,9 +75,12 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_Properties.SetInt(InfinityShaderIDs.InstanceOffset, draw.instanceOffset);
                     commands.DrawMeshInstancedProcedural(binding.mesh, binding.submesh, binding.material, binding.passIndex, draw.instanceCount, m_Properties);
                 }
-                if (dithering) commands.SetKeyword(s_LodDither, false);
             }
-            finally { commands.EndSample(marker); }
+            finally
+            {
+                if (dithering) commands.SetKeyword(s_LodDither, false);
+                commands.EndSample(marker);
+            }
         }
 
         /// <summary>Logical release when the graph is dropped; the buffer returns to the pool after native submit.</summary>

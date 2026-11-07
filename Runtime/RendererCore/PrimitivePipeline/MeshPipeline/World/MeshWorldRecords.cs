@@ -75,22 +75,33 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public float ScreenSize(int level) => level < 4 ? screenSize0[level] : screenSize1[level - 4];
 
+        /// <summary>Bounds strictly decrease, so some level has a cross-fade band exactly when LOD 0's bound is positive.</summary>
+        public bool hasFadeBand => count > 0 && screenSize0.x > 0;
+
         public static MeshLodChain Create(ReadOnlySpan<float> screenSizes, float fadeWidth)
         {
             if (screenSizes.Length < 1 || screenSizes.Length > MaxLevels)
                 throw new ArgumentOutOfRangeException(nameof(screenSizes), screenSizes.Length, $"A LOD chain has 1 to {MaxLevels} levels.");
-            if (!(fadeWidth >= 0.01f && fadeWidth <= 0.99f)) throw new ArgumentOutOfRangeException(nameof(fadeWidth), fadeWidth, "fadeWidth is in [0.01, 0.99].");
             var chain = new MeshLodChain { count = screenSizes.Length, fadeWidth = fadeWidth };
-            float previous = 1;
             for (int i = 0; i < screenSizes.Length; ++i)
+                if (i < 4) chain.screenSize0[i] = screenSizes[i]; else chain.screenSize1[i - 4] = screenSizes[i];
+            chain.ThrowIfInvalid();
+            return chain;
+        }
+
+        /// <summary>Throws unless the chain has 1 to 8 levels, a fade width in [0.01, 0.99] and bounds in [0, 1] that strictly decrease.</summary>
+        public void ThrowIfInvalid()
+        {
+            if (count < 1 || count > MaxLevels) throw new ArgumentOutOfRangeException(nameof(count), count, $"A LOD chain has 1 to {MaxLevels} levels.");
+            if (!(fadeWidth >= 0.01f && fadeWidth <= 0.99f)) throw new ArgumentOutOfRangeException(nameof(fadeWidth), fadeWidth, "fadeWidth is in [0.01, 0.99].");
+            float previous = 1;
+            for (int i = 0; i < count; ++i)
             {
-                float size = screenSizes[i];
+                float size = ScreenSize(i);
                 bool valid = size >= 0 && (i == 0 ? size <= 1 : size < previous);
-                if (!valid) throw new ArgumentException($"LOD {i} screen size {size} must be in [0, 1] and below the previous level.", nameof(screenSizes));
-                if (i < 4) chain.screenSize0[i] = size; else chain.screenSize1[i - 4] = size;
+                if (!valid) throw new ArgumentException($"LOD {i} screen size {size} must be in [0, 1] and below the previous level.", "screenSizes");
                 previous = size;
             }
-            return chain;
         }
 
         public bool Equals(MeshLodChain other) => screenSize0.Equals(other.screenSize0) && screenSize1.Equals(other.screenSize1)

@@ -32,7 +32,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public BufferHandle GetBufferHandle(in MeshView view, int entityCount)
         {
-            var key = new MeshVisibilityKey(view, false);
+            var key = new MeshVisibilityKey(view, false, residentIdentity: true);
             int needed = math.max(1, entityCount);
             if (!m_Slots.TryGetValue(key, out Slot slot) || slot.capacity < needed)
             {
