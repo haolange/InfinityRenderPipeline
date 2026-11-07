@@ -866,6 +866,14 @@ For native HDR, enable support only in the owned mirror, request mode and wait f
 
 After drain, restore Play/pause, scenes/camera/Asset/Volume/HDR, remove transient Graphs and fixtures, close only the owned Editor, unmount its exact APFS image and delete the task directory. Verify source asset hashes and absence of task paths; retain only a compact report.
 
+### Runtime probe
+
+`infinity_runtime_probe_start(requestPath)` runs in Play mode on one active Game camera. It spawns `count` MeshComponents of the built-in cube as root objects in a grid in front of the camera, moves `movingRatio` of them every frame, gives `translucentRatio` of them a Forward-route T0 material, and records windows that close at `windowsSeconds` after `warmupFrames` (default 5, 20 and 60 s; each window holds the frames since the previous one). `meshBackend` is Auto, CpuDirect or GpuIndirect through the Rendering Debugger override, or empty for the asset policy. The request names an absolute, new `outputDirectory`. The probe writes only `probe.json` there, on completion, cancellation or failure. `_status` reports progress and `_cancel` destroys the spawned content. Play-mode exit cancels the probe. It locks assembly reload while it runs and never saves assets.
+
+Each window reports p50/p95/min/max/mean of the complete Render scope, the proxy update and its transform and apply sections in milliseconds, GC.Alloc counts for the Render and proxy scopes, Mono used and heap bytes, total allocated and reserved bytes, graphics-driver bytes, ResourcePool texture and buffer estimates, GC collection counts, the mesh entity and element counts and the actual backend. Every sample pairs one frame's Render scope with the same frame's proxy sections. Movement, window closing and the evidence write run on the Editor update, outside Render. Keep only the Game view rendering (close or hide Scene views) so each Render call belongs to the probed camera. A frame rate above 1000 Hz fails the probe instead of dropping samples.
+
+`Editor/Cli/RuntimeProbeCommands.cs` is the measurement and stays unchanged across authoring-API changes. `RuntimeProbeContent.cs` is the only part that uses the MeshComponent API, so a baseline run on an earlier commit and a candidate run measure the same thing. Compare windows rather than single frames: memory and pool estimates between the 20 s and 60 s windows show growth at a fixed object count, and proxy GC.Alloc at steady state should stay zero.
+
 ## Unity integration ownership acceptance
 
 Use one task-owned full Example mirror. Native Renderer and custom Mesh paths must remain independent through creation, enable/disable, scene changes and pipeline recreation. Check NativeLightingContractTests, RayTracingInputContractTests, MeshComponentRegistrationTests, RGRendererListLifetimeTests, native motion, resource lifecycle and GlobalSettings/Volume suites before normal-frame acceptance.

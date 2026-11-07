@@ -270,6 +270,8 @@ namespace InfinityTech.Rendering.Pipeline
         internal InfinityRenderPipelineRuntimeShaders shaders => resources.shaders;
         public override RenderPipelineGlobalSettings defaultSettings => m_GlobalSettings;
         internal RenderContext renderContext;
+        // Read-only access for diagnostics observers that report pool estimates outside the measured scopes.
+        internal ResourcePool resourcePool => m_ResourcePool;
         internal InfinityRenderPipelineAsset pipelineAsset
         {
             get
