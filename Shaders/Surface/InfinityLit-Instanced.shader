@@ -56,6 +56,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
             #include "../ShaderLibrary/ShadowCaster.hlsl"
@@ -77,6 +78,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			struct Varyings
 			{
 				nointerpolation uint EntityIndex : TEXCOORD7;
+#if defined(INFINITY_LOD_DITHER)
+				nointerpolation float LodFade : TEXCOORD8;
+#endif
 				float2 uv0 : TEXCOORD0;
 				float4 vertex_CS : SV_POSITION;
 			};
@@ -85,6 +89,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out;
 				Out.EntityIndex = MeshInstanceEntity(In.InstanceId);
+#if defined(INFINITY_LOD_DITHER)
+				Out.LodFade = MeshInstanceFade(In.InstanceId);
+#endif
 				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
@@ -96,6 +103,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			float4 frag(Varyings In) : SV_Target
 			{
+#if defined(INFINITY_LOD_DITHER)
+				LODDitheringTransition(uint2(In.vertex_CS.xy), In.LodFade);
+#endif
 				return 0;
 			}
 			ENDHLSL
@@ -112,6 +122,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
 			//#pragma enable_debug_symbols
@@ -132,6 +143,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			struct Varyings
 			{
 				nointerpolation uint EntityIndex : TEXCOORD7;
+#if defined(INFINITY_LOD_DITHER)
+				nointerpolation float LodFade : TEXCOORD8;
+#endif
 				float2 uv0 : TEXCOORD0;
 				float4 vertex_WS : TEXCOORD2;
 				float4 vertex_CS : SV_POSITION;
@@ -141,6 +155,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out;
 				Out.EntityIndex  = MeshInstanceEntity(In.InstanceId);
+#if defined(INFINITY_LOD_DITHER)
+				Out.LodFade = MeshInstanceFade(In.InstanceId);
+#endif
 				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
@@ -151,6 +168,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			float4 frag(Varyings In) : SV_Target
 			{
+#if defined(INFINITY_LOD_DITHER)
+				LODDitheringTransition(uint2(In.vertex_CS.xy), In.LodFade);
+#endif
 				return 0;
 			}
 			ENDHLSL
@@ -166,6 +186,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
             #pragma multi_compile _ PROBE_VOLUMES_L1 PROBE_VOLUMES_L2
@@ -218,6 +239,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			struct Varyings
 			{
 				nointerpolation uint EntityIndex : TEXCOORD7;
+#if defined(INFINITY_LOD_DITHER)
+				nointerpolation float LodFade : TEXCOORD8;
+#endif
 				float2 uv0 : TEXCOORD0;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
@@ -231,6 +255,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out = (Varyings)0;
 				Out.EntityIndex  = MeshInstanceEntity(In.InstanceId);
+#if defined(INFINITY_LOD_DITHER)
+				Out.LodFade = MeshInstanceFade(In.InstanceId);
+#endif
 				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
@@ -244,6 +271,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			void frag (Varyings In, out float4 GBufferA : SV_Target0, out float4 GBufferB : SV_Target1, out float4 GBufferC : SV_Target2, out float4 LightingBuffer : SV_Target3, out float4 BakedDiffuse : SV_Target4, out float4 BakedOcclusion : SV_Target5)
 			{
+#if defined(INFINITY_LOD_DITHER)
+				LODDitheringTransition(uint2(In.vertexCS.xy), In.LodFade);
+#endif
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
 				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
 
@@ -296,6 +326,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
             #pragma multi_compile _ INFINITY_SSS_OUTPUT
             #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
             #pragma multi_compile _ INFINITY_FORWARD_AO
@@ -353,6 +384,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			struct Varyings
 			{
 				nointerpolation uint EntityIndex : TEXCOORD7;
+#if defined(INFINITY_LOD_DITHER)
+				nointerpolation float LodFade : TEXCOORD8;
+#endif
 				float2 uv0 : TEXCOORD0;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
@@ -366,6 +400,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out = (Varyings)0;
 				Out.EntityIndex  = MeshInstanceEntity(In.InstanceId);
+#if defined(INFINITY_LOD_DITHER)
+				Out.LodFade = MeshInstanceFade(In.InstanceId);
+#endif
 				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
@@ -383,6 +420,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 #endif
                 )
 			{
+#if defined(INFINITY_LOD_DITHER)
+				LODDitheringTransition(uint2(In.vertexCS.xy), In.LodFade);
+#endif
 				float4 albedoMap = _MainTex.Sample(sampler_MainTex,In.uv0 * _BaseColorTile);
 				float3 normalMap = UnpackNormal(_NormalTexture.Sample(sampler_NormalTexture,In.uv0 * _NormalTile));
 
@@ -440,6 +480,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			HLSLPROGRAM
             #include "Packages/com.infinity.render-pipeline/Shaders/ShaderLibrary/TextureView.hlsl"
 			#pragma target 4.5
+			#pragma multi_compile _ INFINITY_LOD_DITHER
 			#pragma vertex vert
 			#pragma fragment frag
 			//#pragma enable_debug_symbols
@@ -459,6 +500,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			struct Varyings
 			{
 				nointerpolation uint EntityIndex : TEXCOORD7;
+#if defined(INFINITY_LOD_DITHER)
+				nointerpolation float LodFade : TEXCOORD8;
+#endif
 				float4 clipPos : TEXCOORD0;
 				float4 clipPosOld : TEXCOORD1;
 				float4 vertex : SV_POSITION;
@@ -468,6 +512,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			{
 				Varyings Out;
 				Out.EntityIndex = MeshInstanceEntity(In.InstanceId);
+#if defined(INFINITY_LOD_DITHER)
+				Out.LodFade = MeshInstanceFade(In.InstanceId);
+#endif
 				FTransformData currBatch = EntityTransforms[Out.EntityIndex];
 				float4x4 previousObjectToWorld = MeshPreviousObjectToWorld(Out.EntityIndex);
 
@@ -482,6 +529,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
             MotionOutput frag(Varyings In)
             {
+#if defined(INFINITY_LOD_DITHER)
+                LODDitheringTransition(uint2(In.vertex.xy), In.LodFade);
+#endif
                 MotionOutput output;
                 output.velocity = SurfaceVelocity(In.clipPos, In.clipPosOld);
                 output.metadata = SurfaceMotionMetadata(In.clipPos, In.clipPosOld, In.vertex.z);

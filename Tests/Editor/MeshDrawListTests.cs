@@ -113,19 +113,21 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 {
                     ids[i] = MeshTestUtility.CreateEntity(update, new float3(i, 0, 0));
                     Material material = materials[specs[i].material];
-                    elements[i] = update.AddElement(ids[i], MeshTestUtility.Id(mesh), 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), specs[i].priority);
+                    elements[i] = update.AddElement(ids[i], MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), specs[i].priority);
                 }
                 update.Commit();
             }
             MeshPassCache cache = world.GetPassCache(desc);
             commandOfMaterial = new int[materials.Length];
             for (int i = 0; i < specs.Length; ++i)
-                commandOfMaterial[specs[i].material] = (int)cache.candidates[(int)elements[i].Index].y;
+                commandOfMaterial[specs[i].material] = (int)(cache.candidates[(int)elements[i].Index].y & MeshPassCache.CommandMask);
 
             var visibility = new MeshViewVisibility
             {
                 visible = new NativeArray<byte>(world.entityHighWater, Allocator.TempJob),
-                depth = new NativeArray<float>(world.entityHighWater, Allocator.TempJob)
+                depth = new NativeArray<float>(world.entityHighWater, Allocator.TempJob),
+                lod = new NativeArray<byte>(world.entityHighWater, Allocator.TempJob),
+                fade = new NativeArray<float>(world.entityHighWater, Allocator.TempJob)
             };
             MeshDrawListBuild build = default;
             try
@@ -134,6 +136,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 {
                     visibility.visible[(int)ids[i].Index] = (byte)(specs[i].visible ? 1 : 0);
                     visibility.depth[(int)ids[i].Index] = specs[i].depth;
+                    visibility.fade[(int)ids[i].Index] = 1;
                 }
                 var specOfEntity = new Dictionary<uint, int>();
                 for (int i = 0; i < ids.Length; ++i) specOfEntity.Add(ids[i].Index, i);
@@ -153,6 +156,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 build.Dispose();
                 visibility.visible.Dispose();
                 visibility.depth.Dispose();
+                visibility.lod.Dispose();
+                visibility.fade.Dispose();
             }
         }
 
@@ -190,7 +195,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         }
 
         [Test]
-        public void GpuCompaction_MatchesTheCpuBuildPerCommand()
+        public void GpuCompaction_MatchesTheCpuBuildPerCommandRange()
         {
             MeshTestUtility.RequireComputeReadback();
             using (var fixture = new MeshWorldFixture())
@@ -199,58 +204,65 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshTestUtility.RequireGpuIndirect(world);
                 Mesh mesh = fixture.Mesh(2);
                 Material[] materials = { fixture.Material(0, 0), fixture.Material(1, 0) };
-                var ids = new MeshEntityId[12];
+                // Bands [0.3, 0.44] and [0.1, 0.14]; the bound radius is 0.866, so the screen size is 0.866 / distance. The
+                // distances cover stable and fading levels 0 and 1, a fading last level and a LOD-culled entity (9). The same
+                // mesh fills both levels, so a fading command holds the outgoing and the incoming instance of one entity.
+                MeshLodChain chain = MeshLodChain.Create(new[] { 0.3f, 0.1f }, 0.2f);
+                float[] distances = { 1f, 2.2f, 2.5f, 2f, 4f, 6.5f, 9f, 1.5f, 2.3f, 3f, 7f, 8f };
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    for (int i = 0; i < ids.Length; ++i)
+                    for (int i = 0; i < distances.Length; ++i)
                     {
-                        ids[i] = MeshTestUtility.CreateEntity(update, new float3(i, 0, 0));
-                        for (int subMesh = 0; subMesh < 2; ++subMesh)
+                        var center = new float3(distances[i], 0, 0);
+                        EMeshEntityFlags flags = i % 5 == 3 ? EMeshEntityFlags.None : EMeshEntityFlags.Visible;
+                        MeshEntityId id = update.CreateEntity(float4x4.Translate(center), MeshTestUtility.Bound(center), MeshTestUtility.Desc(flags), chain);
+                        for (int lod = 0; lod < 2; ++lod)
                         {
-                            Material material = materials[(i + subMesh) % materials.Length];
-                            update.AddElement(ids[i], MeshTestUtility.Id(mesh), subMesh, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                            for (int subMesh = 0; subMesh < 2; ++subMesh)
+                            {
+                                Material material = materials[(i + subMesh + lod) % materials.Length];
+                                update.AddElement(id, MeshTestUtility.Id(mesh), subMesh, lod, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                            }
                         }
                     }
                     update.Commit();
                 }
                 world.UpdateResidency();
                 MeshPassCache cache = world.GetPassCache(MeshPassPresets.GBuffer);
+                Assert.IsTrue(cache.desc.ditherLodTransitions);
                 Assert.IsNotNull(cache.candidateBuffer.buffer, "Residency uploads the candidate table.");
                 int commandCount = cache.commandHighWater, candidateCount = cache.candidates.Length;
                 Assert.Greater(commandCount, 1);
 
-                var visibleBytes = new NativeArray<byte>(world.entityHighWater, Allocator.TempJob);
-                var depth = new NativeArray<float>(world.entityHighWater, Allocator.TempJob);
-                var visibleWords = new uint[world.entityHighWater];
-                for (int i = 0; i < ids.Length; ++i)
-                {
-                    bool visible = i % 3 != 1;
-                    visibleBytes[(int)ids[i].Index] = (byte)(visible ? 1 : 0);
-                    visibleWords[(int)ids[i].Index] = visible ? 1u : 0u;
-                }
-                var cpu = new Dictionary<int, List<uint>>();
+                MeshView view = MeshTestUtility.CameraView(31);
+                uint[] visibleWords = MeshTestUtility.PackedCullOnCpu(world, view);
+                var cpu = new Dictionary<(int command, bool fading), List<(uint entity, float fade)>>();
+                MeshVisibilityHandle handle = world.visibilityShare.Acquire(world, view);
                 MeshDrawListBuild build = default;
                 try
                 {
-                    build = MeshDrawListBuild.Schedule(cache, world, new MeshViewVisibility { visible = visibleBytes, depth = depth });
+                    build = MeshDrawListBuild.Schedule(cache, world, world.visibilityShare.Get(handle));
                     build.job.Complete();
                     foreach (MeshInstancedDraw draw in build.draws)
                     {
-                        if (!cpu.TryGetValue(draw.command, out List<uint> list)) cpu.Add(draw.command, list = new List<uint>());
-                        for (int i = 0; i < draw.instanceCount; ++i) list.Add(build.instanceToEntity[draw.instanceOffset + i]);
+                        var key = (draw.command, draw.fading);
+                        if (!cpu.TryGetValue(key, out var list)) cpu.Add(key, list = new List<(uint, float)>());
+                        for (int i = 0; i < draw.instanceCount; ++i)
+                            list.Add((build.instanceToEntity[draw.instanceOffset + i], build.instanceFade[draw.instanceOffset + i]));
                     }
                 }
                 finally
                 {
                     build.Dispose();
-                    visibleBytes.Dispose();
-                    depth.Dispose();
+                    world.visibilityShare.Release(handle);
                 }
+                Assert.IsTrue(cpu.Keys.Any(k => !k.fading) && cpu.Keys.Any(k => k.fading), "The fixture covers stable and fading ranges.");
 
                 ComputeShader shader = Object.Instantiate(fixture.shader);
                 NativeArray<uint> meta = cache.GetCommandMeta();
-                var metaValues = new uint[commandCount * 4];
+                var metaValues = new uint[commandCount * MeshPassCache.MetaStride];
                 for (int i = 0; i < metaValues.Length; ++i) metaValues[i] = meta[i];
+                int instanceCapacity = math.max(1, 2 * cache.memberCount);
                 var buffers = new List<ComputeBuffer>();
                 try
                 {
@@ -262,13 +274,15 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         return buffer;
                     }
                     ComputeBuffer metaBuffer = Upload(metaValues, sizeof(uint));
-                    ComputeBuffer counts = Upload(new uint[commandCount], sizeof(uint));
-                    ComputeBuffer args = Upload(new uint[commandCount * 5], sizeof(uint), ComputeBufferType.IndirectArguments);
-                    ComputeBuffer instances = Upload(new uint[math.max(1, cache.memberCount)], sizeof(uint));
+                    ComputeBuffer counts = Upload(new uint[commandCount * 2], sizeof(uint));
+                    ComputeBuffer args = Upload(new uint[commandCount * 2 * 5], sizeof(uint), ComputeBufferType.IndirectArguments);
+                    ComputeBuffer instances = Upload(new uint[instanceCapacity], sizeof(uint));
+                    ComputeBuffer fades = Upload(new float[instanceCapacity], sizeof(float));
                     ComputeBuffer visibility = Upload(visibleWords, sizeof(uint));
                     int clear = shader.FindKernel("ClearCounts"), compact = shader.FindKernel("Compact"), indirect = shader.FindKernel("BuildIndirectArgs");
                     shader.SetInt("_CommandCount", commandCount);
                     shader.SetInt("_CandidateCount", candidateCount);
+                    shader.SetInt("_DitherLod", 1);
                     shader.SetBuffer(clear, "_VisibleCounts", counts);
                     shader.SetBuffer(clear, "_IndirectArgs", args);
                     shader.SetBuffer(compact, "_CandidateTable", cache.candidateBuffer.buffer);
@@ -276,6 +290,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     shader.SetBuffer(compact, "_CommandMeta", metaBuffer);
                     shader.SetBuffer(compact, "_VisibleCounts", counts);
                     shader.SetBuffer(compact, "_InstanceToEntity", instances);
+                    shader.SetBuffer(compact, "_InstanceFade", fades);
                     shader.SetBuffer(indirect, "_CommandMeta", metaBuffer);
                     shader.SetBuffer(indirect, "_VisibleCounts", counts);
                     shader.SetBuffer(indirect, "_IndirectArgs", args);
@@ -283,23 +298,37 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     shader.Dispatch(compact, (candidateCount + 63) / 64, 1, 1);
                     shader.Dispatch(indirect, (commandCount + 63) / 64, 1, 1);
 
-                    var argValues = new uint[commandCount * 5];
-                    var instanceValues = new uint[math.max(1, cache.memberCount)];
+                    var argValues = new uint[commandCount * 2 * 5];
+                    var instanceValues = new uint[instanceCapacity];
+                    var fadeValues = new float[instanceCapacity];
                     args.GetData(argValues);
                     instances.GetData(instanceValues);
+                    fades.GetData(fadeValues);
                     for (int command = 0; command < commandCount; ++command)
                     {
                         if (cache.commands[command].refCount == 0) continue;
-                        cpu.TryGetValue(command, out List<uint> expected);
-                        expected ??= new List<uint>();
                         MeshDrawCommandBinding binding = cache.GetBinding(command);
-                        Assert.AreEqual(binding.indexCount, argValues[command * 5 + 0]);
-                        Assert.AreEqual((uint)expected.Count, argValues[command * 5 + 1], $"Visible instances of command {command}");
-                        Assert.AreEqual(binding.indexStart, argValues[command * 5 + 2]);
-                        Assert.AreEqual(binding.baseVertex, argValues[command * 5 + 3]);
-                        var gpu = new List<uint>();
-                        for (int i = 0; i < expected.Count; ++i) gpu.Add(instanceValues[metaValues[command * 4 + 3] + i]);
-                        CollectionAssert.AreEquivalent(expected, gpu, $"Instance range of command {command}");
+                        for (int range = 0; range < 2; ++range)
+                        {
+                            string label = $"command {command}, {(range == 0 ? "stable" : "fading")} range";
+                            cpu.TryGetValue((command, range == 1), out var expected);
+                            expected ??= new List<(uint, float)>();
+                            int argsBase = (command * 2 + range) * 5;
+                            Assert.AreEqual(binding.indexCount, argValues[argsBase + 0], label);
+                            Assert.AreEqual((uint)expected.Count, argValues[argsBase + 1], label);
+                            Assert.AreEqual(binding.indexStart, argValues[argsBase + 2], label);
+                            Assert.AreEqual(binding.baseVertex, argValues[argsBase + 3], label);
+                            uint first = metaValues[command * MeshPassCache.MetaStride + 3 + range];
+                            var gpu = new List<(uint entity, float fade)>();
+                            for (int i = 0; i < expected.Count; ++i) gpu.Add((instanceValues[first + i], fadeValues[first + i]));
+                            expected.Sort();
+                            gpu.Sort();
+                            for (int i = 0; i < expected.Count; ++i)
+                            {
+                                Assert.AreEqual(expected[i].entity, gpu[i].entity, label);
+                                Assert.AreEqual(expected[i].fade, gpu[i].fade, 1e-4f, $"{label}, entity {expected[i].entity}");
+                            }
+                        }
                     }
                 }
                 finally

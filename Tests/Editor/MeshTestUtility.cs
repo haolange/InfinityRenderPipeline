@@ -84,10 +84,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
         internal static FBound Bound(float3 center) => new FBound(center, new float3(0.5f));
 
+        /// <summary>A perspective-like LOD projection from the origin (screen size = radius / distance).</summary>
+        internal static readonly MeshLodProjection Lod = new MeshLodProjection { origin = float3.zero, scale = 1, bias = 1 };
+
         internal static MeshEntityId CreateEntity(in MeshWorldUpdate update, float3 center, EMeshEntityFlags flags = EMeshEntityFlags.Visible,
             int layerMask = ~0, uint renderingLayerMask = 1, ulong sceneCullingMask = ulong.MaxValue)
         {
-            return update.CreateEntity(float4x4.Translate(center), Bound(center), Desc(flags, layerMask, renderingLayerMask, sceneCullingMask));
+            return update.CreateEntity(float4x4.Translate(center), Bound(center), Desc(flags, layerMask, renderingLayerMask, sceneCullingMask), MeshLodChain.Single);
         }
 
         /// <summary>Six planes enclosing [-10, 10] on every axis.</summary>
@@ -110,7 +113,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 viewPosition = position,
                 layerMask = ~0,
                 sceneCullingMask = ulong.MaxValue,
-                renderingLayerMask = (uint)ERenderingLayer.Everything
+                renderingLayerMask = (uint)ERenderingLayer.Everything,
+                lodProjection = Lod
             };
             Plane[] planes = BoxPlanes();
             view.planeCount = planes.Length;
@@ -136,6 +140,55 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 return visible;
             }
             finally { world.visibilityShare.Release(handle); }
+        }
+
+        /// <summary>CPU visibility in the layout the GPU kernels write: 0, or 1 | level << 8 | fade << 16 (65535 = stable).</summary>
+        internal static uint[] PackedCullOnCpu(MeshWorld world, in MeshView view)
+        {
+            MeshVisibilityHandle handle = world.visibilityShare.Acquire(world, view);
+            try
+            {
+                MeshViewVisibility result = world.visibilityShare.Get(handle);
+                result.job.Complete();
+                var packed = new uint[world.entityHighWater];
+                for (int i = 0; i < packed.Length; ++i)
+                {
+                    if (result.visible[i] == 0) continue;
+                    float fade = result.fade[i];
+                    uint quantized = fade >= 1 ? 65535u : (uint)(math.saturate(fade) * 65534.0f);
+                    packed[i] = 1u | ((uint)result.lod[i] << 8) | (quantized << 16);
+                }
+                return packed;
+            }
+            finally { world.visibilityShare.Release(handle); }
+        }
+
+        /// <summary>The LOD inputs every culling kernel reads, bound the way <c>MeshGpuDrawBackend.BindCullBounds</c> binds them.</summary>
+        internal static void BindLod(ComputeShader shader, int kernel, ComputeBuffer chains, in MeshLodProjection lod)
+        {
+            shader.SetBuffer(kernel, "_EntityLodChains", chains);
+            shader.SetVector("_LodOrigin", new Vector4(lod.origin.x, lod.origin.y, lod.origin.z, 0));
+            shader.SetFloat("_LodScale", lod.scale);
+            shader.SetFloat("_LodBias", lod.bias);
+            shader.SetInt("_LodOrthographic", lod.orthographic ? 1 : 0);
+        }
+
+        /// <summary>Single-level chains for a hand-built entity table.</summary>
+        internal static ComputeBuffer SingleLodChains(int count)
+        {
+            var buffer = new ComputeBuffer(count, System.Runtime.InteropServices.Marshal.SizeOf<MeshLodChain>());
+            var chains = new MeshLodChain[count];
+            for (int i = 0; i < count; ++i) chains[i] = MeshLodChain.Single;
+            buffer.SetData(chains);
+            return buffer;
+        }
+
+        /// <summary>Reduces packed visibility words to 0/1 for list comparisons.</summary>
+        internal static uint[] VisibleBits(uint[] packed)
+        {
+            var bits = new uint[packed.Length];
+            for (int i = 0; i < packed.Length; ++i) bits[i] = packed[i] != 0 ? 1u : 0u;
+            return bits;
         }
 
         /// <summary>Drops the recorded graph (which releases its draw lists) before disposing the builder.</summary>

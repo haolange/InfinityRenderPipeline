@@ -58,6 +58,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
         }
 
+        /// <summary>Opaque passes cross-fade LOD transitions with dithering; translucent passes draw the stable level only.</summary>
+        public bool ditherLodTransitions => queueMax < MeshPassPresets.TranslucentQueueMin;
+
         public override string ToString() => $"{lightMode} [{queueMin}, {queueMax}] {sortMode}";
     }
 

@@ -33,8 +33,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     MeshEntityId entity = MeshTestUtility.CreateEntity(update, float3.zero);
-                    update.AddElement(entity, first, 0, first, MeshTestUtility.Unrouted, 0);
-                    update.AddElement(entity, second, 0, second, MeshTestUtility.Unrouted, 0);
+                    update.AddElement(entity, first, 0, 0, first, MeshTestUtility.Unrouted, 0);
+                    update.AddElement(entity, second, 0, 0, second, MeshTestUtility.Unrouted, 0);
                     update.Commit();
                 }
                 Assert.AreEqual(2, world.sectionCount, "Meshes that differ only in identity generation bits are distinct sections.");
@@ -42,9 +42,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             }
 
             Plane[] planes = MeshTestUtility.BoxPlanes();
-            var slice0 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 0, ulong.MaxValue), false);
-            var slice1 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 1, ulong.MaxValue), false);
-            var replaced = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, second, planes, float3.zero, 7, 1, 0, ulong.MaxValue), false);
+            var slice0 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 0, ulong.MaxValue, MeshTestUtility.Lod), false);
+            var slice1 = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, first, planes, float3.zero, 7, 1, 1, ulong.MaxValue, MeshTestUtility.Lod), false);
+            var replaced = new MeshVisibilityKey(MeshView.FromShadow(EMeshViewKind.CascadeShadow, second, planes, float3.zero, 7, 1, 0, ulong.MaxValue, MeshTestUtility.Lod), false);
             Assert.AreNotEqual(slice0, slice1);
             Assert.AreNotEqual(slice0, replaced);
         }

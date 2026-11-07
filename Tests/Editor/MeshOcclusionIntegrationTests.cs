@@ -83,8 +83,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             {
                 m_Entity = update.CreateEntity(float4x4.TRS(new float3(1000,1000,1003), quaternion.identity, new float3(.5f)),
                     new FBound(new float3(1000,1000,1003), new float3(.25f)),
-                    MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.ReceiveShadow | EMeshEntityFlags.ObjectMotion, layerMask: 1 << 31));
-                update.AddElement(m_Entity, UnityEntityId.ToUInt64(mesh), 0, UnityEntityId.ToUInt64(m_MeshMaterial), MeshTestUtility.StateOf(m_MeshMaterial), 0);
+                    MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.ReceiveShadow | EMeshEntityFlags.ObjectMotion, layerMask: 1 << 31), MeshLodChain.Single);
+                update.AddElement(m_Entity, UnityEntityId.ToUInt64(mesh), 0, 0, UnityEntityId.ToUInt64(m_MeshMaterial), MeshTestUtility.StateOf(m_MeshMaterial), 0);
                 update.Commit(); m_Registered = true;
             }
             SceneManager.SetActiveScene(m_PreviousScene);
@@ -128,7 +128,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             yield return Wait(() => m_Readbacks.All(r => r.done), "Visibility/depth readbacks did not drain.");
             foreach (var readback in m_Readbacks) Assert.IsFalse(readback.hasError);
             int index = (int)m_Entity.Index;
-            uint[] actual = m_Readbacks.Take(4).Select(r => r.GetData<uint>()[index]).ToArray();
+            // Prediction, recovered and final words are packed LOD visibility; the deferred word is 0/1.
+            uint[] actual = m_Readbacks.Take(4).Select(r => r.GetData<uint>()[index] != 0 ? 1u : 0u).ToArray();
             CollectionAssert.AreEqual(new uint[] {0,1,1,1}, actual, "Prediction, deferred, recovered and final lists must describe the same object.");
             float centerDepth = m_Readbacks[4].GetData<float>()[(m_DepthHeight / 2) * m_DepthWidth + m_DepthWidth / 2];
             var clip = GL.GetGPUProjectionMatrix(m_Camera.projectionMatrix, false) * m_Camera.worldToCameraMatrix * new Vector4(1000,1000,1002.75f,1);

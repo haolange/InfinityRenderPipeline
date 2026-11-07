@@ -377,6 +377,7 @@ namespace InfinityTech.Rendering.Editor.Validation
                 MeshComponent mesh = meshes[i];
                 builder.Append("  mesh=").Append(mesh.name);
                 builder.Append(" asset=").Append(mesh.MeshAsset != null ? mesh.MeshAsset.name : "null");
+                builder.Append(" lods=").Append(mesh.MeshAsset != null ? mesh.MeshAsset.lodCount : 0);
                 builder.Append(" materials=").Append(mesh.Materials.Length);
                 if (mesh.Materials.Length > 0 && mesh.Materials[0] != null)
                 {

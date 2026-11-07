@@ -29,7 +29,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                         for (int i = 0; i < 2; ++i)
                         {
                             MeshEntityId entity = MeshTestUtility.CreateEntity(update, new float3(i, 0, 0));
-                            update.AddElement(entity, UnityEntityId.ToUInt64(mesh), 0, 0, default, 0);
+                            update.AddElement(entity, UnityEntityId.ToUInt64(mesh), 0, 0, 0, default, 0);
                         }
                         update.Commit();
                     }

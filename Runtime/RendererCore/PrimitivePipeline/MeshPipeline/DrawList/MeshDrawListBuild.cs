@@ -46,26 +46,36 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
     }
 
-    /// <summary>One visible (entity, command) pair of a draw list.</summary>
+    /// <summary>
+    /// One visible (entity, command) pair of a draw list. <c>fade</c> is 0 for the stable LOD and the signed dither factor
+    /// inside a cross-fade band: +f for the outgoing level, -f for the incoming one.
+    /// </summary>
     internal struct MeshDrawItem
     {
         public ulong key;
         public int command;
         public int entity;
         public float depth;
+        public float fade;
+
+        public bool fading => fade != 0;
     }
 
-    /// <summary>A run of instances that one draw call submits: <c>instanceToEntity[instanceOffset .. +instanceCount)</c>.</summary>
+    /// <summary>
+    /// A run of instances that one draw call submits: <c>instanceToEntity[instanceOffset .. +instanceCount)</c>. A fading run
+    /// draws with INFINITY_LOD_DITHER and reads its per-instance factor from the parallel fade table.
+    /// </summary>
     internal struct MeshInstancedDraw
     {
         public int command;
         public int instanceOffset;
         public int instanceCount;
+        public bool fading;
     }
 
     /// <summary>
-    /// Total order of draw items. Back-to-front: key (priority), exact distance descending, command, entity. Other modes:
-    /// key, command, distance ascending, entity.
+    /// Total order of draw items. Back-to-front: key (priority), exact distance descending, command, entity, fade. Other
+    /// modes: key, command, stable before fading, distance ascending, entity, fade.
     /// </summary>
     internal struct MeshDrawItemComparer : IComparer<MeshDrawItem>
     {
@@ -85,9 +95,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 c = a.command.CompareTo(b.command);
                 if (c != 0) return c;
+                c = a.fading.CompareTo(b.fading);
+                if (c != 0) return c;
                 c = a.depth.CompareTo(b.depth);
             }
-            return c != 0 ? c : a.entity.CompareTo(b.entity);
+            if (c != 0) return c;
+            c = a.entity.CompareTo(b.entity);
+            // The same mesh may fill two LOD levels: one entity then has an outgoing and an incoming item of one command.
+            return c != 0 ? c : a.fade.CompareTo(b.fade);
         }
     }
 
@@ -99,7 +114,10 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly] public NativeArray<MeshElement> elements;
         [ReadOnly] public NativeArray<byte> visible;
         [ReadOnly] public NativeArray<float> depth;
+        [ReadOnly] public NativeArray<byte> lod;
+        [ReadOnly] public NativeArray<float> fade;
         public ESortMode sortMode;
+        public bool ditherLod;
         public NativeList<MeshDrawItem>.ParallelWriter items;
 
         public void Execute(int element)
@@ -108,7 +126,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (candidate.y == MeshPassCache.NoCommand) return;
             int entity = (int)candidate.x;
             if (visible[entity] == 0) return;
-            int command = (int)candidate.y;
+            int command = (int)(candidate.y & MeshPassCache.CommandMask);
+            if (!LodFactor((int)(candidate.y >> MeshPassCache.LodShift), lod[entity], fade[entity], ditherLod, out float itemFade)) return;
             float distance = depth[entity];
             ulong key;
             switch (sortMode)
@@ -123,7 +142,30 @@ namespace InfinityTech.Rendering.MeshPipeline
                     key = commands[command].stateKey;
                     break;
             }
-            items.AddNoResize(new MeshDrawItem { key = key, command = command, entity = entity, depth = distance });
+            items.AddNoResize(new MeshDrawItem { key = key, command = command, entity = entity, depth = distance, fade = itemFade });
+        }
+
+        /// <summary>
+        /// Whether an element of LOD level <paramref name="elementLod"/> draws, and its fade (0 = stable). Inside the band of
+        /// the selected level the outgoing level draws +f and the next level -f, so the two dither patterns are complementary;
+        /// at f = 0 only the incoming level draws. Without dithering only the selected level draws.
+        /// </summary>
+        public static bool LodFactor(int elementLod, int selected, float fade, bool dither, out float itemFade)
+        {
+            itemFade = 0;
+            bool fading = dither && fade < 1;
+            if (elementLod == selected)
+            {
+                if (!fading) return true;
+                itemFade = fade;
+                return fade > 0;
+            }
+            if (fading && elementLod == selected + 1)
+            {
+                itemFade = -math.max(fade, 1e-6f);
+                return true;
+            }
+            return false;
         }
     }
 
@@ -142,6 +184,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         [ReadOnly] public NativeList<MeshDrawItem> items;
         public NativeList<MeshInstancedDraw> draws;
         [WriteOnly] public NativeArray<uint> instanceToEntity;
+        [WriteOnly] public NativeArray<float> instanceFade;
 
         public void Execute()
         {
@@ -150,8 +193,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 MeshDrawItem item = items[instance];
                 instanceToEntity[instance] = (uint)item.entity;
+                instanceFade[instance] = item.fade;
                 int last = draws.Length - 1;
-                if (last >= 0 && draws[last].command == item.command)
+                if (last >= 0 && draws[last].command == item.command && draws[last].fading == item.fading)
                 {
                     MeshInstancedDraw run = draws[last];
                     run.instanceCount++;
@@ -159,7 +203,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
                 else
                 {
-                    draws.Add(new MeshInstancedDraw { command = item.command, instanceOffset = instance, instanceCount = 1 });
+                    draws.Add(new MeshInstancedDraw { command = item.command, instanceOffset = instance, instanceCount = 1, fading = item.fading });
                 }
             }
         }
@@ -174,6 +218,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public NativeList<MeshDrawItem> items;
         public NativeList<MeshInstancedDraw> draws;
         public NativeArray<uint> instanceToEntity;
+        public NativeArray<float> instanceFade;
         public JobHandle job;
 
         public bool isCreated => items.IsCreated;
@@ -186,7 +231,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 items = new NativeList<MeshDrawItem>(capacity, Allocator.TempJob),
                 draws = new NativeList<MeshInstancedDraw>(capacity, Allocator.TempJob),
-                instanceToEntity = new NativeArray<uint>(capacity, Allocator.TempJob, NativeArrayOptions.UninitializedMemory)
+                instanceToEntity = new NativeArray<uint>(capacity, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                instanceFade = new NativeArray<float>(capacity, Allocator.TempJob, NativeArrayOptions.UninitializedMemory)
             };
             NativeArray<uint2> candidates = cache.candidates;
             JobHandle handle = new MeshDrawGatherJob
@@ -196,7 +242,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 elements = world.elements,
                 visible = visibility.visible,
                 depth = visibility.depth,
+                lod = visibility.lod,
+                fade = visibility.fade,
                 sortMode = cache.desc.sortMode,
+                ditherLod = cache.desc.ditherLodTransitions,
                 items = build.items.AsParallelWriter()
             }.Schedule(candidates.Length, 256, visibility.job);
             handle = new MeshDrawSortJob
@@ -208,7 +257,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 items = build.items,
                 draws = build.draws,
-                instanceToEntity = build.instanceToEntity
+                instanceToEntity = build.instanceToEntity,
+                instanceFade = build.instanceFade
             }.Schedule(handle);
             return build;
         }
@@ -219,6 +269,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (items.IsCreated) items.Dispose();
             if (draws.IsCreated) draws.Dispose();
             if (instanceToEntity.IsCreated) instanceToEntity.Dispose();
+            if (instanceFade.IsCreated) instanceFade.Dispose();
             this = default;
         }
     }

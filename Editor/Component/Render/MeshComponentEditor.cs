@@ -2,6 +2,8 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using InfinityTech.Rendering.Editor;
+using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Editor;
 
 namespace InfinityTech.Component.Editor
 {
@@ -11,8 +13,8 @@ namespace InfinityTech.Component.Editor
     {
         const string FoldoutPrefix = "InfinityRP.Mesh.Foldout.";
 
-        SerializedProperty m_Movebility;
-        SerializedProperty m_MeshAsset;
+        SerializedProperty m_Mobility;
+        SerializedProperty m_Asset;
         SerializedProperty m_Materials;
         SerializedProperty m_CastShadow;
         SerializedProperty m_ReceiveShadow;
@@ -21,11 +23,13 @@ namespace InfinityTech.Component.Editor
         SerializedProperty m_RenderingLayer;
         SerializedProperty m_RenderPriority;
         SerializedProperty m_MotionVector;
+        // Inspector-only source of the explicit "create from Mesh" action; never serialized.
+        Mesh m_SourceMesh;
 
         void OnEnable()
         {
-            m_Movebility = serializedObject.FindProperty("movebility");
-            m_MeshAsset = serializedObject.FindProperty("meshAsset");
+            m_Mobility = serializedObject.FindProperty("mobility");
+            m_Asset = serializedObject.FindProperty("asset");
             m_Materials = serializedObject.FindProperty("materials");
             m_CastShadow = serializedObject.FindProperty("castShadow");
             m_ReceiveShadow = serializedObject.FindProperty("receiveShadow");
@@ -43,7 +47,7 @@ namespace InfinityTech.Component.Editor
             #region State
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "State", "State"))
             {
-                EditorGUILayout.PropertyField(m_Movebility, new GUIContent("Mobility"));
+                EditorGUILayout.PropertyField(m_Mobility, new GUIContent("Mobility"));
             }
             InfinityInspectorGUI.EndFoldout();
             #endregion
@@ -51,7 +55,12 @@ namespace InfinityTech.Component.Editor
             #region Mesh
             if (InfinityInspectorGUI.BeginFoldout(FoldoutPrefix + "Mesh", "Mesh"))
             {
-                EditorGUILayout.PropertyField(m_MeshAsset, new GUIContent("Mesh"));
+                EditorGUI.BeginChangeCheck();
+                EditorGUILayout.PropertyField(m_Asset, new GUIContent("Mesh Asset"));
+                // Assigning an asset copies its default materials once; the component's materials stay the authority.
+                if (EditorGUI.EndChangeCheck() && m_Asset.objectReferenceValue is MeshAsset assigned) CopyMaterials(assigned);
+                if (m_Asset.objectReferenceValue == null && !m_Asset.hasMultipleDifferentValues && !serializedObject.isEditingMultipleObjects)
+                    DrawCreateFromMesh();
                 EditorGUILayout.PropertyField(m_Materials, new GUIContent("Materials"), true);
             }
             InfinityInspectorGUI.EndFoldout();
@@ -79,6 +88,36 @@ namespace InfinityTech.Component.Editor
             #endregion
 
             serializedObject.ApplyModifiedProperties();
+        }
+
+        void CopyMaterials(MeshAsset source)
+        {
+            System.ReadOnlySpan<Material> defaults = source.Materials;
+            m_Materials.arraySize = defaults.Length;
+            for (int i = 0; i < defaults.Length; ++i) m_Materials.GetArrayElementAtIndex(i).objectReferenceValue = defaults[i];
+        }
+
+        /// <summary>
+        /// Explicit action: the shared one-level asset of a Mesh, created with this component's materials when it does not
+        /// exist, is assigned without changing the materials. CreateAsset is the only file write.
+        /// </summary>
+        void DrawCreateFromMesh()
+        {
+            m_SourceMesh = (Mesh)EditorGUILayout.ObjectField(new GUIContent("Create MeshAsset from Mesh"), m_SourceMesh, typeof(Mesh), false);
+            using (new EditorGUI.DisabledScope(m_SourceMesh == null))
+            {
+                if (!GUILayout.Button("Create MeshAsset")) return;
+                try
+                {
+                    MeshAsset created = MeshAssetBuilder.GetOrCreateSingleLevel(m_SourceMesh, ((MeshComponent)target).Materials, out _);
+                    m_Asset.objectReferenceValue = created;
+                    m_SourceMesh = null;
+                }
+                catch (System.InvalidOperationException error)
+                {
+                    Debug.LogError(error.Message, target);
+                }
+            }
         }
 
         [MenuItem("GameObject/3D Object/Infinity/MeshEntity", false, -1000)]

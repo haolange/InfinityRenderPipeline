@@ -9,13 +9,14 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public partial class InfinityRenderPipeline
     {
-        // The one place shadow mesh views are built; GPU culling and the shadow passes request the same views.
+        // The one place shadow mesh views are built; GPU culling and the shadow passes request the same views. Casters use the
+        // camera's LOD projection, so a shadow shows the level the camera draws.
         MeshView CascadeShadowView(Light light, in FCascadeShadowSlice slice, int cascade, Camera camera)
         {
             var planes = m_RGBuilder.GetRecordingArray<Plane>(slice.splitData.cullingPlaneCount);
             for (int plane = 0; plane < planes.Length; plane++) planes[plane] = slice.splitData.GetCullingPlane(plane);
             return MeshView.FromShadow(EMeshViewKind.CascadeShadow, UnityEntityId.ToUInt64(light), planes, camera.transform.position, light.cullingMask,
-                RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask)), cascade, MeshView.SceneCullingMaskFor(camera));
+                RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask)), cascade, MeshView.SceneCullingMaskFor(camera), MeshLodProjection.FromCamera(camera));
         }
 
         MeshView LocalShadowView(in VisibleLight visibleLight, in FLocalShadowSlice local, Camera camera)
@@ -25,7 +26,7 @@ namespace InfinityTech.Rendering.Pipeline
             for (int plane = 0; plane < planes.Length; plane++) planes[plane] = local.splitData.GetCullingPlane(plane);
             Vector3 position = visibleLight.localToWorldMatrix.GetColumn(3);
             return MeshView.FromShadow(EMeshViewKind.LocalShadow, UnityEntityId.ToUInt64(light), planes, position, light.cullingMask,
-                RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask)), local.face, MeshView.SceneCullingMaskFor(camera));
+                RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask)), local.face, MeshView.SceneCullingMaskFor(camera), MeshLodProjection.FromCamera(camera));
         }
 
         void RecordMeshGpuCulls(RenderContext renderContext, Camera camera, in MeshView mainView, in CullingResults cullingResults)

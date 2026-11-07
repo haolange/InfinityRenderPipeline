@@ -111,11 +111,12 @@ Clear depth and sampled depth are different values. `ClearRenderTarget` and `Att
 5. **Graph**: the builder's `MeshGraphExtension` inserts each live list's producers and submits it from its raster consumer.
 
 ```text
-MeshEntity  (slot = transform slot)  desc, element chain        transforms[], bounds[] parallel columns
-  └─ MeshElement (one submesh)       section ─► MeshSection (mesh, submesh, refCount)
-                                     material ─► MeshMaterial (id, queue, route, stage, refCount)
-MeshPassCache   candidates[element] = (entity, command)   commands[] = key (section, material), refCount, stateKey
-MeshDrawListBuild  items (key, command, entity, depth) ─sort─► draws (command, offset, count) + instanceToEntity[]
+MeshEntity  (slot = transform slot)  desc, LOD chain, element chain   transforms[], bounds[] parallel columns
+  └─ MeshElement (one submesh of one LOD)  section ─► MeshSection (mesh, submesh, refCount)
+                                           material ─► MeshMaterial (id, queue, route, stage, shader, refCount)
+MeshPassCache   candidates[element] = (entity, command | lod << 24)   commands[] = key (section, material), refCount, stateKey
+MeshDrawListBuild  items (key, command, entity, depth, fade) ─sort─► draws (command, fading, offset, count)
+                                                                    + instanceToEntity[] + instanceFade[]
 ```
 
 Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`. Ids store an index and a generation. Live generations are odd, dead ones even. A killed slot returns to its free list only when the transaction commits, so an id handed out by a rolled-back transaction never matches a later slot.
@@ -125,11 +126,11 @@ Index spaces are entity, element, command, draw and instance; arrays are named `
 | `MeshWorld` | `MeshPipeline/World/MeshWorld*.cs` | Tables, revisions, dirty pages, pose writes, dynamic poses, interned pass caches, backends, residency |
 | `MeshWorldUpdate` | `World/MeshWorldUpdate.cs` | Structural transaction lease and per-table undo logs |
 | `SlotTable<T>` | `World/SlotTable.cs` | Fixed-index storage with generations and commit-time reclaim |
-| `MeshWorldGpu` | `World/MeshWorldGpu.cs` | Entity columns (bounds, flags, masks, rendering layers) by dirty 64-slot pages |
+| `MeshWorldGpu` | `World/MeshWorldGpu.cs` | Entity columns (bounds, flags, masks, rendering layers, LOD chains) by dirty 64-slot pages |
 | `MeshTransformVersionCache` | `World/MeshTransformVersionCache.cs` | Immutable per-entity transform versions and their GPU production |
 | `MeshPassDesc`, `MeshPassPresets` | `Pass/MeshPassDesc.cs` | Pass request: LightMode, queue range, sort mode, required entity flags, previous transforms |
 | `MeshPassCache` | `Pass/MeshPassCache.cs` | Incremental membership, command refcounts, bindings, candidate table |
-| `MeshView`, `MeshVisibilityKey`, `MeshVisibilityShare` | `View/` | Views, culling identity, per-camera CPU visibility jobs |
+| `MeshView`, `MeshVisibilityKey`, `MeshVisibilityShare` | `View/` | Views, culling identity, per-camera CPU visibility and LOD jobs |
 | `MeshGpuVisibilityCache` | `View/MeshGpuVisibilityCache.cs` | One resident GPU visibility buffer per key |
 | `MeshDrawListBuild` | `DrawList/MeshDrawListBuild.cs` | Gather, sort and merge jobs; `SortKeyPacking` |
 | `MeshCpuDrawBackend`, `MeshGpuDrawBackend` | `Backend/` | World-owned backends: instance tables, payloads, culling, compaction, submission |
@@ -154,10 +155,18 @@ The nine presets (Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, Tra
 3. `MeshWorld.BeginCamera` resets per-camera counters and visibility interning.
 4. Passes call `CreateDrawList(meshView, MeshPassPresets.X)`. On the GPU backend that declaration also requests `EnsureMeshGpuCull` for the view.
 5. Compile releases draw lists with no live consumer. Live CPU lists acquire interned visibility and schedule their gather, sort and merge jobs; live GPU lists rent their payload. The extension inserts one upload producer per list and, for GPU indirect, one compute producer, then moves them to the earliest pass whose inputs exist.
-6. Execute: the CPU upload completes the build jobs and uploads `instanceToEntity`; the CPU consumer issues one `DrawMeshInstancedProcedural` per merged run. The GPU producer runs `ClearCounts`, `Compact` (one thread per element slot of the candidate table) and `BuildIndirectArgs`; the consumer issues one `DrawMeshInstancedIndirect` per live command. Raster submission only draws.
+6. Execute: the CPU upload completes the build jobs and uploads `instanceToEntity` and `instanceFade`; the CPU consumer issues one `DrawMeshInstancedProcedural` per merged run. The GPU producer runs `ClearCounts`, `Compact` (one thread per element slot of the candidate table) and `BuildIndirectArgs`; the consumer issues one `DrawMeshInstancedIndirect` per live command for its stable range and, for a command that draws a multi-level entity, one more for its fading range. Raster submission only draws.
 7. `ReleaseAll` completes and frees build jobs, releases visibility references and retires payloads, instance buffers and transform-version references. After native submit, `FlushRetired` returns allocations to `ResourcePool` without clearing outstanding GPU use.
 
-Sort modes: `State` orders by state key; `FrontToBack` puts a saturated camera distance in decimeters in front of the state key's segments, each saturated to 16 bits; `BackToFront` orders by priority, then exact distance descending, and always records on the CPU backend. Every mode breaks ties by command and entity, so the order is total. The GPU backend issues its commands in state-key order; it has no per-instance distance order.
+Sort modes: `State` orders by state key; `FrontToBack` puts a saturated camera distance in decimeters in front of the state key's segments, each saturated to 16 bits; `BackToFront` orders by priority, then exact distance descending, and always records on the CPU backend. Ties break by command, stable before fading, distance, entity and fade (back to front compares distance before command), so the order is total. The GPU backend issues its commands in state-key order; it has no per-instance distance order.
+
+### LOD
+
+An entity carries a `MeshLodChain` of 1 to 8 levels in `LODGroup` semantics: level *i* draws while the screen size is at least its lower bound `screenSize[i]`, bounds strictly decrease, and below the last bound nothing draws (a last bound of 0 never culls). Screen size is bound radius × `scale` × `bias` / distance, where `MeshLodProjection.FromCamera` takes the camera position, 1 / tan(fov / 2) or 1 / orthographic size, and `QualitySettings.lodBias`; orthographic views use distance 1. Shadow views copy their camera's projection, so casters switch level with the visible object. The projection is part of `MeshVisibilityKey`. Each element names its level; `MeshAsset.meshes[i]` is level *i*.
+
+The cross-fade band of level *i* lies above its bound and is `fadeWidth` × (previous bound − bound) wide, with a previous bound of 1 for level 0; a bound of 0 has no band. Inside the band the fade *f* runs from 0 at the bound to 1 at the band top. The CPU job (`MeshLodSelection`) writes per entity `visible`, `lod` and `fade`; GPU culling (`MeshPackLodVisibility` in `MeshLod.hlsl`) writes one word, 0 or `1 | level << 8 | fade << 16`, with 65535 for stable and the band position quantized to [0, 65534). Both evaluate the same expression in the same kernel or job as frustum culling, including both Hi-Z phases.
+
+A pass dithers LOD transitions when its queue range is opaque (`MeshPassDesc.ditherLodTransitions`). There, inside a band the selected level draws with +*f* and the next level with −*f* in the command's fading range; `LODDitheringTransition` keeps complementary pixels for the two signs, so the pair covers every pixel once. At *f* = 0 the outgoing level is gone. Translucent passes draw the selected level only and never fade. Every command has a stable and a fading range: GPU command metadata holds index count, start index, base vertex, stable base and fading base (stable base + member count), counts and indirect arguments are interleaved per (command, range), and instance capacity is twice the member count. Fading draws set the global keyword `INFINITY_LOD_DITHER` and clear it afterwards; shaders read the factor through `MeshInstanceFade`. Ray tracing takes level 0 only.
 
 `EMeshBackendPolicy` is Auto, CpuDirect or GpuIndirect. The camera or test override wins, then the Rendering Debugger override, then the asset. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing and the mesh compute shader has its kernels. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
 

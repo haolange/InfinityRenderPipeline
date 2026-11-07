@@ -101,7 +101,7 @@ Fixed object counts after warmup aim for zero managed allocation in normal libra
 | `MeshCpuDrawBackend` / `MeshGpuDrawBackend` | World-owned backends: instance tables, payloads, compaction, submission |
 | `MeshGraphExtension` / `RGDrawListContext` | The builder's graph extension and draw-list registry. Not an `ERGResourceType` |
 
-1. An entity's index is its transform slot. An element is one submesh with one material. Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`.
+1. An entity's index is its transform slot. An element is one submesh of one LOD level with one material. Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`.
 2. `MeshWorldUpdate` undoes every structural mutation. `Dispose` without `Commit` restores slots, chains, lookups, revisions and dirty pages. A killed slot returns to the free list only at commit, so an id never aliases after rollback and rollback never truncates free lists. A lease carries the transaction generation. Section and material reclaim waits for commit.
 3. Poses (transform and bounds) are written outside transactions by `WriteEntityPose` and `UpdateDynamicPoses` and take no part in undo. Flags that decide pass membership are structural edits.
 4. Commit prepares every pass cache's new bindings before it publishes anything; a failure leaves the transaction open for rollback. Pass caches live as long as their world. The presets are interned at construction; a world interns at most 64 descs.
@@ -116,6 +116,7 @@ Fixed object counts after warmup aim for zero managed allocation in normal libra
 13. `MeshComponent` keeps its serialized field identities. Callers use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`. `Materials` is read-only. One structural transaction per frame syncs every dirty component.
 14. Call `NotifyGeometryChanged` after in-place mesh edits, `MaterialRouteUtility.ApplyPassState` after route or stage edits, `NotifyMaterialRoutingChanged` after direct queue edits, and `NotifyInstanceChanged` after static pose or external entity edits. Dynamic poses are read every frame. Ordinary uniforms do not invalidate draw structure. Inspector and Undo callbacks notify without saving assets.
 15. Mesh preparation markers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, without view-domain prefixes. Draw markers are `RenderLoop.DrawMeshDirect` / `Indirect` or `Shadows.DrawMeshDirect` / `Indirect`, selected from `EMeshViewKind`. `MeshDrawProfiling` owns those samplers. Renderer-list submission adds no wrapper. Shadow slice and face labels, and native `(RP ...)` labels, stay as Unity emits them.
+16. LOD level and fade are selected per view in the same CPU job or GPU kernel as frustum culling, from the entity's `MeshLodChain` (`LODGroup` lower bounds) and the view's `MeshLodProjection`; shadow views copy their camera's projection. Opaque passes cross-fade the outgoing level with +f and the incoming level with −f through `LODDitheringTransition`. Translucent passes draw the selected level only. Every routed pass of a mesh shader declares `multi_compile _ INFINITY_LOD_DITHER`.
 
 ```csharp
 RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassPresets.GBuffer);

@@ -202,6 +202,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 if (!world.IsElementSlotLive(i)) continue;
                 MeshElement element = elements[i];
+                // The acceleration structure holds one level of detail: LOD 0 of every entity.
+                if (element.lodIndex != 0) continue;
                 int entity = (int)element.entity.Index;
                 if ((entities[entity].desc.flags & EMeshEntityFlags.Visible) == 0) continue;
                 MeshSection section = sections[(int)element.section.Index];

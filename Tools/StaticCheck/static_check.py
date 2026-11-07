@@ -17,6 +17,7 @@ Checks
   meshsubmit       mesh raster submission only draws: no dispatch, upload or allocation inside Submit
   meshpasses       pipeline pass files leave backend choice, visibility handles and native renderer lists to their owners
   findproperty     Editor FindProperty("name") strings name a serialized field of the inspected type
+  lodither         opaque mesh passes of InfinityMeshInstancing shaders declare INFINITY_LOD_DITHER
 """
 import argparse, hashlib, json, os, re, sys, runpy
 
@@ -274,6 +275,7 @@ def check_graph_dependency(repo, out):
 
 MESH_DIR = 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline'
 MESH_SHADERS = ('Shaders/ShaderLibrary/GPUScene.hlsl',
+                'Shaders/ShaderLibrary/MeshLod.hlsl',
                 'Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute',
                 'Shaders/RenderingFeature/MeshDrawPipeline/MeshOcclusion.hlsl')
 MESH_ID_SOURCES = ('Runtime/RenderPipeline/Utility/PipelineIDs.cs',)
@@ -402,6 +404,23 @@ def check_find_property(repo, out):
                 out.append(('ERROR', 'findproperty', f'{os.path.relpath(p, repo)}: FindProperty("{name}") is not a serialized field of {target.group(1)}'))
 
 
+DITHERED_MESH_PASSES = ('RasterShadowPass', 'RasterDepthPass', 'RasterGBufferPass', 'RasterForwardPass', 'RasterMotionPass')
+
+
+def check_lod_dither(repo, out):
+    # Opaque mesh passes cross-fade LOD transitions; translucent passes draw the stable level only.
+    for p in all_files(os.path.join(repo, 'Shaders'), {'.shader'}):
+        text = read(p)
+        if not re.search(r'"InfinityMeshInstancing"\s*=\s*"True"', text): continue
+        for light in DITHERED_MESH_PASSES:
+            start = text.find('"LightMode" = "%s"' % light)
+            if start < 0: continue
+            end = text.find('ENDHLSL', start)
+            block = text[start:end if end > 0 else len(text)]
+            if 'multi_compile _ INFINITY_LOD_DITHER' not in block or 'LODDitheringTransition' not in block:
+                out.append(('ERROR', 'lodither', f'{os.path.relpath(p, repo)}: {light} does not cross-fade with INFINITY_LOD_DITHER'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -411,7 +430,7 @@ def main():
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
                      ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('graphdependency', check_graph_dependency), ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
-                     ('meshpasses', check_mesh_passes), ('findproperty', check_find_property)):
+                     ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

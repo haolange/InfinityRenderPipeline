@@ -101,10 +101,10 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     kept = MeshTestUtility.CreateEntity(update, float3.zero);
-                    keptFirst = update.AddElement(kept, 100, 0, 1, s_Unrouted, 0);
-                    keptSecond = update.AddElement(kept, 100, 1, 2, s_Unrouted, 0);
+                    keptFirst = update.AddElement(kept, 100, 0, 0, 1, s_Unrouted, 0);
+                    keptSecond = update.AddElement(kept, 100, 1, 0, 2, s_Unrouted, 0);
                     removed = MeshTestUtility.CreateEntity(update, new float3(2, 0, 0));
-                    update.AddElement(removed, 100, 0, 1, s_Unrouted, 0);
+                    update.AddElement(removed, 100, 0, 0, 1, s_Unrouted, 0);
                     update.Commit();
                 }
                 Assert.IsTrue(world.TryGetElement(keptFirst, out MeshElement first));
@@ -116,7 +116,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 MeshSectionId createdSection;
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    MeshElementId added = update.AddElement(kept, 300, 0, 3, s_Unrouted, 0);
+                    MeshElementId added = update.AddElement(kept, 300, 0, 0, 3, s_Unrouted, 0);
                     update.SetElementMaterial(keptSecond, 1, s_Unrouted);
                     update.SetElementPriority(keptFirst, 9);
                     update.SetEntityDesc(kept, MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 4));
@@ -124,7 +124,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                     update.SetElementMaterial(keptFirst, 1, new MeshMaterialState(MeshPassPresets.TranslucentQueueMax + 2, 0, 0, 0));
                     update.RemoveEntity(removed);
                     created = MeshTestUtility.CreateEntity(update, new float3(4, 0, 0));
-                    update.AddElement(created, 100, 0, 1, s_Unrouted, 0);
+                    update.AddElement(created, 100, 0, 0, 1, s_Unrouted, 0);
                     Assert.IsTrue(world.TryGetElement(added, out MeshElement addedRecord));
                     createdSection = addedRecord.section;
 
@@ -145,10 +145,10 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 // Lookups follow the restored tables: existing keys resolve to their records, rolled-back keys are new.
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
-                    Assert.IsTrue(world.TryGetElement(update.AddElement(kept, 100, 0, 1, s_Unrouted, 0), out MeshElement shared));
+                    Assert.IsTrue(world.TryGetElement(update.AddElement(kept, 100, 0, 0, 1, s_Unrouted, 0), out MeshElement shared));
                     Assert.AreEqual(first.section, shared.section);
                     Assert.AreEqual(first.material, shared.material);
-                    Assert.IsTrue(world.TryGetElement(update.AddElement(kept, 300, 0, 3, s_Unrouted, 0), out MeshElement fresh));
+                    Assert.IsTrue(world.TryGetElement(update.AddElement(kept, 300, 0, 0, 3, s_Unrouted, 0), out MeshElement fresh));
                     Assert.AreEqual(before.sectionCount + 1, world.sectionCount);
                     Assert.AreEqual(before.materialCount + 1, world.materialCount);
                     Assert.IsTrue(world.TryGetSection(fresh.section, out MeshSection freshSection));
@@ -169,7 +169,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     entity = MeshTestUtility.CreateEntity(update, float3.zero);
-                    element = update.AddElement(entity, 500, 0, 7, s_Unrouted, 0);
+                    element = update.AddElement(entity, 500, 0, 0, 7, s_Unrouted, 0);
                     update.Commit();
                 }
                 Assert.IsTrue(world.TryGetElement(element, out MeshElement original));
@@ -243,7 +243,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 {
                     next = MeshTestUtility.CreateEntity(update, float3.zero);
                     Assert.Throws<ArgumentException>(() => update.RemoveEntity(reused));
-                    Assert.Throws<ArgumentException>(() => update.AddElement(reused, 100, 0, 0, s_Unrouted, 0));
+                    Assert.Throws<ArgumentException>(() => update.AddElement(reused, 100, 0, 0, 0, s_Unrouted, 0));
                     Assert.Throws<ArgumentException>(() => update.SetEntityDesc(other, MeshTestUtility.Desc()));
                     update.Commit();
                 }

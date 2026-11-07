@@ -148,6 +148,9 @@ namespace InfinityTech.Rendering.Pipeline
                 LightmapSettings.lightmaps = m_Maps;
                 m_ProbeAnchor = Object("FixtureProbeAnchor").transform;
                 Mesh quad = Quad();
+                MeshAsset quadAsset = Own(ScriptableObject.CreateInstance<MeshAsset>());
+                quadAsset.name = "FixtureQuadAsset"; quadAsset.hideFlags = HideFlags.DontSave;
+                quadAsset.InitializeSingleLevel(quad, default);
                 Material[] materials = new Material[4];
                 for (int i = 0; i < 4; i++)
                 {
@@ -181,8 +184,8 @@ namespace InfinityTech.Rendering.Pipeline
                     if (owner == 1)
                     {
                         renderer.forceRenderingOff = true;
-                        MeshComponent mesh = go.AddComponent<MeshComponent>(); mesh.MeshAsset = quad;
-                        if (firstScenario >= 25) mesh.Mobility = EStateType.Dynamic;
+                        MeshComponent mesh = go.AddComponent<MeshComponent>(); mesh.MeshAsset = quadAsset;
+                        if (firstScenario >= 25) mesh.Mobility = EMeshMobility.Dynamic;
                         mesh.SetMaterials(new[] { renderer.sharedMaterial }); mesh.CastShadow = ECastShadowMethod.Off;
                     }
                     renderer.probeAnchor = m_ProbeAnchor;
@@ -198,7 +201,7 @@ namespace InfinityTech.Rendering.Pipeline
                     if (owner == 1)
                     {
                         casterRenderer.forceRenderingOff = true;
-                        MeshComponent mesh = caster.AddComponent<MeshComponent>(); mesh.MeshAsset = quad;
+                        MeshComponent mesh = caster.AddComponent<MeshComponent>(); mesh.MeshAsset = quadAsset;
                         mesh.SetMaterials(new[] { casterRenderer.sharedMaterial }); mesh.CastShadow = ECastShadowMethod.Dynamic;
                     }
                     m_Casters.Add(caster);

@@ -9,9 +9,11 @@ using InfinityTech.Rendering.MeshPipeline;
 namespace InfinityTech.Component
 {
     /// <summary>
-    /// Content-side proxy of one mesh entity. Property edits mark the component dirty; once per frame the render context
-    /// syncs every dirty component inside one <see cref="MeshWorldUpdate"/>. A component whose materials cannot be drawn
-    /// is reported with its context and not drawn; it does not roll back the other components.
+    /// Content-side proxy of one mesh entity. The entity's LOD chain comes from its <see cref="MeshAsset"/>, and every
+    /// submesh of every LOD level is one element carrying its level. Elements draw with the component's materials,
+    /// indexed by the asset's material slots. Property edits mark the component dirty; once per frame the render context
+    /// syncs every dirty component inside one <see cref="MeshWorldUpdate"/>. A component whose asset or materials cannot
+    /// be drawn is reported with its context and not drawn; it does not roll back the other components.
     /// </summary>
     [ExecuteAlways]
 #if UNITY_EDITOR
@@ -27,10 +29,14 @@ namespace InfinityTech.Component
         }
 
         [Header("State")]
-        [SerializeField] private EStateType movebility = EStateType.Static;
+        [SerializeField] private EMeshMobility mobility = EMeshMobility.Static;
+        // Migration bridge: deleted after the 0.5 migration. Only the migration tool reads it.
+        [SerializeField, HideInInspector] private EMeshMobility movebility;
 
         [Header("Mesh")]
-        [SerializeField] private Mesh meshAsset;
+        [SerializeField] private MeshAsset asset;
+        // Migration bridge: deleted after the 0.5 migration. Only the migration tool reads it.
+        [SerializeField, HideInInspector] private Mesh meshAsset;
 
         [Header("Material")]
         [SerializeField] private Material[] materials;
@@ -53,10 +59,12 @@ namespace InfinityTech.Component
             public MeshEntityId entity;
             public MeshElementId[] elements;
             public MaterialSnapshot[] materials;
-            public Mesh mesh;
-            public int subMeshCount;
+            public MeshAsset asset;
+            /// <summary>Submesh count per LOD level, shared with the geometry state that never edits it in place.</summary>
+            public int[] subMeshCounts;
             public uint geometryRevision;
-            public EStateType mobility;
+            public Bounds localBounds;
+            public EMeshMobility mobility;
             public MeshEntityDesc desc;
             public int priority;
         }
@@ -130,7 +138,7 @@ namespace InfinityTech.Component
             RefreshGeometryReference();
             SyncState current = m_Staged ? m_Next : m_State;
             bool alive = IsPublishedIn(world, current);
-            bool drawable = isActiveAndEnabled && meshAsset != null && materials != null;
+            bool drawable = isActiveAndEnabled && asset != null && materials != null;
             if (drawable && !TryValidate(out string error))
             {
                 Debug.LogError($"MeshComponent '{name}' is not drawn: {error}", this);
@@ -144,7 +152,8 @@ namespace InfinityTech.Component
             }
 
             MeshEntityDesc desc = BuildDesc();
-            if (!alive || current.mesh != meshAsset || current.subMeshCount != m_Geometry.subMeshes || current.geometryRevision != m_GeometryRevision)
+            GeometryState geometry = m_Geometry;
+            if (!alive || !ReferenceEquals(current.asset, asset) || !SameCounts(current.subMeshCounts, geometry.subMeshCounts) || current.geometryRevision != geometry.revision)
             {
                 if (alive) update.RemoveEntity(current.entity);
                 Stage(Create(world, update, desc));
@@ -157,14 +166,14 @@ namespace InfinityTech.Component
                 update.SetEntityDesc(current.entity, desc);
                 next.desc = desc;
             }
-            if (movebility != current.mobility)
+            if (mobility != current.mobility)
             {
-                update.SetEntityMobility(current.entity, movebility == EStateType.Dynamic ? transform : null, localBounds);
-                next.mobility = movebility;
+                update.SetEntityMobility(current.entity, mobility == EMeshMobility.Dynamic ? transform : null, current.localBounds);
+                next.mobility = mobility;
             }
             for (int i = 0; i < current.elements.Length; ++i)
             {
-                MaterialSnapshot material = ReadMaterial(i);
+                MaterialSnapshot material = ReadMaterial(geometry.elementSlot[i]);
                 if (material.id != current.materials[i].id || !material.state.Equals(current.materials[i].state))
                 {
                     if (ReferenceEquals(next.materials, current.materials)) next.materials = (MaterialSnapshot[])current.materials.Clone();
@@ -199,56 +208,85 @@ namespace InfinityTech.Component
 
         SyncState Create(MeshWorld world, in MeshWorldUpdate update, in MeshEntityDesc desc)
         {
+            GeometryState geometry = m_Geometry;
             float4x4 localToWorld = transform.localToWorldMatrix;
-            m_BoundBox = Geometry.CaculateWorldBound(localBounds, localToWorld);
-            int subMeshCount = m_Geometry.subMeshes;
+            m_BoundBox = Geometry.CaculateWorldBound(geometry.bounds, localToWorld);
+            int elementCount = geometry.elementLod.Length;
             var state = new SyncState
             {
                 worldId = world.worldId,
-                entity = update.CreateEntity(localToWorld, m_BoundBox, desc),
-                elements = new MeshElementId[subMeshCount],
-                materials = new MaterialSnapshot[subMeshCount],
-                mesh = meshAsset,
-                subMeshCount = subMeshCount,
-                geometryRevision = m_GeometryRevision,
-                mobility = movebility,
+                entity = update.CreateEntity(localToWorld, m_BoundBox, desc, asset.BuildLodChain()),
+                elements = new MeshElementId[elementCount],
+                materials = new MaterialSnapshot[elementCount],
+                asset = asset,
+                subMeshCounts = geometry.subMeshCounts,
+                geometryRevision = geometry.revision,
+                localBounds = geometry.bounds,
+                mobility = mobility,
                 desc = desc,
                 priority = renderPriority
             };
-            for (int i = 0; i < subMeshCount; ++i)
+            for (int i = 0; i < elementCount; ++i)
             {
-                MaterialSnapshot material = ReadMaterial(i);
-                state.elements[i] = update.AddElement(state.entity, m_Geometry.identity, i, material.id, material.state, renderPriority);
+                int lod = geometry.elementLod[i];
+                MaterialSnapshot material = ReadMaterial(geometry.elementSlot[i]);
+                state.elements[i] = update.AddElement(state.entity, geometry.meshIds[lod], geometry.elementSubmesh[i], lod, material.id, material.state, renderPriority);
                 state.materials[i] = material;
             }
-            if (movebility == EStateType.Dynamic) update.SetEntityMobility(state.entity, transform, localBounds);
+            if (mobility == EMeshMobility.Dynamic) update.SetEntityMobility(state.entity, transform, state.localBounds);
             return state;
         }
 
-        MaterialSnapshot ReadMaterial(int submesh)
+        static bool SameCounts(int[] a, int[] b)
         {
-            Material material = submesh < materials.Length ? materials[submesh] : null;
+            if (ReferenceEquals(a, b)) return true;
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; ++i)
+                if (a[i] != b[i]) return false;
+            return true;
+        }
+
+        /// <summary>The component's material at <paramref name="slot"/>; a missing slot or a null material is no material.</summary>
+        MaterialSnapshot ReadMaterial(int slot)
+        {
+            Material material = slot >= 0 && slot < materials.Length ? materials[slot] : null;
             if (material == null) return default;
             MaterialRouteUtility.ReadMeshRoute(material, out int route, out int stage, out int queue, out Shader shader);
             return new MaterialSnapshot { id = UnityEntityId.ToUInt64(material), state = new MeshMaterialState(queue, route, stage, UnityEntityId.ToUInt64(shader)) };
         }
 
         /// <summary>
-        /// The cached geometry must match the mesh, and every material that draws a submesh must route through Infinity
-        /// surface routing, read entity data through the mesh instancing interface and declare each pass its route enables.
+        /// The asset must be valid and its live meshes must match the cached geometry, and every material that a drawn
+        /// slot selects must route through Infinity surface routing, read entity data through the mesh instancing interface
+        /// and declare each pass its route enables.
         /// </summary>
         bool TryValidate(out string error)
         {
             error = null;
-            if (meshAsset.subMeshCount != m_Geometry.subMeshes)
+            try { asset.ThrowIfInvalid(); }
+            catch (System.InvalidOperationException exception)
             {
-                error = $"mesh '{meshAsset.name}' changed its submeshes in place; call MeshComponent.NotifyGeometryChanged.";
+                error = exception.Message;
                 return false;
             }
-            int drawn = System.Math.Min(materials.Length, m_Geometry.subMeshes);
-            for (int i = 0; i < drawn; ++i)
+            GeometryState geometry = m_Geometry;
+            System.ReadOnlySpan<Mesh> meshes = asset.Meshes;
+            if (meshes.Length != geometry.meshes.Length)
             {
-                Material material = materials[i];
+                error = $"MeshAsset '{asset.name}' changed its LOD levels without a notification; call MeshComponent.NotifyGeometryChanged.";
+                return false;
+            }
+            for (int i = 0; i < meshes.Length; ++i)
+            {
+                if (!ReferenceEquals(meshes[i], geometry.meshes[i]) || meshes[i].subMeshCount != geometry.subMeshCounts[i])
+                {
+                    error = $"mesh '{meshes[i].name}' (LOD {i} of MeshAsset '{asset.name}') changed in place; call MeshComponent.NotifyGeometryChanged.";
+                    return false;
+                }
+            }
+            foreach (int slot in geometry.drawnSlots)
+            {
+                Material material = slot < materials.Length ? materials[slot] : null;
                 if (material == null) continue;
                 if (!MeshPassShaderUtility.SupportsMeshInstancing(material.shader))
                 {

@@ -201,6 +201,7 @@ namespace InfinityTech.Rendering.Pipeline
         // Mesh entity interface (GPUScene.hlsl).
         public static readonly int InstanceOffset = Shader.PropertyToID("InstanceOffset");
         public static readonly int InstanceToEntity = Shader.PropertyToID("InstanceToEntity");
+        public static readonly int InstanceFade = Shader.PropertyToID("InstanceFade");
         public static readonly int EntityTransforms = Shader.PropertyToID("EntityTransforms");
         public static readonly int EntityGenerations = Shader.PropertyToID("EntityGenerations");
         public static readonly int EntityRenderingLayers = Shader.PropertyToID("EntityRenderingLayers");

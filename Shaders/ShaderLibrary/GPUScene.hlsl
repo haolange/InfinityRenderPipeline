@@ -25,6 +25,15 @@ uint MeshInstanceEntity(uint instanceId)
     return InstanceToEntity[instanceId + InstanceOffset];
 }
 
+// Signed LOD cross-fade factor of a fading draw (INFINITY_LOD_DITHER): +f for the outgoing level, -f for the incoming one,
+// in the convention of Core RP LODDitheringTransition.
+StructuredBuffer<float> InstanceFade;
+
+float MeshInstanceFade(uint instanceId)
+{
+    return InstanceFade[instanceId + InstanceOffset];
+}
+
 // Zero when the view has no accepted previous version or the slot was reused since then.
 float4x4 MeshPreviousObjectToWorld(uint entity)
 {

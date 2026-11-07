@@ -53,7 +53,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             using (MeshWorldUpdate update = fixture.world.BeginUpdate())
             {
                 MeshEntityId entity = MeshTestUtility.CreateEntity(update, float3.zero);
-                update.AddElement(entity, MeshTestUtility.Id(mesh), 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                 update.Commit();
             }
         }
@@ -110,7 +110,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 using (MeshWorldUpdate update = fixture.world.BeginUpdate())
                 {
                     MeshEntityId entity = MeshTestUtility.CreateEntity(update, float3.zero);
-                    update.AddElement(entity, MeshTestUtility.Id(mesh), 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                    update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                     update.Commit();
                 }
                 Assert.AreEqual(1, fixture.world.GetPassCache(MeshPassPresets.TranslucentT0).memberCount, "A stage-1 material belongs to T0.");
@@ -256,9 +256,9 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
                 {
                     MeshView main = MeshTestUtility.CameraView(5);
                     MeshView cascade = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 0xCAFEul, main.CopyPlanes(), main.viewPosition, ~0,
-                        (uint)ERenderingLayer.Everything, 0, ulong.MaxValue);
+                        (uint)ERenderingLayer.Everything, 0, ulong.MaxValue, MeshTestUtility.Lod);
                     MeshView local = MeshView.FromShadow(EMeshViewKind.LocalShadow, 0xCAFEul, main.CopyPlanes(), main.viewPosition, ~0,
-                        (uint)ERenderingLayer.Everything, 0, ulong.MaxValue);
+                        (uint)ERenderingLayer.Everything, 0, ulong.MaxValue, MeshTestUtility.Lod);
                     graph.EnsureMeshGpuCull(main);
                     graph.EnsureMeshGpuCull(cascade);
                     graph.EnsureMeshGpuCull(local);

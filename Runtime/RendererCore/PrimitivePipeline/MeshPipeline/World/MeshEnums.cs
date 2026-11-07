@@ -2,8 +2,9 @@ using System;
 
 namespace InfinityTech.Rendering.MeshPipeline
 {
+    /// <summary>How an entity's pose reaches the world: Static poses are written on explicit notification, Dynamic poses are read from the Transform every frame.</summary>
     [Serializable]
-    public enum EStateType
+    public enum EMeshMobility
     {
         Static = 0,
         Dynamic = 1

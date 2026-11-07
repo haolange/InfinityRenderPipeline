@@ -166,11 +166,12 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         #region Structural edits
-        internal MeshEntityId CreateEntity(ulong generation, in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc)
+        internal MeshEntityId CreateEntity(ulong generation, in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLodChain lod)
         {
             RequireTransaction(generation);
             RenderingLayerUtility.Validate(desc.renderingLayerMask);
-            int index = m_Entities.Allocate(new MeshEntity { desc = desc, firstElement = -1, elementCount = 0 }, out uint entityGeneration);
+            if (lod.count < 1 || lod.count > MeshLodChain.MaxLevels) throw new ArgumentOutOfRangeException(nameof(lod), lod.count, "Build LOD chains with MeshLodChain.Create.");
+            int index = m_Entities.Allocate(new MeshEntity { desc = desc, lod = lod, firstElement = -1, elementCount = 0 }, out uint entityGeneration);
             m_EntityUndo.Add(new SlotUndo<MeshEntity> { index = index, wasLive = false });
             while (m_EntityTransforms.Length <= index)
             {
@@ -215,19 +216,20 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_PendingMobility.Add(new PendingMobility { entity = (int)id.Index, generation = id.Generation, transform = transform, localBounds = localBounds });
         }
 
-        internal MeshElementId AddElement(ulong generation, MeshEntityId entityId, ulong meshId, int submesh, ulong materialId, in MeshMaterialState state, int priority)
+        internal MeshElementId AddElement(ulong generation, MeshEntityId entityId, ulong meshId, int submesh, int lodIndex, ulong materialId, in MeshMaterialState state, int priority)
         {
             RequireTransaction(generation);
             RequireEntity(entityId);
             if (meshId == 0) throw new ArgumentException("An element requires a mesh.", nameof(meshId));
             if (submesh < 0) throw new ArgumentOutOfRangeException(nameof(submesh));
+            if (lodIndex < 0 || lodIndex >= m_Entities[(int)entityId.Index].lod.count) throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "The element's LOD level is outside its entity's chain.");
             MeshSectionId section = AcquireSection(meshId, submesh);
             MeshMaterialId material = AcquireMaterial(materialId, state);
             int entityIndex = (int)entityId.Index;
             MeshEntity entity = m_Entities[entityIndex];
             int index = m_Elements.Allocate(new MeshElement
             {
-                entity = entityId, section = section, material = material, priority = priority, nextElement = entity.firstElement
+                entity = entityId, section = section, material = material, lodIndex = (byte)lodIndex, priority = priority, nextElement = entity.firstElement
             }, out uint elementGeneration);
             m_ElementUndo.Add(new SlotUndo<MeshElement> { index = index, wasLive = false });
             LogEntity(entityIndex);
@@ -501,8 +503,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         MeshWorld world => m_World ?? throw new InvalidOperationException("Default MeshWorldUpdate.");
 
-        public MeshEntityId CreateEntity(in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc)
-            => world.CreateEntity(m_Generation, localToWorld, bounds, desc);
+        public MeshEntityId CreateEntity(in float4x4 localToWorld, in FBound bounds, in MeshEntityDesc desc, in MeshLodChain lod)
+            => world.CreateEntity(m_Generation, localToWorld, bounds, desc, lod);
 
         public void SetEntityDesc(MeshEntityId entity, in MeshEntityDesc desc) => world.SetEntityDesc(m_Generation, entity, desc);
 
@@ -510,8 +512,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         public void SetEntityMobility(MeshEntityId entity, Transform dynamicTransform, in FBound localBounds)
             => world.SetEntityMobility(m_Generation, entity, dynamicTransform, localBounds);
 
-        public MeshElementId AddElement(MeshEntityId entity, ulong meshId, int submesh, ulong materialId, in MeshMaterialState materialState, int priority)
-            => world.AddElement(m_Generation, entity, meshId, submesh, materialId, materialState, priority);
+        public MeshElementId AddElement(MeshEntityId entity, ulong meshId, int submesh, int lodIndex, ulong materialId, in MeshMaterialState materialState, int priority)
+            => world.AddElement(m_Generation, entity, meshId, submesh, lodIndex, materialId, materialState, priority);
 
         public void SetElementMaterial(MeshElementId element, ulong materialId, in MeshMaterialState materialState)
             => world.SetElementMaterial(m_Generation, element, materialId, materialState);

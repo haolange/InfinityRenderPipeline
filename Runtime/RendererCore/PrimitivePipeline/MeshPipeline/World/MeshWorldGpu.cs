@@ -13,7 +13,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal readonly struct MeshWorldGpuTables
     {
-        internal readonly BufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers;
+        internal readonly BufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains;
         internal readonly MeshTransformVersion version;
         internal readonly int entityCount;
         internal bool isValid => renderingLayers.buffer != null && version != null;
@@ -21,7 +21,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal MeshWorldGpuTables(MeshWorldGpu gpu, int entityCount)
         {
             boundsCenter = gpu.boundsCenter; boundsExtent = gpu.boundsExtent; flags = gpu.flags;
-            layerMask = gpu.layerMask; sceneCullingMask = gpu.sceneCullingMask; renderingLayers = gpu.renderingLayers;
+            layerMask = gpu.layerMask; sceneCullingMask = gpu.sceneCullingMask; renderingLayers = gpu.renderingLayers; lodChains = gpu.lodChains;
             version = gpu.transformVersions.current;
             this.entityCount = entityCount;
         }
@@ -39,7 +39,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         internal readonly MeshTransformVersionCache transformVersions;
         int m_Capacity;
 
-        internal BufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers;
+        internal BufferHandle boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains;
         internal int capacity => m_Capacity;
 
         internal MeshWorldGpu(MeshWorld world, ResourcePool pool)
@@ -70,7 +70,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                     bool recreate = m_Capacity < needed || renderingLayers.buffer == null;
                     if (!recreate && m_World.hasEntityDirty)
                         recreate = !m_Pool.CanWriteBuffer(boundsCenter) || !m_Pool.CanWriteBuffer(boundsExtent) || !m_Pool.CanWriteBuffer(flags)
-                            || !m_Pool.CanWriteBuffer(layerMask) || !m_Pool.CanWriteBuffer(sceneCullingMask) || !m_Pool.CanWriteBuffer(renderingLayers);
+                            || !m_Pool.CanWriteBuffer(layerMask) || !m_Pool.CanWriteBuffer(sceneCullingMask) || !m_Pool.CanWriteBuffer(renderingLayers)
+                            || !m_Pool.CanWriteBuffer(lodChains);
                     if (recreate)
                     {
                         Recreate(math.max(needed, m_Capacity));
@@ -88,8 +89,8 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         void Recreate(int newCapacity)
         {
-            var old = (boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers);
-            BufferHandle center = default, extent = default, flagBuffer = default, layers = default, scene = default, rendering = default;
+            var old = (boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains);
+            BufferHandle center = default, extent = default, flagBuffer = default, layers = default, scene = default, rendering = default, lods = default;
             try
             {
                 center = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, Marshal.SizeOf<float4>()) { name = "EntityBoundsCenter" });
@@ -98,17 +99,18 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layers = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, sizeof(uint)) { name = "EntityLayerMask" });
                 scene = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, Marshal.SizeOf<uint2>()) { name = "EntitySceneCullingMask" });
                 rendering = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, sizeof(uint)) { name = "EntityRenderingLayers" });
-                (boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers) = (center, extent, flagBuffer, layers, scene, rendering);
+                lods = m_Pool.GetBuffer(new BufferDescriptor(newCapacity, Marshal.SizeOf<MeshLodChain>()) { name = "EntityLodChains" });
+                (boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains) = (center, extent, flagBuffer, layers, scene, rendering, lods);
                 Upload(0, m_World.entityHighWater);
             }
             catch
             {
-                (boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers) = old;
-                Release(center); Release(extent); Release(flagBuffer); Release(layers); Release(scene); Release(rendering);
+                (boundsCenter, boundsExtent, flags, layerMask, sceneCullingMask, renderingLayers, lodChains) = old;
+                Release(center); Release(extent); Release(flagBuffer); Release(layers); Release(scene); Release(rendering); Release(lods);
                 throw;
             }
             Release(old.boundsCenter); Release(old.boundsExtent); Release(old.flags);
-            Release(old.layerMask); Release(old.sceneCullingMask); Release(old.renderingLayers);
+            Release(old.layerMask); Release(old.sceneCullingMask); Release(old.renderingLayers); Release(old.lodChains);
             m_Capacity = newCapacity;
         }
 
@@ -128,6 +130,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             var layerMasks = new NativeArray<uint>(count, Allocator.Temp);
             var sceneMasks = new NativeArray<uint2>(count, Allocator.Temp);
             var renderingMasks = new NativeArray<uint>(count, Allocator.Temp);
+            var chains = new NativeArray<MeshLodChain>(count, Allocator.Temp);
             try
             {
                 var entities = m_World.entities;
@@ -143,6 +146,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     layerMasks[local] = (uint)desc.layerMask;
                     sceneMasks[local] = new uint2((uint)desc.sceneCullingMask, (uint)(desc.sceneCullingMask >> 32));
                     renderingMasks[local] = desc.renderingLayerMask;
+                    chains[local] = entities[i].lod;
                 }
                 boundsCenter.buffer.SetData(centers, 0, begin, count);
                 boundsExtent.buffer.SetData(extents, 0, begin, count);
@@ -150,12 +154,13 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layerMask.buffer.SetData(layerMasks, 0, begin, count);
                 sceneCullingMask.buffer.SetData(sceneMasks, 0, begin, count);
                 renderingLayers.buffer.SetData(renderingMasks, 0, begin, count);
-                m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5);
+                lodChains.buffer.SetData(chains, 0, begin, count);
+                m_World.stats.uploadedBytes += (long)count * (Marshal.SizeOf<float4>() * 2 + sizeof(uint) * 5 + Marshal.SizeOf<MeshLodChain>());
             }
             finally
             {
                 centers.Dispose(); extents.Dispose(); flagValues.Dispose();
-                layerMasks.Dispose(); sceneMasks.Dispose(); renderingMasks.Dispose();
+                layerMasks.Dispose(); sceneMasks.Dispose(); renderingMasks.Dispose(); chains.Dispose();
             }
         }
 
@@ -163,8 +168,8 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             transformVersions.Dispose();
             Release(boundsCenter); Release(boundsExtent); Release(flags);
-            Release(layerMask); Release(sceneCullingMask); Release(renderingLayers);
-            boundsCenter = boundsExtent = flags = layerMask = sceneCullingMask = renderingLayers = default;
+            Release(layerMask); Release(sceneCullingMask); Release(renderingLayers); Release(lodChains);
+            boundsCenter = boundsExtent = flags = layerMask = sceneCullingMask = renderingLayers = lodChains = default;
             m_Capacity = 0;
         }
     }

@@ -89,6 +89,16 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_mesh_passes(str(self.repo), out)
         self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshBackendPolicy')], out)
 
+    def test_opaque_mesh_passes_dither_lod_transitions(self):
+        dithered = 'Pass { Tags { "LightMode" = "RasterDepthPass" } HLSLPROGRAM\n#pragma multi_compile _ INFINITY_LOD_DITHER\nLODDitheringTransition(p, f);\nENDHLSL }'
+        plain = 'Pass { Tags { "LightMode" = "RasterGBufferPass" } HLSLPROGRAM\nENDHLSL }'
+        self.write('Shaders/Surface/Mesh.shader', 'Tags{"InfinityMeshInstancing" = "True"}\n' + dithered + plain)
+        self.write('Shaders/Surface/Native.shader', plain)
+        out = []
+        static_check.check_lod_dither(str(self.repo), out)
+        self.assertEqual(1, len(out))
+        self.assertIn('Mesh.shader: RasterGBufferPass', out[0][2])
+
     def test_hidden_sidecar_meta_is_not_an_asset(self):
         self.write('._Deleted.cs.meta', 'AppleDouble metadata')
         out = []

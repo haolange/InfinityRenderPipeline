@@ -73,7 +73,8 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 entityCount = world.entityHighWater,
                 boundsCenter = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsCenter)),
-                boundsExtent = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsExtent))
+                boundsExtent = pass.ReadBuffer(builder.ImportBuffer(gpu.boundsExtent)),
+                lodChains = pass.ReadBuffer(builder.ImportBuffer(gpu.lodChains))
             };
             if (boundsOnly) return inputs;
             inputs.flags = pass.ReadBuffer(builder.ImportBuffer(gpu.flags));
@@ -183,9 +184,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGDrawListRecord record = drawLists.GetRecordCopy(drawIndex);
             bool gpu = record.backend == EMeshBackendPolicy.GpuIndirect;
             RGBufferHandle uploaded = builder.ImportBuffer(gpu ? record.payload.commandMeta : record.cpuInstances);
+            RGBufferHandle cpuFades = gpu ? default : builder.ImportBuffer(record.cpuFades);
             using (RGTransferPassHandle upload = builder.AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
             {
                 upload.WriteBuffer(uploaded);
+                if (!gpu) upload.WriteBuffer(cpuFades);
                 ref MeshDrawPreparePassData data = ref upload.GetPassData<MeshDrawPreparePassData>();
                 data.lists = drawLists;
                 data.index = drawIndex;
@@ -193,12 +196,14 @@ namespace InfinityTech.Rendering.MeshPipeline
             }
             if (!gpu)
             {
-                RGBufferHandle[] cpuOutputs = builder.GetRecordingArray<RGBufferHandle>(1);
+                RGBufferHandle[] cpuOutputs = builder.GetRecordingArray<RGBufferHandle>(2);
                 cpuOutputs[0] = uploaded;
+                cpuOutputs[1] = cpuFades;
                 return cpuOutputs;
             }
 
             RGBufferHandle instances = builder.ImportBuffer(record.payload.instanceToEntity);
+            RGBufferHandle fades = builder.ImportBuffer(record.payload.instanceFade);
             RGBufferHandle counts = builder.ImportBuffer(record.payload.visibleCounts);
             RGBufferHandle args = builder.ImportBuffer(record.payload.indirectArgs);
             RGBufferHandle candidates = builder.ImportBuffer(record.cache.candidateBuffer);
@@ -208,6 +213,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 compact.ReadBuffer(candidates);
                 compact.ReadBuffer(record.gpuVisibility);
                 compact.WriteBuffer(instances);
+                compact.WriteBuffer(fades);
                 compact.WriteBuffer(counts);
                 compact.WriteBuffer(args);
                 ref MeshDrawPreparePassData data = ref compact.GetPassData<MeshDrawPreparePassData>();
@@ -215,9 +221,10 @@ namespace InfinityTech.Rendering.MeshPipeline
                 data.index = drawIndex;
                 compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands) => data.lists.Compact(data.index, commands.m_CommandBuffer));
             }
-            RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(2);
+            RGBufferHandle[] outputs = builder.GetRecordingArray<RGBufferHandle>(3);
             outputs[0] = instances;
-            outputs[1] = args;
+            outputs[1] = fades;
+            outputs[2] = args;
             return outputs;
         }
     }

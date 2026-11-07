@@ -29,13 +29,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.AreEqual(Math.Min(MeshView.MaxPlanes, culling.cullingPlaneCount), first.planeCount);
 
                 ulong lightKey = first.viewKey ^ 0x1111ul;
-                MeshView cascade = MeshView.FromShadow(EMeshViewKind.CascadeShadow, lightKey, first.CopyPlanes(), first.viewPosition, ~0, 2u, 3, ulong.MaxValue);
+                MeshView cascade = MeshView.FromShadow(EMeshViewKind.CascadeShadow, lightKey, first.CopyPlanes(), first.viewPosition, ~0, 2u, 3, ulong.MaxValue, MeshTestUtility.Lod);
                 Assert.AreEqual(lightKey, cascade.viewKey);
                 Assert.AreEqual(3, cascade.subviewIndex);
                 Assert.AreEqual(2u, cascade.renderingLayerMask);
                 Assert.IsTrue(cascade.FilterRenderingLayers);
                 Assert.Throws<ArgumentOutOfRangeException>(() =>
-                    MeshView.FromShadow(EMeshViewKind.Main, lightKey, first.CopyPlanes(), first.viewPosition, ~0, 2u, 0, ulong.MaxValue));
+                    MeshView.FromShadow(EMeshViewKind.Main, lightKey, first.CopyPlanes(), first.viewPosition, ~0, 2u, 0, ulong.MaxValue, MeshTestUtility.Lod));
             }
             finally { Object.DestroyImmediate(go); }
         }
@@ -45,7 +45,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         {
             Plane[] planes = MeshTestUtility.BoxPlanes();
             ulong light = (768ul << 32) | 42ul;
-            MeshView cascade0 = MeshView.FromShadow(EMeshViewKind.CascadeShadow, light, planes, float3.zero, ~0, 1u, 0, ulong.MaxValue);
+            MeshView cascade0 = MeshView.FromShadow(EMeshViewKind.CascadeShadow, light, planes, float3.zero, ~0, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
             MeshVisibilityKey Key(in MeshView view, bool request = false) => new MeshVisibilityKey(view, request);
 
             MeshView slice1 = cascade0; slice1.subviewIndex = 1;
@@ -114,7 +114,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 CollectionAssert.AreEqual(new byte[] { 1, 0, 0, 0, 1, 0, 1, 0 }, cameraVisible);
                 Assert.AreEqual(3f, depth[(int)ids[0].Index], 1e-5f, "Depth is the distance from the view position.");
 
-                MeshView shadow = MeshView.FromShadow(EMeshViewKind.LocalShadow, 12, MeshTestUtility.BoxPlanes(), float3.zero, 1, 1u, 0, ulong.MaxValue);
+                MeshView shadow = MeshView.FromShadow(EMeshViewKind.LocalShadow, 12, MeshTestUtility.BoxPlanes(), float3.zero, 1, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
                 CollectionAssert.AreEqual(new byte[] { 1, 0, 0, 1, 0, 0, 1, 0 }, MeshTestUtility.CullOnCpu(world, shadow, out _),
                     "Shadow views apply the light's rendering layers.");
 
@@ -166,14 +166,14 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 {
                     int kernel = shader.FindKernel("CullFrustum");
                     MeshView camera = MeshTestUtility.CameraView(21);
-                    MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 22, MeshTestUtility.BoxPlanes(), float3.zero, ~0, 1u, 0, ulong.MaxValue);
+                    MeshView shadow = MeshView.FromShadow(EMeshViewKind.CascadeShadow, 22, MeshTestUtility.BoxPlanes(), float3.zero, ~0, 1u, 0, ulong.MaxValue, MeshTestUtility.Lod);
                     foreach (ulong sceneMask in new[] { ulong.MaxValue, 1ul, 1ul << 63, 0ul })
                     {
                         foreach (MeshView source in new[] { camera, shadow })
                         {
                             MeshView view = source;
                             view.sceneCullingMask = sceneMask;
-                            byte[] cpu = MeshTestUtility.CullOnCpu(world, view, out _);
+                            uint[] cpu = MeshTestUtility.PackedCullOnCpu(world, view);
                             var planes = new Vector4[MeshView.MaxPlanes];
                             view.CopyFrustumPlanes(planes);
                             shader.SetVectorArray("_FrustumPlanes", planes);
@@ -189,12 +189,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                             shader.SetBuffer(kernel, "_EntityLayerMask", gpu.layerMask.buffer);
                             shader.SetBuffer(kernel, "_EntitySceneCullingMask", gpu.sceneCullingMask.buffer);
                             shader.SetBuffer(kernel, "_EntityRenderingLayer", gpu.renderingLayers.buffer);
+                            MeshTestUtility.BindLod(shader, kernel, gpu.lodChains.buffer, view.lodProjection);
                             shader.SetBuffer(kernel, "_Visibility", output);
                             shader.Dispatch(kernel, (world.entityHighWater + 63) / 64, 1, 1);
                             var actual = new uint[world.entityHighWater];
                             output.GetData(actual);
                             for (int i = 0; i < actual.Length; ++i)
-                                Assert.AreEqual((uint)cpu[i], actual[i], $"{view.kind} scene mask {sceneMask:X16}, entity {i}");
+                                Assert.AreEqual(cpu[i], actual[i], $"{view.kind} scene mask {sceneMask:X16}, entity {i}");
                         }
                     }
                 }

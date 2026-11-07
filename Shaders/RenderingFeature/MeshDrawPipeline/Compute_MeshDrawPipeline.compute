@@ -19,11 +19,17 @@
 #pragma kernel BuildIndirectArgs
 
 #define MESH_NO_COMMAND 0xFFFFFFFFu
+#define MESH_COMMAND_MASK 0x00FFFFFFu
+#define MESH_LOD_SHIFT 24u
 #define MESH_ENTITY_VISIBLE 4u
+#define MESH_META_STRIDE 5u
+#define MESH_ARGS_STRIDE 5u
+#include "../../ShaderLibrary/MeshLod.hlsl"
 
 uint _EntityCount;
 uint _CommandCount;
 uint _CandidateCount;
+uint _DitherLod;
 float4 _FrustumPlanes[6];
 
 StructuredBuffer<float4> _EntityBoundsCenter;
@@ -42,6 +48,7 @@ RWStructuredBuffer<uint> _Visibility;
 StructuredBuffer<uint> _CommandMeta;
 StructuredBuffer<uint2> _CandidateTable;
 RWStructuredBuffer<uint> _InstanceToEntity;
+RWStructuredBuffer<float> _InstanceFade;
 RWStructuredBuffer<uint> _VisibleCounts;
 RWStructuredBuffer<uint> _IndirectArgs;
 
@@ -63,6 +70,7 @@ bool FrustumCullAABB(float3 center, float3 extent)
     return culled;
 }
 
+// Frustum, flags and masks; visible entities get their packed LOD visibility (0 when no level draws).
 bool MeshFrustumVisible(uint entity)
 {
     bool visible = false;
@@ -81,10 +89,17 @@ bool MeshFrustumVisible(uint entity)
     return visible;
 }
 
+uint MeshCullVisibility(uint entity)
+{
+    uint packed = 0u;
+    if (MeshFrustumVisible(entity)) packed = MeshPackLodVisibility(entity, _EntityBoundsCenter[entity].xyz, _EntityBoundsExtent[entity].xyz);
+    return packed;
+}
+
 [numthreads(64, 1, 1)]
 void CullFrustum(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) _Visibility[id.x] = MeshFrustumVisible(id.x) ? 1u : 0u;
+    if (id.x < _EntityCount) _Visibility[id.x] = MeshCullVisibility(id.x);
 }
 #include "MeshOcclusion.hlsl"
 
@@ -92,42 +107,75 @@ void CullFrustum(uint3 id : SV_DispatchThreadID)
 void ClearCounts(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _CommandCount) return;
-    _VisibleCounts[id.x] = 0u;
-    uint argsBase = id.x * 5u;
-    _IndirectArgs[argsBase + 0u] = 0u;
-    _IndirectArgs[argsBase + 1u] = 0u;
-    _IndirectArgs[argsBase + 2u] = 0u;
-    _IndirectArgs[argsBase + 3u] = 0u;
-    _IndirectArgs[argsBase + 4u] = 0u;
+    [unroll]
+    for (uint range = 0u; range < 2u; ++range)
+    {
+        _VisibleCounts[id.x * 2u + range] = 0u;
+        uint argsBase = (id.x * 2u + range) * MESH_ARGS_STRIDE;
+        _IndirectArgs[argsBase + 0u] = 0u;
+        _IndirectArgs[argsBase + 1u] = 0u;
+        _IndirectArgs[argsBase + 2u] = 0u;
+        _IndirectArgs[argsBase + 3u] = 0u;
+        _IndirectArgs[argsBase + 4u] = 0u;
+    }
 }
 
-// One thread per element slot of the pass cache. A visible member appends its entity to its command's instance range.
+// One thread per element slot of the pass cache. A visible member of the selected LOD appends its entity to its command's
+// stable range (range 0). Inside a cross-fade band of a dithering pass the outgoing level appends +f and the next level -f
+// to the fading range (range 1); mirrors MeshDrawGatherJob.LodFactor.
 [numthreads(64, 1, 1)]
 void Compact(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _CandidateCount) return;
     uint2 candidate = _CandidateTable[id.x];
+    if (candidate.y == MESH_NO_COMMAND) return;
     uint entity = candidate.x;
-    uint command = candidate.y;
-    if (command == MESH_NO_COMMAND || command >= _CommandCount) return;
-    if (_Visibility[entity] == 0u) return;
+    uint command = candidate.y & MESH_COMMAND_MASK;
+    uint elementLod = candidate.y >> MESH_LOD_SHIFT;
+    if (command >= _CommandCount) return;
+    uint packed = _Visibility[entity];
+    if (packed == 0u) return;
+
+    uint level = (packed >> 8) & 0xFFu;
+    uint fadeBits = packed >> 16;
+    bool fading = _DitherLod != 0u && fadeBits != MESH_LOD_STABLE;
+    float fade = fadeBits / 65534.0;
+    uint range = 2u;
+    float factor = 0.0;
+    if (elementLod == level)
+    {
+        if (!fading) range = 0u;
+        else if (fadeBits > 0u) { range = 1u; factor = fade; }
+    }
+    else if (fading && elementLod == level + 1u)
+    {
+        range = 1u;
+        factor = -max(fade, 1e-6);
+    }
+    if (range == 2u) return;
 
     uint slot;
-    InterlockedAdd(_VisibleCounts[command], 1u, slot);
-    _InstanceToEntity[_CommandMeta[command * 4u + 3u] + slot] = entity;
+    InterlockedAdd(_VisibleCounts[command * 2u + range], 1u, slot);
+    uint instance = _CommandMeta[command * MESH_META_STRIDE + 3u + range] + slot;
+    _InstanceToEntity[instance] = entity;
+    _InstanceFade[instance] = factor;
 }
 
 [numthreads(64, 1, 1)]
 void BuildIndirectArgs(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _CommandCount) return;
-    uint metaBase = id.x * 4u;
-    uint argsBase = id.x * 5u;
-    _IndirectArgs[argsBase + 0u] = _CommandMeta[metaBase + 0u];
-    _IndirectArgs[argsBase + 1u] = _VisibleCounts[id.x];
-    _IndirectArgs[argsBase + 2u] = _CommandMeta[metaBase + 1u];
-    _IndirectArgs[argsBase + 3u] = _CommandMeta[metaBase + 2u];
-    _IndirectArgs[argsBase + 4u] = 0u;
+    uint metaBase = id.x * MESH_META_STRIDE;
+    [unroll]
+    for (uint range = 0u; range < 2u; ++range)
+    {
+        uint argsBase = (id.x * 2u + range) * MESH_ARGS_STRIDE;
+        _IndirectArgs[argsBase + 0u] = _CommandMeta[metaBase + 0u];
+        _IndirectArgs[argsBase + 1u] = _VisibleCounts[id.x * 2u + range];
+        _IndirectArgs[argsBase + 2u] = _CommandMeta[metaBase + 1u];
+        _IndirectArgs[argsBase + 3u] = _CommandMeta[metaBase + 2u];
+        _IndirectArgs[argsBase + 4u] = 0u;
+    }
 }
 
 // Immutable world transform versions per entity slot. Only dirty 64-slot pages cross the CPU/GPU boundary.

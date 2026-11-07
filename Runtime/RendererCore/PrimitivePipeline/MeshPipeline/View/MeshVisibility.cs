@@ -23,6 +23,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly ulong sceneCullingMask;
         public readonly uint renderingLayerMask;
         public readonly bool filterRenderingLayers;
+        public readonly MeshLodProjection lodProjection;
 
         /// <param name="requestIdentity">Includes the occlusion history, so a recovered request never shares a stale buffer.</param>
         internal MeshVisibilityKey(in MeshView view, bool requestIdentity)
@@ -36,13 +37,15 @@ namespace InfinityTech.Rendering.MeshPipeline
             sceneCullingMask = view.sceneCullingMask;
             renderingLayerMask = view.renderingLayerMask;
             filterRenderingLayers = view.FilterRenderingLayers;
+            lodProjection = view.lodProjection;
         }
 
         public bool Equals(MeshVisibilityKey other)
         {
             return viewKey == other.viewKey && m_Phase == other.m_Phase && m_History == other.m_History && kind == other.kind
                 && subviewIndex == other.subviewIndex && layerMask == other.layerMask && sceneCullingMask == other.sceneCullingMask
-                && renderingLayerMask == other.renderingLayerMask && filterRenderingLayers == other.filterRenderingLayers;
+                && renderingLayerMask == other.renderingLayerMask && filterRenderingLayers == other.filterRenderingLayers
+                && lodProjection.Equals(other.lodProjection);
         }
 
         public override bool Equals(object obj) => obj is MeshVisibilityKey other && Equals(other);
@@ -59,16 +62,22 @@ namespace InfinityTech.Rendering.MeshPipeline
                 hash = hash * 31 + layerMask;
                 hash = hash * 31 + sceneCullingMask.GetHashCode();
                 hash = hash * 31 + (int)renderingLayerMask;
+                hash = hash * 31 + lodProjection.GetHashCode();
                 return hash * 31 + (filterRenderingLayers ? 1 : 0);
             }
         }
     }
 
-    /// <summary>CPU visibility of one view: a byte and a camera distance per entity slot. Valid after <see cref="job"/> completes.</summary>
+    /// <summary>
+    /// CPU visibility of one view per entity slot: visible, camera distance, selected LOD level and its fade (1 when stable,
+    /// in [0, 1) inside the cross-fade band). Valid after <see cref="job"/> completes.
+    /// </summary>
     internal struct MeshViewVisibility
     {
         public NativeArray<byte> visible;
         public NativeArray<float> depth;
+        public NativeArray<byte> lod;
+        public NativeArray<float> fade;
         public JobHandle job;
         public bool isValid => visible.IsCreated;
     }
@@ -86,13 +95,18 @@ namespace InfinityTech.Rendering.MeshPipeline
         public ulong sceneCullingMask;
         public uint renderingLayerMask;
         public bool filterRenderingLayers;
+        public MeshLodProjection lodProjection;
         [WriteOnly] public NativeArray<byte> visible;
         [WriteOnly] public NativeArray<float> depth;
+        [WriteOnly] public NativeArray<byte> lod;
+        [WriteOnly] public NativeArray<float> fade;
 
         public void Execute(int index)
         {
             byte result = 0;
             float distance = 0;
+            byte level = MeshLodSelection.None;
+            float levelFade = 1;
             if ((generations[index] & 1u) != 0)
             {
                 MeshEntityDesc desc = entities[index].desc;
@@ -105,12 +119,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                     FBound bound = bounds[index];
                     bool inside = Inside(plane0, 0, bound) && Inside(plane1, 1, bound) && Inside(plane2, 2, bound)
                         && Inside(plane3, 3, bound) && Inside(plane4, 4, bound) && Inside(plane5, 5, bound);
-                    result = (byte)(inside ? 1 : 0);
                     distance = math.length(bound.center - viewPosition);
+                    if (inside) MeshLodSelection.Select(entities[index].lod, bound, lodProjection, out level, out levelFade);
+                    result = (byte)(inside && level != MeshLodSelection.None ? 1 : 0);
                 }
             }
             visible[index] = result;
             depth[index] = distance;
+            lod[index] = level;
+            fade[index] = levelFade;
         }
 
         bool Inside(float4 plane, int slot, in FBound bound)
@@ -118,6 +135,43 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (slot >= planeCount) return true;
             float radius = math.dot(math.abs(plane.xyz), bound.extents);
             return math.dot(plane.xyz, bound.center) + plane.w + radius >= 0;
+        }
+    }
+
+    /// <summary>
+    /// LOD selection shared by the CPU culling job and mirrored by <c>MeshLod.hlsl</c>. The selected level is the first
+    /// whose lower bound the screen size reaches; the fade is 1 outside the band above that bound and in [0, 1) inside it.
+    /// A level whose bound is 0 never fades.
+    /// </summary>
+    internal static class MeshLodSelection
+    {
+        public const byte None = 255;
+
+        public static float ScreenSize(in FBound bound, in MeshLodProjection projection)
+        {
+            float distance = projection.orthographic ? 1.0f : math.max(math.length(bound.center - projection.origin), 1e-6f);
+            return math.length(bound.extents) * projection.scale * projection.bias / distance;
+        }
+
+        public static void Select(in MeshLodChain chain, in FBound bound, in MeshLodProjection projection, out byte level, out float fade)
+        {
+            float screen = ScreenSize(bound, projection);
+            level = None;
+            fade = 1;
+            for (int i = 0; i < chain.count; ++i)
+            {
+                float threshold = chain.ScreenSize(i);
+                if (screen < threshold) continue;
+                level = (byte)i;
+                if (threshold > 0)
+                {
+                    float previous = i == 0 ? 1.0f : chain.ScreenSize(i - 1);
+                    float width = chain.fadeWidth * (previous - threshold);
+                    float position = (screen - threshold) / width;
+                    if (position < 1) fade = position;
+                }
+                return;
+            }
         }
     }
 
@@ -160,7 +214,9 @@ namespace InfinityTech.Rendering.MeshPipeline
             var result = new MeshViewVisibility
             {
                 visible = new NativeArray<byte>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
-                depth = new NativeArray<float>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory)
+                depth = new NativeArray<float>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                lod = new NativeArray<byte>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory),
+                fade = new NativeArray<float>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory)
             };
             result.job = new MeshEntityCullingJob
             {
@@ -175,8 +231,11 @@ namespace InfinityTech.Rendering.MeshPipeline
                 sceneCullingMask = view.sceneCullingMask,
                 renderingLayerMask = view.renderingLayerMask,
                 filterRenderingLayers = view.FilterRenderingLayers,
+                lodProjection = view.lodProjection,
                 visible = result.visible,
-                depth = result.depth
+                depth = result.depth,
+                lod = result.lod,
+                fade = result.fade
             }.Schedule(world.entityHighWater, 256);
             world.stats.visibilityProductions++;
 
@@ -221,6 +280,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 slot.result.job.Complete();
                 slot.result.visible.Dispose();
                 slot.result.depth.Dispose();
+                slot.result.lod.Dispose();
+                slot.result.fade.Dispose();
                 slot.result = default;
                 m_FreeSlots.Push(handle.slot);
                 liveCount--;
@@ -241,6 +302,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 slot.result.job.Complete();
                 slot.result.visible.Dispose();
                 slot.result.depth.Dispose();
+                slot.result.lod.Dispose();
+                slot.result.fade.Dispose();
             }
             m_Slots.Clear();
             m_Interned.Clear();

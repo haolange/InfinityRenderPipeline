@@ -128,7 +128,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             int kernel = data.kernel;
             if (data.recovery)
             {
-                backend.BindCullBounds(commands, kernel, data.inputs);
+                backend.BindCullBounds(commands, kernel, data.view, data.inputs);
                 commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.Input, data.deferred);
                 commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.Recovered, data.recovered);
             }

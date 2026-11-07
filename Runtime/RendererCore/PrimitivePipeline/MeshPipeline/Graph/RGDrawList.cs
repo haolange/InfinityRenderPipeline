@@ -51,6 +51,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public MeshVisibilityHandle visibility;
         public MeshDrawListBuild build;
         public BufferHandle cpuInstances;
+        public BufferHandle cpuFades;
         // GPU indirect
         public RGBufferHandle gpuVisibility;
         public BufferHandle gpuVisibilityBuffer;
@@ -167,7 +168,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     m_Records[i] = record;
                     record.build = MeshDrawListBuild.Schedule(cache, m_World, m_World.visibilityShare.Get(record.visibility));
                     m_Records[i] = record;
-                    record.cpuInstances = m_World.cpuBackend.AllocateInstances(cache.memberCount);
+                    m_World.cpuBackend.AllocateInstances(cache.memberCount, out record.cpuInstances, out record.cpuFades);
                 }
                 record.state = ERGDrawListCompileState.Scheduled;
                 m_Records[i] = record;
@@ -186,7 +187,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             RGDrawListRecord record = m_Records[index];
             RequireUnchanged(record);
             if (record.backend == EMeshBackendPolicy.GpuIndirect) m_World.gpuBackend.Upload(commands, record.payload, record.cache, record.commandCount);
-            else m_World.cpuBackend.Upload(commands, ref record.build, record.cpuInstances);
+            else m_World.cpuBackend.Upload(commands, ref record.build, record.cpuInstances, record.cpuFades);
             m_Records[index] = record;
         }
 
@@ -214,7 +215,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (record.backend == EMeshBackendPolicy.GpuIndirect)
                 m_World.gpuBackend.Submit(commands, record.payload, record.cache, record.commandCount, record.tables, record.motion, record.view.kind);
             else
-                m_World.cpuBackend.Submit(commands, record.cache, record.build, record.cpuInstances, record.tables, record.motion, record.view.kind);
+                m_World.cpuBackend.Submit(commands, record.cache, record.build, record.cpuInstances, record.cpuFades, record.tables, record.motion, record.view.kind);
         }
 
         static string SliceSampleName(in MeshView view)
@@ -236,6 +237,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     if (record.visibility.IsValid) m_World.visibilityShare.Release(record.visibility);
                     m_World.gpuBackend.RetirePayload(record.payload);
                     m_World.cpuBackend.Retire(record.cpuInstances);
+                    m_World.cpuBackend.Retire(record.cpuFades);
                     record.tables.version?.Release();
                 }
                 catch (Exception error)

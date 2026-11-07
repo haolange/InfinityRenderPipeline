@@ -14,25 +14,31 @@ namespace InfinityTech.Rendering.MeshPipeline
     /// </summary>
     internal sealed class MeshCpuDrawBackend : IDisposable
     {
+        static readonly GlobalKeyword s_LodDither = GlobalKeyword.Create("INFINITY_LOD_DITHER");
         readonly ResourcePool m_Pool;
         readonly MaterialPropertyBlock m_Properties = new MaterialPropertyBlock();
         readonly List<BufferHandle> m_Retired = new List<BufferHandle>(16);
 
         internal MeshCpuDrawBackend(ResourcePool pool) => m_Pool = pool;
 
-        /// <summary>Record-time allocation sized by the pass's member count; never grown during execution.</summary>
-        internal BufferHandle AllocateInstances(int memberCount)
-            => m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(uint)) { name = "MeshInstanceToEntity" });
+        /// <summary>Record-time allocation of the instance-to-entity and fade tables, sized by the pass's member count.</summary>
+        internal void AllocateInstances(int memberCount, out BufferHandle instances, out BufferHandle fades)
+        {
+            instances = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(uint)) { name = "MeshInstanceToEntity" });
+            fades = m_Pool.GetBuffer(new BufferDescriptor(math.max(16, memberCount), sizeof(float)) { name = "MeshInstanceFade" });
+        }
 
-        internal void Upload(CommandBuffer commands, ref MeshDrawListBuild build, in BufferHandle instances)
+        internal void Upload(CommandBuffer commands, ref MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades)
         {
             build.job.Complete();
             int count = build.instanceCount;
             if (count > instances.buffer.count) throw new InvalidOperationException("A CPU draw list outgrew its record-time instance capacity.");
-            if (count > 0) commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
+            if (count == 0) return;
+            commands.SetBufferData(instances.buffer, build.instanceToEntity, 0, 0, count);
+            commands.SetBufferData(fades.buffer, build.instanceFade, 0, 0, count);
         }
 
-        internal void Submit(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances,
+        internal void Submit(CommandBuffer commands, MeshPassCache cache, in MeshDrawListBuild build, in BufferHandle instances, in BufferHandle fades,
             in MeshWorldGpuTables tables, in MeshMotionBinding motion, EMeshViewKind viewKind)
         {
             if (build.draws.Length == 0) return;
@@ -42,9 +48,11 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 m_Properties.Clear();
                 m_Properties.SetBuffer(InfinityShaderIDs.InstanceToEntity, instances.buffer);
+                m_Properties.SetBuffer(InfinityShaderIDs.InstanceFade, fades.buffer);
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
+                bool dithering = false;
                 foreach (MeshInstancedDraw draw in build.draws)
                 {
                     MeshDrawCommandBinding binding = cache.GetBinding(draw.command);
@@ -53,9 +61,15 @@ namespace InfinityTech.Rendering.MeshPipeline
                         cache.ReportMissing(draw.command);
                         continue;
                     }
+                    if (draw.fading != dithering)
+                    {
+                        dithering = draw.fading;
+                        commands.SetKeyword(s_LodDither, dithering);
+                    }
                     m_Properties.SetInt(InfinityShaderIDs.InstanceOffset, draw.instanceOffset);
                     commands.DrawMeshInstancedProcedural(binding.mesh, binding.submesh, binding.material, binding.passIndex, draw.instanceCount, m_Properties);
                 }
+                if (dithering) commands.SetKeyword(s_LodDither, false);
             }
             finally { commands.EndSample(marker); }
         }

@@ -55,7 +55,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 members++;
                 memberCounts[entity]++;
                 Assert.AreEqual((uint)entity, candidate.x, $"{cache.desc}: entity of element {element}");
-                Assert.AreEqual(key, cache.commands[(int)candidate.y].key, $"{cache.desc}: command of element {element}");
+                Assert.AreEqual(key, cache.commands[(int)(candidate.y & MeshPassCache.CommandMask)].key, $"{cache.desc}: command of element {element}");
+                Assert.AreEqual((uint)world.elements[element].lodIndex, candidate.y >> MeshPassCache.LodShift, $"{cache.desc}: LOD of element {element}");
             }
             Assert.AreEqual(members, cache.memberCount, $"{cache.desc}: memberCount");
             NativeArray<int> entityMembers = cache.entityMemberCount;
@@ -88,18 +89,18 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     entities[0] = MeshTestUtility.CreateEntity(update, float3.zero, EMeshEntityFlags.Visible);
-                    update.AddElement(entities[0], meshId, 0, MeshTestUtility.Id(deferred), MeshTestUtility.StateOf(deferred), 0);
+                    update.AddElement(entities[0], meshId, 0, 0, MeshTestUtility.Id(deferred), MeshTestUtility.StateOf(deferred), 0);
                     entities[1] = MeshTestUtility.CreateEntity(update, float3.zero, EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow | EMeshEntityFlags.ObjectMotion);
-                    update.AddElement(entities[1], meshId, 0, MeshTestUtility.Id(forward), MeshTestUtility.StateOf(forward), 0);
+                    update.AddElement(entities[1], meshId, 0, 0, MeshTestUtility.Id(forward), MeshTestUtility.StateOf(forward), 0);
                     entities[2] = MeshTestUtility.CreateEntity(update, float3.zero, EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow);
-                    update.AddElement(entities[2], meshId, 0, MeshTestUtility.Id(translucent), MeshTestUtility.StateOf(translucent), 0);
+                    update.AddElement(entities[2], meshId, 0, 0, MeshTestUtility.Id(translucent), MeshTestUtility.StateOf(translucent), 0);
                     entities[3] = MeshTestUtility.CreateEntity(update, float3.zero, EMeshEntityFlags.Visible);
-                    lateElement = update.AddElement(entities[3], meshId, 0, MeshTestUtility.Id(late), MeshTestUtility.StateOf(late, 3500), 0);
+                    lateElement = update.AddElement(entities[3], meshId, 0, 0, MeshTestUtility.Id(late), MeshTestUtility.StateOf(late, 3500), 0);
                     entities[4] = MeshTestUtility.CreateEntity(update, float3.zero, EMeshEntityFlags.Visible);
-                    update.AddElement(entities[4], meshId, 0, 0, default, 0);
+                    update.AddElement(entities[4], meshId, 0, 0, 0, default, 0);
                     // View masks and the Visible flag belong to visibility, not to pass membership.
                     entities[5] = MeshTestUtility.CreateEntity(update, float3.zero, EMeshEntityFlags.None, layerMask: 0, renderingLayerMask: 0, sceneCullingMask: 0);
-                    update.AddElement(entities[5], meshId, 0, MeshTestUtility.Id(deferred), MeshTestUtility.StateOf(deferred), 0);
+                    update.AddElement(entities[5], meshId, 0, 0, MeshTestUtility.Id(deferred), MeshTestUtility.StateOf(deferred), 0);
                     update.Commit();
                 }
 
@@ -182,7 +183,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                                     for (int subMesh = 0; subMesh < elements; ++subMesh)
                                     {
                                         int material = random.Next(materials.Length + 1) - 1;
-                                        update.AddElement(entity, MeshTestUtility.Id(meshes[mesh]), subMesh, material < 0 ? 0 : MeshTestUtility.Id(materials[material]),
+                                        update.AddElement(entity, MeshTestUtility.Id(meshes[mesh]), subMesh, 0, material < 0 ? 0 : MeshTestUtility.Id(materials[material]),
                                             material < 0 ? default : MeshTestUtility.StateOf(materials[material]), random.Next(3));
                                     }
                                     break;
@@ -340,7 +341,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                         // Per-entity data does not split identical commands.
                         entities[i] = MeshTestUtility.CreateEntity(update, new float3(i, 0, 0),
                             i == 2 ? EMeshEntityFlags.Visible | EMeshEntityFlags.ReceiveShadow : EMeshEntityFlags.Visible, layerMask: 1 << i);
-                        elements[i] = update.AddElement(entities[i], meshId, 0, MeshTestUtility.Id(first), MeshTestUtility.StateOf(first), i * 5);
+                        elements[i] = update.AddElement(entities[i], meshId, 0, 0, MeshTestUtility.Id(first), MeshTestUtility.StateOf(first), i * 5);
                     }
                     update.Commit();
                 }
@@ -395,7 +396,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 {
                     update.RemoveEntity(entities[2]);
                     recreated = MeshTestUtility.CreateEntity(update, float3.zero);
-                    recreatedElement = update.AddElement(recreated, meshId, 0, MeshTestUtility.Id(second), MeshTestUtility.StateOf(second), 0);
+                    recreatedElement = update.AddElement(recreated, meshId, 0, 0, MeshTestUtility.Id(second), MeshTestUtility.StateOf(second), 0);
                     update.Commit();
                 }
                 command = (int)CandidateAt(cache, (int)recreatedElement.Index).y;
@@ -431,7 +432,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 using (MeshWorldUpdate update = world.BeginUpdate())
                 {
                     MeshEntityId entity = MeshTestUtility.CreateEntity(update, float3.zero);
-                    update.AddElement(entity, MeshTestUtility.Id(mesh), 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                    update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                     update.Commit();
                 }
                 MeshPassCache cache = world.GetPassCache(MeshPassPresets.GBuffer);
@@ -442,9 +443,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 {
                     MeshEntityId entity = MeshTestUtility.CreateEntity(update, float3.zero);
                     if (missingSubMesh)
-                        update.AddElement(entity, MeshTestUtility.Id(mesh), 3, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                        update.AddElement(entity, MeshTestUtility.Id(mesh), 3, 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
                     else
-                        update.AddElement(entity, MeshTestUtility.Id(mesh), 0, MeshTestUtility.Id(passless),
+                        update.AddElement(entity, MeshTestUtility.Id(mesh), 0, 0, MeshTestUtility.Id(passless),
                             new MeshMaterialState(2000, 0, 0, MeshTestUtility.Id(fullscreen)), 0);
                     Assert.Throws<InvalidOperationException>(() => update.Commit());
                 }

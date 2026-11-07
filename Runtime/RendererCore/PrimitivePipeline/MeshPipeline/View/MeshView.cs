@@ -17,6 +17,34 @@ namespace InfinityTech.Rendering.MeshPipeline
     internal enum EMeshVisibilityPhase : byte { Final, First, Deferred, Recovered }
 
     /// <summary>
+    /// How a view measures screen size for LOD selection: <c>screen = radius * scale * bias / distance</c>, with distance 1
+    /// for orthographic cameras. Shadow views copy their camera's projection so casters use the camera's LOD.
+    /// </summary>
+    public struct MeshLodProjection : System.IEquatable<MeshLodProjection>
+    {
+        public float3 origin;
+        public float scale;
+        public float bias;
+        public bool orthographic;
+
+        public static MeshLodProjection FromCamera(Camera camera)
+        {
+            bool orthographic = camera.orthographic;
+            return new MeshLodProjection
+            {
+                origin = camera.transform.position,
+                scale = orthographic ? 1.0f / camera.orthographicSize : 1.0f / math.tan(math.radians(camera.fieldOfView) * 0.5f),
+                bias = QualitySettings.lodBias,
+                orthographic = orthographic
+            };
+        }
+
+        public bool Equals(MeshLodProjection other) => origin.Equals(other.origin) && scale == other.scale && bias == other.bias && orthographic == other.orthographic;
+        public override bool Equals(object obj) => obj is MeshLodProjection other && Equals(other);
+        public override int GetHashCode() => origin.GetHashCode() ^ scale.GetHashCode() ^ (bias.GetHashCode() * 397);
+    }
+
+    /// <summary>
     /// One observation of the mesh world: a camera, a shadow cascade or a local-shadow face. Layer, scene and rendering
     /// masks live here; pass membership does not read them.
     /// </summary>
@@ -40,6 +68,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public uint renderingLayerMask;
         public int subviewIndex;
         public int planeCount;
+        public MeshLodProjection lodProjection;
         public Plane plane0;
         public Plane plane1;
         public Plane plane2;
@@ -117,7 +146,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layerMask = camera.cullingMask,
                 sceneCullingMask = SceneCullingMaskFor(camera),
                 renderingLayerMask = (uint)ERenderingLayer.Everything,
-                subviewIndex = 0
+                subviewIndex = 0,
+                lodProjection = MeshLodProjection.FromCamera(camera)
             };
             int count = math.min(MaxPlanes, cullingParameters.cullingPlaneCount);
             view.planeCount = count;
@@ -142,7 +172,7 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         /// <summary>The one shadow-view factory: cascade (subview = cascade index) or local shadow (subview = face).</summary>
         public static MeshView FromShadow(EMeshViewKind kind, ulong lightViewKey, Plane[] planes, float3 viewPosition, int layerMask,
-            uint renderingLayerMask, int subviewIndex, ulong sceneCullingMask)
+            uint renderingLayerMask, int subviewIndex, ulong sceneCullingMask, in MeshLodProjection cameraLod)
         {
             if (kind != EMeshViewKind.CascadeShadow && kind != EMeshViewKind.LocalShadow)
                 throw new System.ArgumentOutOfRangeException(nameof(kind), kind, "FromShadow builds cascade or local-shadow views.");
@@ -154,7 +184,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 layerMask = layerMask,
                 sceneCullingMask = sceneCullingMask,
                 renderingLayerMask = renderingLayerMask,
-                subviewIndex = subviewIndex
+                subviewIndex = subviewIndex,
+                lodProjection = cameraLod
             };
             int count = math.min(MaxPlanes, planes.Length);
             view.planeCount = count;

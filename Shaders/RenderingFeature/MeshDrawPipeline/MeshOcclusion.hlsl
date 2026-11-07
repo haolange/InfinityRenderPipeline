@@ -103,35 +103,37 @@ bool MeshOccluded(float3 center, float3 extent)
     return occluded;
 }
 
-void MeshWriteFirst(uint entity, bool visible, bool deferred)
+// packed is the entity's LOD visibility (0 when culled); a deferred entity waits for the recovery test.
+void MeshWriteFirst(uint entity, uint packed, bool deferred)
 {
-    _Visibility[entity] = visible && !deferred ? 1 : 0;
-    _FinalVisibility[entity] = visible && !deferred ? 1 : 0;
-    _DeferredVisibility[entity] = deferred ? 1 : 0;
+    _Visibility[entity] = deferred ? 0u : packed;
+    _FinalVisibility[entity] = deferred ? 0u : packed;
+    _DeferredVisibility[entity] = deferred ? 1u : 0u;
 }
 [numthreads(64, 1, 1)]
 void CullFirstNoHistory(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < _EntityCount) MeshWriteFirst(id.x, MeshFrustumVisible(id.x), false);
+    if (id.x < _EntityCount) MeshWriteFirst(id.x, MeshCullVisibility(id.x), false);
 }
 [numthreads(64, 1, 1)]
 void CullFirstWithHistory(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _EntityCount) return;
-    bool visible = MeshFrustumVisible(id.x);
+    uint packed = MeshCullVisibility(id.x);
     bool deferred = false;
-    if (visible && MeshHasStableHistory(id.x))
+    if (packed != 0u && MeshHasStableHistory(id.x))
         deferred = MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
-    MeshWriteFirst(id.x, visible, deferred);
+    MeshWriteFirst(id.x, packed, deferred);
 }
 [numthreads(64, 1, 1)]
 void CullOcclusionRecovery(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= _EntityCount) return;
     bool deferred = _OcclusionDeferred[id.x] != 0;
-    bool visible = false;
-    if (deferred) visible = !MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
-    _RecoveredVisibility[id.x] = visible ? 1 : 0;
-    if (deferred) _FinalVisibility[id.x] = visible ? 1 : 0;
+    uint packed = 0u;
+    if (deferred && !MeshOccluded(_EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz))
+        packed = MeshPackLodVisibility(id.x, _EntityBoundsCenter[id.x].xyz, _EntityBoundsExtent[id.x].xyz);
+    _RecoveredVisibility[id.x] = packed;
+    if (deferred) _FinalVisibility[id.x] = packed;
 }
 #endif

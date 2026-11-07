@@ -13,7 +13,6 @@ namespace InfinityTech.Component
     {
         private static readonly HashSet<MeshComponent> s_Registered = new HashSet<MeshComponent>();
         internal bool transformPending;
-        internal Bounds localBounds;
 
         internal void CompleteRegistration(uint epoch)
         {
@@ -21,8 +20,9 @@ namespace InfinityTech.Component
             MarkDirty();
         }
 
-        public EStateType Mobility { get => movebility; set { if (movebility == value) return; movebility = value; MarkDirty(); } }
-        public Mesh MeshAsset { get => meshAsset; set { if (meshAsset == value) return; meshAsset = value; RefreshGeometryReference(); MarkDirty(); } }
+        public EMeshMobility Mobility { get => mobility; set { if (mobility == value) return; mobility = value; MarkDirty(); } }
+        /// <summary>The mesh and LOD chain this component draws. Null draws nothing.</summary>
+        public MeshAsset MeshAsset { get => asset; set { if (asset == value) return; asset = value; RefreshGeometryReference(); MarkDirty(); } }
         public ReadOnlySpan<Material> Materials => materials;
         public ECastShadowMethod CastShadow { get => castShadow; set { if (castShadow == value) return; castShadow = value; MarkDirty(); } }
         public bool ReceiveShadow { get => receiveShadow; set { if (receiveShadow == value) return; receiveShadow = value; MarkDirty(); } }
@@ -42,15 +42,32 @@ namespace InfinityTech.Component
             MarkDirty();
         }
 
+        /// <summary>Re-reads this component's <see cref="MeshAsset"/> for every component that shares it.</summary>
         public void NotifyGeometryChanged()
         {
             RefreshGeometryReference();
-            RefreshSharedGeometry(meshAsset);
-            if (m_Geometry != null) { m_GeometryRevision = m_Geometry.revision; localBounds = m_Geometry.bounds; }
+            if (m_Geometry != null) InvalidateGeometry(m_Geometry);
             MarkDirty();
         }
 
-        public static void NotifyGeometryChanged(Mesh mesh) => RefreshSharedGeometry(mesh);
+        /// <summary>Call after an in-place edit of <paramref name="mesh"/>: every asset that draws it is read again.</summary>
+        public static void NotifyGeometryChanged(Mesh mesh)
+        {
+            if (mesh == null) return;
+            foreach (GeometryState state in s_Geometry.Values)
+            {
+                if (state.stale || state.asset == null) continue;
+                ReadOnlySpan<Mesh> meshes = state.asset.Meshes;
+                for (int i = 0; i < meshes.Length; ++i)
+                    if (ReferenceEquals(meshes[i], mesh)) { InvalidateGeometry(state); break; }
+            }
+        }
+
+        /// <summary>Call after <paramref name="asset"/> changed: the components that reference it are synced again.</summary>
+        public static void NotifyGeometryChanged(MeshAsset asset)
+        {
+            if (!ReferenceEquals(asset, null) && s_Geometry.TryGetValue(asset, out GeometryState state)) InvalidateGeometry(state);
+        }
 
         public static void NotifyMaterialRoutingChanged(Material material) => MaterialRouteUtility.NotifyRoutingChanged(material);
 
@@ -62,7 +79,7 @@ namespace InfinityTech.Component
         }
 
         /// <summary>Explicit notification for static poses, layers and entity settings. Dynamic poses are read every frame.</summary>
-        public void NotifyInstanceChanged()
+        public void NotifyEntityChanged()
         {
             MarkTransformDirty();
             MarkDirty();
@@ -96,7 +113,7 @@ namespace InfinityTech.Component
         internal static void NotifyAllStaticPoses()
         {
             foreach (var component in s_Registered)
-                if (component.movebility == EStateType.Static) component.NotifyInstanceChanged();
+                if (component.mobility == EMeshMobility.Static) component.NotifyEntityChanged();
         }
 
         internal void MarkTransformDirty()
@@ -112,7 +129,7 @@ namespace InfinityTech.Component
             transformPending = false;
             if (!isActiveAndEnabled || !IsPublishedIn(world, m_State) || world.IsDynamic(m_State.entity)) return;
             float4x4 localToWorld = transform.localToWorldMatrix;
-            m_BoundBox = Geometry.CaculateWorldBound(localBounds, localToWorld);
+            m_BoundBox = Geometry.CaculateWorldBound(m_State.localBounds, localToWorld);
             world.WriteEntityPose(m_State.entity, localToWorld, m_BoundBox);
         }
     }

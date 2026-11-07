@@ -27,6 +27,11 @@ namespace InfinityTech.Rendering.Editor
             Mesh mesh = primitive.GetComponent<MeshFilter>().sharedMesh;
             // Destroy now so the primitive's native renderer never reaches a frame.
             Object.DestroyImmediate(primitive);
+            var meshAsset = ScriptableObject.CreateInstance<MeshAsset>();
+            meshAsset.name = "InfinityRuntimeProbeCube";
+            meshAsset.hideFlags = HideFlags.DontSave;
+            meshAsset.InitializeSingleLevel(mesh, default);
+            owned.Add(meshAsset);
 
             int side = Mathf.CeilToInt(Mathf.Sqrt(request.count));
             int movingCount = Mathf.RoundToInt(request.count * request.movingRatio);
@@ -45,8 +50,8 @@ namespace InfinityTech.Rendering.Editor
                 bool isMoving = i < movingCount;
                 bool isTranslucent = i >= request.count - translucentCount;
                 MeshComponent component = go.AddComponent<MeshComponent>();
-                component.Mobility = isMoving ? EStateType.Dynamic : EStateType.Static;
-                component.MeshAsset = mesh;
+                component.Mobility = isMoving ? EMeshMobility.Dynamic : EMeshMobility.Static;
+                component.MeshAsset = meshAsset;
                 component.SetMaterials(new[] { isTranslucent ? translucentMaterial : opaque });
                 component.CastShadow = request.castShadow && !isTranslucent ? ECastShadowMethod.Dynamic : ECastShadowMethod.Off;
                 owned.Add(go);
