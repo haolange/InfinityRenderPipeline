@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         NativeList<ulong> m_SnapshotTransformWords;
         NativeList<ulong> m_SnapshotEntityWords;
         readonly List<PendingMobility> m_PendingMobility = new List<PendingMobility>(16);
-        int m_SnapshotStructural, m_SnapshotVisibility;
+        int m_SnapshotStructural;
         ulong m_SnapshotTransform;
 
         internal bool isUpdating => m_TransactionOpen;
@@ -77,7 +77,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_TransactionOpen = true;
             m_TransactionGeneration++;
             m_SnapshotStructural = structuralRevision;
-            m_SnapshotVisibility = visibilityRevision;
             m_SnapshotTransform = transformRevision;
             m_TransformDirty.CopyTo(m_SnapshotTransformWords);
             m_EntityDirty.CopyTo(m_SnapshotEntityWords);
@@ -156,13 +155,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                     MarkElementDirty(i);
         }
 
-        void MarkSectionElementsDirty(int section)
-        {
-            for (int i = 0; i < m_Elements.HighWater; ++i)
-                if (m_Elements.IsLive(i) && (int)m_Elements[i].section.Index == section)
-                    MarkElementDirty(i);
-        }
-
         void RequireEntity(MeshEntityId id)
         {
             if (!IsAlive(id)) throw new ArgumentException("The entity is not alive.", nameof(id));
@@ -192,7 +184,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_TransformDirty.Mark(index);
             m_EntityDirty.Mark(index);
             structuralRevision++;
-            visibilityRevision++;
             transformRevision++;
             return new MeshEntityId((uint)index, entityGeneration);
         }
@@ -210,7 +201,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             entity.desc = desc;
             m_Entities[index] = entity;
             m_EntityDirty.Mark(index);
-            visibilityRevision++;
             if (membershipChanged)
             {
                 MarkEntityElementsDirty(index);
@@ -282,27 +272,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Elements[index] = element;
         }
 
-        internal void SetMaterialState(ulong generation, ulong materialId, in MeshMaterialState state)
-        {
-            RequireTransaction(generation);
-            if (m_MaterialLookup.TryGetValue(materialId, out int index)) SetMaterialState(index, state);
-        }
-
-        internal void NotifySectionChanged(ulong generation, ulong meshId)
-        {
-            RequireTransaction(generation);
-            for (int i = 0; i < m_Sections.HighWater; ++i)
-            {
-                if (!m_Sections.IsLive(i) || m_Sections[i].meshId != meshId) continue;
-                LogSection(i);
-                MeshSection section = m_Sections[i];
-                unchecked { section.revision++; }
-                m_Sections[i] = section;
-                MarkSectionElementsDirty(i);
-                structuralRevision++;
-            }
-        }
-
         internal void RemoveEntity(ulong generation, MeshEntityId id)
         {
             RequireTransaction(generation);
@@ -327,7 +296,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_TransformDirty.Mark(index);
             m_EntityDirty.Mark(index);
             structuralRevision++;
-            visibilityRevision++;
             transformRevision++;
         }
 
@@ -337,7 +305,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             if (material.state.Equals(state)) return;
             LogMaterial(index);
             material.state = state;
-            unchecked { material.revision++; }
             m_Materials[index] = material;
             MarkMaterialElementsDirty(index);
             structuralRevision++;
@@ -354,7 +321,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Sections[index] = section;
                 return new MeshSectionId((uint)index, m_Sections.GenerationOf(index));
             }
-            index = m_Sections.Allocate(new MeshSection { meshId = meshId, submesh = submesh, refCount = 1, revision = 1 }, out uint generation);
+            index = m_Sections.Allocate(new MeshSection { meshId = meshId, submesh = submesh, refCount = 1 }, out uint generation);
             m_SectionUndo.Add(new SlotUndo<MeshSection> { index = index, wasLive = false });
             m_SectionLookup.Add(key, index);
             return new MeshSectionId((uint)index, generation);
@@ -382,7 +349,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Materials[index] = material;
                 return new MeshMaterialId((uint)index, m_Materials.GenerationOf(index));
             }
-            index = m_Materials.Allocate(new MeshMaterial { materialId = materialId, state = state, refCount = 1, revision = 1 }, out uint generation);
+            index = m_Materials.Allocate(new MeshMaterial { materialId = materialId, state = state, refCount = 1 }, out uint generation);
             m_MaterialUndo.Add(new SlotUndo<MeshMaterial> { index = index, wasLive = false });
             m_MaterialLookup.Add(materialId, index);
             return new MeshMaterialId((uint)index, generation);
@@ -408,6 +375,21 @@ namespace InfinityTech.Rendering.MeshPipeline
             // the transaction open, so the lease's Dispose rolls it back.
             foreach (MeshPassCache cache in m_PassCaches) cache.Prepare(this, m_DirtyElements.AsArray());
 
+            // Published: nothing below may roll back, so reclaimed slots can never be revived.
+            m_TransactionOpen = false;
+            try
+            {
+                PublishCommit();
+            }
+            finally
+            {
+                ClearTransactionState();
+                PublishStats();
+            }
+        }
+
+        void PublishCommit()
+        {
             foreach (int entity in m_KilledEntities) m_Entities.Reclaim(entity);
             foreach (int element in m_KilledElements) m_Elements.Reclaim(element);
             foreach (int index in m_ReleasedSections)
@@ -432,10 +414,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 else UnregisterDynamic(pending.entity);
             }
             foreach (MeshPassCache cache in m_PassCaches) cache.Apply(this);
-
-            ClearTransactionState();
-            m_TransactionOpen = false;
-            PublishStats();
         }
 
         internal void Rollback(ulong generation)
@@ -447,7 +425,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             ReplayKeyed(ref m_Sections, m_SectionUndo, m_SectionLookup);
             ReplayKeyed(ref m_Materials, m_MaterialUndo, m_MaterialLookup);
             structuralRevision = m_SnapshotStructural;
-            visibilityRevision = m_SnapshotVisibility;
             transformRevision = m_SnapshotTransform;
             m_TransformDirty.Restore(m_SnapshotTransformWords);
             m_EntityDirty.Restore(m_SnapshotEntityWords);
@@ -540,11 +517,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             => world.SetElementMaterial(m_Generation, element, materialId, materialState);
 
         public void SetElementPriority(MeshElementId element, int priority) => world.SetElementPriority(m_Generation, element, priority);
-
-        public void SetMaterialState(ulong materialId, in MeshMaterialState materialState) => world.SetMaterialState(m_Generation, materialId, materialState);
-
-        /// <summary>Geometry of this mesh changed in place; commands referencing it re-resolve their bindings.</summary>
-        public void NotifySectionChanged(ulong meshId) => world.NotifySectionChanged(m_Generation, meshId);
 
         public void RemoveEntity(MeshEntityId entity) => world.RemoveEntity(m_Generation, entity);
 

@@ -14,6 +14,7 @@ using InfinityTech.Core;
 using InfinityTech.Component;
 using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
@@ -21,8 +22,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     public class MeshOcclusionIntegrationTests
     {
         MeshWorld m_World;
-        MeshScene m_MeshScene;
-        MeshInstanceId m_Instance;
+        MeshEntityId m_Entity;
         EMeshBackendPolicy? m_PreviousBackend;
         Scene m_PreviousScene;
         GameObject m_Root;
@@ -32,8 +32,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         RenderTexture m_Target;
         EditorWindow m_GameView, m_PreviousFocus;
         Action<ScriptableRenderContext, List<Camera>> m_End;
-        int m_Submits, m_Contexts, m_InitialInstances, m_InitialDraws;
-        float m_InitialMatrixRatio;
+        int m_Submits, m_Contexts, m_InitialEntities, m_InitialElements;
         bool m_CaptureNext, m_Requested, m_Registered, m_PreviousCapture, m_PreviousPause, m_StateCaptured;
         bool m_EnteredPlayMode;
         bool m_PreviousRunBackground;
@@ -45,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [UnityTest]
         public IEnumerator NativeOccluderMove_RecoversMeshAndActuallyWritesDepth()
         {
-            if (!SystemInfo.supportsAsyncGPUReadback || !MeshDrawGPUBackend.SupportsIndirect)
+            if (!SystemInfo.supportsAsyncGPUReadback || !MeshGpuDrawBackend.DeviceSupportsIndirect)
                 Assert.Ignore("The active API cannot run GPU indirect visibility/readback.");
             yield return new EnterPlayMode();
             m_EnteredPlayMode = true;
@@ -53,12 +52,12 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             Application.runInBackground = true;
             var pipeline = RenderPipelineManager.currentPipeline as InfinityRenderPipeline;
             Assert.IsNotNull(pipeline);
+            MeshWorld world = pipeline.renderContext.meshWorld;
+            if (!world.gpuBackend.isSupported) Assert.Ignore("The pipeline's mesh world has no GPU indirect backend.");
             m_PreviousCapture = RGDebugSession.captureEnabled; m_PreviousPause = RGDebugSession.paused; m_PreviousFocus = EditorWindow.focusedWindow; m_StateCaptured = true;
-            m_World = (MeshWorld)typeof(InfinityRenderPipeline).GetField("m_MeshWorld", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pipeline);
+            m_World = world;
             m_PreviousBackend = (EMeshBackendPolicy?)typeof(MeshWorld).GetField("m_BackendOverride", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(m_World);
-            m_MeshScene = pipeline.renderContext.GetMeshScene();
-            m_InitialInstances = m_MeshScene.LogicalInstanceCount; m_InitialDraws = m_MeshScene.DrawCount;
-            m_InitialMatrixRatio = m_MeshScene.MatrixDuplicateRatio;
+            m_InitialEntities = m_World.entityCount; m_InitialElements = m_World.elementCount;
             m_World.SetBackendOverride(EMeshBackendPolicy.GpuIndirect);
             m_PreviousScene = SceneManager.GetActiveScene();
             m_Root = new GameObject("InfinityVisibility.Integration") { hideFlags = HideFlags.DontSave };
@@ -76,17 +75,16 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var native = m_Occluder.GetComponent<Renderer>(); native.shadowCastingMode = ShadowCastingMode.Off;
             Assert.IsFalse(m_Occluder.TryGetComponent<MeshComponent>(out _), "Fixture occluder must use the native RendererList.");
             m_NativeMaterial = new Material(Shader.Find("InfinityPipeline/InfinityLit")); native.sharedMaterial = m_NativeMaterial;
-            m_MeshMaterial = new Material(Shader.Find("InfinityPipeline/InfinityLit-Instanced")) { enableInstancing = true };
+            m_MeshMaterial = MeshTestUtility.CreateRoutedMaterial(0, 0, "InfinityVisibility.MeshMaterial");
             // GBuffer cannot repair a missing depth recovery draw in this fixture.
             m_MeshMaterial.SetInt("_ZTest", (int)CompareFunction.Equal); m_MeshMaterial.SetInt("_ZWrite", 0);
             var mesh = m_Occluder.GetComponent<MeshFilter>().sharedMesh;
-            using (var update = m_MeshScene.BeginUpdate())
+            using (var update = m_World.BeginUpdate())
             {
-                var transform = update.CreateTransform(float4x4.TRS(new float3(1000,1000,1003), quaternion.identity, new float3(.5f)));
-                m_Instance = update.CreateInstance(transform, new FBound(new float3(1000,1000,1003), new float3(.25f)),
-                    1 << 31, 1, EMeshInstanceFlags.Visible | EMeshInstanceFlags.ReceiveShadow, EMotionType.Object, ECastShadowMethod.Off);
-                update.CreateDraw(m_Instance, UnityEntityId.ToUInt64(mesh), 0, UnityEntityId.ToUInt64(m_MeshMaterial),
-                    EPassEligibility.Depth | EPassEligibility.GBuffer | EPassEligibility.Motion, 2000, 0);
+                m_Entity = update.CreateEntity(float4x4.TRS(new float3(1000,1000,1003), quaternion.identity, new float3(.5f)),
+                    new FBound(new float3(1000,1000,1003), new float3(.25f)),
+                    MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.ReceiveShadow | EMeshEntityFlags.ObjectMotion, layerMask: 1 << 31));
+                update.AddElement(m_Entity, UnityEntityId.ToUInt64(mesh), 0, UnityEntityId.ToUInt64(m_MeshMaterial), MeshTestUtility.StateOf(m_MeshMaterial), 0);
                 update.Commit(); m_Registered = true;
             }
             SceneManager.SetActiveScene(m_PreviousScene);
@@ -108,7 +106,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     for (int i = 0; i < phases.Length; ++i)
                     {
                         view.visibilityPhase = phases[i];
-                        m_Readbacks.Add(AsyncGPUReadback.Request(m_World.GetGpuVisibilityBufferHandle(view, m_MeshScene.InstanceHighWater).buffer));
+                        m_Readbacks.Add(AsyncGPUReadback.Request(m_World.GetGpuVisibilityBuffer(view).buffer));
                     }
                     var states = (Dictionary<int, CameraFrameState>)typeof(InfinityRenderPipeline).GetField("m_CameraStates", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pipeline);
                     var state = states.Values.Single(s => s.camera == m_Camera);
@@ -129,7 +127,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (m_CallbackFailure != null) throw m_CallbackFailure;
             yield return Wait(() => m_Readbacks.All(r => r.done), "Visibility/depth readbacks did not drain.");
             foreach (var readback in m_Readbacks) Assert.IsFalse(readback.hasError);
-            int index = (int)m_Instance.Index;
+            int index = (int)m_Entity.Index;
             uint[] actual = m_Readbacks.Take(4).Select(r => r.GetData<uint>()[index]).ToArray();
             CollectionAssert.AreEqual(new uint[] {0,1,1,1}, actual, "Prediction, deferred, recovered and final lists must describe the same object.");
             float centerDepth = m_Readbacks[4].GetData<float>()[(m_DepthHeight / 2) * m_DepthWidth + m_DepthWidth / 2];
@@ -164,7 +162,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (m_Camera != null) m_Camera.enabled = false;
             if (m_Registered)
             {
-                using (var update = m_MeshScene.BeginUpdate()) { update.RemoveInstance(m_Instance); update.Commit(); }
+                using (var update = m_World.BeginUpdate()) { update.RemoveEntity(m_Entity); update.Commit(); }
                 m_Registered = false;
             }
             if (m_Occluder != null) m_Occluder.SetActive(false);
@@ -196,19 +194,17 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!m_PreviousCapture) RGDebugSession.Clear();
             if (m_PreviousScene.IsValid() && m_PreviousScene.isLoaded) SceneManager.SetActiveScene(m_PreviousScene);
             if (m_PreviousFocus != null) m_PreviousFocus.Focus();
-            int instances = m_MeshScene?.LogicalInstanceCount ?? m_InitialInstances;
-            int draws = m_MeshScene?.DrawCount ?? m_InitialDraws;
-            float ratio = m_MeshScene?.MatrixDuplicateRatio ?? m_InitialMatrixRatio;
+            int entities = m_World?.entityCount ?? m_InitialEntities;
+            int elements = m_World?.elementCount ?? m_InitialElements;
             if (m_EnteredPlayMode)
             {
                 Application.runInBackground = m_PreviousRunBackground;
                 yield return new ExitPlayMode();
             }
-            if (m_MeshScene != null)
+            if (m_World != null)
             {
-                Assert.AreEqual(m_InitialInstances, instances);
-                Assert.AreEqual(m_InitialDraws, draws);
-                Assert.AreEqual(m_InitialMatrixRatio, ratio);
+                Assert.AreEqual(m_InitialEntities, entities);
+                Assert.AreEqual(m_InitialElements, elements);
             }
         }
     }

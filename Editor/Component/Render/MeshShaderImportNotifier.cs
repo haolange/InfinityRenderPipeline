@@ -1,12 +1,11 @@
 using System;
 using UnityEditor;
-using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Component.Editor
 {
     /// <summary>
-    /// A shader import can renumber passes. Mesh pass caches resolve their pass indices again before their next draw list;
-    /// no asset is changed.
+    /// A shader import can renumber or remove passes. Mesh pass caches resolve their pass indices again and mesh components
+    /// validate their materials again in the next frame; no asset is changed.
     /// </summary>
     sealed class MeshShaderImportNotifier : AssetPostprocessor
     {
@@ -16,7 +15,7 @@ namespace InfinityTech.Component.Editor
             {
                 if (path.EndsWith(".shader", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".shadergraph", StringComparison.OrdinalIgnoreCase))
                 {
-                    MeshPassShaderUtility.NotifyShadersChanged();
+                    MeshComponent.NotifyShadersChanged();
                     return;
                 }
             }

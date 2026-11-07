@@ -2,11 +2,10 @@ using NUnit.Framework;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Core;
 using InfinityTech.Core.Geometry;
-using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.LightPipeline;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -73,60 +72,58 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         public void LocalEligibility_RejectsBehindCasterBeforeBudget(int shapeFlags)
         {
             GameObject cameraObject = null, lightObject = null;
-            Mesh mesh = null;
-            Material material = null;
-            ResourcePool pool = null;
-            MeshScene scene = null;
-            MeshWorld world = null;
             try
             {
-                cameraObject = new GameObject("Caster filter camera");
-                lightObject = new GameObject("Caster filter light");
-                mesh = new Mesh();
-                Shader shader = Shader.Find("InfinityPipeline/InfinityLit-Instanced");
-                Assert.IsNotNull(shader);
-                material = new Material(shader);
-                pool = new ResourcePool();
-                scene = new MeshScene(16);
-                world = new MeshWorld(scene, pool);
-                mesh.vertices = new[] { Vector3.zero, Vector3.right, Vector3.up }; mesh.triangles = new[] { 0, 1, 2 };
-                Camera camera = cameraObject.AddComponent<Camera>();
-                Light light = lightObject.AddComponent<Light>(); light.range = 20; light.cullingMask = 1;
-                light.renderingLayerMask = 1;
-                MeshInstanceId instance;
-                using (var update = scene.BeginUpdate())
+                using (var fixture = new MeshWorldFixture())
                 {
-                    instance = update.CreateInstance(update.CreateTransform(float4x4.identity),
-                        new FBound(new float3(0, 0, -5), new float3(.25f)), 1, 1,
-                        EMeshInstanceFlags.Visible | EMeshInstanceFlags.CastShadow, EMotionType.Object, ECastShadowMethod.Dynamic);
-                    update.CreateDraw(instance, UnityEntityId.ToUInt64(mesh), 0, UnityEntityId.ToUInt64(material),
-                        EPassEligibility.Shadow, 2000, 0);
-                    update.Commit();
+                    MeshWorld world = fixture.world;
+                    cameraObject = new GameObject("Caster filter camera");
+                    lightObject = new GameObject("Caster filter light");
+                    Mesh mesh = fixture.Mesh(1);
+                    Material material = fixture.Material(0, 0);
+                    Camera camera = cameraObject.AddComponent<Camera>();
+                    Light light = lightObject.AddComponent<Light>(); light.range = 20; light.cullingMask = 1;
+                    light.renderingLayerMask = 1;
+                    MeshEntityId entity;
+                    using (MeshWorldUpdate update = world.BeginUpdate())
+                    {
+                        entity = update.CreateEntity(float4x4.identity, new FBound(new float3(0, 0, -5), new float3(.25f)),
+                            MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 1));
+                        update.AddElement(entity, MeshTestUtility.Id(mesh), 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                        update.Commit();
+                    }
+                    var bounds = new ShadowCasterBounds(); bounds.Collect(world);
+                    var record = new FLightRecord { flags = shapeFlags | FLightRecordFlags.EnableShadow,
+                        positionRange = new Vector4(0, 0, 0, 20), forward = new Vector4(0, 0, 1, .7f),
+                        right = new Vector4(1, 0, 0, 0), area = new Vector4(2, 2, 0, 0) };
+                    Assert.IsTrue(bounds.TryGetBounds(light, camera, out _), "Caster is eligible before local frustum filtering.");
+                    Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3), "Behind emitter cannot occupy local shadow budget.");
+                    world.WriteEntityPose(entity, float4x4.identity, new FBound(new float3(0, 0, 5), new float3(.25f)));
+                    bounds.Collect(world);
+                    Assert.IsTrue(bounds.HasLocalCaster(record, light, camera, 128, 3));
+                    light.cullingMask = 2;
+                    Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
+                    light.cullingMask = 1; light.renderingLayerMask = 2;
+                    Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
+                    light.renderingLayerMask = 1;
+                    using (MeshWorldUpdate update = world.BeginUpdate())
+                    {
+                        update.SetEntityDesc(entity, MeshTestUtility.Desc(EMeshEntityFlags.Visible | EMeshEntityFlags.CastShadow, layerMask: 1, sceneCullingMask: 0));
+                        update.Commit();
+                    }
+                    bounds.Collect(world);
+                    Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
+                    using (MeshWorldUpdate update = world.BeginUpdate())
+                    {
+                        update.SetEntityDesc(entity, MeshTestUtility.Desc(EMeshEntityFlags.Visible, layerMask: 1));
+                        update.Commit();
+                    }
+                    bounds.Collect(world);
+                    Assert.IsFalse(bounds.TryGetBounds(light, camera, out _), "Only Shadow-pass members are casters.");
                 }
-                var bounds = new ShadowCasterBounds(); bounds.Collect(world);
-                var record = new FLightRecord { flags = shapeFlags | FLightRecordFlags.EnableShadow,
-                    positionRange = new Vector4(0, 0, 0, 20), forward = new Vector4(0, 0, 1, .7f),
-                    right = new Vector4(1, 0, 0, 0), area = new Vector4(2, 2, 0, 0) };
-                Assert.IsTrue(bounds.TryGetBounds(light, camera, out _), "Caster is eligible before local frustum filtering.");
-                Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3), "Behind emitter cannot occupy local shadow budget.");
-                using (var update = scene.BeginUpdate())
-                {
-                    update.SetBounds(instance, new FBound(new float3(0, 0, 5), new float3(.25f))); update.Commit();
-                }
-                bounds.Collect(world);
-                Assert.IsTrue(bounds.HasLocalCaster(record, light, camera, 128, 3));
-                light.cullingMask = 2;
-                Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
-                light.cullingMask = 1; light.renderingLayerMask = 2;
-                Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
-                light.renderingLayerMask = 1;
-                using (var update = scene.BeginUpdate()) { update.SetInstanceSceneCullingMask(instance, 0); update.Commit(); }
-                bounds.Collect(world);
-                Assert.IsFalse(bounds.HasLocalCaster(record, light, camera, 128, 3));
             }
             finally
             {
-                world?.Dispose(); scene?.Dispose(); pool?.Dispose(); Object.DestroyImmediate(mesh); Object.DestroyImmediate(material);
                 Object.DestroyImmediate(cameraObject); Object.DestroyImmediate(lightObject);
             }
         }

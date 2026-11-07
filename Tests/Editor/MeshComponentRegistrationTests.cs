@@ -3,7 +3,9 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Component;
+using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -26,16 +28,26 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             foreach (var task in tasks) FGraphics.ProcessMeshTask(task, context);
         }
 
+        static System.Collections.Generic.List<MeshComponent> DirtyList() => (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
+            "s_DirtyMeshList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
+
         static void FlushOwnFrame(int start, int meshStart, RenderContext context, MeshComponent component)
         {
             foreach (var task in TakeOwnTasks(start)) task?.Invoke(context);
             FlushOwnMeshTasks(meshStart, context);
-            // Registration joins the world before dirty synchronization.
-            // Drive those phases without draining another Editor object's queued work.
-            var dirty = (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
-                "s_DirtyMeshList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
-            if (dirty.RemoveAll(value => ReferenceEquals(value, component)) > 0)
-                component.SyncFromSnapshot(context);
+            // Registration joins the world before dirty synchronization. Drain this context's removals and only this
+            // component's dirty entry through the frame transaction; another Editor object's queued work is restored.
+            var dirty = DirtyList();
+            var others = dirty.Where(value => !ReferenceEquals(value, component)).ToArray();
+            bool own = others.Length != dirty.Count;
+            dirty.Clear();
+            if (own) dirty.Add(component);
+            try { context.DrainDirtyMeshes(); }
+            finally
+            {
+                dirty.Clear();
+                dirty.AddRange(others);
+            }
         }
 
         [TestCase(false, false, false, 0)]
@@ -46,9 +58,11 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         [TestCase(true, true, false, -1)]
         public void DeferredRegistration_RespectsFinalActiveState(bool deactivateObject, bool reenable, bool initiallyRegistered, int mobilityChange)
         {
+            var meshShader = MeshTestUtility.LoadMeshDrawShader();
             GameObject go = null;
             Material material = null;
-            var context = new RenderContext();
+            var pool = new ResourcePool();
+            var context = new RenderContext(pool, meshShader);
             MeshComponent component = null;
             int start = FGraphics.GraphicsTasks.Count;
             int meshStart = FGraphics.MeshTasks.Count;
@@ -59,7 +73,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 go.SetActive(false);
                 var mesh = go.GetComponent<MeshFilter>().sharedMesh;
-                material = new Material(Shader.Find("InfinityPipeline/InfinityLit-Instanced")) { enableInstancing = true };
+                material = MeshTestUtility.CreateRoutedMaterial(0, 0, "MeshComponentRegistration");
                 go.GetComponent<Renderer>().sharedMaterial = material;
                 component = go.AddComponent<MeshComponent>();
                 component.MeshAsset = mesh;
@@ -74,13 +88,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 if (mobilityChange != 0) component.Mobility = mobilityChange == 1 ? EStateType.Dynamic : EStateType.Static;
                 if (reenable) go.SetActive(true);
                 FlushOwnFrame(start, meshStart, context, component);
-                var scene = context.GetMeshScene();
-                Assert.AreEqual(reenable ? 1 : 0, scene.LogicalInstanceCount,
+                MeshWorld world = context.meshWorld;
+                Assert.AreEqual(reenable ? 1 : 0, world.entityCount,
                     "An enable queued before disable cannot resurrect an inactive renderer.");
-                Assert.AreEqual(reenable ? 1 : 0, scene.TransformCount);
-                Assert.AreEqual(reenable ? 1 : 0, scene.DrawCount);
-                Assert.AreEqual(reenable && component.Mobility == EStateType.Dynamic ? 1 : 0, context.GetWorldDynamicPrimitive().Count);
-                Assert.AreEqual(reenable && component.Mobility == EStateType.Static ? 1 : 0, context.GetWorldStaticMesh().Count);
+                Assert.AreEqual(reenable ? mesh.subMeshCount : 0, world.elementCount);
+                Assert.AreEqual(reenable, world.IsAlive(component.entityId));
+                Assert.AreEqual(reenable && component.Mobility == EStateType.Dynamic ? 1 : 0, world.dynamicEntityCount);
+                Assert.AreEqual(reenable && component.Mobility == EStateType.Dynamic, world.IsDynamic(component.entityId));
+                if (reenable) Assert.Greater(world.GetPassCache(MeshPassPresets.Shadow).memberCount, 0, "A shadow-casting component joins the Shadow pass.");
                 CollectionAssert.AreEqual(prefix, FGraphics.GraphicsTasks);
                 Assert.IsFalse(go.GetComponent<Renderer>().forceRenderingOff, "Custom registration must not mutate native rendering state.");
             }
@@ -98,14 +113,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     UnityEngine.Object.DestroyImmediate(material);
                     // RenderContext teardown clears process queues. Preserve external work, including its order,
                     // and remove only this destroyed component from the project-owned dirty list.
-                    var dirty = (System.Collections.Generic.List<MeshComponent>)typeof(RenderContext).GetField(
-                        "s_DirtyMeshList", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
+                    var dirty = DirtyList();
                     var remainingTasks = FGraphics.GraphicsTasks.ToArray();
                     var remainingMeshTasks = FGraphics.MeshTasks.ToArray();
                     var remainingDirty = dirty.Where(value => !ReferenceEquals(value, component)).ToArray();
                     try { context.Dispose(); }
                     finally
                     {
+                        pool.Dispose();
                         FGraphics.GraphicsTasks.InsertRange(0, remainingTasks);
                         FGraphics.MeshTasks.InsertRange(0, remainingMeshTasks);
                         dirty.InsertRange(0, remainingDirty);

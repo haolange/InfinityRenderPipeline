@@ -46,13 +46,13 @@ Not recorded: depth of field, motion blur, MSAA, dynamic resolution, XR, and har
 
 ## Mesh content
 
-Add `Mesh Component` to a renderable object. `RenderingLayer` is an `ERenderingLayer` bit mask (`Everything = 0xFF`), not an integer layer index. One live instance owns one `TransformId`. In steady state `MeshScene.MatrixDuplicateRatio` is 1.
+Add `Mesh Component` to a renderable object. `RenderingLayer` is an `ERenderingLayer` bit mask (`Everything = 0xFF`), not an integer layer index. One component is one mesh entity; its entity slot is its transform slot.
 
 Configure instances through `MeshAsset`, `Mobility`, the typed properties and `SetMaterials`. `Materials` is read-only. Dynamic world matrices, including parent motion, are read automatically. After an in-place mesh edit call `NotifyGeometryChanged`. After a static pose or external instance edit call `NotifyInstanceChanged`. After a route or stage edit call `MaterialRouteUtility.ApplyPassState`. After a direct queue or pass edit call `NotifyMaterialRoutingChanged`. Ordinary material uniforms do not rebuild draw structure.
 
 The asset field `meshBackendPolicy` selects the mesh backend. Auto uses GPU indirect drawing when instancing, compute and the four mesh-draw kernels are available, and CPU procedural drawing otherwise. The Rendering Debugger can override that choice for the session. CPU and GPU backends share the scene and the transform-version history.
 
-Instanced materials bind `transformBuffer`, `previousTransformBuffer`, `instanceIndexBuffer` and `instanceIndexOffset`. See `InfinityLit-Instanced.shader`. EditMode tests live under `Tests/Editor`.
+Mesh shaders declare the SubShader tag `InfinityMeshInstancing = True` and read `InstanceToEntity`, `InstanceOffset`, `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` through `GPUScene.hlsl`. See `InfinityLit-Instanced.shader`. EditMode tests live under `Tests/Editor`.
 
 ## Native renderer content
 

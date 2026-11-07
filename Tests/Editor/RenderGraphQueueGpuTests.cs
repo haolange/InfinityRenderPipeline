@@ -8,6 +8,7 @@ using UnityEngine.Rendering;
 using UnityEngine.TestTools;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -65,7 +66,10 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("This GPU/API cannot execute the fixture.");
             var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/RenderGraphHazard.compute");
             Assert.IsNotNull(shader);
+            var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var pool = new ResourcePool();
+            // The render context owns a mesh world; its allocations stay out of the pool under test.
+            var contextPool = new ResourcePool();
             var graph = new RGBuilder("QueueGpuContract", pool);
             var outputs = new ComputeBuffer[4];
             var physical = new List<ComputeBuffer>();
@@ -100,7 +104,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using (var state = new RenderContext { scriptableRenderContext = context })
+                    using (var state = new RenderContext(contextPool, meshShader) { scriptableRenderContext = context })
                     using (var commands = new CommandBuffer()) graph.Execute(state, commands);
                     using (var completionCommands = new CommandBuffer())
                     {
@@ -148,6 +152,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 RenderPipelineManager.beginContextRendering -= render;
                 graph.Dispose();
                 pool.Dispose();
+                contextPool.Dispose();
                 shared.Release();
                 foreach (var output in outputs) output.Release();
                 if (previousFocus != null) previousFocus.Focus();

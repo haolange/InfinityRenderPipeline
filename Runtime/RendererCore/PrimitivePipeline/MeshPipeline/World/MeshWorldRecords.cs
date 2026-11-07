@@ -30,25 +30,30 @@ namespace InfinityTech.Rendering.MeshPipeline
         public override int GetHashCode() => unchecked((layerMask * 397) ^ sceneCullingMask.GetHashCode() ^ ((int)renderingLayerMask << 8) ^ (int)flags);
     }
 
-    /// <summary>The routing state of a material that pass membership reads: queue, surface route and translucent stage.</summary>
+    /// <summary>
+    /// The material state pass membership and command bindings read: queue, surface route, translucent stage and the
+    /// shader identity. A shader swap is a state change, so commands resolve their pass index again.
+    /// </summary>
     public struct MeshMaterialState : IEquatable<MeshMaterialState>
     {
         public int renderQueue;
         public byte route;
         public byte stage;
+        public ulong shader;
 
-        public MeshMaterialState(int renderQueue, int route, int stage)
+        public MeshMaterialState(int renderQueue, int route, int stage, ulong shader)
         {
             if (route < 0 || route > 1) throw new ArgumentOutOfRangeException(nameof(route));
             if (stage < 0 || stage > 3) throw new ArgumentOutOfRangeException(nameof(stage));
             this.renderQueue = renderQueue;
             this.route = (byte)route;
             this.stage = (byte)stage;
+            this.shader = shader;
         }
 
-        public bool Equals(MeshMaterialState other) => renderQueue == other.renderQueue && route == other.route && stage == other.stage;
+        public bool Equals(MeshMaterialState other) => renderQueue == other.renderQueue && route == other.route && stage == other.stage && shader == other.shader;
         public override bool Equals(object obj) => obj is MeshMaterialState other && Equals(other);
-        public override int GetHashCode() => (renderQueue * 397) ^ (route << 4) ^ stage;
+        public override int GetHashCode() => (renderQueue * 397) ^ (route << 4) ^ stage ^ shader.GetHashCode();
     }
 
     public struct MeshEntity
@@ -75,7 +80,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public ulong meshId;
         public int submesh;
         public int refCount;
-        public uint revision;
     }
 
     public struct MeshMaterial
@@ -83,7 +87,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         public ulong materialId;
         public MeshMaterialState state;
         public int refCount;
-        public uint revision;
     }
 
     internal struct FSectionKey : IEquatable<FSectionKey>

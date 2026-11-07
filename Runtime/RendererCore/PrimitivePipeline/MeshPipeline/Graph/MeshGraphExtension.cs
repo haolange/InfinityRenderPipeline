@@ -110,7 +110,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 pass.SetExecuteFunc((in MeshGpuCullPassData data, in RGComputeEncoder commands) =>
                 {
                     data.world.gpuBackend.DispatchCullFrustum(commands, data.view, data.frustumPlanes, data.inputs, data.visibility, data.world.stats);
-                    data.world.MarkGpuCulled(data.view);
                 });
             }
 
@@ -249,18 +248,19 @@ namespace InfinityTech.Rendering.MeshPipeline
             extension.EnsureMeshGpuCull(builder, view, RGDrawListHandle.Invalid);
         }
 
+        /// <summary>Declares the pass as a consumer. A handle from another builder or an earlier graph fails here.</summary>
         public static RGDrawListHandle UseDrawList(this RGRasterPassHandle pass, in RGDrawListHandle draws)
         {
-            // Only a live list of this pass's own builder becomes a consumer edge.
-            if (!(pass.extension is MeshGraphExtension owner) || !owner.drawLists.IsLive(draws)) return RGDrawListHandle.Invalid;
+            if (!(pass.extension is MeshGraphExtension owner)) throw new InvalidOperationException("This pass's builder has no MeshWorld.");
+            if (!owner.drawLists.IsLive(draws)) throw new InvalidOperationException("The draw list belongs to another builder or an earlier graph.");
             MeshGraphExtension.UseDrawList(owner.drawLists, pass.pass, draws);
             return draws;
         }
 
         public static void Draw(this in RGRasterEncoder encoder, in RGDrawListHandle draws)
         {
-            // Submit rejects foreign, stale or out-of-range handles without throwing.
-            (encoder.m_Extension as MeshGraphExtension)?.drawLists.Submit(encoder.m_CommandBuffer, draws);
+            if (!(encoder.m_Extension is MeshGraphExtension owner)) throw new InvalidOperationException("This pass's builder has no MeshWorld.");
+            owner.drawLists.Submit(encoder.m_CommandBuffer, draws);
         }
 
         internal static MeshOcclusionLists RecordMeshOcclusionFirst(this RGBuilder builder, MeshView view, MeshMotionBinding motion,

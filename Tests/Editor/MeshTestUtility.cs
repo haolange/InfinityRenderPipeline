@@ -1,0 +1,190 @@
+using System;
+using System.Collections.Generic;
+using NUnit.Framework;
+using Unity.Mathematics;
+using UnityEditor;
+using UnityEngine;
+using InfinityTech.Core;
+using InfinityTech.Core.Geometry;
+using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.Pipeline;
+using InfinityTech.Rendering.RenderGraph;
+using Object = UnityEngine.Object;
+
+namespace InfinityTech.Rendering.MeshPipeline.Tests
+{
+    internal static class MeshTestUtility
+    {
+        internal const string MeshDrawShaderPath = "Packages/com.infinity.render-pipeline/Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute";
+        internal const string InstancedShaderName = "InfinityPipeline/InfinityLit-Instanced";
+
+        /// <summary>
+        /// A material state that no preset accepts: opaque presets end at queue 2999 and translucent presets require a
+        /// translucent stage. World bookkeeping tests use it so that commits never resolve Unity objects.
+        /// </summary>
+        internal static readonly MeshMaterialState Unrouted = new MeshMaterialState(MeshPassPresets.TranslucentQueueMax + 1, 0, 0, 0);
+
+        internal static ComputeShader LoadMeshDrawShader()
+        {
+            var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>(MeshDrawShaderPath);
+            if (shader == null) Assert.Ignore("Compute_MeshDrawPipeline is not available.");
+            return shader;
+        }
+
+        /// <summary>GPU fixtures run only where the world's indirect backend is real; they never pass on a CPU path.</summary>
+        internal static void RequireGpuIndirect(MeshWorld world)
+        {
+            if (!MeshGpuDrawBackend.DeviceSupportsIndirect || !world.gpuBackend.isSupported)
+                Assert.Ignore("GPU indirect mesh drawing is not supported on this device.");
+        }
+
+        internal static void RequireComputeReadback()
+        {
+            if (!SystemInfo.supportsComputeShaders || !SystemInfo.supportsAsyncGPUReadback)
+                Assert.Ignore("Compute shaders with GPU readback are not supported on this device.");
+        }
+
+        internal static Mesh CreateMesh(int subMeshCount, string name)
+        {
+            var mesh = new Mesh { name = name, hideFlags = HideFlags.DontSave };
+            mesh.vertices = new[] { Vector3.zero, Vector3.right, Vector3.up };
+            mesh.subMeshCount = subMeshCount;
+            for (int subMesh = 0; subMesh < subMeshCount; ++subMesh) mesh.SetTriangles(new[] { 0, 1, 2 }, subMesh);
+            return mesh;
+        }
+
+        /// <summary>An instanced material routed through the one route authority, with its pass state applied.</summary>
+        internal static Material CreateRoutedMaterial(int route, int stage, string name)
+        {
+            Shader shader = Shader.Find(InstancedShaderName);
+            Assert.IsNotNull(shader, InstancedShaderName);
+            var material = new Material(shader) { name = name, hideFlags = HideFlags.DontSave };
+            material.SetFloat("_SurfaceRoute", route);
+            material.SetFloat("_TranslucentStage", stage);
+            MaterialRouteUtility.ApplyPassState(material);
+            return material;
+        }
+
+        internal static MeshMaterialState StateOf(Material material) => StateOf(material, material.renderQueue);
+
+        /// <summary>The material's route, stage and shader identity with an explicit queue.</summary>
+        internal static MeshMaterialState StateOf(Material material, int renderQueue)
+        {
+            MaterialRouteUtility.Read(material, out int route, out int stage);
+            return new MeshMaterialState(renderQueue, route, stage, UnityEntityId.ToUInt64(material.shader));
+        }
+
+        internal static ulong Id(Object value) => UnityEntityId.ToUInt64(value);
+
+        internal static MeshEntityDesc Desc(EMeshEntityFlags flags = EMeshEntityFlags.Visible, int layerMask = ~0,
+            uint renderingLayerMask = 1, ulong sceneCullingMask = ulong.MaxValue)
+        {
+            return new MeshEntityDesc { flags = flags, layerMask = layerMask, renderingLayerMask = renderingLayerMask, sceneCullingMask = sceneCullingMask };
+        }
+
+        internal static FBound Bound(float3 center) => new FBound(center, new float3(0.5f));
+
+        internal static MeshEntityId CreateEntity(in MeshWorldUpdate update, float3 center, EMeshEntityFlags flags = EMeshEntityFlags.Visible,
+            int layerMask = ~0, uint renderingLayerMask = 1, ulong sceneCullingMask = ulong.MaxValue)
+        {
+            return update.CreateEntity(float4x4.Translate(center), Bound(center), Desc(flags, layerMask, renderingLayerMask, sceneCullingMask));
+        }
+
+        /// <summary>Six planes enclosing [-10, 10] on every axis.</summary>
+        internal static Plane[] BoxPlanes()
+        {
+            return new[]
+            {
+                new Plane(Vector3.right, 10f), new Plane(Vector3.left, 10f),
+                new Plane(Vector3.up, 10f), new Plane(Vector3.down, 10f),
+                new Plane(Vector3.forward, 10f), new Plane(Vector3.back, 10f)
+            };
+        }
+
+        internal static MeshView CameraView(ulong viewKey, float3 position = default)
+        {
+            var view = new MeshView
+            {
+                viewKey = viewKey,
+                kind = EMeshViewKind.Main,
+                viewPosition = position,
+                layerMask = ~0,
+                sceneCullingMask = ulong.MaxValue,
+                renderingLayerMask = (uint)ERenderingLayer.Everything
+            };
+            Plane[] planes = BoxPlanes();
+            view.planeCount = planes.Length;
+            for (int i = 0; i < planes.Length; ++i) view.SetPlane(i, planes[i]);
+            return view;
+        }
+
+        /// <summary>CPU visibility of every entity slot through the world's interning share.</summary>
+        internal static byte[] CullOnCpu(MeshWorld world, in MeshView view, out float[] depth)
+        {
+            MeshVisibilityHandle handle = world.visibilityShare.Acquire(world, view);
+            try
+            {
+                MeshViewVisibility result = world.visibilityShare.Get(handle);
+                result.job.Complete();
+                var visible = new byte[world.entityHighWater];
+                depth = new float[world.entityHighWater];
+                for (int i = 0; i < visible.Length; ++i)
+                {
+                    visible[i] = result.visible[i];
+                    depth[i] = result.depth[i];
+                }
+                return visible;
+            }
+            finally { world.visibilityShare.Release(handle); }
+        }
+
+        /// <summary>Drops the recorded graph (which releases its draw lists) before disposing the builder.</summary>
+        internal static void Release(RGBuilder graph)
+        {
+            try { graph.ClearRecordedGraph(); }
+            finally { graph.Dispose(); }
+        }
+    }
+
+    /// <summary>A pool, a world on the real mesh compute shader, and the Unity objects a test creates, released in that order.</summary>
+    internal sealed class MeshWorldFixture : IDisposable
+    {
+        internal readonly ComputeShader shader;
+        internal readonly ResourcePool pool;
+        internal readonly MeshWorld world;
+        readonly List<Object> m_Objects = new List<Object>();
+
+        internal MeshWorldFixture()
+        {
+            shader = MeshTestUtility.LoadMeshDrawShader();
+            pool = new ResourcePool();
+            try { world = new MeshWorld(pool, shader); }
+            catch
+            {
+                pool.Dispose();
+                throw;
+            }
+        }
+
+        internal T Own<T>(T value) where T : Object
+        {
+            m_Objects.Add(value);
+            return value;
+        }
+
+        internal Mesh Mesh(int subMeshCount) => Own(MeshTestUtility.CreateMesh(subMeshCount, "MeshWorldFixture.Mesh" + m_Objects.Count));
+
+        internal Material Material(int route, int stage) => Own(MeshTestUtility.CreateRoutedMaterial(route, stage, "MeshWorldFixture.Material" + m_Objects.Count));
+
+        public void Dispose()
+        {
+            try { world.Dispose(); }
+            finally
+            {
+                pool.Dispose();
+                foreach (Object value in m_Objects) Object.DestroyImmediate(value);
+                m_Objects.Clear();
+            }
+        }
+    }
+}

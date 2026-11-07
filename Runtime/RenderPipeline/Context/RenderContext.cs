@@ -18,19 +18,20 @@ namespace InfinityTech.Rendering.Pipeline
         {
             internal MeshComponent component;
             internal MeshEntityId entity;
+            internal int worldId;
             internal uint epoch;
             internal bool register;
         }
         internal static readonly List<MeshTask> MeshTasks = new List<MeshTask>(256);
         internal static void RegisterMesh(MeshComponent component, uint epoch) => MeshTasks.Add(new MeshTask { component = component, epoch = epoch, register = true });
-        internal static void UnregisterMesh(MeshComponent component, MeshEntityId entity) => MeshTasks.Add(new MeshTask { component = component, entity = entity });
+        internal static void UnregisterMesh(MeshComponent component, MeshEntityId entity, int worldId) => MeshTasks.Add(new MeshTask { component = component, entity = entity, worldId = worldId });
 
         internal static List<FGraphicsTask> GraphicsTasks = new List<FGraphicsTask>(256);
 
         internal static void ProcessMeshTask(in MeshTask task, RenderContext context)
         {
             if (task.register) { if (task.component) task.component.CompleteRegistration(task.epoch); }
-            else context.EnqueueEntityRemoval(task.entity);
+            else context.EnqueueEntityRemoval(task.entity, task.worldId);
         }
 
         public static void AddTask(FGraphicsTask graphicsTask)
@@ -84,6 +85,7 @@ namespace InfinityTech.Rendering.Pipeline
 
             lightContext = new LightContext();
             m_MeshWorld = new MeshWorld(resourcePool, meshDrawShader);
+            MeshComponent.ResyncAll();
         }
 
         public MeshWorld meshWorld => m_MeshWorld;
@@ -101,15 +103,21 @@ namespace InfinityTech.Rendering.Pipeline
 
         internal static void EnqueueMeshTransform(MeshComponent mesh) => s_TransformUpdates.Add(mesh);
 
-        internal void EnqueueEntityRemoval(MeshEntityId entity)
+        /// <summary>Entities of another world (an earlier pipeline) are not this world's to remove.</summary>
+        internal void EnqueueEntityRemoval(MeshEntityId entity, int worldId)
         {
-            if (entity.IsValid) m_PendingRemovals.Add(entity);
+            if (entity.IsValid && worldId == m_MeshWorld.worldId) m_PendingRemovals.Add(entity);
         }
 
-        /// <summary>One structural transaction per frame: pending removals, then every dirty component.</summary>
+        /// <summary>
+        /// One structural transaction per frame: pending removals, then every dirty component. Components publish their
+        /// staged state only after the commit; on failure the world rolls back, the components abandon their staged state,
+        /// and the queues stay for the next frame while the original exception propagates.
+        /// </summary>
         internal void DrainDirtyMeshes()
         {
             if (s_DirtyMeshList.Count == 0 && m_PendingRemovals.Count == 0) return;
+            bool committed = false;
             try
             {
                 using (MeshWorldUpdate update = m_MeshWorld.BeginUpdate())
@@ -119,12 +127,22 @@ namespace InfinityTech.Rendering.Pipeline
                     foreach (MeshComponent meshComponent in s_DirtyMeshList)
                         if (meshComponent) meshComponent.Sync(m_MeshWorld, update);
                     update.Commit();
+                    committed = true;
                 }
             }
             finally
             {
-                m_PendingRemovals.Clear();
-                s_DirtyMeshList.Clear();
+                foreach (MeshComponent meshComponent in s_DirtyMeshList)
+                {
+                    if (!meshComponent) continue;
+                    if (committed) meshComponent.PublishSync();
+                    else meshComponent.AbandonSync();
+                }
+                if (committed)
+                {
+                    m_PendingRemovals.Clear();
+                    s_DirtyMeshList.Clear();
+                }
             }
         }
 

@@ -46,20 +46,30 @@ namespace InfinityTech.Component
         [SerializeField] private int renderPriority = 0;
         [SerializeField] private EMotionType motionVector = EMotionType.Object;
 
-        MeshEntityId m_EntityId;
-        MeshElementId[] m_ElementIds;
-        Mesh m_SyncedMesh;
-        int m_SyncedSubMeshCount;
-        uint m_SyncedGeometryRevision;
-        EStateType m_SyncedMobility;
-        MeshEntityDesc m_SyncedDesc;
-        int m_SyncedPriority;
-        MaterialSnapshot[] m_SyncedMaterials;
+        /// <summary>What this component published to one world. Arrays are replaced, never edited in place.</summary>
+        struct SyncState
+        {
+            public int worldId;
+            public MeshEntityId entity;
+            public MeshElementId[] elements;
+            public MaterialSnapshot[] materials;
+            public Mesh mesh;
+            public int subMeshCount;
+            public uint geometryRevision;
+            public EStateType mobility;
+            public MeshEntityDesc desc;
+            public int priority;
+        }
+
+        // m_State matches the committed world; m_Next is staged while the frame transaction is open.
+        SyncState m_State;
+        SyncState m_Next;
+        bool m_Staged;
         FAABB m_BoundBox;
         bool m_DirtyEnqueued;
         uint m_RegistrationEpoch;
 
-        internal MeshEntityId entityId => m_EntityId;
+        internal MeshEntityId entityId => m_State.entity;
 
         ulong SceneCullingMask
         {
@@ -86,12 +96,12 @@ namespace InfinityTech.Component
             ++m_RegistrationEpoch;
             s_Registered.Remove(this);
             ReleaseGeometryReference();
-            MeshEntityId entity = m_EntityId;
+            SyncState published = m_State;
             // Clear local state immediately so UnRegister is idempotent across OnDisable and OnDestroy.
             ResetSyncState();
             m_DirtyEnqueued = false;
             transformPending = false;
-            FGraphics.UnregisterMesh(this, entity);
+            FGraphics.UnregisterMesh(this, published.entity, published.worldId);
         }
 
         public void MarkDirty()
@@ -103,18 +113,23 @@ namespace InfinityTech.Component
 
         void ResetSyncState()
         {
-            m_EntityId = MeshEntityId.Invalid;
-            m_ElementIds = null;
-            m_SyncedMesh = null;
-            m_SyncedMaterials = null;
+            m_State = default;
+            m_Next = default;
+            m_Staged = false;
         }
 
-        /// <summary>Applies this component's current state to the world inside the frame's transaction.</summary>
+        bool IsPublishedIn(MeshWorld world, in SyncState state) => state.worldId == world.worldId && world.IsAlive(state.entity);
+
+        /// <summary>
+        /// Stages this component's current state in the frame's transaction. The render context publishes the staged
+        /// state after the transaction commits and abandons it when the transaction rolls back.
+        /// </summary>
         internal void Sync(MeshWorld world, in MeshWorldUpdate update)
         {
             m_DirtyEnqueued = false;
             RefreshGeometryReference();
-            bool alive = world.IsAlive(m_EntityId);
+            SyncState current = m_Staged ? m_Next : m_State;
+            bool alive = IsPublishedIn(world, current);
             bool drawable = isActiveAndEnabled && meshAsset != null && materials != null;
             if (drawable && !TryValidate(out string error))
             {
@@ -123,82 +138,117 @@ namespace InfinityTech.Component
             }
             if (!drawable)
             {
-                if (alive) update.RemoveEntity(m_EntityId);
-                ResetSyncState();
+                if (alive) update.RemoveEntity(current.entity);
+                Stage(default);
                 return;
             }
 
             MeshEntityDesc desc = BuildDesc();
-            if (!alive || m_SyncedMesh != meshAsset || m_SyncedSubMeshCount != m_Geometry.subMeshes || m_SyncedGeometryRevision != m_GeometryRevision)
+            if (!alive || current.mesh != meshAsset || current.subMeshCount != m_Geometry.subMeshes || current.geometryRevision != m_GeometryRevision)
             {
-                if (alive) update.RemoveEntity(m_EntityId);
-                Create(update, desc);
+                if (alive) update.RemoveEntity(current.entity);
+                Stage(Create(world, update, desc));
                 return;
             }
 
-            if (!desc.Equals(m_SyncedDesc))
+            SyncState next = current;
+            if (!desc.Equals(current.desc))
             {
-                update.SetEntityDesc(m_EntityId, desc);
-                m_SyncedDesc = desc;
+                update.SetEntityDesc(current.entity, desc);
+                next.desc = desc;
             }
-            if (movebility != m_SyncedMobility)
+            if (movebility != current.mobility)
             {
-                update.SetEntityMobility(m_EntityId, movebility == EStateType.Dynamic ? transform : null, localBounds);
-                m_SyncedMobility = movebility;
+                update.SetEntityMobility(current.entity, movebility == EStateType.Dynamic ? transform : null, localBounds);
+                next.mobility = movebility;
             }
-            for (int i = 0; i < m_ElementIds.Length; ++i)
+            for (int i = 0; i < current.elements.Length; ++i)
             {
                 MaterialSnapshot material = ReadMaterial(i);
-                if (material.id != m_SyncedMaterials[i].id || !material.state.Equals(m_SyncedMaterials[i].state))
+                if (material.id != current.materials[i].id || !material.state.Equals(current.materials[i].state))
                 {
-                    update.SetElementMaterial(m_ElementIds[i], material.id, material.state);
-                    m_SyncedMaterials[i] = material;
+                    if (ReferenceEquals(next.materials, current.materials)) next.materials = (MaterialSnapshot[])current.materials.Clone();
+                    update.SetElementMaterial(current.elements[i], material.id, material.state);
+                    next.materials[i] = material;
                 }
-                if (renderPriority != m_SyncedPriority) update.SetElementPriority(m_ElementIds[i], renderPriority);
+                if (renderPriority != current.priority) update.SetElementPriority(current.elements[i], renderPriority);
             }
-            m_SyncedPriority = renderPriority;
+            next.priority = renderPriority;
+            Stage(next);
         }
 
-        void Create(in MeshWorldUpdate update, in MeshEntityDesc desc)
+        void Stage(in SyncState next)
+        {
+            m_Next = next;
+            m_Staged = true;
+        }
+
+        internal void PublishSync()
+        {
+            if (!m_Staged) return;
+            m_State = m_Next;
+            m_Next = default;
+            m_Staged = false;
+        }
+
+        internal void AbandonSync()
+        {
+            m_Next = default;
+            m_Staged = false;
+        }
+
+        SyncState Create(MeshWorld world, in MeshWorldUpdate update, in MeshEntityDesc desc)
         {
             float4x4 localToWorld = transform.localToWorldMatrix;
             m_BoundBox = Geometry.CaculateWorldBound(localBounds, localToWorld);
-            m_EntityId = update.CreateEntity(localToWorld, m_BoundBox, desc);
             int subMeshCount = m_Geometry.subMeshes;
-            m_ElementIds = new MeshElementId[subMeshCount];
-            m_SyncedMaterials = new MaterialSnapshot[subMeshCount];
+            var state = new SyncState
+            {
+                worldId = world.worldId,
+                entity = update.CreateEntity(localToWorld, m_BoundBox, desc),
+                elements = new MeshElementId[subMeshCount],
+                materials = new MaterialSnapshot[subMeshCount],
+                mesh = meshAsset,
+                subMeshCount = subMeshCount,
+                geometryRevision = m_GeometryRevision,
+                mobility = movebility,
+                desc = desc,
+                priority = renderPriority
+            };
             for (int i = 0; i < subMeshCount; ++i)
             {
                 MaterialSnapshot material = ReadMaterial(i);
-                m_ElementIds[i] = update.AddElement(m_EntityId, m_Geometry.identity, i, material.id, material.state, renderPriority);
-                m_SyncedMaterials[i] = material;
+                state.elements[i] = update.AddElement(state.entity, m_Geometry.identity, i, material.id, material.state, renderPriority);
+                state.materials[i] = material;
             }
-            if (movebility == EStateType.Dynamic) update.SetEntityMobility(m_EntityId, transform, localBounds);
-            m_SyncedMesh = meshAsset;
-            m_SyncedSubMeshCount = subMeshCount;
-            m_SyncedGeometryRevision = m_GeometryRevision;
-            m_SyncedMobility = movebility;
-            m_SyncedDesc = desc;
-            m_SyncedPriority = renderPriority;
+            if (movebility == EStateType.Dynamic) update.SetEntityMobility(state.entity, transform, localBounds);
+            return state;
         }
 
         MaterialSnapshot ReadMaterial(int submesh)
         {
             Material material = submesh < materials.Length ? materials[submesh] : null;
             if (material == null) return default;
-            MaterialRouteUtility.ReadMeshRoute(material, out int route, out int stage, out int queue, out _);
-            return new MaterialSnapshot { id = UnityEntityId.ToUInt64(material), state = new MeshMaterialState(queue, route, stage) };
+            MaterialRouteUtility.ReadMeshRoute(material, out int route, out int stage, out int queue, out Shader shader);
+            return new MaterialSnapshot { id = UnityEntityId.ToUInt64(material), state = new MeshMaterialState(queue, route, stage, UnityEntityId.ToUInt64(shader)) };
         }
 
         /// <summary>
-        /// Every assigned material must route through Infinity surface routing, read entity data through the mesh
-        /// instancing interface and declare each pass its route enables.
+        /// The cached geometry must match the mesh, and every material that draws a submesh must route through Infinity
+        /// surface routing, read entity data through the mesh instancing interface and declare each pass its route enables.
         /// </summary>
         bool TryValidate(out string error)
         {
             error = null;
-            foreach (Material material in materials)
+            if (meshAsset.subMeshCount != m_Geometry.subMeshes)
             {
+                error = $"mesh '{meshAsset.name}' changed its submeshes in place; call MeshComponent.NotifyGeometryChanged.";
+                return false;
+            }
+            int drawn = System.Math.Min(materials.Length, m_Geometry.subMeshes);
+            for (int i = 0; i < drawn; ++i)
+            {
+                Material material = materials[i];
                 if (material == null) continue;
                 if (!MeshPassShaderUtility.SupportsMeshInstancing(material.shader))
                 {
@@ -206,7 +256,7 @@ namespace InfinityTech.Component
                     return false;
                 }
                 int route, stage;
-                try { MaterialRouteUtility.ReadMeshRoute(material, out route, out stage, out _, out _); }
+                try { MaterialRouteUtility.ReadMeshRoute(material, out route, out stage, out _, out Shader _); }
                 catch (System.InvalidOperationException exception)
                 {
                     error = exception.Message;

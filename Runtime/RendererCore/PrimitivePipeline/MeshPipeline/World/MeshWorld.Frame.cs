@@ -78,7 +78,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             debug.elementCount = elementCount;
             debug.passCacheCount = stats.passCacheCount;
             debug.commandCount = stats.commandCount;
-            m_GpuVisibility.BeginCamera();
             m_VisibilityShare.BeginCamera();
         }
 
@@ -128,8 +127,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         internal BufferHandle GetGpuVisibilityBuffer(in MeshView view) => m_GpuVisibility.GetBufferHandle(view, entityHighWater);
-        internal bool NeedsGpuCull(in MeshView view) => m_GpuVisibility.NeedsCull(view);
-        internal void MarkGpuCulled(in MeshView view) => m_GpuVisibility.MarkCulled(view);
 
         internal void ReleaseView(ulong viewKey)
         {

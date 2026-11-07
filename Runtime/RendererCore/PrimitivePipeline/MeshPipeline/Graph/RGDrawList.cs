@@ -88,13 +88,14 @@ namespace InfinityTech.Rendering.MeshPipeline
                 throw new InvalidOperationException($"Mesh pass '{desc.lightMode}' requires the view's previous-transform producer.");
             MeshWorldGpuTables tables = m_World.gpu.Snapshot();
             if (!tables.isValid) throw new InvalidOperationException("Draw lists require uploaded MeshWorld residency.");
+            EMeshBackendPolicy backend = m_World.SelectBackend(desc);
             tables.version.Retain();
             int index = m_Records.Count;
             m_Records.Add(new RGDrawListRecord
             {
                 view = view,
                 cache = cache,
-                backend = m_World.SelectBackend(desc),
+                backend = backend,
                 tables = tables,
                 motion = motion,
                 state = ERGDrawListCompileState.Declared,
@@ -131,17 +132,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_Records[index] = record;
         }
 
-        public bool HasLiveView(in MeshView view)
-        {
-            var key = new MeshVisibilityKey(view, true);
-            foreach (RGDrawListRecord record in m_Records)
-            {
-                if (record.state == ERGDrawListCompileState.Declared || record.state == ERGDrawListCompileState.Released) continue;
-                if (new MeshVisibilityKey(record.view, true).Equals(key)) return true;
-            }
-            return false;
-        }
-
         /// <summary>
         /// Live lists acquire their capacity once: CPU lists acquire visibility and schedule their build jobs, GPU lists
         /// rent their payload. Lists without a live consumer are released without producing anything.
@@ -172,8 +162,11 @@ namespace InfinityTech.Rendering.MeshPipeline
                 }
                 else
                 {
+                    // Stored before the next step can throw, so ReleaseAll releases what was acquired.
                     record.visibility = m_World.visibilityShare.Acquire(m_World, record.view);
+                    m_Records[i] = record;
                     record.build = MeshDrawListBuild.Schedule(cache, m_World, m_World.visibilityShare.Get(record.visibility));
+                    m_Records[i] = record;
                     record.cpuInstances = m_World.cpuBackend.AllocateInstances(cache.memberCount);
                 }
                 record.state = ERGDrawListCompileState.Scheduled;
@@ -213,10 +206,10 @@ namespace InfinityTech.Rendering.MeshPipeline
 
         public void Submit(CommandBuffer commands, in RGDrawListHandle draws)
         {
-            // A foreign, stale or released handle draws nothing; UseDrawList already rejected it at record.
-            if (!IsLive(draws)) return;
+            // Draw is only reachable from a live consumer declared with UseDrawList; anything else is a broken pass.
+            if (!IsLive(draws)) throw new InvalidOperationException("Draw received a draw list of another builder or an earlier graph.");
             RGDrawListRecord record = m_Records[draws.index];
-            if (record.state != ERGDrawListCompileState.Scheduled) return;
+            if (record.state != ERGDrawListCompileState.Scheduled) throw new InvalidOperationException("Draw received a draw list that its pass did not declare with UseDrawList.");
             RequireUnchanged(record);
             if (record.backend == EMeshBackendPolicy.GpuIndirect)
                 m_World.gpuBackend.Submit(commands, record.payload, record.cache, record.commandCount, record.tables, record.motion, record.view.kind);

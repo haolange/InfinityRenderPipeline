@@ -7,14 +7,14 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.TestTools;
 using Unity.Mathematics;
-using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 using InfinityTech.Rendering.RenderGraph;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
-    public class GpuSceneSubmissionTests
+    public class MeshResidencySubmissionTests
     {
         struct CopyData { public ComputeShader shader; public int kernel; public RGBufferHandle input, output; }
         struct FailureData { }
@@ -35,12 +35,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 });
             }
         }
-        static MeshInstanceId Create(MeshSceneUpdate update)
-        {
-            var transform = update.CreateTransform(float4x4.identity);
-            return update.CreateInstance(transform, new FBound(float3.zero, new float3(1)), ~0, 1,
-                EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Off);
-        }
+        static MeshEntityId Create(in MeshWorldUpdate update) => MeshTestUtility.CreateEntity(update, float3.zero);
         [UnityTest]
         public IEnumerator TwoCameras_DelayedSubmit_KeepCpuUploadsIndependent() => Run(false, false);
         [UnityTest]
@@ -54,7 +49,9 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             if (!SystemInfo.supportsAsyncGPUReadback || !SystemInfo.supportsGraphicsFence)
                 Assert.Ignore("GPU readback and CPU-queryable fences are required.");
             var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/RenderGraphHazard.compute");
+            var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var pool = new ResourcePool();
+            var contextPool = new ResourcePool();
             var graph = new RGBuilder("DisposeWhileSubmitted", pool);
             var source = pool.GetBuffer(new BufferDescriptor(1, 4));
             source.buffer.SetData(new[] { 37u });
@@ -68,7 +65,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using var state = new RenderContext { scriptableRenderContext = context };
+                    using var state = new RenderContext(contextPool, meshShader) { scriptableRenderContext = context };
                     using var commands = new CommandBuffer();
                     graph.Execute(state, commands);
                     pool.ReleaseBuffer(source);
@@ -105,7 +102,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 RenderPipelineManager.beginContextRendering -= render;
-                graph.Dispose(); pool.Dispose();
+                graph.Dispose(); pool.Dispose(); contextPool.Dispose();
                 if (previousFocus != null) previousFocus.Focus();
             }
         }
@@ -116,17 +113,18 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 Assert.Ignore("GPU readback and CPU-queryable fences are required.");
             var shader = AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.infinity.render-pipeline/Tests/Editor/RenderGraphHazard.compute");
             Assert.IsNotNull(shader);
+            var meshShader = MeshTestUtility.LoadMeshDrawShader();
             var pool = new ResourcePool();
-            using var scene = new MeshScene(16);
-            var gpu = new GpuScene(pool, scene);
+            var contextPool = new ResourcePool();
+            var world = new MeshWorld(pool, meshShader);
             var first = new RGBuilder("FirstCameraBeforeSubmit", pool);
             var second = new RGBuilder("SecondCameraBeforeSubmit", pool);
             using var firstResult = new ComputeBuffer(1, 4);
             using var secondResult = new ComputeBuffer(1, 4);
-            MeshInstanceId instance;
-            using (var update = scene.BeginUpdate()) { instance = Create(update); update.Commit(); }
-            gpu.Update();
-            var original = gpu.InstanceFlagsBuffer;
+            MeshEntityId entity;
+            using (var update = world.BeginUpdate()) { entity = Create(update); update.Commit(); }
+            world.UpdateResidency();
+            var original = world.gpu.flags;
             Copy(first, shader, original, firstResult);
             pool.EnsureRecording();
             int firstEpoch = pool.recordingEpoch;
@@ -146,30 +144,30 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 executed = true;
                 try
                 {
-                    using var state = new RenderContext { scriptableRenderContext = context };
+                    using var state = new RenderContext(contextPool, meshShader) { scriptableRenderContext = context };
                     using var commands = new CommandBuffer();
                     if (fail)
                         Assert.That(() => first.Execute(state, commands), Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("Expected submission fixture failure."));
                     else if (!delayExecute) first.Execute(state, commands);
                     Assert.IsFalse(pool.CanWriteBuffer(original), "Execute is not Submit/completion.");
                     pool.BeginFrame(); // Simulate a CPU frame transition while the context is still unsubmitted.
-                    using (var update = scene.BeginUpdate())
+                    using (var update = world.BeginUpdate())
                     {
-                        update.SetInstanceFlags(instance, EMeshInstanceFlags.None);
+                        update.SetEntityDesc(entity, MeshTestUtility.Desc(EMeshEntityFlags.None));
                         if (grow) for (int i = 0; i < 64; ++i) Create(update);
                         update.Commit();
                     }
-                    gpu.Update();
-                    Assert.AreNotSame(original.buffer, gpu.InstanceFlagsBuffer.buffer, "Dirty or expanded tables require a separate CPU-writable version.");
+                    world.UpdateResidency();
+                    Assert.AreNotSame(original.buffer, world.gpu.flags.buffer, "Dirty or expanded tables require a separate CPU-writable version.");
                     Assert.IsFalse(pool.BufferUsage(original.buffer).CanWriteCpu, "Returning the old table without an explicit fence must preserve its queued use.");
                     var probe = pool.GetBuffer(original.descriptor);
                     Assert.AreNotSame(original.buffer, probe.buffer, "The no-fence return path must not become a CPU acquisition.");
                     probe.buffer.SetData(new uint[probe.descriptor.count]);
                     pool.ReleaseBuffer(probe);
-                    Copy(second, shader, gpu.InstanceFlagsBuffer, secondResult);
+                    Copy(second, shader, world.gpu.flags, secondResult);
                     if (delayExecute) first.Execute(state, commands);
                     second.Execute(state, commands);
-                    Assert.IsFalse(pool.CanWriteBuffer(gpu.InstanceFlagsBuffer));
+                    Assert.IsFalse(pool.CanWriteBuffer(world.gpu.flags));
                     var tail = new ResourceReuseFence { hasGraphics = true };
                     tail.graphics = commands.CreateAsyncGraphicsFence();
                     var completion = commands.CreateGraphicsFence(GraphicsFenceType.CPUSynchronisation, SynchronisationStageFlags.AllGPUOperations);
@@ -181,7 +179,7 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                     pool.AfterSubmit(completion, tail);
                     bool completedImmediately = completion.passed;
                     TestContext.WriteLine("Completion observed immediately after Submit: " + completedImmediately);
-                    if (!completedImmediately) Assert.IsFalse(pool.CanWriteBuffer(gpu.InstanceFlagsBuffer));
+                    if (!completedImmediately) Assert.IsFalse(pool.CanWriteBuffer(world.gpu.flags));
                 }
                 catch (Exception error) { failure = error; }
             };
@@ -202,14 +200,14 @@ namespace InfinityTech.Rendering.Pipeline.Tests
                 var b = AsyncGPUReadback.Request(secondResult);
                 while (!a.done || !b.done) yield return null;
                 Assert.IsFalse(a.hasError || b.hasError);
-                Assert.AreEqual((uint)EMeshInstanceFlags.Visible, a.GetData<uint>()[0], "The first camera's queued input was overwritten.");
+                Assert.AreEqual((uint)EMeshEntityFlags.Visible, a.GetData<uint>()[0], "The first camera's queued input was overwritten.");
                 Assert.AreEqual(0u, b.GetData<uint>()[0]);
                 Assert.IsTrue(pool.BufferUsage(original.buffer).CanWriteCpu, "The earlier submission is CPU-safe after its completion fence and ordered readback finish.");
             }
             finally
             {
                 RenderPipelineManager.beginContextRendering -= render;
-                first.Dispose(); second.Dispose(); gpu.Dispose(); pool.Dispose();
+                first.Dispose(); second.Dispose(); world.Dispose(); pool.Dispose(); contextPool.Dispose();
                 if (previousFocus != null) previousFocus.Focus();
             }
         }

@@ -9,7 +9,7 @@ InfinityRP is a Scriptable Render Pipeline. `InfinityRenderPipeline` derives fro
 Two geometry paths share the frame:
 
 - Native renderers are submitted with Unity `CullingResults`, `RendererList` and `ShadowRendererList`. Lightmaps, legacy probes, light-probe proxy volumes, shadowmask and motion data stay on those renderer lists.
-- `MeshComponent` instances live in `MeshScene` and are submitted through `RGDrawListHandle`. A mesh component does not discover or modify a `Renderer`.
+- `MeshComponent` instances are entities of `MeshWorld` and are submitted through `RGDrawListHandle`. A mesh component does not discover or modify a `Renderer`.
 
 The package owns the render graph, the physical resource pool, image history, the mesh scene, GPU scene tables, light records, shadow allocation and the atmosphere profile. Unity owns the device, command submission, fences, native culling and the Volume manager.
 
@@ -96,7 +96,7 @@ Each camera has its own `TextureCapacityState` for internal and display extents.
 
 Screen-texture bindings carry logical and physical metadata. Normalized sampling uses `TextureView.hlsl`. Integer loads use logical pixels. Material texture sampling is unchanged. Binding registries are generated with `python3 -B Tools/TextureViews.py --write`.
 
-`GpuScene.transformVersions` is the exception to image-history ownership. It holds immutable matrix and generation buffers for the scene. A camera keeps accepted and pending version references. A revision advances only when matrices or slot membership change. Dirty 64-slot pages upload once per version, and a compute producer copies the unchanged elements. Shader motion checks scene identity, snapshot range and slot generation.
+`MeshWorldGpu.transformVersions` is the exception to image-history ownership. It holds immutable matrix and generation buffers per entity slot. A camera keeps accepted and pending version references. A revision advances only when matrices or slot membership change. Dirty 64-slot pages upload once per version, and a compute producer copies the unchanged elements. Shader motion checks world identity, snapshot range and slot generation.
 
 Clear depth and sampled depth are different values. `ClearRenderTarget` and `AttachmentDescriptor.clearDepth` take `GraphicsUtility.ClearDepthFar`, which is normalized so that 1 means the far plane. Shader comparisons against a sampled depth buffer use `GraphicsUtility.SampledFarDepth`.
 
@@ -137,7 +137,7 @@ Index spaces are entity, element, command, draw and instance; arrays are named `
 
 ### World
 
-`MeshWorld.BeginUpdate` opens one transaction and snapshots revisions and dirty pages. Each table logs the slot state before its first change. `Commit` first asks every pass cache to prepare the bindings it would create; a failure leaves the transaction open and the lease's `Dispose` rolls it back. It then reclaims killed slots, retires sections and materials whose reference count stayed zero, applies pending mobility changes and publishes the dirty elements to every pass cache. `Rollback` replays the logs in reverse, rebuilds the touched section and material lookups and restores revisions and dirty pages.
+`MeshWorld.BeginUpdate` opens one transaction and snapshots revisions and dirty pages. Each table logs the slot state before its first change. `Commit` first asks every pass cache to prepare the bindings it would create; a failure leaves the transaction open and the lease's `Dispose` rolls it back. After that the transaction is closed, so nothing can revive a reclaimed slot. Commit then reclaims killed slots, retires sections and materials whose reference count stayed zero, applies pending mobility changes and publishes the dirty elements to every pass cache. `Rollback` replays the logs in reverse, rebuilds the touched section and material lookups and restores revisions and dirty pages.
 
 Poses do not take part in transactions. `WriteEntityPose` writes one static pose; `UpdateDynamicPoses` reads every dynamic entity's `Transform` in an `IJobParallelForTransform`, writes changed poses by entity index and marks dirty pages in a second job. Both throw while a transaction is open. Changing a flag that decides membership (`CastShadow`, `ObjectMotion`) is a structural edit.
 
@@ -145,11 +145,11 @@ Poses do not take part in transactions. `WriteEntityPose` writes one static pose
 
 Membership of an element in a pass is: its material's route and stage enable the pass LightMode (`MaterialRouteUtility.RouteEnablesPass`, the one authority that also sets material pass state), its queue is inside the desc range, and its entity carries the required flags. Pass state on the material is not consulted. A command is keyed by (section slot, material slot) and binds the mesh, material, pass index and submesh range when it is created. Its state key packs a per-cache shader-state rank, the material slot and the section slot, each saturated to its segment. After a shader import `MeshPassShaderUtility.NotifyShadersChanged` advances an epoch and each cache resolves its pass indices again before its next draw list.
 
-The nine presets (Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, TranslucentT0, T1, T2) are interned when the world is created, so shadow-caster bounds and residency see them before any draw list. Another desc is built from the world on its first request. A world interns at most 64 descs and never evicts one. Motion and the translucent stages require the view's previous transforms.
+The nine presets (Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, TranslucentT0, T1, T2) are interned when the world is created, so shadow-caster bounds and residency see them before any draw list. Another desc is built from the world on its first request, and its candidate table is written into a fresh buffer at that moment; later changes upload in residency like the presets. A world interns at most 64 descs and never evicts one. Motion and the translucent stages require the view's previous transforms.
 
 ### Frame
 
-1. Proxy update: registration tasks, one `MeshWorldUpdate` for removals and every dirty component, explicit static poses, then dynamic poses.
+1. Proxy update: registration tasks, one `MeshWorldUpdate` for removals and every dirty component, explicit static poses, then dynamic poses. A component stages its sync inside the transaction and publishes it after the commit; an id is valid only in the world that issued it, and a new world resyncs every registered component. A shader import or a shader swap on a material makes the affected components validate again and the commands resolve their pass indices again.
 2. `MeshWorld.UpdateResidency` uploads dirty entity columns, the next transform version and stale pass candidate tables.
 3. `MeshWorld.BeginCamera` resets per-camera counters and visibility interning.
 4. Passes call `CreateDrawList(meshView, MeshPassPresets.X)`. On the GPU backend that declaration also requests `EnsureMeshGpuCull` for the view.
@@ -157,7 +157,7 @@ The nine presets (Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, Tra
 6. Execute: the CPU upload completes the build jobs and uploads `instanceToEntity`; the CPU consumer issues one `DrawMeshInstancedProcedural` per merged run. The GPU producer runs `ClearCounts`, `Compact` (one thread per element slot of the candidate table) and `BuildIndirectArgs`; the consumer issues one `DrawMeshInstancedIndirect` per live command. Raster submission only draws.
 7. `ReleaseAll` completes and frees build jobs, releases visibility references and retires payloads, instance buffers and transform-version references. After native submit, `FlushRetired` returns allocations to `ResourcePool` without clearing outstanding GPU use.
 
-Sort modes: `State` orders by state key; `FrontToBack` puts a saturated camera distance in decimeters in front of the state key; `BackToFront` orders by priority, then exact distance descending, and always records on the CPU backend. Every mode breaks ties by command and entity, so the order is total.
+Sort modes: `State` orders by state key; `FrontToBack` puts a saturated camera distance in decimeters in front of the state key's segments, each saturated to 16 bits; `BackToFront` orders by priority, then exact distance descending, and always records on the CPU backend. Every mode breaks ties by command and entity, so the order is total. The GPU backend issues its commands in state-key order; it has no per-instance distance order.
 
 `EMeshBackendPolicy` is Auto, CpuDirect or GpuIndirect. The camera or test override wins, then the Rendering Debugger override, then the asset. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing and the mesh compute shader has its kernels. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
 
@@ -264,7 +264,7 @@ Automated Editor commands use the CLI adapter under `Editor/Cli`, on `127.0.0.1`
 
 The ownership audit is [Docs/UnityIntegrationAudit.md](Docs/UnityIntegrationAudit.md). The rules that follow are the architectural boundary.
 
-Native renderer content uses Unity culling and renderer lists. Custom mesh content uses `MeshScene`. Ray tracing adapts native geometry through the public explicit-instance API of Unified Ray Tracing. Native renderer identity and custom draw generation are different. A mesh asset is not an instance identity. Native scene changes do not wait for a mesh-scene revision.
+Native renderer content uses Unity culling and renderer lists. Custom mesh content uses `MeshWorld`. Ray tracing adapts native geometry through the public explicit-instance API of Unified Ray Tracing. Native renderer identity and custom draw generation are different. A mesh asset is not an instance identity. Native scene changes do not wait for a mesh-world revision.
 
 Adaptive Probe Volumes are bound with Core RP's `ProbeReferenceVolume` APIs on the pipeline command buffer before the graph records. One integration owns initialization and cleanup. A material samples probes in world space. The pipeline does not upload a per-instance probe record for mesh content.
 

@@ -1,7 +1,8 @@
 using NUnit.Framework;
 using System.Collections.Generic;
 using System.Reflection;
-using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 using UnityEngine;
 using InfinityTech.Component;
 using UnityEditor.SceneManagement;
@@ -13,14 +14,21 @@ namespace InfinityTech.Rendering.Pipeline.Tests
     {
         readonly List<RenderContext> m_Contexts = new List<RenderContext>();
         FGraphicsTask[] m_PendingTasks;
+        ComputeShader m_MeshShader;
+        ResourcePool m_Pool;
         RenderContext OwnContext()
         {
-            var context = new RenderContext();
+            var context = new RenderContext(m_Pool, m_MeshShader);
             m_Contexts.Add(context);
             return context;
         }
         [SetUp]
-        public void PreservePendingWork() => m_PendingTasks = FGraphics.GraphicsTasks.ToArray();
+        public void PreservePendingWork()
+        {
+            m_PendingTasks = FGraphics.GraphicsTasks.ToArray();
+            m_MeshShader = MeshTestUtility.LoadMeshDrawShader();
+            m_Pool = new ResourcePool();
+        }
         [TearDown]
         public void DisposeOwnedContexts()
         {
@@ -33,6 +41,8 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             finally
             {
                 m_Contexts.Clear();
+                m_Pool?.Dispose();
+                m_Pool = null;
                 FGraphics.GraphicsTasks.Clear();
                 FGraphics.GraphicsTasks.AddRange(m_PendingTasks);
                 dirty.Clear();

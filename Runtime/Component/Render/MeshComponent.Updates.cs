@@ -68,6 +68,30 @@ namespace InfinityTech.Component
             MarkDirty();
         }
 
+        /// <summary>
+        /// A new world (pipeline creation) knows none of the registered components: every one syncs again from scratch.
+        /// </summary>
+        internal static void ResyncAll()
+        {
+            foreach (var component in s_Registered)
+            {
+                component.ResetSyncState();
+                component.m_DirtyEnqueued = false;
+                component.transformPending = false;
+                component.MarkDirty();
+            }
+        }
+
+        /// <summary>
+        /// A shader import can renumber or remove passes: pass caches resolve their pass indices again, and every component
+        /// validates its materials again in the next frame transaction.
+        /// </summary>
+        internal static void NotifyShadersChanged()
+        {
+            MeshPassShaderUtility.NotifyShadersChanged();
+            foreach (var component in s_Registered) component.MarkDirty();
+        }
+
         /// <summary>Refreshes the pose of every registered static component (asset proxy update or the first runtime frame).</summary>
         internal static void NotifyAllStaticPoses()
         {
@@ -86,10 +110,10 @@ namespace InfinityTech.Component
         internal void ApplyStaticPose(MeshWorld world)
         {
             transformPending = false;
-            if (!isActiveAndEnabled || !world.IsAlive(m_EntityId) || world.IsDynamic(m_EntityId)) return;
+            if (!isActiveAndEnabled || !IsPublishedIn(world, m_State) || world.IsDynamic(m_State.entity)) return;
             float4x4 localToWorld = transform.localToWorldMatrix;
             m_BoundBox = Geometry.CaculateWorldBound(localBounds, localToWorld);
-            world.WriteEntityPose(m_EntityId, localToWorld, m_BoundBox);
+            world.WriteEntityPose(m_State.entity, localToWorld, m_BoundBox);
         }
     }
 }

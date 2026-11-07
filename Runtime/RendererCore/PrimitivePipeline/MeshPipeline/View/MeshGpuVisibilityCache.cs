@@ -6,8 +6,8 @@ using InfinityTech.Rendering.GPUResource;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
-    /// One resident GPU visibility buffer (one uint per entity slot) per visibility key. CullFrustum or the occlusion
-    /// kernels write it once per camera render; draw lists only read it.
+    /// One resident GPU visibility buffer (one uint per entity slot) per visibility key. The graph extension records one
+    /// culling producer per key and camera render; draw lists only read it.
     /// </summary>
     internal sealed class MeshGpuVisibilityCache : IDisposable
     {
@@ -15,7 +15,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             public BufferHandle buffer;
             public int capacity;
-            public bool culled;
         }
 
         readonly ResourcePool m_ResourcePool;
@@ -42,28 +41,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Slots[key] = slot;
             }
             return slot.buffer;
-        }
-
-        public bool NeedsCull(in MeshView view) => !m_Slots.TryGetValue(new MeshVisibilityKey(view, false), out Slot slot) || !slot.culled;
-
-        public void MarkCulled(in MeshView view)
-        {
-            var key = new MeshVisibilityKey(view, false);
-            if (!m_Slots.TryGetValue(key, out Slot slot)) return;
-            slot.culled = true;
-            m_Slots[key] = slot;
-        }
-
-        public void BeginCamera()
-        {
-            m_Keys.Clear();
-            m_Keys.AddRange(m_Slots.Keys);
-            foreach (MeshVisibilityKey key in m_Keys)
-            {
-                Slot slot = m_Slots[key];
-                slot.culled = false;
-                m_Slots[key] = slot;
-            }
         }
 
         public void ReleaseView(ulong viewKey)

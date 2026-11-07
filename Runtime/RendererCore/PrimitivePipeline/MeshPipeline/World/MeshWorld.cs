@@ -65,7 +65,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>Compute_MeshDrawPipeline: transform versions on every backend, culling and compaction on GPU indirect.</summary>
         internal ComputeShader meshDrawShader { get; }
         public int structuralRevision { get; private set; }
-        public int visibilityRevision { get; private set; }
         public ulong transformRevision { get; private set; }
         public readonly MeshWorldStats stats = new MeshWorldStats();
 
@@ -171,7 +170,6 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_TransformDirty.Mark(index);
             m_EntityDirty.Mark(index);
             transformRevision++;
-            visibilityRevision++;
         }
 
         #region Dynamic poses
@@ -253,11 +251,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                     changedCount = changedCount
                 }.Schedule(handle);
                 handle.Complete();
-                if (changedCount[0] > 0)
-                {
-                    transformRevision++;
-                    visibilityRevision++;
-                }
+                if (changedCount[0] > 0) transformRevision++;
             }
             finally { changedCount.Dispose(); }
         }

@@ -10,7 +10,7 @@ namespace InfinityTech.Rendering.Pipeline
         sealed class MeshRoute
         {
             internal int route, stage, queue;
-            internal uint version = 1;
+            internal Shader shader;
         }
         static readonly string[] s_RoutedPasses = { "RasterGBufferPass", "RasterForwardPass", "RasterDepthPass", "RasterShadowPass", "ShadowCaster", "RasterMotionPass",
             "RasterTranslucentDepthPass", "RasterTranslucentT0Pass", "RasterTranslucentT1Pass", "RasterTranslucentT2Pass" };
@@ -42,12 +42,12 @@ namespace InfinityTech.Rendering.Pipeline
         static MeshRoute CaptureMeshRoute(Material material)
         {
             Read(material, out int route, out int stage);
-            return new MeshRoute { route = route, stage = stage, queue = material.renderQueue };
+            return new MeshRoute { route = route, stage = stage, queue = material.renderQueue, shader = material.shader };
         }
-        internal static void ReadMeshRoute(Material material, out int route, out int stage, out int queue, out uint version)
+        internal static void ReadMeshRoute(Material material, out int route, out int stage, out int queue, out Shader shader)
         {
             var state = s_MeshRoutes.GetValue(material, s_CreateMeshRoute);
-            route = state.route; stage = state.stage; queue = state.queue; version = state.version;
+            route = state.route; stage = state.stage; queue = state.queue; shader = state.shader;
         }
 
         static readonly int ID_SurfaceRoute = Shader.PropertyToID("_SurfaceRoute");
@@ -102,9 +102,9 @@ namespace InfinityTech.Rendering.Pipeline
             var state = s_MeshRoutes.GetValue(material, s_CreateMeshRoute);
             Read(material, out int route, out int stage);
             int queue = material.renderQueue;
-            if (state.route == route && state.stage == stage && state.queue == queue) return;
-            state.route = route; state.stage = stage; state.queue = queue;
-            unchecked { ++state.version; }
+            Shader shader = material.shader;
+            if (state.route == route && state.stage == stage && state.queue == queue && state.shader == shader) return;
+            state.route = route; state.stage = stage; state.queue = queue; state.shader = shader;
             InfinityTech.Component.MeshComponent.InvalidateMaterialRouting(material);
         }
 

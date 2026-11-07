@@ -69,6 +69,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         NativeList<int> m_EntityMemberCount;
         NativeList<int> m_Pending;
         NativeArray<uint> m_CommandMeta;
+        NativeList<int> m_CommandOrder;
         uint m_CommandMetaRevision = uint.MaxValue;
         readonly Dictionary<FShaderState, int> m_StateRanks = new Dictionary<FShaderState, int>(16);
         readonly Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding> m_Prepared = new Dictionary<MeshDrawCommandKey, MeshDrawCommandBinding>(16);
@@ -105,6 +106,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_FreeCommands = new NativeList<int>(16, Allocator.Persistent);
             m_EntityMemberCount = new NativeList<int>(1024, Allocator.Persistent);
             m_Pending = new NativeList<int>(64, Allocator.Persistent);
+            m_CommandOrder = new NativeList<int>(64, Allocator.Persistent);
             m_ShaderEpoch = MeshPassShaderUtility.shaderEpoch;
         }
 
@@ -305,6 +307,7 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_Commands[command] = record;
             }
             m_ShaderEpoch = MeshPassShaderUtility.shaderEpoch;
+            m_CommandMetaRevision = uint.MaxValue;
         }
 
         /// <summary>
@@ -313,8 +316,31 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// </summary>
         internal NativeArray<uint> GetCommandMeta()
         {
+            RefreshCommandTables();
+            return m_CommandMeta;
+        }
+
+        /// <summary>Live command slots in state-key order: the submission order of the GPU backend.</summary>
+        internal NativeArray<int> GetCommandOrder()
+        {
+            RefreshCommandTables();
+            return m_CommandOrder.AsArray();
+        }
+
+        struct StateKeyOrder : IComparer<int>
+        {
+            public NativeArray<MeshDrawCommand> commands;
+            public int Compare(int a, int b)
+            {
+                int c = commands[a].stateKey.CompareTo(commands[b].stateKey);
+                return c != 0 ? c : a.CompareTo(b);
+            }
+        }
+
+        void RefreshCommandTables()
+        {
             if (m_CommandMetaRevision == revision && m_CommandMeta.IsCreated && m_CommandMeta.Length >= m_Commands.Length * 4)
-                return m_CommandMeta;
+                return;
             int needed = math.max(4, m_Commands.Length * 4);
             if (!m_CommandMeta.IsCreated || m_CommandMeta.Length < needed)
             {
@@ -333,8 +359,11 @@ namespace InfinityTech.Rendering.MeshPipeline
                 m_CommandMeta[command * 4 + 3] = instanceBase;
                 if (live) instanceBase += (uint)record.refCount;
             }
+            m_CommandOrder.Clear();
+            for (int command = 0; command < m_Commands.Length; ++command)
+                if (m_Commands[command].refCount > 0) m_CommandOrder.Add(command);
+            m_CommandOrder.AsArray().Sort(new StateKeyOrder { commands = m_Commands.AsArray() });
             m_CommandMetaRevision = revision;
-            return m_CommandMeta;
         }
 
         /// <summary>Uploads the candidate table when membership changed. Called from residency, outside graph recording.</summary>
@@ -375,6 +404,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             m_EntityMemberCount.Dispose();
             m_Pending.Dispose();
             if (m_CommandMeta.IsCreated) m_CommandMeta.Dispose();
+            m_CommandOrder.Dispose();
             m_Bindings.Clear();
         }
     }

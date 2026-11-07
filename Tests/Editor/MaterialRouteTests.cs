@@ -22,17 +22,23 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void ExplicitComponentMaterialNotificationRefreshesSharedQueueVersion()
+        public void ExplicitComponentMaterialNotificationRefreshesSharedRouteState()
         {
-            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int previousQueue, out uint previousVersion);
+            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int previousQueue, out Shader previousShader);
+            Assert.AreSame(m_Material.shader, previousShader);
             m_Material.renderQueue = previousQueue + 1;
+            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int unnotifiedQueue, out _);
+            Assert.AreEqual(previousQueue, unnotifiedQueue, "Shared route state changes only through an explicit notification.");
             InfinityTech.Component.MeshComponent.NotifyMaterialRoutingChanged(m_Material);
-            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int queue, out uint version);
+            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out int queue, out _);
             Assert.AreEqual(previousQueue + 1, queue);
-            Assert.AreEqual(previousVersion + 1, version);
+
+            Shader instanced = Shader.Find("InfinityPipeline/InfinityLit-Instanced");
+            Assert.NotNull(instanced);
+            m_Material.shader = instanced;
             InfinityTech.Component.MeshComponent.NotifyMaterialRoutingChanged(m_Material);
-            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out _, out uint repeatedVersion);
-            Assert.AreEqual(version, repeatedVersion);
+            MaterialRouteUtility.ReadMeshRoute(m_Material, out _, out _, out _, out Shader shader);
+            Assert.AreSame(instanced, shader, "A shader swap is part of the shared route state.");
         }
 
         Material m_Material;

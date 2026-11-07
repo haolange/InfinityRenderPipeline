@@ -1,6 +1,8 @@
+using System;
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Rendering.MeshPipeline;
+using Object = UnityEngine.Object;
 
 namespace InfinityTech.Rendering.Pipeline.Tests
 {
@@ -34,17 +36,31 @@ namespace InfinityTech.Rendering.Pipeline.Tests
         }
 
         [Test]
-        public void FindPassIndex_NullMaterialOrEmptyLightMode_ReturnsInvalid()
+        public void FindPassIndex_RejectsMissingMaterialOrLightMode()
         {
-            Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(null, "RasterGBufferPass"));
-            Assert.AreEqual(-1, MeshPassShaderUtility.FindPassIndex(null, string.Empty));
+            var material = new Material(Shader.Find("InfinityPipeline/InfinityLit-Instanced"));
+            try
+            {
+                Assert.Throws<ArgumentNullException>(() => MeshPassShaderUtility.FindPassIndex(null, "RasterGBufferPass"));
+                Assert.Throws<ArgumentException>(() => MeshPassShaderUtility.FindPassIndex(material, string.Empty));
+                Assert.Throws<ArgumentException>(() => MeshPassShaderUtility.FindPassIndex(material, null));
+            }
+            finally
+            {
+                Object.DestroyImmediate(material);
+            }
         }
 
         [Test]
-        public void ResolvePassIndex_EmptyLightMode_UsesFallback()
+        public void MeshInstancing_IsDeclaredByTheInstancedShaderOnly()
         {
-            Assert.AreEqual(2, MeshPassShaderUtility.ResolvePassIndex(null, null, 2));
-            Assert.AreEqual(2, MeshPassShaderUtility.ResolvePassIndex(null, string.Empty, 2));
+            Shader instanced = Shader.Find("InfinityPipeline/InfinityLit-Instanced");
+            Shader lit = Shader.Find("InfinityPipeline/InfinityLit");
+            Assert.NotNull(instanced);
+            Assert.NotNull(lit);
+            Assert.IsTrue(MeshPassShaderUtility.SupportsMeshInstancing(instanced));
+            Assert.IsFalse(MeshPassShaderUtility.SupportsMeshInstancing(lit), "Renderer-list shaders do not read mesh entity data.");
+            Assert.IsFalse(MeshPassShaderUtility.SupportsMeshInstancing(null));
         }
     }
 }

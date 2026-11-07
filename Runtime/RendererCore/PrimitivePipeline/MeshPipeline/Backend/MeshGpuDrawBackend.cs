@@ -203,15 +203,15 @@ namespace InfinityTech.Rendering.MeshPipeline
             try
             {
                 NativeArray<uint> meta = cache.GetCommandMeta();
-                NativeArray<MeshDrawCommand> records = cache.commands;
+                NativeArray<int> order = cache.GetCommandOrder();
                 m_Properties.Clear();
                 m_Properties.SetBuffer(InfinityShaderIDs.InstanceToEntity, payload.instanceToEntity.buffer);
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityTransforms, tables.version.matrices.buffer);
                 m_Properties.SetBuffer(InfinityShaderIDs.EntityRenderingLayers, tables.renderingLayers.buffer);
                 (motion.isValid ? motion : new MeshMotionBinding(tables.version, null)).Bind(m_Properties);
-                for (int command = 0; command < commandCount; ++command)
+                foreach (int command in order)
                 {
-                    if (records[command].refCount == 0) continue;
+                    if (command >= commandCount) throw new InvalidOperationException("A pass cache grew between draw-list record and execution.");
                     MeshDrawCommandBinding binding = cache.GetBinding(command);
                     if (binding.mesh == null || binding.material == null)
                     {

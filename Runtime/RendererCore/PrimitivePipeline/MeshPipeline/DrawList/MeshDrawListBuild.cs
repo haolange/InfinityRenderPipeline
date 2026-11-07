@@ -32,6 +32,18 @@ namespace InfinityTech.Rendering.MeshPipeline
         }
 
         public static ulong Pack(ulong segment, int shift) => segment << shift;
+
+        /// <summary>
+        /// Front-to-back key: distance, then the state key's rank, material and section segments, each saturated to
+        /// 16 bits (the state key stores rank 16 | material 24 | section 24).
+        /// </summary>
+        public static ulong FrontToBack(float depth, ulong stateKey)
+        {
+            ulong rank = stateKey >> 48;
+            ulong material = math.min((stateKey >> 24) & 0xFFFFFFul, 0xFFFFul);
+            ulong section = math.min(stateKey & 0xFFFFFFul, 0xFFFFul);
+            return Pack(QuantizeDepth(depth, 16), 48) | Pack(rank, 32) | Pack(material, 16) | section;
+        }
     }
 
     /// <summary>One visible (entity, command) pair of a draw list.</summary>
@@ -102,7 +114,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             switch (sortMode)
             {
                 case ESortMode.FrontToBack:
-                    key = SortKeyPacking.Pack(SortKeyPacking.QuantizeDepth(distance, 16), 48) | (commands[command].stateKey >> 16);
+                    key = SortKeyPacking.FrontToBack(distance, commands[command].stateKey);
                     break;
                 case ESortMode.BackToFront:
                     key = SortKeyPacking.Pack(SortKeyPacking.SaturateSigned(elements[element].priority, 16), 48);

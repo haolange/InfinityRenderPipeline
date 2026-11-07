@@ -2,8 +2,8 @@ using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using InfinityTech.Core;
-using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.MeshPipeline.Tests;
 using InfinityTech.Rendering.RenderGraph;
 using Unity.Mathematics;
 
@@ -17,34 +17,36 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var mesh = new Mesh { vertices = new[] { Vector3.zero, Vector3.right, Vector3.up }, triangles = new[] { 0, 1, 2 } };
             var a = new GameObject("NativeA"); var b = new GameObject("NativeB");
             var env = new InfinityRayTracingEnvironment();
-            using var scene = new MeshScene(16);
             try
             {
-                a.AddComponent<MeshFilter>().sharedMesh = mesh; var rendererA = a.AddComponent<MeshRenderer>();
-                b.AddComponent<MeshFilter>().sharedMesh = mesh; b.AddComponent<MeshRenderer>();
-                using (var update = scene.BeginUpdate())
+                using (var fixture = new MeshWorldFixture())
                 {
-                    for (int i = 0; i < 2; ++i)
+                    MeshWorld world = fixture.world;
+                    a.AddComponent<MeshFilter>().sharedMesh = mesh; var rendererA = a.AddComponent<MeshRenderer>();
+                    b.AddComponent<MeshFilter>().sharedMesh = mesh; b.AddComponent<MeshRenderer>();
+                    using (MeshWorldUpdate update = world.BeginUpdate())
                     {
-                        var transform = update.CreateTransform(float4x4.Translate(new float3(i, 0, 0)));
-                        var instance = update.CreateInstance(transform, new FBound(float3.zero, new float3(1)), ~0, 1,
-                            EMeshInstanceFlags.Visible, EMotionType.Object, ECastShadowMethod.Off);
-                        update.CreateDraw(instance, UnityEntityId.ToUInt64(mesh), 0, 0, EPassEligibility.GBuffer, 2000, 0);
+                        for (int i = 0; i < 2; ++i)
+                        {
+                            MeshEntityId entity = MeshTestUtility.CreateEntity(update, new float3(i, 0, 0));
+                            update.AddElement(entity, UnityEntityId.ToUInt64(mesh), 0, 0, default, 0);
+                        }
+                        update.Commit();
                     }
-                    update.Commit();
+                    env.CollectGeometry(world);
+                    Assert.AreEqual(2, env.Geometry.Count(x => x.mesh == mesh && x.native));
+                    Assert.AreEqual(2, env.Geometry.Count(x => x.mesh == mesh && !x.native));
+                    rendererA.enabled = false;
+                    env.CollectGeometry(world);
+                    Assert.AreEqual(1, env.Geometry.Count(x => x.mesh == mesh && x.native));
+                    rendererA.enabled = true; rendererA.forceRenderingOff = true;
+                    env.CollectGeometry(world);
+                    Assert.AreEqual(1, env.Geometry.Count(x => x.mesh == mesh && x.native));
+                    b.SetActive(false);
+                    env.CollectGeometry(world);
+                    Assert.AreEqual(0, env.Geometry.Count(x => x.mesh == mesh && x.native));
+                    Assert.AreEqual(2, env.Geometry.Count(x => x.mesh == mesh && !x.native), "Custom entities do not follow native renderer state.");
                 }
-                env.CollectGeometry(scene);
-                Assert.AreEqual(2, env.Geometry.Count(x => x.mesh == mesh && x.native));
-                Assert.AreEqual(2, env.Geometry.Count(x => x.mesh == mesh && !x.native));
-                rendererA.enabled = false;
-                env.CollectGeometry(scene);
-                Assert.AreEqual(1, env.Geometry.Count(x => x.mesh == mesh && x.native));
-                rendererA.enabled = true; rendererA.forceRenderingOff = true;
-                env.CollectGeometry(scene);
-                Assert.AreEqual(1, env.Geometry.Count(x => x.mesh == mesh && x.native));
-                b.SetActive(false);
-                env.CollectGeometry(scene);
-                Assert.AreEqual(0, env.Geometry.Count(x => x.mesh == mesh && x.native));
             }
             finally { env.Dispose(); Object.DestroyImmediate(a); Object.DestroyImmediate(b); Object.DestroyImmediate(mesh); }
         }
@@ -56,12 +58,15 @@ namespace InfinityTech.Rendering.Pipeline.Tests
             var go = new GameObject("MovingNative"); var env = new InfinityRayTracingEnvironment();
             try
             {
-                go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>();
-                env.CollectGeometry(null);
-                var previous = env.Geometry.Single(x => x.mesh == mesh).matrix;
-                go.transform.position = new Vector3(3, 2, 1);
-                env.CollectGeometry(null);
-                Assert.AreNotEqual(previous, env.Geometry.Single(x => x.mesh == mesh).matrix);
+                using (var fixture = new MeshWorldFixture())
+                {
+                    go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>();
+                    env.CollectGeometry(fixture.world);
+                    var previous = env.Geometry.Single(x => x.mesh == mesh).matrix;
+                    go.transform.position = new Vector3(3, 2, 1);
+                    env.CollectGeometry(fixture.world);
+                    Assert.AreNotEqual(previous, env.Geometry.Single(x => x.mesh == mesh).matrix);
+                }
             }
             finally { env.Dispose(); Object.DestroyImmediate(go); Object.DestroyImmediate(mesh); }
         }
