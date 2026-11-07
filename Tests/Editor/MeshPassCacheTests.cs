@@ -259,9 +259,8 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
         [Test]
         public void CommandKey_EqualityIsFieldLevel_UnderHashCollision()
         {
-            var first = new MeshDrawCommandKey(0, 397);
-            var second = new MeshDrawCommandKey(1, 0);
-            Assert.AreEqual(first.GetHashCode(), second.GetHashCode(), "Fixture keys must collide.");
+            Assert.IsTrue(TryFindCollision(out MeshDrawCommandKey first, out MeshDrawCommandKey second), "No colliding key pair in the searched range.");
+            Assert.AreEqual(first.GetHashCode(), second.GetHashCode());
             Assert.IsFalse(first.Equals(second));
             var lookup = new NativeParallelHashMap<MeshDrawCommandKey, int>(2, Allocator.Temp);
             try
@@ -273,6 +272,27 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
                 Assert.AreEqual((11, 22), (a, b));
             }
             finally { lookup.Dispose(); }
+        }
+
+        static bool TryFindCollision(out MeshDrawCommandKey first, out MeshDrawCommandKey second)
+        {
+            var seen = new Dictionary<int, MeshDrawCommandKey>(1 << 16);
+            for (int section = 0; section < 1024; ++section)
+            {
+                for (int material = 0; material < 1024; ++material)
+                {
+                    var key = new MeshDrawCommandKey(section, material);
+                    if (seen.TryGetValue(key.GetHashCode(), out MeshDrawCommandKey prior))
+                    {
+                        first = prior;
+                        second = key;
+                        return true;
+                    }
+                    seen.Add(key.GetHashCode(), key);
+                }
+            }
+            first = second = default;
+            return false;
         }
 
         [Test]

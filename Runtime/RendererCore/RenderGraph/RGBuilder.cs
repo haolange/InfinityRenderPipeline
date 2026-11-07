@@ -611,9 +611,11 @@ namespace InfinityTech.Rendering.RenderGraph
             m_RendererListRecords.ReleaseAll();
         }
 
+        /// <summary>Drops any recorded graph (and its extension state) before releasing the resource registry.</summary>
         public void Dispose()
         {
-            m_Resources.Dispose();
+            try { ClearPass(); }
+            finally { m_Resources.Dispose(); }
         }
     }
 
