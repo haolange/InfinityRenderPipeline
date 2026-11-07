@@ -115,7 +115,7 @@ namespace InfinityTech.Rendering.Editor.Migration
             PlanScenes(scenes, blockers, report);
             PlanUnloadedScenes(blockers);
             PlanPrefabs(prefabs, report);
-            PlanSharedAssets(prefabs, scenes, blockers);
+            HashSet<Mesh> unsaved = PlanSharedAssets(prefabs, scenes, blockers, report);
             if (blockers.Count > 0)
             {
                 EditorUtility.DisplayDialog(k_Title, "Nothing was changed:\n\n" + string.Join("\n", blockers), "OK");
@@ -129,7 +129,7 @@ namespace InfinityTech.Rendering.Editor.Migration
 
             try
             {
-                Dictionary<Mesh, MeshAsset> shared = CreateSharedAssets(prefabs, scenes, report);
+                Dictionary<Mesh, MeshAsset> shared = CreateSharedAssets(prefabs, scenes, unsaved, report);
                 ResaveMeshAssets(report);
                 // A source prefab is saved before every file that holds one of its instances, so an instance override
                 // written afterwards differs from the migrated source value and is recorded.
@@ -168,13 +168,14 @@ namespace InfinityTech.Rendering.Editor.Migration
         /// </summary>
         static void PlanUnloadedScenes(List<string> blockers)
         {
-            string scriptGuid = null;
+            string scriptPath = null;
             foreach (string guid in AssetDatabase.FindAssets("t:MonoScript MeshComponent"))
             {
-                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(AssetDatabase.GUIDToAssetPath(guid));
-                if (script != null && script.GetClass() == typeof(MeshComponent)) scriptGuid = guid;
+                string candidate = AssetDatabase.GUIDToAssetPath(guid);
+                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(candidate);
+                if (script != null && script.GetClass() == typeof(MeshComponent)) scriptPath = candidate;
             }
-            if (scriptGuid == null)
+            if (scriptPath == null)
             {
                 blockers.Add("The MeshComponent script asset was not found, so unloaded scenes cannot be checked.");
                 return;
@@ -190,11 +191,10 @@ namespace InfinityTech.Rendering.Editor.Migration
             foreach (string path in paths)
             {
                 if (loaded.Contains(path)) continue;
-                string text = File.ReadAllText(path);
-                if (!text.StartsWith("%YAML", StringComparison.Ordinal))
-                    blockers.Add($"Scene '{path}' is not text-serialized and not loaded; open it (additively) before migrating.");
-                else if (text.Contains("guid: " + scriptGuid))
-                    blockers.Add($"Scene '{path}' has MeshComponents and is not loaded; open it (additively) before migrating.");
+                // Recursive dependencies include the scripts of the prefabs a scene instantiates, nested ones included, so a
+                // scene whose MeshComponents all come from prefab instances is found too.
+                if (Array.IndexOf(AssetDatabase.GetDependencies(path, true), scriptPath) >= 0)
+                    blockers.Add($"Scene '{path}' has MeshComponents (directly or through prefab instances) and is not loaded; open it (additively) before migrating.");
             }
         }
 
@@ -227,9 +227,13 @@ namespace InfinityTech.Rendering.Editor.Migration
             }
         }
 
-        /// <summary>Every shared asset path must be free or already hold that asset before anything is written.</summary>
-        static void PlanSharedAssets(List<(string path, List<Work> work)> prefabs, List<(Scene scene, List<Work> work)> scenes, List<string> blockers)
+        /// <summary>
+        /// Every shared asset path must be free or already hold that asset before anything is written. A mesh that is not a
+        /// saved asset is listed and its components are not migrated; it does not block the others.
+        /// </summary>
+        static HashSet<Mesh> PlanSharedAssets(List<(string path, List<Work> work)> prefabs, List<(Scene scene, List<Work> work)> scenes, List<string> blockers, Report report)
         {
+            var unsaved = new HashSet<Mesh>();
             var checkedMeshes = new HashSet<Mesh>();
             var all = new List<Work>();
             foreach (var entry in prefabs) all.AddRange(entry.work);
@@ -237,9 +241,16 @@ namespace InfinityTech.Rendering.Editor.Migration
             foreach (Work item in all)
             {
                 if (item.mesh == null || !checkedMeshes.Add(item.mesh)) continue;
+                if (!AssetDatabase.Contains(item.mesh))
+                {
+                    unsaved.Add(item.mesh);
+                    report.skipped.Add($"Mesh '{item.mesh.name}' is not a saved asset; its components are not migrated (save the mesh as an asset and run again).");
+                    continue;
+                }
                 try { MeshAssetBuilder.ThrowIfSingleLevelBlocked(item.mesh); }
                 catch (InvalidOperationException error) { blockers.Add($"Mesh '{item.mesh.name}': {error.Message}"); }
             }
+            return unsaved;
         }
 
         /// <summary>
@@ -279,6 +290,7 @@ namespace InfinityTech.Rendering.Editor.Migration
                 bool ownsMesh = !instance || meshBridge.prefabOverride;
                 if (!ownsMesh)
                 {
+                    if (assetProperty.objectReferenceValue != null) return; // Its source already has an asset; nothing to migrate.
                     string source = AssetDatabase.GetAssetPath(PrefabUtility.GetCorrespondingObjectFromSource(component));
                     if (!source.StartsWith("Assets/", StringComparison.Ordinal))
                     {
@@ -289,6 +301,13 @@ namespace InfinityTech.Rendering.Editor.Migration
                 }
                 work.Add(new Work { component = component, owner = owner, hierarchy = hierarchy, index = index, mesh = ownsMesh ? mesh : null, mobility = ownsMobility });
             }
+        }
+
+        static UnityEngine.Object SourceAsset(MeshComponent component)
+        {
+            MeshComponent source = PrefabUtility.GetCorrespondingObjectFromSource(component);
+            if (source == null) return null;
+            using (var serialized = new SerializedObject(source)) return serialized.FindProperty(k_Asset).objectReferenceValue;
         }
 
         static bool SourceHasLegacyMesh(MeshComponent component)
@@ -319,7 +338,7 @@ namespace InfinityTech.Rendering.Editor.Migration
             foreach (string path in paths)
             {
                 MeshAsset asset = AssetDatabase.LoadAssetAtPath<MeshAsset>(path);
-                if (asset == null) continue;
+                if (asset == null || report.created.Contains(path)) continue; // Created assets are already in the current schema.
                 GameObject source;
                 using (var serialized = new SerializedObject(asset)) source = serialized.FindProperty(k_TargetBridge).objectReferenceValue as GameObject;
                 bool built = false;
@@ -353,7 +372,8 @@ namespace InfinityTech.Rendering.Editor.Migration
             }
         }
 
-        static Dictionary<Mesh, MeshAsset> CreateSharedAssets(List<(string path, List<Work> work)> prefabs, List<(Scene scene, List<Work> work)> scenes, Report report)
+        static Dictionary<Mesh, MeshAsset> CreateSharedAssets(List<(string path, List<Work> work)> prefabs, List<(Scene scene, List<Work> work)> scenes,
+            HashSet<Mesh> unsaved, Report report)
         {
             var shared = new Dictionary<Mesh, MeshAsset>();
             var failed = new HashSet<Mesh>();
@@ -362,7 +382,7 @@ namespace InfinityTech.Rendering.Editor.Migration
             foreach (var entry in scenes) all.AddRange(entry.work);
             foreach (Work item in all)
             {
-                if (item.mesh == null || shared.ContainsKey(item.mesh) || failed.Contains(item.mesh)) continue;
+                if (item.mesh == null || unsaved.Contains(item.mesh) || shared.ContainsKey(item.mesh) || failed.Contains(item.mesh)) continue;
                 try
                 {
                     // The first component that references the mesh supplies the asset's default materials.
@@ -442,11 +462,17 @@ namespace InfinityTech.Rendering.Editor.Migration
                     change.Append(" asset=").Append(AssetDatabase.GetAssetPath(asset));
                     changed = true;
                 }
-                if (item.clearAsset && assetProperty.objectReferenceValue != null)
+                bool verifyOverride = false;
+                if (item.clearAsset && SourceAsset(component) != null && !(assetProperty.prefabOverride && assetProperty.objectReferenceValue == null))
                 {
+                    // The source prefab was saved first, so this instance must already show the source's migrated asset;
+                    // otherwise writing None would record no override and the instance would inherit that asset later.
+                    if (assetProperty.objectReferenceValue == null)
+                        throw new InvalidOperationException($"{item.owner}: {item.hierarchy} does not show its migrated source prefab's asset, so its None override cannot be recorded. Restore the backup and report this.");
                     assetProperty.objectReferenceValue = null;
                     change.Append(" asset=None (instance override)");
                     changed = true;
+                    verifyOverride = true;
                 }
                 if (item.mobility)
                 {
@@ -461,6 +487,12 @@ namespace InfinityTech.Rendering.Editor.Migration
                 }
                 if (!changed) return false;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
+                if (verifyOverride)
+                {
+                    serialized.Update();
+                    if (!serialized.FindProperty(k_Asset).prefabOverride)
+                        throw new InvalidOperationException($"{item.owner}: {item.hierarchy}: the None override of 'asset' was not recorded. Restore the backup and report this.");
+                }
                 report.migrated.Add(change.ToString());
             }
             return true;

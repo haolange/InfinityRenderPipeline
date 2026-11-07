@@ -906,13 +906,14 @@ Serialized changes (Unity drops a removed key and writes an added key with its d
 Exact migration delta:
 
 1. Preconditions, checked before any write: Edit mode, Prefab Mode closed, every loaded scene that has work is saved
-   and not dirty (so a scene save carries only the migration delta), every scene under `Assets/` that references the
-   MeshComponent script (or is not text-serialized) is loaded, and every shared MeshAsset path is free or already holds
-   that asset. An instance in an unloaded scene would otherwise inherit its migrated source prefab's values instead of
+   and not dirty (so a scene save carries only the migration delta), every scene under `Assets/` whose recursive dependencies
+   include the MeshComponent script (directly or through prefab instances, nested ones included) is loaded, and every
+   shared MeshAsset path is free or already holds that asset. An instance in an unloaded scene would otherwise inherit its migrated source prefab's values instead of
    its own legacy overrides.
 2. Every `MeshAsset` under `Assets/` with a `target` is rebuilt from it by the current prefab builder unless it already
-   holds that data. The builder accepts one renderer per LOD level at the prefab root's transform; any other prefab is
-   listed as not rebuildable and its asset keeps its data. Default chosen against the original "only when `meshes`/`lODInfos` lengths differ" rule: the legacy
+   holds that data. The builder accepts one renderer per LOD level at the prefab root's transform and no renderer outside
+   the LODs (or, without a LODGroup, only the root renderer); any other prefab is listed as not rebuildable and its
+   asset keeps its data. Default chosen against the original "only when `meshes`/`lODInfos` lengths differ" rule: the legacy
    builder wrote placeholder screen sizes (`1 - 0.125 i`, or 1 for a single renderer), which the lower-bound LOD chain
    would cull, and kept only the last of two builds when a prefab had both a LODGroup and a root MeshRenderer. Risk: a
    hand edit of such an asset is replaced; nothing consumed MeshAssets before this commit. Rollback: the baseline
@@ -926,8 +927,10 @@ Exact migration delta:
    already has its own `asset` is listed and left unchanged. A prefab instance part writes only what it overrides: an
    overridden `meshAsset` writes `asset` and sets the override to None, an overridden `meshAsset` of None writes an
    `asset` override of None, an overridden `movebility` writes `mobility`; the rest arrives from the source prefab,
-   migrated as its own file. A part whose source prefab is outside `Assets/` and a mesh that is not a saved asset are
-   listed and not migrated. Only values that differ are written, through `SerializedObject.ApplyModifiedPropertiesWithoutUndo`.
+   migrated as its own file. A None override is written only after the source prefab is saved, and the run stops with
+   an error if the open instance does not show the migrated source asset or the override is not recorded (restore the
+   backup). A part whose source prefab is outside `Assets/` and a mesh that is not a saved asset are listed and not
+   migrated; they do not block the rest. Only values that differ are written, through `SerializedObject.ApplyModifiedPropertiesWithoutUndo`.
 4. Touched prefabs are saved with `PrefabUtility.SaveAsPrefabAsset`, each after the prefabs whose instances it contains,
    so that instance overrides written afterwards differ from the migrated source and are recorded. Touched scenes are
    saved last with `EditorSceneManager.SaveScene`. Nothing else is saved; `AssetDatabase.SaveAssets` is not called.

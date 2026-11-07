@@ -101,26 +101,26 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <param name="owner">Names the data in messages; read only when throwing.</param>
         internal static void ThrowIfInvalid(UnityEngine.Object owner, Mesh[] meshes, Material[] materials, MeshLODInfo[] lods, float fadeWidth)
         {
-            string assetName() => owner != null ? owner.name : "<unnamed>";
+            string label() => owner is GameObject ? $"Prefab '{owner.name}'" : $"MeshAsset '{(owner != null ? owner.name : string.Empty)}'";
             int count = lods?.Length ?? 0;
             if (count < 1 || count > MeshLodChain.MaxLevels)
-                throw new InvalidOperationException($"MeshAsset '{assetName()}' has {count} LOD levels; 1 to {MeshLodChain.MaxLevels} are supported.");
+                throw new InvalidOperationException($"{label()} has {count} LOD levels; 1 to {MeshLodChain.MaxLevels} are supported.");
             if ((meshes?.Length ?? 0) != count)
-                throw new InvalidOperationException($"MeshAsset '{assetName()}' has {meshes?.Length ?? 0} meshes for {count} LOD levels; each level needs one mesh.");
+                throw new InvalidOperationException($"{label()} has {meshes?.Length ?? 0} meshes for {count} LOD levels; each level needs one mesh.");
             int materialCount = materials?.Length ?? 0;
             Span<float> sizes = stackalloc float[MeshLodChain.MaxLevels];
             for (int i = 0; i < count; ++i)
             {
-                if (meshes[i] == null) throw new InvalidOperationException($"MeshAsset '{assetName()}' has no mesh in LOD {i}.");
+                if (meshes[i] == null) throw new InvalidOperationException($"{label()} has no mesh in LOD {i}.");
                 int[] slots = lods[i].materialSlot;
                 if (slots != null)
                     for (int s = 0; s < slots.Length; ++s)
                         if (slots[s] < 0 || slots[s] >= materialCount)
-                            throw new InvalidOperationException($"MeshAsset '{assetName()}' LOD {i} submesh {s} uses material slot {slots[s]}; the asset has {materialCount} slots.");
+                            throw new InvalidOperationException($"{label()} LOD {i} submesh {s} uses material slot {slots[s]}; the asset has {materialCount} slots.");
                 sizes[i] = lods[i].screenSize;
             }
             try { MeshLodChain.Create(sizes.Slice(0, count), fadeWidth); }
-            catch (ArgumentException exception) { throw new InvalidOperationException($"MeshAsset '{assetName()}': {exception.Message}", exception); }
+            catch (ArgumentException exception) { throw new InvalidOperationException($"{label()}: {exception.Message}", exception); }
         }
 
         /// <summary>

@@ -17,7 +17,7 @@ namespace InfinityTech.Rendering.MeshPipeline
     internal enum EMeshVisibilityPhase : byte { Final, First, Deferred, Recovered }
 
     /// <summary>
-    /// How a view measures screen size for LOD selection: <c>screen = radius * scale * bias / distance</c>, with distance 1
+    /// How a view measures screen size for LOD selection: <c>screen = largest half-extent * scale * bias / distance</c>, with distance 1
     /// for orthographic cameras. Shadow views copy their camera's projection so casters use the camera's LOD.
     /// </summary>
     public struct MeshLodProjection : System.IEquatable<MeshLodProjection>

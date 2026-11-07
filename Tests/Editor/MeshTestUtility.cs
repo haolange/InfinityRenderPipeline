@@ -84,7 +84,7 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
 
         internal static FBound Bound(float3 center) => new FBound(center, new float3(0.5f));
 
-        /// <summary>A perspective-like LOD projection from the origin (screen size = radius / distance).</summary>
+        /// <summary>A perspective-like LOD projection from the origin (screen size = largest half-extent / distance).</summary>
         internal static readonly MeshLodProjection Lod = new MeshLodProjection { origin = float3.zero, scale = 1, bias = 1 };
 
         internal static MeshEntityId CreateEntity(in MeshWorldUpdate update, float3 center, EMeshEntityFlags flags = EMeshEntityFlags.Visible,

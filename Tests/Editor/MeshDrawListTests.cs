@@ -41,7 +41,12 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             var random = new System.Random(5);
             var items = new MeshDrawItem[64];
             for (int i = 0; i < items.Length; ++i)
-                items[i] = new MeshDrawItem { key = (ulong)random.Next(3), command = random.Next(3), entity = i, depth = random.Next(4) };
+            {
+                // Translucent (back-to-front) passes never fade; other modes mix stable and fading items.
+                bool fading = !backToFront && random.Next(3) == 0;
+                float fade = fading ? (random.Next(2) == 0 ? 1 : -1) * (0.05f + 0.9f * (float)random.NextDouble()) : 0;
+                items[i] = new MeshDrawItem { key = (ulong)random.Next(3), command = random.Next(3), entity = i, depth = random.Next(4), fade = fade };
+            }
             var comparer = new MeshDrawItemComparer { backToFront = backToFront };
             foreach (MeshDrawItem a in items)
                 foreach (MeshDrawItem b in items)
@@ -55,6 +60,11 @@ namespace InfinityTech.Rendering.MeshPipeline.Tests
             for (int i = 1; i < first.Length; ++i)
             {
                 MeshDrawItem a = first[i - 1], b = first[i];
+                if (!backToFront)
+                {
+                    Assert.IsTrue(!a.fading || b.fading, "Stable items precede fading ones, so a list changes the dither keyword once.");
+                    if (a.fading != b.fading) continue;
+                }
                 Assert.LessOrEqual(a.key, b.key);
                 if (a.key != b.key) continue;
                 if (backToFront) Assert.GreaterOrEqual(a.depth, b.depth, "Back-to-front: farther first within a priority.");

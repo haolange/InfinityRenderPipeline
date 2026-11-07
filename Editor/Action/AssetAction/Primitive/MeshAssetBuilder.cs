@@ -31,6 +31,13 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
             if (prefab.TryGetComponent(out LODGroup group))
             {
                 LOD[] levels = group.GetLODs();
+                var lodRenderers = new HashSet<Renderer>();
+                foreach (LOD level in levels)
+                    foreach (Renderer candidate in level.renderers ?? Array.Empty<Renderer>())
+                        if (candidate != null) lodRenderers.Add(candidate);
+                foreach (Renderer any in prefab.GetComponentsInChildren<Renderer>(true))
+                    if (!lodRenderers.Contains(any))
+                        throw new InvalidOperationException($"Renderer '{any.name}' of prefab '{prefab.name}' is outside every LOD; a MeshAsset would drop it.");
                 for (int i = 0; i < levels.Length; ++i)
                 {
                     Renderer renderer = null;
@@ -43,6 +50,9 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
             }
             else if (prefab.TryGetComponent(out MeshRenderer renderer))
             {
+                int count = prefab.GetComponentsInChildren<Renderer>(true).Length;
+                if (count != 1)
+                    throw new InvalidOperationException($"Prefab '{prefab.name}' has {count} renderers and no LODGroup; a one-level MeshAsset holds the root renderer only.");
                 AddLevel(prefab, 0, renderer, 0, meshList, materialList, lodList);
             }
             else
