@@ -97,7 +97,7 @@
 | `MeshSection` | `sectionIndex` | `meshUnityId`、`subMesh`、`indexCount/startIndex/baseVertex`、`refCount`、`revision` | 否 |
 | `MeshMaterial` | `materialIndex` | `materialUnityId`、`renderQueue`、`shaderStateId`、`refCount`、`revision` | 否 |
 | `MeshShaderState` | `shaderStateIndex` | `shaderUnityId`、`passIndex`、`keywordHash`、`refCount`（不含 render state，见 D1） | 否 |
-| `MeshLodChain` | `lodChainIndex` | `lodAssetUnityId`、`screenSize[]`、每级 LOD 的 Element 范围、`refCount` | 否 |
+| `MeshLodChain` | `lodChainIndex` | `assetUnityId`、`screenSize[]`、`fadeWidth`、每级 LOD 的 section → material slot 映射、`refCount` | 是（`screenSize[]`、`fadeWidth` 供 GPU 选 LOD） |
 
 **决策（已确认）**：Entity 与 Transform 严格 1:1，`transformIndex == entityIndex`。删除 `TransformId`、`TransformRecord` 和 owner 映射。GPU 侧 `EntityTransforms[entityIndex]` 直接寻址。将来如需层级或共享 transform，重新引入独立表。
 
@@ -153,7 +153,7 @@ CreateDrawList(view, desc)
    → MeshWorld.Passes.Intern(desc)        规范化 + Equals 查表 → MeshPassHandle
    → 首次：对全部 Element 跑一次 Burst 并行 build（只发生一次）
    → 之后：结构事件增量维护
-   → 淘汰：内置预设常驻；自定义 desc 进 LRU，只在超过容量上限时淘汰最久未用者（D3）
+   → 生命周期：与 MeshWorld 相同，不淘汰；不同 desc 数超过硬上限时在 record 阶段抛出（D3）
 ```
 
 作者看到的是 `DrawRenderers` 的写法，引擎拿到的是 UE 的缓存。
@@ -191,19 +191,46 @@ Submit 时每个 draw 只做 `binding[c]` 数组索引；MPB 每个 DrawList 设
 
 ## 6. View 层
 
-`MeshView` 只描述"画谁"：frustum planes、`viewKey`、`EMeshViewKind`、`layerMask`、`sceneCullingMask`、`renderingLayerMask`、`excludeFlags`、视点（用于 depth 与 LOD）。
+`MeshView` 只描述"画谁"：frustum planes、`viewKey`、`EMeshViewKind`、`layerMask`、`sceneCullingMask`、`renderingLayerMask`、`excludeFlags`、depth 用的视点，以及 **LOD 参考**（`lodOrigin`、`lodScale`）。
 
 `MeshViewVisibility` 每帧产出三列，索引空间都是 `entityIndex`：
 
 | 列 | 产生者 | 消费者 |
 |---|---|---|
 | `visible[e]` | Burst frustum job（CPU）或 `CullFrustum` kernel（GPU）；主视图可叠加两阶段 Hi-Z | Gather |
-| `lodIndex[e]` | 按视点距离选择 | Gather（`element.lodIndex == lodIndex[entity]` 才收） |
+| `lodState[e]` | §6.1 的 LOD 选择，与 frustum 测试在同一个 job / kernel 中完成，共用一次 bounds 读取 | Gather、Emit |
 | `depth[e]` | 视空间深度 | Sort |
 
 同一视图的多个 DrawList（Depth、GBuffer、Motion）共享同一份 Visibility。CPU 与 GPU 使用同一个 `MeshVisibilityKey`（field-level Equals，frustum hash 只做加速）。现在 `MeshVisibilitySignature.Equals` 比较的是量化后的 64 位 hash（`MeshVisibilityCache.cs:42-47`），hash 成了身份，与 AGENTS §4 冲突。
 
 CPU 后端现无遮挡剔除（`RefineVisibilityHiZ` 为空方法，`MeshVisibilityCache.cs:285`）。本提案不新增 CPU Hi-Z，但删除这个空方法。
+
+### 6.1 LOD 选择与 dither 过渡（D6）
+
+算法取自 InfinityFoliage 的**距离淡化模式**（`FoliageLogic.ComputeLodIndex`、`ClassifyDistanceAt`），去掉了它的时间窗模式。
+
+1. **屏幕尺寸**：`screen = boundsRadius × lodScale / distance(lodOrigin, boundsCenter)`。透视相机的 `lodScale` 来自视野角，正交相机来自正交尺寸。阈值是 `MeshLodChain.screenSize[]`，取自 `LODGroup` 的 `screenRelativeTransitionHeight`（LOD0 为 1）。
+2. **过渡带**：每个切换点上方 `fadeWidth` 比例的区间内，实例处于两档之间，带内算出进度 `x ∈ (0, 1)`。`x` 落在 `snap = 0.02` 以内的两端时直接吸附成稳定档，不画几乎不可见的 dither。`fadeWidth` 是 `MeshAsset` 的属性（默认 0.2，范围 0.01–0.99，与 Foliage 的 `treeFadeWidth` 一致），所有摆放共享。
+3. **输出**：带外 `stableLod = L`；带内 `fadeOutLod = L`、`fadeInLod = L + 1`、`w = 1 − x`。只在相邻两档之间过渡。
+4. **无状态**：只看当前视点，不保存每视图历史，符合原则 2（视图结果每帧重算）。因此不需要滞回，也没有 Foliage 时间窗模式的 hold/now 视点、不连续检测和硬切重置。
+
+**Shadow 使用所属相机的 LOD。** Cascade 和 local shadow 的 `MeshView` 从所属相机复制 `lodOrigin` / `lodScale`，不按自己的投影选 LOD。否则投影者与接收者的几何不一致，会产生自阴影错误。Foliage 也是这样处理的。
+
+**Gather 规则**：Element 的 `lodIndex` 等于 `stableLod` 时进 Stable 桶；等于 `fadeOutLod` 或 `fadeInLod` 时进 Fading 桶，并带一个有符号权重：淡出档 `+w`，淡入档 `−w`。单 Mesh 的 Entity 是 1 级链，永远 `stableLod = 0`，不走特殊分支。
+
+**Shader 侧**：Fading 桶的 draw 打开 `INFINITY_LOD_DITHER`，读与 `instanceToEntity` 平行的 `InstanceFade[]`，调用 Core RP 的 `LODDitheringTransition(seed, signedFade)`。两档用同一个屏幕空间 seed，`+w` / `−w` 的覆盖严格互补，没有洞也没有重叠。
+
+```hlsl
+#if defined(INFINITY_LOD_DITHER)
+    LODDitheringTransition(ComputeFadeMaskSeed(positionCS.xy), InstanceFade[InstanceOffset + SV_InstanceID]);
+#endif
+```
+
+**为什么分 Stable / Fading 两个桶**：`clip` 会让 opaque draw 失去 early-Z。过渡带里的实例通常只占少数，把它们隔离到 Fading 桶，Stable draw 就保持不带 clip。Foliage 用 Stable / FadeOut / FadeIn 三个桶，并用每桶常量 ±1 区分方向；这里把方向放进每实例符号，两个桶就够了。
+
+**一致性**：Depth、GBuffer、Forward、Motion 在同一相机下使用同一个 seed，深度与着色结果一致。Shadow pass 在自己的屏幕空间 dither，与相机 pass 互不影响。
+
+**GPU 容量**：一个 Element 每帧只落在一个桶里，但每个 command 在两个桶之间的分配事先未知，所以 GPU payload 按每个 `(command, bucket)` 各 `refCount` 分配，即 2 × `Σ refCount`。
 
 ---
 
@@ -212,27 +239,29 @@ CPU 后端现无遮挡剔除（`RefineVisibilityHiZ` 为空方法，`MeshVisibil
 ### 7.1 四步
 
 ```text
-Gather  visible[entity] ∩ elementToCommand[x] ≠ -1 ∩ lod 匹配
-        → VisibleMeshDrawCommand { commandIndex, sortKey, entityIndex }
+Gather  visible[entity] ∩ elementToCommand[x] ≠ -1 ∩ lod 匹配（§6.1）
+        → VisibleMeshDrawCommand { commandIndex, fadeBucket, sortKey, entityIndex, signedFade }
 Sort    ① 按 commandIndex 聚拢（radix）
         ② MeshInstancedDraw 按 EMeshSortMode 的 64-bit key（代表深度取成员 min depth）
         ③ draw 内 instance 按 depth front-to-back   ← 不破坏 merge 的免费 Early-Z
-Merge   相邻同 commandIndex → MeshInstancedDraw { commandIndex, instanceOffset, instanceCount }
-Emit    instanceToEntity[]  → CPU: 上传 + DrawMeshInstancedProcedural
-                            → GPU: 稳定 compaction + BuildIndirectArgs
+Merge   相邻同 (commandIndex, fadeBucket) → MeshInstancedDraw { commandIndex, fadeBucket, instanceOffset, instanceCount }
+Emit    instanceToEntity[]，Fading 桶另写 instanceFade[]
+                            → CPU: 上传 + DrawMeshInstancedProcedural
+                            → GPU: atomic compaction + BuildIndirectArgs（D2）
 ```
 
 ### 7.2 `EMeshSortMode`
 
 | 模式 | Key 布局（高 → 低） | merge | 用途 |
 |---|---|---|---|
-| `State` | queue │ shaderState │ material │ section | ✅ | GBuffer、Forward |
+| `State` | queue │ fadeBucket │ shaderState │ material │ section | ✅ | GBuffer、Forward |
 | `FrontToBack` | queue │ depthBucket(4–6 bit) │ shaderState │ material | ✅（draw 级） | Depth prepass、Shadow |
 | `StateThenDepth` | queue │ shaderState │ depthBucket │ material | ✅ | PSO 切换昂贵时 |
 | `BackToFront` | queue │ ~depth（全精度） | ❌（一 element 一 draw） | 半透明 |
 
 规则：
 - 位段来自 dense rank（`shaderStateIndex` 等），**不是** Unity InstanceID。
+- 所有模式中 `fadeBucket` 紧跟 `queue`，同一 DrawList 的 Fading draw 聚在一起，`INFINITY_LOD_DITHER` 每个 DrawList 最多开关一次。
 - 每段饱和后打包（AGENTS §4）。饱和只影响排序质量。
 - `sortMode` 放在 `MeshPassDesc`（不随视图变），depth 来自 View。
 - **后端声明自己支持的排序模式**（D2）。依赖每帧深度的 draw 级排序需要 CPU 知道可见集：
@@ -267,7 +296,7 @@ GPU payload 容量按 `Σ refCount`（该 Pass 的成员数）分配，不再是
 
 | 场景 | 处理 | Command 缓存 |
 |---|---|---|
-| LOD | LOD 链来自 `MeshAsset`，World 侧为引用计数的 `MeshLodChain`；每级 LOD 的 section 各自是 Element（带 `lodIndex`）；每视图按投影尺寸对比 `screenSize` 选择，结果是 Visibility 的一列（D5） | ✅ |
+| LOD | `MeshComponent` 引用 `MeshAsset`（D5），World 侧为引用计数的 `MeshLodChain`；每级 LOD 的 section 各自是 Element（带 `lodIndex`）；选择与 dither 过渡见 §6.1（D6） | ✅ |
 | 半透明 | `mergeInstances = false`，`BackToFront`；一 element 一 draw | ✅ |
 | Per-instance custom data | `MeshEntity.customData` 列，shader 用 `entityIndex` 寻址 | ✅ |
 | 程序化 / 每帧几何 | 同一个 build 函数；Element 放帧作用域 transient 区段，每帧清空 | 状态 ✅，成员不缓存 |
@@ -358,8 +387,9 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 | AGENTS §5 表 | 模块表 | 按 §3 重写 |
 | AGENTS §5.13–14 | `NotifyInstanceChanged` 等公开 API | 公开 API 改名（`NotifyEntityChanged`）放在**单独一批**，带序列化迁移验证 |
 | AGENTS §5.14 | `NotifyMaterialRoutingChanged` 用于 queue / pass 编辑 | 扩展到运行时 keyword 编辑；未通知只影响排序分组，不影响正确性（D1） |
-| AGENTS §5.13 | `MeshComponent` 字段 | 新增可选字段 `lodAsset`（`MeshAsset`），与 `meshAsset` 互斥；两者同时赋值在注册时抛出（D5） |
-| AGENTS 新增 | — | `MeshPassCache` 淘汰规则：预设常驻，自定义 desc LRU，超容量才淘汰（D3）；依赖方向由 `static_check.py` 检查（D4） |
+| AGENTS §5.13 | "`MeshComponent` keeps its serialized field identities" | 例外一次：几何字段从 `Mesh meshAsset` 换成 `MeshAsset asset`，经显式迁移后删除旧字段（D5）；材质的唯一运行时权威仍是组件的 `SetMaterials` |
+| AGENTS §9 | Shader 约定 | 参与 Mesh 管线的 pass 声明 `INFINITY_LOD_DITHER` 与 `InstanceFade`；Shader Graph target 同步生成（D6） |
+| AGENTS 新增 | — | `MeshPassCache` 与 MeshWorld 同寿命，不淘汰；不同 desc 超过硬上限在 record 阶段抛出（D3）；依赖方向由 `static_check.py` 检查（D4） |
 | AGENTS §13 | 缺陷清单 | 新增"半透明 `MeshComponent` 无绘制路径"（实现 Translucent DrawList 后删除）；删除"bins sort only by CompareStructural" |
 | ARCHITECTURE §7 | 整节 | 按本文件 §3–§9 重写；"Out of scope: GPU LOD" 改为 "LOD 是 Visibility 的一列" |
 | 命名规则 | Enum `E` 前缀 | `MeshPassId` 消失，不再违规 |
@@ -372,7 +402,7 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 |---|---|
 | **删除**（死代码 / 空实现） | `MeshSortKey`、`MeshSortPlan`、`MeshSortField`、`defaultSort`、`defaultFilter`、`EMeshSortSemantic`、`ESortDirection`、`RefineVisibilityHiZ`、`MeshVisibilityDispatch`、`GpuScene.Clear/Update(block)`、`MeshDrawGpuStaging.Build`、`MeshComponent.SetCustomPrimitiveData` 空壳（由 customData 列替代）、`OnTransformChange` 及无调用者的 `EventUpdate`、`MeshAsset.Tree`（`FMesh` 与顶层 `meshes/materials/lODInfos` 重复权威） |
 | **删除**（被替代） | `MeshCandidateTableStore`、`PassRegistry`、`MeshPassTypes`、`MeshPassId` enum、`TransformId`/`TransformRecord`、`MeshGpuSceneSnapshot` |
-| **重写** | `PassBinStore` → `MeshPassCache`；`MeshPassExtractJob` → DrawList 并行 jobs；`RenderContext.MeshTransforms` → 直写 World 的 job；GPU `Compact` → 稳定 compaction |
+| **重写** | `PassBinStore` → `MeshPassCache`；`MeshPassExtractJob` → DrawList 并行 jobs；`RenderContext.MeshTransforms` → 直写 World 的 job；GPU `Compact` → 读 `elementToCommand`、按 `(command, fadeBucket)` 的 atomic compaction（D2） |
 | **改名 + 搬目录** | §9.1 表 |
 | **修正** | 静默 fallback 改 throw（`ResolvePassIndex < 0` continue、`UseDrawList` 返回 Invalid、`Draw` 对 Invalid no-op、强制 GpuIndirect 静默降级）；`MeshVisibilityKey` field-level Equals；拼写（`movebility`、`RenderTransfrom`、`CaculateWorldBound`、`BuiltinMeshesPasses`）；`MeshLODInfo` / `FMesh` 的 `Equals` 按引用比较数组；补 `Documentation~/mesh.md` |
 
@@ -387,8 +417,9 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 | **B0 正确性** | 半透明 DrawList 接入 `TranslucentPass`；删除死代码与空实现；静默 fallback 改 throw；补文档 | EditMode 通过；半透明 `MeshComponent` 在 T0/T1/T2 可见（截图） |
 | **B1 World 热路径** | `SlotTable<T>`；transform = entity 合并；hash 查找；transform job 直写 + 绕过 undo；`MeshWorldGpu` 列式脏页 | 10k 全动 Proxy p50 **< 2 ms**（现 21.5 ms）；静态仍 0 字节上传；`MatrixDuplicateRatio` 指标删除 |
 | **B2 Pass 缓存** | `MeshPassDesc` + interning；`MeshPassCache` 增量；`MeshDrawCommand` 双表；`elementToCommand` 脏页上传；删 `MeshCandidateTableStore` | spawn 1 物体 O(K)，不再全量重建；Submit 每 draw 零 `EntityIdToObject` |
-| **B3 DrawList** | 四步并行 jobs；`EMeshSortMode` 四种 key；GPU 稳定 compaction；`IMeshDrawBackend` 实例化 | CPU / GPU 的 draw 序列一致，且每个 draw 的实例**集合**一致（GPU draw 内顺序不比较，D2）；CPU 后端 Depth prepass 有 front-to-back |
-| **B4 收敛** | 改名、搬目录、断 RG ↔ Mesh 循环、AGENTS / ARCHITECTURE 同步 | `static_check.py` 依赖方向检查通过；公开 API 改名单独批次 + 迁移验证 |
+| **B3 DrawList** | 四步并行 jobs；`EMeshSortMode` 四种 key；`IMeshDrawBackend` 实例化；LOD 选择与 dither 过渡（§6.1） | CPU / GPU 的 draw 序列一致，且每个 draw 的实例**集合**一致（GPU draw 内顺序不比较，D2）；CPU 后端 Depth prepass 有 front-to-back；LOD 过渡带无洞、无双重覆盖（截图） |
+| **B4 收敛** | 内部改名、搬目录、断 RG ↔ Mesh 循环、AGENTS / ARCHITECTURE 同步 | `static_check.py` 依赖方向检查通过 |
+| **B5 公开 API 与序列化** | `MeshComponent.asset`（`MeshAsset`）与迁移工具；`MeshAsset.fadeWidth`；Example 项目迁移后删除旧 `meshAsset`；`NotifyInstanceChanged` → `NotifyEntityChanged` 等公开 API 改名 | 按 AGENTS §11：备份、书面意图、精确 delta、二次保存字节一致、no-op |
 
 每批次结束按 AGENTS §1 清理 intermediate 数据，截图验证记入 `Docs/FeatureStatus.md`。
 
@@ -406,9 +437,10 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 | — | 半透明 | 接入 DrawList（不是注册时拒绝） |
 | D1 | `MeshShaderState` 的键与时机 | 键 = `(shaderUnityId, passIndex, keywordHash)`，不含 render state；只在结构事件时捕获，复用 `MaterialRouteUtility` 的 per-Material 缓存与 version |
 | D2 | GPU compaction | 保留 `InterlockedAdd`；GPU 后端不做 draw 内排序；依赖深度的 draw 级排序是 CPU 能力 |
-| D3 | Pass 淘汰 | 预设常驻；自定义 desc 进 LRU，按容量上限淘汰，不按帧数 |
+| D3 | Pass 缓存寿命 | 与 MeshWorld 相同，不淘汰；超过硬上限抛出 |
 | D4 | asmdef 拆分 | 不拆；先在代码上断开 RG → Mesh，再用 `static_check.py` 强制依赖方向 |
-| D5 | LOD 作者入口 | 保留并清理 `MeshAsset` 作为 LOD 链资产；`MeshComponent` 新增互斥字段 `lodAsset` |
+| D5 | 几何字段 | `MeshComponent` 只引用 `MeshAsset`（单 Mesh = 1 级链）；旧 `Mesh` 字段经显式迁移后删除 |
+| D6 | LOD 过渡 | 无状态距离模式 + shader 侧 dither；Stable / Fading 两桶，方向放进每实例符号；shadow 用所属相机的 LOD |
 
 ## 14. 决策记录
 
@@ -442,17 +474,16 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 - **代价**：GPU 路径的同 command 共面实例可能有逐帧不同的 z-fight 顺序。
 - **回退**：实测 overdraw 或共面闪烁成为问题时，加一个可选的 per-draw bitonic sort，键为 `(depth16 << 16 | entityIndex & 0xFFFF)`，只对 ≤ 2048 实例的 draw 在 groupshared 中单 pass 完成。它不改变任何数据结构。
 
-### D3 Pass 淘汰：按容量，不按帧数
+### D3 Pass 缓存寿命：与 World 相同，不淘汰
 
-- **本质**：淘汰要回答的是"缓存太多了怎么办"，不是"多久没用了"。
+- **先澄清范围**：这里讨论的是**整张 `MeshPassCache`**（每个 PassDesc 一张），不是每个物体的缓存条目。物体的条目本来就是 Spawn 时写入每张活跃的 PassCache，换材质或重建时改写，Destroy 时删除（§5.3），不存在被替换的问题。
+- **本质**：PassDesc 由 pass 代码构造，集合有限且由代码决定，没有需要靠淘汰来解决的正常场景。上一版的 LRU 会让性能不可预测（偶发全量重建），也偏离了"Spawn 后一直存在，Destroy 才清理"的生命周期。
 - **约束**：
-  - 一个活跃 Pass 的维护成本：每个结构事件 O(K)；内存约 4 B × element 数（CPU + GPU 各一份）。10 万 element 约 400 KB 每份。
-  - 重建成本：一次 Burst 并行遍历，量级是毫秒以下到毫秒级。
-  - Scene view、Preview 相机按需重绘，间隔不固定。按帧数淘汰会让它们反复全量重建。
-  - 内置 9 个预设每帧都在用。
-- **结论**：内置预设常驻，从不淘汰。自定义 desc 进 LRU，容量上限默认 16，只在 interning 时超过上限才淘汰最久未用者。淘汰发生在 record 阶段，结果确定，无计时器。
-- **代价**：如果有代码每帧构造不同的 desc（误用），LRU 会抖动。Debugger 暴露活跃 Pass 数与淘汰计数，让误用可见。
-- **回退**：上限是一个常量；若需要可改成资产配置项。
+  - 一张 PassCache 的维护成本：每个结构事件 O(K)；内存约 4 B × element 数（CPU、GPU 各一份），10 万 element 约 400 KB 每份。
+  - 唯一会让集合无限增长的情况是误用，例如每帧构造带变化参数的 desc。按 AGENTS 的约定，误用应该被大声暴露，而不是被 LRU 静默吸收。
+- **结论**：PassCache 与 MeshWorld 同寿命。首次 interning 时全量 build 一次，之后只做增量维护，从不淘汰。不同 desc 数设硬上限（默认 64），超过时在 record 阶段抛出。Rendering Debugger 显示活跃 PassCache 数。
+- **代价**：某个功能关闭后，它的 PassCache 仍随结构事件维护，成本是每个结构事件 O(K)，可以忽略。
+- **回退**：如果将来出现大量短命的 desc（例如编辑器工具），加显式的 `MeshWorld.ReleasePass(handle)`。生命周期仍由调用者显式控制，不由 LRU 猜测。
 
 ### D4 asmdef：不拆，用 static check 强制
 
@@ -465,23 +496,28 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 - **代价**：保护依赖的是离线门禁而不是编译器，绕过门禁的提交仍能编译通过。
 - **回退**：依赖已经是单向时，拆 asmdef 只是机械操作。等 RenderGraph 需要被其他包复用时再拆。
 
-### D5 LOD 作者入口：保留 `MeshAsset`
+### D5 几何字段：`MeshComponent` 只引用 `MeshAsset`（已确认）
 
-- **修正**：上一版把 `MeshAsset` 列为删除对象，这是错的。它已经是一个 LOD 链资产（`meshes[]`、`materials[]`、`lODInfos[]` 含 `screenSize`），Editor 有从 `LODGroup` 生成它的流程（`MeshAsset.cs:148`、`Editor/Action/AssetAction/Primitive/MeshAssetAction.cs`），只是 Runtime 从不消费它。
-- **本质**：LOD 链是几何资产的属性，所有摆放共享，不是每个组件的属性。按 DOP 它属于 World 的共享资源表，和 `MeshSection` 一样引用计数。
-- **约束**：
-  - AGENTS §5.13 要求 `MeshComponent` 保持现有序列化字段身份，`meshAsset`（类型 `Mesh`）不能改名或改类型。
-  - AGENTS §11 建议新增字段而不是改名。
-  - 不能出现"同一个量有两个权威"。
-  - `MeshComponent` 不能发现或修改 Renderer，所以不能直接读 `LODGroup`。
+- **澄清**：`MeshComponent` 现有的序列化字段名叫 `meshAsset`，类型却是 `UnityEngine.Mesh`（`MeshComponent.Updates.cs:36`）；`MeshAsset` 是另一个带 LOD 链的 ScriptableObject（`meshes[]`、`materials[]`、`lODInfos[]`）。名字相同、类型不同，所以现有字段表达不了 LOD。上一版把 `MeshAsset` 列为删除对象也是错的：Editor 已有从 `LODGroup` 生成它的流程（`MeshAsset.cs:148`、`Editor/Action/AssetAction/Primitive/MeshAssetAction.cs`），只是 Runtime 从不消费它。
+- **本质**：LOD 链是几何资产的属性，所有摆放共享，不是每个组件的属性。和 UE 的 StaticMesh 一样，组件只引用一个自带 LOD 的资产。单 Mesh 就是 1 级链，运行时只有一种数据形态。
 - **结论**：
-  - `MeshComponent` 新增可选字段 `lodAsset`（`MeshAsset`），与 `meshAsset` **互斥**：Inspector 只允许赋其一，两者同时赋值时注册抛出。这是二选一，不是优先级规则，所以没有双重权威。
-  - World 新增 `MeshLodChain` 表。每级 LOD 的 section 各自生成 Element 并带 `lodIndex`。Visibility 按投影尺寸与 `screenSize` 比较，写出 `lodIndex[entity]`，Gather 只收匹配的 Element。
-  - 清理 `MeshAsset`：删除 `Tree`（`FMesh` 与顶层字段是同一份数据的两个权威），修正 `MeshLODInfo` / `FMesh` 按引用比较数组的 `Equals`。
-- **代价**：新增一个序列化字段属于 schema 变更，按 AGENTS §11 需要写明意图、做一次保存与 no-op 验证。LOD 过渡（cross-fade / dither）不在本提案内。
-- **回退**：`lodAsset` 为空时行为与现在完全相同。
+  - `MeshComponent` 的几何来源只有一个字段：`[SerializeField] private MeshAsset asset`。公开属性 `MeshAsset` 的类型随之变为 `MeshAsset`。
+  - 序列化字段不能原地换类型：Unity 会把指向 `Mesh` 的引用解析失败成 null。所以先新增 `asset`，保留旧 `meshAsset` 只供迁移工具读取，Example 项目迁移完成后删除旧字段（AGENTS §3、§11）。
+  - 迁移工具为每个被引用的 `Mesh` 生成**一个共享的** 1 级 `MeshAsset`，不是每个组件一个。工具是显式操作，加载和 reload 时从不生成资产。
+  - 材质的运行时唯一权威仍是组件（`SetMaterials`，按 slot 索引）。`MeshAsset.materials` 只是作者默认值：在 Editor 里给组件赋 `MeshAsset` 时复制一次，运行时不做回退，所以不会出现两个材质权威。
+  - World 新增 `MeshLodChain` 表，每级 LOD 的 section 各自生成 Element 并带 `lodIndex`。
+  - 清理 `MeshAsset`：删除 `Tree`（`FMesh` 与顶层字段是同一份数据的两个权威），修正 `MeshLODInfo` / `FMesh` 按引用比较数组的 `Equals`，新增 `fadeWidth`。
+- **代价**：这是一次序列化 schema 变更加公开 API 变更，放在 B5 单独执行，按 AGENTS §11 做备份、书面意图、精确 delta、二次保存字节一致和 no-op 验证。单 Mesh 的作者流程多一步（需要一个 `MeshAsset`），由 Inspector 上显式的"从 Mesh 创建"操作承担。
+- **回退**：迁移前有完整备份；旧字段在 Example 项目迁移验证通过之前不删除。
+
+### D6 LOD 过渡：无状态距离模式 + shader 侧 dither（已确认）
+
+- **来源**：InfinityFoliage 有两种模式：距离模式（每实例权重，只看当前视点）和时间窗模式（每相机一个 alpha，保存 hold/now 视点，需要不连续检测和重置）。
+- **本质**：时间窗模式需要每视图历史，带来历史所有权、相机切换和失败提交时的重置逻辑。距离模式是视图的纯函数，和"视图结果每帧重算"一致。
+- **结论**：只做距离模式（§6.1）。Stable / Fading 两个桶，方向放进每实例符号。Shadow 使用所属相机的 LOD。dither 在 shader 侧用 Core RP 的 `LODDitheringTransition`。
+- **代价**：相机静止时，过渡带里的实例会一直保持 dither 状态；在 TAA 下表现为柔和的交叉淡化。需要截图确认，在此之前标记 `TODO(UNVERIFIED)`。
+- **回退**：如需时间窗模式，它只是 `lodState` 的另一种生产方式，Gather、桶和 shader 都不变。
 
 ## 15. 仍开放的问题
 
-1. LOD 过渡：cross-fade / dither 是否需要，需要时它是 Visibility 的第二列（`lodFade`）还是 shader 侧处理。
-2. GPU 后端的 LOD 选择：D5 的投影尺寸计算放在 `CullFrustum` kernel 中还是 CPU。倾向 kernel 内，与 frustum 测试共用 bounds 读取。
+无。D1–D6 均已决策。实施中出现的新问题在对应批次里提出。
