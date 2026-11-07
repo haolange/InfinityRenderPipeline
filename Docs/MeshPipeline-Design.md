@@ -96,7 +96,8 @@
 | `MeshElement` | `elementIndex` | `entityIndex`、`sectionId`、`materialId`、`EMeshPassMask passMask`、`byte lodIndex`、`int renderQueue` | 是 |
 | `MeshSection` | `sectionIndex` | `meshUnityId`、`subMesh`、`indexCount/startIndex/baseVertex`、`refCount`、`revision` | 否 |
 | `MeshMaterial` | `materialIndex` | `materialUnityId`、`renderQueue`、`shaderStateId`、`refCount`、`revision` | 否 |
-| `MeshShaderState` | `shaderStateIndex` | `shaderUnityId`、`passIndex`、keyword hash、render state hash、`refCount` | 否 |
+| `MeshShaderState` | `shaderStateIndex` | `shaderUnityId`、`passIndex`、`keywordHash`、`refCount`（不含 render state，见 D1） | 否 |
+| `MeshLodChain` | `lodChainIndex` | `lodAssetUnityId`、`screenSize[]`、每级 LOD 的 Element 范围、`refCount` | 否 |
 
 **决策（已确认）**：Entity 与 Transform 严格 1:1，`transformIndex == entityIndex`。删除 `TransformId`、`TransformRecord` 和 owner 映射。GPU 侧 `EntityTransforms[entityIndex]` 直接寻址。将来如需层级或共享 transform，重新引入独立表。
 
@@ -151,7 +152,8 @@ public struct MeshPassDesc : IEquatable<MeshPassDesc>   // field-level Equals
 CreateDrawList(view, desc)
    → MeshWorld.Passes.Intern(desc)        规范化 + Equals 查表 → MeshPassHandle
    → 首次：对全部 Element 跑一次 Burst 并行 build（只发生一次）
-   → 之后：结构事件增量维护；连续 N 帧无人申请则淘汰
+   → 之后：结构事件增量维护
+   → 淘汰：内置预设常驻；自定义 desc 进 LRU，只在超过容量上限时淘汰最久未用者（D3）
 ```
 
 作者看到的是 `DrawRenderers` 的写法，引擎拿到的是 UE 的缓存。
@@ -233,6 +235,9 @@ Emit    instanceToEntity[]  → CPU: 上传 + DrawMeshInstancedProcedural
 - 位段来自 dense rank（`shaderStateIndex` 等），**不是** Unity InstanceID。
 - 每段饱和后打包（AGENTS §4）。饱和只影响排序质量。
 - `sortMode` 放在 `MeshPassDesc`（不随视图变），depth 来自 View。
+- **后端声明自己支持的排序模式**（D2）。依赖每帧深度的 draw 级排序需要 CPU 知道可见集：
+  - `BackToFront` 只由 CPU 后端实现。声明了它的 DrawList 选择 CpuDirect，这是 PassDesc 层面的显式规则，不是降级。
+  - GPU 后端的 draw 顺序是 command 集合变化时确定的 `State` 顺序。`FrontToBack` / `StateThenDepth` 在 GPU 后端上以 `State` 顺序 + 两阶段 Hi-Z 实现同一意图（减少 overdraw），Rendering Debugger 显示实际排序模式。
 
 ### 7.3 后端契约
 
@@ -248,7 +253,7 @@ interface IMeshDrawBackend
 | | CPU direct | GPU indirect |
 |---|---|---|
 | Gather + Sort + Merge | Burst JobHandle 链（并行 gather、radix sort） | Compaction kernel 读 `elementToCommand` 与 `visible`；`CommandBase` 由 refCount 前缀和得到 |
-| 第 ③ 级顺序 | 自然得到 | 需**稳定 compaction**（per-command prefix scan），不能用现在的 `InterlockedAdd` |
+| 第 ③ 级顺序 | 自然得到 | 不做。保留 `InterlockedAdd` compaction，draw 内实例顺序不确定（D2） |
 | Emit | `SetBufferData` 上传 `instanceToEntity` | 直接在 GPU buffer 中 |
 | Draw | `DrawMeshInstancedProcedural` 每个 `MeshInstancedDraw` 一次 | `DrawMeshInstancedIndirect` 每个一次 |
 
@@ -262,7 +267,7 @@ GPU payload 容量按 `Σ refCount`（该 Pass 的成员数）分配，不再是
 
 | 场景 | 处理 | Command 缓存 |
 |---|---|---|
-| LOD | 每级 LOD 的 section 各自是 Element（带 `lodIndex`）；每视图选择是 Visibility 的一列 | ✅ |
+| LOD | LOD 链来自 `MeshAsset`，World 侧为引用计数的 `MeshLodChain`；每级 LOD 的 section 各自是 Element（带 `lodIndex`）；每视图按投影尺寸对比 `screenSize` 选择，结果是 Visibility 的一列（D5） | ✅ |
 | 半透明 | `mergeInstances = false`，`BackToFront`；一 element 一 draw | ✅ |
 | Per-instance custom data | `MeshEntity.customData` 列，shader 用 `entityIndex` 寻址 | ✅ |
 | 程序化 / 每帧几何 | 同一个 build 函数；Element 放帧作用域 transient 区段，每帧清空 | 状态 ✅，成员不缓存 |
@@ -284,7 +289,7 @@ Relevance 保留为**数据**：`EMeshPassMask` 在 Element 创建时由 materia
 | World | `MeshWorld`、`MeshWorldUpdate`、`MeshWorldGpu` | `MeshScene`、`MeshSceneUpdate`、`GpuScene`、`MeshGpuSceneSnapshot` |
 | World | `MeshEntity`、`MeshEntityId` | `MeshInstanceRecord`、`MeshInstanceId`、`TransformId` |
 | World | `MeshElement`、`MeshElementId` | `MeshDraw`、`MeshDrawId` |
-| World | `MeshSection`、`MeshMaterial`、`MeshShaderState` | `MeshSectionRecord`、`MaterialDataRecord`、（新） |
+| World | `MeshSection`、`MeshMaterial`、`MeshShaderState`、`MeshLodChain` | `MeshSectionRecord`、`MaterialDataRecord`、（新）、（新） |
 | Pass | `MeshPassDesc`、`MeshPassHandle`、`MeshPassPresets`、`MeshPassCache` | `MeshPassId`、`MeshPassTypes`、`PassRegistry`、`PassBinStore` |
 | Pass | `MeshDrawCommand`、`MeshDrawCommandBinding` | `MeshDrawCommandKey`、`MeshPassCommand` |
 | Pass | `EMeshPassMask`、`EMeshSortMode` | `EPassEligibility`、`EMeshSortPolicy`/`MeshSortKey`/`MeshSortPlan` |
@@ -328,7 +333,7 @@ float4x4 world   = EntityTransforms[entityIndex];
 
 ```text
 Runtime/RendererCore/PrimitivePipeline/MeshPipeline/
-  World/     MeshWorld, MeshWorldUpdate, MeshWorldGpu, SlotTable<T>, MeshEntity, MeshElement, MeshSection, MeshMaterial, MeshShaderState, MeshTransformVersionCache
+  World/     MeshWorld, MeshWorldUpdate, MeshWorldGpu, SlotTable<T>, MeshEntity, MeshElement, MeshSection, MeshMaterial, MeshShaderState, MeshLodChain, MeshTransformVersionCache
   Pass/      MeshPassDesc, MeshPassHandle, MeshPassPresets, MeshPassCache, MeshDrawCommand, MeshDrawCommandBinding, EMeshPassMask, EMeshSortMode
   View/      MeshView, MeshViewVisibility, MeshVisibilityKey, MeshFrustumCullJob, MeshOcclusion
   DrawList/  MeshDrawList, VisibleMeshDrawCommand, MeshInstancedDraw, MeshDrawListJobs
@@ -337,7 +342,7 @@ Runtime/RendererCore/PrimitivePipeline/MeshPipeline/
 Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipeline；只保留 IRGCompileExtension
 ```
 
-依赖方向：`Graph → DrawList → Backend → View/Pass → World`。理想情况下 Runtime 拆成两个 asmdef 让编译器强制；本提案先用命名空间约定 + `static_check.py` 检查。
+依赖方向：`Graph → DrawList → Backend → View/Pass → World`。不拆 asmdef（D4）。先在代码上断开 RG → Mesh 引用，再由 `static_check.py` 按命名空间检查依赖方向。
 
 ---
 
@@ -352,6 +357,9 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 | AGENTS §5.10 | "`CreateInstance` rejects an owned transform" | 删除（Transform 表不再存在） |
 | AGENTS §5 表 | 模块表 | 按 §3 重写 |
 | AGENTS §5.13–14 | `NotifyInstanceChanged` 等公开 API | 公开 API 改名（`NotifyEntityChanged`）放在**单独一批**，带序列化迁移验证 |
+| AGENTS §5.14 | `NotifyMaterialRoutingChanged` 用于 queue / pass 编辑 | 扩展到运行时 keyword 编辑；未通知只影响排序分组，不影响正确性（D1） |
+| AGENTS §5.13 | `MeshComponent` 字段 | 新增可选字段 `lodAsset`（`MeshAsset`），与 `meshAsset` 互斥；两者同时赋值在注册时抛出（D5） |
+| AGENTS 新增 | — | `MeshPassCache` 淘汰规则：预设常驻，自定义 desc LRU，超容量才淘汰（D3）；依赖方向由 `static_check.py` 检查（D4） |
 | AGENTS §13 | 缺陷清单 | 新增"半透明 `MeshComponent` 无绘制路径"（实现 Translucent DrawList 后删除）；删除"bins sort only by CompareStructural" |
 | ARCHITECTURE §7 | 整节 | 按本文件 §3–§9 重写；"Out of scope: GPU LOD" 改为 "LOD 是 Visibility 的一列" |
 | 命名规则 | Enum `E` 前缀 | `MeshPassId` 消失，不再违规 |
@@ -362,11 +370,11 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 
 | 动作 | 对象 |
 |---|---|
-| **删除**（死代码 / 空实现） | `MeshSortKey`、`MeshSortPlan`、`MeshSortField`、`defaultSort`、`defaultFilter`、`EMeshSortSemantic`、`ESortDirection`、`RefineVisibilityHiZ`、`MeshVisibilityDispatch`、`GpuScene.Clear/Update(block)`、`MeshDrawGpuStaging.Build`、`MeshComponent.SetCustomPrimitiveData` 空壳（由 customData 列替代）、`OnTransformChange` 及无调用者的 `EventUpdate`、`MeshAsset`/`MeshLODInfo`（LOD 改为 Element 的 `lodIndex`） |
+| **删除**（死代码 / 空实现） | `MeshSortKey`、`MeshSortPlan`、`MeshSortField`、`defaultSort`、`defaultFilter`、`EMeshSortSemantic`、`ESortDirection`、`RefineVisibilityHiZ`、`MeshVisibilityDispatch`、`GpuScene.Clear/Update(block)`、`MeshDrawGpuStaging.Build`、`MeshComponent.SetCustomPrimitiveData` 空壳（由 customData 列替代）、`OnTransformChange` 及无调用者的 `EventUpdate`、`MeshAsset.Tree`（`FMesh` 与顶层 `meshes/materials/lODInfos` 重复权威） |
 | **删除**（被替代） | `MeshCandidateTableStore`、`PassRegistry`、`MeshPassTypes`、`MeshPassId` enum、`TransformId`/`TransformRecord`、`MeshGpuSceneSnapshot` |
 | **重写** | `PassBinStore` → `MeshPassCache`；`MeshPassExtractJob` → DrawList 并行 jobs；`RenderContext.MeshTransforms` → 直写 World 的 job；GPU `Compact` → 稳定 compaction |
 | **改名 + 搬目录** | §9.1 表 |
-| **修正** | 静默 fallback 改 throw（`ResolvePassIndex < 0` continue、`UseDrawList` 返回 Invalid、`Draw` 对 Invalid no-op、强制 GpuIndirect 静默降级）；`MeshVisibilityKey` field-level Equals；拼写（`movebility`、`RenderTransfrom`、`CaculateWorldBound`、`BuiltinMeshesPasses`）；补 `Documentation~/mesh.md` |
+| **修正** | 静默 fallback 改 throw（`ResolvePassIndex < 0` continue、`UseDrawList` 返回 Invalid、`Draw` 对 Invalid no-op、强制 GpuIndirect 静默降级）；`MeshVisibilityKey` field-level Equals；拼写（`movebility`、`RenderTransfrom`、`CaculateWorldBound`、`BuiltinMeshesPasses`）；`MeshLODInfo` / `FMesh` 的 `Equals` 按引用比较数组；补 `Documentation~/mesh.md` |
 
 ---
 
@@ -379,28 +387,101 @@ Runtime/RendererCore/RenderGraph/   不 using InfinityTech.Rendering.MeshPipelin
 | **B0 正确性** | 半透明 DrawList 接入 `TranslucentPass`；删除死代码与空实现；静默 fallback 改 throw；补文档 | EditMode 通过；半透明 `MeshComponent` 在 T0/T1/T2 可见（截图） |
 | **B1 World 热路径** | `SlotTable<T>`；transform = entity 合并；hash 查找；transform job 直写 + 绕过 undo；`MeshWorldGpu` 列式脏页 | 10k 全动 Proxy p50 **< 2 ms**（现 21.5 ms）；静态仍 0 字节上传；`MatrixDuplicateRatio` 指标删除 |
 | **B2 Pass 缓存** | `MeshPassDesc` + interning；`MeshPassCache` 增量；`MeshDrawCommand` 双表；`elementToCommand` 脏页上传；删 `MeshCandidateTableStore` | spawn 1 物体 O(K)，不再全量重建；Submit 每 draw 零 `EntityIdToObject` |
-| **B3 DrawList** | 四步并行 jobs；`EMeshSortMode` 四种 key；GPU 稳定 compaction；`IMeshDrawBackend` 实例化 | CPU / GPU 输出 `MeshInstancedDraw` 序列一致（EditMode 对比）；Depth prepass 有 front-to-back |
+| **B3 DrawList** | 四步并行 jobs；`EMeshSortMode` 四种 key；GPU 稳定 compaction；`IMeshDrawBackend` 实例化 | CPU / GPU 的 draw 序列一致，且每个 draw 的实例**集合**一致（GPU draw 内顺序不比较，D2）；CPU 后端 Depth prepass 有 front-to-back |
 | **B4 收敛** | 改名、搬目录、断 RG ↔ Mesh 循环、AGENTS / ARCHITECTURE 同步 | `static_check.py` 依赖方向检查通过；公开 API 改名单独批次 + 迁移验证 |
 
 每批次结束按 AGENTS §1 清理 intermediate 数据，截图验证记入 `Docs/FeatureStatus.md`。
 
 ---
 
-## 13. 已确认的决策
+## 13. 决策汇总
 
-| 决策 | 结论 |
-|---|---|
-| Transform 表 | 与 Entity 1:1 合并，删除 `TransformId` |
-| 逻辑对象名 | `MeshEntity`（配合 §9.1 的 ID 约定） |
-| GPU 镜像名 | `MeshWorldGpu` |
-| 动态写入与 undo | 覆盖写绕过 undo log；AGENTS §5.1 相应修改 |
-| Pass 定义 | 参数申请式 `MeshPassDesc` + interning，删除 enum/Registry |
-| 半透明 | 接入 DrawList（不是注册时拒绝） |
+| # | 决策 | 结论 |
+|---|---|---|
+| — | Transform 表 | 与 Entity 1:1 合并，删除 `TransformId` |
+| — | 逻辑对象名 | `MeshEntity`（配合 §9.1 的 ID 约定） |
+| — | GPU 镜像名 | `MeshWorldGpu` |
+| — | 动态写入与 undo | 覆盖写绕过 undo log；AGENTS §5.1 相应修改 |
+| — | Pass 定义 | 参数申请式 `MeshPassDesc` + interning，删除 enum / Registry |
+| — | 半透明 | 接入 DrawList（不是注册时拒绝） |
+| D1 | `MeshShaderState` 的键与时机 | 键 = `(shaderUnityId, passIndex, keywordHash)`，不含 render state；只在结构事件时捕获，复用 `MaterialRouteUtility` 的 per-Material 缓存与 version |
+| D2 | GPU compaction | 保留 `InterlockedAdd`；GPU 后端不做 draw 内排序；依赖深度的 draw 级排序是 CPU 能力 |
+| D3 | Pass 淘汰 | 预设常驻；自定义 desc 进 LRU，按容量上限淘汰，不按帧数 |
+| D4 | asmdef 拆分 | 不拆；先在代码上断开 RG → Mesh，再用 `static_check.py` 强制依赖方向 |
+| D5 | LOD 作者入口 | 保留并清理 `MeshAsset` 作为 LOD 链资产；`MeshComponent` 新增互斥字段 `lodAsset` |
 
-## 14. 未决问题
+## 14. 决策记录
 
-1. **`MeshShaderState` 的 intern 键**：keyword set 与 render state 从 `Material` 读取的成本和时机（结构事件时读一次？`ApplyPassState` 后重算？）。需要看 `MaterialRouteUtility` 现有的缓存能否复用。
-2. **GPU 稳定 compaction 的具体算法**：per-command prefix scan（两次 dispatch）还是 compaction 后 per-draw bitonic sort。前者简单，后者在 command 数极多时更省。
-3. **Pass 淘汰阈值 N 帧**：Scene view / Preview 相机间歇申请，N 太小会反复全量 build。
-4. **asmdef 拆分**：是否接受 Runtime 拆为 `Mesh` 与 `Graph` 两个程序集。拆分能让编译器强制依赖方向，但影响所有 `Runtime/RenderPipeline/Pass/` 的引用。
-5. **`MeshAsset` ScriptableObject** 删除后，Editor 侧的 LOD 作者流程由什么承载（`MeshComponent` 上直接配 LOD 列表？）。
+每条按"问题本质 → 约束 → 结论 → 代价与回退"记录。
+
+### D1 `MeshShaderState` 的键与捕获时机
+
+- **本质**：`MeshShaderState` 只服务排序分组，用来近似 PSO 以减少 SetPass。它**不参与正确性**：merge 判断 `commandIndex`，绘制时 Unity 依据 `Material` 自己选 variant。
+- **约束**：
+  - Unity 运行时据我所知没有公开 API 读取某个 pass 的 render state（ZWrite、Cull、Blend 由 shader 中的属性引用决定），无法通用地算 render state hash。
+  - 读 `material.enabledKeywords` 会分配，只能放在结构事件里。
+  - `MaterialRouteUtility` 已有 per-Material 的 `ConditionalWeakTable` 缓存和 `version`，`ApplyPassState` / `NotifyRoutingChanged` 会递增 version（`MaterialRouteUtility.cs:23-34`）。
+- **结论**：
+  - 键 = `(shaderUnityId, passIndex, keywordHash)`。render state 差异落到下一级 `material` 分组里，排序仍然把它们聚在一起。
+  - 捕获时机：Material 记录创建时，以及 drain 时发现 route `version` 变化时。keyword hash 作为 `MeshRoute` 的一个字段一起缓存。
+- **代价**：运行时直接 `EnableKeyword` 而不调 `NotifyMaterialRoutingChanged`，ShaderState 会过期。后果只是排序分组变差，画面不受影响。AGENTS §5.14 的通知规则扩展到 keyword 编辑。
+- **回退**：将来如果 Unity 提供 variant / PSO 标识 API，替换 `keywordHash` 即可，键结构不变。
+
+### D2 GPU compaction：不需要稳定 compaction
+
+- **本质**：原问题"prefix scan 还是 per-draw sort"的前提有误。稳定 compaction 给出的是 **element 顺序**，不是深度顺序，它买不到 draw 内 front-to-back。
+- **约束**：
+  - 固定 index 的 `elementToCommand` 是散布的。要得到 command 内的稳定序号，就必须维护按 command 排好的成员列表（CSR），而这正是 §5.3 为了增量更新而删掉的东西。
+  - 确定性只影响同一 command 内**共面**实例的 z-fight 顺序。不同 command 之间的顺序由 CPU 确定，本来就稳定。
+  - GPU 后端的价值是去掉每实例 CPU 工作，overdraw 由两阶段 Hi-Z 处理，效果强于排序。
+- **结论**：
+  - 保留现有 `InterlockedAdd` compaction：一次 dispatch，每 element O(1)。
+  - GPU 后端不做 draw 内排序。draw 级顺序是 command 集合变化时确定的 `State` 顺序。
+  - `BackToFront` 只由 CPU 后端实现，声明它的 DrawList 选 CpuDirect（显式规则）。`FrontToBack` / `StateThenDepth` 在 GPU 上以 `State` + Hi-Z 实现同一意图，Debugger 显示实际模式。
+  - B3 的 CPU / GPU 一致性验收比较 draw 序列和每个 draw 的实例集合，不比较 draw 内顺序。
+- **代价**：GPU 路径的同 command 共面实例可能有逐帧不同的 z-fight 顺序。
+- **回退**：实测 overdraw 或共面闪烁成为问题时，加一个可选的 per-draw bitonic sort，键为 `(depth16 << 16 | entityIndex & 0xFFFF)`，只对 ≤ 2048 实例的 draw 在 groupshared 中单 pass 完成。它不改变任何数据结构。
+
+### D3 Pass 淘汰：按容量，不按帧数
+
+- **本质**：淘汰要回答的是"缓存太多了怎么办"，不是"多久没用了"。
+- **约束**：
+  - 一个活跃 Pass 的维护成本：每个结构事件 O(K)；内存约 4 B × element 数（CPU + GPU 各一份）。10 万 element 约 400 KB 每份。
+  - 重建成本：一次 Burst 并行遍历，量级是毫秒以下到毫秒级。
+  - Scene view、Preview 相机按需重绘，间隔不固定。按帧数淘汰会让它们反复全量重建。
+  - 内置 9 个预设每帧都在用。
+- **结论**：内置预设常驻，从不淘汰。自定义 desc 进 LRU，容量上限默认 16，只在 interning 时超过上限才淘汰最久未用者。淘汰发生在 record 阶段，结果确定，无计时器。
+- **代价**：如果有代码每帧构造不同的 desc（误用），LRU 会抖动。Debugger 暴露活跃 Pass 数与淘汰计数，让误用可见。
+- **回退**：上限是一个常量；若需要可改成资产配置项。
+
+### D4 asmdef：不拆，用 static check 强制
+
+- **本质**：要的是"依赖方向不被破坏"，asmdef 是实现手段之一，不是目标。
+- **约束**：
+  - 现在 RG ↔ Mesh 是双向引用（`RGDrawList.cs:5`、`MeshDrawGPUBackend.cs:8`）。拆 asmdef 之前必须先在代码上断开，这一步与是否拆分无关。
+  - 跨程序集访问 `internal` 需要 `InternalsVisibleTo`，或者把大量 internal 改成 public。后者违反"backend 保持 internal"。
+  - `static_check.py` 已是仓库的离线门禁，按命名空间检查 `using` 方向的成本很低。
+- **结论**：B4 先把 `RGDrawListContext` / `RGMeshCompile` / `RGMeshOcclusion` 搬到 `MeshPipeline/Graph/`，让 `RenderGraph/` 只通过 `IRGCompileExtension` 被扩展；再在 `static_check.py` 加依赖方向检查。不拆 asmdef。
+- **代价**：保护依赖的是离线门禁而不是编译器，绕过门禁的提交仍能编译通过。
+- **回退**：依赖已经是单向时，拆 asmdef 只是机械操作。等 RenderGraph 需要被其他包复用时再拆。
+
+### D5 LOD 作者入口：保留 `MeshAsset`
+
+- **修正**：上一版把 `MeshAsset` 列为删除对象，这是错的。它已经是一个 LOD 链资产（`meshes[]`、`materials[]`、`lODInfos[]` 含 `screenSize`），Editor 有从 `LODGroup` 生成它的流程（`MeshAsset.cs:148`、`Editor/Action/AssetAction/Primitive/MeshAssetAction.cs`），只是 Runtime 从不消费它。
+- **本质**：LOD 链是几何资产的属性，所有摆放共享，不是每个组件的属性。按 DOP 它属于 World 的共享资源表，和 `MeshSection` 一样引用计数。
+- **约束**：
+  - AGENTS §5.13 要求 `MeshComponent` 保持现有序列化字段身份，`meshAsset`（类型 `Mesh`）不能改名或改类型。
+  - AGENTS §11 建议新增字段而不是改名。
+  - 不能出现"同一个量有两个权威"。
+  - `MeshComponent` 不能发现或修改 Renderer，所以不能直接读 `LODGroup`。
+- **结论**：
+  - `MeshComponent` 新增可选字段 `lodAsset`（`MeshAsset`），与 `meshAsset` **互斥**：Inspector 只允许赋其一，两者同时赋值时注册抛出。这是二选一，不是优先级规则，所以没有双重权威。
+  - World 新增 `MeshLodChain` 表。每级 LOD 的 section 各自生成 Element 并带 `lodIndex`。Visibility 按投影尺寸与 `screenSize` 比较，写出 `lodIndex[entity]`，Gather 只收匹配的 Element。
+  - 清理 `MeshAsset`：删除 `Tree`（`FMesh` 与顶层字段是同一份数据的两个权威），修正 `MeshLODInfo` / `FMesh` 按引用比较数组的 `Equals`。
+- **代价**：新增一个序列化字段属于 schema 变更，按 AGENTS §11 需要写明意图、做一次保存与 no-op 验证。LOD 过渡（cross-fade / dither）不在本提案内。
+- **回退**：`lodAsset` 为空时行为与现在完全相同。
+
+## 15. 仍开放的问题
+
+1. LOD 过渡：cross-fade / dither 是否需要，需要时它是 Visibility 的第二列（`lodFade`）还是 shader 侧处理。
+2. GPU 后端的 LOD 选择：D5 的投影尺寸计算放在 `CullFrustum` kernel 中还是 CPU。倾向 kernel 内，与 frustum 测试共用 bounds 读取。
