@@ -30,13 +30,9 @@ namespace InfinityTech.Component
 
         [Header("State")]
         [SerializeField] private EMeshMobility mobility = EMeshMobility.Static;
-        // Migration bridge: deleted after the 0.5 migration. Only the migration tool reads it.
-        [SerializeField, HideInInspector] private EMeshMobility movebility;
 
         [Header("Mesh")]
         [SerializeField] private MeshAsset asset;
-        // Migration bridge: deleted after the 0.5 migration. Only the migration tool reads it.
-        [SerializeField, HideInInspector] private Mesh meshAsset;
 
         [Header("Material")]
         [SerializeField] private Material[] materials;

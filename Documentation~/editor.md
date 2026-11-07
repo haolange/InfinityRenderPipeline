@@ -19,7 +19,6 @@ Assigning an Infinity pipeline asset selects the camera, light and Volume Profil
 | Rendering Debugger | Window > Analysis > Rendering Debugger | See [Rendering Debugger](rendering-debugger.md). |
 | Render Graph Viewer | Window > Analysis > Infinity Render Graph Viewer | See below. |
 | Validation fixtures | Window > Infinity > Create … Fixture | Scenes for lights, shadows, cookies, probes, baked lighting, screen space, decals, translucency, temporal effects, output, volumes and UI. |
-| MeshComponent migration (0.5) | Window > Infinity > Migrate MeshComponents to MeshAsset (0.5) | Explicit, one-time upgrade of 0.4 MeshComponents. See [Upgrade 0.4 to 0.5](upgrade-0.4-to-0.5.md). |
 | Image regression | Window > Infinity > Image Regression | Record Baselines and Run Comparison on fixture cameras in Play mode. Baselines live in `ImageBaselines/<graphics API>/` next to `Assets`. Reports live in `Library/InfinityImageRegression/`. |
 
 Create menus are GameObject > Light > Infinity, GameObject > Rendering > Infinity, GameObject > 3D Object > Infinity > MeshEntity, Assets > Create > Rendering > Infinity, and Assets > Create > Shader Graph > Infinity.

@@ -23,7 +23,8 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Baked-lighting validation uses BlendProbes instead of creating the deprecated LPPV component.
 - Mesh drawing pipeline v2. `MeshWorld`, one per render context, owns entity, element, section and material slot tables with generation-checked ids and one undo transaction per frame; poses are written outside transactions, dynamic poses by Burst jobs. Nine interned pass presets keep membership and commands incrementally. Passes record with `CreateDrawList`, `UseDrawList` and `Draw` through a render-graph extension, and the render graph no longer depends on the mesh pipeline.
 - CPU direct gathers, sorts (State, FrontToBack with saturated key segments, BackToFront) and merges in Burst jobs and issues one instanced draw per run. GPU indirect runs one compute producer per draw list and issues one indirect draw per command and range in state order. Command batching and the CPU overflow fallback are removed.
-- Translucent MeshComponents draw in the translucent depth and T0/T1/T2 passes, back to front on the CPU backend, before the native renderer list of each pass.
+- Translucent MeshComponents draw in the translucent depth pass (front to back) and the T0/T1/T2 passes (back to front, CPU backend), before the native renderer list of each pass.
+- Static MeshComponents no longer poll their transform every frame. Editor edits notify them through Undo and hierarchy events; scripts call `NotifyEntityChanged` after moving a static object.
 - Mesh LOD: a `MeshAsset` holds a mesh per level with `LODGroup` lower-bound screen sizes and a fade width. Each view selects levels in the same CPU job or GPU kernel as culling; opaque passes cross-fade with `INFINITY_LOD_DITHER` and translucent passes draw the selected level only. Ray tracing uses LOD 0.
 - `MeshComponent` draws its `asset` (`MeshAsset`) instead of a Mesh, mobility is `mobility` (`EMeshMobility`, formerly `EStateType`), and `NotifyInstanceChanged` is `NotifyEntityChanged`. Loading never converts 0.4 data; see [Upgrade 0.4 to 0.5](Documentation~/upgrade-0.4-to-0.5.md).
 - Added Asset Mesh backend policy and temporary Debugger override without changing Auto capability selection.
@@ -249,7 +250,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Inspector section foldouts allow nested serialized arrays, including Diffusion Profiles in Lighting & Shadows,
   and keep layout groups paired when selecting mixed Light types.
 - Preview and Reflection camera uniforms now obey the camera policy when preparing jitter, including after successful history commits.
-- Custom Mesh visibility retains the full Unity scene mask through the entity description, CPU/GPU culling, shadow views and cache identity; static scene changes refresh without requiring proxy updates. Cached local shadows distinguish cameras with different scene masks.
+- Custom Mesh visibility retains the full Unity scene mask through the entity description, CPU/GPU culling, shadow views and cache identity; the mask is read when a component syncs, and Editor scene moves notify static components. Cached local shadows distinguish cameras with different scene masks.
 - Pending-verification tests use NUnit's legal `Unverified_0_5` category. The former hyphenated name made NUnit
   reject tests as Failed:Invalid before execution; the rename preserves all pending markers and assertions.
 
@@ -288,6 +289,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - `BuildMeshAssetFromPrefab` accepts a prefab whose LODGroup levels each hold one renderer at the root's transform, or a root MeshFilter + MeshRenderer with no other renderer. It reads the LODGroup's transition heights, keeps one level per LOD (no de-duplication) and rejects other prefabs with the reason.
 
 ### Removed
+- The MeshComponent migration menu and its hidden legacy fields (`meshAsset`, `movebility`, MeshAsset `target`). Migrate 0.4 projects at commit `6703ab8`.
 - Rendering Debugger toggles that nothing consumed: Prefer Native Motion Vectors, Fuse TAA Sharpen, Show Temporal Overlay.
 - One-off migration and diagnosis tools in `Editor/Tools/Validation` that had no entry point.
 - The commented-out RTAO ray-tracing pass in InfinityLit, the unused `PreintegratedDGF_LUT` function, the RenderGraph

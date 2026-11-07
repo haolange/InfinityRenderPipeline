@@ -18,8 +18,9 @@
   MeshAsset (0.5)**. It assigns each component
   the shared one-level MeshAsset of its old Mesh (created under `Assets/InfinityMeshAssets/`), copies the mobility,
   clears the old Mesh reference, rebuilds MeshAssets made from a prefab, re-saves every MeshAsset, saves the touched
-  scenes and prefabs and prints a report. The tool and the old fields exist only until a later 0.5 commit
-  removes them; migrate on a version that still has the menu. Components keep their own materials; a submesh draws
+  scenes and prefabs and prints a report. The tool and the old fields exist only at commit `6703ab8`; the
+  next 0.5 commits remove them. Check out that commit, migrate, save, then move to the current version. Opening a 0.4
+  project directly on a later version drops the old fields, and its MeshComponents draw nothing. Components keep their own materials; a submesh draws
   the material at its slot.
 - **MeshComponent scripts**: `MeshAsset` is a `MeshAsset` instead of a `Mesh`, `EStateType` is `EMeshMobility`, and
   `NotifyInstanceChanged` is `NotifyEntityChanged`. `NotifyGeometryChanged(Mesh)` re-reads every MeshAsset that draws

@@ -72,23 +72,6 @@ namespace InfinityTech.Rendering.MeshPipeline.Editor
             asset.Initialize(meshes, materials, lods, asset.FadeWidth);
         }
 
-        /// <summary>Whether the asset already holds exactly this data.</summary>
-        internal static bool Holds(MeshAsset asset, Mesh[] meshes, Material[] materials, MeshLODInfo[] lods)
-        {
-            if (asset.lodCount != lods.Length || !SameObjects(asset.Meshes, meshes) || !SameObjects(asset.Materials, materials)) return false;
-            for (int i = 0; i < lods.Length; ++i)
-                if (!asset.LodEquals(i, lods[i])) return false;
-            return true;
-        }
-
-        static bool SameObjects<T>(ReadOnlySpan<T> a, T[] b) where T : UnityEngine.Object
-        {
-            if (a.Length != b.Length) return false;
-            for (int i = 0; i < a.Length; ++i)
-                if (a[i] != b[i]) return false;
-            return true;
-        }
-
         static void AddLevel(GameObject prefab, int level, Renderer renderer, float screenSize, List<Mesh> meshes, List<Material> materials, List<MeshLODInfo> lods)
         {
             if (!renderer.TryGetComponent(out MeshFilter filter) || filter.sharedMesh == null)

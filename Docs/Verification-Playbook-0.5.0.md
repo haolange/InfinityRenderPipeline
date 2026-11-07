@@ -91,9 +91,9 @@ still fails. Retain the original failed check; these missing historical images a
 
 ## S2 — contract defects
 
-1. Compile; run EditMode tests (new: `DebugViewModeTests`, `ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader`, `CommandTableTests.CommittedEdit_ChangesBuildSerial`, `CommandTableTests.SwitchingMaterial_RebuildsCommands`).
+1. Compile; run EditMode tests (new: `DebugViewModeTests`, `ShaderStrippingTests.ActualShaderCallback_StripsUnusedLightModeInInfinitySubShader`, `MeshPassCacheTests`).
 2. **Reflection probes**: bake a reflection probe in a lit scene. Expected change: the probe stores HDR scene-linear radiance (no TAA ghosting between faces, no exposure, tonemapping or display encoding).
-3. **Material / Inspector previews** render without jitter shimmer; SSR, SSGI, GTAO and volumetrics are off in previews. Record actual multi-frame camera jitter (including committed frames), then rotate the preview. Place a custom Mesh in the open scene within the preview camera frustum: it must not leak into the preview. A custom Mesh inside the PreviewScene must still draw. Verify native and custom Mesh scene eligibility agree for Game additive scenes, SceneView, Reflection and explicit camera scene/override masks. Move a static Mesh between scenes without calling `MarkDirty` or enabling Update Proxy; CPU/GPU visibility and shadow views must update. Run `CameraFrameStateTests` and `MeshViewTests`, including high-bit masks, empty masks, rollback and GPU upload controls.
+3. **Material / Inspector previews** render without jitter shimmer; SSR, SSGI, GTAO and volumetrics are off in previews. Record actual multi-frame camera jitter (including committed frames), then rotate the preview. Place a custom Mesh in the open scene within the preview camera frustum: it must not leak into the preview. A custom Mesh inside the PreviewScene must still draw. Verify native and custom Mesh scene eligibility agree for Game additive scenes, SceneView, Reflection and explicit camera scene/override masks. In Edit mode, move a static Mesh between scenes without calling `MarkDirty` or enabling Refresh Renderer Proxy; the hierarchy-change notification must update CPU/GPU visibility and shadow views. Run `CameraFrameStateTests` and `MeshViewTests`, including high-bit masks, empty masks, rollback and GPU upload controls.
 4. **Disc light** in a scene: the camera keeps rendering. During historical S2 replay, Disc is unsupported: Skipped Light Shapes counts only unsupported lights actually returned by Unity's visible-light cull. Record both the native visible-light list and the counter; a Disc omitted by Unity leaves the counter at zero and does not exercise the unsupported-record path. Keep a separate mapping test for that path. S6 adds supported Disc shading, so the final version must not count it as unsupported.
 5. **RP Asset → Lighting & Shadows**: Cascade Splits and Max Shadowed Local Lights are visible. Expand Diffusion Profiles alongside the other fields; no nested Foldout Header error appears. An invalid split order shows an error box and fails rendering with a clear message; restoring valid values resumes rendering. Shadow culling follows Shadow Distance (previously fixed at 128 m): compare two distances with the same camera/light/casters and record the resulting cascade distances and culling spheres. Use an unsaved RP Asset copy for the Inspector negative control, and restore any temporary live values without saving the original asset.
 6. **Unified Ray Tracing off** on the RP Asset: RTAO does not record; the Debugger reason says ray tracing is disabled.
@@ -697,9 +697,8 @@ was restored; do not directly invoke that integration test on a user scene.
 
 1. Pull and let Unity reimport: no "missing script" warnings on Volume profiles, cameras or lights (the moved scripts
    keep their GUIDs). The default Volume profile and every fixture profile still show their components.
-2. Compile; run the full EditMode suite. `NativeViewMotionHistoryTests`, `ScreenSpaceDenoiseTests` and
-   `PipelineSeamTests` read canonical pass paths. The seam test includes Geometry/DepthPass, GBufferPass and
-   MotionPass, Lighting/ForwardPass, and Shadow/CascadeShadowPass and LocalShadowPass. Keep every file-existence
+2. Compile; run the full EditMode suite. `NativeViewMotionHistoryTests` and `ScreenSpaceDenoiseTests`
+   read canonical pass paths. Keep every file-existence
    and forbidden-token assertion; no recursive search or old-path fallback. Check actual GUID-to-path bindings,
    default/fixture Volume components and scene Missing Scripts. The original move preserves57script/meta pairs;
    sixteen new folder meta and removal of Runtime/PostProcess.meta are separate from script GUID preservation.
@@ -773,8 +772,8 @@ restore the owned Editor and remove task-generated data at completion.
 
 ### Mesh profiling domain and hierarchy checks
 
-Run MeshDrawProfilingTests, RGDrawListLifetimeTests, CompactContractTests and
-PipelineSeamTests. Verify normal/SceneView/Preview draws use RenderLoop.* and
+Run MeshDrawProfilingTests, RGDrawListLifetimeTests and the `meshsubmit` and
+`meshpasses` rules of `Tools/StaticCheck/static_check.py`. Verify normal/SceneView/Preview draws use RenderLoop.* and
 cascade/local shadow draws use Shadows.*. All views share exactly three cached
 preparation samplers: ComputeMeshCulling, ComputeMeshCompaction and UploadMeshData.
 Timings lists each once; shared sampler identity must not merge per-view nodes.
@@ -872,7 +871,7 @@ After drain, restore Play/pause, scenes/camera/Asset/Volume/HDR, remove transien
 
 Each window reports p50/p95/min/max/mean of the complete Render scope, the proxy update and its transform and apply sections in milliseconds, GC.Alloc counts for the Render and proxy scopes, Mono used and heap bytes, total allocated and reserved bytes, graphics-driver bytes, ResourcePool texture and buffer estimates, GC collection counts, the mesh entity and element counts and the actual backend. Every sample pairs one frame's Render scope with the same frame's proxy sections. Movement, window closing and the evidence write run on the Editor update, outside Render. Keep only the Game view rendering (close or hide Scene views) so each Render call belongs to the probed camera. A frame rate above 1000 Hz fails the probe instead of dropping samples.
 
-`Editor/Cli/RuntimeProbeCommands.cs` is the measurement and stays unchanged across authoring-API changes. `RuntimeProbeContent.cs` is the only part that uses the MeshComponent API (from the `[P5]` commit on it draws the cube through one runtime one-level MeshAsset that the probe owns and destroys), so a baseline run on an earlier commit and a candidate run measure the same thing. Compare windows rather than single frames: memory and pool estimates between the 20 s and 60 s windows show growth at a fixed object count, and proxy GC.Alloc at steady state should stay zero.
+`Editor/Cli/RuntimeProbeCommands.cs` is the measurement and stays unchanged across authoring-API changes. `RuntimeProbeContent.cs` is the only part that uses the MeshComponent API (from commit `6703ab8` on it draws the cube through one runtime one-level MeshAsset that the probe owns and destroys), so a baseline run on an earlier commit and a candidate run measure the same thing. Compare windows rather than single frames: memory and pool estimates between the 20 s and 60 s windows show growth at a fixed object count, and proxy GC.Alloc at steady state should stay zero.
 
 ## Unity integration ownership acceptance
 
@@ -884,9 +883,9 @@ Inspect graph/draw provenance and finite GPU readbacks; import generated Lit/Unl
 
 ## MeshComponent and MeshAsset migration (0.5)
 
-The `[P5]` commit makes `MeshComponent` draw a `MeshAsset` and adds the explicit menu **Window → Infinity → Migrate
-MeshComponents to MeshAsset (0.5)** (`Editor/Tools/Migration/MeshComponentMigration05.cs`). A later commit deletes the
-bridge fields and the tool once the Example project is migrated and verified. Loading, reload and scene save never
+Commit `6703ab8` (`[P5]`) makes `MeshComponent` draw a `MeshAsset` and adds the explicit menu **Window → Infinity → Migrate
+MeshComponents to MeshAsset (0.5)** (`Editor/Tools/Migration/MeshComponentMigration05.cs`). The `[P7]` commit deletes the
+bridge fields (`meshAsset`, `movebility`, `target`) and the tool; Unity drops those keys on the next save of each file. Loading, reload and scene save never
 migrate: before the menu runs, a 0.4 component has no `asset` and draws nothing, and a dynamic one reads `mobility`
 Static.
 

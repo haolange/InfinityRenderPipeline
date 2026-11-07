@@ -52,11 +52,6 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         public const float DefaultFadeWidth = 0.2f;
 
-#if UNITY_EDITOR
-        // Migration bridge: deleted after the 0.5 migration.
-        [SerializeField, HideInInspector] private GameObject target;
-#endif
-
         [Header("Mesh")]
         [SerializeField] private Mesh[] meshes;
 
@@ -79,7 +74,6 @@ namespace InfinityTech.Rendering.MeshPipeline
         /// <summary>The material slot of <paramref name="submesh"/> in LOD <paramref name="level"/>, or -1 when it has none.</summary>
         public int GetMaterialSlot(int level, int submesh) => lODInfos[level].GetMaterialSlot(submesh);
 
-        internal bool LodEquals(int level, in MeshLODInfo other) => lODInfos[level].Equals(other);
 
         /// <summary>The world LOD chain of this asset. Call <see cref="ThrowIfInvalid"/> first.</summary>
         public MeshLodChain BuildLodChain()
