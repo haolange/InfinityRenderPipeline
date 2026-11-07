@@ -288,8 +288,7 @@ namespace InfinityTech.Rendering.LightPipeline
             }
 
             var acceptedRecords = BudgetStorage(ref m_AcceptedRecords, math.min(maxLocalLights, write));
-            int accepted = SelectWithinBudget(candidateScores, candidateRecords, faceCounts, maxLocalLights, tileBudget, acceptedRecords, write, out int tilesUsed, out int dropped);
-            MeshPipelineDiagnostics.LocalShadowBudgetDropped += dropped;
+            int accepted = SelectWithinBudget(candidateScores, candidateRecords, faceCounts, maxLocalLights, tileBudget, acceptedRecords, write, out int tilesUsed, out _);
 
             EnsureLocalCapacity(math.max(1, tilesUsed));
             LocalSliceCount = 0;

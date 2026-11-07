@@ -4,32 +4,39 @@
 #include "Common.hlsl"
 #include "Geometry.hlsl"
 
-// Immutable scene-owned transform version (current local-to-world matrices).
+// Mesh entity interface. A draw list binds InstanceToEntity (its sorted or compacted entity slots) and the world's
+// immutable transform version; a shader reads its entity once per vertex through MeshInstanceEntity.
 struct FTransformData
 {
      float4x4 matrix_LocalToWorld;
 };
 
-uint instanceIndexOffset;
-StructuredBuffer<uint> instanceIndexBuffer;
-StructuredBuffer<FTransformData> transformBuffer;
-StructuredBuffer<FTransformData> previousTransformBuffer;
-StructuredBuffer<uint> transformGenerationBuffer;
-StructuredBuffer<uint> previousTransformGenerationBuffer;
-uint meshPreviousTransformCount, meshPreviousTransformValid;
+uint InstanceOffset;
+StructuredBuffer<uint> InstanceToEntity;
+StructuredBuffer<FTransformData> EntityTransforms;
+StructuredBuffer<uint> EntityGenerations;
+StructuredBuffer<uint> EntityRenderingLayers;
+StructuredBuffer<FTransformData> PreviousEntityTransforms;
+StructuredBuffer<uint> PreviousEntityGenerations;
+uint PreviousEntityCount, PreviousEntityValid;
 
-float4x4 MeshPreviousObjectToWorld(uint transformIndex)
+uint MeshInstanceEntity(uint instanceId)
+{
+    return InstanceToEntity[instanceId + InstanceOffset];
+}
+
+// Zero when the view has no accepted previous version or the slot was reused since then.
+float4x4 MeshPreviousObjectToWorld(uint entity)
 {
     float4x4 previous = (float4x4)0;
-    if (meshPreviousTransformValid != 0 && transformIndex < meshPreviousTransformCount)
+    if (PreviousEntityValid != 0 && entity < PreviousEntityCount)
     {
-        uint generation = transformGenerationBuffer[transformIndex];
-        if (generation != 0 && generation == previousTransformGenerationBuffer[transformIndex])
-            previous = previousTransformBuffer[transformIndex].matrix_LocalToWorld;
+        uint generation = EntityGenerations[entity];
+        if (generation != 0 && generation == PreviousEntityGenerations[entity])
+            previous = PreviousEntityTransforms[entity].matrix_LocalToWorld;
     }
     return previous;
 }
-StructuredBuffer<uint> renderingLayerBuffer;
 
 float MeshTransformSign(float4x4 objectToWorld)
 {

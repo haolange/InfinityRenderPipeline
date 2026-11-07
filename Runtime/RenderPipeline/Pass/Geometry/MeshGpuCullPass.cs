@@ -9,43 +9,39 @@ namespace InfinityTech.Rendering.Pipeline
 {
     public partial class InfinityRenderPipeline
     {
+        // The one place shadow mesh views are built; GPU culling and the shadow passes request the same views.
+        MeshView CascadeShadowView(Light light, in FCascadeShadowSlice slice, int cascade, Camera camera)
+        {
+            var planes = m_RGBuilder.GetRecordingArray<Plane>(slice.splitData.cullingPlaneCount);
+            for (int plane = 0; plane < planes.Length; plane++) planes[plane] = slice.splitData.GetCullingPlane(plane);
+            return MeshView.FromShadow(EMeshViewKind.CascadeShadow, UnityEntityId.ToUInt64(light), planes, camera.transform.position, light.cullingMask,
+                RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask)), cascade, MeshView.SceneCullingMaskFor(camera));
+        }
+
+        MeshView LocalShadowView(in VisibleLight visibleLight, in FLocalShadowSlice local, Camera camera)
+        {
+            Light light = visibleLight.light;
+            var planes = m_RGBuilder.GetRecordingArray<Plane>(local.splitData.cullingPlaneCount);
+            for (int plane = 0; plane < planes.Length; plane++) planes[plane] = local.splitData.GetCullingPlane(plane);
+            Vector3 position = visibleLight.localToWorldMatrix.GetColumn(3);
+            return MeshView.FromShadow(EMeshViewKind.LocalShadow, UnityEntityId.ToUInt64(light), planes, position, light.cullingMask,
+                RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask)), local.face, MeshView.SceneCullingMaskFor(camera));
+        }
+
         void RecordMeshGpuCulls(RenderContext renderContext, Camera camera, in MeshView mainView, in CullingResults cullingResults)
         {
             m_RGBuilder.EnsureMeshGpuCull(mainView);
-            if (renderContext?.lightContext?.ShadowAllocator == null)
-            {
-                return;
-            }
-
             ShadowAllocator allocator = renderContext.lightContext.ShadowAllocator;
+            if (allocator == null) return;
+
             int cascadeLight = allocator.CascadeVisibleLightIndex;
             if (cascadeLight >= 0 && cascadeLight < cullingResults.visibleLights.Length)
             {
                 Light shadowLight = cullingResults.visibleLights[cascadeLight].light;
-                ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
-                uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
                 for (int cascade = 0; cascade < ShadowAllocator.CascadeCount; ++cascade)
                 {
                     FCascadeShadowSlice slice = allocator.CascadeSlices[cascade];
-                    if (!slice.valid)
-                    {
-                        continue;
-                    }
-
-                    var cascadePlanes = m_RGBuilder.GetRecordingArray<Plane>(slice.splitData.cullingPlaneCount);
-                    for (int plane = 0; plane < cascadePlanes.Length; plane++)
-                    {
-                        cascadePlanes[plane] = slice.splitData.GetCullingPlane(plane);
-                    }
-
-                    m_RGBuilder.EnsureMeshGpuCull(MeshView.FromCascadeShadow(
-                        lightInstanceId,
-                        cascadePlanes,
-                        camera.transform.position,
-                        shadowLight.cullingMask,
-                        shadowRenderingLayerMask,
-                        cascade,
-                        sceneCullingMask: mainView.sceneCullingMask));
+                    if (slice.valid) m_RGBuilder.EnsureMeshGpuCull(CascadeShadowView(shadowLight, slice, cascade, camera));
                 }
             }
 
@@ -53,29 +49,8 @@ namespace InfinityTech.Rendering.Pipeline
             {
                 FLocalShadowSlice local = allocator.LocalSlices[sliceIndex];
                 if (local.cachedSampling || !local.valid || local.visibleLightIndex < 0 || local.visibleLightIndex >= cullingResults.visibleLights.Length)
-                {
                     continue;
-                }
-
-                VisibleLight visibleLight = cullingResults.visibleLights[local.visibleLightIndex];
-                Light shadowLight = visibleLight.light;
-                ulong lightInstanceId = UnityEntityId.ToUInt64(shadowLight);
-                Vector3 lightPosition = visibleLight.localToWorldMatrix.GetColumn(3);
-                uint shadowRenderingLayerMask = RenderingLayerUtility.Validate(unchecked((uint)shadowLight.renderingLayerMask));
-                var shadowPlanes = m_RGBuilder.GetRecordingArray<Plane>(local.splitData.cullingPlaneCount);
-                for (int plane = 0; plane < shadowPlanes.Length; plane++)
-                {
-                    shadowPlanes[plane] = local.splitData.GetCullingPlane(plane);
-                }
-
-                m_RGBuilder.EnsureMeshGpuCull(MeshView.FromLocalShadow(
-                    lightInstanceId,
-                    shadowPlanes,
-                    lightPosition,
-                    shadowLight.cullingMask,
-                    shadowRenderingLayerMask,
-                    local.face,
-                    sceneCullingMask: mainView.sceneCullingMask));
+                m_RGBuilder.EnsureMeshGpuCull(LocalShadowView(cullingResults.visibleLights[local.visibleLightIndex], local, camera));
             }
         }
     }

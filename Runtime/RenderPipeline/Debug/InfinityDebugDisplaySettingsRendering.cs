@@ -124,15 +124,17 @@ namespace InfinityTech.Rendering.Pipeline
 
     public sealed class InfinityDebugDisplaySettingsMesh
     {
-        public float matrixDuplicateRatio = 1.0f;
         public EMeshBackendPolicy? backendOverride;
         public EMeshBackendPolicy requestedBackend { get; internal set; }
         public EMeshBackendPolicy actualBackend { get; internal set; }
         public string backendReason { get; internal set; } = "Not recorded";
+        public int entityCount { get; internal set; }
+        public int elementCount { get; internal set; }
+        public int passCacheCount { get; internal set; }
+        public int commandCount { get; internal set; }
 
         public void Reset()
         {
-            matrixDuplicateRatio = 1.0f;
             backendOverride = null;
         }
     }

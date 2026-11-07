@@ -40,7 +40,7 @@ namespace InfinityTech.Rendering.Pipeline
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (!Enum.IsDefined(typeof(MeshPipeline.EMeshBackendPolicy), request.meshBackend))
                 throw new ArgumentOutOfRangeException(nameof(request.meshBackend));
-            if (request.meshBackend == MeshPipeline.EMeshBackendPolicy.GpuIndirect && !MeshPipeline.MeshDrawGPUBackend.SupportsIndirect)
+            if (request.meshBackend == MeshPipeline.EMeshBackendPolicy.GpuIndirect && !MeshPipeline.MeshGpuDrawBackend.DeviceSupportsIndirect)
                 throw new NotSupportedException("GPU capture requires indirect support; CPU fallback is not evidence for that route.");
             current = new RenderCaptureSession(request);
         }

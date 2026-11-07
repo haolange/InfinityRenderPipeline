@@ -46,6 +46,49 @@ class StaticCheckTests(unittest.TestCase):
         self.assertEqual(['RGBuilder.cs', 'RGCompile.cs'], sorted(os.path.basename(o[2].split(':')[0]) for o in out))
         self.assertTrue(all(o[1] == 'graphdependency' for o in out))
 
+    def test_mesh_bindings_are_a_closed_set(self):
+        self.write('Shaders/ShaderLibrary/GPUScene.hlsl', 'uint InstanceOffset;\nStructuredBuffer<uint> InstanceToEntity;\n')
+        self.write('Shaders/RenderingFeature/MeshDrawPipeline/Compute_MeshDrawPipeline.compute', 'uint _EntityCount, _Unbound;\n')
+        self.write('Runtime/RendererCore/PrimitivePipeline/MeshPipeline/Backend/Gpu.cs',
+                   'static int a = Shader.PropertyToID("_EntityCount"); static int b = Shader.PropertyToID("_Renamed");')
+        self.write('Runtime/RenderPipeline/Utility/PipelineIDs.cs',
+                   '// Mesh entity interface (GPUScene.hlsl).\nint x = Shader.PropertyToID("InstanceOffset"); int y = Shader.PropertyToID("InstanceToEntity");\n\nint z = 0;')
+        out = []
+        static_check.check_mesh_bindings(str(self.repo), out)
+        messages = sorted(o[2] for o in out)
+        self.assertEqual(2, len(messages))
+        self.assertIn('_Renamed', messages[0])
+        self.assertIn('_Unbound', messages[1])
+
+    def test_mesh_submit_only_draws(self):
+        root = 'Runtime/RendererCore/PrimitivePipeline/MeshPipeline/'
+        self.write(root + 'Backend/MeshCpuDrawBackend.cs',
+                   'class A { internal void Submit(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, false); c.SetBufferData(b, d); } }')
+        self.write(root + 'Backend/MeshGpuDrawBackend.cs',
+                   'class B { internal void Submit(CommandBuffer c) { string marker = MeshDrawProfiling.Draw(viewKind, true); c.DrawMeshInstancedIndirect(); } }')
+        self.write(root + 'Graph/MeshGraphExtension.cs', 'InsertDrawListPreparation MeshDrawProfiling.upload MeshDrawProfiling.compaction')
+        out = []
+        static_check.check_mesh_submit(str(self.repo), out)
+        self.assertEqual(1, len(out))
+        self.assertIn('MeshCpuDrawBackend.cs: Submit calls SetBufferData', out[0][2])
+
+    def test_find_property_names_a_serialized_field(self):
+        self.write('Runtime/Component/Render/Thing.cs', 'public class Thing : Base { [SerializeField] private int mobility; [SerializeField, Range(0, 1)]\n float m_Scale; }')
+        self.write('Runtime/Component/Render/Base.cs', 'public class Base { public bool visible; }')
+        self.write('Editor/ThingEditor.cs', '[CustomEditor(typeof(Thing))] class E { void F() { serializedObject.FindProperty("mobility"); '
+                   'serializedObject.FindProperty("m_Scale"); serializedObject.FindProperty("visible"); serializedObject.FindProperty("movebility"); } }')
+        out = []
+        static_check.check_find_property(str(self.repo), out)
+        self.assertEqual(1, len(out))
+        self.assertIn('"movebility"', out[0][2])
+
+    def test_mesh_pass_files_leave_backend_choice_to_the_world(self):
+        self.write('Runtime/RenderPipeline/Pass/Geometry/DepthPass.cs', 'if (policy == EMeshBackendPolicy.GpuIndirect) {}')
+        self.write('Runtime/RenderPipeline/Pass/Geometry/GBufferPass.cs', 'var draws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.GBuffer);')
+        out = []
+        static_check.check_mesh_passes(str(self.repo), out)
+        self.assertEqual([('ERROR', 'meshpasses', 'Geometry/DepthPass.cs references EMeshBackendPolicy')], out)
+
     def test_hidden_sidecar_meta_is_not_an_asset(self):
         self.write('._Deleted.cs.meta', 'AppleDouble metadata')
         out = []

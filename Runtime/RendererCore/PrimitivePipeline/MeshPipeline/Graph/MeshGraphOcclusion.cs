@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using Unity.Mathematics;
 using InfinityTech.Rendering.Pipeline;
@@ -20,15 +19,18 @@ namespace InfinityTech.Rendering.MeshPipeline
     {
         struct MeshOcclusionData
         {
-            public MeshGpuCullPassData inputs;
-            public ComputeShader shader;
+            public MeshWorld world;
+            public MeshView view;
+            public Vector4[] frustumPlanes;
+            public MeshCullInputs inputs;
             public int kernel, currentCount, previousCount, mipCount;
             public bool history, recovery;
             public Matrix4x4 projection;
             public int2 extent;
             public RGTextureHandle furthest;
-            public RGBufferHandle deferred, final, recovered, transforms, generations, previousTransforms, previousGenerations, instanceTransforms;
+            public RGBufferHandle visibility, deferred, final, recovered, transforms, generations, previousTransforms, previousGenerations;
         }
+
         static class MeshOcclusionBindings
         {
             internal static readonly int Deferred = Shader.PropertyToID("_DeferredVisibility"), Final = Shader.PropertyToID("_FinalVisibility"),
@@ -37,111 +39,102 @@ namespace InfinityTech.Rendering.MeshPipeline
                 Extent = Shader.PropertyToID("_MeshCullFullExtent"), Mips = Shader.PropertyToID("_MeshCullMipCount"),
                 CurrentCount = Shader.PropertyToID("_MeshCullCurrentCount"), PreviousCount = Shader.PropertyToID("_MeshCullPreviousCount"),
                 CurrentTransforms = Shader.PropertyToID("_MeshCullCurrentTransforms"), PreviousTransforms = Shader.PropertyToID("_MeshCullPreviousTransforms"),
-                CurrentGenerations = Shader.PropertyToID("_MeshCullCurrentGenerations"), PreviousGenerations = Shader.PropertyToID("_MeshCullPreviousGenerations"),
-                InstanceTransforms = Shader.PropertyToID("_InstanceToTransform");
-            static ComputeShader s_Shader;
-            static int s_NoHistory, s_History, s_Recovery;
-            internal static int Kernel(ComputeShader shader, bool history, bool recovery)
-            {
-                if (shader == null) throw new InvalidOperationException("Two-stage visibility requires its Mesh compute shader.");
-                if (s_Shader != shader)
-                {
-                    if (shader == null || !shader.HasKernel("CullFirstNoHistory") || !shader.HasKernel("CullFirstWithHistory") || !shader.HasKernel("CullOcclusionRecovery"))
-                        throw new InvalidOperationException("Two-stage visibility requires its three Mesh culling kernels.");
-                    s_NoHistory = shader.FindKernel("CullFirstNoHistory"); s_History = shader.FindKernel("CullFirstWithHistory");
-                    s_Recovery = shader.FindKernel("CullOcclusionRecovery"); s_Shader = shader;
-                }
-                return recovery ? s_Recovery : history ? s_History : s_NoHistory;
-            }
+                CurrentGenerations = Shader.PropertyToID("_MeshCullCurrentGenerations"), PreviousGenerations = Shader.PropertyToID("_MeshCullPreviousGenerations");
         }
-        RGBufferHandle OcclusionList(RGBuilder builder, in MeshView view, int count)
-            => builder.ImportBuffer(world.GetGpuVisibilityBufferHandle(view, count));
-        void RegisterOcclusionList(in MeshView view, RGBufferHandle buffer)
-            => m_GpuCullVisibility.Add(MeshGpuVisibilityCache.MakeKey(view, true), buffer);
-        MeshGpuCullPassData CullInputs(RGBuilder builder, in MeshView view, RGComputePassHandle pass)
-        {
-            var residency = world.Residency;
-            var data = new MeshGpuCullPassData { view = view, instanceCount = residency.Scene.InstanceHighWater, frustumPlanes = builder.GetRecordingArray<Vector4>(6) };
-            view.CopyFrustumPlanes(data.frustumPlanes);
-            data.boundsCenter = pass.ReadBuffer(builder.ImportBuffer(residency.BoundsCenterBuffer));
-            data.boundsExtent = pass.ReadBuffer(builder.ImportBuffer(residency.BoundsExtentBuffer));
-            data.instanceFlags = pass.ReadBuffer(builder.ImportBuffer(residency.InstanceFlagsBuffer));
-            data.instanceLayerMask = pass.ReadBuffer(builder.ImportBuffer(residency.InstanceLayerMaskBuffer));
-            data.instanceSceneCullingMask = pass.ReadBuffer(builder.ImportBuffer(residency.InstanceSceneCullingMaskBuffer));
-            data.instanceRenderingLayer = pass.ReadBuffer(builder.ImportBuffer(residency.InstanceRenderingLayerBuffer));
-            return data;
-        }
+
+        RGBufferHandle OcclusionList(RGBuilder builder, in MeshView view) => builder.ImportBuffer(world.GetGpuVisibilityBuffer(view));
+
+        void RegisterOcclusionList(in MeshView view, RGBufferHandle buffer) => m_GpuCullVisibility.Add(new MeshVisibilityKey(view, true), buffer);
+
         static readonly RGComputePassExecuteAction<MeshOcclusionData> s_ExecuteMeshOcclusion = ExecuteMeshOcclusion;
 
-        internal MeshOcclusionLists RecordMeshOcclusionFirst(RGBuilder builder, MeshView view, ComputeShader shader, MeshMotionBinding motion,
+        internal MeshOcclusionLists RecordMeshOcclusionFirst(RGBuilder builder, MeshView view, MeshMotionBinding motion,
             RGTextureHandle previousFurthest, Matrix4x4 previousProjection, int2 extent, ulong historyVersion)
         {
+            MeshGpuDrawBackend backend = world.gpuBackend;
             bool history = previousFurthest.IsValid() && motion.previous != null;
             view.visibilityHistory = historyVersion;
             var first = view; first.visibilityPhase = EMeshVisibilityPhase.First;
             var deferredView = view; deferredView.visibilityPhase = EMeshVisibilityPhase.Deferred;
             var recovered = view; recovered.visibilityPhase = EMeshVisibilityPhase.Recovered;
-            int count = world.Residency.Scene.InstanceHighWater;
-            var visible = OcclusionList(builder, first, count); var final = OcclusionList(builder, view, count); var deferred = OcclusionList(builder, deferredView, count);
-            RegisterOcclusionList(first, visible); RegisterOcclusionList(view, final);
-            motion.current.owner.Record(builder, motion.current, shader, m_ScheduledVersions);
+            RGBufferHandle visible = OcclusionList(builder, first), final = OcclusionList(builder, view), deferred = OcclusionList(builder, deferredView);
+            RegisterOcclusionList(first, visible);
+            RegisterOcclusionList(view, final);
+            motion.current.owner.Record(builder, motion.current, world.meshDrawShader, m_ScheduledVersions);
             using (var pass = builder.AddComputePass<MeshOcclusionData>(MeshDrawProfiling.culling))
             {
                 pass.KeepImportedWritesLocal();
-                ref var data = ref pass.GetPassData<MeshOcclusionData>(); data = default;
-                data.inputs = CullInputs(builder, first, pass); data.inputs.visibility = pass.WriteBuffer(visible);
-                data.shader = shader; data.kernel = MeshOcclusionBindings.Kernel(shader, history, false); data.history = history;
-                data.final = pass.WriteBuffer(final); data.deferred = pass.WriteBuffer(deferred);
+                ref var data = ref pass.GetPassData<MeshOcclusionData>();
+                data = default;
+                data.world = world;
+                data.view = first;
+                data.frustumPlanes = builder.GetRecordingArray<Vector4>(6);
+                first.CopyFrustumPlanes(data.frustumPlanes);
+                data.inputs = CullInputs(builder, pass);
+                data.visibility = pass.WriteBuffer(visible);
+                data.kernel = backend.FindKernel(history ? "CullFirstWithHistory" : "CullFirstNoHistory");
+                data.history = history;
+                data.final = pass.WriteBuffer(final);
+                data.deferred = pass.WriteBuffer(deferred);
                 if (history)
                 {
-                    data.furthest = pass.ReadTexture(previousFurthest); data.projection = previousProjection; data.extent = extent;
+                    data.furthest = pass.ReadTexture(previousFurthest);
+                    data.projection = previousProjection;
+                    data.extent = extent;
                     var descriptor = builder.GetTextureDescriptor(previousFurthest);
                     data.mipCount = PyramidMipBatch.MipCount(descriptor.width, descriptor.height);
-                    data.currentCount = motion.current.count; data.previousCount = motion.previous.count;
-                    data.transforms = pass.ReadBuffer(builder.ImportBuffer(motion.current.matrices)); data.generations = pass.ReadBuffer(builder.ImportBuffer(motion.current.generations));
-                    data.previousTransforms = pass.ReadBuffer(builder.ImportBuffer(motion.previous.matrices)); data.previousGenerations = pass.ReadBuffer(builder.ImportBuffer(motion.previous.generations));
-                    data.instanceTransforms = pass.ReadBuffer(builder.ImportBuffer(world.Residency.InstanceTransformIndexBuffer));
+                    data.currentCount = motion.current.count;
+                    data.previousCount = motion.previous.count;
+                    data.transforms = pass.ReadBuffer(builder.ImportBuffer(motion.current.matrices));
+                    data.generations = pass.ReadBuffer(builder.ImportBuffer(motion.current.generations));
+                    data.previousTransforms = pass.ReadBuffer(builder.ImportBuffer(motion.previous.matrices));
+                    data.previousGenerations = pass.ReadBuffer(builder.ImportBuffer(motion.previous.generations));
                 }
                 pass.SetExecuteFunc(s_ExecuteMeshOcclusion);
             }
             return new MeshOcclusionLists(first, view, recovered, deferred, history);
         }
-        internal void RecordMeshOcclusionRecovery(RGBuilder builder, in MeshOcclusionLists lists, ComputeShader shader, RGTextureHandle furthest,
-            Matrix4x4 projection, int2 extent)
+
+        internal void RecordMeshOcclusionRecovery(RGBuilder builder, in MeshOcclusionLists lists, RGTextureHandle furthest, Matrix4x4 projection, int2 extent)
         {
-            var recovered = OcclusionList(builder, lists.recovered, world.Residency.Scene.InstanceHighWater);
+            RGBufferHandle recovered = OcclusionList(builder, lists.recovered);
             RegisterOcclusionList(lists.recovered, recovered);
             using (var pass = builder.AddComputePass<MeshOcclusionData>(MeshDrawProfiling.culling))
             {
                 pass.KeepImportedWritesLocal();
-                ref var data = ref pass.GetPassData<MeshOcclusionData>(); data = default;
-                var residency = world.Residency;
-                data.inputs = new MeshGpuCullPassData { view = lists.final, instanceCount = residency.Scene.InstanceHighWater,
-                    boundsCenter = pass.ReadBuffer(builder.ImportBuffer(residency.BoundsCenterBuffer)),
-                    boundsExtent = pass.ReadBuffer(builder.ImportBuffer(residency.BoundsExtentBuffer)) };
+                ref var data = ref pass.GetPassData<MeshOcclusionData>();
+                data = default;
+                data.world = world;
+                data.view = lists.final;
+                data.inputs = CullInputs(builder, pass, boundsOnly: true);
                 data.recovery = true;
-                data.shader = shader; data.kernel = MeshOcclusionBindings.Kernel(shader, false, true);
+                data.kernel = world.gpuBackend.FindKernel("CullOcclusionRecovery");
                 data.deferred = pass.ReadBuffer(lists.deferred);
-                data.final = pass.WriteBuffer(m_GpuCullVisibility[MeshGpuVisibilityCache.MakeKey(lists.final, true)]);
-                data.recovered = pass.WriteBuffer(recovered); data.furthest = pass.ReadTexture(furthest);
-                data.projection = projection; data.extent = extent;
-                var descriptor = builder.GetTextureDescriptor(furthest); data.mipCount = PyramidMipBatch.MipCount(descriptor.width, descriptor.height);
+                data.final = pass.WriteBuffer(m_GpuCullVisibility[new MeshVisibilityKey(lists.final, true)]);
+                data.recovered = pass.WriteBuffer(recovered);
+                data.furthest = pass.ReadTexture(furthest);
+                data.projection = projection;
+                data.extent = extent;
+                var descriptor = builder.GetTextureDescriptor(furthest);
+                data.mipCount = PyramidMipBatch.MipCount(descriptor.width, descriptor.height);
                 pass.SetExecuteFunc(s_ExecuteMeshOcclusion);
             }
         }
+
         static void ExecuteMeshOcclusion(in MeshOcclusionData data, in RGComputeEncoder commands)
         {
-            var input = data.inputs; var shader = data.shader; int kernel = data.kernel;
+            MeshGpuDrawBackend backend = data.world.gpuBackend;
+            ComputeShader shader = backend.shader;
+            int kernel = data.kernel;
             if (data.recovery)
             {
-                MeshDrawGPUBackend.BindCullBounds(commands, shader, kernel, input.instanceCount, input.boundsCenter, input.boundsExtent);
+                backend.BindCullBounds(commands, kernel, data.inputs);
                 commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.Input, data.deferred);
                 commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.Recovered, data.recovered);
             }
             else
             {
-                MeshDrawGPUBackend.BindCullInputs(commands, shader, kernel, input.view, input.instanceCount, input.frustumPlanes,
-                    input.boundsCenter, input.boundsExtent, input.instanceFlags, input.instanceLayerMask, input.instanceSceneCullingMask, input.instanceRenderingLayer, input.visibility);
+                backend.BindCullInputs(commands, kernel, data.view, data.frustumPlanes, data.inputs, data.visibility);
                 commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.Deferred, data.deferred);
                 if (data.history)
                 {
@@ -151,7 +144,6 @@ namespace InfinityTech.Rendering.MeshPipeline
                     commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.CurrentGenerations, data.generations);
                     commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.PreviousTransforms, data.previousTransforms);
                     commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.PreviousGenerations, data.previousGenerations);
-                    commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.InstanceTransforms, data.instanceTransforms);
                 }
             }
             commands.SetComputeBufferParam(shader, kernel, MeshOcclusionBindings.Final, data.final);
@@ -162,8 +154,8 @@ namespace InfinityTech.Rendering.MeshPipeline
                 commands.SetComputeVectorParam(shader, MeshOcclusionBindings.Extent, new Vector4(data.extent.x, data.extent.y, 0, 0));
                 commands.SetComputeIntParam(shader, MeshOcclusionBindings.Mips, data.mipCount);
             }
-            commands.DispatchCompute(shader, kernel, (input.instanceCount + 63) / 64, 1, 1);
-            MeshPipelineDiagnostics.GpuCullDispatchesPerFrame++;
+            commands.DispatchCompute(shader, kernel, math.max(1, (data.inputs.entityCount + 63) / 64), 1, 1);
+            data.world.stats.gpuCullDispatches++;
         }
     }
 }

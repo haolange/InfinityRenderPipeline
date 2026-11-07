@@ -43,7 +43,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 	SubShader
 	{
-		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque"}
+		Tags{"RenderPipeline" = "InfinityRenderPipeline" "IgnoreProjector" = "True" "RenderType" = "Opaque" "InfinityMeshInstancing" = "True"}
 
 		//Shadow Pass
 		Pass
@@ -76,7 +76,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				nointerpolation uint PrimitiveId : TEXCOORD7;
+				nointerpolation uint EntityIndex : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float4 vertex_CS : SV_POSITION;
 			};
@@ -84,8 +84,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
+				Out.EntityIndex = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				float4 vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
@@ -131,7 +131,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				nointerpolation uint PrimitiveId : TEXCOORD7;
+				nointerpolation uint EntityIndex : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float4 vertex_WS : TEXCOORD2;
 				float4 vertex_CS : SV_POSITION;
@@ -140,8 +140,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId  = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
+				Out.EntityIndex  = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				Out.vertex_WS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
@@ -217,7 +217,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				nointerpolation uint PrimitiveId : TEXCOORD7;
+				nointerpolation uint EntityIndex : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
@@ -230,8 +230,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert (Attributes In)
 			{
 				Varyings Out = (Varyings)0;
-				Out.PrimitiveId  = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
+				Out.EntityIndex  = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
@@ -273,12 +273,12 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 				GBufferData.Flags = (_Subsurface > 0.5 ? GBUFFER_FLAG_SUBSURFACE : 0) | (_SurfaceRoute == 1 ? GBUFFER_FLAG_FORWARD : 0);
 				GBufferData.SSSProfileIndex = (uint)(_SSSProfileIndex + 0.5);
 				GBufferData.Thickness = _SSSThickness;
-                GBufferData.RenderingLayer = renderingLayerBuffer[In.PrimitiveId];
+                GBufferData.RenderingLayer = EntityRenderingLayers[In.EntityIndex];
 				EncodeGBuffer(GBufferData, In.vertexCS.xy, GBufferA, GBufferB, GBufferC);
 				LightingBuffer = float4(_EmissionColor.rgb, 0);
                 float4 mask;
                 float3 probeDiffuse;
-                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, renderingLayerBuffer[In.PrimitiveId], probeDiffuse, mask);
+                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, EntityRenderingLayers[In.EntityIndex], probeDiffuse, mask);
                 BakedDiffuse = float4(probeDiffuse, hasAPV ? 1 : 0);
                 BakedOcclusion = 1 - mask;
 			}
@@ -352,7 +352,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				nointerpolation uint PrimitiveId : TEXCOORD7;
+				nointerpolation uint EntityIndex : TEXCOORD7;
 				float2 uv0 : TEXCOORD0;
 				float3 normalWS : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
@@ -365,8 +365,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert (Attributes In)
 			{
 				Varyings Out = (Varyings)0;
-				Out.PrimitiveId  = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[Out.PrimitiveId];
+				Out.EntityIndex  = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[Out.EntityIndex];
 
 				Out.uv0 = In.uv0;
 				Out.vertexWS = mul(meshBatch.matrix_LocalToWorld, float4(In.vertexOS.xyz, 1.0));
@@ -400,7 +400,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
                 float4 baked, mask;
                 float3 probeDiffuse;
-                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, renderingLayerBuffer[In.PrimitiveId], probeDiffuse, mask);
+                bool hasAPV = SampleAdaptiveProbeVolume(positionWS, pnormalWS, cameraDirWS, In.vertexCS.xy, EntityRenderingLayers[In.EntityIndex], probeDiffuse, mask);
                 baked = float4(probeDiffuse, hasAPV ? 1 : 0);
                 float viewDepth = -mul(unity_MatrixV, float4(positionWS, 1)).z;
                 float3 diffuse = microfaceContext.AlbedoColor * (baked.a > 0 ? baked.rgb : EvaluateSH2Irradiance(pnormalWS, _AtmosphereSkySH));
@@ -415,7 +415,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
                 indirectDiffuse = float4(diffuse, 1);
                 indirectSpecular = float4(specular, 1);
                 float3 directDiffuse;
-                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, renderingLayerBuffer[In.PrimitiveId], (uint2)In.vertexCS.xy, directDiffuse)
+                lightingBuffer = float4(EvaluateSurfaceLights(positionWS, pnormalWS, cameraDirWS, microfaceContext, mask, viewDepth, EntityRenderingLayers[In.EntityIndex], (uint2)In.vertexCS.xy, directDiffuse)
                     + diffuse + specular + _EmissionColor.rgb, 1);
 #if defined(INFINITY_SSS_OUTPUT)
                 scatterDiffuse = float4(directDiffuse + diffuse, 1);
@@ -458,7 +458,7 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 
 			struct Varyings
 			{
-				nointerpolation uint PrimitiveId : TEXCOORD7;
+				nointerpolation uint EntityIndex : TEXCOORD7;
 				float4 clipPos : TEXCOORD0;
 				float4 clipPosOld : TEXCOORD1;
 				float4 vertex : SV_POSITION;
@@ -467,9 +467,9 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				Out.PrimitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData currBatch = transformBuffer[Out.PrimitiveId];
-				float4x4 previousObjectToWorld = MeshPreviousObjectToWorld(Out.PrimitiveId);
+				Out.EntityIndex = MeshInstanceEntity(In.InstanceId);
+				FTransformData currBatch = EntityTransforms[Out.EntityIndex];
+				float4x4 previousObjectToWorld = MeshPreviousObjectToWorld(Out.EntityIndex);
 
 				float4 worldPos = mul(currBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				float4 worldPosOld = mul(previousObjectToWorld, float4(In.vertex.xyz, 1.0));
@@ -523,8 +523,8 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[primitiveId];
+				uint entityIndex = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[entityIndex];
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				return Out;
@@ -597,14 +597,14 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[primitiveId];
+				uint entityIndex = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[entityIndex];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.worldPos = worldPos.xyz;
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(primitiveId), float4(In.vertex.xyz, 1.0)));
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(entityIndex), float4(In.vertex.xyz, 1.0)));
 				return Out;
 			}
 
@@ -687,14 +687,14 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[primitiveId];
+				uint entityIndex = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[entityIndex];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.normalWS = normalize(mul((float3x3)meshBatch.matrix_LocalToWorld, In.normal));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(primitiveId), float4(In.vertex.xyz, 1.0)));
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(entityIndex), float4(In.vertex.xyz, 1.0)));
 				return Out;
 			}
 
@@ -775,13 +775,13 @@ Shader "InfinityPipeline/InfinityLit-Instanced"
 			Varyings vert(Attributes In)
 			{
 				Varyings Out;
-				uint primitiveId = instanceIndexBuffer[In.InstanceId + instanceIndexOffset];
-				FTransformData meshBatch = transformBuffer[primitiveId];
+				uint entityIndex = MeshInstanceEntity(In.InstanceId);
+				FTransformData meshBatch = EntityTransforms[entityIndex];
 				Out.uv0 = In.uv0;
 				float4 worldPos = mul(meshBatch.matrix_LocalToWorld, float4(In.vertex.xyz, 1.0));
 				Out.vertex = mul(Matrix_ViewJitterProj, worldPos);
 				Out.clipPos = mul(Matrix_ViewFlipYProj, worldPos);
-				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(primitiveId), float4(In.vertex.xyz, 1.0)));
+				Out.clipPosOld = mul(Matrix_LastViewFlipYProj, mul(MeshPreviousObjectToWorld(entityIndex), float4(In.vertex.xyz, 1.0)));
 				return Out;
 			}
 

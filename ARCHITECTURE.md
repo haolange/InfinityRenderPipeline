@@ -102,80 +102,83 @@ Clear depth and sampled depth are different values. `ClearRenderTarget` and `Att
 
 ## 7. Mesh drawing pipeline
 
-`MeshComponent` content is not submitted through a renderer list. The authoritative store is an SoA scene with separate lifetimes:
+`MeshComponent` content is not submitted through a renderer list. Layers, from stable to per request:
 
-1. One logical instance and one exclusive transform.
-2. Geometry sections and material records, reference-counted.
-3. Per-pass bins and grouped command spans, rebuilt only on structural change.
-4. Per-view visibility, from a CPU job or from GPU `CullFrustum`.
-5. Per-draw-list submission payload, CPU procedural or GPU indirect.
+1. **World**: slot tables for entities, elements, sections and materials, owned by `MeshWorld`, one per `RenderContext`.
+2. **Pass**: one `MeshPassCache` per interned `MeshPassDesc`: which elements belong to the pass and which cached command each draws with.
+3. **View**: per-camera visibility of entity slots, from a Burst job or from GPU culling.
+4. **Draw list**: one request for one view and one pass: gather, sort and merge on the CPU backend, or compaction on the GPU backend.
+5. **Graph**: the builder's `MeshGraphExtension` inserts each live list's producers and submits it from its raster consumer.
 
 ```text
-MeshInstanceRecord ──TransformId──► TransformRecord     (1:1)
-        └── MeshDraw[] ──► MeshSectionId + MaterialDataId
-
-PassBin            filtered, structurally sorted draws for one MeshPassId
-MeshPassCommand    MeshDrawCommandKey + member span
-MeshDrawCommand    mesh, section, material, count, offset (one view, one list)
+MeshEntity  (slot = transform slot)  desc, element chain        transforms[], bounds[] parallel columns
+  └─ MeshElement (one submesh)       section ─► MeshSection (mesh, submesh, refCount)
+                                     material ─► MeshMaterial (id, queue, route, stage, refCount)
+MeshPassCache   candidates[element] = (entity, command)   commands[] = key (section, material), refCount, stateKey
+MeshDrawListBuild  items (key, command, entity, depth) ─sort─► draws (command, offset, count) + instanceToEntity[]
 ```
 
-`MeshInstanceId`, `TransformId`, `MeshDrawId`, `MeshSectionId` and `MaterialDataId` store an index and a generation. Generation 0 is invalid. `MeshSceneUpdate.CreateInstance` rejects a transform that already has an owner. `MatrixDuplicateRatio` is `TransformCount / LogicalInstanceCount` and is 1 in steady state.
+Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`. Ids store an index and a generation. Live generations are odd, dead ones even. A killed slot returns to its free list only when the transaction commits, so an id handed out by a rolled-back transaction never matches a later slot.
 
 | Type | File | Responsibility |
 |---|---|---|
-| `MeshScene`, `MeshSceneRecords` | `MeshPipeline/MeshScene.cs`, `MeshSceneRecords.cs` | SoA tables, free lists, ownership map, dirty pages, revisions |
-| `MeshSceneUpdate` | `MeshSceneUpdate.cs` | Transaction and undo log. `Dispose` without `Commit` rolls back |
-| `GpuScene` | `GpuScene.cs` | GPU mirror. Dirty 64-slot runs of transforms, layers, bounds, flags |
-| `MeshTransformVersionCache` | `MeshTransformVersionCache.cs` | Immutable transform versions and their GPU production |
-| `MeshWorld` | `MeshWorld.cs` | Per-scene owner of the scene, GPU scene, visibility, pass registry and draw pipeline |
-| `PassRegistry`, `MeshPassTypes` | `PassRegistry.cs`, `MeshPassTypes.cs` | Nine `MeshPassId` definitions |
-| `PassBinStore` | `PassBinStore.cs` | Filter, structural sort, grouping by `MeshDrawCommandKey` |
-| `MeshVisibilityShare` | `MeshVisibilityCache.cs` | Interned CPU visibility by `MeshVisibilitySignature` |
-| `MeshGpuVisibilityCache` | `MeshGpuVisibilityCache.cs` | One GPU visibility buffer per view key |
-| `MeshDrawCompiler` | `MeshDrawCompiler.cs` | `MeshPassExtractJob` |
-| `MeshCandidateTableStore` | `MeshCandidateTableStore.cs` | Per-pass GPU command and candidate tables |
-| `MeshDrawGPUBackend` | `MeshDrawGPUBackend.cs` | Payloads, compaction, indirect arguments |
-| `MeshGraphExtension`, `RGDrawListContext` | `MeshPipeline/Graph/` | Per-builder graph extension and draw-list registry. A draw list is not an `ERGResourceType` |
+| `MeshWorld` | `MeshPipeline/World/MeshWorld*.cs` | Tables, revisions, dirty pages, pose writes, dynamic poses, interned pass caches, backends, residency |
+| `MeshWorldUpdate` | `World/MeshWorldUpdate.cs` | Structural transaction lease and per-table undo logs |
+| `SlotTable<T>` | `World/SlotTable.cs` | Fixed-index storage with generations and commit-time reclaim |
+| `MeshWorldGpu` | `World/MeshWorldGpu.cs` | Entity columns (bounds, flags, masks, rendering layers) by dirty 64-slot pages |
+| `MeshTransformVersionCache` | `World/MeshTransformVersionCache.cs` | Immutable per-entity transform versions and their GPU production |
+| `MeshPassDesc`, `MeshPassPresets` | `Pass/MeshPassDesc.cs` | Pass request: LightMode, queue range, sort mode, required entity flags, previous transforms |
+| `MeshPassCache` | `Pass/MeshPassCache.cs` | Incremental membership, command refcounts, bindings, candidate table |
+| `MeshView`, `MeshVisibilityKey`, `MeshVisibilityShare` | `View/` | Views, culling identity, per-camera CPU visibility jobs |
+| `MeshGpuVisibilityCache` | `View/MeshGpuVisibilityCache.cs` | One resident GPU visibility buffer per key |
+| `MeshDrawListBuild` | `DrawList/MeshDrawListBuild.cs` | Gather, sort and merge jobs; `SortKeyPacking` |
+| `MeshCpuDrawBackend`, `MeshGpuDrawBackend` | `Backend/` | World-owned backends: instance tables, payloads, culling, compaction, submission |
+| `MeshGraphExtension`, `RGDrawListContext` | `Graph/` | Per-builder graph extension and draw-list registry. A draw list is not an `ERGResourceType` |
 
-`MeshPassId` is Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, TranslucentT0, TranslucentT1, TranslucentT2. The frame calls `CreateDrawList` for depth, a recovered depth view, GBuffer, forward, motion, cascade shadow and local shadow. Translucent stages are drawn with `RendererListDesc` in `TranslucentPass`. Their mesh pass identifiers remain registered and are not a second submit path.
+### World
 
-`PassBinStore` keeps a draw when it is eligible, inside the pass queue range, and alive. Motion rejects camera-only motion. The bin order is `CompareStructural` (queue, material, mesh, section). `defaultSort` and `MeshSortKey.PackSortKey` are not applied to bins. Rendering-layer and culling-mask tests belong to `MeshView` and the visibility job, not to the bin rebuild. `filterRenderingLayers` is set on cascade and local shadow views.
+`MeshWorld.BeginUpdate` opens one transaction and snapshots revisions and dirty pages. Each table logs the slot state before its first change. `Commit` first asks every pass cache to prepare the bindings it would create; a failure leaves the transaction open and the lease's `Dispose` rolls it back. It then reclaims killed slots, retires sections and materials whose reference count stayed zero, applies pending mobility changes and publishes the dirty elements to every pass cache. `Rollback` replays the logs in reverse, rebuilds the touched section and material lookups and restores revisions and dirty pages.
 
-`MeshDrawCommandKey` and `MeshVisibilitySignature` use structured `Equals`. Hash codes only accelerate lookup. `MeshSortKey` saturates each 16-bit segment before packing.
+Poses do not take part in transactions. `WriteEntityPose` writes one static pose; `UpdateDynamicPoses` reads every dynamic entity's `Transform` in an `IJobParallelForTransform`, writes changed poses by entity index and marks dirty pages in a second job. Both throw while a transaction is open. Changing a flag that decides membership (`CastShadow`, `ObjectMotion`) is a structural edit.
 
-### Transaction
+### Pass
 
-`MeshScene.BeginUpdate` allows one transaction and snapshots revisions and dirty pages. Every mutation pushes an undo entry. Section and material slots whose reference count reaches zero during the transaction are queued. `Commit` flushes that queue. `Rollback` discards it after undo restores the counts, increments `BinEpoch`, and does not truncate free lists. `GpuScene.Update` refuses to run while a transaction is open.
+Membership of an element in a pass is: its material's route and stage enable the pass LightMode (`MaterialRouteUtility.RouteEnablesPass`, the one authority that also sets material pass state), its queue is inside the desc range, and its entity carries the required flags. Pass state on the material is not consulted. A command is keyed by (section slot, material slot) and binds the mesh, material, pass index and submesh range when it is created. Its state key packs a per-cache shader-state rank, the material slot and the section slot, each saturated to its segment. After a shader import `MeshPassShaderUtility.NotifyShadersChanged` advances an epoch and each cache resolves its pass indices again before its next draw list.
+
+The nine presets (Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, TranslucentT0, T1, T2) are interned when the world is created, so shadow-caster bounds and residency see them before any draw list. Another desc is built from the world on its first request. A world interns at most 64 descs and never evicts one. Motion and the translucent stages require the view's previous transforms.
 
 ### Frame
 
-1. `RenderContext` applies dynamic transforms and drains dirty mesh components through one `MeshSceneUpdate`.
-2. `MeshWorld.UpdateResidency` uploads dirty GPU-scene pages.
-3. `MeshWorld.BeginCamera` resets per-camera counters.
-4. Passes call `CreateDrawList(meshView, passId)`. On the GPU-indirect policy that declaration also requests `EnsureMeshGpuCull`.
-5. Compile drops draw lists with no consumer, selects the backend, and inserts upload and compaction.
-6. Execute draws. `ReleaseAll` retires payloads and visibility references. After native submit, `FlushRetired` returns allocations to `ResourcePool` without clearing outstanding GPU use.
+1. Proxy update: registration tasks, one `MeshWorldUpdate` for removals and every dirty component, explicit static poses, then dynamic poses.
+2. `MeshWorld.UpdateResidency` uploads dirty entity columns, the next transform version and stale pass candidate tables.
+3. `MeshWorld.BeginCamera` resets per-camera counters and visibility interning.
+4. Passes call `CreateDrawList(meshView, MeshPassPresets.X)`. On the GPU backend that declaration also requests `EnsureMeshGpuCull` for the view.
+5. Compile releases draw lists with no live consumer. Live CPU lists acquire interned visibility and schedule their gather, sort and merge jobs; live GPU lists rent their payload. The extension inserts one upload producer per list and, for GPU indirect, one compute producer, then moves them to the earliest pass whose inputs exist.
+6. Execute: the CPU upload completes the build jobs and uploads `instanceToEntity`; the CPU consumer issues one `DrawMeshInstancedProcedural` per merged run. The GPU producer runs `ClearCounts`, `Compact` (one thread per element slot of the candidate table) and `BuildIndirectArgs`; the consumer issues one `DrawMeshInstancedIndirect` per live command. Raster submission only draws.
+7. `ReleaseAll` completes and frees build jobs, releases visibility references and retires payloads, instance buffers and transform-version references. After native submit, `FlushRetired` returns allocations to `ResourcePool` without clearing outstanding GPU use.
 
-CPU direct drawing acquires interned visibility, runs `MeshPassExtractJob`, and calls `DrawMeshInstancedProcedural` with transform indices. GPU indirect drawing culls once per view key, builds a candidate table of `(instance slot, local command)` for the whole bin, and at execute runs `ClearCounts`, `Compact` and `BuildIndirectArgs`. Compacted indices are transform indices. Shaders read `transformBuffer`, `previousTransformBuffer` and `instanceIndexBuffer`.
+Sort modes: `State` orders by state key; `FrontToBack` puts a saturated camera distance in decimeters in front of the state key; `BackToFront` orders by priority, then exact distance descending, and always records on the CPU backend. Every mode breaks ties by command and entity, so the order is total.
 
-`EMeshBackendPolicy` is Auto, CpuDirect or GpuIndirect. The camera or test override wins, then the Rendering Debugger override, then the asset. Auto and an explicit GPU request both require instancing, compute, the mesh-draw compute shader and its four kernels. A payload that cannot be sized falls back to CPU direct and increments `GpuOverflowCount`. There is no process-global indirect-argument buffer and no same-frame visible-count readback.
+`EMeshBackendPolicy` is Auto, CpuDirect or GpuIndirect. The camera or test override wins, then the Rendering Debugger override, then the asset. Auto and GPU Indirect use the GPU backend when the device supports compute and instancing and the mesh compute shader has its kernels. There is no process-global indirect-argument buffer and no same-frame visible-count readback. The compute shader is required on every backend because transform versions are produced on the GPU.
+
+Shaders read `InstanceToEntity[SV_InstanceID + InstanceOffset]` through `MeshInstanceEntity`, then `EntityTransforms`, `EntityRenderingLayers` and, for motion, `PreviousEntityTransforms` guarded by generations. A mesh shader declares the SubShader tag `InfinityMeshInstancing = True`; a component whose material lacks it, or lacks a pass its route enables, is logged with its context and not drawn.
 
 `ERenderingLayer : byte` is the shared mesh and light mask, with `Everything = 0xFF`. Surface masks in GBuffer C are an 8-bit unorm value. High bits are rejected.
 
 Public recording for a pass is:
 
 ```csharp
-RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
+RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassPresets.GBuffer);
 data.draws = pass.UseDrawList(draws);
 // execute:
 cmdEncoder.Draw(data.draws);
 ```
 
-Content code mutates `MeshComponent`. It does not call `CreateDrawList`. There is no `MeshDrawRequest` type.
+Content code mutates `MeshComponent`. It does not call `CreateDrawList`.
 
 Draw markers are `RenderLoop.DrawMeshDirect` and `RenderLoop.DrawMeshIndirect` for ordinary views, and `Shadows.DrawMeshDirect` and `Shadows.DrawMeshIndirect` for shadow views, selected from `EMeshViewKind`. Preparation samplers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, shared across views and owned by `MeshDrawProfiling`. Shared sampler names do not merge graph nodes.
 
-Out of scope for this pipeline: GPU sorting of draw keys, GPU LOD, meshlets, and replacing renderer lists for Unity `MeshRenderer` objects. `RefineVisibilityHiZ` is present and empty.
+Translucent stages are still drawn with `RendererListDesc` in `TranslucentPass`; their presets exist and are not yet consumed. Out of scope for this pipeline: GPU sorting of draw keys, meshlets, and replacing renderer lists for Unity `MeshRenderer` objects.
 
 ## 8. Materials
 

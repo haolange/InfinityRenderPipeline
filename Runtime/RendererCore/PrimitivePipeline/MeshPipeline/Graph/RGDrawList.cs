@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using Unity.Jobs;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
 using InfinityTech.Rendering.RenderGraph;
@@ -6,7 +8,7 @@ using InfinityTech.Rendering.RenderGraph;
 namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
-    /// Logical DrawList handle. Not an ERGResourceType; it lives in the mesh graph extension's registry.
+    /// Logical draw-list handle. Not an ERGResourceType; it lives in the mesh graph extension's registry.
     /// The registry reference binds it to one builder; the generation binds it to one graph lifetime.
     /// </summary>
     public readonly struct RGDrawListHandle
@@ -22,9 +24,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             this.generation = generation;
         }
 
-        /// <summary>
-        /// Registry-only validity. Generation/index match is enforced at UseDrawList / Draw / EnsureResolved.
-        /// </summary>
+        /// <summary>Registry-only validity. Generation and index are checked by UseDrawList and Draw.</summary>
         public bool IsValid => context != null;
 
         public static RGDrawListHandle Invalid => default;
@@ -35,162 +35,73 @@ namespace InfinityTech.Rendering.MeshPipeline
         Declared = 0,
         Live = 1,
         Scheduled = 2,
-        Resolved = 3,
-        Released = 4
+        Released = 3
     }
 
     internal struct RGDrawListRecord
     {
         public MeshView view;
-        public MeshPassId passId;
-        public MeshDrawPipeline pipeline;
-        public MeshPassContext pass;
-        public MeshGpuSceneSnapshot residency;
-        public MeshViewCullingResult culling;
-        public MeshVisibilityHandle visibilityHandle;
-        public MeshVisibilityShare visibilityShare;
-        public MeshWorld meshWorld;
-        public bool ownsCulling;
-        public List<int> consumerPassIndices;
+        public MeshPassCache cache;
+        public EMeshBackendPolicy backend;
+        public MeshWorldGpuTables tables;
+        public MeshMotionBinding motion;
         public ERGDrawListCompileState state;
-        public EMeshBackendPolicy selectedBackend;
-        public MeshDrawExtract extract;
-        public PassView resolvedList;
-        public MeshDrawGpuStaging gpuStaging;
-        public MeshDrawGpuPayload gpuPayload;
-        public BufferHandle cpuIndexBuffer;
-        public RGBufferHandle gpuVisibilityBuffer;
-        public bool hasSideEffect;
+        public List<int> consumerPassIndices;
+        // CPU direct
+        public MeshVisibilityHandle visibility;
+        public MeshDrawListBuild build;
+        public BufferHandle cpuInstances;
+        // GPU indirect
+        public RGBufferHandle gpuVisibility;
+        public BufferHandle gpuVisibilityBuffer;
+        public MeshGpuDrawPayload payload;
+        public int commandCount;
+        public int candidateCount;
+        public uint cacheRevision;
     }
 
-    /// <summary>
-    /// Per-graph DrawList registry used by compile / resolve / submit.
-    /// </summary>
+    /// <summary>Per-graph draw-list registry used by compile, preparation and submit.</summary>
     internal sealed class RGDrawListContext
     {
-        private readonly List<RGDrawListRecord> m_Records = new List<RGDrawListRecord>(16);
-        private readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
+        readonly MeshWorld m_World;
+        readonly List<RGDrawListRecord> m_Records = new List<RGDrawListRecord>(16);
+        readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
+        // Start at 1 so default(RGDrawListHandle) never matches a live graph.
+        int m_GraphGeneration = 1;
 
-        List<int> RentConsumerList() => m_ConsumerLists.Count > 0 ? m_ConsumerLists.Pop() : new List<int>(4);
-        // Start at 1 so default(RGDrawListHandle) {index=0, generation=0} never matches a live graph.
-        private int m_GraphGeneration = 1;
+        internal RGDrawListContext(MeshWorld world) => m_World = world;
 
         public int Count => m_Records.Count;
         public int GraphGeneration => m_GraphGeneration;
 
         public bool IsLive(in RGDrawListHandle draws)
-        {
-            return draws.context == this
-                && draws.generation == m_GraphGeneration
-                && draws.index >= 0
-                && draws.index < m_Records.Count;
-        }
-
-        static void ValidateMotionInput(in MeshPassContext pass)
-        {
-            if (pass.lightModeTag == "RasterMotionPass" && !pass.previousTransforms.isValid)
-                throw new System.InvalidOperationException("Motion draws require the selected view's previous-transform producer.");
-        }
-
-        public RGDrawListHandle Declare(
-            MeshDrawPipeline pipeline,
-            in MeshPassContext pass,
-            in MeshViewCullingResult culling,
-            in MeshView view = default,
-            MeshPassId passId = default,
-            MeshWorld meshWorld = null)
-        {
-            ValidateMotionInput(pass);
-            // Value-copy path: first record owns NativeArrays; later declares sharing the same arrays must not double-free.
-            // Prefer Declare(..., MeshVisibilityHandle) for shared visibility.
-            bool owns = culling.isValid;
-            if (owns)
-            {
-                for (int i = 0; i < m_Records.Count; ++i)
-                {
-                    RGDrawListRecord existing = m_Records[i];
-                    if (existing.ownsCulling && existing.culling.isValid
-                        && existing.culling.instanceVisibility.Equals(culling.instanceVisibility))
-                    {
-                        owns = false;
-                        break;
-                    }
-                }
-            }
-
-            int index = m_Records.Count;
-            var residency = pipeline != null ? pipeline.CaptureScene() : default;
-            residency.version?.Retain();
-            m_Records.Add(new RGDrawListRecord
-            {
-                view = view,
-                passId = passId,
-                pipeline = pipeline,
-                pass = pass, residency = residency,
-                culling = culling,
-                visibilityHandle = MeshVisibilityHandle.Invalid,
-                visibilityShare = null,
-                meshWorld = meshWorld,
-                ownsCulling = owns,
-                consumerPassIndices = RentConsumerList(),
-                state = ERGDrawListCompileState.Declared,
-                selectedBackend = EMeshBackendPolicy.CpuDirect,
-                extract = default,
-                resolvedList = PassView.Invalid,
-                gpuStaging = null,
-                gpuPayload = null,
-                hasSideEffect = false
-            });
-            return new RGDrawListHandle(this, index, m_GraphGeneration);
-        }
-
-        public RGDrawListHandle Declare(
-            MeshDrawPipeline pipeline,
-            in MeshPassContext pass,
-            MeshVisibilityHandle visibilityHandle,
-            MeshVisibilityShare visibilityShare,
-            in MeshView view = default,
-            MeshPassId passId = default,
-            MeshWorld meshWorld = null)
-        {
-            ValidateMotionInput(pass);
-            MeshViewCullingResult culling = default;
-            if (visibilityShare != null && visibilityHandle.IsValid)
-            {
-                visibilityShare.AddRef(visibilityHandle);
-                culling = visibilityShare.GetResult(visibilityHandle);
-            }
-
-            int index = m_Records.Count;
-            var residency = pipeline != null ? pipeline.CaptureScene() : default;
-            residency.version?.Retain();
-            m_Records.Add(new RGDrawListRecord
-            {
-                view = view,
-                passId = passId,
-                pipeline = pipeline,
-                pass = pass, residency = residency,
-                culling = culling,
-                visibilityHandle = visibilityHandle,
-                visibilityShare = visibilityShare,
-                meshWorld = meshWorld,
-                ownsCulling = false,
-                consumerPassIndices = RentConsumerList(),
-                state = ERGDrawListCompileState.Declared,
-                selectedBackend = EMeshBackendPolicy.CpuDirect,
-                extract = default,
-                resolvedList = PassView.Invalid,
-                gpuStaging = null,
-                gpuPayload = null,
-                hasSideEffect = false
-            });
-            return new RGDrawListHandle(this, index, m_GraphGeneration);
-        }
+            => draws.context == this && draws.generation == m_GraphGeneration && draws.index >= 0 && draws.index < m_Records.Count;
 
         public RGDrawListRecord GetRecordCopy(int index) => m_Records[index];
-        public void SetRecord(int index, in RGDrawListRecord record)
+
+        public RGDrawListHandle Declare(in MeshView view, in MeshPassDesc desc)
         {
-            m_Records[index] = record;
+            MeshPassCache cache = m_World.GetPassCache(desc);
+            cache.EnsureShaderBindings();
+            MeshMotionBinding motion = m_World.GetPreviousTransforms(view.viewKey);
+            if (desc.requirePreviousTransforms && !motion.isValid)
+                throw new InvalidOperationException($"Mesh pass '{desc.lightMode}' requires the view's previous-transform producer.");
+            MeshWorldGpuTables tables = m_World.gpu.Snapshot();
+            if (!tables.isValid) throw new InvalidOperationException("Draw lists require uploaded MeshWorld residency.");
+            tables.version.Retain();
+            int index = m_Records.Count;
+            m_Records.Add(new RGDrawListRecord
+            {
+                view = view,
+                cache = cache,
+                backend = m_World.SelectBackend(desc),
+                tables = tables,
+                motion = motion,
+                state = ERGDrawListCompileState.Declared,
+                consumerPassIndices = m_ConsumerLists.Count > 0 ? m_ConsumerLists.Pop() : new List<int>(4),
+                visibility = MeshVisibilityHandle.Invalid
+            });
+            return new RGDrawListHandle(this, index, m_GraphGeneration);
         }
 
         public void ClearConsumers()
@@ -199,10 +110,7 @@ namespace InfinityTech.Rendering.MeshPipeline
             {
                 RGDrawListRecord record = m_Records[i];
                 record.consumerPassIndices.Clear();
-                if (record.state != ERGDrawListCompileState.Released)
-                {
-                    record.state = ERGDrawListCompileState.Declared;
-                }
+                if (record.state != ERGDrawListCompileState.Released) record.state = ERGDrawListCompileState.Declared;
                 m_Records[i] = record;
             }
         }
@@ -211,335 +119,144 @@ namespace InfinityTech.Rendering.MeshPipeline
         {
             RGDrawListRecord record = m_Records[drawListIndex];
             record.consumerPassIndices.Add(passIndex);
-            if (record.state == ERGDrawListCompileState.Declared)
-            {
-                record.state = ERGDrawListCompileState.Live;
-            }
+            if (record.state == ERGDrawListCompileState.Declared) record.state = ERGDrawListCompileState.Live;
             m_Records[drawListIndex] = record;
         }
 
-        public void BindGpuVisibility(int index, in RGBufferHandle visibility)
+        public void BindGpuVisibility(int index, in RGBufferHandle visibility, in BufferHandle buffer)
         {
-            if (index < 0 || index >= m_Records.Count)
-            {
-                return;
-            }
-
             RGDrawListRecord record = m_Records[index];
-            record.gpuVisibilityBuffer = visibility;
+            record.gpuVisibility = visibility;
+            record.gpuVisibilityBuffer = buffer;
             m_Records[index] = record;
         }
 
         public bool HasLiveView(in MeshView view)
         {
-            MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view, true);
-            for (int i = 0; i < m_Records.Count; ++i)
+            var key = new MeshVisibilityKey(view, true);
+            foreach (RGDrawListRecord record in m_Records)
             {
-                RGDrawListRecord record = m_Records[i];
-                if (record.state == ERGDrawListCompileState.Declared
-                    || record.state == ERGDrawListCompileState.Released)
-                {
-                    continue;
-                }
-
-                if (MeshGpuVisibilityCache.MakeKey(record.view, true).Equals(key))
-                {
-                    return true;
-                }
+                if (record.state == ERGDrawListCompileState.Declared || record.state == ERGDrawListCompileState.Released) continue;
+                if (new MeshVisibilityKey(record.view, true).Equals(key)) return true;
             }
-
             return false;
         }
 
-        public void PrepareLive(MeshWorld world)
+        /// <summary>
+        /// Live lists acquire their capacity once: CPU lists acquire visibility and schedule their build jobs, GPU lists
+        /// rent their payload. Lists without a live consumer are released without producing anything.
+        /// </summary>
+        public void PrepareLive()
         {
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGDrawListRecord record = m_Records[i];
                 if (record.state != ERGDrawListCompileState.Live)
                 {
-                    // Unused lists never produce Visibility or Compact.
                     record.state = ERGDrawListCompileState.Released;
                     m_Records[i] = record;
                     continue;
                 }
 
-                if (record.pipeline == null)
+                MeshPassCache cache = record.cache;
+                record.cacheRevision = cache.revision;
+                if (record.backend == EMeshBackendPolicy.GpuIndirect)
                 {
-                    record.state = ERGDrawListCompileState.Released;
-                    m_Records[i] = record;
-                    continue;
-                }
-
-                record.selectedBackend = MeshDrawGPUBackend.SelectPolicy(record.pass.backendPolicy);
-                if (record.selectedBackend != EMeshBackendPolicy.GpuIndirect)
-                {
-                    AcquireCpuVisibility(ref record, record.meshWorld ?? world);
-                    record.extract = record.pipeline.Extract(record.passId, record.culling);
-                }
-
-                record.state = ERGDrawListCompileState.Scheduled;
-                m_Records[i] = record;
-            }
-        }
-
-        public void EnsureResolved(in RGDrawListHandle draws)
-        {
-            if (!IsLive(draws))
-            {
-                return;
-            }
-
-            EnsureResolved(draws.index);
-        }
-
-        public void EnsureResolved(int index)
-        {
-            if (index < 0 || index >= m_Records.Count)
-            {
-                return;
-            }
-
-            RGDrawListRecord record = m_Records[index];
-            if (record.state == ERGDrawListCompileState.Resolved || record.state != ERGDrawListCompileState.Scheduled)
-            {
-                return;
-            }
-
-            if (record.pipeline != null)
-            {
-                if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect)
-                {
-                    int boundsCount = record.pipeline.GetBoundsCullCount();
-                    record.resolvedList = record.pipeline.CandidateTables.BuildPassView(record.passId);
-                    record.gpuStaging = record.pipeline.CandidateTables.CreateStaging(record.passId, record.view, boundsCount);
-                    if (record.gpuStaging != null)
-                    {
-                        MeshDrawGPUBackend.ComputePayloadBudget(
-                            record.gpuStaging.candidateCounts,
-                            record.gpuStaging.commandCount,
-                            boundsCount,
-                            out int maxCommands,
-                            out int maxInstances);
-                        if (maxCommands > 0)
-                        {
-                            record.gpuPayload = MeshDrawGPUBackend.RentPayload();
-                            try { record.gpuPayload.EnsureCapacity(record.pipeline.resourcePool, maxCommands, maxInstances); }
-                            catch { MeshDrawGPUBackend.ReturnPayload(record.gpuPayload); throw; }
-                        }
-                        else
-                        {
-                            FallbackCpuDirect(ref record, countOverflow: true);
-                        }
-                    }
-                    else
-                    {
-                        FallbackCpuDirect(ref record, countOverflow: true);
-                    }
+                    if (!record.gpuVisibility.IsValid())
+                        throw new InvalidOperationException("A GPU draw list requires its view's GPU culling producer.");
+                    if (cache.candidateBuffer.buffer == null)
+                        throw new InvalidOperationException($"Mesh pass '{cache.desc.lightMode}' has no uploaded candidate table.");
+                    record.commandCount = cache.commandHighWater;
+                    record.candidateCount = cache.candidates.Length;
+                    record.payload = m_World.gpuBackend.RentPayload(record.commandCount, cache.memberCount);
                 }
                 else
                 {
-                    record.resolvedList = record.pipeline.Resolve(ref record.extract);
+                    record.visibility = m_World.visibilityShare.Acquire(m_World, record.view);
+                    record.build = MeshDrawListBuild.Schedule(cache, m_World, m_World.visibilityShare.Get(record.visibility));
+                    record.cpuInstances = m_World.cpuBackend.AllocateInstances(cache.memberCount);
                 }
+                record.state = ERGDrawListCompileState.Scheduled;
+                m_Records[i] = record;
             }
-
-            record.state = ERGDrawListCompileState.Resolved;
-            m_Records[index] = record;
+            JobHandle.ScheduleBatchedJobs();
         }
 
-        public bool NeedsGpuPrepare(in RGDrawListHandle draws)
+        void RequireUnchanged(in RGDrawListRecord record)
         {
-            if (!IsLive(draws))
-            {
-                return false;
-            }
-
-            RGDrawListRecord record = m_Records[draws.index];
-            return record.state == ERGDrawListCompileState.Resolved
-                && record.pipeline != null
-                && record.selectedBackend == EMeshBackendPolicy.GpuIndirect
-                && record.gpuPayload != null
-                && record.gpuStaging != null;
+            if (record.cache.revision != record.cacheRevision)
+                throw new InvalidOperationException("A pass cache changed between draw-list record and execution.");
         }
 
-        public string SliceSampleName(in RGDrawListHandle draws)
-        {
-            if (!IsLive(draws))
-            {
-                return null;
-            }
-
-            MeshView view = m_Records[draws.index].view;
-            switch (view.kind)
-            {
-                case EMeshViewKind.CascadeShadow:
-                    return MeshDrawProfiling.Slice(view.kind, view.subviewIndex);
-                case EMeshViewKind.LocalShadow:
-                    return MeshDrawProfiling.Slice(view.kind, view.subviewIndex);
-                default:
-                    return null;
-            }
-        }
-
-        internal RGDrawListRecord PrepareGraphRecord(int index)
-        {
-            EnsureResolved(index);
-            var record = m_Records[index];
-            if (record.state == ERGDrawListCompileState.Resolved && record.pipeline != null && record.gpuPayload == null)
-                record.cpuIndexBuffer = record.pipeline.AllocateCpuDirect(record.resolvedList);
-            m_Records[index] = record;
-            return record;
-        }
         internal void Upload(int index, CommandBuffer commands)
         {
-            var record = m_Records[index];
-            if (record.gpuPayload != null)
-            {
-                record.gpuPayload.WaitForReuse(commands);
-                commands.SetBufferData(record.gpuPayload.commandMeta, record.gpuStaging.commandMeta, 0, 0, record.gpuStaging.commandCount * 4);
-            }
-            else if (record.pipeline != null)
-                record.pipeline.UploadCpuDirect(commands, record.resolvedList, record.cpuIndexBuffer);
+            RGDrawListRecord record = m_Records[index];
+            RequireUnchanged(record);
+            if (record.backend == EMeshBackendPolicy.GpuIndirect) m_World.gpuBackend.Upload(commands, record.payload, record.cache, record.commandCount);
+            else m_World.cpuBackend.Upload(commands, ref record.build, record.cpuInstances);
+            m_Records[index] = record;
         }
+
         internal void Compact(int index, CommandBuffer commands)
         {
-            var record = m_Records[index];
-            string slice = SliceSampleName(new RGDrawListHandle(this, index, m_GraphGeneration));
+            RGDrawListRecord record = m_Records[index];
+            RequireUnchanged(record);
+            string slice = SliceSampleName(record.view);
             if (slice != null) commands.BeginSample(slice);
             try
             {
-                if (!record.pipeline.PrepareGpu(commands, record.resolvedList, record.gpuPayload, record.gpuStaging, record.meshWorld, record.residency, record.view, record.passId))
-                    throw new System.InvalidOperationException("MeshDraw GPU preparation failed after its record-time budget and backend decision.");
+                m_World.gpuBackend.Compact(commands, record.payload, record.cache, record.commandCount, record.candidateCount,
+                    record.gpuVisibilityBuffer.buffer, m_World.stats);
             }
             finally { if (slice != null) commands.EndSample(slice); }
         }
 
-        static void AcquireCpuVisibility(ref RGDrawListRecord record, MeshWorld producer)
+        public void Submit(CommandBuffer commands, in RGDrawListHandle draws)
         {
-            if (record.visibilityHandle.IsValid || producer == null)
-            {
-                return;
-            }
-
-            record.visibilityHandle = producer.AcquireVisibility(record.view);
-            record.visibilityShare = producer.VisibilityShare;
-            record.culling = record.visibilityShare.GetResult(record.visibilityHandle);
-            producer.RefineVisibilityHiZ(record.visibilityHandle);
-        }
-
-        static void FallbackCpuDirect(ref RGDrawListRecord record, bool countOverflow)
-        {
-            if (countOverflow)
-            {
-                MeshPipelineDiagnostics.GpuOverflowCount++;
-            }
-            record.selectedBackend = EMeshBackendPolicy.CpuDirect;
-            record.pipeline?.CandidateTables.ReturnStaging(record.gpuStaging);
-            record.gpuStaging = null;
-            if (record.gpuPayload != null)
-            {
-                MeshDrawGPUBackend.RetirePayload(record.gpuPayload);
-                record.gpuPayload = null;
-            }
-
-            AcquireCpuVisibility(ref record, record.meshWorld);
-            if (record.pipeline != null && !record.extract.isCreated)
-            {
-                record.extract = record.pipeline.Extract(record.passId, record.culling);
-            }
-
-            if (record.pipeline != null)
-            {
-                record.resolvedList = record.pipeline.Resolve(ref record.extract);
-            }
-        }
-
-        public void Submit(CommandBuffer cmdBuffer, in RGDrawListHandle draws)
-        {
-            if (cmdBuffer == null || !IsLive(draws))
-            {
-                return;
-            }
-
+            // A foreign, stale or released handle draws nothing; UseDrawList already rejected it at record.
+            if (!IsLive(draws)) return;
             RGDrawListRecord record = m_Records[draws.index];
-            if (record.state != ERGDrawListCompileState.Resolved || record.pipeline == null)
-            {
-                return;
-            }
-
-            if (record.selectedBackend == EMeshBackendPolicy.GpuIndirect
-                && record.gpuPayload != null
-                && record.gpuStaging != null)
-            {
-                record.pipeline.SubmitGpu(
-                    cmdBuffer,
-                    record.resolvedList,
-                    record.pass.shaderPassIndex,
-                    record.residency,
-                    record.gpuPayload,
-                    record.gpuStaging,
-                    record.view.kind,
-                    record.pass.lightModeTag, record.pass.previousTransforms);
-                return;
-            }
-
-            record.pipeline.SubmitCpuDirect(cmdBuffer, record.resolvedList, record.pass.shaderPassIndex, record.residency, record.cpuIndexBuffer, record.view.kind, record.pass.lightModeTag, record.pass.previousTransforms);
+            if (record.state != ERGDrawListCompileState.Scheduled) return;
+            RequireUnchanged(record);
+            if (record.backend == EMeshBackendPolicy.GpuIndirect)
+                m_World.gpuBackend.Submit(commands, record.payload, record.cache, record.commandCount, record.tables, record.motion, record.view.kind);
+            else
+                m_World.cpuBackend.Submit(commands, record.cache, record.build, record.cpuInstances, record.tables, record.motion, record.view.kind);
         }
+
+        static string SliceSampleName(in MeshView view)
+            => view.isShadow ? MeshDrawProfiling.Slice(view.kind, view.subviewIndex) : null;
 
         /// <summary>
-        /// Logical cleanup only: retire GPU payloads / CPU rented buffers and free visibility ownership.
-        /// Physical ReturnPayload / ReleaseBuffer runs after <c>ScriptableRenderContext.Submit</c>
-        /// via <see cref="MeshDrawGPUBackend.FlushRetiredPayloads"/> / <see cref="MeshDrawPipeline.FlushRetiredBuffers"/>.
+        /// Logical cleanup only: completes and frees CPU build jobs, releases visibility references and retires payloads,
+        /// instance buffers and transform-version references. Physical return happens after native submit.
         /// </summary>
         public void ReleaseAll()
         {
+            List<Exception> failures = null;
             for (int i = 0; i < m_Records.Count; ++i)
             {
                 RGDrawListRecord record = m_Records[i];
-                if (record.pipeline != null && record.extract.isCreated)
+                try
                 {
-                    record.pipeline.Release(ref record.extract);
+                    record.build.Dispose();
+                    if (record.visibility.IsValid) m_World.visibilityShare.Release(record.visibility);
+                    m_World.gpuBackend.RetirePayload(record.payload);
+                    m_World.cpuBackend.Retire(record.cpuInstances);
+                    record.tables.version?.Release();
                 }
-
-                if (record.gpuPayload != null)
+                catch (Exception error)
                 {
-                    MeshDrawGPUBackend.RetirePayload(record.gpuPayload);
-                    record.gpuPayload = null;
+                    (failures ??= new List<Exception>()).Add(error);
                 }
-
-                record.pipeline?.CandidateTables.ReturnStaging(record.gpuStaging);
-            record.gpuStaging = null;
-                record.residency.version?.Release(); record.residency = default;
-
-                if (record.visibilityHandle.IsValid && record.visibilityShare != null)
-                {
-                    record.visibilityShare.Release(record.visibilityHandle);
-                    record.visibilityHandle = MeshVisibilityHandle.Invalid;
-                    record.visibilityShare = null;
-                }
-                else if (record.ownsCulling)
-                {
-                    record.culling.Release();
-                    record.ownsCulling = false;
-                }
-
-                // Idempotent: same pipeline may appear on multiple records.
-                // Moves frame-rented CPU buffers into the retirement queue (not pool Return).
-                record.pipeline?.ReleaseFrameBuffers();
-
-                record.resolvedList = PassView.Invalid;
-                record.state = ERGDrawListCompileState.Released;
-                m_Records[i] = record;
-            }
-
-            foreach (var record in m_Records)
-            {
                 record.consumerPassIndices.Clear();
                 m_ConsumerLists.Push(record.consumerPassIndices);
             }
             m_Records.Clear();
-            // Invalidate any RGDrawListHandle captured from this graph lifetime.
             unchecked { ++m_GraphGeneration; }
+            if (failures == null) return;
+            if (failures.Count == 1) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            throw new AggregateException(failures);
         }
     }
 }

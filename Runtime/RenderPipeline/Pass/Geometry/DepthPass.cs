@@ -30,7 +30,7 @@ namespace InfinityTech.Rendering.Pipeline
                 depthTextureDsc.depthBufferBits = EDepthBits.Depth32;
             }
             RGTextureHandle depthTexture = m_RGScoper.CreateAndRegisterTexture(InfinityShaderIDs.DepthBuffer, depthTextureDsc);
-            RGDrawListHandle depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Depth);
+            RGDrawListHandle depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.Depth);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterDepthPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

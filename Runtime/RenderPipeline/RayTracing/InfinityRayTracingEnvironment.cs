@@ -7,6 +7,8 @@ using UnityEngine.SceneManagement;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Core;
 using InfinityTech.Rendering.MeshPipeline;
+using Unity.Collections;
+using Unity.Mathematics;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -54,7 +56,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal IReadOnlyList<GeometryInstance> Geometry => m_CollectedGeometry;
         internal bool NeedsBuild => m_NeedsBuild && !m_BuildQueued;
         int m_SyncedStructural = -1;
-        int m_SyncedContent = -1;
+        ulong m_SyncedContent = ulong.MaxValue;
         int m_InstanceCount;
         bool m_NeedsBuild, m_BuildQueued;
         bool m_Disposed;
@@ -188,31 +190,25 @@ namespace InfinityTech.Rendering.Pipeline
 
         // URT accepts explicit instances rather than a raster CullingResults. Its input adapter is isolated here.
         // Reused root/component lists observe native scene changes without a second raster registry or per-frame arrays.
-        internal bool CollectGeometry(MeshScene scene)
+        internal bool CollectGeometry(MeshWorld world)
         {
             m_CollectedGeometry.Clear();
-            if (scene != null)
+            NativeArray<MeshElement> elements = world.elements;
+            NativeArray<uint> elementGenerations = world.elementGenerations;
+            NativeArray<MeshEntity> entities = world.entities;
+            NativeArray<float4x4> transforms = world.entityTransforms;
+            NativeArray<MeshSection> sections = world.sections;
+            for (int i = 0; i < world.elementHighWater; ++i)
             {
-                var draws = scene.GetDraws();
-                var instances = scene.GetInstances();
-                var transforms = scene.GetTransforms();
-                var sections = scene.GetSections();
-                var generations = scene.GetSectionGenerations();
-                var drawGenerations = scene.GetDrawGenerations();
-                for (int i = 0; i < scene.DrawHighWater; ++i)
-                {
-                    if (!scene.IsDrawSlotLive(i)) continue;
-                    var draw = draws[i];
-                    if (!scene.TryGetInstance(draw.instance, out var instance)
-                        || (instance.flags & EMeshInstanceFlags.Visible) == 0) continue;
-                    int section = (int)draw.section.Index;
-                    if (section < 0 || section >= sections.Length || generations[section] != draw.section.Generation) continue;
-                    Mesh mesh = ResolveMesh(sections[section].meshUnityId);
-                    if (mesh == null || draw.sectionIndex < 0 || draw.sectionIndex >= mesh.subMeshCount) continue;
-                    int transform = (int)instance.transform.Index;
-                    m_CollectedGeometry.Add(new GeometryInstance(((ulong)drawGenerations[i] << 32) | (uint)i,
-                        false, mesh, draw.sectionIndex, transforms[transform].current));
-                }
+                if (!world.IsElementSlotLive(i)) continue;
+                MeshElement element = elements[i];
+                int entity = (int)element.entity.Index;
+                if ((entities[entity].desc.flags & EMeshEntityFlags.Visible) == 0) continue;
+                MeshSection section = sections[(int)element.section.Index];
+                Mesh mesh = ResolveMesh(section.meshId);
+                if (mesh == null || section.submesh >= mesh.subMeshCount) continue;
+                m_CollectedGeometry.Add(new GeometryInstance(((ulong)elementGenerations[i] << 32) | (uint)i,
+                    false, mesh, section.submesh, transforms[entity]));
             }
             for (int i = 0; i < SceneManager.sceneCount; ++i) CollectNativeScene(SceneManager.GetSceneAt(i));
             if (Application.isPlaying)
@@ -253,12 +249,12 @@ namespace InfinityTech.Rendering.Pipeline
             }
         }
 
-        public void SyncGeometry(MeshScene scene)
+        public void SyncGeometry(MeshWorld world)
         {
             if (!IsReady) return;
-            bool changed = CollectGeometry(scene);
-            int structural = scene != null ? scene.StructuralRevision : -1;
-            int content = scene != null ? scene.ContentRevision : -1;
+            bool changed = CollectGeometry(world);
+            int structural = world.structuralRevision;
+            ulong content = world.transformRevision;
             if (!changed && structural == m_SyncedStructural && content == m_SyncedContent) return;
             m_Accel.ClearInstances();
             m_BuildQueued = false;

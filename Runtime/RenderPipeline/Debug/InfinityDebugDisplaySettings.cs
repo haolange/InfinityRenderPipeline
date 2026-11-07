@@ -166,7 +166,10 @@ namespace InfinityTech.Rendering.Pipeline
             timingPanel.children.Add(passList);
 
             DebugUI.Panel mesh = DebugManager.instance.GetPanel("Infinity Mesh", true);
-            mesh.children.Add(new DebugUI.Value { displayName = "Matrix Duplicate Ratio", getter = () => (object)state.mesh.matrixDuplicateRatio });
+            mesh.children.Add(new DebugUI.Value { displayName = "Entities", getter = () => (object)state.mesh.entityCount });
+            mesh.children.Add(new DebugUI.Value { displayName = "Elements", getter = () => (object)state.mesh.elementCount });
+            mesh.children.Add(new DebugUI.Value { displayName = "Pass Caches", getter = () => (object)state.mesh.passCacheCount });
+            mesh.children.Add(new DebugUI.Value { displayName = "Cached Commands", getter = () => (object)state.mesh.commandCount });
             mesh.children.Add(new DebugUI.BoolField { displayName = "Override Mesh Backend", getter = () => state.mesh.backendOverride.HasValue,
                 setter = value => state.mesh.backendOverride = value ? EMeshBackendPolicy.Auto : (EMeshBackendPolicy?)null });
             mesh.children.Add(new DebugUI.EnumField { displayName = "Mesh Backend", autoEnum = typeof(EMeshBackendPolicy),

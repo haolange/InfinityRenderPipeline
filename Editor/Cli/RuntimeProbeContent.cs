@@ -68,9 +68,9 @@ namespace InfinityTech.Rendering.Editor
 
         internal static void ReadMeshState(InfinityRenderPipeline pipeline, out int entities, out int elements)
         {
-            MeshScene scene = pipeline.renderContext.GetMeshScene();
-            entities = scene.LogicalInstanceCount;
-            elements = scene.DrawCount;
+            MeshWorld world = pipeline.renderContext.meshWorld;
+            entities = world.entityCount;
+            elements = world.elementCount;
         }
     }
 }

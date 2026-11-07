@@ -64,7 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
             RGTextureHandle depthTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.DepthBuffer);
             RGTextureHandle lightingTexture = m_RGScoper.QueryTexture(InfinityShaderIDs.LightingBuffer);
 
-            RGDrawListHandle forwardDraws = m_RGBuilder.CreateDrawList(view, MeshPassId.Forward);
+            RGDrawListHandle forwardDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.Forward);
             RendererListDesc rendererListDesc = new RendererListDesc(InfinityPassIDs.RasterForwardPass, cullingResults, camera);
             {
                 rendererListDesc.layerMask = camera.cullingMask;

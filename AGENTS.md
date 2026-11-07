@@ -50,8 +50,8 @@ Editor load and script reload never migrate, rebuild, delete or save user assets
 
 ## 2. Principles
 
-1. Entity data belongs to the entity. One logical object owns one `TransformId` and one bounds record. Submesh, material and pass add draw references.
-2. Stable structure is cached. View results are regenerated. Pass bins rebuild on structural change. Visibility, LOD, sort and compaction are per request.
+1. Entity data belongs to the entity. One logical object owns one entity slot, which is its transform and bounds record. Submesh, material and pass add element and command references.
+2. Stable structure is cached. View results are regenerated. Pass caches change incrementally at commit. Visibility, LOD, sort and compaction are per request.
 3. Passes record mesh work with `RGDrawListHandle` (`CreateDrawList`, `UseDrawList`, `Draw`). Content code mutates `MeshComponent`. Backends stay internal. There is no `MeshDrawRequest` type.
 4. `CreateDrawList` records only. Structural culling runs first and crosses every resource type. Only live draw lists schedule work. A pass that must run calls `EnablePassCulling(false)`. Compiler-inserted mesh preparation moves to the earliest pass whose inputs exist. Recorded order is otherwise the schedule. Adjacent graphics work is one submission segment. Compatible raster passes are one native render pass. Overlap is a descriptor-level slot plan executed by `ResourcePool`. Handles carry a generation and are rejected after their graph.
 5. A replaced path is deleted after its consumers are closed and the replacement owns the same responsibility. Two authorities for one quantity are not kept.
@@ -89,41 +89,36 @@ Hot paths are structs and Burst jobs with an explicit `Allocator` (`Persistent`,
 
 Fixed object counts after warmup aim for zero managed allocation in normal library proxy update, graph record and execution, for stationary and moving objects. Growth, registration and requested diagnostics are separate. Diagnostic observers run outside the measured scope. Reuse does not shorten recording, submission, cancellation or completion ownership.
 
-## 5. Mesh scene
+## 5. Mesh world
 
 | Module | Responsibility |
 |---|---|
-| `MeshScene` / `MeshSceneUpdate` | SoA tables, typed IDs, dirty pages, undo transactions |
-| `GpuScene` | Dirty-page upload of transforms, layers, bounds and flags |
-| `PassBinStore` / `MeshDrawCommandKey` | Per-pass filter, structural sort, command spans |
-| `MeshVisibilityShare` | Interned CPU results in `MeshVisibilityCache.cs` |
-| `MeshGpuVisibilityCache` | Physical visibility buffers per view |
-| `MeshDrawCompiler` | `MeshPassExtractJob` |
-| `MeshCandidateTableStore` | Per-pass GPU command and candidate tables |
-| `MeshDrawPipeline` / `MeshWorld` | Extract, resolve, submit; per-scene ownership |
-| `MeshDrawGPUBackend` | Per-draw-list payloads, compaction, indirect arguments |
-| `RGDrawListContext` | Graph registry. Not an `ERGResourceType` |
+| `MeshWorld` / `MeshWorldUpdate` | Entity, element, section and material slot tables; undo transactions; poses outside transactions |
+| `MeshWorldGpu` / `MeshTransformVersionCache` | Dirty-page entity columns; immutable per-entity transform versions |
+| `MeshPassDesc` / `MeshPassCache` | Interned pass requests; incrementally maintained members and commands |
+| `MeshVisibilityShare` / `MeshGpuVisibilityCache` | Per-camera CPU visibility jobs; resident GPU visibility per key |
+| `MeshDrawListBuild` | Gather, sort and merge jobs of one CPU draw list |
+| `MeshCpuDrawBackend` / `MeshGpuDrawBackend` | World-owned backends: instance tables, payloads, compaction, submission |
+| `MeshGraphExtension` / `RGDrawListContext` | The builder's graph extension and draw-list registry. Not an `ERGResourceType` |
 
-1. `MeshSceneUpdate` undoes every mutation. `Dispose` without `Commit` restores live counts, relations, revisions and dirty ranges through the undo log. Free-list membership and high-water marks stay with `Free*`, `Restore*` and deferred reclaim. Rollback does not truncate free lists. A structural edit is not left half applied.
-2. A section or material whose reference count reaches zero inside `BeginUpdate`…`EndUpdate` is queued. `Commit` flushes the queue. `Rollback` discards it after undo restores the counts.
-3. Visibility results are interned by `MeshVisibilityShare`. `RGDrawListContext.ReleaseAll` owns that handle lifetime. TempJob cull arrays do not survive the frame.
-4. GPU payload objects in the backend pool are empty. Physical buffers belong to `ResourcePool`. A payload lifetime is not permission to destroy a buffer or to write it from the CPU.
-5. No process-global indirect or argument buffer is shared across draw lists or cameras.
-6. GPU culling indexes instance slots. Compacted indices and CPU `MeshDrawList.instanceIndices` are transform indices.
-7. `ERenderingLayer` is the shared mesh and light mask (`enum : byte`, `[Flags]`, `Everything = 0xFF`). Do not reintroduce an integer layer index. Pass-bin rebuild does not apply this mask. Shadow views do, through visibility.
-8. `ReleaseAll` and `RGDrawListContext.ReleaseAll` perform logical cleanup and `RetirePayload` only. After native submit, `FlushRetiredPayloads` and `FlushRetiredBuffers` return allocations without clearing outstanding use. Physical destruction requires no recording references and completed GPU use. Native submit, queueing the final fence, and accepting the frame transaction are three results. A fence that was never queued does not acknowledge work.
-9. Before recording, compute the payload budget and call `EnsureCapacity` once. During recording, `RequireCapacity` checks only. Do not grow or recreate a buffer already bound to a live command buffer.
-10. `CreateInstance` rejects an owned transform. Do not share one transform across instances without that rejection.
-11. `GpuScene.Update` throws while a transaction is open. Replacement attribute tables are published atomically. Draw lists bind the frozen tables.
-12. Policy order is an explicit camera or test override, then the Rendering Debugger override, then the asset `meshBackendPolicy`. Auto is capability-based. CPU direct records no GPU mesh culling or compaction.
-13. `MeshComponent` keeps its serialized field identities. Callers use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`. `Materials` is read-only. Do not add a public mutable material array or per-instance resource polling.
-14. Call `NotifyGeometryChanged` after in-place mesh edits, `MaterialRouteUtility.ApplyPassState` after route or stage edits, `NotifyMaterialRoutingChanged` after direct queue or pass edits, and `NotifyInstanceChanged` after static pose or external instance edits. Dynamic world matrices are read automatically. Ordinary uniforms do not invalidate draw structure. Inspector and Undo callbacks notify without saving assets.
-15. Change queues deduplicate until publication. One transaction applies changed transforms and bounds. A `MeshSceneUpdate` lease carries a generation. A copied or expired lease cannot mutate a newer transaction. Instance draw links remove only that instance's draws.
-16. Mesh preparation markers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, without view-domain prefixes. Draw markers are `RenderLoop.DrawMeshDirect` / `Indirect` or `Shadows.DrawMeshDirect` / `Indirect`, selected from `EMeshViewKind`. `MeshDrawProfiling` owns those samplers. Renderer-list submission adds no wrapper. Shadow slice and face labels, and native `(RP ...)` labels, stay as Unity emits them.
-17. Steady state requires `MeshScene.MatrixDuplicateRatio == 1.0`.
+1. An entity's index is its transform slot. An element is one submesh with one material. Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`.
+2. `MeshWorldUpdate` undoes every structural mutation. `Dispose` without `Commit` restores slots, chains, lookups, revisions and dirty pages. A killed slot returns to the free list only at commit, so an id never aliases after rollback and rollback never truncates free lists. A lease carries the transaction generation. Section and material reclaim waits for commit.
+3. Poses (transform and bounds) are written outside transactions by `WriteEntityPose` and `UpdateDynamicPoses` and take no part in undo. Flags that decide pass membership are structural edits.
+4. Commit prepares every pass cache's new bindings before it publishes anything; a failure leaves the transaction open for rollback. Pass caches live as long as their world. The presets are interned at construction; a world interns at most 64 descs.
+5. Membership is `MaterialRouteUtility.RouteEnablesPass`, the desc queue range and the required entity flags. Material pass state is not consulted. A component whose material lacks `InfinityMeshInstancing` or a routed pass is logged with its context and not drawn.
+6. Visibility results are interned per camera by `MeshVisibilityShare`. `RGDrawListContext.ReleaseAll` owns that handle lifetime. TempJob arrays do not survive the frame.
+7. GPU payload objects are empty between uses. Physical buffers belong to `ResourcePool`. A payload lifetime is not permission to destroy a buffer or to write it from the CPU. No process-global indirect or argument buffer is shared across draw lists or cameras.
+8. Capacity (member count, command high water) is acquired once before recording. Execution checks it and never grows or recreates a buffer bound to a live command buffer. A draw list whose pass cache changed after record fails at execute.
+9. `ReleaseAll` performs logical cleanup and retirement only. After native submit, `FlushRetired` returns allocations without clearing outstanding use. Physical destruction requires no recording references and completed GPU use. Native submit, queueing the final fence, and accepting the frame transaction are three results. A fence that was never queued does not acknowledge work.
+10. `MeshWorldGpu.Update` throws while a transaction is open. Replacement tables are published atomically. Draw lists bind the frozen tables.
+11. Backend order is an explicit camera or test override, then the Rendering Debugger override, then the asset `meshBackendPolicy`. Auto and GPU Indirect follow capability. Back-to-front passes record on the CPU backend. CPU direct records no GPU mesh culling or compaction. Backends hold no static mutable state.
+12. `ERenderingLayer` is the shared mesh and light mask (`enum : byte`, `[Flags]`, `Everything = 0xFF`). Do not reintroduce an integer layer index. Pass membership does not apply this mask. Shadow views do, through visibility.
+13. `MeshComponent` keeps its serialized field identities. Callers use `MeshAsset`, `Mobility`, the instance properties and `SetMaterials`. `Materials` is read-only. One structural transaction per frame syncs every dirty component.
+14. Call `NotifyGeometryChanged` after in-place mesh edits, `MaterialRouteUtility.ApplyPassState` after route or stage edits, `NotifyMaterialRoutingChanged` after direct queue edits, and `NotifyInstanceChanged` after static pose or external entity edits. Dynamic poses are read every frame. Ordinary uniforms do not invalidate draw structure. Inspector and Undo callbacks notify without saving assets.
+15. Mesh preparation markers are `ComputeMeshCulling`, `ComputeMeshCompaction` and `UploadMeshData`, without view-domain prefixes. Draw markers are `RenderLoop.DrawMeshDirect` / `Indirect` or `Shadows.DrawMeshDirect` / `Indirect`, selected from `EMeshViewKind`. `MeshDrawProfiling` owns those samplers. Renderer-list submission adds no wrapper. Shadow slice and face labels, and native `(RP ...)` labels, stay as Unity emits them.
 
 ```csharp
-RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassId.GBuffer);
+RGDrawListHandle draws = graph.CreateDrawList(meshView, MeshPassPresets.GBuffer);
 data.draws = pass.UseDrawList(draws);
 cmdEncoder.Draw(data.draws);
 ```
@@ -255,7 +250,6 @@ A Game view that is not redrawing produces identical screenshots. Require Play m
 
 Do not hide the following behind a fallback, a disabled pass or a dummy resource. Current verification limits are in `Docs/FeatureStatus.md`.
 
-- Mesh bins sort only by `CompareStructural`. `defaultSort` is not applied.
 - Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is undiagnosed.
 - Cached OnEnable and OnDemand local shadows keep the casters of their last render. Moving objects do not update them. There is no dynamic-caster overlay.
 - Rectangle and disk shadow tiles cover a 120° cone in front of the emitter.

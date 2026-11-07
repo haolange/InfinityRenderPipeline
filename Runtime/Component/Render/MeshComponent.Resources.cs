@@ -16,6 +16,7 @@ namespace InfinityTech.Component
         static readonly Dictionary<Mesh, GeometryState> s_Geometry = new Dictionary<Mesh, GeometryState>();
         GeometryState m_Geometry;
         Mesh m_RetainedMesh;
+        uint m_GeometryRevision;
 
         void RefreshGeometryReference()
         {
@@ -47,7 +48,7 @@ namespace InfinityTech.Component
                 {
                     component.m_GeometryRevision = state.revision;
                     component.localBounds = state.bounds;
-                    component.MarkTransformDirty(); component.MarkDirty();
+                    component.MarkDirty();
                 }
         }
     }

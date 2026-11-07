@@ -1,17 +1,17 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using InfinityTech.Core;
+using Unity.Collections;
+using InfinityTech.Core.Geometry;
 using InfinityTech.Rendering.MeshPipeline;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
-    // Per-allocation references into the existing MeshScene; no second transform/bounds registry.
+    // Shadow casters are the entities with members in the Shadow pass cache; no second transform, bounds or filter registry.
     internal sealed class ShadowCasterBounds
     {
-        readonly List<MeshInstanceId> m_Casters = new List<MeshInstanceId>(256);
-        readonly HashSet<MeshInstanceId> m_Seen = new HashSet<MeshInstanceId>();
-        MeshScene m_Scene;
+        readonly List<int> m_Casters = new List<int>(256);
+        MeshWorld m_World;
 
         internal static bool ExcludesStatic(Light light)
         {
@@ -20,41 +20,26 @@ namespace InfinityTech.Rendering.LightPipeline
                 && baking.mixedLightingMode == MixedLightingMode.Shadowmask
                 && QualitySettings.shadowmaskMode == ShadowmaskMode.Shadowmask;
         }
+
         internal void Collect(MeshWorld world)
         {
-            m_Scene = world.Scene;
+            m_World = world;
             m_Casters.Clear();
-            m_Seen.Clear();
-            MeshPassDefinition pass = world.Registry.Get(MeshPassId.Shadow);
-            var draws = m_Scene.GetDraws();
-            for (int i = 0; i < m_Scene.DrawHighWater; ++i)
-            {
-                if (!m_Scene.IsDrawSlotLive(i)) continue;
-                MeshDraw draw = draws[i];
-                if ((draw.eligibility & pass.requiredEligibility) != pass.requiredEligibility
-                    || draw.renderQueue < pass.renderQueueMin || draw.renderQueue > pass.renderQueueMax
-                    || !m_Scene.IsSectionAlive(draw.section) || !m_Scene.IsMaterialAlive(draw.material)
-                    || !m_Scene.TryGetInstance(draw.instance, out MeshInstanceRecord instance)) continue;
-                if ((instance.flags & (EMeshInstanceFlags.CastShadow | EMeshInstanceFlags.Visible))
-                    != (EMeshInstanceFlags.CastShadow | EMeshInstanceFlags.Visible)
-                    || (pass.excludeCameraMotionOnly && instance.motionType == EMotionType.Camera)) continue;
-                Material material = UnityEntityId.ToObject<Material>(draw.materialUnityId);
-                if (material == null || !material.GetShaderPassEnabled(pass.lightModeTag)
-                    || MeshPassShaderUtility.ResolvePassIndex(material, pass.lightModeTag, pass.shaderPassIndex) < 0) continue;
-                Mesh mesh = UnityEntityId.ToObject<Mesh>(draw.meshUnityId);
-                if (mesh == null || draw.sectionIndex < 0 || draw.sectionIndex >= mesh.subMeshCount) continue;
-                if (m_Seen.Add(draw.instance)) m_Casters.Add(draw.instance);
-            }
+            NativeArray<int> members = world.GetPassMembers(MeshPassPresets.Shadow);
+            NativeArray<MeshEntity> entities = world.entities;
+            for (int entity = 0; entity < members.Length; ++entity)
+                if (members[entity] > 0 && (entities[entity].desc.flags & EMeshEntityFlags.Visible) != 0) m_Casters.Add(entity);
         }
 
-        bool TryGetEligibleBounds(MeshInstanceId id, Light light, ulong sceneMask, uint renderingMask, out Bounds bounds)
+        bool TryGetEligibleBounds(int entity, Light light, ulong sceneMask, uint renderingMask, out Bounds bounds)
         {
             bounds = default;
-            if (!m_Scene.TryGetInstance(id, out MeshInstanceRecord instance)
-                || (instance.layerMask & light.cullingMask) == 0
-                || (instance.renderingLayerMask & renderingMask) == 0
-                || (instance.sceneCullingMask & sceneMask) == 0) return false;
-            bounds = new Bounds((Vector3)instance.worldBounds.center, (Vector3)(instance.worldBounds.extents * 2));
+            MeshEntityDesc desc = m_World.entities[entity].desc;
+            if ((desc.layerMask & light.cullingMask) == 0
+                || (desc.renderingLayerMask & renderingMask) == 0
+                || (desc.sceneCullingMask & sceneMask) == 0) return false;
+            FBound bound = m_World.entityBounds[entity];
+            bounds = new Bounds((Vector3)bound.center, (Vector3)(bound.extents * 2));
             return true;
         }
 
@@ -64,7 +49,7 @@ namespace InfinityTech.Rendering.LightPipeline
             bool found = false;
             ulong sceneMask = MeshView.SceneCullingMaskFor(camera);
             uint renderingMask = RenderingLayerUtility.Validate(unchecked((uint)light.renderingLayerMask));
-            foreach (MeshInstanceId id in m_Casters)
+            foreach (int id in m_Casters)
             {
                 if (!TryGetEligibleBounds(id, light, sceneMask, renderingMask, out Bounds item)) continue;
                 if (found) bounds.Encapsulate(item);
@@ -85,7 +70,7 @@ namespace InfinityTech.Rendering.LightPipeline
                 var frustum = ShadowAllocator.LocalShadowFrustum(record, light, face, tileResolution, guardTexels);
                 if (!frustum.valid) continue;
                 GeometryUtility.CalculateFrustumPlanes(frustum.projection * frustum.view, m_LocalPlanes);
-                foreach (MeshInstanceId id in m_Casters)
+                foreach (int id in m_Casters)
                     if (TryGetEligibleBounds(id, light, sceneMask, renderingMask, out Bounds bounds)
                         && GeometryUtility.TestPlanesAABB(m_LocalPlanes, bounds)) return true;
             }

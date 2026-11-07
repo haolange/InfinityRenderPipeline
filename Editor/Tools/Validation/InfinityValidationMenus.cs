@@ -361,14 +361,14 @@ namespace InfinityTech.Rendering.Editor.Validation
             }
 
             RenderContext renderContext = pipeline.renderContext;
-            MeshScene scene = renderContext.GetMeshScene();
+            MeshWorld world = renderContext.meshWorld;
             builder.Append("worldDecalCount=").Append(renderContext.WorldDecalCount).AppendLine();
             builder.Append("worldLights=").Append(renderContext.GetWorldLight().Count).AppendLine();
             builder.Append("directionalLights=").Append(renderContext.lightContext.DirectionalLightCount).AppendLine();
             builder.Append("localLights=").Append(renderContext.lightContext.LocalLightCount).AppendLine();
-            builder.Append("meshInstances=").Append(scene.LogicalInstanceCount).AppendLine();
-            builder.Append("meshDraws=").Append(scene.DrawCount).AppendLine();
-            builder.Append("staticMeshes=").Append(renderContext.GetWorldStaticMesh().Count).AppendLine();
+            builder.Append("meshEntities=").Append(world.entityCount).AppendLine();
+            builder.Append("meshElements=").Append(world.elementCount).AppendLine();
+            builder.Append("dynamicMeshEntities=").Append(world.dynamicEntityCount).AppendLine();
 
             MeshComponent[] meshes = UnityEngine.Object.FindObjectsByType<MeshComponent>();
             builder.Append("meshComponents=").Append(meshes.Length).AppendLine();

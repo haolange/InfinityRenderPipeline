@@ -13,27 +13,16 @@ namespace InfinityTech.Component
     {
         private static readonly HashSet<MeshComponent> s_Registered = new HashSet<MeshComponent>();
         internal bool transformPending;
-        internal int dynamicIndex = -1;
-        internal int staticIndex = -1;
         internal Bounds localBounds;
-        internal Transform cachedTransform;
-        private FAABB m_PendingBounds;
 
-        internal void CompleteRegistration(RenderContext context, uint epoch)
+        internal void CompleteRegistration(uint epoch)
         {
             if (!isActiveAndEnabled || epoch != m_RegistrationEpoch) return;
-            AddWorldMesh(context, movebility);
             MarkDirty();
         }
 
-        internal static void CompleteUnregistration(RenderContext context, MeshComponent component, MeshInstanceId instance, EStateType mobility)
-        {
-            RemoveInstanceById(context, instance);
-            RemoveWorldMesh(context, mobility, component);
-        }
-
         public EStateType Mobility { get => movebility; set { if (movebility == value) return; movebility = value; MarkDirty(); } }
-        public Mesh MeshAsset { get => meshAsset; set { if (meshAsset == value) return; meshAsset = value; RefreshGeometryReference(); MarkTransformDirty(); MarkDirty(); } }
+        public Mesh MeshAsset { get => meshAsset; set { if (meshAsset == value) return; meshAsset = value; RefreshGeometryReference(); MarkDirty(); } }
         public ReadOnlySpan<Material> Materials => materials;
         public ECastShadowMethod CastShadow { get => castShadow; set { if (castShadow == value) return; castShadow = value; MarkDirty(); } }
         public bool ReceiveShadow { get => receiveShadow; set { if (receiveShadow == value) return; receiveShadow = value; MarkDirty(); } }
@@ -58,7 +47,7 @@ namespace InfinityTech.Component
             RefreshGeometryReference();
             RefreshSharedGeometry(meshAsset);
             if (m_Geometry != null) { m_GeometryRevision = m_Geometry.revision; localBounds = m_Geometry.bounds; }
-            MarkTransformDirty(); MarkDirty();
+            MarkDirty();
         }
 
         public static void NotifyGeometryChanged(Mesh mesh) => RefreshSharedGeometry(mesh);
@@ -72,11 +61,18 @@ namespace InfinityTech.Component
                     if (component.materials[i] == material) { component.MarkDirty(); break; }
         }
 
-        // Explicit notification for static transforms, layers and instance settings.
+        /// <summary>Explicit notification for static poses, layers and entity settings. Dynamic poses are read every frame.</summary>
         public void NotifyInstanceChanged()
         {
             MarkTransformDirty();
             MarkDirty();
+        }
+
+        /// <summary>Refreshes the pose of every registered static component (asset proxy update or the first runtime frame).</summary>
+        internal static void NotifyAllStaticPoses()
+        {
+            foreach (var component in s_Registered)
+                if (component.movebility == EStateType.Static) component.NotifyInstanceChanged();
         }
 
         internal void MarkTransformDirty()
@@ -86,20 +82,14 @@ namespace InfinityTech.Component
             RenderContext.EnqueueMeshTransform(this);
         }
 
-        internal void AcceptTransform()
+        /// <summary>Writes the current static pose outside the structural transaction.</summary>
+        internal void ApplyStaticPose(MeshWorld world)
         {
             transformPending = false;
-            if (!isActiveAndEnabled || !m_InstanceId.IsValid) return;
-            m_BoundBox = m_PendingBounds;
-            m_BoundSphere = new FSphere(Geometry.CaculateBoundRadius(m_BoundBox), m_BoundBox.center);
-        }
-
-        internal void ApplyTransform(in MeshSceneUpdate update, in float4x4 matrix, in FAABB bounds)
-        {
-            if (!m_InstanceId.IsValid || !m_TransformId.IsValid) return;
-            m_PendingBounds = bounds;
-            update.SetTransform(m_TransformId, matrix);
-            update.SetBounds(m_InstanceId, bounds);
+            if (!isActiveAndEnabled || !world.IsAlive(m_EntityId) || world.IsDynamic(m_EntityId)) return;
+            float4x4 localToWorld = transform.localToWorldMatrix;
+            m_BoundBox = Geometry.CaculateWorldBound(localBounds, localToWorld);
+            world.WriteEntityPose(m_EntityId, localToWorld, m_BoundBox);
         }
     }
 }

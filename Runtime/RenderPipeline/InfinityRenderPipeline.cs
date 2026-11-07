@@ -7,7 +7,6 @@ using UnityEngine.Rendering;
 using InfinityTech.Core;
 using InfinityTech.Component;
 using System.Collections.Generic;
-using UnityEngine.SceneManagement;
 using InfinityTech.Rendering.Feature;
 using System.Runtime.CompilerServices;
 using InfinityTech.Rendering.Pipeline;
@@ -215,7 +214,6 @@ namespace InfinityTech.Rendering.Pipeline
     public partial class InfinityRenderPipeline : RenderPipeline
     {
         private bool m_UpdateInit;
-        private MeshWorld m_MeshWorld;
         private RGScoper m_RGScoper;
         private RGBuilder m_RGBuilder;
         private ResourcePool m_ResourcePool;
@@ -300,15 +298,13 @@ namespace InfinityTech.Rendering.Pipeline
                 InfinityDebugDisplaySettings.EnsureRegistered();
 
                 m_UpdateInit = true;
-                renderContext = new RenderContext();
                 m_ResourcePool = new ResourcePool();
+                renderContext = new RenderContext(m_ResourcePool, shaders.meshDrawPipelineCS);
                 m_RGBuilder = new RGBuilder("RenderGraph", m_ResourcePool);
                 m_RGScoper = new RGScoper(m_RGBuilder);
                 m_CameraStates = new Dictionary<int, CameraFrameState>();
                 m_CameraSamplers = new Dictionary<int, ProfilingSampler>();
-                m_MeshWorld = new MeshWorld(renderContext.GetMeshScene(), m_ResourcePool);
-                m_RGBuilder.SetMeshWorld(m_MeshWorld);
-                MeshDrawGPUBackend.SetShader(shaders.meshDrawPipelineCS);
+                m_RGBuilder.SetMeshWorld(renderContext.meshWorld);
                 m_AtmosphereSharedCache = new AtmosphereSharedCache();
                 m_LocalShadowCache = new LocalShadowCache();
                 m_LightCookieAtlas = new LightCookieAtlas();
@@ -340,7 +336,7 @@ namespace InfinityTech.Rendering.Pipeline
                 CameraMotionValidation.Tick();
 
                 InvokeProxyUpdate();
-                m_MeshWorld.UpdateResidency();
+                renderContext.meshWorld.UpdateResidency();
                 CommandBuffer cmdBuffer = CommandBufferPool.Get();
                 cmdBuffer.SetExecutionFlags(CommandBufferExecutionFlags.None);
                 cmdBuffer.Clear();
@@ -450,8 +446,8 @@ namespace InfinityTech.Rendering.Pipeline
                                         CullingOptions.NeedsReflectionProbes | CullingOptions.DisablePerObjectCulling;
                                     cullingResults = scriptableRenderContext.Cull(ref cullingParameters);
 
-                                    m_MeshWorld.assetBackendPolicy = pipelineAsset.meshBackendPolicy;
-                                    m_MeshWorld.BeginCamera(camera);
+                                    renderContext.meshWorld.assetBackendPolicy = pipelineAsset.meshBackendPolicy;
+                                    renderContext.meshWorld.BeginCamera(camera);
                                     mainView = MeshView.FromCamera(camera, ref cullingParameters);
                                     frameState.meshViewKey = mainView.viewKey;
                                 }
@@ -490,7 +486,7 @@ namespace InfinityTech.Rendering.Pipeline
                                     m_LocalShadowCache.Configure(Mathf.Max(0, pipelineAsset.cachedShadowAtlasWidth),
                                         pipelineAsset.localShadowMapResolution, Mathf.Max(1, pipelineAsset.localShadowMapResolution / 4));
                                     if (m_LocalShadowCache.SlotCount > 0) m_LocalShadowCache.GetAtlas();
-                                    renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize, m_MeshWorld, m_LocalShadowCache);
+                                    renderContext.lightContext.Build(cullingResults, renderContext.GetWorldLight(), camera, shadowSettings, frameState.dimensions.internalSize, renderContext.meshWorld, m_LocalShadowCache);
                                     m_LightCookieAtlas.Configure(pipelineAsset.cookieAtlasResolution, pipelineAsset.cookieMaxSize);
                                     // A camera with cookies / probes switched off resolves no atlas entries (records carry no cookie index).
                                     renderContext.lightContext.ResolveCookies(frameState.frameSettings.IsEnabled(EFrameSetting.LightCookies) ? m_LightCookieAtlas : null,
@@ -728,7 +724,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                 try
                 {
-                    if (!nativeSubmitted) m_MeshWorld.Residency.transformVersions.RollbackUnsubmitted();
+                    if (!nativeSubmitted) renderContext.meshWorld.transformVersions.RollbackUnsubmitted();
                     if (!nativeSubmitted) m_ResourcePool.SubmissionUncertain(true);
                     else if (!fenceCommandsQueued || !m_RGBuilder.CanRetireSubmittedResources) m_ResourcePool.SubmissionNeedsJoin();
                     frameValid &= m_RGBuilder.CanRetireSubmittedResources;
@@ -764,8 +760,6 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         m_ActiveFrameState = null;
                         m_RGScoper.Clear();
-                        try { m_MeshWorld?.ClearResidency(); }
-                        catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
                         try { cmdBuffer.Clear(); }
                         catch (Exception error) { if (firstCameraException == null) firstCameraException = error; }
                         try { CommandBufferPool.Release(cmdBuffer); }
@@ -806,7 +800,7 @@ namespace InfinityTech.Rendering.Pipeline
                 state.atmosphereViewCache.FlushRetired(reuseFence);
                 state.combineLutCache.FlushRetired(reuseFence);
             }
-            m_MeshWorld?.FlushRetired(reuseFence);
+            renderContext.meshWorld.FlushRetired(reuseFence);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1033,46 +1027,30 @@ namespace InfinityTech.Rendering.Pipeline
                 FGraphics.ProcessTasks(renderContext);
                 FGraphics.ClearTasks();
                 renderContext.InitializeWorldDecals();
+                if (ConsumeStaticPoseRefresh()) MeshComponent.NotifyAllStaticPoses();
 
-                #if UNITY_EDITOR
-                    InvokeProxyUpdateEditor();
-                #else
-                    InvokeProxyUpdateRuntime();
-                #endif
-
-                renderContext.ApplyMeshTransforms();
-
-                // Apply registration tasks before residency upload and per-view history snapshots.
+                // Registration tasks raised by the steps above apply in the same frame.
                 FGraphics.ProcessTasks(renderContext);
                 FGraphics.ClearTasks();
 
-                // Publish explicit instance/resource edits in the same frame.
+                // One structural transaction, then poses: explicit static notifications and every dynamic transform.
                 renderContext.DrainDirtyMeshes();
+                renderContext.ApplyMeshTransforms();
+                renderContext.UpdateDynamicMeshPoses();
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void InvokeProxyUpdateEditor()
+        bool ConsumeStaticPoseRefresh()
         {
-            if(pipelineAsset.updateProxy)
-            {
-                pipelineAsset.updateProxy = false;
-                renderContext.InvokeWorldStaticMeshUpdate();
-            }
-
-            renderContext.InvokeWorldDynamicMeshUpdate();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void InvokeProxyUpdateRuntime()
-        {
-            if(m_UpdateInit == true)
-            {
-                m_UpdateInit = false;
-                renderContext.InvokeWorldStaticMeshUpdate();
-            }
-
-            renderContext.InvokeWorldDynamicMeshUpdate();
+#if UNITY_EDITOR
+            if (!pipelineAsset.updateProxy) return false;
+            pipelineAsset.updateProxy = false;
+            return true;
+#else
+            if (!m_UpdateInit) return false;
+            m_UpdateInit = false;
+            return true;
+#endif
         }
 
         protected override void Dispose(bool disposing)
@@ -1105,8 +1083,6 @@ namespace InfinityTech.Rendering.Pipeline
                 m_CameraStates.Clear();
             }
             Release(() => renderContext?.Dispose());
-            Release(() => m_MeshWorld?.Dispose());
-            if (ownsSharedResources) Release(MeshDrawGPUBackend.Dispose);
             Release(() => m_RGScoper?.Dispose());
             Release(() => m_RGBuilder?.Dispose());
             if (m_DiffusionProfileBuffer.buffer != null) Release(() => m_ResourcePool.ReleaseBuffer(m_DiffusionProfileBuffer));
@@ -1185,7 +1161,7 @@ namespace InfinityTech.Rendering.Pipeline
                 int cameraId = m_CameraStateRecycleIds[i];
                 if (m_CameraStates.TryGetValue(cameraId, out CameraFrameState frameState))
                 {
-                    m_MeshWorld.ReleaseView(frameState.meshViewKey);
+                    renderContext.meshWorld.ReleaseView(frameState.meshViewKey);
                     frameState.Dispose();
                     m_CameraStates.Remove(cameraId);
                 }
@@ -1236,7 +1212,7 @@ namespace InfinityTech.Rendering.Pipeline
             else
             {
                 var rayEnv = InfinityRayTracingEnvironment.current;
-                rayEnv.SyncGeometry(renderContext.GetMeshScene());
+                rayEnv.SyncGeometry(renderContext.meshWorld);
                 if (rayEnv.InstanceCount == 0) rtaoReason = "URT accel has no mesh instances.";
             }
             InfinityRayTracingEnvironment.ReportBlockReason(rtaoReason ?? string.Empty);
@@ -1323,12 +1299,6 @@ namespace InfinityTech.Rendering.Pipeline
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void OnEntryPlayEditor()
         {
-            FGraphics.ClearTasks();
-        }
-
-        static void OnSceneChangedEditor(Scene current)
-        {
-            Debug.Log("OnSceneChangedEditor");
             FGraphics.ClearTasks();
         }
 #endif

@@ -98,7 +98,7 @@ namespace InfinityTech.Rendering.Pipeline
         internal VisualLightingSession(string directory, bool pauseForVisual, string scenario)
         {
             if (!Path.IsPathRooted(directory) || Directory.Exists(directory)) throw new ArgumentException("A new absolute fixture directory is required.");
-            if (!MeshDrawGPUBackend.SupportsIndirect) throw new NotSupportedException("This fixture requires actual GPU indirect support, not a CPU fallback.");
+            if (!MeshGpuDrawBackend.DeviceSupportsIndirect) throw new NotSupportedException("This fixture requires actual GPU indirect support, not a CPU fallback.");
             foreach (GameObject go in UnityEngine.Object.FindObjectsByType<GameObject>())
                 if (go.layer == 31) throw new InvalidOperationException("Fixture layer 31 is occupied; no user layer will be changed.");
             int firstScenario = scenario == null ? 0 : Array.IndexOf(s_Scenarios, scenario);
