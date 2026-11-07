@@ -4,7 +4,7 @@
 
 ## Authoring
 
-1. Create a `MeshAsset` (Assets > Create > Rendering > Infinity > Static Mesh Asset), or build one from a prefab with Assets > AssetActions > Primitive > BuildMeshAssetFromPrefab. The prefab needs a `LODGroup` whose levels each hold one renderer at the prefab root's transform, or a `MeshFilter` with a `MeshRenderer` on the root. Other prefabs are rejected with the reason, because a level is one mesh drawn in the component's space.
+1. Create a `MeshAsset` (Assets > Create > Rendering > Infinity > Static Mesh Asset), or build one from a prefab with Assets > AssetActions > Primitive > BuildMeshAssetFromPrefab. The prefab needs a `LODGroup` whose levels each hold one renderer at the prefab root's transform and no renderer outside the levels, or a `MeshFilter` with a `MeshRenderer` on the root and no other renderer. Other prefabs are rejected with the reason, because a level is one mesh drawn in the component's space.
 2. Add a Mesh Component (Add Component > InfinityRenderer > Mesh Component, or GameObject > 3D Object > Infinity > MeshEntity) and assign the asset. Assigning an asset copies its materials into the component once. With no asset, the inspector offers **Create MeshAsset from Mesh**, which builds a one-level asset from a saved mesh.
 3. Use materials whose shader declares the SubShader tag `InfinityMeshInstancing = True`, such as `InfinityPipeline/InfinityLit-Instanced`. The material's surface route and translucent stage decide which passes draw it.
 

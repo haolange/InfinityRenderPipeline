@@ -6,6 +6,22 @@ they link here instead of claiming "completed".
 Latest bounded acceptance: [2026-10-26 Unity integration boundary receipt](History/UnityIntegration-20261026.md).
 Earlier dated sections below retain their original verification boundaries; the latest section supersedes them only for the cases it actually exercised.
 
+### Mesh drawing pipeline v2 — 2026-11-07 (static only)
+
+The mesh pipeline was rewritten around `MeshWorld`, interned pass caches, per-view visibility with LOD selection, CPU and GPU draw-list backends and a render-graph extension ([ARCHITECTURE.md §7](../ARCHITECTURE.md#7-mesh-drawing-pipeline)). `MeshComponent` draws a `MeshAsset` with LOD cross-fade, and translucent MeshComponents draw. No Unity Editor was available, so this entry records static verification only. EditMode, image, memory, migration and performance results are `TODO(UNVERIFIED)` until an Editor run on the batch commits replaces them.
+
+Static gates on each batch:
+
+- `Tools/StaticCheck/static_check.py` and `test_static_check.py` pass, including the new rules for the render-graph dependency direction, mesh shader bindings, raster submission, routed passes and `INFINITY_LOD_DITHER`.
+- Every C# file parses for each define set the assemblies use. A semantic compile against hand-written Unity stubs, calibrated on the P2 baseline, reports no diagnostic the baseline does not have. Shader compilation (DXC or Unity) was not available and is an Editor-side check.
+- Removed and renamed symbols have no remaining reference in code.
+- A managed model of the world tables, pass caches, sort order, LOD selection and cross-fade coverage runs randomized sequences against independent oracles; seeded mutations of slot conservation, pass membership and the fading-draw gate fail it.
+- An independent review of each batch, with its blocking and important findings fixed.
+
+Removed EditMode files and their replacements: `MeshSceneTests`, `MeshSceneLeaseTests`, `CommandTableTests`, `PassBinTests` → `MeshWorldTests`, `MeshPassCacheTests`; `MeshDrawBatchGpuTests`, `CompactContractTests` → `MeshDrawListTests`; `GpuSceneDirtyPageTests` → `MeshWorldTests`; `GpuSceneSubmissionTests` → `MeshResidencySubmissionTests`; `BackendPolicyTests`, `ShadowmaskCasterFilterTests` → `MeshViewTests`, `ShadowCasterAllocationTests`; the mesh source-text assertions of `PipelineSeamTests` → `static_check.py` rules. New: `MeshLodTests`, `RGGraphExtensionTests`.
+
+Still open, in order: the Editor compile and EditMode run, the MeshComponent migration on the Example project, Scene_Spazon images on both backends against the P2 baseline, LOD and translucency images, probe memory windows and the 1k/10k/50k proxy measurements. D3D12 and Vulkan are unverified.
+
 ### RenderGraph compiler — 2026-10-27
 
 The compiler culls across resource types, plans descriptor-level alias slots, batches a submission segment per queue run, and merges compatible raster passes into one native render pass. Handles carry a generation. Profiling scopes are pass ranges. History retirement waits on the frame fence. Unity has no GPU heap, so aliasing is that slot plan executed by ResourcePool. Memoryless is requested only on Metal, only for an attachment that stays inside one native render pass and ends in `DontCare`, and not for a color UAV.
@@ -116,7 +132,7 @@ Columns:
 
 | Feature | Recorded | EditMode | Image | Perf | Platforms | Notes |
 |---|---|---|---|---|---|---|
-| Mesh Drawing Pipeline (CPU + GPU backends) | Yes | 2026-10-25: 96 Mesh cases, value leases, explicit updates and custom culling matrices | Complete Scene_Spazon; Asset CPU / Debugger GPU / cleared override verified | 32+120 CPU Proxy/Render measurements at 1k/10k and 50k stress; GPU time unavailable | macOS Metal | Batched dynamic transforms, explicit static/resource updates, shared versions. Bounded normal library allocation results below. Hardware Async and native failure recovery remain open. |
+| Mesh Drawing Pipeline v2 (CPU + GPU backends, LOD, translucency) (0.5.0) | Yes | TODO(UNVERIFIED): static gates only, 2026-11-07 | Open | Open | — | The 2026-10-25 results below cover the replaced implementation and do not carry over. See the 2026-11-07 section. |
 | ThinGBuffer + Deferred shading | Yes | Yes (pack contract) | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: bounded eight normal fixtures / ground and marker controls | Open | macOS Metal | Finite-plane horizon and marker shadow controls accepted; no atmosphere shader repair or arbitrary-scene guarantee. See closure picture report. |
 | Forward (forward-route materials) | Yes | Partial | Open | Open | macOS Metal | |
 | Decal projection / RP replacement | Yes | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: 5 lifecycle cases | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: actual DBuffer overlays after replacement, disable/restore and second camera | 2026-10-23 / Unity 6000.6.0f1 / macOS Metal: composite Editor frame, 3×300 before/after (closure report) | macOS Metal | One-shot context recovery; no source asset migration. Finite-plane horizon band traced to disabled planetary ground in a fixed-camera control, not an atmosphere algorithm repair. |

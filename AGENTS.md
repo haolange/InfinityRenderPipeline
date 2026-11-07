@@ -91,15 +91,7 @@ Fixed object counts after warmup aim for zero managed allocation in normal libra
 
 ## 5. Mesh world
 
-| Module | Responsibility |
-|---|---|
-| `MeshWorld` / `MeshWorldUpdate` | Entity, element, section and material slot tables; undo transactions; poses outside transactions |
-| `MeshWorldGpu` / `MeshTransformVersionCache` | Dirty-page entity columns; immutable per-entity transform versions |
-| `MeshPassDesc` / `MeshPassCache` | Interned pass requests; incrementally maintained members and commands |
-| `MeshVisibilityShare` / `MeshGpuVisibilityCache` | Per-camera CPU visibility jobs; resident GPU visibility per key |
-| `MeshDrawListBuild` | Gather, sort and merge jobs of one CPU draw list |
-| `MeshCpuDrawBackend` / `MeshGpuDrawBackend` | World-owned backends: instance tables, payloads, compaction, submission |
-| `MeshGraphExtension` / `RGDrawListContext` | The builder's graph extension and draw-list registry. Not an `ERGResourceType` |
+Modules and their files are listed in [ARCHITECTURE.md](ARCHITECTURE.md) §7. `RGDrawListContext` is the draw-list registry, not an `ERGResourceType`.
 
 1. An entity's index is its transform slot. An element is one submesh of one LOD level with one material. Index spaces are entity, element, command, draw and instance; arrays are named `<from>To<to>`.
 2. `MeshWorldUpdate` undoes every structural mutation. `Dispose` without `Commit` restores slots, chains, lookups, revisions and dirty pages. A killed slot returns to the free list only at commit, so an id never aliases after rollback and rollback never truncates free lists. A lease carries the transaction generation. Section and material reclaim waits for commit.
@@ -156,7 +148,7 @@ cmdEncoder.Draw(data.draws);
 28. `ReactiveMask` exists only for temporal anti-aliasing. The first translucent color pass clears it even with zero draws. Later passes load it. Other policies omit the output and compact the motion and metadata targets. There is no standalone clear dispatch.
 29. Display-depth upsampling exists only for recorded Editor overlays that need it. Cached depth-atlas tile copies stay raster. Unity `CopyTexture` forbids a partial depth-only copy.
 30. Debug view writes linear quantities only, immediately before gizmos and wire overlay, and only into the post buffer when a debug view is active. `TAAConfidenceBuffer` is created only when `debugView != None` or this frame's capture requests confidence. Capture does not change debug view or history.
-31. One live draw list receives one upload producer and, for GPU indirect, one compute producer with visibility, metadata, index and argument dependencies. Raster consumers only draw. Batch index and argument ranges are disjoint. Payload capacity is acquired before recording and does not grow during execution.
+31. One live draw list receives one upload producer and, for GPU indirect, one compute producer with visibility, metadata, index and argument dependencies. Raster consumers only draw. The stable and fading instance and argument ranges of every command are disjoint. Payload capacity is acquired before recording and does not grow during execution.
 
 ## 7. Temporal
 
@@ -178,8 +170,8 @@ cmdEncoder.Draw(data.draws);
 6. Volume, asset, kernel and dependency configuration run before culling. Recording that depends on scene content is decided after `LightContext.Build`.
 7. A C# struct uploaded to a shader carries `// GPU-RECORD: <HlslStruct> <hlsl file>`. `Tools/StaticCheck/static_check.py` and an EditMode test compare field order and types with the HLSL struct.
 8. Screen-space reflection and indirect diffuse follow [ARCHITECTURE.md](ARCHITECTURE.md) §11, which owns their resolutions, sample records, resolve, temporal, denoise and history contracts. `Samples` is rays per pixel, from 1 to 4. Reflection `ResolveSamples` is the Poisson reuse count, not a ray count. There is no world-space ray length and no Volume thickness. Hit color is the accepted unsharpened previous frame. `SCREEN_TRACE_RELATIVE_THICKNESS` and `SSGI_TRACE_LINEAR` are diagnostic variants that production shaders do not declare. Bilateral reflection cleanup uses hysteresis 0.5 on the reconstruction variance.
-9. Half-resolution indirect-diffuse samples keep the accepted view's quad phase with the history transaction, and reconstruction uses the representative positions, including the shorter last interval on an odd edge. Metadata is read with integer loads only. Diagnostic readback decodes on the GPU because Metal does not expose `R32G32_UInt` to `AsyncGPUReadback`. Ray-hit storage is diagnostic-only, and a trace capture snapshots trace radiance before the first temporal stage. All lanes participate in the group barriers of the fused trace. The world-space radius is `BaseRadius * F(viewZ) * F(variance) * F(AO)`; the three functions are monotone stand-ins because the Metro slide does not give their bodies.
-10. Subsurface follows ARCHITECTURE §11. Its diffuse-only attachment exists only when supported and requested, and no subsurface allocation or output exists when the feature is off. Specular and emissive light never enter the filter. The Volume owns enable and sample count, the asset owns diffusion profiles, and the material profile index selects one. Routing requires opaque Deferred subsurface.
+9. Indirect-diffuse metadata is read with integer loads only, and all lanes participate in the group barriers of the fused trace. Quad phase, reconstruction positions, diagnostic readback and the filter radius are ARCHITECTURE §11.
+10. Subsurface follows ARCHITECTURE §11. Routing requires opaque Deferred subsurface, specular and emissive light never enter the filter, and no subsurface allocation or output exists when the feature is off.
 11. Async eligibility is not evidence of overlap. History copies of previous-color effects sit after the independent raster window. A graphics transfer immediately after an async producer joins that producer. Early visibility recovery and immediately dependent late effects stay on graphics by design.
 12. Native HDR state is queried live. Encoding matches the active swapchain transfer and primaries. Linear Rec.2020, PQ Rec.2020 and linear Rec.709 scRGB are different contracts. HLG needs a native HLG interface, which the current color-gamut API does not provide. HDR automatic tonemapping has one owner and is restored on exit.
 13. Fixed-ratio super resolution uses asset `renderScale` in `[0.5, 1.0]`, default 1, for Game cameras when super resolution is enabled. One per-camera descriptor owns internal and display size. Explicit Unity camera targets are imported by identifier. Dimensions freeze after `BeginCameraRendering`.
@@ -256,7 +248,8 @@ Do not hide the following behind a fallback, a disabled pass or a dummy resource
 - Cached OnEnable and OnDemand local shadows keep the casters of their last render. Moving objects do not update them. There is no dynamic-caster overlay.
 - Rectangle and disk shadow tiles cover a 120° cone in front of the emitter.
 - Reflection probes are axis-aligned, limited to the asset slot count, and have no rendering-layer test. Unity culls them by box bounds, so a larger sphere influence can be culled while visible. Translucent T0 has no specular environment term.
-- Shader Graph scene depth is bound only in decal graphs, and scene color only in translucent T1. The fog node returns no fog. Graph motion assumes rigid motion.
+- Shader Graph scene depth is bound only in decal graphs, and scene color only in translucent T1. The fog node returns no fog. Graph motion assumes rigid motion. Shader Graph materials have no mesh-instancing path, so `MeshComponent` does not draw them.
+- `MeshComponent` Receive Shadow and Affect Indirect Lighting are stored on the entity, and no pass reads them.
 - Contact shadows cover at most 24 local lights per camera, largest on screen first. Directional lights other than the sun get none.
 - InfinityLit has no metallic, mask, occlusion, detail, height or emission map. Converters drop them and the wizard lists them.
 - Light and reflection-probe complexity views count clustered-loop visits, not lights that reach the pixel.

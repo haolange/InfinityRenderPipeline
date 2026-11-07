@@ -755,8 +755,8 @@ size cycles must stabilize after warmup. Exercise Main, SceneView, Preview, SR,
 RenderTexture, UI, DebugView and camera disposal without changing saved assets.
 Poison unused texture regions; validate valid edges and fractional/odd mip samples
 against exact-sized textures. Test rollback without advancing extent history.
-Run TextureCapacityTests, TemporalResolveGpuTests, MeshDrawBatchGpuTests,
-RGDrawListLifetimeTests, MeshSceneTests and related graph/history/output contracts.
+Run TextureCapacityTests, TemporalResolveGpuTests, MeshDrawListTests,
+RGDrawListLifetimeTests, MeshWorldTests and related graph/history/output contracts.
 Read accepted history before requesting a resized pending target; roll back and
 verify that its old logical/physical view survives. Also change only capacity and
 verify that history remains valid. Capture a zero-warmup resize frame to prove
@@ -842,9 +842,9 @@ attempt failures and infrastructure errors distinct from final passing receipts.
 
 ### Resource-pool recording and submission intervals
 
-Run `ResourcePoolLifecycleTests`, `GpuSceneSubmissionTests`, the RenderGraph lifecycle/queue tests and Mesh consumers on the same candidate. Imports must protect physical allocations before Execute. Test buffer/texture return without an explicit fence, two independent camera recordings, cancellation of each recording, and disposal before cancellation.
+Run `ResourcePoolLifecycleTests`, `MeshResidencySubmissionTests`, the RenderGraph lifecycle/queue tests and Mesh consumers on the same candidate. Imports must protect physical allocations before Execute. Test buffer/texture return without an explicit fence, two independent camera recordings, cancellation of each recording, and disposal before cancellation.
 
-The GPU fixture queues the first camera without Submit, updates dirty GPU Scene tables (including growth after a partially queued failure), then queues a second camera. Probe the returned old descriptor through the CPU acquisition path and verify both camera results by readback. Record whether the completion fence is actually incomplete immediately after Submit; CPU writes must remain prohibited until completion. A separate fixture disposes the pool while submitted work is incomplete and checks that physical destruction happens only after completion.
+The GPU fixture queues the first camera without Submit, updates dirty entity columns (including growth after a partially queued failure), then queues a second camera. Probe the returned old descriptor through the CPU acquisition path and verify both camera results by readback. Record whether the completion fence is actually incomplete immediately after Submit; CPU writes must remain prohibited until completion. A separate fixture disposes the pool while submitted work is incomplete and checks that physical destruction happens only after completion.
 
 Also update dirty tables after the first camera is recorded but before Execute; both cameras must retain their own values. Return and grow a Mesh indirect payload while an old buffer is still imported; the old physical buffer must survive until the recording is cancelled or its submission completes. Run `FrameSubmissionTests` to distinguish final-fence queue failure, native Submit failure, and a post-Submit observer exception. A completion fence that failed to queue must never acknowledge resource use.
 

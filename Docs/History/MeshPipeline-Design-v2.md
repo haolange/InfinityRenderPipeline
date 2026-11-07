@@ -1,4 +1,41 @@
-# Mesh Drawing Pipeline 设计文档（v2 提案）
+# Mesh Drawing Pipeline 设计文档（v2 提案，已归档）
+
+> **归档说明（2026-11-07）**：本提案已在 0.5.0 中实现（批次 P3a–P7）。实现后的设计以 [ARCHITECTURE.md §7](../../ARCHITECTURE.md#7-mesh-drawing-pipeline) 为准，规范以 [AGENTS.md §5](../../AGENTS.md) 为准，验证状态见 [FeatureStatus.md](../FeatureStatus.md)。下表列出实现期对本文的修正；正文保留提案原文，作为历史证据，不再更新。
+
+## 实现期修正
+
+| 项 | 本文提案 | 实际实现 | 理由 |
+|---|---|---|---|
+| Pass 资格 | `EMeshPassMask` + `requireMask` | `MeshPassDesc = {lightMode, queueRange, sortMode, requireEntityFlags, requirePreviousTransforms}`；成员资格 = `MaterialRouteUtility.RouteEnablesPass` ∧ queue 命中 ∧ entity 标志命中；shader 缺 pass 在结构事件时报告 | route 是唯一权威；材质 pass state 对未调用 `ApplyPassState` 的材质默认开启，会多画 |
+| lightMode 范围 | 任意 | 限定为 9 个 mesh LightMode，其他值在 interning 时抛出 | route 只定义这 9 个 |
+| 上一帧变换 | 按 `"RasterMotionPass"` 字符串特判 | `requirePreviousTransforms`：Motion 与 T0/T1/T2 预设为 true | 去掉字符串特例 |
+| PassCache 生命周期 | 首次申请时惰性构建 | 9 个预设在 `MeshWorld` 构造时 intern，与 World 同寿命；非预设在 record 时 intern，上限 64 | `ShadowCasterBounds` 在任何 `CreateDrawList` 之前需要 Shadow 成员 |
+| ShaderState 位置 | World 表 | PassCache 内（key 含 passIndex），field-level Equals | World 不依赖 Pass |
+| 覆盖写 | transform/bounds/flags 绕过 undo | 只有 transform/bounds 绕过；决定成员资格的标志是结构编辑 | 标志决定成员资格 |
+| 排序 | 两级排序 + radix，4 种模式 | Burst `IJob` + `NativeArray.Sort(comparer)`；模式 `State`、`FrontToBack`（饱和 16 位段）、`BackToFront`（仅 CPU）；比较器是全序；非 back-to-front 时 stable 排在 fading 之前 | 保证 Burst；`StateThenDepth` 无使用者；每个列表只切换一次 dither keyword |
+| 后端抽象 | `IMeshDrawBackend` | 两个具体类 `MeshCpuDrawBackend`、`MeshGpuDrawBackend`，World 持有，无静态状态 | 两条路径阶段不同，接口只会实现一半 |
+| GPU 批次与回退 | 1024 命令分批；overflow 回退 CPU | 删除；每个 DrawList 一个 compute producer 覆盖全部 (command, range)；容量在 record 前取得，算不出即抛出 | 去掉静默回退 |
+| GPU 提交顺序 | 未定义 | 按 state key 顺序；无逐实例距离序 | 减少状态切换 |
+| 容量 | CPU 按可见数 | CPU、GPU 都按成员数在 record 前取得；GPU 实例容量为 2 × 成员数 | 不必在 compile 提前完成 Gather |
+| LOD 屏幕尺寸 | LOD0 = 1 的上界约定 | `LODGroup` 下界语义：`screen = r · scale · bias / d`（正交 d = 1）；低于最后一级不画（0 下界不剔除）；过渡带在阈值上方 `fadeWidth × (上一阈值 − 阈值)` | 与 `screenRelativeTransitionHeight` 一致 |
+| LOD 屏幕尺寸度量 | 包围半径 | 世界包围盒的最大半边长（`LODGroup.size` / 2） | 与 `screenRelativeTransitionHeight` 的度量一致；半径会让切换距离远约 1.7 倍 |
+| LOD 可见性编码 | 未定义 | GPU 一个 uint：0 或 `1 \| level << 8 \| fade << 16`（65535 = 稳定）；candidate `y = command \| lod << 24`；command meta 步长 5；计数与参数按 (command, range) 交错 | 一次写入同时携带可见性、档位与淡入量 |
+| 半透明 LOD | 未定义 | 半透明 pass 只画所选档，不进 fading 范围 | `BackToFront` 的 key 不能插入 fade 桶 |
+| Fading draw | 每 command 两桶 | 只有成员链有过渡带（LOD 0 下界 > 0）的 command 才发 fading draw；CPU 跳过空 run | 避免空 draw 翻倍；单档正下界的链也会淡出 |
+| 常驻可见性缓冲身份 | 与请求键相同 | 常驻 GPU 可见性缓冲的键不含 LOD 投影；每次 camera render 的请求键含 | 投影随相机每帧移动，否则缓冲无界增长 |
+| 非预设 desc 的候选表 | 在该 DrawList 的 upload producer 中上传 | intern 时写入新建 buffer；之后的变化与预设一样在 residency 上传 | 新 buffer 不在途，CPU 写安全；避免同帧多个 producer 争写 |
+| `MeshView.enableVisibility`、`excludeInstanceFlags` | 保留 | 删除 | 无生产调用方 |
+| 材质状态 | queue / route / stage | 加入 shader 身份；路由缓存比较 shader | 换 shader 必须重新校验并重解析 pass 索引 |
+| D4 依赖检查 | 按命名空间分层 | 只强制 `InfinityTech.Rendering.RenderGraph` 不引用 `MeshPipeline` | 只为实际问题加机制 |
+| Shader Graph | SG target 同步生成 dither | 本轮不做；`InfinityLit-Instanced` 声明 `InfinityMeshInstancing="True"`，缺 tag 的材质报告并不画 | 用户决定 |
+| 几何变更 | `NotifySectionChanged` 重解析 binding | 删除；几何 revision 变化时组件重建实体 | 无独立调用方 |
+| 组件同步 | 直接写组件状态 | 事务内暂存、提交后发布；ID 绑定 `worldId`；新 world 时全部重同步；shader 重导入时重新校验 | 回滚与管线重建时组件状态必须与 World 一致 |
+| 句柄失败 | `UseDrawList` 返回 Invalid | `UseDrawList`/`Draw` 对非 live 句柄抛出 | AGENTS §6.2 |
+| MeshAsset 材质槽 | 未定义 | 显式槽位必须落在资产材质范围内；没有条目的 submesh 不画；组件材质数组按槽位索引，是运行时权威 | LODGroup 生成的并集材质不能按 submesh 序号回退 |
+| 迁移 | 仅 `meshes`/`lODInfos` 长度不一致时从 `target` 重建 | 所有带 `target` 的 MeshAsset 都重建（已等于重建结果的跳过） | 旧构建器写的占位屏幕尺寸在下界语义下会被剔除 |
+
+---
+
 
 状态：提案，未实现。基于对当前 `Runtime/RendererCore/PrimitivePipeline/MeshPipeline/` 的源码审查和三轮设计讨论整理。实现后，本文件的"目标"部分应并入 `ARCHITECTURE.md` §7，规范变更并入 `AGENTS.md`，本文件删除。
 

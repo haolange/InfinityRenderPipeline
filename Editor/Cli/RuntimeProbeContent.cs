@@ -6,7 +6,7 @@ using InfinityTech.Rendering.Pipeline;
 
 namespace InfinityTech.Rendering.Editor
 {
-    // The only runtime-probe code that uses the MeshComponent authoring API and the mesh scene. It changes with that API;
+    // The only runtime-probe code that uses the MeshComponent authoring API and the mesh world. It changes with that API;
     // RuntimeProbeCommands.cs (the measurement) does not.
     internal static class RuntimeProbeContent
     {

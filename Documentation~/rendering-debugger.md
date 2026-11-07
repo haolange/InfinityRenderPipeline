@@ -10,7 +10,7 @@ Window > Analysis > Rendering Debugger is Unity's window. Infinity registers the
 | Infinity Screen Space | Ambient occlusion, reflection, indirect diffuse, and the reflection tile, ray, confidence and history views |
 | Volume | Core RP camera, component and contribution panel |
 | Infinity Timings | Record Pass Timings. When recording is on, the previous frame's total and a Passes foldout with one row per pass sampler |
-| Infinity Mesh | Matrix Duplicate Ratio, Override Mesh Backend, the backend enum when override is on, requested backend, actual backend, and the backend reason |
+| Infinity Mesh | Entity, element, pass-cache and cached-command counts, Override Mesh Backend, the backend enum when override is on, requested backend, actual backend, and the backend reason |
 
 Choosing a view in one panel clears the other panels' views. A view whose producer did not run is magenta. The debug view is not serialized on the pipeline asset. Probe and preview cameras do not take a debug view. Game, Scene and VR cameras can.
 
