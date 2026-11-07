@@ -634,17 +634,17 @@ namespace InfinityTech.Rendering.Pipeline
                                     RecordLightingCapture();
 
                                     // PHASE 7: T0 depth → Cloud/Fog → FogComposite → FoggedSceneColor → T0 → RefractionPyramid → T1 → T2
-                                    RasterTranslucentDepth(renderContext, camera, cullingResults);
+                                    RasterTranslucentDepth(renderContext, camera, mainView, cullingResults);
                                     ComputeVolumetricCloud(renderContext, camera, historyCache);
                                     CopyHistoryVolumetricCloud(historyCache, camera);
                                     ComputeVolumetricFog(renderContext, camera, historyCache);
                                     CopyHistoryVolumetricFog(historyCache, camera);
                                     ComputeFogComposite(renderContext, camera);
                                     ResolveFoggedSceneColor();
-                                    RasterTranslucentT0(renderContext, camera, cullingResults);
+                                    RasterTranslucentT0(renderContext, camera, mainView, cullingResults);
                                     ComputeColorPyramid(renderContext, camera);
-                                    RasterTranslucentT1(renderContext, camera, cullingResults);
-                                    RasterTranslucentT2(renderContext, camera, cullingResults);
+                                    RasterTranslucentT1(renderContext, camera, mainView, cullingResults);
+                                    RasterTranslucentT2(renderContext, camera, mainView, cullingResults);
 
                                     // PHASE 8: temporal resolve + post (TAA after fog/translucents)
                                     // Previews and probe faces have no temporal resolve; post reads FoggedSceneColor.

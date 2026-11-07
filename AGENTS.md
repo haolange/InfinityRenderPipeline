@@ -251,6 +251,7 @@ A Game view that is not redrawing produces identical screenshots. Require Play m
 Do not hide the following behind a fallback, a disabled pass or a dummy resource. Current verification limits are in `Docs/FeatureStatus.md`.
 
 - Validation scenes for decals, local lights and translucency have shown sky bands, dark triangles and cube blotches. The cause is undiagnosed.
+- Translucent MeshComponent content and native translucent renderers are sorted in two lists. Each list is strictly back to front; between them there is no distance order.
 - Cached OnEnable and OnDemand local shadows keep the casters of their last render. Moving objects do not update them. There is no dynamic-caster overlay.
 - Rectangle and disk shadow tiles cover a 120° cone in front of the emitter.
 - Reflection probes are axis-aligned, limited to the asset slot count, and have no rendering-layer test. Unity culls them by box bounds, so a larger sphere influence can be culled while visible. Translucent T0 has no specular environment term.

@@ -101,6 +101,48 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
         }
 
         [Test]
+        public void TranslucentStages_RecordBackToFrontOnCpu_AndRequireTheViewsPreviousTransforms()
+        {
+            using (var fixture = new MeshWorldFixture())
+            {
+                Mesh mesh = fixture.Mesh(1);
+                Material material = fixture.Material(0, 1);
+                using (MeshWorldUpdate update = fixture.world.BeginUpdate())
+                {
+                    MeshEntityId entity = MeshTestUtility.CreateEntity(update, float3.zero);
+                    update.AddElement(entity, MeshTestUtility.Id(mesh), 0, MeshTestUtility.Id(material), MeshTestUtility.StateOf(material), 0);
+                    update.Commit();
+                }
+                Assert.AreEqual(1, fixture.world.GetPassCache(MeshPassPresets.TranslucentT0).memberCount, "A stage-1 material belongs to T0.");
+                Assert.AreEqual(1, fixture.world.GetPassCache(MeshPassPresets.TranslucentDepth).memberCount, "Translucent surfaces write translucent depth.");
+                Assert.AreEqual(0, fixture.world.GetPassCache(MeshPassPresets.GBuffer).memberCount, "Translucent surfaces never enter opaque passes.");
+
+                RGBuilder graph = CreateGraph(fixture, "TranslucentDrawLists", EMeshBackendPolicy.CpuDirect);
+                try
+                {
+                    // Even a GPU request records blended stages on the CPU backend, which sorts back to front.
+                    fixture.world.SetBackendOverride(EMeshBackendPolicy.GpuIndirect);
+                    MeshView view = MeshTestUtility.CameraView(7);
+                    Assert.Throws<System.InvalidOperationException>(() => graph.CreateDrawList(view, MeshPassPresets.TranslucentT0),
+                        "A stage that writes motion fails at record without the view's previous-transform producer.");
+                    fixture.world.BindPreviousTransforms(view.viewKey, new MeshMotionBinding(fixture.world.transformVersions.current, null));
+                    RGDrawListHandle draws = graph.CreateDrawList(view, MeshPassPresets.TranslucentT0);
+                    Assert.AreEqual(EMeshBackendPolicy.CpuDirect, MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index).backend);
+
+                    AddConsumer(graph, Target(graph), CustomSamplerId.RasterTranslucentT0, draws, keep: true);
+                    Compile(graph);
+                    Assert.AreEqual(ERGDrawListCompileState.Scheduled, MeshGraphExtension.Of(graph).drawLists.GetRecordCopy(draws.index).state);
+                    Assert.AreEqual(1, CountPasses(graph, "UploadMeshData", liveOnly: true));
+                    Assert.AreEqual(0, CountPasses(graph, "ComputeMeshCompaction", liveOnly: true));
+                }
+                finally
+                {
+                    MeshTestUtility.Release(graph);
+                }
+            }
+        }
+
+        [Test]
         public void ReleaseAll_RejectsTheOldHandle_AndReleasesVisibilityAndVersionReferences()
         {
             using (var fixture = new MeshWorldFixture())

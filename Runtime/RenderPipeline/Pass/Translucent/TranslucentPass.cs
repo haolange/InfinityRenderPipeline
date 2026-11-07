@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.RenderGraph;
 using InfinityTech.Rendering.GPUResource;
+using InfinityTech.Rendering.MeshPipeline;
 using UnityEngine.Rendering.RendererUtils;
 using UnityEngine.Experimental.Rendering;
 
@@ -22,11 +23,13 @@ namespace InfinityTech.Rendering.Pipeline
     {
         struct TranslucentDepthPassData
         {
+            public RGDrawListHandle draws;
             public RGRendererListHandle rendererList;
         }
 
         struct TranslucentColorPassData
         {
+            public RGDrawListHandle draws;
             public RGRendererListHandle rendererList;
             public bool writeReactive;
             public bool bindFog;
@@ -41,7 +44,7 @@ namespace InfinityTech.Rendering.Pipeline
             public RGTextureHandle translucentDepth;
         }
 
-        void RasterTranslucentDepth(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterTranslucentDepth(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
             TextureDescriptor translucentDepthDsc = new TextureDescriptor(m_ActiveFrameState.dimensions.internalSize.x, m_ActiveFrameState.dimensions.internalSize.y, ETextureSizingDomain.Internal);
             {
@@ -61,6 +64,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RGRendererListHandle depthRendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGDrawListHandle depthDraws = m_RGBuilder.CreateDrawList(view, MeshPassPresets.TranslucentDepth);
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentDepthPassData>(ProfilingSampler.Get(CustomSamplerId.RasterTranslucentDepth)))
             {
@@ -68,35 +72,41 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetDepthStencilAttachment(translucentDepthTexture, RenderBufferLoadAction.Clear, RenderBufferStoreAction.Store, EDepthAccess.Write);
 
                 ref TranslucentDepthPassData passData = ref passRef.GetPassData<TranslucentDepthPassData>();
+                passData.draws = passRef.UseDrawList(depthDraws);
                 passData.rendererList = passRef.UseRendererList(depthRendererList);
 
                 passRef.SetExecuteFunc((in TranslucentDepthPassData passData, in RGRasterEncoder cmdEncoder) =>
                 {
+                    cmdEncoder.Draw(passData.draws);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
         }
 
-        void RasterTranslucentT0(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterTranslucentT0(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
-            RasterTranslucentColor(renderContext, camera, cullingResults, InfinityPassIDs.RasterTranslucentT0Pass, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT0Pass, MeshPassPresets.TranslucentT0, CustomSamplerId.RasterTranslucentT0, bindFog: true, bindPyramid: false);
         }
 
-        void RasterTranslucentT1(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterTranslucentT1(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
-            RasterTranslucentColor(renderContext, camera, cullingResults, InfinityPassIDs.RasterTranslucentT1Pass, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT1Pass, MeshPassPresets.TranslucentT1, CustomSamplerId.RasterTranslucentT1, bindFog: false, bindPyramid: true);
         }
 
-        void RasterTranslucentT2(RenderContext renderContext, Camera camera, in CullingResults cullingResults)
+        void RasterTranslucentT2(RenderContext renderContext, Camera camera, in MeshView view, in CullingResults cullingResults)
         {
-            RasterTranslucentColor(renderContext, camera, cullingResults, InfinityPassIDs.RasterTranslucentT2Pass, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
+            RasterTranslucentColor(renderContext, camera, view, cullingResults, InfinityPassIDs.RasterTranslucentT2Pass, MeshPassPresets.TranslucentT2, CustomSamplerId.RasterTranslucentT2, bindFog: false, bindPyramid: false);
         }
 
+        // MeshComponent content is drawn back to front before the native renderer list in the same pass. The two lists are
+        // sorted separately: there is no distance order between MeshComponent and native translucent renderers.
         void RasterTranslucentColor(
             RenderContext renderContext,
             Camera camera,
+            in MeshView view,
             in CullingResults cullingResults,
             ShaderTagId lightMode,
+            in MeshPassDesc meshPass,
             CustomSamplerId samplerId,
             bool bindFog,
             bool bindPyramid)
@@ -147,6 +157,7 @@ namespace InfinityTech.Rendering.Pipeline
                 rendererListDesc.excludeObjectMotionVectors = false;
             }
             RGRendererListHandle rendererList = m_RGBuilder.CreateRendererList(rendererListDesc);
+            RGDrawListHandle meshDraws = m_RGBuilder.CreateDrawList(view, meshPass);
 
             using (RGRasterPassHandle passRef = m_RGBuilder.AddRasterPass<TranslucentColorPassData>(ProfilingSampler.Get(samplerId)))
             {
@@ -159,6 +170,7 @@ namespace InfinityTech.Rendering.Pipeline
                 passRef.SetDepthStencilAttachment(depthTexture, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, EDepthAccess.ReadOnly);
 
                 ref TranslucentColorPassData passData = ref passRef.GetPassData<TranslucentColorPassData>();
+                passData.draws = passRef.UseDrawList(meshDraws);
                 passData.rendererList = passRef.UseRendererList(rendererList);
                 passData.writeReactive = writeReactive;
                 passData.bindFog = hasFog;
@@ -208,6 +220,7 @@ namespace InfinityTech.Rendering.Pipeline
                     {
                         cmdEncoder.SetGlobalTexture(InfinityShaderIDs.TranslucentDepthBuffer, passData.translucentDepth);
                     }
+                    cmdEncoder.Draw(passData.draws);
                     cmdEncoder.DrawRendererList(passData.rendererList);
                 });
             }
