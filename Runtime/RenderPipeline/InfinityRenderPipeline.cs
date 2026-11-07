@@ -666,7 +666,7 @@ namespace InfinityTech.Rendering.Pipeline
 
                                 using (new ProfilingScope(ProfilingSampler.Get(EPipelineProfileId.ExecuteRG)))
                                 {
-                                    // ReleaseAllDrawLists releases per-Declare visibility refs (exception-safe).
+                                    // The mesh graph extension Clear releases per-Declare visibility refs (exception-safe).
                                     m_RGBuilder.debugLabel = RGDebugSession.captureEnabled ? camera.name : null;
                                     m_RGBuilder.Execute(renderContext, cmdBuffer);
                                     frameState.executeSucceeded = true;

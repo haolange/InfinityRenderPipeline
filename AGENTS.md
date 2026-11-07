@@ -106,12 +106,12 @@ Fixed object counts after warmup aim for zero managed allocation in normal libra
 
 1. `MeshSceneUpdate` undoes every mutation. `Dispose` without `Commit` restores live counts, relations, revisions and dirty ranges through the undo log. Free-list membership and high-water marks stay with `Free*`, `Restore*` and deferred reclaim. Rollback does not truncate free lists. A structural edit is not left half applied.
 2. A section or material whose reference count reaches zero inside `BeginUpdate`…`EndUpdate` is queued. `Commit` flushes the queue. `Rollback` discards it after undo restores the counts.
-3. Visibility results are interned by `MeshVisibilityShare`. `ReleaseAllDrawLists` owns that handle lifetime. TempJob cull arrays do not survive the frame.
+3. Visibility results are interned by `MeshVisibilityShare`. `RGDrawListContext.ReleaseAll` owns that handle lifetime. TempJob cull arrays do not survive the frame.
 4. GPU payload objects in the backend pool are empty. Physical buffers belong to `ResourcePool`. A payload lifetime is not permission to destroy a buffer or to write it from the CPU.
 5. No process-global indirect or argument buffer is shared across draw lists or cameras.
 6. GPU culling indexes instance slots. Compacted indices and CPU `MeshDrawList.instanceIndices` are transform indices.
 7. `ERenderingLayer` is the shared mesh and light mask (`enum : byte`, `[Flags]`, `Everything = 0xFF`). Do not reintroduce an integer layer index. Pass-bin rebuild does not apply this mask. Shadow views do, through visibility.
-8. `ReleaseAll` and `ReleaseAllDrawLists` perform logical cleanup and `RetirePayload` only. After native submit, `FlushRetiredPayloads` and `FlushRetiredBuffers` return allocations without clearing outstanding use. Physical destruction requires no recording references and completed GPU use. Native submit, queueing the final fence, and accepting the frame transaction are three results. A fence that was never queued does not acknowledge work.
+8. `ReleaseAll` and `RGDrawListContext.ReleaseAll` perform logical cleanup and `RetirePayload` only. After native submit, `FlushRetiredPayloads` and `FlushRetiredBuffers` return allocations without clearing outstanding use. Physical destruction requires no recording references and completed GPU use. Native submit, queueing the final fence, and accepting the frame transaction are three results. A fence that was never queued does not acknowledge work.
 9. Before recording, compute the payload budget and call `EnsureCapacity` once. During recording, `RequireCapacity` checks only. Do not grow or recreate a buffer already bound to a live command buffer.
 10. `CreateInstance` rejects an owned transform. Do not share one transform across instances without that rejection.
 11. `GpuScene.Update` throws while a transaction is open. Replacement attribute tables are published atomically. Draw lists bind the frozen tables.

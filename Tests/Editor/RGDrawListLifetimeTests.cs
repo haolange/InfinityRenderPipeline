@@ -192,6 +192,47 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
             }
         }
 
+        struct EmptyRasterData { }
+
+        [Test]
+        public void UseDrawList_RejectsAnotherBuildersHandle()
+        {
+            using (var scene = new MeshScene(16))
+            {
+                var pool = new ResourcePool();
+                var world = new MeshWorld(scene, pool);
+                var owner = new RGBuilder("DrawListOwner");
+                var foreign = new RGBuilder("DrawListForeign");
+                try
+                {
+                    world.SetBackendOverride(EMeshBackendPolicy.CpuDirect);
+                    world.UpdateResidency();
+                    owner.SetMeshWorld(world);
+                    foreign.SetMeshWorld(world);
+                    RGDrawListHandle draws = owner.CreateDrawList(TestView(), MeshPassId.GBuffer);
+                    using (var pass = foreign.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Foreign")))
+                    {
+                        Assert.IsFalse(pass.UseDrawList(draws).IsValid);
+                        Assert.AreEqual(0, pass.pass.extensionUses.Count);
+                        pass.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
+                    }
+                    using (var pass = owner.AddRasterPass<EmptyRasterData>(new ProfilingSampler("Owner")))
+                    {
+                        Assert.IsTrue(pass.UseDrawList(draws).IsValid);
+                        CollectionAssert.AreEqual(new[] { draws.index }, pass.pass.extensionUses);
+                        pass.SetExecuteFunc((in EmptyRasterData data, in RGRasterEncoder encoder) => { });
+                    }
+                }
+                finally
+                {
+                    foreign.Dispose();
+                    owner.Dispose();
+                    world.Dispose();
+                    pool.Dispose();
+                }
+            }
+        }
+
         [Test]
         public void UnusedDrawList_DoesNotRunRecordedMeshGpuCull()
         {
@@ -217,8 +258,7 @@ namespace InfinityTech.Rendering.RenderGraph.Tests
 
                     MethodInfo compile = typeof(RGBuilder).GetMethod("CompilePass", BindingFlags.Instance | BindingFlags.NonPublic);
                     compile.Invoke(graph, null);
-                    FieldInfo recordsField = typeof(RGBuilder).GetField("m_DrawListRecords", BindingFlags.Instance | BindingFlags.NonPublic);
-                    var records = (RGDrawListContext)recordsField.GetValue(graph);
+                    var records = MeshGraphExtension.Of(graph).drawLists;
                     Assert.IsFalse(records.HasLiveView(view));
                     Assert.AreEqual(0, MeshPipelineDiagnostics.GpuCullDispatchesPerFrame);
                     Assert.AreEqual(0, MeshPipelineDiagnostics.VisibilityProductionsPerFrame);

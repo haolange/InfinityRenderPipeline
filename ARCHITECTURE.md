@@ -68,7 +68,7 @@ Async eligibility is a queue assignment. It is not a measurement of overlap. The
 
 ## 5. Render graph
 
-`RGBuilder` records passes, textures, buffers, draw lists and renderer lists for one camera graph. Handles carry the graph generation. A handle from another graph is rejected.
+`RGBuilder` records passes, textures, buffers and renderer lists for one camera graph. Handles carry the graph generation. A handle from another graph is rejected. Work the core does not model attaches as one `IRGGraphExtension` per builder: the extension contributes inserted passes once per compile and clears its state whenever the recorded graph is dropped, with or without execution. A pass stores the extension's ids in `extensionUses`, and pass handles and raster encoders carry their builder's extension, so a draw list from another builder is never consumed or submitted. The render graph has no dependency on the mesh pipeline; mesh draw lists are that extension, in `MeshPipeline/Graph/`.
 
 Compile runs structural culling first. Culling propagates across texture and buffer reads. A pass that writes an imported resource, or that calls `EnablePassCulling(false)`, stays live. The mesh compile extension then inserts one upload producer per live draw list and, for GPU indirect drawing, one compute compaction producer. Those producers are placed at the earliest index whose inputs exist. Liveness runs again. The compiler then assigns descriptor-level alias slots, submission segments and native render-pass groups.
 
@@ -135,7 +135,7 @@ MeshDrawCommand    mesh, section, material, count, offset (one view, one list)
 | `MeshDrawCompiler` | `MeshDrawCompiler.cs` | `MeshPassExtractJob` |
 | `MeshCandidateTableStore` | `MeshCandidateTableStore.cs` | Per-pass GPU command and candidate tables |
 | `MeshDrawGPUBackend` | `MeshDrawGPUBackend.cs` | Payloads, compaction, indirect arguments |
-| `RGDrawListContext` | `RenderGraph/RGDrawList.cs` | Graph registry. A draw list is not an `ERGResourceType` |
+| `MeshGraphExtension`, `RGDrawListContext` | `MeshPipeline/Graph/` | Per-builder graph extension and draw-list registry. A draw list is not an `ERGResourceType` |
 
 `MeshPassId` is Depth, GBuffer, Forward, Motion, Shadow, TranslucentDepth, TranslucentT0, TranslucentT1, TranslucentT2. The frame calls `CreateDrawList` for depth, a recovered depth view, GBuffer, forward, motion, cascade shadow and local shadow. Translucent stages are drawn with `RendererListDesc` in `TranslucentPass`. Their mesh pass identifiers remain registered and are not a second submit path.
 

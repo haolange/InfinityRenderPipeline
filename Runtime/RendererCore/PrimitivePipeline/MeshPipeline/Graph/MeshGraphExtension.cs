@@ -4,9 +4,9 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Unity.Mathematics;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.RenderGraph;
 
-namespace InfinityTech.Rendering.RenderGraph
+namespace InfinityTech.Rendering.MeshPipeline
 {
     internal struct MeshGpuCullPassData
     {
@@ -14,7 +14,6 @@ namespace InfinityTech.Rendering.RenderGraph
         public MeshView view;
         public int instanceCount;
         public Vector4[] frustumPlanes;
-        public RGDrawListContext drawLists;
         public RGBufferHandle visibility;
         public RGBufferHandle boundsCenter;
         public RGBufferHandle boundsExtent;
@@ -24,70 +23,75 @@ namespace InfinityTech.Rendering.RenderGraph
         public RGBufferHandle instanceRenderingLayer;
     }
 
-    sealed class MeshGraphCompileExtension : IRGCompileExtension
+    /// <summary>
+    /// Per-builder mesh state. The render graph knows this object only as an <see cref="IRGGraphExtension"/>:
+    /// it calls Contribute once per compile and Clear whenever the recorded graph is dropped.
+    /// </summary>
+    internal sealed partial class MeshGraphExtension : IRGGraphExtension
     {
-        public void Contribute(RGBuilder builder) => builder.ContributeMeshPreparation();
-    }
-
-    public partial class RGBuilder
-    {
-        static readonly IRGCompileExtension s_MeshExtension = new MeshGraphCompileExtension();
         struct MeshDrawPreparePassData { public RGDrawListContext lists; public int index; }
 
-        public void SetMeshWorld(MeshWorld meshWorld)
+        internal readonly MeshWorld world;
+        internal readonly RGDrawListContext drawLists = new RGDrawListContext();
+        readonly Dictionary<int, RGBufferHandle[]> m_PreparedDrawLists = new Dictionary<int, RGBufferHandle[]>();
+        readonly Dictionary<MeshGpuVisibilityKey, RGBufferHandle> m_GpuCullVisibility = new Dictionary<MeshGpuVisibilityKey, RGBufferHandle>(8);
+        readonly HashSet<MeshTransformVersion> m_ScheduledVersions = new HashSet<MeshTransformVersion>();
+
+        internal MeshGraphExtension(MeshWorld world) => this.world = world;
+
+        internal static MeshGraphExtension Of(RGBuilder builder)
+            => builder.extension as MeshGraphExtension ?? throw new InvalidOperationException("This RGBuilder has no MeshWorld; call SetMeshWorld first.");
+
+        public void Clear()
         {
-            m_MeshWorld = meshWorld;
-            m_CompileExtension = meshWorld != null ? s_MeshExtension : null;
+            m_ScheduledVersions.Clear();
+            m_GpuCullVisibility.Clear();
+            drawLists.ReleaseAll();
         }
 
-        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-        public RGDrawListHandle CreateDrawList(in MeshView view, MeshPassId passId)
+        public void Contribute(RGBuilder builder)
         {
-            if (m_MeshWorld == null)
-                throw new InvalidOperationException("CreateDrawList requires MeshWorld.");
+            CompileMeshDrawLists(builder);
+            InsertDrawListPreparation(builder);
+        }
 
-            MeshPassContext pass = m_MeshWorld.BindPass(view, passId);
-            RGDrawListHandle draws = m_DrawListRecords.Declare(
-                m_MeshWorld.Processor, pass, MeshVisibilityHandle.Invalid, m_MeshWorld.VisibilityShare,
-                view, passId, m_MeshWorld);
-            RetainDrawListInputs(draws);
-            EnsureMeshGpuCull(view, draws);
+        internal RGDrawListHandle CreateDrawList(RGBuilder builder, in MeshView view, MeshPassId passId)
+        {
+            MeshPassContext pass = world.BindPass(view, passId);
+            RGDrawListHandle draws = drawLists.Declare(
+                world.Processor, pass, MeshVisibilityHandle.Invalid, world.VisibilityShare,
+                view, passId, world);
+            RetainDrawListInputs(builder, draws);
+            EnsureMeshGpuCull(builder, view, draws);
             return draws;
         }
 
-        void RetainDrawListInputs(RGDrawListHandle draws)
+        void RetainDrawListInputs(RGBuilder builder, RGDrawListHandle draws)
         {
-            var record = m_DrawListRecords.GetRecordCopy(draws.index);
+            var record = drawLists.GetRecordCopy(draws.index);
             var residency = record.residency;
-            if (residency.TransformBuffer.buffer != null) ImportBuffer(residency.TransformBuffer);
-            if (residency.RenderingLayerBuffer.buffer != null) ImportBuffer(residency.RenderingLayerBuffer);
-            if (residency.InstanceTransformIndexBuffer.buffer != null) ImportBuffer(residency.InstanceTransformIndexBuffer);
-            if (residency.version != null) ImportBuffer(residency.version.generations);
+            if (residency.TransformBuffer.buffer != null) builder.ImportBuffer(residency.TransformBuffer);
+            if (residency.RenderingLayerBuffer.buffer != null) builder.ImportBuffer(residency.RenderingLayerBuffer);
+            if (residency.InstanceTransformIndexBuffer.buffer != null) builder.ImportBuffer(residency.InstanceTransformIndexBuffer);
+            if (residency.version != null) builder.ImportBuffer(residency.version.generations);
             var previous = record.pass.previousTransforms.previous;
-            if (previous != null) { ImportBuffer(previous.matrices); ImportBuffer(previous.generations); }
+            if (previous != null) { builder.ImportBuffer(previous.matrices); builder.ImportBuffer(previous.generations); }
         }
 
-        public void EnsureMeshGpuCull(in MeshView view)
+        internal void EnsureMeshGpuCull(RGBuilder builder, in MeshView view, in RGDrawListHandle draws)
         {
-            if (m_MeshWorld == null)
-                throw new InvalidOperationException("EnsureMeshGpuCull requires MeshWorld.");
-            EnsureMeshGpuCull(view, RGDrawListHandle.Invalid);
-        }
-
-        void EnsureMeshGpuCull(in MeshView view, in RGDrawListHandle draws)
-        {
-            if (MeshDrawGPUBackend.SelectPolicy(m_MeshWorld.SelectPolicy()) != EMeshBackendPolicy.GpuIndirect)
+            if (MeshDrawGPUBackend.SelectPolicy(world.SelectPolicy()) != EMeshBackendPolicy.GpuIndirect)
                 return;
 
             MeshGpuVisibilityKey key = MeshGpuVisibilityCache.MakeKey(view, true);
             if (m_GpuCullVisibility.TryGetValue(key, out RGBufferHandle existing))
             {
-                if (m_DrawListRecords.IsLive(draws))
-                    m_DrawListRecords.BindGpuVisibility(draws.index, existing);
+                if (drawLists.IsLive(draws))
+                    drawLists.BindGpuVisibility(draws.index, existing);
                 return;
             }
 
-            GpuScene residency = m_MeshWorld.Residency;
+            GpuScene residency = world.Residency;
             if (residency == null
                 || residency.BoundsCenterBuffer.buffer == null
                 || residency.BoundsExtentBuffer.buffer == null
@@ -100,25 +104,24 @@ namespace InfinityTech.Rendering.RenderGraph
                 throw new InvalidOperationException("MeshGpuCull requires CullFrustum.");
 
             int instanceCount = residency.Scene != null ? residency.Scene.InstanceHighWater : 0;
-            BufferHandle visibility = m_MeshWorld.GetGpuVisibilityBufferHandle(view, math.max(1, instanceCount));
-            RGBufferHandle visibilityRef = ImportBuffer(visibility);
-            RGBufferHandle boundsCenter = ImportBuffer(residency.BoundsCenterBuffer);
-            RGBufferHandle boundsExtent = ImportBuffer(residency.BoundsExtentBuffer);
-            RGBufferHandle instanceFlags = ImportBuffer(residency.InstanceFlagsBuffer);
-            RGBufferHandle instanceLayerMask = ImportBuffer(residency.InstanceLayerMaskBuffer);
-            RGBufferHandle instanceSceneCullingMask = ImportBuffer(residency.InstanceSceneCullingMaskBuffer);
-            RGBufferHandle instanceRenderingLayer = ImportBuffer(residency.InstanceRenderingLayerBuffer);
-            Vector4[] frustumPlanes = GetRecordingArray<Vector4>(6);
+            BufferHandle visibility = world.GetGpuVisibilityBufferHandle(view, math.max(1, instanceCount));
+            RGBufferHandle visibilityRef = builder.ImportBuffer(visibility);
+            RGBufferHandle boundsCenter = builder.ImportBuffer(residency.BoundsCenterBuffer);
+            RGBufferHandle boundsExtent = builder.ImportBuffer(residency.BoundsExtentBuffer);
+            RGBufferHandle instanceFlags = builder.ImportBuffer(residency.InstanceFlagsBuffer);
+            RGBufferHandle instanceLayerMask = builder.ImportBuffer(residency.InstanceLayerMaskBuffer);
+            RGBufferHandle instanceSceneCullingMask = builder.ImportBuffer(residency.InstanceSceneCullingMaskBuffer);
+            RGBufferHandle instanceRenderingLayer = builder.ImportBuffer(residency.InstanceRenderingLayerBuffer);
+            Vector4[] frustumPlanes = builder.GetRecordingArray<Vector4>(6);
             view.CopyFrustumPlanes(frustumPlanes);
 
-            using (RGComputePassHandle passRef = AddComputePass<MeshGpuCullPassData>(MeshDrawProfiling.culling))
+            using (RGComputePassHandle passRef = builder.AddComputePass<MeshGpuCullPassData>(MeshDrawProfiling.culling))
             {
                 ref MeshGpuCullPassData passData = ref passRef.GetPassData<MeshGpuCullPassData>();
-                passData.world = m_MeshWorld;
+                passData.world = world;
                 passData.view = view;
                 passData.instanceCount = instanceCount;
                 passData.frustumPlanes = frustumPlanes;
-                passData.drawLists = m_DrawListRecords;
                 passData.visibility = passRef.WriteBuffer(visibilityRef);
                 passData.boundsCenter = passRef.ReadBuffer(boundsCenter);
                 passData.boundsExtent = passRef.ReadBuffer(boundsExtent);
@@ -138,95 +141,92 @@ namespace InfinityTech.Rendering.RenderGraph
             }
 
             m_GpuCullVisibility[key] = visibilityRef;
-            if (m_DrawListRecords.IsLive(draws))
-                m_DrawListRecords.BindGpuVisibility(draws.index, visibilityRef);
+            if (drawLists.IsLive(draws))
+                drawLists.BindGpuVisibility(draws.index, visibilityRef);
         }
 
-        internal void ContributeMeshPreparation()
+        // The pass records the draw-list index; compile reads it back to find live consumers.
+        internal static void UseDrawList(RGDrawListContext lists, IRGPass pass, in RGDrawListHandle draws)
         {
-            CompileMeshDrawLists();
-            InsertDrawListPreparation();
+            pass.extensionUses.Add(draws.index);
+            RGDrawListRecord record = lists.GetRecordCopy(draws.index);
+            if (record.gpuVisibilityBuffer.IsValid())
+                pass.AddResourceRead(record.gpuVisibilityBuffer.handle);
         }
 
-        void CompileMeshDrawLists()
+        void CompileMeshDrawLists(RGBuilder builder)
         {
-            m_DrawListRecords.ClearConsumers();
-            for (int passIndex = 0; passIndex < m_PassCompileInfos.size; ++passIndex)
+            drawLists.ClearConsumers();
+            for (int passIndex = 0; passIndex < builder.passCount; ++passIndex)
             {
-                ref RGPassCompileInfo passInfo = ref m_PassCompileInfos[passIndex];
-                if (passInfo.culled) continue;
-                List<RGDrawListHandle> used = passInfo.pass.usedDrawLists;
+                if (builder.IsCulled(passIndex)) continue;
+                List<int> used = builder.GetPass(passIndex).extensionUses;
                 for (int i = 0; i < used.Count; ++i)
-                {
-                    RGDrawListHandle draws = used[i];
-                    if (m_DrawListRecords.IsLive(draws))
-                        m_DrawListRecords.MarkLiveConsumer(draws.index, passIndex);
-                }
+                    drawLists.MarkLiveConsumer(used[i], passIndex);
             }
-            m_DrawListRecords.PrepareLive(m_MeshWorld);
+            drawLists.PrepareLive(world);
         }
 
-        RGBufferHandle ImportMeshBuffer(ComputeBuffer buffer, string name, ComputeBufferType type = ComputeBufferType.Structured)
-            => ImportBuffer(new BufferHandle(-1, new BufferDescriptor(buffer.count, buffer.stride, type) { name = name }, buffer));
+        static RGBufferHandle ImportMeshBuffer(RGBuilder builder, ComputeBuffer buffer, string name, ComputeBufferType type = ComputeBufferType.Structured)
+            => builder.ImportBuffer(new BufferHandle(-1, new BufferDescriptor(buffer.count, buffer.stride, type) { name = name }, buffer));
 
         // Upload and compaction are appended here and then moved to the earliest pass whose inputs exist,
         // so they do not sit between adjacent raster passes.
-        void InsertDrawListPreparation()
+        void InsertDrawListPreparation(RGBuilder builder)
         {
-            int originalCount = m_PassList.Count;
+            int originalCount = builder.passCount;
             var prepared = m_PreparedDrawLists;
             prepared.Clear();
-            var transformVersions = m_ScheduledMeshVersions;
             for (int passIndex = 0; passIndex < originalCount; ++passIndex)
             {
-                IRGPass consumer = m_PassList[passIndex];
-                if (m_PassCompileInfos[passIndex].culled || consumer.usedDrawLists.Count == 0) continue;
+                IRGPass consumer = builder.GetPass(passIndex);
+                if (builder.IsCulled(passIndex) || consumer.extensionUses.Count == 0) continue;
                 ProfilingSampler group = consumer.customSampler;
-                if (group != null) BeginProfileRange(group);
-                foreach (RGDrawListHandle draws in consumer.usedDrawLists)
+                if (group != null) builder.BeginProfileRange(group);
+                foreach (int drawIndex in consumer.extensionUses)
                 {
-                    var record = m_DrawListRecords.GetRecordCopy(draws.index);
+                    var record = drawLists.GetRecordCopy(drawIndex);
                     var residency = record.residency;
                     if (!residency.isValid) continue;
-                    residency.version.owner.Record(this, residency.version, MeshDrawGPUBackend.shader, transformVersions);
-                    consumer.AddResourceRead(ImportBuffer(residency.TransformBuffer).handle);
-                    consumer.AddResourceRead(ImportBuffer(residency.RenderingLayerBuffer).handle);
-                    consumer.AddResourceRead(ImportBuffer(residency.version.generations).handle);
+                    residency.version.owner.Record(builder, residency.version, MeshDrawGPUBackend.shader, m_ScheduledVersions);
+                    consumer.AddResourceRead(builder.ImportBuffer(residency.TransformBuffer).handle);
+                    consumer.AddResourceRead(builder.ImportBuffer(residency.RenderingLayerBuffer).handle);
+                    consumer.AddResourceRead(builder.ImportBuffer(residency.version.generations).handle);
                     var previous = record.pass.previousTransforms.previous;
                     if (previous == null) continue;
-                    consumer.AddResourceRead(ImportBuffer(previous.matrices).handle);
-                    consumer.AddResourceRead(ImportBuffer(previous.generations).handle);
+                    consumer.AddResourceRead(builder.ImportBuffer(previous.matrices).handle);
+                    consumer.AddResourceRead(builder.ImportBuffer(previous.generations).handle);
                 }
-                foreach (RGDrawListHandle draws in consumer.usedDrawLists)
+                foreach (int drawIndex in consumer.extensionUses)
                 {
-                    if (!prepared.TryGetValue(draws.index, out RGBufferHandle[] outputs))
+                    if (!prepared.TryGetValue(drawIndex, out RGBufferHandle[] outputs))
                     {
-                        var record = m_DrawListRecords.PrepareGraphRecord(draws.index);
+                        var record = drawLists.PrepareGraphRecord(drawIndex);
                         if (record.pipeline == null) continue;
                         bool gpu = record.gpuPayload != null;
-                        RGBufferHandle metadata = gpu ? ImportMeshBuffer(record.gpuPayload.commandMeta, "MeshDrawMetadata")
-                            : record.cpuIndexBuffer.buffer != null ? ImportBuffer(record.cpuIndexBuffer) : default;
+                        RGBufferHandle metadata = gpu ? ImportMeshBuffer(builder, record.gpuPayload.commandMeta, "MeshDrawMetadata")
+                            : record.cpuIndexBuffer.buffer != null ? builder.ImportBuffer(record.cpuIndexBuffer) : default;
                         if (!metadata.IsValid())
                         {
-                            prepared.Add(draws.index, Array.Empty<RGBufferHandle>());
+                            prepared.Add(drawIndex, Array.Empty<RGBufferHandle>());
                             continue;
                         }
-                        using (RGTransferPassHandle upload = AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
+                        using (RGTransferPassHandle upload = builder.AddTransferPass<MeshDrawPreparePassData>(MeshDrawProfiling.upload))
                         {
                             upload.WriteBuffer(metadata);
                             ref MeshDrawPreparePassData data = ref upload.GetPassData<MeshDrawPreparePassData>();
-                            data.lists = m_DrawListRecords;
-                            data.index = draws.index;
+                            data.lists = drawLists;
+                            data.index = drawIndex;
                             upload.SetExecuteFunc((in MeshDrawPreparePassData data, in RGTransferEncoder commands) => data.lists.Upload(data.index, commands.m_CommandBuffer));
                         }
                         if (gpu)
                         {
-                            RGBufferHandle indices = ImportMeshBuffer(record.gpuPayload.compactedIndices, "MeshDrawCompactedIndices");
-                            RGBufferHandle counts = ImportMeshBuffer(record.gpuPayload.visibleCounts, "MeshDrawVisibleCounts");
-                            RGBufferHandle args = ImportMeshBuffer(record.gpuPayload.argsBuffer, "MeshDrawIndirectArgs", ComputeBufferType.IndirectArguments);
-                            RGBufferHandle candidates = ImportMeshBuffer(record.gpuStaging.candidateTable, "MeshDrawCandidates");
-                            RGBufferHandle transforms = ImportBuffer(record.residency.InstanceTransformIndexBuffer);
-                            using (RGComputePassHandle compact = AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
+                            RGBufferHandle indices = ImportMeshBuffer(builder, record.gpuPayload.compactedIndices, "MeshDrawCompactedIndices");
+                            RGBufferHandle counts = ImportMeshBuffer(builder, record.gpuPayload.visibleCounts, "MeshDrawVisibleCounts");
+                            RGBufferHandle args = ImportMeshBuffer(builder, record.gpuPayload.argsBuffer, "MeshDrawIndirectArgs", ComputeBufferType.IndirectArguments);
+                            RGBufferHandle candidates = ImportMeshBuffer(builder, record.gpuStaging.candidateTable, "MeshDrawCandidates");
+                            RGBufferHandle transforms = builder.ImportBuffer(record.residency.InstanceTransformIndexBuffer);
+                            using (RGComputePassHandle compact = builder.AddComputePass<MeshDrawPreparePassData>(MeshDrawProfiling.compaction))
                             {
                                 compact.ReadBuffer(metadata);
                                 compact.ReadBuffer(candidates);
@@ -236,26 +236,70 @@ namespace InfinityTech.Rendering.RenderGraph
                                 compact.WriteBuffer(counts);
                                 compact.WriteBuffer(args);
                                 ref MeshDrawPreparePassData data = ref compact.GetPassData<MeshDrawPreparePassData>();
-                                data.lists = m_DrawListRecords;
-                                data.index = draws.index;
+                                data.lists = drawLists;
+                                data.index = drawIndex;
                                 compact.SetExecuteFunc((in MeshDrawPreparePassData data, in RGComputeEncoder commands) => data.lists.Compact(data.index, commands.m_CommandBuffer));
                             }
-                            outputs = GetRecordingArray<RGBufferHandle>(2);
+                            outputs = builder.GetRecordingArray<RGBufferHandle>(2);
                             outputs[0] = indices;
                             outputs[1] = args;
                         }
                         else
                         {
-                            outputs = GetRecordingArray<RGBufferHandle>(1);
+                            outputs = builder.GetRecordingArray<RGBufferHandle>(1);
                             outputs[0] = metadata;
                         }
-                        prepared.Add(draws.index, outputs);
+                        prepared.Add(drawIndex, outputs);
                     }
                     foreach (RGBufferHandle output in outputs) consumer.AddResourceRead(output.handle);
                 }
-                if (group != null) EndProfileRange(group);
+                if (group != null) builder.EndProfileRange(group);
             }
             prepared.Clear();
         }
+    }
+
+    /// <summary>
+    /// Pass-facing mesh recording API. The calls read like render-graph members
+    /// (<c>graph.CreateDrawList</c>, <c>pass.UseDrawList</c>, <c>encoder.Draw</c>) while the render graph itself
+    /// has no dependency on the mesh pipeline.
+    /// </summary>
+    public static class MeshGraphRecording
+    {
+        /// <summary>Binds the builder to its mesh world once; the extension and its draw-list registry live as long as the builder.</summary>
+        public static void SetMeshWorld(this RGBuilder builder, MeshWorld meshWorld)
+        {
+            if (meshWorld == null) throw new ArgumentNullException(nameof(meshWorld));
+            if (builder.extension != null) throw new InvalidOperationException("This RGBuilder already owns a graph extension.");
+            builder.extension = new MeshGraphExtension(meshWorld);
+        }
+
+        public static RGDrawListHandle CreateDrawList(this RGBuilder builder, in MeshView view, MeshPassId passId)
+            => MeshGraphExtension.Of(builder).CreateDrawList(builder, view, passId);
+
+        public static void EnsureMeshGpuCull(this RGBuilder builder, in MeshView view)
+            => MeshGraphExtension.Of(builder).EnsureMeshGpuCull(builder, view, RGDrawListHandle.Invalid);
+
+        public static RGDrawListHandle UseDrawList(this RGRasterPassHandle pass, in RGDrawListHandle draws)
+        {
+            // Only a live list of this pass's own builder becomes a consumer edge.
+            if (!(pass.extension is MeshGraphExtension owner) || !owner.drawLists.IsLive(draws)) return RGDrawListHandle.Invalid;
+            MeshGraphExtension.UseDrawList(owner.drawLists, pass.pass, draws);
+            return draws;
+        }
+
+        public static void Draw(this in RGRasterEncoder encoder, in RGDrawListHandle draws)
+        {
+            // Submit rejects foreign, stale or out-of-range handles without throwing.
+            (encoder.m_Extension as MeshGraphExtension)?.drawLists.Submit(encoder.m_CommandBuffer, draws);
+        }
+
+        internal static MeshOcclusionLists RecordMeshOcclusionFirst(this RGBuilder builder, MeshView view, ComputeShader shader, MeshMotionBinding motion,
+            RGTextureHandle previousFurthest, Matrix4x4 previousProjection, int2 extent, ulong historyVersion)
+            => MeshGraphExtension.Of(builder).RecordMeshOcclusionFirst(builder, view, shader, motion, previousFurthest, previousProjection, extent, historyVersion);
+
+        internal static void RecordMeshOcclusionRecovery(this RGBuilder builder, in MeshOcclusionLists lists, ComputeShader shader, RGTextureHandle furthest,
+            Matrix4x4 projection, int2 extent)
+            => MeshGraphExtension.Of(builder).RecordMeshOcclusionRecovery(builder, lists, shader, furthest, projection, extent);
     }
 }

@@ -37,6 +37,15 @@ class StaticCheckTests(unittest.TestCase):
         static_check.check_unity_boundary(str(self.repo), out)
         self.assertEqual([], out)
 
+    def test_render_graph_must_not_reference_mesh_pipeline(self):
+        self.write('Runtime/RendererCore/RenderGraph/RGBuilder.cs', 'using InfinityTech.Rendering.MeshPipeline;\nclass RGBuilder {}')
+        self.write('Runtime/RendererCore/RenderGraph/RGPass.cs', '// InfinityTech.Rendering.MeshPipeline extends this graph.\nclass RGPass {}')
+        self.write('Runtime/RendererCore/RenderGraph/RGCompile.cs', 'namespace InfinityTech.Rendering.RenderGraph { class C { MeshPipeline.MeshView view; } }')
+        out = []
+        static_check.check_graph_dependency(str(self.repo), out)
+        self.assertEqual(['RGBuilder.cs', 'RGCompile.cs'], sorted(os.path.basename(o[2].split(':')[0]) for o in out))
+        self.assertTrue(all(o[1] == 'graphdependency' for o in out))
+
     def test_hidden_sidecar_meta_is_not_an_asset(self):
         self.write('._Deleted.cs.meta', 'AppleDouble metadata')
         out = []

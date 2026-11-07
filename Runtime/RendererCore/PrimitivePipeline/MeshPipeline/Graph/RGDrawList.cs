@@ -1,34 +1,33 @@
 using System.Collections.Generic;
-using System.Threading;
 using UnityEngine.Rendering;
 using InfinityTech.Rendering.GPUResource;
-using InfinityTech.Rendering.MeshPipeline;
+using InfinityTech.Rendering.RenderGraph;
 
-namespace InfinityTech.Rendering.RenderGraph
+namespace InfinityTech.Rendering.MeshPipeline
 {
     /// <summary>
-    /// Logical DrawList handle. Not an ERGResourceType; lives in an independent registry.
-    /// contextId binds to a registry instance; generation binds to a single graph lifetime.
+    /// Logical DrawList handle. Not an ERGResourceType; it lives in the mesh graph extension's registry.
+    /// The registry reference binds it to one builder; the generation binds it to one graph lifetime.
     /// </summary>
     public readonly struct RGDrawListHandle
     {
-        internal readonly int contextId;
+        internal readonly RGDrawListContext context;
         internal readonly int index;
         internal readonly int generation;
 
-        internal RGDrawListHandle(int contextId, int index, int generation)
+        internal RGDrawListHandle(RGDrawListContext context, int index, int generation)
         {
-            this.contextId = contextId;
+            this.context = context;
             this.index = index;
             this.generation = generation;
         }
 
         /// <summary>
-        /// Context-only validity. Generation/index match is enforced at UseDrawList / Draw / EnsureResolved.
+        /// Registry-only validity. Generation/index match is enforced at UseDrawList / Draw / EnsureResolved.
         /// </summary>
-        public bool IsValid => contextId > 0;
+        public bool IsValid => context != null;
 
-        public static RGDrawListHandle Invalid => new RGDrawListHandle(-1, 0, 0);
+        public static RGDrawListHandle Invalid => default;
     }
 
     internal enum ERGDrawListCompileState : byte
@@ -69,9 +68,6 @@ namespace InfinityTech.Rendering.RenderGraph
     /// </summary>
     internal sealed class RGDrawListContext
     {
-        private static int s_NextContextId;
-
-        private readonly int m_ContextId;
         private readonly List<RGDrawListRecord> m_Records = new List<RGDrawListRecord>(16);
         private readonly Stack<List<int>> m_ConsumerLists = new Stack<List<int>>();
 
@@ -79,18 +75,12 @@ namespace InfinityTech.Rendering.RenderGraph
         // Start at 1 so default(RGDrawListHandle) {index=0, generation=0} never matches a live graph.
         private int m_GraphGeneration = 1;
 
-        public RGDrawListContext()
-        {
-            m_ContextId = Interlocked.Increment(ref s_NextContextId);
-        }
-
         public int Count => m_Records.Count;
         public int GraphGeneration => m_GraphGeneration;
-        public int ContextId => m_ContextId;
 
         public bool IsLive(in RGDrawListHandle draws)
         {
-            return draws.contextId == m_ContextId
+            return draws.context == this
                 && draws.generation == m_GraphGeneration
                 && draws.index >= 0
                 && draws.index < m_Records.Count;
@@ -151,7 +141,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 gpuPayload = null,
                 hasSideEffect = false
             });
-            return new RGDrawListHandle(m_ContextId, index, m_GraphGeneration);
+            return new RGDrawListHandle(this, index, m_GraphGeneration);
         }
 
         public RGDrawListHandle Declare(
@@ -194,7 +184,7 @@ namespace InfinityTech.Rendering.RenderGraph
                 gpuPayload = null,
                 hasSideEffect = false
             });
-            return new RGDrawListHandle(m_ContextId, index, m_GraphGeneration);
+            return new RGDrawListHandle(this, index, m_GraphGeneration);
         }
 
         public RGDrawListRecord GetRecordCopy(int index) => m_Records[index];
@@ -414,7 +404,7 @@ namespace InfinityTech.Rendering.RenderGraph
         internal void Compact(int index, CommandBuffer commands)
         {
             var record = m_Records[index];
-            string slice = SliceSampleName(new RGDrawListHandle(m_ContextId, index, m_GraphGeneration));
+            string slice = SliceSampleName(new RGDrawListHandle(this, index, m_GraphGeneration));
             if (slice != null) commands.BeginSample(slice);
             try
             {

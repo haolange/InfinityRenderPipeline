@@ -258,6 +258,15 @@ def check_unity_boundary(repo, out):
             out.append(('ERROR', 'unityboundary', 'removed custom lighting owner remains: ' + name))
 
 
+def check_graph_dependency(repo, out):
+    # The render graph is extended by the mesh pipeline through IRGGraphExtension; it must not depend on it.
+    # Both share an assembly, so any MeshPipeline token (full, namespace-relative, alias or using static) is the dependency.
+    root = os.path.join(repo, 'Runtime/RendererCore/RenderGraph')
+    for p in all_files(root, {'.cs'}):
+        if re.search(r'\bMeshPipeline\b', without_comments(read(p))):
+            out.append(('ERROR', 'graphdependency', os.path.relpath(p, repo) + ': RenderGraph must not reference InfinityTech.Rendering.MeshPipeline'))
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--repo', default='.'); ap.add_argument('--json'); ap.add_argument('--skip', default='')
     ap.add_argument('--historical-link-receipt', help='Explicit SHA-bound missing historical links, reported individually as WARN')
@@ -265,7 +274,8 @@ def main():
     historical_links = load_historical_links(repo, a.historical_link_receipt, out) if a.historical_link_receipt else {}
     skip = set(a.skip.split(','))
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
-                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary)):
+                     ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
+                     ('graphdependency', check_graph_dependency)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)
