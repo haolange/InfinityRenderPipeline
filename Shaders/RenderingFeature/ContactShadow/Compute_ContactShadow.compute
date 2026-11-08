@@ -10,7 +10,7 @@
 #include "../../ShaderLibrary/Common.hlsl"
 #include "../../ShaderLibrary/Lighting.hlsl"
 #include "../../ShaderLibrary/Lighting/LightLoop.hlsl"
-#include "../../ShaderLibrary/Lighting/LightSourceShapes.hlsl"
+#include "../../ShaderLibrary/Lighting/LightShapes.hlsl"
 #include "../../ShaderLibrary/Random.hlsl"
 
 int ContactShadow_NumSteps;

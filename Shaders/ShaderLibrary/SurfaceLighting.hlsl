@@ -3,7 +3,7 @@
 #include "BSDF.hlsl"
 #include "ShadingModel.hlsl"
 #include "ShadowSampling.hlsl"
-#include "Lighting/LightSourceShapes.hlsl"
+#include "Lighting/LightShapes.hlsl"
 #include "Lighting/LightCookie.hlsl"
 #include "Lighting/ReflectionProbes.hlsl"
 Texture2D<float> SRV_CascadeShadowMap;

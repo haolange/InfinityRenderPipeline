@@ -63,7 +63,7 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Clustered light list: CPU depth sort, logarithmic z-bins and conservative tile rectangles, GPU tile bitmasks and
   one shared light loop (`Lighting/LightLoop.hlsl`) for Deferred, Forward, fog and clouds. Forward now uses the list
   instead of looping every local light. Contact shadows follow the sun record instead of record 0.
-- Area light shading (`Lighting/LightSourceShapes.hlsl`): Karis representative-point specular with energy normalization for
+- Area light shading (`Lighting/LightShapes.hlsl`): Karis representative-point specular with energy normalization for
   sphere, line, tube, rect, disk and sun disk; Frostbite sphere / disk form factor, Karis line irradiance and the rect
   polygon form factor for diffuse. `CreateAreaLightsValidationScene` (Window/Infinity/Create Area Lights Fixture).
 - Shadow settings on the RP Asset: cascade count 1–4, cascade blend width, shadow filter quality presets (Low..Ultra +

@@ -16,7 +16,7 @@ Texture2D SRV_GBufferB, SRV_GBufferC;
 float4 SSGI_Resolution;
 float4x4 Matrix_InvProj, Matrix_InvViewProj;
 #include "../../../Shaders/ShaderLibrary/ScreenSpaceIndirectSurface.hlsl"
-#include "../../../Shaders/ShaderLibrary/Lighting/LightSourceShapes.hlsl"
+#include "../../../Shaders/ShaderLibrary/Lighting/LightShapes.hlsl"
 
 StructuredBuffer<float4> ContractInputs;
 RWStructuredBuffer<float4> ContractResults;
