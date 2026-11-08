@@ -130,6 +130,7 @@ namespace InfinityTech.Rendering.Pipeline
             m_PreparedRotation = camera.transform.rotation;
             m_PreparedProjection = camera.projectionMatrix;
             frameIndex = m_CommittedFrames % 8;
+            if (RenderCaptureService.LockHistoryReset(camera)) frameIndex = 0;
             matrix_WorldToView = camera.worldToCameraMatrix;
             matrix_ViewToWorld = matrix_WorldToView.inverse;
             matrix_Proj = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
@@ -366,6 +367,7 @@ namespace InfinityTech.Rendering.Pipeline
                         CameraRenderPolicy renderPolicy = CameraRenderPolicy.For(camera.cameraType);
 
                         CameraFrameState frameState = GetOrCreateCameraFrameState(cameraId, out bool newlyCreated);
+                        if (RenderCaptureService.LockHistoryReset(camera)) frameState.requiresHistoryReset = true;
                         int previousLastSeen = frameState.lastSeenFrame;
                         // Non-temporal cameras (previews, probe faces) reset every frame, which also zeroes jitter.
                         bool forceHistoryReset = !renderPolicy.temporal || frameState.requiresHistoryReset

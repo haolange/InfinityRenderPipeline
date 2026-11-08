@@ -20,6 +20,9 @@ namespace InfinityTech.Rendering.Pipeline
             name == "SSRTileClass" || name == "SSRMeta" || name == "SSRTemporal" || name == "SSGIRayHit" || name == "SSGITraceRadiance" || name == "SSGITemporal" || name == "BakedDiffuse" || name == "BakedOcclusion" ||
             name == "IndirectDiffuse" || name == "IndirectSpecular" || name == "HalfResDepth" || name == "HalfResNormal" || name == "VolumetricCloud";
 
+        internal static bool LockHistoryReset(Camera camera) =>
+            current != null && !current.Finished && current.request.lockHistoryReset && current.request.Matches(camera);
+
         internal static bool HasBackendOverride(Camera camera) =>
             (VisualLightingValidation.current != null && VisualLightingValidation.current.OwnsCamera(camera))
             || (current != null && !current.Finished && current.request.Matches(camera));
