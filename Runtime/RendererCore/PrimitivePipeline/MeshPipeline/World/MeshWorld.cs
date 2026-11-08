@@ -69,6 +69,7 @@ namespace InfinityTech.Rendering.MeshPipeline
         public readonly MeshWorldStats stats = new MeshWorldStats();
 
         public int entityCount => m_Entities.LiveCount;
+        public int allocatedGpuViewCount => m_GpuVisibility.allocatedViewCount;
         public int elementCount => m_Elements.LiveCount;
         public int sectionCount => m_Sections.LiveCount;
         public int materialCount => m_Materials.LiveCount;

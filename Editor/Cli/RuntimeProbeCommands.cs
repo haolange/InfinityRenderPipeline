@@ -25,6 +25,8 @@ namespace InfinityTech.Rendering.Editor
         public bool castShadow = true;
         public float spacing = 1.5f;
         public int warmupFrames = 32;
+        public bool moveCamera;
+        public float cameraPathRadius = 3.0f;
         public float[] windowsSeconds = { 5.0f, 20.0f, 60.0f };
     }
 
@@ -43,7 +45,7 @@ namespace InfinityTech.Rendering.Editor
         public long monoUsedBytes, monoHeapBytes, totalAllocatedBytes, totalReservedBytes, graphicsDriverBytes;
         public long poolTextureAllocatedBytes, poolTextureIdleBytes, poolTextureRetiredBytes, poolBufferAllocatedBytes, poolBufferIdleBytes, poolBufferRetiredBytes;
         public int gcGen0, gcGen1, gcGen2;
-        public int meshEntities, meshElements;
+        public int meshEntities, meshElements, allocatedViewCount;
         public string actualBackend;
     }
 
@@ -99,6 +101,8 @@ namespace InfinityTech.Rendering.Editor
         internal readonly RuntimeProbeEvidence evidence;
         readonly RuntimeProbeRequest m_Request;
         readonly Camera m_Camera;
+        readonly Vector3 m_CameraPosition;
+        readonly Quaternion m_CameraRotation;
         readonly List<UnityEngine.Object> m_Owned = new List<UnityEngine.Object>();
         readonly List<Transform> m_Moving = new List<Transform>();
         readonly List<Vector3> m_BasePositions = new List<Vector3>();
@@ -123,8 +127,10 @@ namespace InfinityTech.Rendering.Editor
                 throw new ArgumentException("A new absolute outputDirectory is required.");
             if (request.count < 0 || request.movingRatio < 0 || request.movingRatio > 1 || request.translucentRatio < 0 || request.translucentRatio > 1)
                 throw new ArgumentException("count must be non-negative and the ratios must lie in [0, 1].");
-            if (request.windowsSeconds == null || request.windowsSeconds.Length == 0 || request.windowsSeconds[0] <= 0 || request.windowsSeconds.Last() > 60.0f)
-                throw new ArgumentException("windowsSeconds must be positive, ascending and end at or before 60 seconds.");
+            if (request.windowsSeconds == null || request.windowsSeconds.Length == 0 || request.windowsSeconds[0] <= 0 || request.windowsSeconds.Last() > 180.0f)
+                throw new ArgumentException("windowsSeconds must be positive, ascending and end at or before 180 seconds.");
+            if (request.moveCamera && request.cameraPathRadius <= 0.0f)
+                throw new ArgumentException("cameraPathRadius must be positive when the camera moves.");
             float longest = request.windowsSeconds[0];
             for (int i = 1; i < request.windowsSeconds.Length; ++i)
             {
@@ -135,6 +141,8 @@ namespace InfinityTech.Rendering.Editor
             if (matches.Length != 1) throw new InvalidOperationException("Select exactly one active Game camera by exact name.");
             m_Request = request;
             m_Camera = matches[0];
+            m_CameraPosition = m_Camera.transform.position;
+            m_CameraRotation = m_Camera.transform.rotation;
             evidence = new RuntimeProbeEvidence
             {
                 request = request, unity = Application.unityVersion, api = SystemInfo.graphicsDeviceType.ToString(),
@@ -242,6 +250,13 @@ namespace InfinityTech.Rendering.Editor
                 float offset = Mathf.Sin(phase * 2.0f + i * 0.37f) * 0.5f;
                 m_Moving[i].position = m_BasePositions[i] + new Vector3(0.0f, offset, 0.0f);
             }
+            if (!m_Request.moveCamera || m_Camera == null) return;
+            float angle = phase * 0.35f;
+            Vector3 right = m_CameraRotation * Vector3.right;
+            Vector3 forward = m_CameraRotation * Vector3.forward;
+            m_Camera.transform.SetPositionAndRotation(
+                m_CameraPosition + (right * Mathf.Sin(angle) + forward * Mathf.Cos(angle)) * m_Request.cameraPathRadius,
+                m_CameraRotation);
         }
 
         void CloseWindow()
@@ -266,7 +281,7 @@ namespace InfinityTech.Rendering.Editor
                 gcGen0 = GC.CollectionCount(0), gcGen1 = GC.CollectionCount(1), gcGen2 = GC.CollectionCount(2),
                 actualBackend = InfinityDebugDisplaySettings.current.mesh.actualBackend.ToString(),
             };
-            RuntimeProbeContent.ReadMeshState(pipeline, out window.meshEntities, out window.meshElements);
+            RuntimeProbeContent.ReadMeshState(pipeline, out window.meshEntities, out window.meshElements, out window.allocatedViewCount);
             evidence.windows.Add(window);
             m_WindowSamples = 0;
             if (++m_WindowIndex == m_Request.windowsSeconds.Length) Stop("Completed");
@@ -301,6 +316,7 @@ namespace InfinityTech.Rendering.Editor
             {
                 for (int i = m_Owned.Count - 1; i >= 0; --i)
                     if (m_Owned[i] != null) UnityEngine.Object.Destroy(m_Owned[i]);
+                if (m_Camera != null) m_Camera.transform.SetPositionAndRotation(m_CameraPosition, m_CameraRotation);
             }
             catch (Exception cleanup) { evidence.error += "\nCleanup: " + cleanup; }
             m_Owned.Clear();
