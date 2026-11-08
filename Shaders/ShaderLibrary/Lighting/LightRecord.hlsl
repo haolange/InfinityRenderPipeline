@@ -1,6 +1,6 @@
 #ifndef INFINITY_LIGHT_RECORD
 #define INFINITY_LIGHT_RECORD
-// Light record v2. Must match C# LightRecord (Runtime/RendererCore/LightPipeline/LightElement.cs, GPU-RECORD marker).
+// Light record. Must match C# LightRecord (Runtime/RendererCore/LightPipeline/LightElement.cs, GPU-RECORD marker).
 // There is no shape enum: a shape is a combination of flags and shape parameters.
 //   directional                       LIGHT_FLAG_DIRECTIONAL; shape.w = tan(sun half angle)
 //   punctual / sphere / line / tube   no spot or planar flag; shape.x = radius, shape.z = length along right

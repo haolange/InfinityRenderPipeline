@@ -62,14 +62,16 @@ Editor load and script reload never migrate, rebuild, delete or save user assets
 |---|---|---|
 | Namespace | `InfinityTech.<Domain>[.<Sub>][.Editor]` | `InfinityTech.Rendering.MeshPipeline` |
 | Enum | `E` prefix | `EPassType`, `EMeshDrawBackendPolicy` |
-| Geometry or GPU record | `F` prefix | `BoundingBox`, `PlaneEquation`, `LightRecord` |
-| Handle | `Handle` suffix, no `F` | `TextureHandle`, `RGMeshDrawListHandle`, `ObjectHandle<T>` |
+| GPU record | Same name in C# and HLSL, tagged `GPU-RECORD` | `LightRecord`, `BoundingBox` |
+| Handle | `Handle` suffix | `TextureHandle`, `RGMeshDrawListHandle`, `ObjectHandle<T>` |
 | Render-graph type | `RG` prefix | `RGBuilder`, `RGRasterPassHandle` |
 | Job | `*Job` suffix | `MeshInstanceCullingJob` |
 | Private instance field | `m_` + PascalCase | `m_RGBuilder` |
 | Static readonly | `s_` prefix | `s_Shader` |
 | Shader property IDs | `ID_` or a name on `InfinityShaderIDs` | `TransformBuffer` |
 | Shader bindings | `SRV_` / `UAV_` / `CBV_` | `SRV_DepthTexture` |
+
+Names say what a type holds or does. Do not borrow a type prefix from another engine. On a collision, choose a more descriptive name; never add a prefix or a number. No generation version in a name, a file or a document title. `Version` and `Revision` name a data snapshot. Acronyms stay uppercase in type and method names, and a camelCase identifier that starts with an acronym lowercases the whole acronym. A verb is not repeated in one name, and an ordinal does not stand in for meaning. Mesh drawing is `MeshDrawListDesc` then `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`: the list holds `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s. `Draw` alone is a verb, never a noun prefix.
 
 Extend `InfinityRenderPipeline` only through partial files under `Runtime/RenderPipeline/Pass/<domain>/`. Volume components live in `Runtime/Volume/<domain>/`. A pass file holds an `XxxPassData` struct, an optional `XxxPassUtilityData`, and the pipeline method. Prefer `#region` in Editor inspectors and avoid it on hot runtime paths. One primary type per file unless a pass or feature group is clearer together.
 

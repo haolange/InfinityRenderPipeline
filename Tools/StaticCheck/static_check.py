@@ -407,6 +407,53 @@ def check_find_property(repo, out):
 DITHERED_MESH_PASSES = ('RasterShadowPass', 'RasterDepthPass', 'RasterGBufferPass', 'RasterForwardPass', 'RasterMotionPass')
 
 
+F_DECL = re.compile(r'\b(?:struct|class|enum|interface)\s+(F[A-Z]\w*)')
+GEN_TYPE = re.compile(r'\b(?:struct|class|enum|interface)\s+(\w*V\d+)\b')
+GEN_FILE = re.compile(r'(?i)(?:^|/)[^/]*V\d+\.[A-Za-z0-9]+$')
+GEN_DOC = re.compile(r'(?i)^(?:#{1,6}\s+.*|\|.*)\bv\d+\b')
+
+
+def generation_skipped(rel):
+    return rel.startswith('Docs/History/') or rel.startswith('Documentation~/Evidence/') or rel.endswith('ACES.hlsl')
+
+
+def changelog_unreleased(text):
+    start = text.find('## [0.5.0]')
+    if start < 0: return ''
+    end = text.find('\n## [', start + 4)
+    return text[start:end if end > 0 else len(text)]
+
+
+def check_fprefix(repo, out):
+    roots = ('Runtime', 'Editor', 'Shaders', 'Tests', 'Tools')
+    for root_name in roots:
+        root = os.path.join(repo, root_name)
+        for path in all_files(root, {'.cs', '.hlsl', '.shader', '.compute'}):
+            rel = os.path.relpath(path, repo)
+            for match in F_DECL.finditer(read(path)):
+                out.append(('ERROR', 'fprefix', f'{rel}: {match.group(1)}'))
+
+
+def check_generationname(repo, out):
+    for dirpath, dirnames, filenames in os.walk(repo):
+        dirnames[:] = [name for name in dirnames if name not in IGNORED_DIRS and not name.endswith('~') and not name.startswith('.')]
+        for name in filenames:
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, repo)
+            if generation_skipped(rel): continue
+            if GEN_FILE.search(rel):
+                out.append(('ERROR', 'generationname', f'{rel}: file name ends in a generation version'))
+            if name.endswith(('.cs', '.hlsl', '.shader', '.compute')):
+                for match in GEN_TYPE.finditer(read(path)):
+                    out.append(('ERROR', 'generationname', f'{rel}: {match.group(1)}'))
+            if name.endswith('.md') and not generation_skipped(rel):
+                text = read(path)
+                if rel == 'CHANGELOG.md': text = changelog_unreleased(text)
+                for line in text.splitlines():
+                    if GEN_DOC.search(line) and not re.search(r'\b\d+\.\d+\.\d+\b', line):
+                        out.append(('ERROR', 'generationname', f'{rel}: {line.strip()[:160]}'))
+
+
 def check_lod_dither(repo, out):
     # Opaque mesh passes cross-fade LOD transitions; translucent passes draw the stable level only.
     for p in all_files(os.path.join(repo, 'Shaders'), {'.shader'}):
@@ -430,7 +477,8 @@ def main():
     for name, fn in (('meta', check_meta), ('kernels', check_kernels), ('respath', check_respath), ('lightmode', check_lightmode),
                      ('links', check_links), ('records', check_records), ('sgstrings', check_sgstrings), ('textureviews', check_texture_views), ('unityboundary', check_unity_boundary),
                      ('graphdependency', check_graph_dependency), ('meshbindings', check_mesh_bindings), ('meshsubmit', check_mesh_submit),
-                     ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither)):
+                     ('meshpasses', check_mesh_passes), ('findproperty', check_find_property), ('lodither', check_lod_dither),
+                     ('fprefix', check_fprefix), ('generationname', check_generationname)):
         if name not in skip:
             if name == 'links': fn(repo, out, historical_links)
             else: fn(repo, out)

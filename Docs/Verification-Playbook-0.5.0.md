@@ -201,7 +201,7 @@ still fails. Retain the original failed check; these missing historical images a
    independently of replacement feature flags; a later delegate replacement is preserved. Use task-owned sentinels,
    never a user's baking callback as the negative control.
 
-## S7 — clustered light list v2
+## S7 — clustered light list
 
 1. Compile; run `LightBinningTests`, `LightResourceLifetimeTests`, `LightRecordTests`. GlobalSettings → RuntimeShaders
    shows `Light Tile Mask Shader` filled (the old `Z Binning Shader` slot is gone).

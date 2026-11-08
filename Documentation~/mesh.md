@@ -2,6 +2,8 @@
 
 `MeshComponent` objects are drawn by the pipeline's own mesh path instead of Unity renderer lists. Native `MeshRenderer`, `SkinnedMeshRenderer`, terrain and particles keep Unity culling and renderer lists, including lightmaps and light probes. The implementation is [ARCHITECTURE.md §7](../ARCHITECTURE.md#7-mesh-drawing-pipeline).
 
+A pass records `new MeshDrawListDesc(view, InfinityPassIDs.RasterGBufferPass)` with `CreateMeshDrawList`, consumes it with `UseMeshDrawList`, and submits it with `SubmitMeshDrawList`. The list is `MeshDrawCall`s merged from `MeshDrawInstance`s of cached `MeshDrawCommand`s. The world creates the nine pass caches with itself.
+
 ## Authoring
 
 1. Create a `MeshAsset` (Assets > Create > Rendering > Infinity > Static Mesh Asset), or build one from a prefab with Assets > AssetActions > Primitive > BuildMeshAssetFromPrefab. The prefab needs a `LODGroup` whose levels each hold one renderer at the prefab root's transform and no renderer outside the levels, or a `MeshFilter` with a `MeshRenderer` on the root and no other renderer. Other prefabs are rejected with the reason, because a level is one mesh drawn in the component's space.

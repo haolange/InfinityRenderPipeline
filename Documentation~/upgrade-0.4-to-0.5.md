@@ -24,4 +24,7 @@
   the material at its slot.
 - **MeshComponent scripts**: `MeshAsset` is a `MeshAsset` instead of a `Mesh`, `EStateType` is `EMeshMobility`, and
   `NotifyInstanceChanged` is `NotifyEntityChanged`. `NotifyGeometryChanged(Mesh)` re-reads every MeshAsset that draws
-  the mesh.
+  the mesh. Passes record `MeshDrawListDesc` through `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`.
+  GPU records use the same name in C# and HLSL. Colliding types are `BoundingBox`, `MinMaxBox`, `PlaneEquation`,
+  `RenderTaskQueue` and `LightSourceShape`. Settings structs are `SSRSettings` and `FrameSettings`. A serialized field
+  keeps its name. The unused sphere type and the sort factory are removed.

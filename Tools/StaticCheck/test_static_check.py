@@ -206,6 +206,39 @@ Tags { "LightMode" = "UnknownPass" }
         static_check.check_links(str(alias), out, accepted)
         self.assertEqual(['WARN', 'ERROR'], [item[0] for item in out])
 
+    def test_fprefix_rejects_an_engine_style_type_name(self):
+        self.write('Runtime/Geom.cs', 'public struct FBound { public float x; }\n')
+        out = []
+        static_check.check_fprefix(str(self.repo), out)
+        self.assertEqual(1, len(out))
+        self.assertIn('FBound', out[0][2])
+
+    def test_fprefix_allows_a_descriptive_name(self):
+        self.write('Runtime/Geom.cs', 'public struct BoundingBox { public float x; }\nfloat v0 = 0;\n')
+        out = []
+        static_check.check_fprefix(str(self.repo), out)
+        self.assertEqual([], out)
+
+    def test_generationname_rejects_a_versioned_type_file_and_heading(self):
+        self.write('Runtime/ListV2.cs', 'public struct RecordV2 { }\n')
+        self.write('Docs/Feature.md', '# Clustered light list v2\n| Light record v2 | yes |\n')
+        out = []
+        static_check.check_generationname(str(self.repo), out)
+        messages = [item[2] for item in out]
+        self.assertTrue(any('RecordV2' in message for message in messages))
+        self.assertTrue(any('ListV2.cs' in message for message in messages))
+        self.assertTrue(any('light list v2' in message for message in messages))
+
+    def test_generationname_keeps_data_locals_history_and_semver(self):
+        self.write('Shaders/ACES.hlsl', 'struct LegacyV2 { }\n')
+        self.write('Docs/History/Old.md', '# Pipeline v2\n')
+        self.write('Runtime/Math.cs', 'float v0 = 1; float4 color; float uv0;\n')
+        self.write('CHANGELOG.md', '## [0.5.0] - Unreleased\n## [0.4.0]\n# Kept v2 in a released section\n')
+        self.write('Docs/Note.md', 'committed v1 then queued v2 is a data snapshot.\n')
+        out = []
+        static_check.check_generationname(str(self.repo), out)
+        self.assertEqual([], out)
+
     def test_historical_receipt_rejects_source_outside_repository(self):
         self.write('.receipt.json', json.dumps([{'path': '../outside.md', 'sha256': '', 'links': [], 'reason': 'no'}]))
         out = []

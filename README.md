@@ -28,6 +28,7 @@ Assign an `InfinityRenderPipelineAsset` under Project Settings > Graphics and Qu
 
 Recording follows `InfinityRenderPipeline.Render`. Each producer runs only when its frame feature, volume activity and required resources allow it. The dependency order is specified in [ARCHITECTURE.md](ARCHITECTURE.md).
 
+- Mesh drawing through `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`, with nine pass caches owned by the mesh world
 - Deferred shading from a thin GBuffer, plus a forward surface route
 - One clustered light list: 128 logarithmic depth bins and 16×16 screen tiles, shared by deferred shading, forward shading, volumetric fog and volumetric clouds
 - Analytic light shapes on `InfinityAdditionalLightData`: point, sphere, line, tube, cone, pyramid and box spots, rectangle, disk and a directional sun disk. Specular uses a representative point on the emitter with energy normalization. Diffuse uses a horizon-clipped form factor for spheres and disks, line irradiance for lines and tubes, and a polygon form factor for rectangles

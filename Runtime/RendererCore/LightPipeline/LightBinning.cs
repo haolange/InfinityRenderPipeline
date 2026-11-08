@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace InfinityTech.Rendering.LightPipeline
 {
-    // Clustered light list v2 (Forward+ style). Local lights are sorted by view depth on the CPU; each logarithmic depth
+    // Clustered light list (Forward+ style). Local lights are sorted by view depth on the CPU; each logarithmic depth
     // bin stores the [min, max] range of sorted local indices whose depth range overlaps it; each 16x16 screen tile
     // stores a bitmask of the local lights whose screen rectangle covers it (built on the GPU from the CPU rectangles).
     // A pixel visits the bits of its tile mask that fall inside its bin's index range.

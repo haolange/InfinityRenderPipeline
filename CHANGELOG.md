@@ -21,7 +21,8 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Screen-space reflection and indirect diffuse no longer take a world-space maximum distance. Rays end at the near plane, the far plane or the screen edge. Hi-Z walks closest and furthest depth. Rough reflection tiles use a 2D march plus binary search. Trace-behind and toward-camera are one uniform flag. Indirect diffuse samples full-resolution previous color, keeps LDS compaction, and can select the 2D march with `SSGI_TRACE_LINEAR`. Intensity Scale reaches 10. The environment BRDF in the composite is the same approximation deferred shading uses.
 - Inactive RTAO no longer initializes or rebuilds URT geometry while Mesh transforms move; the existing request/capability gates remain authoritative.
 - Baked-lighting validation uses BlendProbes instead of creating the deprecated LPPV component.
-- Mesh drawing pipeline v2. `MeshWorld`, one per render context, owns entity, element, section and material slot tables with generation-checked ids and one undo transaction per frame; poses are written outside transactions, dynamic poses by Burst jobs. Nine interned pass presets keep membership and commands incrementally. Passes record with `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList` through a render-graph extension, and the render graph no longer depends on the mesh pipeline.
+- Mesh drawing pipeline. `MeshWorld`, one per render context, owns entity, element, section and material slot tables with generation-checked ids and one undo transaction per frame; poses are written outside transactions, dynamic poses by Burst jobs. The world owns nine pass caches from construction. Passes record with `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList` through a render-graph extension, and the render graph no longer depends on the mesh pipeline.
+- Public mesh recording is `MeshDrawListDesc` (`MeshView`, `ShaderTagId`) then `CreateMeshDrawList`, `UseMeshDrawList` and `SubmitMeshDrawList`. GPU records use the same name in C# and HLSL. `BoundingBox`, `MinMaxBox`, `PlaneEquation`, `RenderTaskQueue` and `LightSourceShape` are the names that would otherwise collide.
 - CPU direct gathers, sorts (State, FrontToBack with saturated key segments, BackToFront) and merges in Burst jobs and issues one instanced draw per run. GPU indirect runs one compute producer per draw list and issues one indirect draw per command and range in state order. Command batching and the CPU overflow fallback are removed.
 - Translucent MeshComponents draw in the translucent depth pass (front to back) and the T0/T1/T2 passes (back to front, CPU backend), before the native renderer list of each pass.
 - Static MeshComponents no longer poll their transform every frame. Editor edits notify them through Undo and hierarchy events; scripts call `NotifyEntityChanged` after moving a static object.
@@ -58,8 +59,8 @@ Verification state is recorded in [Docs/FeatureStatus.md](Docs/FeatureStatus.md)
 - Light shapes in Unreal form on `InfinityAdditionalLightData` (directional sun angle; point sphere / line / tube; cone,
   pyramid and box spots; rect with barn doors; disk) with the native Light fields derived on edit, a lightmapper
   delegate that bakes the same shapes, per-light shadow filter selection and Maximum Distance culling with fade.
-- Light record v2 (`Shaders/ShaderLibrary/Lighting/LightRecord.hlsl`): no shape enum, shapes are flags plus parameters.
-- Clustered light list v2: CPU depth sort, logarithmic z-bins and conservative tile rectangles, GPU tile bitmasks and
+- Light record (`Shaders/ShaderLibrary/Lighting/LightRecord.hlsl`): no shape enum, shapes are flags plus parameters.
+- Clustered light list: CPU depth sort, logarithmic z-bins and conservative tile rectangles, GPU tile bitmasks and
   one shared light loop (`Lighting/LightLoop.hlsl`) for Deferred, Forward, fog and clouds. Forward now uses the list
   instead of looping every local light. Contact shadows follow the sun record instead of record 0.
 - Area light shading (`Lighting/LightSourceShapes.hlsl`): Karis representative-point specular with energy normalization for
